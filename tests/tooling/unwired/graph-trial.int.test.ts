@@ -14,6 +14,8 @@ const SHAPE = `${GRAPH_SOURCE}/shape.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
 
+const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
+
 const outcomes = (report: TrialReport): readonly (readonly string[])[] =>
   report.trials.map(({ label, verdict, removed }) => [label, verdict, ...removed.map(({ file, text }) => `${file}: ${text.trim()}`)]);
 
@@ -36,18 +38,23 @@ test("a delete removes a whole interface member, class member or literal method 
           "  written = 3;",
           "}",
           "export const table = { first(): number { return 1; }, middle(): number { return 2; }, last(): number { return 3; } };",
+          // An error the base already has, after both literal cuts: it matches only if the cuts' shifts are counted once.
+          'export const broken: number = "x";',
         ].join("\n"),
       },
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, ["member-untouched", "member-write-only"], () => undefined);
+  const lines: string[] = [];
+  const report = await trialGraph(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, (line) => lines.push(line));
   expect(outcomes(report)).toEqual([
     [`${LIB}:Shape.gone`, "confirmed", `${LIB}: readonly gone?: string;`],
     [`${LIB}:table.middle`, "confirmed", `${LIB}: middle(): number { return 2; },`],
     [`${LIB}:table.last`, "confirmed", `${LIB}: , last(): number { return 3; }`],
     [`${LIB}:Box.written`, "confirmed", `${LIB}: written = 3;`],
   ]);
+  // One file, one snapshot: the two literal neighbours share the comma between them.
+  expect(progress(lines)).toMatch(/ snapshots 1 /u);
 });
 
 test("a delete removes a dead exported function's whole statement", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -60,7 +67,7 @@ test("a delete removes a dead exported function's whole statement", { timeout: 1
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, ["dead"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(outcomes(report)).toEqual([[`${LIB}:orphan`, "confirmed", `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
 });
 
@@ -86,7 +93,7 @@ test.for([
   },
 ])("a dead function named by $site is confirmed with that site removed too", { timeout: 120_000 }, async ({ files, removed }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trialGraph(root, ["dead"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, "confirmed", ...removed]]);
 });
 
@@ -100,7 +107,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, ["dead"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:orphan`, "named-only", [`${MAIN}:1 binding`]],
   ]);
@@ -109,7 +116,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
 // A for-of binding is a declaration no delete can remove alone: cutting its name leaves a loop that does not parse.
 test("a delete that leaves its file unparsable is unresolved, with the edit it tried", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree({ [MAIN]: ["for (const spare of [1]) {", "}"].join("\n") }, { entries: [MAIN] }));
-  const report = await trialGraph(root, ["dead"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(
     report.trials.map(({ label, verdict, removed, note }) => [
       label,
@@ -139,12 +146,97 @@ test.for([
   { timeout: 120_000 },
   async ({ lib }, { plantedTree }) => {
     const root = await plantedTree(graphTree(READER_TREE(lib), { entries: [MAIN] }));
-    const report = await trialGraph(root, ["type-only"], () => undefined);
+    const report = await trialGraph(root, { buckets: ["type-only"], limit: null }, () => undefined);
     expect(
       report.trials.map(({ label, verdict, checked, errors }) => ({ label, verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
     ).toEqual([{ label: `${LIB}:DEFAULTS`, verdict: "refuted", checked: [LIB, MAIN, SHAPE], errors: [`${SHAPE}:3 read`] }]);
   },
 );
+
+// One file's candidates are deleted in one snapshot; each added error goes to the candidate its site resolves to.
+
+test("candidates of one file are deleted together and the refutation lands on the candidate its reader names", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  // main keeps one export of lib alive, so deleting both candidates still leaves lib a module.
+  const tree = {
+    ...READER_TREE(["export const DEFAULTS = { a: 1 };", "export const orphan = (): number => 2;", "export const kept = 3;"].join("\n")),
+    [MAIN]: [
+      'import type { Shape } from "./shape.ts";',
+      'import { kept } from "./lib.ts";',
+      "const use = (value: number): number => value;",
+      "const shape: Shape = { a: kept };",
+      "use(shape.a);",
+    ].join("\n"),
+  };
+  const root = await plantedTree(graphTree(tree, { entries: [MAIN] }));
+  const lines: string[] = [];
+  const report = await trialGraph(root, { buckets: ["type-only", "dead"], limit: null }, (line) => lines.push(line));
+  expect(report.trials.filter(({ label }) => label.startsWith(LIB)).map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at }) => at)])).toEqual([
+    [`${LIB}:DEFAULTS`, "refuted", [`${SHAPE}:3`]],
+    [`${LIB}:orphan`, "confirmed", []],
+  ]);
+  // lib's group, orphan again without the refuted DEFAULTS, and other.ts: no split, which would take four.
+  expect(progress(lines)).toMatch(/ snapshots 3 /u);
+});
+
+// The checker reports one excess property per literal, so the second member's write shows only once the first is settled.
+test("two write-only members of one literal each keep their own write, the masked one from a second snapshot", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "export interface A { readonly x: string; readonly a: string; readonly b: string }",
+        "export const made: A = {",
+        '  x: "1",',
+        '  a: "1",',
+        '  b: "1",',
+        "};",
+        "export const xOf = (value: A): string => value.x;",
+      ].join("\n"),
+    }),
+  );
+  const lines: string[] = [];
+  const report = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => lines.push(line));
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
+    [`${LIB}:A.a`, "named-only", [`${LIB}:4 write`]],
+    [`${LIB}:A.b`, "named-only", [`${LIB}:5 write`]],
+  ]);
+  expect(progress(lines)).toMatch(/^trial groups 1\/1 candidates 2\/2 snapshots 2 /u);
+});
+
+// Deleting both exports leaves the module empty, and that error sits on the module, which neither owns: the group splits.
+test("an error no single candidate owns splits the group, and each half finds its own", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [MAIN]: ['import { one, two } from "./lib.ts";', "const run = (): number => 1;", "run();"].join("\n"),
+        [LIB]: ["export const one = 1;", "export const two = 2;"].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const lines: string[] = [];
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, (line) => lines.push(line));
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(LIB))
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:one`, "named-only", [`${MAIN}:1 TS2305 binding`]],
+    [`${LIB}:two`, "named-only", [`${MAIN}:1 TS2305 binding`]],
+  ]);
+  expect(progress(lines)).toMatch(/ snapshots 3 /u);
+});
+
+test("--limit trials an even sample of the findings it names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({ [MAIN]: "export {};", [LIB]: ["const one = 1;", "const two = 2;", "const three = 3;", "const four = 4;"].join("\n") }, { entries: [MAIN] }),
+  );
+  const report = await trialGraph(root, { buckets: ["dead"], limit: 2 }, () => undefined);
+  expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
+});
 
 test("pnpm unwired graph-trial takes each --bucket, prints each refuting error and tallies every bucket and the control", { timeout: 120_000 }, async ({
   plantedTree,
@@ -185,7 +277,7 @@ test("an error the base program already has is not the removal's", { timeout: 12
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, ["dead"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label === `${LIB}:orphan`).map(({ verdict, errors }) => [verdict, errors])).toEqual([["confirmed", []]]);
 });
 
@@ -199,7 +291,7 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
       ].join("\n"),
     }),
   );
-  const report = await trialGraph(root, ["member-write-only"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, "named-only", [`${LIB}:2 write`]],
   ]);
@@ -227,7 +319,7 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, ["dead"], () => undefined);
+  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(report.control.map(({ side, at, name, graph }) => [side, at, name, graph].join(" ")).sort((a, b) => a.localeCompare(b))).toEqual([
     `agree ${LIB}:1 unusedHelper dead`,
     `agree ${LIB}:4 #spare member-write-only`,

@@ -218,15 +218,15 @@ export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FR
 }
 
 /** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
- *  unused-diagnostics control (./trial.ts). */
+ *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them. */
 export function trialGraph(
   root: string,
-  buckets: readonly TrialBucket[],
+  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null },
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<TrialReport>> {
   return session(root, log, options, (work) => {
     const analysis = work.time("analyse", () => analyse(work.graph));
-    return runTrials(work.graph, work.world(), { root, analysis, buckets }, log);
+    return runTrials(work.graph, work.world(), { root, analysis, ...ask }, log);
   });
 }

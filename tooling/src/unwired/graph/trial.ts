@@ -12,7 +12,7 @@
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
 import { relative } from "node:path";
-import type { Declaration, Node, SourceFile } from "@typescript/native/ast";
+import type { Declaration, Expression, Node, SourceFile } from "@typescript/native/ast";
 import {
   getCombinedModifierFlags,
   isClassDeclaration,
@@ -24,10 +24,13 @@ import {
   isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
+  isMethodDeclaration,
   isNamedExports,
   isNamespaceImport,
   isObjectLiteralExpression,
   isPrivateIdentifier,
+  isPropertyAssignment,
+  isShorthandPropertyAssignment,
   isSourceFile,
   isTypeLiteralNode,
   isVariableDeclaration,
@@ -40,16 +43,16 @@ import type { Diagnostic } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { NativeWorld } from "../native.ts";
-import { hasFlag } from "../native.ts";
+import { hasFlag, propertiesNamed } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
-import { declKeyParts, Resolver } from "./resolve.ts";
+import { declKeyParts, keyText, Resolver } from "./resolve.ts";
 import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
-import { nodeAt } from "./verify.ts";
+import { evenSample, nodeAt } from "./verify.ts";
 
 /** The buckets whose findings name a declaration a delete can remove. */
 export const TRIAL_BUCKETS = [
@@ -122,8 +125,6 @@ export interface TrialReport {
 const EXCESS_PROPERTY = 2353;
 const EXCESS_PROPERTY_SUGGESTED = 2561;
 const WRITE_CODES: ReadonlySet<number> = new Set([EXCESS_PROPERTY, EXCESS_PROPERTY_SUGGESTED]);
-// A trial logs its progress every this many candidates.
-const PROGRESS_EVERY = 50;
 
 const sameSpan = (a: Node, b: Node): boolean => a.pos === b.pos && a.end === b.end && a.kind === b.kind;
 
@@ -219,6 +220,66 @@ const firstLine = (text: string): string => text.split("\n")[0] ?? text;
 // The edits a delete makes, by repository-relative file.
 type Edits = ReadonlyMap<string, readonly Splice[]>;
 
+// One finding ready to trial: its bucket, its declaration's key and the edits that delete it.
+interface Candidate {
+  readonly bucket: TrialBucket;
+  readonly finding: Finding;
+  readonly key: DeclKey;
+  readonly edits: Edits;
+}
+
+// An added error no single candidate of its group owns.
+const UNOWNED = -1;
+const MS_PER_MINUTE = 60_000;
+// The rate a progress line divides by never starts below this, so the first group does not print a huge rate.
+const MIN_MINUTES = 1 / 60;
+
+const unresolvedTrial = ({ bucket, finding }: { readonly bucket: TrialBucket; readonly finding: Finding }, note: string): Trial => ({
+  bucket,
+  label: finding.label,
+  verdict: "unresolved",
+  removed: [],
+  checked: [],
+  errors: [],
+  note,
+});
+
+// Each file's splices from several deletes, overlapping ones joined: two neighbours in a comma list each take the comma
+// between them.
+function mergeEdits(all: readonly Edits[]): Edits {
+  const byFile = new Map<string, Splice[]>();
+  for (const [file, splices] of all.flatMap((edits) => [...edits])) {
+    byFile.set(file, [...(byFile.get(file) ?? []), ...splices]);
+  }
+  return new Map(
+    [...byFile].map(([file, splices]) => {
+      const joined: Splice[] = [];
+      for (const splice of splices.toSorted((a, b) => a.start - b.start)) {
+        const last = joined.at(-1);
+        if (last !== undefined && splice.start < last.end) {
+          joined[joined.length - 1] = { start: last.start, end: Math.max(last.end, splice.end), text: "" };
+        } else {
+          joined.push(splice);
+        }
+      }
+      return [file, joined];
+    }),
+  );
+}
+
+// An object literal's key a site names, with the literal, so the key's member is found through the literal's
+// contextual type.
+function literalKey(site: Node): { readonly literal: Expression; readonly name: string } | undefined {
+  const { parent } = site;
+  const holder = parent.parent;
+  const name = keyText(site);
+  const isKey = (isPropertyAssignment(parent) || isShorthandPropertyAssignment(parent) || isMethodDeclaration(parent)) && sameSpan(parent.name, site);
+  return isKey && name !== undefined && isObjectLiteralExpression(holder) ? { literal: holder, name } : undefined;
+}
+
+// A declaration a module can export: a statement of its file, or a variable of one.
+const isTopLevel = (node: Node): boolean => isSourceFile(node.parent) || (isVariableDeclarationList(node.parent) && isSourceFile(node.parent.parent.parent));
+
 /** The trial session over one built graph and its world. */
 class Trials {
   readonly #graph: Graph;
@@ -285,30 +346,53 @@ class Trials {
     });
   }
 
-  run(bucket: TrialBucket, finding: Finding, node: Node | undefined, exportSites: readonly Node[]): Trial {
-    const unresolved = (note: string, cut: readonly Removal[] = []): Trial => ({
-      bucket,
-      label: finding.label,
-      verdict: "unresolved",
-      removed: cut,
-      checked: [],
-      errors: [],
-      note,
-    });
-    const { key } = finding;
-    if (key === null || !isDeclKey(key) || node === undefined) {
-      return unresolved("no declaration at the finding's span");
+  /** Trial a group of candidates that share a declaring file: all deleted in one snapshot, every importer closure
+   *  checked once, and each added error attributed to the candidate whose declaration its site resolves to in the
+   *  base program.
+   *  @remarks A group whose edit does not parse, or with an error no single candidate owns, splits in half and each
+   *  half is tried alone. One deleted candidate can mask another's error (the checker reports one excess property per
+   *  object literal), so a candidate left without an error while others have some is tried again without them; a
+   *  candidate is confirmed only by a trial that added no error at all. */
+  group(items: readonly Candidate[], count: () => void): readonly Trial[] {
+    if (items.length === 0) {
+      return [];
     }
-    const edits = this.#edits(key, node, exportSites);
-    const removed = [...edits].flatMap(([file, splices]) =>
-      splices.map(({ start, end }) => ({ file, text: this.#world.source(file)?.text.slice(start, end) ?? "" })),
-    );
+    const outcome = this.#check(items, count);
+    if (items.length > 1 && (outcome.syntax !== null || outcome.owners.includes(UNOWNED))) {
+      const half = Math.ceil(items.length / 2);
+      return [...this.group(items.slice(0, half), count), ...this.group(items.slice(half), count)];
+    }
+    const errorsOf = (at: number): readonly TrialError[] => outcome.added.filter((_, x) => outcome.owners[x] === at).map((error) => this.#error(error));
+    const quiet = items.filter((_, at) => errorsOf(at).length === 0);
+    const again = outcome.added.length > 0 && quiet.length > 0 ? new Map(this.group(quiet, count).map((trial, at) => [quiet[at], trial])) : null;
+    return items.map((item, at) => {
+      const removed = this.#removed(item.edits);
+      if (outcome.syntax !== null) {
+        return { ...unresolvedTrial(item, `the delete edit does not parse: ${outcome.syntax}`), removed };
+      }
+      const retried = again?.get(item);
+      if (retried !== undefined) {
+        return retried;
+      }
+      const errors = errorsOf(at);
+      return { bucket: item.bucket, label: item.finding.label, verdict: verdictOf(errors), removed, checked: outcome.checked, errors, note: null };
+    });
+  }
+
+  // One snapshot with every candidate of a group deleted: the first syntax error of an edited file, else the errors it
+  // added and which candidate owns each.
+  #check(
+    items: readonly Candidate[],
+    count: () => void,
+  ): { readonly syntax: string | null; readonly added: readonly AddedError[]; readonly owners: readonly number[]; readonly checked: readonly string[] } {
+    const edits = mergeEdits(items.map((item) => item.edits));
     const edited = [...edits.keys()];
     const checked = [
       ...new Set([...edited, ...edited.flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)))]),
     ].sort();
     const base = this.#baseErrors(checked);
     const texts = Object.fromEntries(edited.map((file) => [this.#absolute(file), spliced(this.#world.source(file)?.text ?? "", edits.get(file) ?? [])]));
+    count();
     const { syntax, added } = this.#world.trial(texts, (program) => ({
       syntax: program.getSyntacticDiagnostics(edited.map((file) => this.#absolute(file))),
       added: addedErrors(
@@ -317,15 +401,58 @@ class Trials {
         new Map([...edits].map(([file, splices]) => [this.#absolute(file), splices])),
       ),
     }));
-    if (syntax.length > 0) {
-      return unresolved(`the delete edit does not parse: ${firstLine(syntax[0]?.text ?? "")}`, removed);
-    }
-    const errors = added.map((error) => this.#error(error));
-    return { bucket, label: finding.label, verdict: verdictOf(errors), removed, checked, errors, note: null };
+    const [first] = syntax;
+    return {
+      syntax: first === undefined ? null : firstLine(first.text),
+      added,
+      owners: items.length === 1 ? added.map(() => 0) : this.#owners(items, added),
+      checked,
+    };
   }
 
-  // The candidate's own span and each export site that names it.
-  #edits(key: DeclKey, node: Node, exportSites: readonly Node[]): Edits {
+  #removed(edits: Edits): readonly Removal[] {
+    return [...edits].flatMap(([file, splices]) => splices.map(({ start, end }) => ({ file, text: this.#world.source(file)?.text.slice(start, end) ?? "" })));
+  }
+
+  // Which candidate each added error belongs to: the one whose declaration the error's site resolves to in the base
+  // program, through an import alias or, for an object literal's key, through the literal's contextual type.
+  #owners(items: readonly Candidate[], added: readonly AddedError[]): readonly number[] {
+    const world = this.#world;
+    const { checker } = world;
+    const sites = added.map(({ diagnostic, pos }) => {
+      const source = world.source(this.#relative(diagnostic));
+      return source === undefined ? undefined : touching(source, pos);
+    });
+    const named = world.symbolsAt(sites.flatMap((site) => (site === undefined ? [] : [site])));
+    const literal = sites.map((site) => (site === undefined ? undefined : literalKey(site)));
+    const keyed = world.batch(
+      literal.map(function* (key) {
+        if (key === undefined) {
+          return [];
+        }
+        const type = yield* checker.getContextualType.gen(key.literal);
+        return type === undefined ? [] : yield* propertiesNamed(checker, type, key.name);
+      }),
+    );
+    this.#resolver ??= new Resolver(world);
+    const namedKeys = this.#resolver.declarations(named);
+    const keyedKeys = this.#resolver.declarations(keyed.flat());
+    let n = 0;
+    let k = 0;
+    return sites.map((site, at) => {
+      const own = new Set<DeclKey>(site === undefined ? [] : (namedKeys[n++] ?? []));
+      for (const _ of keyed[at] ?? []) {
+        for (const key of keyedKeys[k++] ?? []) {
+          own.add(key);
+        }
+      }
+      const matches = items.flatMap((item, x) => (own.has(item.key) ? [x] : []));
+      return matches.length === 1 ? (matches[0] ?? UNOWNED) : UNOWNED;
+    });
+  }
+
+  /** The candidate's own span and each export site that names it. */
+  edits(key: DeclKey, node: Node, exportSites: readonly Node[]): Edits {
     const edits = new Map<string, Splice[]>();
     const add = (at: string, splice: Splice): void => {
       const list = edits.get(at) ?? [];
@@ -500,23 +627,50 @@ function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undef
   return named !== undefined && found !== undefined && sameSpan(named, found) ? parent : found;
 }
 
-/** Run the delete trial over every finding of the named buckets, then the unused-diagnostics control. */
+/** Run the delete trial over every finding of the named buckets, or an even sample of `limit` of them, then the
+ *  unused-diagnostics control. */
 export function runTrials(
   graph: Graph,
   world: NativeWorld,
-  run: { readonly root: string; readonly analysis: Analysis; readonly buckets: readonly TrialBucket[] },
+  run: { readonly root: string; readonly analysis: Analysis; readonly buckets: readonly TrialBucket[]; readonly limit: number | null },
   log: (line: string) => void,
 ): TrialReport {
   const trials = new Trials(graph, world, run.root);
-  const candidates = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
-  const nodes = candidates.map(({ finding: { key } }) => (key !== null && isDeclKey(key) ? trials.nodeOf(key) : undefined));
-  const exportSites = trials.exportSites(nodes);
-  const results: Trial[] = [];
-  for (const [at, { bucket, finding }] of candidates.entries()) {
-    results.push(trials.run(bucket, finding, nodes[at], exportSites[at] ?? []));
-    if ((at + 1) % PROGRESS_EVERY === 0) {
-      log(`trial ${String(at + 1)}/${String(candidates.length)}`);
+  const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
+  const picked = evenSample(all, run.limit);
+  const nodes = picked.map(({ finding: { key } }) => (key !== null && isDeclKey(key) ? trials.nodeOf(key) : undefined));
+  const exportSites = trials.exportSites(nodes.map((node) => (node !== undefined && isTopLevel(node) ? node : undefined)));
+  const results = new Map<Finding, Trial>();
+  const groups = new Map<string, Candidate[]>();
+  for (const [at, { bucket, finding }] of picked.entries()) {
+    const node = nodes[at];
+    const { key } = finding;
+    if (key === null || !isDeclKey(key) || node === undefined) {
+      results.set(finding, unresolvedTrial({ bucket, finding }, "no declaration at the finding's span"));
+      continue;
     }
+    const file = declKeyParts(key).file;
+    groups.set(file, [...(groups.get(file) ?? []), { bucket, finding, key, edits: trials.edits(key, node, exportSites[at] ?? []) }]);
   }
-  return { trials: results, control: trials.control(run.analysis) };
+  const started = performance.now();
+  const tally = { snapshots: 0 };
+  const counted = (): void => {
+    tally.snapshots += 1;
+  };
+  let done = 0;
+  for (const [at, items] of [...groups.values()].entries()) {
+    for (const [x, trial] of trials.group(items, counted).entries()) {
+      const item = items[x];
+      if (item !== undefined) {
+        results.set(item.finding, trial);
+      }
+    }
+    done += items.length;
+    const minutes = (performance.now() - started) / MS_PER_MINUTE;
+    log(
+      `trial groups ${String(at + 1)}/${String(groups.size)} candidates ${String(done)}/${String(picked.length)} snapshots ${String(tally.snapshots)} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+    );
+  }
+  const trialsInOrder = picked.flatMap(({ finding }) => results.get(finding) ?? []);
+  return { trials: trialsInOrder, control: trials.control(run.analysis) };
 }

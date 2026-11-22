@@ -52,8 +52,9 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
+const POSITIVE_COUNT = /^[1-9]\d*$/u;
 const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--root=<dir>] [--out=<file>]`;
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, and the
  *  queries each name is asked (./graph/query.ts). */
 const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-why", "graph-users", "graph-impact", "graph-reach"] as const;
@@ -427,7 +428,7 @@ function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
     throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
   }
   const sample = single(flags, "sample");
-  if (sample !== null && !/^[1-9]\d*$/u.test(sample)) {
+  if (sample !== null && !POSITIVE_COUNT.test(sample)) {
     throw new UsageError(`--sample=${sample}: expected a positive count`);
   }
   const root = resolve(single(flags, "root") ?? process.cwd());
@@ -622,12 +623,21 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
-const TRIAL_FLAG = /^--(root|out|bucket)=(.+)$/u;
+const TRIAL_FLAG = /^--(root|out|bucket|limit)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
   readonly out: string;
   readonly buckets: readonly TrialBucket[];
+  /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
+  readonly limit: number | null;
+}
+
+function trialLimit(limit: string | null): number | null {
+  if (limit !== null && !POSITIVE_COUNT.test(limit)) {
+    throw new UsageError(`--limit=${limit}: expected a positive count\n${TRIAL_USAGE}`);
+  }
+  return limit === null ? null : Number(limit);
 }
 
 function parseTrialArgs(argv: readonly string[]): TrialArgs {
@@ -648,11 +658,11 @@ function parseTrialArgs(argv: readonly string[]): TrialArgs {
   if (buckets.length === 0) {
     throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
   }
-  return { root: resolve(flags.get("root") ?? process.cwd()), out: flags.get("out") ?? TRIAL_OUT, buckets };
+  return { root: resolve(flags.get("root") ?? process.cwd()), out: flags.get("out") ?? TRIAL_OUT, buckets, limit: trialLimit(flags.get("limit") ?? null) };
 }
 
 async function runGraphTrial(args: TrialArgs): Promise<number> {
-  const report = await trialGraph(args.root, args.buckets, log);
+  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit }, log);
   const path = write(args.root, args.out, report);
   for (const trial of report.trials.filter(({ verdict }) => verdict !== "confirmed")) {
     const errors = trial.errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`).join(",");
