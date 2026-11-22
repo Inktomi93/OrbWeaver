@@ -16,7 +16,7 @@ tooling/src/unwired/graph/ is the one core of the unwired tool. It builds the ty
 
 ## Consequences
 
-Fixes to the per-scan engines stop; their items wait on the move of their scan. One site-role reader and one resolver serve every verb. A full build is the cost of every call; a dev-only dump and --from run may skip it.
+Fixes to the per-scan engines stop; their items wait on the move of their scan. The one exception is a heap fix to the scans that was reviewed before this ruling; it lands because those scans still run until they move; it adds no new path-text library test. One site-role reader and one resolver serve every verb. A read counts as use only in product code, a dev-bridge global read, or a read by `tooling/src/snap/`, since snap drives the real app; other tooling and test reads annotate a finding. A full build is the cost of every call; a dev-only dump and --from run may skip it.
 
 ## Alternatives rejected
 
