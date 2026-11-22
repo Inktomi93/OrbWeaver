@@ -104,7 +104,8 @@ export const judgedExpected = (open: string, closed: string): JudgedOutcome => (
 /** The package a graph tree's sources sit in, unless a case names another. */
 export const GRAPH_SOURCE = "packages/a/src";
 
-const PACKAGE_SOURCE = /^packages\/([^/]+)\/src\//u;
+// A planted workspace: a package, or the tooling workspace beside them.
+const WORKSPACE_SOURCE = /^(packages\/[^/]+|tooling)\/src\//u;
 const SOURCE_GLOB = "src/**/*.{ts,tsx}";
 
 // A knip config with one workspace per planted package. With no `entries`, every source file ships and its exports are
@@ -139,7 +140,7 @@ export interface GraphTreeOptions {
  *  `node_modules/` included). */
 export function graphTree(files: Readonly<Record<string, string>>, options: GraphTreeOptions = {}): Record<string, string> {
   const jsx = options.jsx === true ? ({ jsx: "preserve" } as const) : {};
-  const packages = [...new Set(Object.keys(files).flatMap((file) => PACKAGE_SOURCE.exec(file)?.[1] ?? []))].map((name) => `packages/${name}`);
+  const packages = [...new Set(Object.keys(files).flatMap((file) => WORKSPACE_SOURCE.exec(file)?.[1] ?? []))];
   return {
     "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }] }),
     "tsconfig.world-browser.json": plantedTsconfig({ lib: LIB, include: [], ...jsx }),

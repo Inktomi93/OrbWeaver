@@ -8,12 +8,12 @@
 import type { Node, SourceFile } from "@typescript/native/ast";
 import { isSourceFile, SyntaxKind } from "@typescript/native/ast";
 import type { NativeWorld } from "../native.ts";
-import { isProduction } from "../worlds.ts";
 import type { Finding } from "./analyse.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
 import { occurrenceRoles, READS } from "./roles.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
+import { productReader } from "./state.ts";
 
 export const VERDICTS = ["confirmed", "refuted", "unresolved"] as const;
 export type Verdict = (typeof VERDICTS)[number];
@@ -55,7 +55,7 @@ export function verifyFindings(world: NativeWorld, findings: readonly Finding[],
     at += list.length;
   }
   const reads = occurrences.map((list) =>
-    list.filter((node) => isProduction(world.fileOfSource(node.getSourceFile())) && occurrenceRoles(node).some((role) => READS.has(role))),
+    list.filter((node) => productReader(world.fileOfSource(node.getSourceFile())) && occurrenceRoles(node).some((role) => READS.has(role))),
   );
   const owners = resolver.declarations(world.symbolsAt(reads.flat()));
   let y = 0;

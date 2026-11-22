@@ -114,6 +114,23 @@ test("a read or a key use outside the product only annotates a product member", 
   ]);
 });
 
+// Snap drives the product as its user does, so its read of `Shown.seen` is a product read; the same read from any other
+// tool leaves `Shown.other` write-only with the outside note.
+test("a member read only by snap counts as read; one read only by another tool stays write-only", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const snapProbe = "tooling/src/snap/probe.ts";
+  const auditProbe = "tooling/src/audit/probe.ts";
+  const scan = await graphScan(plantedTree, {
+    ...source(["export interface Shown { readonly seen: string; readonly other: string }", 'export const shown: Shown = { seen: "s", other: "o" };']),
+    "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: [snapProbe, auditProbe] }),
+    [snapProbe]: `import { shown } from "../../../${FILE}";\nexport const seen = shown.seen;`,
+    [auditProbe]: `import { shown } from "../../../${FILE}";\nexport const other = shown.other;`,
+  });
+  const notes = scan.analysis["member-write-only"]
+    .filter(({ label }) => label.startsWith(`${FILE}:`))
+    .map(({ label, note }) => [label.slice(FILE.length + 1), note]);
+  expect(notes).toEqual([["Shown.other", expect.stringContaining("read outside the product: tests or tooling")]]);
+});
+
 // `__orb` is the dev bridge: our own `declare global` publishes it, so a tooling read through the global is a product
 // read and `Bridge.foo` leaves the buckets. `Bridge.bar`, which nothing reads, stays sent; `Plain.p`, read from tooling
 // without the global, stays write-only with the outside note.

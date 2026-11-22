@@ -3,6 +3,8 @@
 //
 // A role is kept by world: what product code does to a member decides the product buckets; what tests, tooling and
 // scripts do only annotates them, so a field only a test reads is still unread by the product.
+// - Owner ruling: snap (tooling/src/snap/) drives the product as its user does, so its read of a member is a product
+//   read, as a dev-bridge read is (analyse.ts); its other roles, and every other tool's, only annotate.
 import type { Expression } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
@@ -14,7 +16,7 @@ import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
 import { answer, constituentsOf, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
-import { NO_ROLES, withRoles } from "./roles.ts";
+import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
 import { WhyTracker } from "./why.ts";
@@ -25,6 +27,11 @@ export interface MemberRoles {
   other: RoleSet;
   write: string | null;
 }
+
+const SNAP_SOURCE = "tooling/src/snap/";
+
+/** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
+export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
 
 /** Directed edges between graph nodes. */
 export type Edges = Map<GraphKey, Set<GraphKey>>;
@@ -165,7 +172,7 @@ export class GraphState implements GraphFacts {
   role(key: DeclKey, role: Role, file: string, at: number): void {
     this.why?.note(key, role, file, at);
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
-    if (this.product(file)) {
+    if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {
         roles.write = `${file}:${String(at)}`;

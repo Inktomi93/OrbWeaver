@@ -4,6 +4,7 @@
 // Owner rulings this module holds (roles.ts states the escape and bump rulings; a flow here carries a send on as a send):
 // - The dev bridge: a member of a value published through our own `declare global` global (`window.__orb`) that only
 //   tooling or tests read is used, since that read reaches it through the global door; it counts as a product read.
+// - Snap's reads count as product reads (state.ts holds the ruling).
 // - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
 // - A doc link keeps nothing alive; a `{@link}` to a name declared outside the file's scope is legal and listed as
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
