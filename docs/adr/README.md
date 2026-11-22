@@ -302,3 +302,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D353 | [Stored story text reaches its slot as literal text](0353-stored-story-text-reaches-its-slot-as-literal-text.md) | active |
 | D354 | [A reply a display script styled renders whole in its row's card frame](0354-a-styled-reply-renders-whole-in-its-row-s-card-frame.md) | active |
 | D355 | [An inactive control's ink clears 3:1 on every palette and carries a second signal](0355-an-inactive-control-s-ink-clears-3-1-on-every-palette.md) | active |
+| D356 | [The relational query API is reserved for nested-tree reads](0356-relational-query-seam-reserved-for-nested-tree-reads.md) | active |
