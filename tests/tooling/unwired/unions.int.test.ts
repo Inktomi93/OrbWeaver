@@ -1,9 +1,12 @@
 // `pnpm unwired unions` reports a tuple member no production literal builds into its union, with the branches, checks
-// and Record keys that name it, and apart a tuple only a z.enum parse or a membership guard builds. A same-text literal
+// and Record keys that name it, and in its own list, with the site that parses outside input in, a tuple only a z.enum
+// parse or a membership guard builds. A same-text literal
 // in a plain string slot and an enumerated tuple are controls.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanUnions } from "../../../tooling/src/unwired/index.ts";
 import { LIB, WORLD } from "./_planted.ts";
+
+type Report = ReturnType<typeof scanUnions>;
 
 const TREE = {
   [WORLD]: plantedTsconfig({ lib: LIB }),
@@ -54,10 +57,12 @@ test("the unions scan reports an unbuilt member with its dead branch, check and 
       checks: ["packages/a/src/mode.ts:14"],
       keys: ["packages/a/src/mode.ts:13"],
     },
-    { kind: "parsed", home: "TARGETS", member: "x64", cases: [], checks: [], keys: [] },
-    { kind: "parsed", home: "TARGETS", member: "arm64", cases: [], checks: [], keys: [] },
-    { kind: "parsed", home: "TONES", member: "warm", cases: [], checks: ["packages/a/src/tone.ts:5"], keys: [] },
-    { kind: "parsed", home: "TONES", member: "cold", cases: [], checks: [], keys: [] },
+  ]);
+  expect(report.parsed.map(({ home, member, checks, sources }) => ({ home, member, checks, sources }))).toEqual([
+    { home: "TARGETS", member: "x64", checks: [], sources: ["membership test packages/a/src/mode.ts:16"] },
+    { home: "TARGETS", member: "arm64", checks: [], sources: ["membership test packages/a/src/mode.ts:16"] },
+    { home: "TONES", member: "warm", checks: ["packages/a/src/tone.ts:5"], sources: ["z.enum packages/a/src/tone.ts:4"] },
+    { home: "TONES", member: "cold", checks: [], sources: ["z.enum packages/a/src/tone.ts:4"] },
   ]);
   expect(report.enumerated).toEqual(["packages/a/src/mode.ts:SIZES"]);
   expect(report.disagreements).toEqual([]);
@@ -298,20 +303,11 @@ test("the unions scan reads a schema-inferred slot and a generic generated table
 }, async ({ plantedTree }) => {
   const root = await plantedTree(SCHEMA_TREE);
   const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-  const found = report.unwired.map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  const listed = (rows: Report["unwired"]): string[] => rows.map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
   // between-tools, penalties and dry are built through the schema; ROLES.solid and HOSTS.card through the table; alpha
   // and fresh through an indexed access on an inferred type; denied and unsupported through one on an interface.
-  expect(found).toEqual([
-    "CAUSES.tooled",
-    "HOSTS.background",
-    "MODES.deep",
-    "OFF_MODES.disabled",
-    "PROVENANCES.request",
-    "ROLES.solid-hover",
-    "ROLES.tint",
-    "SERVERS.beta",
-    "STAGES.xtc",
-  ]);
+  expect(listed(report.unwired)).toEqual(["CAUSES.tooled", "HOSTS.background", "MODES.deep", "ROLES.solid-hover", "ROLES.tint"]);
+  expect(listed(report.parsed)).toEqual(["OFF_MODES.disabled", "PROVENANCES.request", "SERVERS.beta", "STAGES.xtc"]);
   expect(report.disagreements).toEqual([]);
 });
 
@@ -479,11 +475,10 @@ test("the unions scan sorts a tuple a type guard narrows raw input into as parse
 }, async ({ plantedTree }) => {
   const root = await plantedTree(GUARD_TREE);
   const report = scanUnions({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual([
-    "parsed COMMANDS.build",
-    "parsed COMMANDS.pack",
-    "unbuilt SHAPES.round",
-    "unbuilt SHAPES.square",
+  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt SHAPES.round", "unbuilt SHAPES.square"]);
+  expect(report.parsed.map(({ home, member, sources }) => `${home}.${member} ${sources.join(",")}`)).toEqual([
+    "COMMANDS.build type guard packages/a/src/cli.ts:3",
+    "COMMANDS.pack type guard packages/a/src/cli.ts:3",
   ]);
   expect(report.disagreements).toEqual([]);
 });
