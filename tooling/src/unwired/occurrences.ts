@@ -91,9 +91,6 @@ function walk(world: NativeWorld, home: ReadonlySet<string>, visit: (node: Node)
 
 const everyFile = (world: NativeWorld): ReadonlySet<string> => new Set(world.files.map((file) => world.siteOf(file).file));
 
-// A name that stores into its member, by the one site-role reader, so a flow can carry writes and reads apart.
-const isWrittenName = (node: Node): boolean => occurrenceRoles(node).includes("write");
-
 // The value whose properties a spread, a computed key, a `for…in` or a reflective call reads, and the key's expression
 // for a computed element access. `sent` names where a serialization sends the value instead of reading it.
 interface Reflection {
@@ -559,6 +556,8 @@ export interface PropertyReferences {
   /** The {@link siteKey} of every name that stores into its member by the site-role reader (graph/roles.ts), and every
    *  site in {@link PropertyReferences.filled}. */
   readonly written: ReadonlySet<string>;
+  /** The written sites that read their member too: a bump or a logical assignment whose own value is used. */
+  readonly readWritten: ReadonlySet<string>;
   /** The {@link siteKey} of every literal key that overrides a spread copy: a write of its member that builds no home. */
   readonly overrides: ReadonlySet<string>;
   /** Every key the resolver could not place, with its reason. */
@@ -601,6 +600,8 @@ export interface PropertyFacts {
   readonly flows: readonly Flow[];
   /** The {@link siteKey} of every written name. */
   readonly written: ReadonlySet<string>;
+  /** The written names that read their member too. */
+  readonly readWritten: ReadonlySet<string>;
   readonly sends: readonly (Send & { readonly keys: readonly string[] })[];
   readonly copied: ReadonlySet<string>;
   /** The {@link siteKey} of every site where a library writes the members it credits, though its syntax reads. */
@@ -807,8 +808,12 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
     world,
     names.map((node) => ({ node })),
   ).flatMap((resolution, at) => (resolution === null ? [] : [{ resolution, node: names[at] as PropertyName }]));
-  for (const key of writtenKeys(resolutions)) {
+  const readWritten = new Set<string>();
+  for (const { key, reads } of storingSites(resolutions)) {
     written.add(key);
+    if (reads) {
+      readWritten.add(key);
+    }
   }
   const literals = storedLiterals(stores);
   const kept = reflections.filter((reflection) => !(isSpreadAssignment(reflection.value.parent) && literals.has(reflection.value.parent.parent)));
@@ -884,6 +889,7 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
     links,
     flows,
     written: new Set([...written, ...filled]),
+    readWritten,
     sends,
     copied: new Set(stored.copied.keys()),
     filled,
@@ -913,9 +919,15 @@ function reflectionFacts(
   return { credits, links, flows };
 }
 
-// The sites of the resolved names that store into their member.
-const writtenKeys = (resolutions: readonly { readonly resolution: KeyResolution; readonly node: PropertyName }[]): readonly string[] =>
-  resolutions.flatMap(({ resolution, node }) => (isWrittenName(node) || resolution.slotRole === "write" ? [siteKey(resolution.site)] : []));
+// The sites of the resolved names that store into their member, by the one site-role reader, so a flow can carry writes
+// and reads apart; `reads` where the same occurrence reads the member too (`const id = s.next++`).
+const storingSites = (
+  resolutions: readonly { readonly resolution: KeyResolution; readonly node: PropertyName }[],
+): readonly { readonly key: string; readonly reads: boolean }[] =>
+  resolutions.flatMap(({ resolution, node }) => {
+    const roles = occurrenceRoles(node);
+    return roles.includes("write") || resolution.slotRole === "write" ? [{ key: siteKey(resolution.site), reads: roles.includes("read") }] : [];
+  });
 
 // An object literal's own key or shorthand, which a contextual type gives its member.
 const isObjectLiteralKey = (node: Node): boolean => isNamedMember(node.parent, node) && isObjectLiteralExpression(node.parent.parent);
@@ -1058,6 +1070,7 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
     filled: new Set(facts.flatMap((part) => [...part.filled])),
     keyed: new Map(facts.flatMap((part) => [...part.keyed])),
     written,
+    readWritten: new Set(facts.flatMap((part) => [...part.readWritten])),
     overrides: new Set(facts.flatMap((part) => [...part.overrides])),
     unresolved: [...new Map(facts.flatMap((part) => part.unresolved).map((key) => [siteKey(key.site), key])).values()],
     carriesInto: down,

@@ -43,3 +43,27 @@ test("a bump, a destructuring slot, a for-of target, an element-access store and
   const planted = report.unwired.filter(({ file }) => file.endsWith("stores.ts"));
   expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Store.unset never-written"]);
 });
+
+// A bump whose own value is used reads its member as well as storing into it; one whose value is dropped only stores.
+// `Counter.tally` is only ever bumped and dropped, so it is the one member never read; `Counter.next` is the case.
+const BUMPS = {
+  [WORLD]: plantedTsconfig({ lib: LIB }),
+  "packages/a/src/bumps.ts": [
+    "export interface Counter {",
+    "  next: number;",
+    "  tally: number;",
+    "}",
+    "export const counter = (): Counter => ({ next: 0, tally: 0 });",
+    "export const take = (c: Counter): number => c.next++;",
+    "export const tick = (c: Counter): void => {",
+    "  c.tally++;",
+    "};",
+  ].join("\n"),
+};
+
+test("a bump whose value is used reads its member; a dropped bump only writes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(BUMPS);
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const planted = report.unwired.filter(({ file }) => file.endsWith("bumps.ts"));
+  expect(planted.map(({ home, member, kind }) => `${home}.${member} ${kind}`)).toEqual(["Counter.tally never-read"]);
+});
