@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-ESLint rules and the mutation checker decide a library file, or the package that declares a symbol, by matching /node_modules/ in the file path: eslint/native.ts (the Drizzle package, @types/react, @types sources), eslint/owned-table.ts (the Drizzle query builder and table), eslint/ui-native-contracts.ts (Base UI, @types/react), eslint/port-ownership/foreign-types.ts (zod, ts-reset, isAmbient), eslint/port-ownership/restated-port.ts, mutation-checker/lib/mutant-world.ts. A workspace package resolves through node_modules too, and a pnpm store path or a renamed install changes the text.
+ESLint rules and the mutation checker decide a library file, or the package that declares a symbol, by matching /node_modules/ in the file path: eslint/native.ts (the Drizzle package, @types/react, @types sources), eslint/owned-table.ts (the Drizzle query builder and table), eslint/ui-native-contracts.ts (Base UI, @types/react), eslint/port-ownership/foreign-types.ts (zod, ts-reset, isAmbient), eslint/port-ownership/restated-port.ts, mutation-checker/lib/mutant-world.ts. A workspace package resolves through node_modules too, and a pnpm store path or a renamed install changes the text. tooling/src/eslint/closed-vocabulary.ts makes the bare TS6 isSourceFileFromExternalLibrary call, which marks a workspace package linked through node_modules as external; it moves onto the isLibrarySource contract in tooling/src/eslint/brand-names.ts.
 
 ## Why
 
