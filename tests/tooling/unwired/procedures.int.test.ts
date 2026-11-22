@@ -187,6 +187,16 @@ const ROUTE_TREE = {
     "  app.use(() => null);",
     "}",
   ].join("\n"),
+  // The debug registrar is a route home beside entry/http: a route only tooling calls is test-only, and one nothing calls
+  // is uncalled.
+  "packages/server/src/foundation/observability/debug/routes.ts": [
+    'import type { Hono } from "hono";',
+    "export function registerDebug(app: Hono): void {",
+    '  app.get("/api/_debug/info", () => null);',
+    '  app.get("/api/_debug/unread", () => null);',
+    "}",
+  ].join("\n"),
+  "tooling/debug-info.ts": 'export const info = (): Promise<Response> => fetch("/api/_debug/info");\n',
   "packages/client/src/requests.tsx": [
     '/// <reference path="../../../node_modules/planted-jsx/index.d.ts" />',
     'import { blobUrl, exportPath, UPLOAD_ROUTE } from "../../contracts/src/routes.ts";',
@@ -226,10 +236,12 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
 }) => {
   const report = scan(await plantedTree(ROUTE_TREE));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(10 + PLANTED_ROUTE_ROWS.length);
+  expect(report.routes).toBe(12 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
+    "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
+    "uncalled-route GET /api/_debug/unread tests=0 keys=0",
     "uncalled-route GET /api/orphan tests=0 keys=0",
     "uncalled-route GET /api/upload tests=0 keys=0",
     "uncalled-route GET /api/widget/:id/asset tests=0 keys=0",
@@ -266,8 +278,10 @@ const GONE: JudgedEntry = { key: "route GET /api/removed", item: OPEN_ITEM, tie:
 test("a judged row reports apart with its open item, and an entry for a gone row or a closed item is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = scan(await plantedTree(JUDGED_TREE), [ORPHAN, UPLOAD, ASSET, GONE]);
   expect(found(report)).toEqual([
+    "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
+    "uncalled-route GET /api/_debug/unread tests=0 keys=0",
     "uncalled-route GET /api/upload tests=0 keys=0",
     "uncalled-route GET /api/widget/:id/asset tests=0 keys=0",
   ]);
