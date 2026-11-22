@@ -228,8 +228,8 @@ const addEdge = <K extends GraphKey>(edges: Map<K, Set<K>>, from: K, to: K): voi
 /** The graph a build writes and its analysis reads. */
 export class GraphState implements GraphFacts {
   readonly root: string;
-  readonly world: NativeWorld;
-  readonly resolver: Resolver;
+  #world: NativeWorld;
+  #resolver: Resolver;
   readonly roots: Roots;
   readonly session: BuildSession;
   readonly why: WhyTracker | null;
@@ -266,11 +266,29 @@ export class GraphState implements GraphFacts {
 
   constructor(root: string, world: NativeWorld, roots: Roots, session: BuildSession) {
     this.root = root;
-    this.world = world;
-    this.resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
+    this.#world = world;
+    this.#resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
     this.roots = roots;
     this.session = session;
     this.why = session.options.why.length > 0 ? new WhyTracker(world, session.options.why) : null;
+  }
+
+  /** The program the build walks now. */
+  get world(): NativeWorld {
+    return this.#world;
+  }
+
+  get resolver(): Resolver {
+    return this.#resolver;
+  }
+
+  /** Walk another program into the same facts: a declaration keeps its key across programs, as a key is its file and
+   *  position, while every cache keyed by a type or symbol id belongs to the program that answered it. */
+  enter(world: NativeWorld): void {
+    this.#world = world;
+    this.#resolver = new Resolver(world, { spelling: !this.session.options.ablate.has("spelling") });
+    this.#origins.clear();
+    this.#members.clear();
   }
 
   /** Whether a repository-relative file ships in the product. */

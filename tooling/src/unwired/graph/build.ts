@@ -2,13 +2,15 @@
 // and every member's roles, from one walk of each judged file and the checker passes after it.
 //
 // - The program is the merged in-memory program over every typecheck world (worlds.ts mergedConfigText); no tsconfig file
-//   holds it. The judged population is knip's: a workspace's `project` files, a derived root, or a root-level file.
+//   holds it. A world the merge cannot hold (worlds.ts WORLDS_APART) is walked after it as its own program into the same
+//   facts, over only the files the merged program does not hold. The judged population is knip's: a workspace's `project` files, a derived root, or a root-level file.
 // - Our own ambient declarations are walked like code, so each global they declare is a node its uses reach; the
 //   published plugin SDK's declarations are its own surface and are read as a door (plugin-surface.ts) instead.
 // - A role comes from what an occurrence's syntax does (roles.ts referenceRoles); roles.ts states the escape and bump
 //   rulings, and analyse.ts the test-read ruling.
 import { existsSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
+import process from "node:process";
 import type { Node } from "@typescript/native/ast";
 import {
   isAwaitExpression,
@@ -26,6 +28,7 @@ import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
 import { hasFlag, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
+import { programsApart } from "../worlds.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
@@ -115,9 +118,41 @@ export interface BuiltGraph {
 /** Build the graph of every judged file in the world under the session's options, logging how far the walk has come. */
 export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
   const state = new GraphState(root, world, roots, session);
-  const graph = new Builder(state).build();
+  const merged = new Builder(state).build(judgedFiles(state));
+  const apart = (): readonly Graph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
+  const parts = session.profile === null ? apart() : session.profile.time("apart", apart);
+  state.enter(world);
+  const all = [merged, ...parts];
+  const graph: Graph = {
+    ...merged,
+    variants: all.flatMap(({ variants }) => variants),
+    kept: all.flatMap(({ kept }) => kept),
+    urlSpawns: all.flatMap(({ urlSpawns }) => urlSpawns),
+    files: all.flatMap(({ files }) => files),
+  };
   return { graph, why: state.why?.entries(state.decls) ?? [] };
 }
+
+// The files a program holds that the build judges: knip's population, a module root or a root-level file.
+function judgedFiles(state: GraphState): readonly string[] {
+  const { roots, world } = state;
+  const { files: only } = state.session.options;
+  return world.files
+    .map((source) => world.fileOfSource(source))
+    .filter((file) => (roots.inProject(file) || roots.modules.has(file) || dirname(file) === ".") && (only === null || file.startsWith(only)));
+}
+
+// A world the merge cannot hold (worlds.ts WORLDS_APART), walked as its own program into the same facts: only the files
+// the merged program does not hold, so a file both hold is walked once, in the merged program.
+function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): Graph {
+  using world = NativeWorld.open(state.root, config);
+  state.enter(world);
+  const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
+  state.peak(`apart program rss MB ${config}`, Math.round(process.memoryUsage().rss / MB));
+  return graph;
+}
+
+const MB = 1e6;
 
 // The walk reports its progress every this many files.
 const PROGRESS_EVERY = 1000;
@@ -143,13 +178,8 @@ class Builder {
     this.#keys = new Keys(this.#state);
   }
 
-  build(): Graph {
+  build(files: readonly string[]): Graph {
     const state = this.#state;
-    const { roots, world } = state;
-    const { files: only } = state.session.options;
-    const files = world.files
-      .map((source) => world.fileOfSource(source))
-      .filter((file) => (roots.inProject(file) || roots.modules.has(file) || dirname(file) === ".") && (only === null || file.startsWith(only)));
     const { profile } = state.session;
     const walk = (): void => this.#walk(files);
     const settle = (): readonly VariantAxis[] => {
