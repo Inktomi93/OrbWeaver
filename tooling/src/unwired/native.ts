@@ -1,6 +1,7 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
-import { relative } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   getTouchingPropertyName,
@@ -23,11 +24,14 @@ import type {
   LanguageService,
   Symbol as NativeSymbol,
   NodeHandle,
+  Program,
   ReferencedSymbolEntry,
   SignatureUsage,
   Type,
 } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
+import { z } from "zod";
+import { workspacePackageDirs } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
 
@@ -46,7 +50,36 @@ export interface WorldFiles {
   readonly roots: ReadonlySet<string>;
 }
 
-const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
+const DECLARATION_FILE = ".d.ts";
+const PACKAGE_MANIFEST = "package.json";
+const PackageManifest = z.looseObject({ name: z.string().optional() });
+const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+
+// The absolute directories of the workspace's own packages; a tree with no workspace manifest has none.
+const workspaceDirs = (root: string): ReadonlySet<string> =>
+  new Set(existsSync(join(root, WORKSPACE_MANIFEST)) ? workspacePackageDirs(root).map((dir) => join(root, dir)) : []);
+
+// Which program files are the tree's own, by the program's answer rather than the path's text: a dependency resolved
+// through a pnpm symlink outside any node_modules directory is still a library, and a workspace package reached through
+// node_modules is still ours (the program flags it external, as it was resolved from node_modules, so the workspace's
+// own package directories answer for it). A declaration file is ours only where `declaration` keeps it.
+function ownSources(api: API, program: Program, own: { readonly workspace: ReadonlySet<string>; readonly keep: (name: string) => boolean }): readonly string[] {
+  const { workspace, keep } = own;
+  const names = program.getSourceFileNames();
+  const kept: string[] = [];
+  for (const start of pageStarts(names.length)) {
+    const page = names.slice(start, start + BATCH);
+    const metadata = api.batch(...page.map((name) => program.getSourceFileMetadata.gen(name)));
+    for (const [at, name] of page.entries()) {
+      const meta = metadata[at];
+      const library = meta === undefined || meta.isDefaultLibrary || (meta.isFromExternalLibrary && !workspace.has(meta.packageJsonDirectory));
+      if (!library && (!name.endsWith(DECLARATION_FILE) || keep(name))) {
+        kept.push(name);
+      }
+    }
+  }
+  return kept;
+}
 
 type Request = APIRequestGenerator extends Generator<infer Yielded, unknown, unknown> ? Yielded : never;
 
@@ -91,6 +124,11 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
+  readonly #program: Program;
+  readonly #workspace: ReadonlySet<string>;
+  readonly #packageNames = new Map<string, string | null>();
+  // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
+  #settling = false;
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
@@ -104,7 +142,9 @@ export class NativeWorld implements Disposable {
     }
     this.checker = project.checker;
     this.#languageService = project.languageService;
-    const names = project.program.getSourceFileNames().filter((name) => isWorldSource(name) || declaration(relative(root, name)));
+    this.#program = project.program;
+    this.#workspace = workspaceDirs(root);
+    const names = ownSources(api, project.program, { workspace: this.#workspace, keep: (name) => declaration(relative(root, name)) });
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
     this.#fileOfPath = new Map(this.files.map((file) => [file.path, relative(root, file.fileName)]));
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
@@ -126,18 +166,24 @@ export class NativeWorld implements Disposable {
     using api = new API({ cwd: root });
     const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
     const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
-    const relatives = (names: readonly string[]): ReadonlySet<string> =>
-      new Set(names.filter((name) => isWorldSource(name) || declarations.has(relative(root, name))).map((name) => relative(root, name)));
+    const keep = (name: string): boolean => declarations.has(relative(root, name));
+    const workspace = workspaceDirs(root);
     return new Map(
       configs.map((config) => {
         const project = snapshot.getConfiguredProject(`${root}/${config}`);
-        return [config, { held: relatives(project?.program.getSourceFileNames() ?? []), roots: relatives(project?.parsedCommandLine.fileNames ?? []) }];
+        const held = new Set(project === undefined ? [] : ownSources(api, project.program, { workspace, keep }).map((name) => relative(root, name)));
+        const roots = new Set((project?.parsedCommandLine.fileNames ?? []).map((name) => relative(root, name)).filter((name) => held.has(name)));
+        return [config, { held, roots }];
       }),
     );
   }
 
-  /** Run request generators in pages of {@link BATCH}, keeping their order. */
+  /** Run request generators in pages of {@link BATCH}, keeping their order.
+   *  @throws When a request generator runs a batch of its own: the outer round's answers would be read around it. */
   batch<T>(requests: readonly APIRequestGenerator<T>[]): T[] {
+    if (this.#settling) {
+      throw new Error("NativeWorld.batch ran inside a request generator: ask through yield, or settle the data before the batch");
+    }
     const results: T[] = [];
     for (let start = 0; start < requests.length; start += BATCH) {
       results.push(...this.#settle(requests.slice(start, start + BATCH)));
@@ -148,6 +194,15 @@ export class NativeWorld implements Disposable {
   // Every query is pure in one snapshot, so each distinct request crosses to the compiler once until releaseAnswers:
   // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
   #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
+    this.#settling = true;
+    try {
+      return this.#rounds(generators);
+    } finally {
+      this.#settling = false;
+    }
+  }
+
+  #rounds<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
     let waiting: Pending[] = [];
     const run = (generator: APIRequestGenerator, finish: (value: unknown) => void, first: unknown): void => {
@@ -191,19 +246,15 @@ export class NativeWorld implements Disposable {
       const round = waiting;
       waiting = [];
       const distinct = [...new Map(round.map(({ key, request }) => [key, request]))];
-      // The round's answers reach its generators from the round itself, so an answer the memo lets go while the round
-      // is in flight (a release inside a generator step) never reaches a waiting generator as undefined.
-      const landed = new Map<string>();
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
         for (const [at, [key]] of page.entries()) {
-          landed.set(key, answers[at]);
           this.#answers.set(key, answers[at]);
         }
       }
       for (const { generator, finish, key } of round) {
-        run(generator, finish, landed.get(key));
+        run(generator, finish, this.#answers.get(key));
       }
     }
     return results;
@@ -213,6 +264,9 @@ export class NativeWorld implements Disposable {
    *  compiler's decoded response, and a walk's answers kept for the world's life outgrow the walk's own facts many times
    *  over. The facts a later file needs again live in the callers' id-keyed tables; a repeat ask crosses again. */
   releaseAnswers(): void {
+    if (this.#settling) {
+      throw new Error("NativeWorld.releaseAnswers ran inside a request generator: the round in flight reads its answers back");
+    }
     this.#answers.clear();
   }
 
@@ -258,6 +312,38 @@ export class NativeWorld implements Disposable {
         return { item, type: yield* checker.getTypeAtLocation.gen(nodeOf(item)) };
       }),
     );
+  }
+
+  /** The package a declaration's file was loaded from as an external library, by its manifest's name; null for a file
+   *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
+  *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
+    const meta = yield* this.#program.getSourceFileMetadataByPath.gen(handle.path);
+    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory) ? this.#packageName(meta.packageJsonDirectory) : null;
+  }
+
+  /** For each list of declarations, whether one of them was loaded from the package `name`. */
+  fromPackage(declarations: readonly (readonly NodeHandle[])[], name: string): boolean[] {
+    return this.batch(declarations.map((handles) => this.#anyFrom(handles, name)));
+  }
+
+  *#anyFrom(handles: readonly NodeHandle[], name: string): APIRequestGenerator<boolean> {
+    const packages = yield* all(...handles.map((handle) => this.packageOf(handle)));
+    return packages.includes(name);
+  }
+
+  // A package's name sits on its root manifest; a nested scope manifest (zod's `v4/classic/package.json`, which only
+  // sets the module type) names nothing, so the walk goes up to the first manifest that does.
+  #packageName(directory: string): string | null {
+    const known = this.#packageNames.get(directory);
+    if (known !== undefined) {
+      return known;
+    }
+    const manifest = join(directory, PACKAGE_MANIFEST);
+    const own = existsSync(manifest) ? PackageManifest.parse(JSON.parse(readFileSync(manifest, "utf8"))).name : undefined;
+    const parent = dirname(directory);
+    const name = own ?? (parent === directory ? null : this.#packageName(parent));
+    this.#packageNames.set(directory, name);
+    return name;
   }
 
   /** The repository-relative file a declaration lives in, or null for one outside the world's sources. */
