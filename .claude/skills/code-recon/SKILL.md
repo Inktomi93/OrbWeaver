@@ -21,6 +21,7 @@ disagree, the CLI wins.
 | Where is a code shape (call, signature, JSX, import) | `ast-grep run -p` |
 | X inside Y, X without Z, one item in a list | `ast-grep scan --inline-rules` |
 | Where is a literal (config key, message, CSS `@import`) | Grep tool / `rg` |
+| Where a name appears and as what: read, write, call, type, comment, doc, config | orbweaver: `pnpm unwired hits <name...>`, with `--json` for a script; it prints the scanned-file count |
 | What does it do | `Read` the whole file |
 
 Invoke `ast-grep`, never `sg` (often `newgrp`). Check `command -v ast-grep` up front; if it is
@@ -300,6 +301,8 @@ Two methods, each with a non-zero scan count reported beside the zero:
 for l in ts tsx; do ast-grep run -p 'eval($$$)' -l $l . --no-ignore vcs --no-ignore hidden --inspect summary; done
 rg --stats -n 'eval\(' --type ts --type js --no-ignore --hidden .
 ```
+
+In orbweaver, `pnpm unwired hits <name...>` is the literal method for a name. Read its classes, not its total: a comment, doc or string hit is not a use in code.
 
 If neither method can see the relevant mechanism (DI, reflection, codegen, dynamic dispatch), say
 which one was invisible instead of calling the thing absent.

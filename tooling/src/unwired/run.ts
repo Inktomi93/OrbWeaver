@@ -4,7 +4,8 @@
 // one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
 // engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
-// runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
+// runs the test suites with V8 coverage and writes what no run executed (./coverage.ts); `hits` prints every literal hit
+// of a name across the tracked tree, classified by where it sits (./literal-hits.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -24,6 +25,7 @@ import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
+import { HITS_USAGE, runHits } from "./literal-hits.ts";
 import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
@@ -43,6 +45,7 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
+const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, and the custom-property pass. */
 const GRAPH_VERBS = ["graph", "graph-verify", "graph-css"] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
@@ -51,7 +54,7 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   "graph-verify": "reports/unwired/graph-verify.json",
   "graph-css": "reports/unwired/graph-css.json",
 };
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -397,9 +400,12 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VERBS.find((candidate) => candidate === verb);
 
-// The verbs that run asynchronously: `coverage` runs the test suites with its own flags, and the graph verbs load the
-// analysed tree's knip config and design system.
-function asyncVerb(argv: readonly string[]): Promise<number> | undefined {
+// The verbs that read their own flags or run asynchronously: `hits` takes names, `coverage` runs the test suites with
+// its own flags, and the graph verbs load the analysed tree's knip config and design system.
+function asyncVerb(argv: readonly string[]): number | Promise<number> | undefined {
+  if (argv[0] === HITS_VERB) {
+    return runHits(argv.slice(1), log);
+  }
   if (argv[0] === COVERAGE_VERB) {
     return runCoverage(argv.slice(1), log);
   }
