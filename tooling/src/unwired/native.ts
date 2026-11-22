@@ -41,6 +41,9 @@ import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts"
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
 
+/** The name {@link NativeWorld.libraryOf} gives the compiler's own default library files, which belong to no manifest. */
+export const DEFAULT_LIBRARY = "(default library)";
+
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript symbol and type flags are compiler-owned bitfields.
@@ -376,6 +379,18 @@ export class NativeWorld implements Disposable {
   *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
     const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
     return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory) ? this.#packageName(meta.packageJsonDirectory) : null;
+  }
+
+  /** The package a program file is a library of, by the rule ownSources keeps the tree's own files by: a default library
+   *  (named {@link DEFAULT_LIBRARY}) or an external package outside the workspace. Null for a file of the tree's own. */
+  *libraryOf(fileName: string): APIRequestGenerator<string | null> {
+    const meta = yield* this.program.getSourceFileMetadata.gen(fileName);
+    if (meta?.isDefaultLibrary === true) {
+      return DEFAULT_LIBRARY;
+    }
+    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory)
+      ? (this.#packageName(meta.packageJsonDirectory) ?? meta.packageJsonDirectory)
+      : null;
   }
 
   /** For each list of declarations, whether one of them was loaded from the package `name`. */

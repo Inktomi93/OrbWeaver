@@ -29,6 +29,7 @@ import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import { cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
+import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -608,14 +609,23 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
   return EXIT.clean;
 }
 
+// A world's differences, one row each; the libraries only the merged program loads are one row per package, and the
+// report keeps a row per file.
+function writeDifferences({ config, differences, libraries }: WorldsCheck["worlds"][number]): void {
+  for (const { name, files } of libraries) {
+    process.stdout.write(`difference\t${config}\tlibrary-only-in-merged\t${name}\t${String(files)} files\n`);
+  }
+  for (const { kind, at, subject, world, merged, ...rest } of differences.filter((difference) => difference.kind !== "library-only-in-merged")) {
+    const cause = "cause" in rest ? `\t${rest.cause}${rest.mergedOnly.length === 0 ? "" : ` ${rest.mergedOnly.join(",")}`}` : "";
+    process.stdout.write(`difference\t${config}\t${kind}\t${at}\t${subject}\tworld: ${world}\tmerged: ${merged}${cause}\n`);
+  }
+}
+
 function runGraphWorldsCheck(args: GraphArgs): number {
   const check = checkWorlds(args.root, log);
   const path = write(args.root, args.out, check);
-  for (const { config, differences } of check.worlds) {
-    for (const { kind, at, subject, world, merged, ...rest } of differences) {
-      const cause = "cause" in rest ? `\t${rest.cause}${rest.mergedOnly.length === 0 ? "" : ` ${rest.mergedOnly.join(",")}`}` : "";
-      process.stdout.write(`difference\t${config}\t${kind}\t${at}\t${subject}\tworld: ${world}\tmerged: ${merged}${cause}\n`);
-    }
+  for (const world of check.worlds) {
+    writeDifferences(world);
   }
   for (const error of check.explained) {
     process.stdout.write(
