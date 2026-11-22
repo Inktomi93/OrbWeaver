@@ -3,12 +3,11 @@ import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { TypeServices as Native } from "./checker.ts";
 import { requireTypeServices } from "./checker.ts";
+import type { LibrarySources } from "./library-source.ts";
+import { BASE_UI_PACKAGE, librarySources, REACT_TYPES_PACKAGE } from "./library-source.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { isElementFactoryCall } from "./syntax.ts";
 import { isClassProperty, isComponentElement } from "./ui-feature-classname.ts";
-
-const BASE_UI_PACKAGE = /\/node_modules\/@base-ui\/react\//u;
-const REACT_TYPES_PACKAGE = /\/node_modules\/@types\/react\//u;
 
 function callable(type: ts.Type): boolean {
   return type.getCallSignatures().length > 0 || (type.isUnion() && type.types.some(callable));
@@ -55,7 +54,12 @@ function callbackName(member: ts.TypeElement): string | undefined {
   return member.name.text === "style" || /^on[A-Z]/u.test(member.name.text) ? member.name.text : undefined;
 }
 
-function narrowsCallback(native: Native, member: ts.TypeElement, name: string, bases: WrapperShape["bases"]): boolean {
+interface Callback {
+  readonly member: ts.TypeElement;
+  readonly name: string;
+}
+
+function narrowsCallback(native: Native, sources: LibrarySources, { member, name }: Callback, bases: WrapperShape["bases"]): boolean {
   const replacement = native.checker.getTypeAtLocation(member);
   return bases.some((base) => {
     const original = omittedBase(native, base);
@@ -63,8 +67,7 @@ function narrowsCallback(native: Native, member: ts.TypeElement, name: string, b
     if (property === undefined || native.checker.getPropertyOfType(native.checker.getTypeAtLocation(base), name) !== undefined) {
       return false;
     }
-    const libraryOwned =
-      property.declarations?.some((declaration) => BASE_UI_PACKAGE.test(declaration.getSourceFile().fileName.replaceAll("\\", "/"))) === true;
+    const libraryOwned = property.declarations?.some((declaration) => sources.packageOf(declaration.getSourceFile())?.name === BASE_UI_PACKAGE) === true;
     const owned = native.checker.getTypeOfSymbolAtLocation(property, member);
     return libraryOwned && callable(owned) && !native.checker.isTypeAssignableTo(owned, replacement);
   });
@@ -75,6 +78,7 @@ export const nativeCallbackNarrowingRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     const judge = (node: TSESTree.Node): void => {
       const shape = wrapperShape(native.esTreeNodeToTSNodeMap.get(node));
       if (shape === undefined) {
@@ -82,7 +86,7 @@ export const nativeCallbackNarrowingRule: OrbRule = {
       }
       for (const member of shape.members) {
         const name = callbackName(member);
-        if (name !== undefined && narrowsCallback(native, member, name, shape.bases)) {
+        if (name !== undefined && narrowsCallback(native, sources, { member, name }, shape.bases)) {
           context.report({
             node: native.tsNodeToESTreeNodeMap.get(member),
             message: `The redeclared ${name} narrows a native callback contract. Derive it from the owning props and preserve callback state and event details.`,
@@ -94,30 +98,30 @@ export const nativeCallbackNarrowingRule: OrbRule = {
   },
 };
 
-function hookName(checker: ts.TypeChecker, initializer: ts.Expression | undefined): string | undefined {
+function hookName(sources: LibrarySources, checker: ts.TypeChecker, initializer: ts.Expression | undefined): string | undefined {
   if (initializer === undefined || !ts.isCallExpression(initializer)) {
     return undefined;
   }
   const owner = checker.getResolvedSignature(initializer)?.declaration;
-  return owner !== undefined && ts.isFunctionDeclaration(owner) && REACT_TYPES_PACKAGE.test(owner.getSourceFile().fileName.replaceAll("\\", "/"))
+  return owner !== undefined && ts.isFunctionDeclaration(owner) && sources.packageOf(owner.getSourceFile())?.name === REACT_TYPES_PACKAGE
     ? owner.name?.text
     : undefined;
 }
 
-function ownsRef(checker: ts.TypeChecker, expression: ts.Expression): boolean {
+function ownsRef(sources: LibrarySources, checker: ts.TypeChecker, expression: ts.Expression): boolean {
   if (!ts.isIdentifier(expression)) {
     return false;
   }
   const declaration = checker.getSymbolAtLocation(expression)?.valueDeclaration;
   if (declaration !== undefined && ts.isVariableDeclaration(declaration)) {
-    return hookName(checker, declaration.initializer) === "useRef";
+    return hookName(sources, checker, declaration.initializer) === "useRef";
   }
   if (declaration === undefined || !ts.isBindingElement(declaration) || !ts.isArrayBindingPattern(declaration.parent)) {
     return false;
   }
   const binding = declaration.parent;
   const variable = binding.parent;
-  return binding.elements[1] === declaration && ts.isVariableDeclaration(variable) && hookName(checker, variable.initializer) === "useState";
+  return binding.elements[1] === declaration && ts.isVariableDeclaration(variable) && hookName(sources, checker, variable.initializer) === "useState";
 }
 
 function otherUse(checker: ts.TypeChecker, expression: ts.Identifier, scope: ts.Node): boolean {
@@ -184,6 +188,7 @@ export const overwrittenRefRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     return {
       JSXOpeningElement: (node: TSESTree.JSXOpeningElement): void => {
         const element = native.esTreeNodeToTSNodeMap.get(node);
@@ -191,7 +196,7 @@ export const overwrittenRefRule: OrbRule = {
           return;
         }
         const expression = refExpression(element);
-        if (expression !== undefined && ownsRef(native.checker, expression) && conflictingSpread(native, element)) {
+        if (expression !== undefined && ownsRef(sources, native.checker, expression) && conflictingSpread(native, element)) {
           context.report({
             node,
             message: "A ref-bearing spread and an internal ref overwrite each other. Extract the caller ref and merge it with the internal ref.",
@@ -202,14 +207,14 @@ export const overwrittenRefRule: OrbRule = {
   },
 };
 
-function cssContext(type: ts.Type): boolean {
+function cssContext(sources: LibrarySources, type: ts.Type): boolean {
   if (type.isUnion() || type.isIntersection()) {
-    return type.types.some(cssContext);
+    return type.types.some((part) => cssContext(sources, part));
   }
   const symbol = type.getSymbol();
   return (
     symbol?.name === "CSSProperties" &&
-    symbol.declarations?.some((declaration) => REACT_TYPES_PACKAGE.test(declaration.getSourceFile().fileName.replaceAll("\\", "/"))) === true
+    symbol.declarations?.some((declaration) => sources.packageOf(declaration.getSourceFile())?.name === REACT_TYPES_PACKAGE) === true
   );
 }
 
@@ -218,6 +223,7 @@ export const unresolvedStyleSpreadRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const native = requireTypeServices(context);
+    const sources = librarySources(native.program, context.cwd);
     return {
       SpreadElement: (node: TSESTree.SpreadElement): void => {
         const spread = native.esTreeNodeToTSNodeMap.get(node);
@@ -225,7 +231,7 @@ export const unresolvedStyleSpreadRule: OrbRule = {
           return;
         }
         const target = native.checker.getContextualType(spread.parent);
-        if (target !== undefined && cssContext(target) && callable(native.checker.getTypeAtLocation(spread.expression))) {
+        if (target !== undefined && cssContext(sources, target) && callable(native.checker.getTypeAtLocation(spread.expression))) {
           context.report({
             node,
             message: "Resolve a callback-capable CSS style with its native state before object spreading; spreading the function drops its returned styles.",
@@ -247,7 +253,7 @@ function members(type: ts.Type): readonly ts.Type[] {
 }
 
 // A tv config types its axes as literal unions through a mapped type, so an axis has no declaration or one inside @orb/ui;
-// a prop from React or Base UI declares itself in node_modules and is not an axis.
+// a prop from React or Base UI declares itself in that library and is not an axis.
 function authoredHere(property: ts.Symbol): boolean {
   const declarations = property.declarations ?? [];
   return declarations.length === 0 || declarations.some((declaration) => UI_SOURCE.test(declaration.getSourceFile().fileName.replaceAll("\\", "/")));

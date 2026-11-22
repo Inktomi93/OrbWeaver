@@ -6,7 +6,11 @@ import { ESLint, Linter } from "eslint";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { DRIZZLE_PACKAGE } from "../../tooling/src/eslint/library-source.ts";
+import { directRowReadRule, directRowWriteRule } from "../../tooling/src/eslint/native.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
+import type { Link } from "./_library-link.ts";
+import { LINKS, lintLinked, plantLinked } from "./_library-link.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const WRITES = "orb/no-direct-row-writes";
@@ -148,3 +152,26 @@ test.for(["scripts/row-access-probe.ts", "playwright/row-access-probe.ts", "test
     expect(config.rules[READS]).toEqual([2]);
   },
 );
+
+// The drizzle database is drizzle's by the package the program loaded it from: a store-linked drizzle whose files sit
+// outside every node_modules directory is still drizzle, and a workspace package declaring the same class is not.
+const LINKED_PROBE = "app/probe.ts";
+const LINKED_RULES: Readonly<Record<Link, readonly string[]>> = { workspace: [], dependency: [WRITES, READS] };
+
+test.for(LINKS)("a database class declared by a %s named drizzle-orm", async (link, { plantedTree }) => {
+  const root = await plantLinked(
+    plantedTree,
+    link,
+    { name: DRIZZLE_PACKAGE, files: { "index.d.ts": "export declare class BaseSQLiteDatabase {\n  insert(table: string): void;\n  select(): void;\n}" } },
+    {
+      [LINKED_PROBE]: [
+        `import type { BaseSQLiteDatabase } from "${DRIZZLE_PACKAGE}";`,
+        "declare const db: BaseSQLiteDatabase;",
+        'db.insert("rows");',
+        "db.select();",
+      ].join("\n"),
+    },
+  );
+  const found = lintLinked(root, LINKED_PROBE, { "no-direct-row-writes": directRowWriteRule, "no-direct-row-reads": directRowReadRule });
+  expect(found.map(({ ruleId }) => ruleId)).toEqual(LINKED_RULES[link]);
+});
