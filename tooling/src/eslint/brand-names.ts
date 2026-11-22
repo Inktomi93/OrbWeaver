@@ -54,10 +54,19 @@ export function brandOfPhantomKeys(keys: readonly PhantomKey[]): string | undefi
 /** A brand's name from its literal label alone, for a label read from syntax. */
 export const brandOfLabel = (label: string, verified: boolean): string => `${verified ? "Verified" : ""}${NAME_OF_PREFIX.get(label) ?? label}`;
 
-const LIBRARY_PATH = /(?:^|[\\/])node_modules[\\/]/u;
+/** What a compiler program says of the file a declaration sits in. */
+export interface SourceOrigin {
+  /** The program loaded the file as an external library: it was resolved through `node_modules`. */
+  readonly external: boolean;
+  /** The file belongs to one of the workspace's own packages, which pnpm links into `node_modules`, so the program
+   *  flags it external too. */
+  readonly workspacePackage: boolean;
+}
 
-/** Whether a declaration's file is a library's own: an installed package, never the program's sources or a default lib. */
-export const isLibraryFile = (path: string): boolean => LIBRARY_PATH.test(path);
+/** A library's own file: the program loaded it as external, and it is no workspace package. Both readers judge a
+ *  library by this contract, each asking its own program and never a path's text: `orb/no-raw-id` asks the TypeScript 6
+ *  program here, and brand-flow asks the 7.1 program through {@link NativeWorld.packageOf}, which answers the same way. */
+export const isLibrarySource = ({ external, workspacePackage }: SourceOrigin): boolean => external && !workspacePackage;
 
 /** A sub-brand reads as the brand it refines: a `VerifiedUserId` is a `UserId`. */
 const baseBrand = (name: string): string => name.replace(/^Verified/u, "");

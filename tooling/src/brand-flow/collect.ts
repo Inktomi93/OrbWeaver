@@ -20,7 +20,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
-import { isLibraryFile, sharesBrand } from "../brand-names/index.ts";
+import { sharesBrand } from "../brand-names/index.ts";
 import type { NativeWorld } from "../unwired/index.ts";
 import { propertiesNamed } from "../unwired/index.ts";
 import type { DeclInfo } from "./decl.ts";
@@ -351,10 +351,14 @@ function collectPlainFeeds(world: NativeWorld, reader: TypeReader, found: Gather
     return read === undefined ? [] : [{ handed, read }];
   });
   const symbols = world.symbolsAt(asked.map(({ read }) => read));
+  const declarations = asked.map((_, at) => symbols[at]?.declarations ?? []);
+  // The 7.1 program's answer under isLibrarySource: a declaration whose file was loaded from a package not the workspace's.
+  const packages = world.batch(declarations.flat().map((handle) => world.packageOf(handle)));
+  let next = 0;
   const library = new Set(
     asked.flatMap(({ handed }, at) => {
-      const declarations = symbols[at]?.declarations ?? [];
-      return declarations.length > 0 && declarations.every((declaration) => isLibraryFile(declaration.path)) ? [handed] : [];
+      const from = (declarations[at] ?? []).map(() => packages[next++]);
+      return from.length > 0 && from.every((name) => name !== null && name !== undefined) ? [handed] : [];
     }),
   );
   if (library.size === 0) {

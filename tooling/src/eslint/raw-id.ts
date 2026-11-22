@@ -2,13 +2,16 @@
 // generic id field or React state. Only the Zod builder check is syntax-only. An id name picks the string declarations
 // the rule judges; the brand it holds is what this file hands it, and a library's own value makes it that library's
 // handle. The name stands for the brand only where nothing branded or foreign reaches it (brand-names.ts).
-import { relative } from "node:path";
+import { existsSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
+import { WORKSPACE_MANIFEST, workspacePackageDirs } from "../package-effects/index.ts";
 import type { Inflow, NameMatch } from "./brand-names.ts";
-import { BrandTable, brandOfPhantomKeys, isLibraryFile, isPhantomKey, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
+import { BrandTable, brandOfPhantomKeys, isLibrarySource, isPhantomKey, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
 import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
@@ -214,7 +217,31 @@ function sourceOfField(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): 
   return declaration;
 }
 
-function libraryFieldSource(program: ts.Program, checker: ts.TypeChecker, node: ts.Node, name: string): ts.Declaration | undefined {
+// The workspace's own package directories under a lint's working directory, read once per directory.
+const workspaceDirsByCwd = new Map<string, readonly string[]>();
+
+function workspaceDirs(cwd: string): readonly string[] {
+  const known = workspaceDirsByCwd.get(cwd);
+  if (known !== undefined) {
+    return known;
+  }
+  const dirs = existsSync(join(cwd, WORKSPACE_MANIFEST)) ? workspacePackageDirs(cwd).map((dir) => join(cwd, dir)) : [];
+  workspaceDirsByCwd.set(cwd, dirs);
+  return dirs;
+}
+
+/** Whether a file is a library's own, by the program's answer under {@link isLibrarySource}. */
+type IsLibrary = (file: ts.SourceFile) => boolean;
+
+function libraryOf(program: ts.Program, cwd: string): IsLibrary {
+  return (file: ts.SourceFile): boolean =>
+    isLibrarySource({
+      external: program.isSourceFileFromExternalLibrary(file),
+      workspacePackage: workspaceDirs(cwd).some((dir) => isWithinRoot(dir, file.fileName.replaceAll("/", sep), { sep })),
+    });
+}
+
+function libraryFieldSource(isLibrary: IsLibrary, checker: ts.TypeChecker, node: ts.Node, name: string): ts.Declaration | undefined {
   if (!((ts.isShorthandPropertyAssignment(node) || ts.isPropertyAssignment(node)) && ts.isObjectLiteralExpression(node.parent))) {
     return;
   }
@@ -222,7 +249,7 @@ function libraryFieldSource(program: ts.Program, checker: ts.TypeChecker, node: 
     return;
   }
   const field = checker.getContextualType(node.parent)?.getProperty(name);
-  if (field?.declarations?.some((origin) => program.isSourceFileFromExternalLibrary(origin.getSourceFile())) !== true) {
+  if (field?.declarations?.some((origin) => isLibrary(origin.getSourceFile())) !== true) {
     return;
   }
   if (ts.isShorthandPropertyAssignment(node)) {
@@ -234,8 +261,8 @@ function libraryFieldSource(program: ts.Program, checker: ts.TypeChecker, node: 
 
 // A value forwarded to a field of an imported library type has a known owner. Look up the actual
 // contextual property, so mapped projections such as Pick retain the original field declaration.
-function forwardsLibraryField(program: ts.Program, checker: ts.TypeChecker, declaration: ts.Node, name: string): boolean {
-  const visit = (node: ts.Node): boolean => libraryFieldSource(program, checker, node, name) === declaration || ts.forEachChild(node, visit) === true;
+function forwardsLibraryField(isLibrary: IsLibrary, checker: ts.TypeChecker, declaration: ts.Node, name: string): boolean {
+  const visit = (node: ts.Node): boolean => libraryFieldSource(isLibrary, checker, node, name) === declaration || ts.forEachChild(node, visit) === true;
   return visit(declaration.getSourceFile());
 }
 
@@ -264,14 +291,14 @@ function heldBrands(checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): str
 }
 
 // A value read straight from a declaration in a library: the declaration it fills holds that library's handle.
-function fromLibrary(checker: ts.TypeChecker, value: ts.Expression): boolean {
+function fromLibrary(isLibrary: IsLibrary, checker: ts.TypeChecker, value: ts.Expression): boolean {
   let read: ts.Expression = value;
   while (ts.isParenthesizedExpression(read) || ts.isNonNullExpression(read) || ts.isAsExpression(read)) {
     read = read.expression;
   }
   const name = ts.isPropertyAccessExpression(read) ? read.name : read;
   const declarations = ts.isIdentifier(name) ? (resolvedSymbol(checker, name)?.declarations ?? []) : [];
-  return declarations.length > 0 && declarations.every((declaration) => isLibraryFile(declaration.getSourceFile().fileName));
+  return declarations.length > 0 && declarations.every((declaration) => isLibrary(declaration.getSourceFile()));
 }
 
 interface HandOff {
@@ -329,12 +356,12 @@ function handOffs(checker: ts.TypeChecker, node: ts.Node): readonly HandOff[] {
 // What this file hands each declaration. A target is resolved only for a value that carries a brand or a library's own
 // value, so a file of plain strings asks the checker for no signature. Once a library's value is handed somewhere, the
 // file's own values are resolved too: a declaration they also fill holds the file's value, not the library's.
-function fileInflow(checker: ts.TypeChecker, brand: ts.Type, source: ts.SourceFile): ReadonlyMap<ts.Node, Inflow> {
+function fileInflow(isLibrary: IsLibrary, checker: ts.TypeChecker, brand: ts.Type, source: ts.SourceFile): ReadonlyMap<ts.Node, Inflow> {
   const fed = new Map<ts.Node, { readonly brands: Set<string>; foreign: boolean }>();
   const own: HandOff[] = [];
   const note = (hand: HandOff): void => {
     const brands = heldBrands(checker, brand, checker.getTypeAtLocation(hand.value));
-    const foreign = brands.length === 0 && fromLibrary(checker, hand.value);
+    const foreign = brands.length === 0 && fromLibrary(isLibrary, checker, hand.value);
     if (brands.length === 0 && !foreign) {
       own.push(hand);
       return;
@@ -484,6 +511,7 @@ export const rawIdRule: OrbRule = {
     const source = toTs.get(context.sourceCode.ast).getSourceFile();
     const visible = localBrands(source, checker, brand);
     const table = new BrandTable([...TYPE_ID_BRANDS, ...visible]);
+    const isLibrary = libraryOf(program, context.cwd);
     let inflow: ReadonlyMap<ts.Node, Inflow> | undefined;
     const judgeDeclared = (node: TSESTree.Node, name: string, annotation: TSESTree.TSTypeAnnotation | undefined): void => {
       const plain =
@@ -502,9 +530,9 @@ export const rawIdRule: OrbRule = {
       if (named === null || !ENFORCED_MATCHES.has(named.match) || !visible.has(named.brand)) {
         return;
       }
-      inflow ??= fileInflow(checker, brand, source);
+      inflow ??= fileInflow(isLibrary, checker, brand, source);
       const { brand: held } = siteBrand(inflow.get(declaration), named);
-      if (held !== null && !forwardsLibraryField(program, checker, declaration, name)) {
+      if (held !== null && !forwardsLibraryField(isLibrary, checker, declaration, name)) {
         context.report({ node, message: declaredMessage(name, held) });
       }
     };
