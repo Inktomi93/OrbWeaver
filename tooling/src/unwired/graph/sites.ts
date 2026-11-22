@@ -46,7 +46,6 @@ import {
   isBlock,
   isCallExpression,
   isClassDeclaration,
-  isComputedPropertyName,
   isConditionalExpression,
   isConstructorDeclaration,
   isElementAccessExpression,
@@ -119,7 +118,7 @@ import {
 } from "@typescript/native/ast";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
-import { unparenType, unwrapExpression } from "./resolve.ts";
+import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { inAssignmentPattern, referenceRoles, sameNode } from "./roles.ts";
 
@@ -231,22 +230,6 @@ const unitName = (node: Node): Node | undefined => (isUnitDeclaration(node) ? no
 
 /** The name a declaration-like node declares: a unit's, a binding's, a parameter's or a literal key's. */
 export const declarationNameOf = (node: Node): Node | undefined => unitName(node) ?? namingName(node);
-
-/** A literal key's text: an identifier, a string or numeric literal, or a computed key holding a string. */
-export function keyText(name: Node | undefined): string | undefined {
-  if (name === undefined) {
-    return undefined;
-  }
-  if (isIdentifier(name) || isPrivateIdentifier(name) || isStringLiteral(name) || isNumericLiteral(name) || isNoSubstitutionTemplateLiteral(name)) {
-    return name.text;
-  }
-  if (name.kind === SyntaxKind.TrueKeyword) {
-    return "true";
-  }
-  return isComputedPropertyName(name) && (isStringLiteral(name.expression) || isNoSubstitutionTemplateLiteral(name.expression))
-    ? name.expression.text
-    : undefined;
-}
 
 /** The name a declaration without one is labelled with. */
 export const UNNAMED = "{…}";

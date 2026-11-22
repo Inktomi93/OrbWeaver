@@ -13,8 +13,9 @@ import type { Node, UnionTypeNode } from "@typescript/native/ast";
 import { isExpressionWithTypeArguments, isTypeAliasDeclaration, isTypeReferenceNode } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
+import { keyText } from "./resolve.ts";
 import type { FileSites } from "./sites.ts";
-import { isDeclKey, keyText } from "./sites.ts";
+import { isDeclKey } from "./sites.ts";
 import type { GraphState, RegistryKind } from "./state.ts";
 import { REGISTRY_KINDS } from "./state.ts";
 

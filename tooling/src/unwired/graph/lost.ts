@@ -114,6 +114,17 @@ function memberSlot(symbol: NativeSymbol): LostSlot {
   return hasFlag(symbol.checkFlags, CheckFlags.Instantiated) ? "instantiated" : "no-declaration";
 }
 
+/** The packages that declare the type a mapped member is read from, when a package's type mapped its keys: the key set
+ *  is the library's, so the read is too. The default library's `Record` and `Readonly` only carry keys the tree spells. */
+export function* libraryKeySet(world: NativeWorld, symbol: NativeSymbol, receiver: Type): APIRequestGenerator<readonly string[]> {
+  if (!hasFlag(symbol.checkFlags, CheckFlags.Mapped)) {
+    return [];
+  }
+  const [alias, own] = yield* all(receiver.getAliasSymbol.gen(), receiver.getSymbol.gen());
+  const packages = yield* packagesOf(world, (alias ?? own)?.declarations ?? []);
+  return packages.filter((name) => name !== DEFAULT_LIBRARY);
+}
+
 /** The libraries a set of declarations was loaded from, sorted: a package by its name, the default library as
  *  {@link DEFAULT_LIBRARY}; the tree's own declarations name none. */
 export function* packagesOf(world: NativeWorld, handles: readonly NodeHandle[]): APIRequestGenerator<readonly string[]> {

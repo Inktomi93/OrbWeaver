@@ -12,7 +12,8 @@ import { isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, Sy
 import type { Signature } from "@typescript/native/sync";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { keyLiterals, keyText } from "./sites.ts";
+import { keyText } from "./resolve.ts";
+import { keyLiterals } from "./sites.ts";
 import type { BuildSession, GraphState } from "./state.ts";
 
 const TAILWIND_VARIANTS = "tailwind-variants";

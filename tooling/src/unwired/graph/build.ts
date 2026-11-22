@@ -21,14 +21,14 @@ import {
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind } from "@typescript/native/sync";
 import { NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
-import { keySources, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
+import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
@@ -282,14 +282,25 @@ class Builder {
       if (decls.length > 0) {
         state.count("origin recovered through a receiver's declaration");
       }
-      return decls.length === 0 && walks[at]?.end !== "library";
+      return decls.length === 0 && walks[at]?.end !== "library" && annotated[y]?.end !== "library";
     });
+    const landed = lost.flatMap(({ site, at }, y) => {
+      const walk = (annotated[y]?.decls.length ?? 0) === 0 ? [walks[at], annotated[y]].find((candidate) => candidate?.end === "library") : undefined;
+      return walk === undefined ? [] : [{ site, stops: walk.stops }];
+    });
+    const stoppedAt = state.batch(landed.map(({ stops }) => packagesOf(state.world, stops)));
     this.#libraryLandings(
       sites,
-      lost.flatMap(({ site, at }, y) => ((annotated[y]?.decls.length ?? 0) === 0 && walks[at]?.end === "library" ? [{ site, stops: walks[at].stops }] : [])),
+      landed.map(({ site }, y) => ({ site, packages: stoppedAt[y] ?? [] })),
     );
-    const reasons = state.batch(still.map(({ type, name }) => state.resolver.unbackedReason(type, name)));
-    const unplaced = still.filter((_, y) => reasons[y] === null || reasons[y] === undefined);
+    const keyed = state.batch(still.map(({ symbol, type }) => libraryKeySet(state.world, symbol, type)));
+    this.#libraryLandings(
+      sites,
+      still.flatMap(({ site }, y) => ((keyed[y]?.length ?? 0) > 0 ? [{ site, packages: keyed[y] ?? [] }] : [])),
+    );
+    const unkeyed = still.filter((_, y) => (keyed[y]?.length ?? 0) === 0);
+    const reasons = state.batch(unkeyed.map(({ type, name, symbol }) => state.resolver.unbackedReason(type, name, symbol)));
+    const unplaced = unkeyed.filter((_, y) => reasons[y] === null || reasons[y] === undefined);
     for (const reason of reasons) {
       if (reason !== null) {
         state.count(`no home by design: ${reason}`);
@@ -329,11 +340,9 @@ class Builder {
   }
 
   // The bare reads a library's own declaration answered, by the packages their walks stopped at.
-  #libraryLandings(sites: FileSites, landed: readonly { readonly site: NameSite; readonly stops: readonly NodeHandle[] }[]): void {
-    const state = this.#state;
-    const packages = state.batch(landed.map(({ stops }) => packagesOf(state.world, stops)));
-    for (const [at, { site }] of landed.entries()) {
-      state.libraryLandings.push({ where: `${sites.file}:${String(sites.lineOf(site.node))}`, member: nameText(site.node), packages: packages[at] ?? [] });
+  #libraryLandings(sites: FileSites, landed: readonly { readonly site: NameSite; readonly packages: readonly string[] }[]): void {
+    for (const { site, packages } of landed) {
+      this.#state.libraryLandings.push({ where: `${sites.file}:${String(sites.lineOf(site.node))}`, member: nameText(site.node), packages });
     }
   }
 

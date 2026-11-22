@@ -3,6 +3,7 @@
 // inline axis is placed against its homes; and a lost read is broken down by where its key came from.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { SyntaxKind } from "@typescript/native/ast";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { GraphOptions, QueryAnswer } from "../../../tooling/src/unwired/index.ts";
 import { DEFAULT_LIBRARY, FRESH_BUILD, QUERIES, queryGraph } from "../../../tooling/src/unwired/index.ts";
@@ -157,6 +158,98 @@ test("explain-lost breaks the lost reads down by key source and slot, and the li
     ],
   );
   expect((await queryGraph(root, { query: "users", names: ["XYZ"] }, quiet)).session.lost).toBeNull();
+});
+
+test("a lost key set is followed to the tree's spelling or to the library that spells it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const hops = `${GRAPH_SOURCE}/hops.ts`;
+  const source = [
+    'import { env, params } from "fakelib";',
+    'import { z } from "zod";',
+    "declare function budgets<const K extends string>(bases: Readonly<Record<K, number>>): Readonly<Record<K, number>>;",
+    "const CEILINGS = budgets({ ready: 1 });",
+    "export const fromCall = CEILINGS.ready;",
+    'export const HOSTS = ["m", "n", "o"] as const;',
+    "export type Palette<Host extends string> = { readonly hosts: Readonly<Record<Host, number>> } & { readonly tag: string };",
+    "declare const palette: Palette<(typeof HOSTS)[number]>;",
+    "export const fromHolder = palette.hosts.m;",
+    "declare function paletteOf(): Palette<(typeof HOSTS)[number]>;",
+    "const inferred = paletteOf();",
+    "export const fromInferredHolder = inferred.hosts.o;",
+    "declare function seats(): { readonly seat: Record<(typeof HOSTS)[number], number> };",
+    "const { seat } = seats();",
+    "export const fromBinding = seat.n;",
+    'export const PORTS: Readonly<Record<"one" | "two", number>> = { one: 1, two: 2 };',
+    "export interface Run { readonly stacks: typeof PORTS }",
+    "declare const run: Run;",
+    "export const fromQuery = run.stacks.one;",
+    'const DEFAULTS: Record<"temp" | "topP", string> = { temp: "t", topP: "p" };',
+    'declare const overrides: Partial<Record<"temp" | "topP", string>>;',
+    "const merged = { ...DEFAULTS, ...overrides };",
+    "export const fromSpread = merged.temp;",
+    'export interface Config { readonly output: "narrator" | "per-speaker" | "roster" }',
+    'const LABELS: Record<Config["output"], string> = { narrator: "a", "per-speaker": "b", roster: "c" };',
+    "export const fromMember = LABELS.narrator;",
+    'export const TASKS = ["chat", "embed", "rerank"] as const;',
+    "type Task = (typeof TASKS)[number];",
+    'type Routable = { [T in Task]: T extends "rerank" ? never : T }[Task];',
+    "const ROUTES: Record<Routable, number> = { chat: 1, embed: 2 };",
+    "export const fromIndexedMapped = ROUTES.chat;",
+    'export const KINDS = ["web", "wiki", "youtube"] as const;',
+    "const kindSchema = z.enum(KINDS);",
+    'const FAILURE: Record<z.infer<typeof kindSchema>, string> = { web: "a", wiki: "b", youtube: "c" };',
+    "export const fromSchema = FAILURE.web;",
+    'declare function rowCounts(): Promise<Readonly<Record<"chats" | "cards" | "docs", number>>>;',
+    "export const fromAwait = async (): Promise<number> => (await rowCounts()).chats;",
+    "export const fromLibraryMember = env.environments.client;",
+    'export const fromLibraryType = params("/x").section;',
+    "class Plain {}",
+    "export const fromPrototype = Plain.prototype;",
+  ].join("\n");
+  const lineOf = (name: string): number => source.split("\n").findIndex((line) => line.includes(`const ${name} `)) + 1;
+  const root = await plantedTree(
+    graphTree({
+      "node_modules/fakelib/package.json": JSON.stringify({ name: "fakelib", types: "index.d.ts" }),
+      "node_modules/fakelib/index.d.ts": [
+        'export declare const env: { readonly environments: Record<"client" | "ssr", number> };',
+        'export declare function params(path: string): { [K in "section"]: string };',
+      ].join("\n"),
+      "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
+      "node_modules/zod/index.d.ts": [
+        "export declare namespace z {",
+        "  type infer<T> = T extends { readonly out: infer O } ? O : never;",
+        "}",
+        "export declare const z: { enum<const T extends readonly string[]>(values: T): { readonly out: T[number] } };",
+      ].join("\n"),
+      [hops]: source,
+    }),
+  );
+  const users = async (name: string): Promise<readonly string[]> =>
+    (await queryGraph(root, { query: "users", names: [name] }, quiet)).answers.flatMap((answer) =>
+      answer.query === "users" ? answer.nodes.map(({ label }) => label) : [],
+    );
+  const { session } = await queryGraph(root, { query: "users", names: ["HOSTS"] }, quiet, { ...FRESH_BUILD, explainLost: true });
+  expect(session.lost?.total).toBe(0);
+  expect(session.lost?.library.byLibrary.find(({ library }) => library === "fakelib")?.members.map(({ member }) => member)).toEqual([
+    "client",
+    "environments",
+    "section",
+  ]);
+  // the call's object literal property `ready: 1` is the home: an unnamed declaration, labelled by its key
+  const reached = (await queryGraph(root, { query: "reach", names: ["fromCall"] }, quiet)).answers.flatMap((answer) =>
+    answer.query === "reach" ? answer.nodes.map(({ label }) => label) : [],
+  );
+  const callLine = "const CEILINGS = budgets({ ready: 1 });";
+  const at = source.indexOf(callLine) + callLine.indexOf("{") + 1;
+  expect(reached).toContain(`${hops}#${String(at)}-${String(at + " ready: 1".length)}.${String(SyntaxKind.PropertyAssignment)}`);
+  expect(await users("HOSTS")).toContain(`${hops}:${lineOf("fromHolder")} fromHolder`);
+  expect(await users("Config.output")).toContain(`${hops}:${lineOf("fromMember")} fromMember`);
+  expect(await users("KINDS")).toContain(`${hops}:${lineOf("fromSchema")} fromSchema`);
+  expect(await users("TASKS")).toContain(`${hops}:${lineOf("fromIndexedMapped")} fromIndexedMapped`);
+  expect(await users("HOSTS")).toEqual(
+    expect.arrayContaining([`${hops}:${lineOf("fromInferredHolder")} fromInferredHolder`, `${hops}:${lineOf("fromBinding")} fromBinding`]),
+  );
+  expect(await users("PORTS")).toContain(`${hops}:${lineOf("fromQuery")} fromQuery`);
+  expect(await users("DEFAULTS")).toContain(`${hops}:${lineOf("fromSpread")} fromSpread`);
 });
 
 test("a query verb with no name to ask about is refused before any world loads", async ({ runCli, scratch }) => {
