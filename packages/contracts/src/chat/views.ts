@@ -153,8 +153,8 @@ export interface ActionTemplatesPreview {
 }
 
 /** One persisted positional injection (the `chat_injections` row resolved) — the `ChatInjection` wire shape
- *  plus its id. Returned by setChatInjection / listChatInjections. */
-export interface ChatInjectionView extends ChatInjection {
+ *  plus its id, minus the assembly-only `noteEdge` seat stamp. Returned by setChatInjection / listChatInjections. */
+export interface ChatInjectionView extends Omit<ChatInjection, "noteEdge"> {
   readonly id: ChatInjectionId;
 }
 
