@@ -5,13 +5,15 @@
 // test's read of a test id; a whole data-*
 // string no site reaches is listed as unresolved and keeps its name out of every bucket.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import type { DomReport } from "../../../tooling/src/unwired/index.ts";
+import { OWNER_CSS_SURFACE } from "../../../tooling/src/unwired/graph/css.ts";
+import type { DomReport, Unresolved } from "../../../tooling/src/unwired/index.ts";
 import { domGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB, WORLD } from "./_planted.ts";
 
 const SHEET = `${GRAPH_SOURCE}/hooks.css`;
-const OWNER_CSS = "packages/client/owner-css-surface.ts";
 const TIMEOUT = { timeout: 120_000 };
+// A ceiling on the (node, position) answers one diamond level may cost: the memo answers each level's calls once.
+const STEPS_PER_LEVEL = 4;
 
 // The element surface the planted code writes and reads through, since a planted tree has no DOM lib.
 const ELEMENT = [
@@ -33,7 +35,7 @@ async function dom(plantedTree: (tree: Record<string, string>) => Promise<string
         [WORLD]: plantedTsconfig({ lib: LIB, include: ["../*/src", "../../tests", "../../tooling"], jsx: "preserve" }),
         [`${GRAPH_SOURCE}/jsx-env.ts`]: JSX_NAMESPACE,
         [`${GRAPH_SOURCE}/el.ts`]: ELEMENT,
-        [OWNER_CSS]: owner([]),
+        [OWNER_CSS_SURFACE]: owner([]),
         ...files,
       },
       { jsx: true },
@@ -41,6 +43,9 @@ async function dom(plantedTree: (tree: Record<string, string>) => Promise<string
   );
   return await domGraph(root, () => undefined);
 }
+
+// Where each unresolved mention sits; its reason is the pass's own wording, which a case does not pin.
+const placed = (rows: readonly Unresolved[]): readonly Omit<Unresolved, "why">[] => rows.map(({ text, at, world }) => ({ text, at, world }));
 
 const names = (rows: readonly string[]): readonly string[] => rows.map((row) => row.slice(0, row.indexOf(" ")));
 
@@ -50,7 +55,7 @@ test("a class selector no product string writes is reported; a sealed, dependenc
       ".live { color: red; } .dead { color: red; } .pre-sm { color: red; } .cm-line { color: red; } .lib-skin { color: red; } .shell-grid { color: red; }",
     // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
     [`${GRAPH_SOURCE}/box.ts`]: ['export const box = "flex live";', "export const sized = (size: string): string => `pre-${size}`;"].join("\n"),
-    [OWNER_CSS]: owner(['export const OWNER_CSS_SHELL_CLASSES = ["shell-grid"] as const;']),
+    [OWNER_CSS_SURFACE]: owner(['export const OWNER_CSS_SHELL_CLASSES = ["shell-grid"] as const;']),
     "packages/a/node_modules/skin-lib/package.json": JSON.stringify({ name: "skin-lib", main: "index.js" }),
     "packages/a/node_modules/skin-lib/index.js": 'export const skin = "lib-skin";',
   });
@@ -97,7 +102,9 @@ test("an attribute selector is written through a constant, an import, a table, a
     "packages/a/node_modules/stream-lib/index.js": 'export const stamp = (el) => el.setAttribute("data-streamy", "");',
   });
   expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-dead]`]);
-  expect(report.unresolved).toEqual([]);
+  // The template's wide part leaves its name open: it writes what its head starts, and is listed.
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the expected text is the planted template's source.
+  expect(placed(report.unresolved)).toEqual([{ text: "`${PREFIX}${key}`", at: `${GRAPH_SOURCE}/stamp.ts:17`, world: "product" }]);
 });
 
 test("a selector value no write can hold is reported; a value a wide prop writes is any value", TIMEOUT, async ({ plantedTree }) => {
@@ -112,7 +119,7 @@ test("a selector value no write can hold is reported; a value a wide prop writes
 test("a written data-* attribute no product or snap read reaches is reported, a test or other tooling read annotated", TIMEOUT, async ({ plantedTree }) => {
   const report = await dom(plantedTree, {
     [SHEET]: "[data-styled] { color: red; }",
-    [OWNER_CSS]: owner(['export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [{ "name": "data-theme-grain", "values": ["on"] }] as const;']),
+    [OWNER_CSS_SURFACE]: owner(['export const OWNER_CSS_APPEARANCE_ATTRIBUTES = [{ "name": "data-theme-grain", "values": ["on"] }] as const;']),
     [`${GRAPH_SOURCE}/marks.tsx`]: [
       'import type { El } from "./el.ts";',
       'const READ = "data-held-read";',
@@ -182,10 +189,10 @@ test(
       "tooling/src/named.ts": 'export const NAMED = ["data-tooling-named"];',
     });
     expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-dead]`, `${SHEET}:[data-tooling-named]`]);
-    expect(report.unresolved).toEqual([
-      { text: "data-stray", at: `${GRAPH_SOURCE}/stray.ts:2`, world: "product", why: "held by stray, which no attribute site reads" },
-      { text: "name", at: `${GRAPH_SOURCE}/stray.ts:4`, world: "product", why: "an attribute write whose name no hop resolves" },
-      { text: "data-tooling-named", at: "tooling/src/named.ts:1", world: "tooling", why: "an element of a list no attribute site reads" },
+    expect(placed(report.unresolved)).toEqual([
+      { text: "data-stray", at: `${GRAPH_SOURCE}/stray.ts:2`, world: "product" },
+      { text: "name", at: `${GRAPH_SOURCE}/stray.ts:4`, world: "product" },
+      { text: "data-tooling-named", at: "tooling/src/named.ts:1", world: "tooling" },
     ]);
   },
 );
@@ -233,7 +240,7 @@ test("a name is followed through a call's returns, a mapped table's field and a 
   });
   expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-chan-gamma]`]);
   expect(report.buckets["dom-attr-unread"]).toEqual([]);
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
 });
 
 test("a name is followed through a destructured tuple and a list method's callback element", TIMEOUT, async ({ plantedTree }) => {
@@ -257,7 +264,7 @@ test("a name is followed through a destructured tuple and a list method's callba
   });
   expect(report.buckets["css-attr-unwritten"]).toEqual([]);
   expect(report.buckets["css-attr-value-unwritten"]).toEqual([`${SHEET}:[data-tuple-name=off]`]);
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
 });
 
 test("a read of snap's or ui-facts' attribute model by name reads that attribute; a look-alike record does not", TIMEOUT, async ({ plantedTree }) => {
@@ -282,10 +289,12 @@ test("a read of snap's or ui-facts' attribute model by name reads that attribute
       "export const Models = () => <div data-snap-model data-facts-model data-not-model />;",
     ].join("\n"),
   });
-  expect(report.buckets["dom-attr-unread"]).toEqual([`data-facts-model ${GRAPH_SOURCE}/models.tsx:3 read by tooling`]);
-  expect(report.unresolved).toEqual([
-    { text: "data-not-model", at: `${GRAPH_SOURCE}/models.tsx:2`, world: "product", why: "a string no attribute site reaches" },
+  // A look-alike record's key names a property, not an attribute read, so its hook stays unread.
+  expect(report.buckets["dom-attr-unread"]).toEqual([
+    `data-facts-model ${GRAPH_SOURCE}/models.tsx:3 read by tooling`,
+    `data-not-model ${GRAPH_SOURCE}/models.tsx:3`,
   ]);
+  expect(placed(report.unresolved)).toEqual([]);
 });
 
 test("a table a flatMap builds holds the rows its callback returns, past a branch that returns none", TIMEOUT, async ({ plantedTree }) => {
@@ -314,7 +323,8 @@ test("a table a flatMap builds holds the rows its callback returns, past a branc
     ].join("\n"),
   });
   expect(report.buckets["css-attr-unwritten"]).toEqual([]);
-  expect(report.unresolved).toEqual([]);
+  // `lower()` is wide, so the write names only its head, and is listed.
+  expect(placed(report.unresolved)).toEqual([{ text: "row.name", at: `${GRAPH_SOURCE}/flat.ts:16`, world: "product" }]);
 });
 
 test("a name is followed through Object.entries values and a reader a record holds, called through the record", TIMEOUT, async ({ plantedTree }) => {
@@ -345,7 +355,7 @@ test("a name is followed through Object.entries values and a reader a record hol
       "export const Seen = () => <div data-obs-seed data-obs-made data-obs-lost />;",
     ].join("\n"),
   });
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
   expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-obs-lost"]);
 });
 
@@ -367,7 +377,7 @@ test("an observer's attributeFilter and a record's attributeName compare read th
     ].join("\n"),
   });
   expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-watch-none"]);
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
 });
 
 test("a callback a browser driver runs in the page holds the argument the driver hands it", TIMEOUT, async ({ plantedTree }) => {
@@ -393,7 +403,7 @@ test("a callback a browser driver runs in the page holds the argument the driver
     `data-element-mark ${GRAPH_SOURCE}/marked.tsx:1 read by tests`,
     `data-page-mark ${GRAPH_SOURCE}/marked.tsx:1 read by tests`,
   ]);
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
 });
 
 test("a name held deeper than any fixed hop count still resolves, and a cycle ends", TIMEOUT, async ({ plantedTree }) => {
@@ -413,7 +423,7 @@ test("a name held deeper than any fixed hop count still resolves, and a cycle en
       "}",
     ].join("\n"),
   });
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
   expect(report.buckets["css-attr-unwritten"]).toEqual([]);
 });
 
@@ -432,7 +442,7 @@ test("an object read by a computed key holds every property's value, and a null 
       "export const Indexed = () => <div data-idx-a data-idx-b data-idx-none />;",
     ].join("\n"),
   });
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
   expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-idx-none"]);
 });
 
@@ -453,19 +463,19 @@ test("a named function a browser driver runs in the page holds the argument the 
       "}",
     ].join("\n"),
   });
-  expect(report.unresolved).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
   expect(report.buckets["dom-attr-unread"]).toEqual([`data-named-mark ${GRAPH_SOURCE}/named.tsx:1 read by tests`]);
 });
 
-test("a name reached by many routes is answered once per position, so a diamond fan-out finishes", TIMEOUT, async ({ plantedTree }) => {
-  const levels = 30;
+test("a name reached by many routes is answered once per position, so a diamond fan-out stays linear", TIMEOUT, async ({ plantedTree }) => {
+  const levels = 12;
   const diamond = Array.from({ length: levels }, (_, level) =>
     level === 0
       ? 'const fan0 = (on: boolean): string => (on ? "data-fan-end" : "data-fan-end");'
       : `const fan${String(level)} = (on: boolean): string => (on ? fan${String(level - 1)}(on) : fan${String(level - 1)}(!on));`,
   );
   const report = await dom(plantedTree, {
-    [SHEET]: "[data-fan-end] { color: red; }",
+    [SHEET]: "[data-fan-end] { color: red; } [data-fan-dead] { color: red; }",
     [`${GRAPH_SOURCE}/fan.ts`]: [
       'import type { El } from "./el.ts";',
       ...diamond,
@@ -474,6 +484,180 @@ test("a name reached by many routes is answered once per position, so a diamond 
       "}",
     ].join("\n"),
   });
-  expect(report.unresolved).toEqual([]);
-  expect(report.buckets["css-attr-unwritten"]).toEqual([]);
+  expect(placed(report.unresolved)).toEqual([]);
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-fan-dead]`]);
+  // Each level's two calls share one body, so the memo answers each node once: the work grows with the levels. A walk
+  // that keyed its memo by route would answer every one of the 2^levels routes.
+  expect(report.counts.steps).toBeLessThan(levels * STEPS_PER_LEVEL);
+});
+
+test("a dependency writes a name only as a whole string, a whole class token or a dataset member", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: [
+      ".tab { color: red; }",
+      ".chip { color: red; }",
+      "[data-open] { color: red; }",
+      "[data-real] { color: red; }",
+      "[data-dep-set] { color: red; }",
+    ].join("\n"),
+    "packages/a/node_modules/x-lib/package.json": JSON.stringify({ name: "x-lib", main: "index.js" }),
+    "packages/a/node_modules/x-lib/index.js": [
+      'export const word = "stable";',
+      'export const longer = "data-opener";',
+      'export const classes = "chip big";',
+      'export const stamp = (el) => { el.setAttribute("data-real", ""); el.dataset.depSet = ""; };',
+    ].join("\n"),
+  });
+  expect(report.buckets["css-class-unwritten"]).toEqual([`${SHEET}:.tab`]);
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-open]`]);
+});
+
+test("a data-* name in a key position is a property, never an unresolved mention that hides an unread hook", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/keys.tsx`]: [
+      "interface Props {",
+      '  readonly "data-zz"?: string;',
+      '  readonly "data-in"?: boolean;',
+      '  readonly "data-keyed"?: string;',
+      "}",
+      'export function Zz({ "data-zz": zz, ...props }: Props) {',
+      '  const marked = "data-in" in props;',
+      '  return <div data-zz={zz} data-in={marked} data-keyed={props["data-keyed"]} />;',
+      "}",
+    ].join("\n"),
+  });
+  expect(placed(report.unresolved)).toEqual([]);
+  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-in", "data-keyed", "data-zz"]);
+});
+
+test("a write into an attribute record by a data-* key is an attribute write", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-tone] { color: red; } [data-size] { color: red; } [data-plain] { color: red; } [data-gone] { color: red; }",
+    [`${GRAPH_SOURCE}/record.ts`]: [
+      'const AXES = ["tone", "size"] as const;',
+      "export function attrs(arm: string): Record<string, string> {",
+      "  const out: Record<string, string> = {};",
+      "  for (const axis of AXES) {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      "    out[`data-${axis}`] = arm;",
+      "  }",
+      '  out["data-plain"] = arm;',
+      '  out.label = "not an attribute";',
+      "  return out;",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-gone]`]);
+  expect(placed(report.unresolved)).toEqual([]);
+});
+
+test("a write whose name is only the data- namespace and a wide part writes no name and is listed", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-dead-one] { color: red; }",
+    [`${GRAPH_SOURCE}/wide.ts`]: [
+      'import type { El } from "./el.ts";',
+      "export function stamp(el: El, key: string): void {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '  el.setAttribute(`data-${key}`, "");',
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-dead-one]`]);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the expected text is the planted template's source.
+  expect(placed(report.unresolved)).toEqual([{ text: "`data-${key}`", at: `${GRAPH_SOURCE}/wide.ts:3`, world: "product" }]);
+});
+
+test("a template's finite parts write every name they combine to, however many", TIMEOUT, async ({ plantedTree }) => {
+  const parts = (letter: string): string => Array.from({ length: 9 }, (_, index) => `"${letter}${String(index + 1)}"`).join(", ");
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-dead-one] { color: red; } [data-a9-b9] { color: red; } [data-a1-b5] { color: red; }",
+    [`${GRAPH_SOURCE}/combined.ts`]: [
+      'import type { El } from "./el.ts";',
+      `const A: readonly string[] = [${parts("a")}];`,
+      `const B: readonly string[] = [${parts("b")}];`,
+      "export function stamp(el: El): void {",
+      "  for (const a of A) {",
+      "    for (const b of B) {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '      el.setAttribute(`data-${a}-${b}`, "");',
+      "    }",
+      "  }",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-dead-one]`]);
+  expect(report.buckets["dom-attr-unread"]).toHaveLength(81 - 2);
+});
+
+test("a class template writes every class its head starts, however short the head", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [SHEET]: ".p-4 { color: red; } .q-4 { color: red; }",
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+    [`${GRAPH_SOURCE}/pad.ts`]: "export const pad = (n: string): string => `p-${n}`;",
+  });
+  expect(report.buckets["css-class-unwritten"]).toEqual([`${SHEET}:.q-4`]);
+});
+
+const followCase = (body: readonly string[]): Record<string, string> => ({
+  [SHEET]: "[data-held-x] { color: red; } [data-held-dead] { color: red; }",
+  [`${GRAPH_SOURCE}/follow.ts`]: ['import type { El } from "./el.ts";', ...body].join("\n"),
+});
+
+test.for([
+  {
+    step: "a copy a list method makes",
+    body: [
+      'const ALL: readonly string[] = ["data-held-x"];',
+      "const SOME = ALL.filter(() => true);",
+      'export const stamp = (el: El): void => { for (const name of SOME) { el.setAttribute(name, ""); } };',
+    ],
+  },
+  {
+    step: "the element find hands back",
+    body: [
+      "interface Row { readonly name: string }",
+      'const ROWS: readonly Row[] = [{ name: "data-held-x" }];',
+      'export const stamp = (el: El): void => { el.setAttribute(ROWS.find(() => true)?.name ?? "", ""); };',
+    ],
+  },
+  {
+    step: "a parameter's default",
+    body: ['export function stamp(el: El, name: string = "data-held-x"): void { el.setAttribute(name, ""); }'],
+  },
+  {
+    step: "an Object.values element",
+    body: [
+      'const TABLE: Record<string, string> = { a: "data-held-x" };',
+      'export const stamp = (el: El): void => { for (const name of Object.values(TABLE)) { el.setAttribute(name, ""); } };',
+    ],
+  },
+  {
+    step: "an enum member's value",
+    body: ['enum Hook { X = "data-held-x" }', "const name: string = Hook.X;", 'export const stamp = (el: El): void => { el.setAttribute(name, ""); };'],
+  },
+  {
+    step: "a property an object spread carries",
+    body: [
+      'const BASE = { name: "data-held-x" };',
+      "const FULL: { readonly name: string } = { ...BASE };",
+      'export const stamp = (el: El): void => { el.setAttribute(FULL.name, ""); };',
+    ],
+  },
+])("a name is followed through $step", TIMEOUT, async ({ body }, { plantedTree }) => {
+  const report = await dom(plantedTree, followCase(body));
+  expect(placed(report.unresolved)).toEqual([]);
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-held-dead]`]);
+});
+
+test("a walk that returns to a node at a path that only grew in front ends as a cycle", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(
+    plantedTree,
+    followCase([
+      "interface Wrap { readonly wrapped: Wrap; readonly name: string }",
+      "const deep = (): Wrap => deep().wrapped;",
+      'export const stamp = (el: El): void => { el.setAttribute(deep().name, ""); el.setAttribute("data-held-x", ""); };',
+    ]),
+  );
+  expect(placed(report.unresolved)).toEqual([]);
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-held-dead]`]);
 });

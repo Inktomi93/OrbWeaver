@@ -5,8 +5,8 @@
 //   name an at-rule prelude spells (`@custom-variant`) is a read, since the rule parse leaves preludes raw.
 // - Every token of every product string is a class write, a superset that only adds writes; a static part a `${`
 //   follows writes every class its last token heads.
-// - A data-* write is a JSX attribute, a quoted or computed object key, `setAttribute` or `toggleAttribute`, or a
-//   `dataset` assignment, in product code. A read is an attribute getter, `toggleAttribute`, `toHaveAttribute`, a
+// - A data-* write is a JSX attribute, a quoted or computed object key, a record's element assignment, `setAttribute`
+//   or `toggleAttribute`, or a `dataset` assignment, in product code. A read is an attribute getter, `toggleAttribute`, `toHaveAttribute`, a
 //   `dataset` read, a sheet selector, or a selector or Tailwind data variant a string spells. A read in tests or tooling
 //   only annotates its row, as the graph's roles do (./state.ts header), except that a test's `getByTestId` or selector
 //   reads a test id, since those hooks exist for tests, and that a snap read (SNAP) counts as the product's.
@@ -16,16 +16,20 @@
 //   ui-facts' parsed JSX element hold an element's attributes by name. The member's declaring file decides, so a
 //   look-alike record is no model. A `MutationObserver`'s `attributeFilter` list, and a name compared with a mutation
 //   record's `attributeName`, are reads: the observer exists to see that attribute change.
-// - A computed key is an attribute claim only when its name resolves to a data-* name: most keys name no attribute.
+// - A computed key is an attribute claim only when its name resolves to a data-* name: most keys name no attribute. A
+//   string in a key position (an object key, a destructured property, the left of `in`, an element access's key)
+//   names a property, never a value a site could take.
+// - A write whose name a wide part leaves open is listed unresolved; it writes every name its head starts once the head
+//   holds a name part past the bare `data-` namespace, and none otherwise.
 // - A name or value held away from its site is followed through the checker by ./held.ts: declarations, callers,
 //   call returns, destructured places and the list methods that carry an element. A whole data-* string no site
 //   reaches, and a site whose name no hop resolves, is listed as unresolved with its reason; a mention in a world
 //   whose reads count keeps its name out of every bucket.
 // - A name a sealed library stamps is the library's (SEALED_NAME). A selector name an installed direct dependency's
-//   own code spells is that library's hook (streamdown's `data-streamdown`), found by a literal search of its JS. A
+//   own code writes is that library's hook (streamdown's `data-streamdown`): a whole string, a whole class token or a
+//   `dataset` member in its JS, never a name inside a longer word. A
 //   `data-slot` value, a class or an attribute the owner-CSS surface publishes is read by CSS the owner writes, a
 //   reader outside the program, so it is judged as published; only `data-testid` values are judged one by one.
-import type { Dirent } from "node:fs";
 import { globSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import type { CssNode } from "@eslint/css-tree";
@@ -33,6 +37,7 @@ import { ident, parse, walk } from "@eslint/css-tree";
 import type {
   BinaryExpression,
   CallExpression,
+  ElementAccessExpression,
   Expression,
   JsxAttribute,
   Node,
@@ -46,6 +51,7 @@ import type {
 import {
   isArrayLiteralExpression,
   isBinaryExpression,
+  isBindingElement,
   isCallExpression,
   isComputedPropertyName,
   isElementAccessExpression,
@@ -91,8 +97,8 @@ export type DomBucket = (typeof DOM_BUCKETS)[number];
 export const WORLDS = ["product", "snap", "tests", "tooling"] as const;
 export type World = (typeof WORLDS)[number];
 
-// Owner ruling: snap drives the real app, so a hook only snap reads is used, as a dev-bridge global read is. Other
-// tooling and the tests only annotate.
+// D357: snap drives the real app, so a hook only snap reads is used, as a dev-bridge global read is. Other tooling and
+// the tests only annotate.
 const SNAP = "tooling/src/snap/";
 /** The worlds whose read of a data-* attribute counts; a test id counts its tests' reads too. */
 const USES: ReadonlySet<World> = new Set<World>(["product", "snap"]);
@@ -118,6 +124,8 @@ export interface DomReport {
     readonly writtenNames: number;
     readonly readNames: number;
     readonly followed: number;
+    /** The (node, position) answers the follow computed; its memo bounds them by the program, not by the routes. */
+    readonly steps: number;
     readonly dependencyFiles: number;
   };
 }
@@ -125,6 +133,7 @@ export interface DomReport {
 const HTML = "packages/*/src/**/*.html";
 const DEPENDENCIES = "packages/*/node_modules";
 const DEPENDENCY_CODE = /\.[cm]?js$/u;
+const NODE_MODULES = "node_modules";
 const DATA = "data-";
 const TEST_ID = "data-testid";
 /** A whole string that is one data-* name. */
@@ -280,6 +289,10 @@ class Hooks {
     return this.#followed;
   }
 
+  get steps(): number {
+    return this.#held.steps;
+  }
+
   walkFile(file: string, source: Node): void {
     let world: World = "tooling";
     if (this.#state.product(file)) {
@@ -350,12 +363,22 @@ class Hooks {
       this.#dataset(node, node.argumentExpression, file, world);
     } else if (isElementAccessExpression(node) && isModelMember(node.expression)) {
       this.#modelReads.push({ member: node.expression, name: node.argumentExpression, at: atOf(file, node), world });
+    } else if (isElementAccessExpression(node) && world === "product") {
+      this.#recordWrite(node, file);
+    }
+  }
+
+  // `attrs[key] = value`: a record of attributes the code builds, then spreads onto an element, as an object literal's
+  // key writes one. A claim only when the key resolves to a data-* name.
+  #recordWrite(node: ElementAccessExpression, file: string): void {
+    const value = assignedValue(node);
+    if (value !== undefined) {
+      this.#sites.push({ at: atOf(file, node), world: "product", key: true, name: node.argumentExpression, dataset: false, write: true, read: false, value });
     }
   }
 
   #string(node: StringLiteral | NoSubstitutionTemplateLiteral, file: string, world: World): void {
-    const { parent } = node;
-    if (isPropertyAssignment(parent) && sameNode(parent.name, node)) {
+    if (isKey(node)) {
       return;
     }
     if (world === "product") {
@@ -454,13 +477,12 @@ class Hooks {
 
   // `el.dataset.fooBar` or `el.dataset[key]`: an assignment's target writes, any other use reads.
   #dataset(node: Expression, name: string | Expression, file: string, world: World): void {
-    const { parent } = node;
-    const assigned = isBinaryExpression(parent) && sameNode(parent.left, node) && parent.operatorToken.kind === SyntaxKind.EqualsToken;
+    const assigned = assignedValue(node);
     const at = atOf(file, node);
     const attribute = typeof name === "string" ? `${DATA}${name}` : name;
     const dataset = typeof name !== "string";
-    if (assigned) {
-      this.#sites.push({ at, world, key: false, name: attribute, dataset, write: world === "product", read: false, value: parent.right });
+    if (assigned !== undefined) {
+      this.#sites.push({ at, world, key: false, name: attribute, dataset, write: world === "product", read: false, value: assigned });
       return;
     }
     this.#sites.push({ at, world, key: false, name: attribute, dataset, write: false, read: true, value: null });
@@ -619,6 +641,21 @@ class Hooks {
     for (const name of names) {
       this.#siteName(site, name, values);
     }
+    this.#openWrite(site, names);
+  }
+
+  // A write whose name a wide part leaves open is listed: the pass cannot say which names it writes.
+  #openWrite(site: Site, names: readonly Text[]): void {
+    const open = names.find((name) => name.open && (site.dataset || name.text.startsWith(DATA)));
+    if (site.write && open !== undefined) {
+      const text = typeof site.name === "string" ? site.name : printed(site.name);
+      this.unresolved.push({
+        text,
+        at: site.at,
+        world: site.world,
+        why: `an attribute write a wide part leaves open after "${open.text}", so the pass cannot name what it writes`,
+      });
+    }
   }
 
   #siteName(site: Site, { text, open }: Text, values: readonly string[]): void {
@@ -626,8 +663,11 @@ class Hooks {
     if (!name.startsWith(DATA)) {
       return;
     }
+    // An open write is listed unresolved (#openWrite) and writes every name its head starts, once the head holds a name
+    // part of its own: a bare `data-` head is only the namespace, so it writes none. An open read reads every name its
+    // head starts.
     if (open) {
-      if (site.write) {
+      if (site.write && name.length > DATA.length) {
         this.writeHeads.add(name);
       }
       if (site.read) {
@@ -665,6 +705,24 @@ function calleeName(callee: Expression): string | null {
     return callee.name.text;
   }
   return isIdentifier(callee) ? callee.text : null;
+}
+
+// A string in a key position names a property, never a value a site could take: an object key, a destructured
+// property, the left of `in`, an element access's key. A key that names a data-* attribute is judged where the record
+// meets the DOM (a JSX attribute or a spread), or as a record write.
+function isKey(node: Node): boolean {
+  const { parent } = node;
+  return (
+    ((isPropertyAssignment(parent) || isBindingElement(parent)) && sameNode(isBindingElement(parent) ? parent.propertyName : parent.name, node)) ||
+    (isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, node)) ||
+    (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, node))
+  );
+}
+
+// The value a plain assignment stores into `node`, when `node` is its target.
+function assignedValue(node: Node): Expression | undefined {
+  const { parent } = node;
+  return isBinaryExpression(parent) && sameNode(parent.left, node) && parent.operatorToken.kind === SyntaxKind.EqualsToken ? parent.right : undefined;
 }
 
 const isDataset = (node: Expression): boolean => isPropertyAccessExpression(node) && node.name.text === DATASET;
@@ -743,37 +801,58 @@ function dependencyDirs(root: string): readonly string[] {
   return [...dirs];
 }
 
-// A dependency's own code files: its nested node_modules hold other packages.
+// A dependency's own code files: a nested node_modules directory holds other packages, so the walk never enters one.
 function codeFiles(dir: string): readonly string[] {
-  const entries: Dirent[] = readdirSync(dir, { withFileTypes: true, recursive: true });
-  return entries
-    .filter((entry) => entry.isFile() && DEPENDENCY_CODE.test(entry.name))
-    .map((entry) => join(entry.parentPath, entry.name))
-    .filter((path) => !path.slice(dir.length).includes("/node_modules/"));
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory() && entry.name !== NODE_MODULES) {
+      files.push(...codeFiles(join(dir, entry.name)));
+    } else if (entry.isFile() && DEPENDENCY_CODE.test(entry.name)) {
+      files.push(join(dir, entry.name));
+    }
+  }
+  return files;
 }
 
-// The names among `names` some installed dependency's own code spells, and how many of its files were read.
+// The names among `names` some installed dependency's own code writes, and how many of its files were read. A
+// dependency writes a name only as a whole token: a whole string (an attribute call's argument, a JSX key, a class), a
+// whole class in a class string, or a `dataset` member. A name inside a longer word is no spelling of it.
 function dependencySpelled(root: string, names: readonly string[]): { readonly spelled: ReadonlySet<string>; readonly files: number } {
   const spelled = new Set<string>();
   if (names.length === 0) {
     return { spelled, files: 0 };
   }
+  const wanted = new Set(names);
+  const take = (token: string): void => {
+    if (wanted.has(token)) {
+      spelled.add(token);
+    }
+  };
   const files = dependencyDirs(root).flatMap(codeFiles);
   for (const path of files) {
     const text = readFileSync(path, "utf8");
-    for (const name of names.filter((candidate) => !spelled.has(candidate) && text.includes(candidate))) {
-      spelled.add(name);
+    for (const match of text.matchAll(STRING)) {
+      const value = match[1] ?? match[2] ?? match[3] ?? "";
+      take(value);
+      for (const token of value.split(/\s+/u)) {
+        if (!token.startsWith(DATA)) {
+          take(token);
+        }
+      }
+    }
+    for (const match of text.matchAll(SCRIPT_DATASET)) {
+      take(`${DATA}${kebab(match[1] ?? "")}`);
     }
   }
   return { spelled, files: files.length };
 }
 
+const headed = (heads: ReadonlySet<string>, name: string): boolean => [...heads].some((head) => name.startsWith(head));
+
 function ownerCssNames(root: string): ReadonlySet<string> {
   const text = readFileSync(join(root, OWNER_CSS_SURFACE), "utf8");
   return new Set([...text.matchAll(STRING)].map((match) => (match[1] ?? match[2] ?? match[3] ?? "").replace(/^\./u, "")));
 }
-
-const headed = (heads: ReadonlySet<string>, name: string): boolean => [...heads].some((head) => name.startsWith(head));
 
 // The worlds that read a name, by the name itself or by a head a template leaves open.
 function readersOf(hooks: Hooks, name: string): ReadonlySet<World> {
@@ -846,7 +925,7 @@ function judgeTestIds({ hooks, unresolvedTestIds, out }: Verdicts): void {
 }
 
 function judge(root: string, selectors: Selectors, hooks: Hooks, read: { readonly files: number; readonly sheets: number }): DomReport {
-  const classWritten = (name: string): boolean => hooks.tokens.has(name) || [...hooks.classHeads].some((head) => head.length > 2 && name.startsWith(head));
+  const classWritten = (name: string): boolean => hooks.tokens.has(name) || [...hooks.classHeads].some((head) => name.startsWith(head));
   const unwrittenClasses = [...selectors.classes.keys()].filter((name) => !(SEALED_NAME.test(name) || classWritten(name)));
   const unwrittenAttributes = [...selectors.attributes.keys()].filter(
     (name) => !(SEALED_NAME.test(name) || hooks.writes.get(name)?.values.has(ANY) === true || headed(hooks.writeHeads, name)),
@@ -888,6 +967,7 @@ function judge(root: string, selectors: Selectors, hooks: Hooks, read: { readonl
       writtenNames: hooks.writes.size,
       readNames: hooks.reads.size,
       followed: hooks.followed,
+      steps: hooks.steps,
       dependencyFiles: dependency.files,
     },
   };

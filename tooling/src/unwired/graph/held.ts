@@ -93,8 +93,6 @@ interface Walk {
 }
 
 const newWalk = (): Walk => ({ answers: new Map(), open: new Map() });
-// A template whose spans multiply past this many texts is a computed name, not a table of them.
-const MAX_TEXTS = 64;
 const MAP = "Map";
 const GET = "get";
 const OBJECT = "Object";
@@ -232,9 +230,15 @@ function returnsOf(fn: FunctionLike): readonly Expression[] {
 export class HeldTexts {
   readonly #state: GraphState;
   readonly #reached = new Set<string>();
+  #steps = 0;
 
   constructor(state: GraphState) {
     this.#state = state;
+  }
+
+  /** How many (node, position) answers the asks computed: the work the walk did, which its memo bounds. */
+  get steps(): number {
+    return this.#steps;
   }
 
   /** Whether an ask reached this literal. */
@@ -308,7 +312,8 @@ export class HeldTexts {
     let texts: Text[] = [{ text: head, open: false }];
     for (const span of spans) {
       const parts = yield* this.#at(span.expression, [], walk);
-      if (parts === null || parts.length * texts.length > MAX_TEXTS) {
+      // Every part is a finite list the data enumerated, so the product is as large as the data, never larger.
+      if (parts === null) {
         return texts.map(({ text }) => ({ text, open: true }));
       }
       texts = texts.flatMap((start) =>
@@ -394,6 +399,7 @@ export class HeldTexts {
       return [];
     }
     walk.open.set(at, [...open, path]);
+    this.#steps += 1;
     try {
       const answer = yield* this.#reach(node, path, walk);
       walk.answers.set(key, answer);
