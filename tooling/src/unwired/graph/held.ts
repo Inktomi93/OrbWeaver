@@ -60,11 +60,17 @@ import { hasFlag } from "../native.ts";
 import { sameNode } from "./roles.ts";
 import type { GraphState } from "./state.ts";
 
-/** A text a string expression can take; `open` when a span past it is wide, so the text is only a head. */
+/** A text a string expression can take: one name; a head, `open`, when a span past it is wide; or a template whose
+ *  spans each hold a finite list, `parts`, whose names are every pick of one alternative per part. A template is never
+ *  multiplied out: its names are as many as the product of its lists, so ./patterns.ts matches it part by part. */
 export interface Text {
   readonly text: string;
   readonly open: boolean;
+  readonly parts?: readonly Part[];
 }
+
+/** One part of a template: fixed text, or the alternatives a span holds. */
+export type Part = string | readonly Text[];
 
 /** What an expression can hold, or null when the checker holds it only as a wide type. */
 export type Texts = readonly Text[] | null;
@@ -190,6 +196,20 @@ function endsWith(path: Path, tail: Path): boolean {
   return offset >= 0 && tail.every((step, index) => JSON.stringify(step) === JSON.stringify(path[offset + index]));
 }
 
+// The head every name of an open template starts with: its fixed text up to the first span that holds a list, then a
+// lone open answer's own head.
+function headOf(parts: readonly Part[], answer: Texts): string {
+  const [first] = parts;
+  const head = typeof first === "string" ? first : "";
+  const [lone] = answer ?? [];
+  return parts.length === 1 && answer?.length === 1 && lone !== undefined ? `${head}${lone.text}` : head;
+}
+
+/** A template's spelling: fixed text, and each span's alternatives as `{a|b}`. Linear in the lists, never their product. */
+export function spelled(parts: readonly Part[]): string {
+  return parts.map((part) => (typeof part === "string" ? part : `{${part.map(({ text }) => text).join("|")}}`)).join("");
+}
+
 // The union of several answers: null when any is wide, since a wide part can hold any name. No answers is no texts:
 // an empty list, or a branch that returns none.
 function union(parts: readonly Texts[]): Texts {
@@ -309,18 +329,33 @@ export class HeldTexts {
     spans: readonly { readonly expression: Expression; readonly literal: { readonly text: string } }[],
     walk: Walk,
   ): APIRequestGenerator<Texts> {
-    let texts: Text[] = [{ text: head, open: false }];
-    for (const span of spans) {
-      const parts = yield* this.#at(span.expression, [], walk);
-      // Every part is a finite list the data enumerated, so the product is as large as the data, never larger.
-      if (parts === null) {
-        return texts.map(({ text }) => ({ text, open: true }));
+    const parts: Part[] = [head];
+    const fixed = (text: string): void => {
+      const last = parts.at(-1);
+      if (typeof last === "string") {
+        parts[parts.length - 1] = `${last}${text}`;
+      } else {
+        parts.push(text);
       }
-      texts = texts.flatMap((start) =>
-        start.open ? [start] : parts.map((part) => ({ text: `${start.text}${part.text}${part.open ? "" : span.literal.text}`, open: part.open })),
-      );
+    };
+    for (const span of spans) {
+      const answer = yield* this.#at(span.expression, [], walk);
+      if (answer === null || answer.some(({ open }) => open)) {
+        return [{ text: headOf(parts, answer), open: true }];
+      }
+      if (answer.length === 0) {
+        return [];
+      }
+      const [only] = answer;
+      if (answer.length === 1 && only !== undefined && only.parts === undefined) {
+        fixed(only.text);
+      } else {
+        parts.push(answer);
+      }
+      fixed(span.literal.text);
     }
-    return texts;
+    const [whole] = parts;
+    return parts.length === 1 && typeof whole === "string" ? [{ text: whole, open: false }] : [{ text: spelled(parts), open: false, parts }];
   }
 
   *#inList(elements: readonly Node[], [step, ...rest]: Path, walk: Walk): APIRequestGenerator<Texts> {

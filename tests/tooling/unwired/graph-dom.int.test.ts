@@ -14,6 +14,8 @@ const SHEET = `${GRAPH_SOURCE}/hooks.css`;
 const TIMEOUT = { timeout: 120_000 };
 // A ceiling on the (node, position) answers one diamond level may cost: the memo answers each level's calls once.
 const STEPS_PER_LEVEL = 4;
+// A ceiling on the (node, position) answers one list element may cost.
+const STEPS_PER_LIST = 8;
 
 // The element surface the planted code writes and reads through, since a planted tree has no DOM lib.
 const ELEMENT = [
@@ -567,14 +569,15 @@ test("a write whose name is only the data- namespace and a wide part writes no n
   expect(placed(report.unresolved)).toEqual([{ text: "`data-${key}`", at: `${GRAPH_SOURCE}/wide.ts:3`, world: "product" }]);
 });
 
-test("a template's finite parts write every name they combine to, however many", TIMEOUT, async ({ plantedTree }) => {
-  const parts = (letter: string): string => Array.from({ length: 9 }, (_, index) => `"${letter}${String(index + 1)}"`).join(", ");
+const listOf = (letter: string, size: number): string => Array.from({ length: size }, (_, index) => `"${letter}${String(index + 1)}"`).join(", ");
+
+test("a template of finite lists writes the names its lists combine to, matched part by part", TIMEOUT, async ({ plantedTree }) => {
   const report = await dom(plantedTree, {
     [SHEET]: "[data-dead-one] { color: red; } [data-a9-b9] { color: red; } [data-a1-b5] { color: red; }",
     [`${GRAPH_SOURCE}/combined.ts`]: [
       'import type { El } from "./el.ts";',
-      `const A: readonly string[] = [${parts("a")}];`,
-      `const B: readonly string[] = [${parts("b")}];`,
+      `const A: readonly string[] = [${listOf("a", 9)}];`,
+      `const B: readonly string[] = [${listOf("b", 9)}];`,
       "export function stamp(el: El): void {",
       "  for (const a of A) {",
       "    for (const b of B) {",
@@ -586,7 +589,68 @@ test("a template's finite parts write every name they combine to, however many",
     ].join("\n"),
   });
   expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-dead-one]`]);
-  expect(report.buckets["dom-attr-unread"]).toHaveLength(81 - 2);
+  // The sheet reads two of the 81 names, so the template is read.
+  expect(report.buckets["dom-attr-unread"]).toEqual([]);
+});
+
+test("a template no read matches is one unread row with its name count, however large its product", TIMEOUT, async ({ plantedTree }) => {
+  const size = 40;
+  const report = await dom(plantedTree, {
+    [SHEET]: "[data-a7-b40-c3] { color: red; } [data-a7-b40-d3] { color: red; }",
+    [`${GRAPH_SOURCE}/cube.ts`]: [
+      'import type { El } from "./el.ts";',
+      `const A: readonly string[] = [${listOf("a", size)}];`,
+      `const B: readonly string[] = [${listOf("b", size)}];`,
+      `const C: readonly string[] = [${listOf("c", size)}];`,
+      "export function stamp(el: El): void {",
+      "  for (const a of A) {",
+      "    for (const b of B) {",
+      "      for (const c of C) {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '        el.setAttribute(`data-cube-${a}-${b}-${c}`, "");',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '        el.setAttribute(`data-${a}-${b}-${c}`, "");',
+      "      }",
+      "    }",
+      "  }",
+      "}",
+    ].join("\n"),
+  });
+  expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-a7-b40-d3]`]);
+  const rows = report.buckets["dom-attr-unread"];
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toMatch(new RegExp(`^data-cube-\\{a1\\|.*\\(${String(size ** 3)} names\\) ${GRAPH_SOURCE}/cube\\.ts:9$`, "u"));
+  expect(report.counts.steps).toBeLessThan(size * STEPS_PER_LIST);
+});
+
+test("a template read matches a template write part by part", TIMEOUT, async ({ plantedTree }) => {
+  const report = await dom(plantedTree, {
+    [`${GRAPH_SOURCE}/axes.ts`]: [
+      'import type { El } from "./el.ts";',
+      'const WRITTEN: readonly string[] = ["tone", "size"];',
+      'const READ: readonly string[] = ["size", "gap"];',
+      'const PICKS: readonly string[] = ["data-picked-tone-x", "data-picked-gap-x"];',
+      "export function stamp(el: El): void {",
+      "  for (const axis of WRITTEN) {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '    el.setAttribute(`data-axis-${axis}`, "");',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '    el.setAttribute(`data-lone-${axis}`, "");',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      '    el.setAttribute(`data-picked-${axis}-x`, "");',
+      "  }",
+      "  for (const axis of READ) {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      "    el.getAttribute(`data-axis-${axis}`);",
+      "  }",
+      "  for (const pick of PICKS) {",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
+      "    el.querySelector(`[${pick}]`);",
+      "  }",
+      "}",
+    ].join("\n"),
+  });
+  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-lone-{tone|size}"]);
 });
 
 test("a class template writes every class its head starts, however short the head", TIMEOUT, async ({ plantedTree }) => {

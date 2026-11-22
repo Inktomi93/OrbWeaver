@@ -78,6 +78,7 @@ import type { Graph } from "./build.ts";
 import { NOT_SOURCE, OWNER_CSS_SURFACE, SHEETS, STRING } from "./css.ts";
 import type { Text, Texts } from "./held.ts";
 import { HeldTexts } from "./held.ts";
+import { holds, meets, nameCount, selects } from "./patterns.ts";
 import { sameNode } from "./roles.ts";
 import type { GraphState } from "./state.ts";
 
@@ -259,6 +260,11 @@ class Hooks {
   readonly classHeads = new Set<string>();
   readonly writes = new Map<string, { readonly at: string; readonly values: Set<string> }>();
   readonly writeHeads = new Set<string>();
+  /** Writes and reads of a template of finite lists, and the selector templates that spell one. */
+  readonly writePatterns: { readonly pattern: Text; readonly at: string }[] = [];
+  readonly readPatterns: { readonly pattern: Text; readonly world: World }[] = [];
+  readonly selectorPatterns: { readonly pattern: Text; readonly world: World }[] = [];
+  readonly testIdPatterns: { readonly pattern: Text; readonly world: World }[] = [];
   /** Each read name, and each name head a template leaves open, with the worlds that read it. */
   readonly reads = new Map<string, Set<World>>();
   readonly readHeads = new Map<string, Set<World>>();
@@ -574,7 +580,11 @@ class Hooks {
     this.#followed = asks.length;
     for (const { node, world: reader, at } of this.#selectorTemplates) {
       for (const text of textsOf.get(node) ?? []) {
-        this.#stringText(text, reader, at);
+        if (text.parts === undefined) {
+          this.#stringText(text, reader, at);
+        } else {
+          this.selectorPatterns.push({ pattern: text, world: reader });
+        }
       }
     }
     this.#testIdSites(textsOf);
@@ -604,8 +614,13 @@ class Hooks {
         const at = atOf(this.#state.world.fileOfSource(node.getSourceFile()), node);
         this.unresolved.push({ text: printed(node), at, world: reader, why: "a getByTestId value no hop resolves" });
       }
-      for (const { text } of texts ?? []) {
-        this.read(TEST_ID, text, reader);
+      for (const text of texts ?? []) {
+        if (text.parts === undefined) {
+          this.read(TEST_ID, text.text, reader);
+        } else {
+          this.read(TEST_ID, undefined, reader);
+          this.testIdPatterns.push({ pattern: text, world: reader });
+        }
       }
     }
   }
@@ -658,7 +673,12 @@ class Hooks {
     }
   }
 
-  #siteName(site: Site, { text, open }: Text, values: readonly string[]): void {
+  #siteName(site: Site, found: Text, values: readonly string[]): void {
+    if (found.parts !== undefined) {
+      this.#sitePattern(site, site.dataset ? prefixed(kebabbed(found)) : found);
+      return;
+    }
+    const { text, open } = found;
     const name = site.dataset ? `${DATA}${kebab(text)}` : text;
     if (!name.startsWith(DATA)) {
       return;
@@ -680,6 +700,19 @@ class Hooks {
     }
     if (site.read) {
       this.read(name, undefined, site.world);
+    }
+  }
+
+  // A template of finite lists is kept whole: its names are the product of its lists, never built (./patterns.ts).
+  #sitePattern(site: Site, pattern: Text): void {
+    if (!meets(pattern, NAMESPACE)) {
+      return;
+    }
+    if (site.write) {
+      this.writePatterns.push({ pattern, at: site.at });
+    }
+    if (site.read) {
+      this.readPatterns.push({ pattern, world: site.world });
     }
   }
 
@@ -740,7 +773,8 @@ function writtenValues(value: Site["value"], textsOf: Answers): readonly string[
     return value;
   }
   const texts = textsOf.get(value) ?? null;
-  return texts === null ? [ANY] : texts.map(({ text, open }) => (open ? ANY : text));
+  // A template value is judged as any value: a sheet's few values are not worth a part-by-part match.
+  return texts === null ? [ANY] : texts.map(({ text, open, parts }) => (open || parts !== undefined ? ANY : text));
 }
 
 function addWorld(map: Map<string, Set<World>>, key: string, world: World): void {
@@ -847,6 +881,28 @@ function dependencySpelled(root: string, names: readonly string[]): { readonly s
   return { spelled, files: files.length };
 }
 
+const NAMESPACE: Text = { text: DATA, open: true };
+
+// A `dataset` template's attribute: each fixed part and alternative in kebab case, which maps letter by letter, under
+// the `data-` namespace.
+function kebabbed(text: Text): Text {
+  return {
+    text: kebab(text.text),
+    open: text.open,
+    ...(text.parts === undefined ? {} : { parts: text.parts.map((part) => (typeof part === "string" ? kebab(part) : part.map(kebabbed))) }),
+  };
+}
+
+function prefixed(text: Text): Text {
+  const parts = text.parts ?? [text.text];
+  const [first, ...rest] = parts;
+  return {
+    text: `${DATA}${text.text}`,
+    open: text.open,
+    parts: [typeof first === "string" ? `${DATA}${first}` : DATA, ...(typeof first === "string" ? [] : [first ?? []]), ...rest],
+  };
+}
+
 const headed = (heads: ReadonlySet<string>, name: string): boolean => [...heads].some((head) => name.startsWith(head));
 
 function ownerCssNames(root: string): ReadonlySet<string> {
@@ -862,6 +918,48 @@ function readersOf(hooks: Hooks, name: string): ReadonlySet<World> {
       for (const world of readers) {
         worlds.add(world);
       }
+    }
+  }
+  const exact: Text = { text: name, open: false };
+  for (const { pattern, world } of hooks.readPatterns) {
+    if (holds(pattern, name)) {
+      worlds.add(world);
+    }
+  }
+  for (const { pattern, world } of hooks.selectorPatterns) {
+    if (selects(pattern, exact)) {
+      worlds.add(world);
+    }
+  }
+  return worlds;
+}
+
+// The worlds that read any name a written template can be: matched part by part, never multiplied out.
+function patternReaders(hooks: Hooks, pattern: Text): ReadonlySet<World> {
+  const worlds = new Set<World>();
+  const add = (readers: Iterable<World>): void => {
+    for (const world of readers) {
+      worlds.add(world);
+    }
+  };
+  for (const [name, readers] of hooks.reads) {
+    if (holds(pattern, name)) {
+      add(readers);
+    }
+  }
+  for (const [head, readers] of hooks.readHeads) {
+    if (meets(pattern, { text: head, open: true })) {
+      add(readers);
+    }
+  }
+  for (const { pattern: read, world } of hooks.readPatterns) {
+    if (meets(pattern, read)) {
+      worlds.add(world);
+    }
+  }
+  for (const { pattern: selector, world } of hooks.selectorPatterns) {
+    if (selects(selector, pattern)) {
+      worlds.add(world);
     }
   }
   return worlds;
@@ -912,12 +1010,26 @@ function judgeWrites({ hooks, owner, unresolved, out }: Verdicts): void {
       out[owner.has(name) ? "dom-attr-owner-css-only" : "dom-attr-unread"].push(annotated(`${name} ${at}`, readers));
     }
   }
+  // A template no read can match is one row: its spelling and how many names it can be.
+  for (const { pattern, at } of hooks.writePatterns) {
+    const readers = patternReaders(hooks, pattern);
+    if (!(SEALED_NAME.test(pattern.text) || [...readers].some((world) => USES.has(world)))) {
+      const published = [...owner].some((name) => holds(pattern, name));
+      const row = `${pattern.text} (${String(nameCount(pattern))} names) ${at}`;
+      out[published ? "dom-attr-owner-css-only" : "dom-attr-unread"].push(annotated(row, readers));
+    }
+  }
 }
 
 // A test id is read by the product, snap or its tests; another tool's lookup only annotates it.
 function judgeTestIds({ hooks, unresolvedTestIds, out }: Verdicts): void {
   for (const [value, at] of hooks.testIds) {
-    const readers = hooks.valueReads.get(TEST_ID)?.get(value) ?? new Set<World>();
+    const readers = new Set(hooks.valueReads.get(TEST_ID)?.get(value));
+    for (const { pattern, world } of hooks.testIdPatterns) {
+      if (holds(pattern, value)) {
+        readers.add(world);
+      }
+    }
     if (!([...readers].some((world) => TEST_ID_USES.has(world)) || unresolvedTestIds.has(value))) {
       out["dom-value-unread"].push(annotated(`${TEST_ID}=${value} ${at}`, readers));
     }
@@ -928,7 +1040,13 @@ function judge(root: string, selectors: Selectors, hooks: Hooks, read: { readonl
   const classWritten = (name: string): boolean => hooks.tokens.has(name) || [...hooks.classHeads].some((head) => name.startsWith(head));
   const unwrittenClasses = [...selectors.classes.keys()].filter((name) => !(SEALED_NAME.test(name) || classWritten(name)));
   const unwrittenAttributes = [...selectors.attributes.keys()].filter(
-    (name) => !(SEALED_NAME.test(name) || hooks.writes.get(name)?.values.has(ANY) === true || headed(hooks.writeHeads, name)),
+    (name) =>
+      !(
+        SEALED_NAME.test(name) ||
+        hooks.writes.get(name)?.values.has(ANY) === true ||
+        headed(hooks.writeHeads, name) ||
+        hooks.writePatterns.some(({ pattern }) => holds(pattern, name))
+      ),
   );
   const dependency = dependencySpelled(root, [...unwrittenClasses, ...unwrittenAttributes]);
   const out: { readonly [B in DomBucket]: string[] } = {
@@ -964,7 +1082,7 @@ function judge(root: string, selectors: Selectors, hooks: Hooks, read: { readonl
       sheets: read.sheets,
       classSelectors: selectors.classes.size,
       attributeSelectors: selectors.attributes.size,
-      writtenNames: hooks.writes.size,
+      writtenNames: hooks.writes.size + hooks.writePatterns.length,
       readNames: hooks.reads.size,
       followed: hooks.followed,
       steps: hooks.steps,
