@@ -296,6 +296,10 @@ export function declarationKeys(symbol: NativeSymbol): readonly string[] {
   return symbol.declarations.map((handle) => `${handle.path}#${handle.index}`);
 }
 
+/** Whether every declaration of a symbol sits under a package path, as a library's own members do. */
+export const declaredBy = (symbol: NativeSymbol | undefined, packagePath: string): boolean =>
+  symbol !== undefined && symbol.declarations.length > 0 && symbol.declarations.every((handle) => handle.path.includes(packagePath));
+
 /** A name in a property position: an identifier or a plain string key. */
 export type PropertyName = Identifier | StringLiteral | NoSubstitutionTemplateLiteral;
 

@@ -30,6 +30,9 @@ const SEND_DESTINATIONS = ["wire", "http", "log", "file", "error", "stored", "co
  *  `unclassified`: a return or a binding the scan cannot follow. */
 export type SendDestination = (typeof SEND_DESTINATIONS)[number];
 
+/** Where the tRPC packages live: a symbol they declare is the wire client's, not ours. */
+export const TRPC_PACKAGE = "/node_modules/@trpc/";
+
 /** The provider backends make every provider request, so only a value there can reach one. */
 export const PROVIDER_BODIES = "packages/inference/src/backends/";
 

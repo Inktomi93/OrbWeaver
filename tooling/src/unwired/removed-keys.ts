@@ -28,16 +28,17 @@ import {
   isTypeAliasDeclaration,
   isVariableDeclaration,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import ts from "typescript";
 import { execGit } from "../floor/git/git.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
+import { TRPC_PACKAGE } from "./boundaries.ts";
 import type { KeyResolution } from "./key-resolver.ts";
 import { resolveKeys } from "./key-resolver.ts";
 import { gitGrep } from "./literal-hits.ts";
 import type { PropertyName } from "./native.ts";
-import { constituents, declarationKeys, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
+import { constituents, declarationKeys, declaredBy, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
 import { packageWorlds } from "./worlds.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
@@ -77,7 +78,6 @@ const TRPC_SENDS: ReadonlySet<string> = new Set([
 ]);
 const MUTATE_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync"]);
 const MUTATION_OPTIONS = "mutationOptions";
-const TRPC_PACKAGE = "/node_modules/@trpc/";
 const QUERY_PACKAGE = "/node_modules/@tanstack/";
 const FETCH = "fetch";
 const SERIALIZE = "JSON.stringify";
@@ -301,9 +301,6 @@ function procedureOf(callee: PropertyAccessExpression): string | null {
   }
   return chain.length === 0 ? null : `trpc ${chain.join(".")}`;
 }
-
-const declaredBy = (symbol: NativeSymbol | undefined, packagePath: string): boolean =>
-  symbol !== undefined && symbol.declarations.length > 0 && symbol.declarations.every((handle) => handle.path.includes(packagePath));
 
 // The `mutationOptions()` call a TanStack mutation was built from: `useMutation(options).mutate`, or a variable that
 // holds that `useMutation` result.

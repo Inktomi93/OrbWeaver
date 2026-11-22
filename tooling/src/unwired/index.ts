@@ -1,7 +1,8 @@
 // The unwired scans and the restated-port matcher: `pnpm unwired` reports members no production code reaches, its
-// `fields`, `params`, `unions` and `shapes` verbs what is dead inside live code, and `ports` the port members that
-// hand-restate another member, `removed-keys` the removed contract keys a sender still writes, and `coverage` the production
-// code no test run executed. Never in CI, never a gate.
+// `fields`, `params`, `unions` and `shapes` verbs what is dead inside live code, `procedures` the tRPC procedures and HTTP
+// routes no production code calls, and `ports` the port members that hand-restate another member, `removed-keys` the
+// removed contract keys a sender still writes, and `coverage` the production code no test run executed. Never in CI,
+// never a gate.
 
 export type { Restatement } from "../eslint/index.ts";
 export { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../eslint/index.ts";
@@ -16,6 +17,7 @@ export { scanParams } from "./params.ts";
 export type { PortCensus } from "./port-census.ts";
 export { portCensus } from "./port-census.ts";
 export type { PortTarget, TargetKind } from "./port-targets.ts";
+export { scanProcedures } from "./procedures.ts";
 export { runUnwired } from "./run.ts";
 export { scanUnwired, scanWorld } from "./scan.ts";
 export { scanShapes } from "./shapes.ts";
