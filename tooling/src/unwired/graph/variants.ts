@@ -14,6 +14,9 @@ import { keyLiterals, keyText } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 
 const TAILWIND_VARIANTS = /\/node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?tailwind-variants\//u;
+
+/** Whether a resolved signature's declaration is tailwind-variants' own: a `tv()` table or a recipe it returns. */
+export const isVariantsDeclaration = (path: string): boolean => TAILWIND_VARIANTS.test(path);
 const VARIANTS = "variants";
 const DEFAULT_VARIANTS = "defaultVariants";
 const FALSE_ARM = "false";
@@ -65,7 +68,7 @@ export class Variants {
     for (const [at, call] of calls.entries()) {
       const declaration = signatures[at]?.declaration;
       const [options] = call.arguments;
-      if (declaration !== undefined && TAILWIND_VARIANTS.test(declaration.path) && options !== undefined && isObjectLiteralExpression(options)) {
+      if (declaration !== undefined && isVariantsDeclaration(declaration.path) && options !== undefined && isObjectLiteralExpression(options)) {
         this.#readTable(state, options, file);
       }
     }

@@ -5,10 +5,8 @@
 //   holds it. The judged population is knip's: a workspace's `project` files, a derived root, or a root-level file.
 // - Our own ambient declarations are walked like code, so each global they declare is a node its uses reach; the
 //   published plugin SDK's declarations are its own surface and are read as a door (plugin-surface.ts) instead.
-// - A role comes from what an occurrence's syntax does (roles.ts referenceRoles). A bare `x++` or `x += 1` is a write;
-//   it reads only where its value is used.
-// - Escape is a send, not a read: a field counts as read only where a receiver reads it by name (bucket
-//   member-sent-only, separate from member-write-only and member-untouched). Test reads only annotate.
+// - A role comes from what an occurrence's syntax does (roles.ts referenceRoles); roles.ts states the escape and bump
+//   rulings, and analyse.ts the test-read ruling.
 import { existsSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import type { Node } from "@typescript/native/ast";
@@ -41,7 +39,8 @@ import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 
-const PUBLISHED_SDK = "packages/plugin-sdk/";
+/** The published plugin SDK: its declarations are a door, read through plugin-surface.ts, never walked. */
+export const PUBLISHED_SDK = "packages/plugin-sdk/";
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
@@ -227,23 +226,22 @@ class Builder {
         ? [{ site, receiver: parent.expression }]
         : [];
     });
-    const receivers = state.world.typesAt(bare.map(({ receiver }) => receiver));
-    const asks = bare.map(({ site }, at) => ({ type: receivers[at] as Type, name: nameText(site.node) }));
+    const asks = state.world.typedAt(bare, ({ receiver }) => receiver).map(({ item, type }) => ({ ...item, type, name: nameText(item.site.node) }));
     const walks = state.origins(asks);
-    const lost = bare.flatMap((entry, at) => ((walks[at]?.decls.length ?? 0) > 0 ? [] : [{ ...entry, at }]));
+    const lost = asks.flatMap((entry, at) => ((walks[at]?.decls.length ?? 0) > 0 ? [] : [{ ...entry, at }]));
     for (const [at, entry] of bare.entries()) {
       this.#use(entry.site, walks[at]?.decls ?? [], sites.file);
     }
-    const annotated = state.batch(lost.map(({ site, receiver }) => state.resolver.annotationOrigin(receiver, nameText(site.node))));
-    const still = lost.filter(({ site }, y) => {
+    const annotated = state.batch(lost.map(({ receiver, name }) => state.resolver.annotationOrigin(receiver, name)));
+    const still = lost.filter(({ site, at }, y) => {
       const decls = annotated[y]?.decls ?? [];
       this.#use(site, decls, sites.file);
       if (decls.length > 0) {
         state.count("origin recovered through a receiver's declaration");
       }
-      return decls.length === 0 && walks[lost[y]?.at ?? 0]?.end !== "library";
+      return decls.length === 0 && walks[at]?.end !== "library";
     });
-    const reasons = state.batch(still.map(({ at }) => state.resolver.unbackedReason(asks[at]?.type as Type, asks[at]?.name ?? "")));
+    const reasons = state.batch(still.map(({ type, name }) => state.resolver.unbackedReason(type, name)));
     for (const [y, { site }] of still.entries()) {
       const reason = reasons[y];
       if (reason === null || reason === undefined) {
@@ -272,8 +270,8 @@ class Builder {
   // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each.
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
-    const shapes = state.world.typesAt(sites.zodTwins.map(({ shape }) => shape));
-    const asks = sites.zodTwins.flatMap(({ keys }, x) => keys.map((key) => ({ type: shapes[x] as Type, name: key.name, decl: key.decl })));
+    const shapes = state.world.typedAt(sites.zodTwins, ({ shape }) => shape);
+    const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
     const members = state.slotMembers(asks);
     for (const [y, ask] of asks.entries()) {
       for (const member of members[y] ?? []) {
@@ -342,8 +340,9 @@ class Builder {
   // Destructuring reads each named property of the source's type.
   #patterns(sites: FileSites): void {
     const state = this.#state;
-    const types = state.world.typesAt(sites.patterns.map(({ pattern }) => pattern));
-    const asks = sites.patterns.flatMap((site, x) => site.names.map((name) => ({ site, type: types[x] as Type, name })));
+    const asks = state.world
+      .typedAt(sites.patterns, ({ source }) => source)
+      .flatMap(({ item: site, type }) => site.names.map((name) => ({ site, type, name })));
     const hits = state.batch(asks.map(({ type, name }) => state.propsOnSlot(type, name)));
     const decls = hits.map((symbols) => state.declarations(symbols).flat());
     const bare = asks.filter((_, y) => (hits[y]?.length ?? 0) > 0 && (decls[y]?.length ?? 0) === 0);

@@ -12,7 +12,7 @@ import type { Finding } from "./analyse.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
 import { occurrenceRoles, READS } from "./roles.ts";
-import { declarationNameOf } from "./sites.ts";
+import { declarationNameOf, isDeclKey } from "./sites.ts";
 
 export const VERDICTS = ["confirmed", "refuted", "unresolved"] as const;
 export type Verdict = (typeof VERDICTS)[number];
@@ -37,11 +37,11 @@ export function evenSample<T>(entries: readonly T[], size: number | null): reado
 /** Verify each finding of a member bucket against find-references in `world`. */
 export function verifyFindings(world: NativeWorld, findings: readonly Finding[]): readonly Verified[] {
   const resolver = new Resolver(world);
-  const names = findings.map(({ key }) => (key === null ? undefined : nameOf(world, key as DeclKey)));
+  const names = findings.map(({ key }) => (key !== null && isDeclKey(key) ? nameOf(world, key) : undefined));
   const groups = world.batch(names.map((name) => (name === undefined ? noReferences() : world.referencedSymbolsOf(name))));
   const handles = groups.map((entries) => entries.flatMap(({ references }) => references));
   const nodes = world.batch(handles.flat().map((handle) => handle.resolve.gen()));
-  const occurrences = handles.map(() => [] as Node[]);
+  const occurrences = handles.map((): Node[] => []);
   let at = 0;
   for (const [x, list] of handles.entries()) {
     for (const node of nodes.slice(at, at + list.length)) {
@@ -58,7 +58,8 @@ export function verifyFindings(world: NativeWorld, findings: readonly Finding[])
   let y = 0;
   return findings.map((finding, x) => {
     const own = reads[x] ?? [];
-    const mine = own.filter((_, z) => (owners[y + z] ?? []).includes(finding.key as DeclKey));
+    const { key } = finding;
+    const mine = key !== null && isDeclKey(key) ? own.filter((_, z) => (owners[y + z] ?? []).includes(key)) : [];
     y += own.length;
     return {
       label: finding.label,

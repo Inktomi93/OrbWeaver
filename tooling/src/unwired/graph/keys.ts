@@ -12,10 +12,8 @@ import type { Node } from "@typescript/native/ast";
 import {
   isArrowFunction,
   isCallExpression,
-  isFunctionDeclaration,
   isFunctionExpression,
   isIdentifier,
-  isMethodDeclaration,
   isNewExpression,
   isParameterDeclaration,
   isVariableDeclaration,
@@ -23,6 +21,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
+import { isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
@@ -33,9 +32,6 @@ import { isPrimitive } from "./state.ts";
 
 // A caller that hands its own parameter on is asked in turn, this many callers deep; deeper reads the table whole.
 const PARAMETER_KEY_DEPTH = 4;
-
-const isFunctionLike = (node: Node | undefined): boolean =>
-  node !== undefined && (isFunctionDeclaration(node) || isFunctionExpression(node) || isArrowFunction(node) || isMethodDeclaration(node));
 
 /** A table read through a key that is a function's parameter: resolved at the end of the build through the callers. */
 interface ParameterKeyed {
@@ -64,12 +60,10 @@ export class Keys {
 
   #elementKeys(sites: FileSites): void {
     const state = this.#state;
-    const receivers = state.world.typesAt(sites.elementKeys.map(({ receiver }) => receiver));
-    const named = sites.elementKeys.flatMap(({ keys }, y) =>
-      receivers[y] === undefined || keys === null ? [] : keys.map((name) => ({ type: receivers[y] as Type, name })),
-    );
+    const receivers = state.world.typedAt(sites.elementKeys, ({ receiver }) => receiver);
+    const named = receivers.flatMap(({ item: { keys }, type }) => (keys === null ? [] : keys.map((name) => ({ type, name }))));
     state.roleAll(state.slotMembers(named).flat(), "read", sites.file, 0);
-    const computed = sites.elementKeys.flatMap((site, y) => (site.keys === null && receivers[y] !== undefined ? [{ ...site, type: receivers[y] }] : []));
+    const computed = receivers.flatMap(({ item: site, type }) => (site.keys === null ? [{ ...site, type }] : []));
     const parameters = this.#parameterKeys(computed.map(({ argument }) => argument));
     const rest = computed.filter((site, y) => {
       const parameter = parameters[y];
@@ -82,7 +76,7 @@ export class Keys {
     const typedKeys = state.batch(keyTypes.map((type) => state.literalValues(type)));
     const typedNamed = rest.flatMap(({ type }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name })));
     state.roleAll(state.slotMembers(typedNamed).flat(), "read", sites.file, 0);
-    const whole = rest.filter((_, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(rest[z]?.type as Type)).map(({ type }) => type);
+    const whole = rest.filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type)).map(({ type }) => type);
     state.roleAll(state.memberDeclarations(whole).flat(), "read", sites.file, 0);
   }
 
@@ -105,22 +99,15 @@ export class Keys {
 
   #typeKeys(sites: FileSites): void {
     const state = this.#state;
-    const objects = state.world.typesAt(sites.indexedKeys.map(({ object }) => object));
-    const named = sites.indexedKeys.flatMap(({ keys }, y) => (objects[y] === undefined ? [] : keys.map((name) => ({ type: objects[y] as Type, name }))));
+    const objects = state.world.typedAt(sites.indexedKeys, ({ object }) => object);
+    const named = objects.flatMap(({ item: { keys }, type }) => keys.map((name) => ({ type, name })));
     state.roleAll(state.slotMembers(named).flat(), "key", sites.file, 0);
     // a generic or union key reads T as a dispatch table, every member keyed
-    const whole = sites.indexedKeys.flatMap(({ keys, index }, y) =>
-      keys.length === 0 &&
-      index.kind !== SyntaxKind.NumberKeyword &&
-      index.kind !== SyntaxKind.LiteralType &&
-      objects[y] !== undefined &&
-      !isPrimitive(objects[y])
-        ? [objects[y]]
-        : [],
+    const whole = objects.flatMap(({ item: { keys, index }, type }) =>
+      keys.length === 0 && index.kind !== SyntaxKind.NumberKeyword && index.kind !== SyntaxKind.LiteralType && !isPrimitive(type) ? [type] : [],
     );
     state.roleAll(state.memberDeclarations(whole).flat(), "key", sites.file, 0);
-    const targets = state.world.typesAt(sites.pickKeys.map(({ target }) => target));
-    const picked = sites.pickKeys.flatMap(({ keys }, x) => (targets[x] === undefined ? [] : keys.map((name) => ({ type: targets[x] as Type, name }))));
+    const picked = state.world.typedAt(sites.pickKeys, ({ target }) => target).flatMap(({ item: { keys }, type }) => keys.map((name) => ({ type, name })));
     state.roleAll(state.slotMembers(picked).flat(), "key", sites.file, 0);
   }
 

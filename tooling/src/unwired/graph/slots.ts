@@ -31,7 +31,7 @@ import type { FileSites } from "./sites.ts";
 import { declarationNameOf } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
-import { writtenLiterals } from "./variants.ts";
+import { isVariantsDeclaration, writtenLiterals } from "./variants.ts";
 
 /** One write into a slot: the slot type, the member name, the value written and where. */
 interface SlotWrite {
@@ -68,6 +68,7 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
     return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
   });
   slotWrites(state, variants, sites, writes);
+  bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];
   const listSlots = state.contextualTypes(lists);
   const listType = new Map(lists.map((list, at) => [spanKey(list), listSlots[at]]));
@@ -80,6 +81,31 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
       return type === undefined ? [] : [{ type, name, value, at: attributes.pos, jsx: true }];
     }),
   );
+}
+
+// `recipe(bag)`: a recipe handed a whole value selects, on each axis the value's type names, every literal that member's
+// type can be, as a typed value. The slot is the recipe's props, a key-built mapping the origin walk follows to the axes.
+function bagSelections(state: GraphState, variants: Variants, sites: FileSites): void {
+  const { checker } = state.world;
+  const signatures = state.batch(sites.bagCalls.map(({ call }) => checker.getResolvedSignature.gen(call)));
+  const recipes = sites.bagCalls.filter((_, at) => {
+    const declaration = signatures[at]?.declaration;
+    return declaration !== undefined && isVariantsDeclaration(declaration.path);
+  });
+  const slots = state.contextualTypes(recipes.map(({ bag }) => bag));
+  const bags = state.world.typedAt(recipes, ({ bag }) => bag);
+  const members = state.batch(bags.map(({ type }) => checker.getPropertiesOfType.gen(type)));
+  const asks = bags.flatMap((_, x) => {
+    const slot = slots[x];
+    return slot === undefined ? [] : (members[x] ?? []).map((member) => ({ type: slot, name: member.name, member }));
+  });
+  const walks = state.origins(asks);
+  const fills = asks.flatMap(({ member }, y) => (walks[y]?.decls ?? []).filter((decl) => variants.mayBeAxis(decl)).map((decl) => ({ decl, member })));
+  const types = state.batch(fills.map(({ member }) => checker.getTypeOfSymbol.gen(member)));
+  const literals = state.batch(types.map((type) => state.literalValues(type)));
+  for (const [y, { decl }] of fills.entries()) {
+    variants.defer(decl, { typed: literals[y] ?? null });
+  }
 }
 
 function slotWrites(state: GraphState, variants: Variants, sites: FileSites, writes: readonly SlotWrite[]): void {
@@ -184,15 +210,21 @@ function forwardedWrites(
       .map((handle) => ({ x, handle })),
   );
   const nodes = state.batch(asks.map(({ handle }) => handle.resolve.gen()));
-  const forwards = new Set(asks.flatMap(({ x }, z) => (boundByParameter(nodes[z]) ? [x] : [])));
-  const forwarded = named.filter(({ x }) => forwards.has(x));
+  const bound = new Set(asks.flatMap(({ x }, z) => (boundByParameter(nodes[z]) ? [x] : [])));
+  const forwarded = named.filter(({ x }) => bound.has(x));
   const sources = forwardSources(
     state,
     forwarded.map(({ value }) => value),
   );
+  // a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its type selects instead
+  const forwards = new Set<number>();
   for (const [y, { x }] of forwarded.entries()) {
+    const from = sources[y] ?? [];
+    if (from.length > 0) {
+      forwards.add(x);
+    }
     for (const target of found.resolved[x] ?? []) {
-      for (const source of sources[y] ?? []) {
+      for (const source of from) {
         variants.feed(target, source);
       }
     }
@@ -257,9 +289,14 @@ function forwardSources(state: GraphState, values: readonly Node[]): DeclKey[][]
     }
     return node !== undefined && isParameterDeclaration(node) && name !== "" ? [{ x, pattern: node.name, prop: name }] : [];
   });
-  const patternTypes = state.world.typesAt(binds.map(({ pattern }) => pattern));
-  const found = state.slotMembers(binds.map(({ prop }, y) => ({ type: patternTypes[y] as Type, name: prop })));
-  for (const [y, { x }] of binds.entries()) {
+  const typed = state.world.typedAt(binds, ({ pattern }) => pattern);
+  const found = state.slotMembers(typed.map(({ item: { prop }, type }) => ({ type, name: prop })));
+  for (const [
+    y,
+    {
+      item: { x },
+    },
+  ] of typed.entries()) {
     out[x]?.push(...(found[y] ?? []));
   }
   return out;

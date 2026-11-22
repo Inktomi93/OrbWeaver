@@ -4,8 +4,7 @@
 //
 // Owner rulings this module holds:
 // - A value handed to an opaque slot (`unknown`, `any`, `object`, a type parameter, a slot naming none of its members)
-//   is a send, not a read: every member it holds, all the way down, escapes. A field counts as read only where a
-//   receiver reads it by name.
+//   escapes: every member it holds, all the way down, is sent (roles.ts states the escape ruling).
 // - A slot member a library declares (an option a framework reads, a fetch init's `headers`) is a receiver naming the
 //   field in its published declaration, so the value's same-named member is read, at any depth of the slot.
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
@@ -163,9 +162,16 @@ export class Flows {
     return out;
   }
 
-  /** Record every member a value holds as escaping, from a product file. */
-  escape(value: Type, throughCalls: boolean, file: string, at: number): void {
-    this.#state.roleAll(this.deepMembers(value, throughCalls), "escape", file, at);
+  /** Record every member a value holds as escaping, from a product file; a value published through our own global
+   *  door also marks its members as the door's. */
+  escape(value: Type, door: boolean, file: string, at: number): void {
+    const members = this.deepMembers(value, door);
+    this.#state.roleAll(members, "escape", file, at);
+    if (door) {
+      for (const member of members) {
+        this.#state.door.add(member);
+      }
+    }
     this.#state.count("values escaped whole");
   }
 
@@ -359,6 +365,20 @@ export class Flows {
     return this.#memberPairs(fresh, file);
   }
 
+  // One matched member pair: the slot's declarations flow from the value's; a slot with none leaves the value member read.
+  #memberFlow(slots: readonly DeclKey[], values: readonly DeclKey[], file: string): void {
+    for (const slot of slots) {
+      for (const value of values) {
+        if (slot !== value) {
+          this.#state.flow(slot, value);
+        }
+      }
+    }
+    if (slots.length === 0) {
+      this.#state.roleAll(values, "read", file, 0);
+    }
+  }
+
   #isFresh({ slot, value }: FlowPair): boolean {
     return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(`${String(slot.id)}>${String(value.id)}`);
   }
@@ -367,28 +387,16 @@ export class Flows {
     const { state } = this;
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
-    const asks = slotMembers.flatMap((members, x) => members.map((member) => ({ x, member })));
-    const valueMembers = state.batch(
-      asks.map(({ x, member }) => (fresh[x] === undefined ? answer(undefined) : checker.getPropertyOfType.gen(fresh[x].value, member.name))),
-    );
+    const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member })));
+    const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
     const matched = asks.flatMap(({ member }, y) => {
       const valueMember = valueMembers[y];
       return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember }];
     });
     const slotDecls = state.declarations(matched.map(({ slot }) => slot));
     const valueDecls = state.declarations(matched.map(({ value }) => value));
-    for (const [y] of matched.entries()) {
-      const slots = slotDecls[y] ?? [];
-      for (const slot of slots) {
-        for (const value of valueDecls[y] ?? []) {
-          if (slot !== value) {
-            state.flow(slot, value);
-          }
-        }
-      }
-      if (slots.length === 0) {
-        state.roleAll(valueDecls[y] ?? [], "read", file, 0);
-      }
+    for (const y of matched.keys()) {
+      this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file);
     }
     // a pair goes deeper when the value member is declared in the tree: the walk follows the value's own members, and a
     // library slot names its nested fields as it names its top ones (an SDK block's `source.data`)

@@ -15,7 +15,6 @@ import type {
 import {
   isArrowFunction,
   isAsExpression,
-  isBinaryExpression,
   isCallExpression,
   isComputedPropertyName,
   isElementAccessExpression,
@@ -27,7 +26,6 @@ import {
   isIdentifier,
   isIndexedAccessTypeNode,
   isInterfaceDeclaration,
-  isJsxAttribute,
   isJsxAttributes,
   isJsxSpreadAttribute,
   isLiteralTypeNode,
@@ -51,7 +49,6 @@ import {
   isTypeQueryNode,
   isTypeReferenceNode,
   isVariableDeclaration,
-  SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
@@ -59,6 +56,7 @@ import type { SendDestination, StoreWrite } from "./boundaries.ts";
 import { copiedReads, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { siteKey } from "./classify.ts";
+import { occurrenceRoles } from "./graph/roles.ts";
 import type { Flow } from "./handoffs.ts";
 import { handoffFlows } from "./handoffs.ts";
 import type { KeyResolution, UnresolvedReason } from "./key-resolver.ts";
@@ -93,24 +91,8 @@ function walk(world: NativeWorld, home: ReadonlySet<string>, visit: (node: Node)
 
 const everyFile = (world: NativeWorld): ReadonlySet<string> => new Set(world.files.map((file) => world.siteOf(file).file));
 
-// `=`, a compound `+=` and a logical `??=`: each stores into its left side; the value read on the way is only the store's.
-const isAssignment = (kind: SyntaxKind): boolean => kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
-
-// The names `classify.ts` calls writes, known here so a flow can carry writes and reads apart.
-function isWrittenName(node: Node): boolean {
-  const { parent } = node;
-  if (isNamedMember(parent, node) || (isJsxAttribute(parent) && parent.name === node)) {
-    return true;
-  }
-  const assigned = parent.parent;
-  return (
-    isPropertyAccessExpression(parent) &&
-    parent.name === node &&
-    isBinaryExpression(assigned) &&
-    assigned.left === parent &&
-    isAssignment(assigned.operatorToken.kind)
-  );
-}
+// A name that stores into its member, by the one site-role reader, so a flow can carry writes and reads apart.
+const isWrittenName = (node: Node): boolean => occurrenceRoles(node).includes("write");
 
 // The value whose properties a spread, a computed key, a `for…in` or a reflective call reads, and the key's expression
 // for a computed element access. `sent` names where a serialization sends the value instead of reading it.
@@ -574,6 +556,9 @@ export interface PropertyReferences {
   readonly filled: ReadonlySet<string>;
   /** The role of every string key outside a property position, by {@link siteKey}: syntax alone types it as no reference. */
   readonly keyed: ReadonlyMap<string, SyntaxRole>;
+  /** The {@link siteKey} of every name that stores into its member by the site-role reader (graph/roles.ts), and every
+   *  site in {@link PropertyReferences.filled}. */
+  readonly written: ReadonlySet<string>;
   /** The {@link siteKey} of every literal key that overrides a spread copy: a write of its member that builds no home. */
   readonly overrides: ReadonlySet<string>;
   /** Every key the resolver could not place, with its reason. */
@@ -1072,6 +1057,7 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
     copied: new Set(facts.flatMap((part) => [...part.copied])),
     filled: new Set(facts.flatMap((part) => [...part.filled])),
     keyed: new Map(facts.flatMap((part) => [...part.keyed])),
+    written,
     overrides: new Set(facts.flatMap((part) => [...part.overrides])),
     unresolved: [...new Map(facts.flatMap((part) => part.unresolved).map((key) => [siteKey(key.site), key])).values()],
     carriesInto: down,

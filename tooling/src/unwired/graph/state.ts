@@ -40,11 +40,11 @@ const PRIMITIVE_FLAGS = [
 
 export const isPrimitive = (type: Type): boolean => PRIMITIVE_FLAGS.some((flag) => hasFlag(type.flags, flag));
 
-const addEdge = (edges: Edges, from: GraphKey, to: GraphKey): void => {
+const addEdge = <K extends GraphKey>(edges: Map<K, Set<K>>, from: K, to: K): void => {
   if (from === to) {
     return;
   }
-  const out = edges.get(from) ?? new Set<GraphKey>();
+  const out = edges.get(from) ?? new Set<K>();
   out.add(to);
   edges.set(from, out);
 };
@@ -61,7 +61,9 @@ export class GraphState {
   readonly doc: Edges = new Map();
   readonly roles = new Map<DeclKey, MemberRoles>();
   /** Member flows, slot member to the value member that fills it. */
-  readonly flows: Edges = new Map();
+  readonly flows = new Map<DeclKey, Set<DeclKey>>();
+  /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
+  readonly door = new Set<DeclKey>();
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: { readonly decl: DeclKey; readonly part: "value" | "setter"; readonly file: string; readonly line: number }[] = [];

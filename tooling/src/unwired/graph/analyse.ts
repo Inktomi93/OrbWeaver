@@ -1,23 +1,24 @@
 // Liveness and member roles over a built graph: what runs from the product's roots, what only a ruling keeps, what only
 // operators, consumers or tests reach, what nothing reaches, and what the product does to each live member.
 //
-// Owner rulings this module holds:
-// - Escape is a send, not a read: a field counts as read only where a receiver reads it by name. A member only sent is
-//   member-sent-only, apart from member-write-only and member-untouched; a flow carries a send on as a send.
-// - Test reads only annotate: what tests, tooling and scripts do to a member never moves it out of a product bucket.
+// Owner rulings this module holds (roles.ts states the escape and bump rulings; a flow here carries a send on as a send):
+// - The dev bridge: a member of a value published through our own `declare global` global (`window.__orb`) that only
+//   tooling or tests read is used, since that read reaches it through the global door; it counts as a product read.
+// - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
 // - A doc link keeps nothing alive; a `{@link}` to a name declared outside the file's scope is legal and listed as
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
 import { SyntaxKind } from "@typescript/native/ast";
-import { publishedAt } from "../plugin-surface.ts";
+import { PLUGIN_CONTRACT, publishedAt } from "../plugin-surface.ts";
 import type { Graph } from "./build.ts";
+import { PUBLISHED_SDK } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { READS } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
-import { moduleKey } from "./sites.ts";
+import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
 import type { Edges, MemberRoles } from "./state.ts";
 
 /** The buckets an analysis reports, in report order. */
@@ -54,8 +55,6 @@ export interface Finding {
 
 export type Analysis = { readonly [B in Bucket]: readonly Finding[] };
 
-const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
-const PUBLISHED_SDK = "packages/plugin-sdk/";
 const RUNTIME_UNITS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.FunctionDeclaration,
   SyntaxKind.ClassDeclaration,
@@ -73,12 +72,18 @@ const MEMBERS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EnumMember,
 ]);
 const AMBIENT_KINDS: ReadonlySet<SyntaxKind> = new Set([...TYPE_UNITS, ...RUNTIME_UNITS, SyntaxKind.PropertySignature, SyntaxKind.MethodSignature]);
-const UNNAMED = "{…}";
 // A written `data-*` member reaches the DOM as an attribute: a send whose receiver reads it by attribute name (a CSS
 // selector, a test locator). A written `aria-*` member is read by the platform's accessibility tree.
 const DATA_ATTRIBUTE = /^data-/u;
 const ARIA_ATTRIBUTE = /^aria-/u;
-const READ_OUTSIDE = "read outside the product: tests or tooling";
+// What another world's role does to a member, as its note says it; a write there adds nothing to a product bucket.
+const OUTSIDE_NOTES: Readonly<Record<Exclude<Role, "write">, string>> = {
+  read: "read outside the product: tests or tooling",
+  call: "read outside the product: tests or tooling",
+  delete: "read outside the product: tests or tooling",
+  escape: "sent outside the product: tests or tooling",
+  key: "named as a key outside the product: tests or tooling",
+};
 
 const readsIn = (roles: ReadonlySet<Role>): boolean => [...READS].some((read) => roles.has(read));
 
@@ -124,8 +129,9 @@ class Analyser {
     this.#rulings();
     this.#liveness();
     this.#docLinks();
-    this.#members(settleRoles(this.#graph));
-    this.#stateTuples(settleRoles(this.#graph));
+    const roles = settleRoles(this.#graph);
+    this.#members(roles);
+    this.#stateTuples(roles);
     this.#ambient();
     this.#variants();
     const result = (bucket: Bucket): readonly Finding[] => this.#out.get(bucket) ?? [];
@@ -228,7 +234,7 @@ class Analyser {
     const from = [...state.doc]
       .filter(([, targets]) => targets.has(key))
       .map(([source]) => {
-        const info = state.decls.get(source as DeclKey);
+        const info = isDeclKey(source) ? state.decls.get(source) : undefined;
         return info === undefined ? source : `${info.file}:${info.name}`;
       });
     return from.length === 0 ? null : `doc links from ${from.join(", ")}`;
@@ -251,7 +257,9 @@ class Analyser {
         continue;
       }
       const role = roles.get(key);
-      const bucket = memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
+      // the dev bridge ruling: another world's read through our own global door is a product read
+      const doorRead = state.door.has(key) && readsIn(role?.other ?? new Set<Role>());
+      const bucket = doorRead ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
@@ -266,7 +274,8 @@ class Analyser {
   // The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal.
   #home(holder: GraphKey): string {
     const names: string[] = [];
-    for (let at = this.#state.decls.get(holder as DeclKey); at !== undefined; at = at.top ? undefined : this.#state.decls.get(at.holder as DeclKey)) {
+    const declOf = (key: GraphKey): DeclInfo | undefined => (isDeclKey(key) ? this.#state.decls.get(key) : undefined);
+    for (let at = declOf(holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
       names.unshift(at.name);
     }
     return names.join(".");
@@ -329,13 +338,14 @@ class Analyser {
 
 type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any", ReadonlySet<GraphKey>>>;
 
-// Where the product first wrote a member, and whether another world reads it.
+// Where the product first wrote a member, and what another world does to it.
 function memberNote(role: MemberRoles | undefined): string | null {
   if (role === undefined) {
     return null;
   }
-  const notes = [role.write === null ? null : `written at ${role.write}`, [...role.other].some((r) => r !== "write") ? READ_OUTSIDE : null];
-  return notes.filter((note) => note !== null).join("; ") || null;
+  const outside = new Set([...role.other].flatMap((other) => (other === "write" ? [] : [OUTSIDE_NOTES[other]])));
+  const notes = [...(role.write === null ? [] : [`written at ${role.write}`]), ...outside];
+  return notes.length === 0 ? null : notes.join("; ");
 }
 
 function livenessBucket(key: GraphKey, isType: boolean, reached: Reached, ruled: boolean): Bucket {
@@ -376,7 +386,7 @@ function dispatchedMembers(run: Edges, decls: ReadonlyMap<DeclKey, DeclInfo>): R
   const out = new Set<GraphKey>();
   for (const [from, targets] of run) {
     for (const target of targets) {
-      const info = decls.get(target as DeclKey);
+      const info = isDeclKey(target) ? decls.get(target) : undefined;
       if (info !== undefined && MEMBERS.has(info.kind) && info.holder !== from) {
         out.add(target);
       }
@@ -414,12 +424,17 @@ function roleLinks(state: Graph["state"]): { readonly readTo: ReadonlyMap<DeclKe
   const readTo = new Map<DeclKey, DeclKey[]>();
   const writeTo = new Map<DeclKey, DeclKey[]>();
   const link = (map: Map<DeclKey, DeclKey[]>, from: DeclKey, to: DeclKey): void => {
-    map.set(from, [...(map.get(from) ?? []), to]);
+    const list = map.get(from);
+    if (list === undefined) {
+      map.set(from, [to]);
+    } else {
+      list.push(to);
+    }
   };
   for (const [slot, values] of state.flows) {
     for (const value of values) {
-      link(readTo, slot as DeclKey, value as DeclKey);
-      link(writeTo, value as DeclKey, slot as DeclKey);
+      link(readTo, slot, value);
+      link(writeTo, value, slot);
     }
   }
   for (const [a, b] of state.twins) {

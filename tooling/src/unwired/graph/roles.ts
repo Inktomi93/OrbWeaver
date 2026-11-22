@@ -2,11 +2,18 @@
 // TypeScript 7.1 tree. The graph's walk and the find-references precision check both judge an occurrence here, so the
 // two cannot disagree on a role.
 //
-// Rulings this reader holds:
-// - A bump (`x.n++`, `x.n += 1`, `x.n ??= v`) stores into its target; it reads the target only when the bump's own
-//   value is used, so a member only ever bumped is never read.
-// - A destructuring-assignment target (`({ a: x.n } = o)`, `[x.n] = list`) and a for-of or for-in target write.
-// - A member declaration's own name declares the member and reads nothing; a doc comment names it and reads nothing.
+// Owner rulings this reader holds (the other graph modules point here):
+// - Escape is a send, not a read: a field counts as read only where a receiver reads it by name. {@link READS} leaves
+//   escape out, so a member only sent is member-sent-only, apart from member-write-only and member-untouched.
+// - A bump (`x.n++`, `x.n += 1`) stores into its target; it reads the target only when the bump's own value is used,
+//   so a member only ever bumped is never read.
+//
+// Invariants:
+// - A logical assignment (`??=`, `||=`, `&&=`) reads its target to decide whether to store, so it reads and writes.
+// - A destructuring-assignment target (`({ a: x.n } = o)`, `[x.n] = list`) and a for-of or for-in target write; the
+//   pattern's own keys (`a` above) read the source's member.
+// - A type or interface member's own name declares the member and does nothing; a class member that supplies its value
+//   where it is declared (a field with an initializer, a method, an accessor) writes it. A doc comment does nothing.
 import type {
   EnumMember,
   GetAccessorDeclaration,
@@ -24,6 +31,8 @@ import {
   isBinaryExpression,
   isBindingElement,
   isCallExpression,
+  isClassDeclaration,
+  isClassExpression,
   isDeleteExpression,
   isElementAccessExpression,
   isEnumMember,
@@ -68,8 +77,16 @@ export const READS: ReadonlySet<Role> = new Set<Role>(["read", "call", "delete"]
 const NONE: readonly Role[] = [];
 const READ: readonly Role[] = ["read"];
 const WRITE: readonly Role[] = ["write"];
+const READ_WRITE: readonly Role[] = ["read", "write"];
 
+// `=`, a compound `+=` or a logical `??=`: an operator that stores into its left side.
 const isAssignment = (kind: SyntaxKind): boolean => kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
+
+const LOGICAL_ASSIGNMENTS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.QuestionQuestionEqualsToken,
+  SyntaxKind.BarBarEqualsToken,
+  SyntaxKind.AmpersandAmpersandEqualsToken,
+]);
 
 /** Remote nodes are materialised per request, so two wrappers of one node compare by span and kind, never by identity. */
 export const sameNode = (a: Node | undefined, b: Node | undefined): boolean =>
@@ -95,12 +112,12 @@ function discarded(expression: Node): boolean {
   );
 }
 
-const bump = (expression: Node): readonly Role[] => (discarded(expression) ? WRITE : ["read", "write"]);
+const bump = (expression: Node): readonly Role[] => (discarded(expression) ? WRITE : READ_WRITE);
 
-// Whether `target` is a slot of a destructuring assignment's pattern: an element of an array literal, a property's
-// value or a spread of an object literal, nested to any depth, whose outermost literal is an assignment's left side
-// or a for-of or for-in target.
-function inAssignmentPattern(target: Node): boolean {
+/** Whether `target` is a destructuring assignment's pattern or a slot of one: an element of an array literal, a
+ *  property's value or a spread of an object literal, nested to any depth, whose outermost literal is an assignment's
+ *  left side or a for-of or for-in target. */
+export function inAssignmentPattern(target: Node): boolean {
   let at = target;
   while (isPatternSlot(at)) {
     const { parent } = at;
@@ -145,7 +162,11 @@ function accessOf(name: Node): Node {
 function storeRoles(target: Node): readonly Role[] | null {
   const up = target.parent;
   if (isBinaryExpression(up) && sameNode(up.left, target) && isAssignment(up.operatorToken.kind)) {
-    return up.operatorToken.kind === SyntaxKind.EqualsToken ? WRITE : bump(up);
+    const operator = up.operatorToken.kind;
+    if (operator === SyntaxKind.EqualsToken) {
+      return WRITE;
+    }
+    return LOGICAL_ASSIGNMENTS.has(operator) ? READ_WRITE : bump(up);
   }
   if (
     (isPrefixUnaryExpression(up) || isPostfixUnaryExpression(up)) &&
@@ -217,13 +238,31 @@ function insideDoc(node: Node): boolean {
   return false;
 }
 
-// What a name declaring a member does: an object literal's key writes, a type or class member's own name declares.
+// A class member whose declaration gives it a value: a field with an initializer, a method, an accessor.
+const suppliesValue = (member: MemberDeclaration): boolean =>
+  (isClassDeclaration(member.parent) || isClassExpression(member.parent)) &&
+  (!isPropertyDeclaration(member) || member.initializer !== undefined) &&
+  !isPropertySignatureDeclaration(member) &&
+  !isMethodSignatureDeclaration(member);
+
+// Whether a name is a key of a destructuring assignment's pattern (`a` in `({ a: x.n } = o)`), which reads the
+// source's member rather than writing the literal's.
+function isPatternKey(name: Node): boolean {
+  const { parent } = name;
+  return isLiteralKey(parent) && sameNode(parent.name, name) && inAssignmentPattern(parent.parent);
+}
+
+// What a name declaring a member does: an object literal's key writes, a destructuring-assignment pattern's key reads,
+// a class member that supplies its value writes, and a type member's own name declares.
 function declaringRoles(name: Node): readonly Role[] | null {
   const { parent } = name;
   if (isLiteralKey(parent) && sameNode(parent.name, name)) {
-    return WRITE;
+    return isPatternKey(name) ? READ : WRITE;
   }
-  return isMemberDeclaration(parent) && sameNode(parent.name, name) ? NONE : null;
+  if (!(isMemberDeclaration(parent) && sameNode(parent.name, name))) {
+    return null;
+  }
+  return suppliesValue(parent) ? WRITE : NONE;
 }
 
 /** The roles of any occurrence of a member's name, as find-references reports it: a doc comment's name and a member

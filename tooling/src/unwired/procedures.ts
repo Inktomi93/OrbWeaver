@@ -62,7 +62,7 @@ import type { Site } from "./classify.ts";
 import { classifyReference, isProductionFile, Sources, siteKey } from "./classify.ts";
 import type { JudgedSplit } from "./judged.ts";
 import { resolveKeys } from "./key-resolver.ts";
-import { declarationKeys, declaredBy, hasFlag, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
+import { declarationKeys, declaredBy, hasFlag, homeFiles, isFunctionLike, isPropertyName, NativeWorld } from "./native.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sortRows } from "./scan.ts";
 
@@ -317,7 +317,6 @@ function returnsOf(fn: Node): readonly Expression[] {
   return found;
 }
 
-const isFunctionLike = (node: Node): boolean => isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node) || isMethodDeclaration(node);
 const isBlockBody = (body: Node): boolean => body.kind === SyntaxKind.Block;
 
 // The function a declaration names: itself, or a variable's function initializer.

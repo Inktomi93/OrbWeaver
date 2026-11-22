@@ -548,22 +548,24 @@ export interface Roles {
   readonly tests: number;
 }
 
-function roleOfSite(sources: Sources, site: Site, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): SyntaxRole {
-  if (filled.has(siteKey(site))) {
+// A write is engine one's, read on the 7.1 tree by the one site-role reader; classify.ts roleAt splits the rest into a
+// read and a type position, which that reader does not judge.
+function roleOfSite(sources: Sources, site: Site, { written, keyed }: Pick<PropertyReferences, "written" | "keyed">): SyntaxRole {
+  if (written.has(siteKey(site))) {
     return "write";
   }
   return keyed.get(siteKey(site)) ?? roleAt(sources.get(site.file), site.position);
 }
 
-/** Split sites by role. `filled`: sites where a library writes the member, such as a paged query filling its cursor,
- *  though the syntax reads. `keyed`: the role of a string key outside a property position, such as a form field path,
- *  which syntax types as none. */
-export function rolesOf(sources: Sources, sites: Iterable<Site>, { filled, keyed }: Pick<PropertyReferences, "filled" | "keyed">): Roles {
+/** Split sites by role. `written`: sites that store into the member, including a library's write the syntax reads
+ *  (a paged query filling its cursor). `keyed`: the role of a string key outside a property position, such as a form
+ *  field path, which syntax types as none. */
+export function rolesOf(sources: Sources, sites: Iterable<Site>, { written, keyed }: Pick<PropertyReferences, "written" | "keyed">): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;
   for (const site of sites) {
-    const role = roleOfSite(sources, site, { filled, keyed });
+    const role = roleOfSite(sources, site, { written, keyed });
     if (role === "type") {
       continue;
     }

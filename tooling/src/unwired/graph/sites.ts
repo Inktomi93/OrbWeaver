@@ -116,16 +116,21 @@ import {
 } from "@typescript/native/ast";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
-import { unwrapExpression } from "./resolve.ts";
+import { unparenType, unwrapExpression } from "./resolve.ts";
 import type { Role } from "./roles.ts";
-import { referenceRoles, sameNode } from "./roles.ts";
+import { inAssignmentPattern, referenceRoles, sameNode } from "./roles.ts";
 
 /** A module's node in the graph: a use of it runs the module. */
 export type ModuleKey = `M:${string}`;
 /** A node of the graph: a declaration or a module. */
 export type GraphKey = DeclKey | ModuleKey;
 
-export const moduleKey = (file: string): ModuleKey => `M:${file}`;
+const MODULE_PREFIX = "M:";
+
+export const moduleKey = (file: string): ModuleKey => `${MODULE_PREFIX}${file}`;
+
+/** Whether a graph node is a declaration, not a module. */
+export const isDeclKey = (key: GraphKey): key is DeclKey => !key.startsWith(MODULE_PREFIX);
 
 // Why a member is judged by nothing: `x?: never` closes a union arm against a sibling's field, and a member of a type
 // literal that only types a `satisfies` clause checks a value's shape. Neither holds data.
@@ -203,7 +208,8 @@ export function keyText(name: Node | undefined): string | undefined {
     : undefined;
 }
 
-const UNNAMED = "{…}";
+/** The name a declaration without one is labelled with. */
+export const UNNAMED = "{…}";
 
 // TypeScript's convention, kept by noUnusedLocals and Biome's noUnusedVariables: a leading underscore marks a binding
 // never read on purpose (a compile-time pin, a disposal held by `using`).
@@ -406,7 +412,13 @@ export class FileSites {
   readonly specifiers: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly from: GraphKey; readonly inType: boolean }[] = [];
   readonly urlModules: { readonly target: string; readonly from: GraphKey }[] = [];
   readonly shorthands: { readonly node: ShorthandPropertyAssignment; readonly from: GraphKey }[] = [];
-  readonly patterns: { readonly pattern: ObjectBindingPattern; readonly names: readonly string[]; readonly from: GraphKey }[] = [];
+  /** Destructuring patterns, a declaration's or an assignment's, with the node whose type their keys read. */
+  readonly patterns: {
+    readonly pattern: ObjectBindingPattern | ObjectLiteralExpression;
+    readonly source: Node;
+    readonly names: readonly string[];
+    readonly from: GraphKey;
+  }[] = [];
   readonly classes: ClassFacts[] = [];
   readonly newExpressions: NewExpression[] = [];
   readonly literals: LiteralMembers[] = [];
@@ -417,6 +429,9 @@ export class FileSites {
   readonly scriptGlobalReads: ScriptGlobalRead[] = [];
   /** The spans of this file's `tv(…)` calls: a write inside one is the table itself, never a use. */
   readonly tvSpans: (readonly [number, number])[] = [];
+  /** Calls handed one value that is no object literal (`recipe(bag)`): a variant recipe's whole-bag selection, once the
+   *  resolved signature confirms the callee is a recipe. */
+  readonly bagCalls: { readonly call: CallExpression; readonly bag: Expression }[] = [];
 
   readonly #source: SourceFile;
 
@@ -490,8 +505,6 @@ export function keyLiterals(node: Node | undefined): readonly string[] | null {
   }
   return null;
 }
-
-const unparenType = (node: TypeNode): TypeNode => (isParenthesizedTypeNode(node) ? unparenType(node.type) : node);
 
 // The type literals a type argument spells, through unions, intersections and parentheses.
 function typeLiteralsIn(node: TypeNode): readonly TypeLiteralNode[] {
@@ -744,8 +757,22 @@ class Walker {
     this.#frame.classes.push(facts);
   }
 
+  // `({ a: x.n } = o)`: the pattern declares nothing and fills no slot; its keys read the source's members. A nested or
+  // for-of pattern has no source expression of its own, so its keys read nothing here.
+  #assignmentPattern(node: ObjectLiteralExpression): void {
+    const { parent } = node;
+    const names = node.properties.flatMap((property) => (isSpreadAssignment(property) ? [] : (keyText(property.name) ?? [])));
+    if (isBinaryExpression(parent) && sameNode(parent.left, node) && names.length > 0) {
+      this.#sites.patterns.push({ pattern: node, source: parent.right, names, from: this.#holder });
+    }
+  }
+
   #literal(node: ObjectLiteralExpression): LiteralMembers {
     const literal = { node, container: this.#holder, members: new Map<string, DeclKey>() };
+    if (inAssignmentPattern(node)) {
+      this.#assignmentPattern(node);
+      return literal;
+    }
     this.#sites.literals.push(literal);
     this.#frame.literals.push(literal);
     for (const property of node.properties) {
@@ -820,7 +847,7 @@ class Walker {
     if (isObjectBindingPattern(node)) {
       const names = node.elements.flatMap((element) => (element.dotDotDotToken === undefined ? bindingKey(element) : []));
       if (names.length > 0) {
-        this.#sites.patterns.push({ pattern: node, names, from: this.#holder });
+        this.#sites.patterns.push({ pattern: node, source: node, names, from: this.#holder });
       }
     }
     if (
@@ -838,6 +865,10 @@ class Walker {
     const { product } = this.#sites;
     if ((isCallExpression(node) || isNewExpression(node)) && !inType && product) {
       this.#arguments(node);
+    }
+    const [bag] = isCallExpression(node) ? node.arguments : [];
+    if (isCallExpression(node) && node.arguments.length === 1 && bag !== undefined && !isObjectLiteralExpression(bag) && !inType && product) {
+      this.#sites.bagCalls.push({ call: node, bag });
     }
     if (
       isBinaryExpression(node) &&

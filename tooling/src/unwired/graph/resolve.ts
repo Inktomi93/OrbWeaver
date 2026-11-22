@@ -141,9 +141,10 @@ export function* answer<T>(value: T): APIRequestGenerator<T> {
   return value;
 }
 
-const unparenType = (node: TypeNode | undefined): TypeNode | undefined => {
+/** A type node with its parentheses removed. */
+export const unparenType = (node: TypeNode): TypeNode => {
   let at = node;
-  while (at !== undefined && isParenthesizedTypeNode(at)) {
+  while (isParenthesizedTypeNode(at)) {
     at = at.type;
   }
   return at;
@@ -151,11 +152,11 @@ const unparenType = (node: TypeNode | undefined): TypeNode | undefined => {
 
 // The `typeof T` an index chain such as `(typeof T)[number]["key"]` is rooted at.
 function chainRoot(node: TypeNode): Node | undefined {
-  let at: TypeNode | undefined = node;
-  while (at !== undefined && isIndexedAccessTypeNode(at)) {
+  let at = node;
+  while (isIndexedAccessTypeNode(at)) {
     at = unparenType(at.objectType);
   }
-  return at !== undefined && isTypeQueryNode(at) ? at : undefined;
+  return isTypeQueryNode(at) ? at : undefined;
 }
 
 /** An expression with its parentheses and non-null assertions removed. */
@@ -319,12 +320,10 @@ export class Resolver {
    */
   declarations(symbols: readonly (NativeSymbol | undefined)[]): DeclKey[][] {
     const handles = symbols.map((): NodeHandle[] => []);
-    let pending = symbols.flatMap((symbol, at) => (symbol === undefined ? [] : [{ at, symbol }]));
-    const followed = symbols.map(() => new Set<number>());
+    let pending = symbols.flatMap((symbol, at) => (symbol === undefined ? [] : [{ at, symbol, seen: new Set<number>() }]));
     const { checker } = this.#world;
     while (pending.length > 0) {
-      pending = pending.filter(({ at, symbol }) => {
-        const seen = followed[at] as Set<number>;
+      pending = pending.filter(({ symbol, seen }) => {
         if (seen.has(symbol.id)) {
           return false;
         }
@@ -342,9 +341,9 @@ export class Resolver {
           return symbol.declarations.length === 0 ? checker.getTargetSymbol.gen(symbol) : answer<NativeSymbol | undefined>(undefined);
         }),
       );
-      pending = pending.flatMap(({ at, symbol }, step) => {
+      pending = pending.flatMap(({ at, symbol, seen }, step) => {
         const next = steps[step];
-        return next === undefined || next.id === symbol.id ? [] : [{ at, symbol: next }];
+        return next === undefined || next.id === symbol.id ? [] : [{ at, symbol: next, seen }];
       });
     }
     this.handleKeys(handles.flat());

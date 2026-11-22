@@ -4,6 +4,9 @@ import { relative } from "node:path";
 import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   getTouchingPropertyName,
+  isArrowFunction,
+  isFunctionDeclaration,
+  isFunctionExpression,
   isGetAccessorDeclaration,
   isIdentifier,
   isMethodDeclaration,
@@ -54,10 +57,18 @@ interface Pending {
   readonly request: Request;
 }
 
-// One world asks one snapshot of one project, so the two fields every request carries say nothing about which answer it
-// wants; leaving them out of the key keeps a whole-program walk's cache a fraction of the size.
+// One world asks one snapshot of one project, so the two params every request carries say nothing about which answer it
+// wants; leaving them out of the key keeps a whole-program walk's cache a fraction of the size. Only the params' own
+// fields are left out: a nested field of either name is part of what the request asks.
 const SESSION_FIELDS: ReadonlySet<string> = new Set(["snapshot", "project"]);
-const keyField = (field: string, value: unknown): unknown => (SESSION_FIELDS.has(field) ? undefined : value);
+
+function requestKey(request: Request): string {
+  if (!("params" in request) || typeof request.params !== "object" || request.params === null) {
+    return JSON.stringify(request);
+  }
+  const params = Object.fromEntries(Object.entries(request.params).filter(([field]) => !SESSION_FIELDS.has(field)));
+  return JSON.stringify({ ...request, params });
+}
 
 const isLocated = (request: Request): boolean =>
   "params" in request && typeof request.params === "object" && request.params !== null && ("location" in request.params || "locations" in request.params);
@@ -152,7 +163,7 @@ export class NativeWorld implements Disposable {
           joined(request.generators as readonly APIRequestGenerator[], (answers) => run(generator, finish, answers));
           return;
         }
-        const key = JSON.stringify(request, keyField);
+        const key = requestKey(request);
         const store = isLocated(request) ? this.#located : this.#answers;
         if (!store.has(key)) {
           waiting.push({ generator, finish, key, request });
@@ -238,6 +249,16 @@ export class NativeWorld implements Disposable {
   /** The type at each node. */
   typesAt(nodes: readonly Node[]): Type[] {
     return this.batch(nodes.map((node) => this.checker.getTypeAtLocation.gen(node)));
+  }
+
+  /** Each item with the type at the node it names, in one batch. */
+  typedAt<T>(items: readonly T[], nodeOf: (item: T) => Node): { readonly item: T; readonly type: Type }[] {
+    const { checker } = this;
+    return this.batch(
+      items.map(function* (item): APIRequestGenerator<{ readonly item: T; readonly type: Type }> {
+        return { item, type: yield* checker.getTypeAtLocation.gen(nodeOf(item)) };
+      }),
+    );
   }
 
   /** The repository-relative file a declaration lives in, or null for one outside the world's sources. */
@@ -345,6 +366,12 @@ export const declaredBy = (symbol: NativeSymbol | undefined, packagePath: string
 export type PropertyName = Identifier | StringLiteral | NoSubstitutionTemplateLiteral;
 
 export const isPropertyName = (node: Node): node is PropertyName => isIdentifier(node) || isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
+
+/** A function a declaration, an expression, an arrow or a method spells: its parameters and its body. */
+export type FunctionLike = Node & { readonly parameters: readonly Node[]; readonly body?: Node | undefined };
+
+export const isFunctionLike = (node: Node): node is FunctionLike =>
+  isFunctionDeclaration(node) || isFunctionExpression(node) || isArrowFunction(node) || isMethodDeclaration(node);
 
 /** Whether `node` is the name a member declares: an object literal key or shorthand, a method, a property or an accessor. */
 export const isNamedMember = (parent: Node, node: Node): boolean =>

@@ -18,7 +18,6 @@ import {
   isFunctionExpression,
   isIdentifier,
   isInterfaceDeclaration,
-  isMethodDeclaration,
   isModuleBlock,
   isModuleDeclaration,
   isNewExpression,
@@ -46,8 +45,8 @@ import { PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { rowColumns } from "./drizzle-rows.ts";
 import { handedAt } from "./handoffs.ts";
-import type { NativeWorld } from "./native.ts";
-import { constituents, declarationKeys, hasFlag } from "./native.ts";
+import type { FunctionLike, NativeWorld } from "./native.ts";
+import { constituents, declarationKeys, hasFlag, isFunctionLike } from "./native.ts";
 import { isProduction } from "./worlds.ts";
 
 // A serialization sends nested members too: a response's `messages[].content` leaves with the response. Deep enough
@@ -300,11 +299,6 @@ function* symbolOf(world: NativeWorld, node: Node): APIRequestGenerator<NativeSy
   const target = yield* world.checker.getAliasedSymbol.gen(symbol);
   return (yield* world.checker.isUnknownSymbol.gen(target)) ? undefined : target;
 }
-
-type FunctionLike = Node & { readonly parameters: readonly Node[]; readonly body?: Node | undefined };
-
-const isFunctionLike = (node: Node): node is FunctionLike =>
-  isFunctionDeclaration(node) || isFunctionExpression(node) || isArrowFunction(node) || isMethodDeclaration(node);
 
 // The function a declaration names: its own body, or the function a binding or a key holds.
 function functionOf(node: Node): FunctionLike | null {

@@ -13,7 +13,8 @@ const SDK_FILES = [
 ] as const;
 
 // The guest-facing plugin contract the SDK mirrors.
-const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
+/** The plugin contract directory: the wire types the SDK publishes are declared here. */
+export const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
 
 // Generic types that hold a value without naming its shape: a slot through them is the slot of their arguments.
 const HOLDERS: ReadonlySet<string> = new Set(["Promise", "PromiseLike", "Array", "ReadonlyArray", "Readonly"]);
