@@ -105,15 +105,17 @@ import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-
 import { viewerVisibilityParameterRule } from "./viewer-visibility.ts";
 
 export {
-  BRAND_LABEL_KEY,
   BRAND_MAKERS,
   type BrandMatch,
   BrandTable,
   type BrandVerdict,
   brandOfLabel,
+  brandOfPhantomKeys,
   type Inflow,
+  isLibraryFile,
+  isPhantomKey,
   type NameMatch,
-  PROOF_KEY,
+  type PhantomKey,
   sharesBrand,
   siteBrand,
   TYPE_ID_BRANDS,

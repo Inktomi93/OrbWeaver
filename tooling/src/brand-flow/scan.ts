@@ -17,7 +17,7 @@ import {
   pluginAuthorWorlds,
   publishedSdkSources,
 } from "../unwired/index.ts";
-import type { BrandedDeclaration, CompareCandidate, DeclarationCandidate, WorldRecords } from "./collect.ts";
+import type { BrandedDeclaration, CompareCandidate, DeclarationCandidate, PlainFeed, WorldRecords } from "./collect.ts";
 import { collectWorld } from "./collect.ts";
 import { layerOf } from "./slots.ts";
 import type { BrandDisagreement, CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, VocabField, Where, WidenSite } from "./types.ts";
@@ -132,6 +132,18 @@ function inflowOf(widens: readonly WidenSite[]): ReadonlyMap<string, readonly st
   return new Map([...bySite].map(([site, held]) => [site, [...held].sort()]));
 }
 
+// The declarations only a library's own value reaches, by site: a production declaration counts only production feeds.
+function libraryHandlesOf(feeds: readonly PlainFeed[]): ReadonlySet<string> {
+  const library = new Set<string>();
+  const own = new Set<string>();
+  for (const { declSite, declFile, file, library: fromLibrary } of feeds) {
+    if (!isProduction(declFile ?? "") || isProduction(file)) {
+      (fromLibrary ? library : own).add(declSite);
+    }
+  }
+  return new Set([...library].filter((site) => !own.has(site)));
+}
+
 const here = ({ file, line, pkg, position }: Where): Where => ({ file, line, pkg, position });
 const OR = " | ";
 
@@ -142,10 +154,12 @@ class SiteAnswers {
   unnamed = 0;
   readonly #table: BrandTable;
   readonly #inflow: ReadonlyMap<string, readonly string[]>;
+  readonly #handles: ReadonlySet<string>;
 
-  constructor(table: BrandTable, inflow: ReadonlyMap<string, readonly string[]>) {
+  constructor(table: BrandTable, inflow: ReadonlyMap<string, readonly string[]>, handles: ReadonlySet<string>) {
     this.#table = table;
     this.#inflow = inflow;
+    this.#handles = handles;
   }
 
   /** The name table's answer alone, for a slot whose own value is the type's answer. */
@@ -156,7 +170,8 @@ class SiteAnswers {
   /** The brand of a plain site whose value comes from the declarations at `sites`. */
   plain(kind: Exclude<BrandDisagreement["kind"], "branded-declaration">, where: Where, name: string, sites: readonly string[]): BrandVerdict {
     const brands = [...new Set(sites.flatMap((site) => this.#inflow.get(site) ?? []))].sort();
-    const inflow: Inflow | undefined = brands.length === 0 ? undefined : { brands, foreign: false };
+    const foreign = sites.length > 0 && sites.every((site) => this.#handles.has(site));
+    const inflow: Inflow | undefined = brands.length === 0 && !foreign ? undefined : { brands, foreign };
     const verdict = siteBrand(inflow, this.#table.brandOf(name));
     if (verdict.disagrees) {
       this.disagreements.push({ ...here(where), kind, name, typed: brands, named: verdict.named });
@@ -181,7 +196,11 @@ function missingOf(declarations: readonly DeclarationCandidate[], answers: SiteA
   const missing: MissingSite[] = [];
   const unmatched = new Map<string, { count: number; packages: Set<string> }>();
   for (const declared of declarations) {
-    const { brand, match } = answers.plain("declaration", declared, declared.name, [declared.site]);
+    const { brand, match, named } = answers.plain("declaration", declared, declared.name, [declared.site]);
+    // A name a library's own value fills is that library's handle: neither missing a brand nor a generic id.
+    if (brand === null && named !== null) {
+      continue;
+    }
     if (brand === null || match === null) {
       const entry = unmatched.get(declared.name) ?? { count: 0, packages: new Set<string>() };
       entry.count += 1;
@@ -333,7 +352,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
       return wire !== undefined && widen.brands.every((brand) => sharesBrand([brand], wire)) ? { ...widen, layer: "sandbox-wire" } : widen;
     });
   const compares = worlds.flatMap((world) => world.compares);
-  const answers = new SiteAnswers(table, inflowOf(widens));
+  const answers = new SiteAnswers(table, inflowOf(widens), libraryHandlesOf(worlds.flatMap((world) => world.plainFeeds)));
   const { missing, generic } = missingOf(declarations, answers);
   const crossBrand = crossBrandOf(answers, mints, widens, compares);
   for (const declared of worlds.flatMap((world) => world.branded)) {

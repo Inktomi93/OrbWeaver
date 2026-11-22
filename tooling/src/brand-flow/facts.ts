@@ -4,7 +4,7 @@
 import { isLiteralTypeNode, isStringLiteral, isTypeAliasDeclaration, isTypeReferenceNode } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
-import { BRAND_LABEL_KEY, BRAND_MAKERS, brandOfLabel, PROOF_KEY, TYPE_ID_BRANDS } from "../brand-names/index.ts";
+import { BRAND_MAKERS, brandOfLabel, brandOfPhantomKeys, isPhantomKey, TYPE_ID_BRANDS } from "../brand-names/index.ts";
 import type { NativeWorld } from "../unwired/index.ts";
 import { constituents, hasFlag } from "../unwired/index.ts";
 
@@ -73,22 +73,17 @@ export function brandDeclarations(world: NativeWorld): ReadonlySet<string> {
   return declared;
 }
 
-// The brand's name from its phantom keys.
+// The brand's name from its phantom keys, read through this compiler API and named by the one reader.
 function* brandName(checker: NativeWorld["checker"], brand: Type): APIRequestGenerator<string> {
-  const keys = (yield* brand.getProperties.gen()).filter((property) => BRAND_LABEL_KEY.test(property.name) || PROOF_KEY.test(property.name));
+  const keys = (yield* brand.getProperties.gen()).filter((property) => isPhantomKey(property.name));
   const types = yield* checker.getTypeOfSymbol.gen(keys);
-  const labels = keys.flatMap((key, at) => {
-    const type = types[at];
-    return BRAND_LABEL_KEY.test(key.name) && type?.isStringLiteralType() === true ? [type.value] : [];
-  });
-  const [label] = labels;
-  if (label === undefined) {
-    return yield* checker.typeToString.gen(brand);
-  }
-  return brandOfLabel(
-    label,
-    keys.some((key) => PROOF_KEY.test(key.name)),
+  const named = brandOfPhantomKeys(
+    keys.map((key, at) => {
+      const type = types[at];
+      return { name: key.name, literal: type?.isStringLiteralType() === true ? type.value : undefined };
+    }),
   );
+  return named ?? (yield* checker.typeToString.gen(brand));
 }
 
 /** Facts of types, asked once per distinct type of a world. */

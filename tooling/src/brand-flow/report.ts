@@ -128,7 +128,8 @@ const BLIND = [
   "A template literal is not read as a widen; a brand interpolated into display text or a cache key is not a defect.",
   "A re-narrow is joined to a widen by the declaration of the name the cast reads. A value passed through a second variable, an array element or a closure is not followed.",
   "`parsed` is a text shape (a `.parse(` call in the operand or its initializer, or a zod hook around the cast), not a proof the parse checks the prefix.",
-  "A brand declared outside the ids module is found only when the checker meets it as an intersection assignable to `Branded<string>`; a hand-rolled brand with another shape is not.",
+  "A brand is found by its alias declared as a kit `Branded` or `TypeIdOf` with a literal label, or when the checker meets it as an intersection assignable to `Branded<string>`; a hand-rolled brand of another shape is not.",
+  "A library's handle is a plain value read straight from a library's declaration (a name or a property), never a call's result; a declaration the program's own values also fill keeps its name's answer.",
   "An id-named declaration no branded value is seen to reach is matched by name; `memberId`, `actorId`, a DOM id and a plugin-defined id have no brand and are listed apart. A value that reaches a declaration through a widen this scan does not read (see above) leaves it to the name.",
 ];
 

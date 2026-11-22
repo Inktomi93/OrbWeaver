@@ -8,7 +8,7 @@ import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
 import type { Inflow, NameMatch } from "./brand-names.ts";
-import { BRAND_LABEL_KEY, BrandTable, brandOfLabel, PROOF_KEY, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
+import { BrandTable, brandOfPhantomKeys, isLibraryFile, isPhantomKey, siteBrand, TYPE_ID_BRANDS } from "./brand-names.ts";
 import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
@@ -163,21 +163,17 @@ function brandReference(node: ts.Node): ts.Node | undefined {
   return ts.isTypeReferenceNode(node) ? node.typeName : undefined;
 }
 
-// The brand a branded type carries, read from its phantom label, so an import alias or a `TypeIdOf<"chat">` spelling
-// names the brand the type is. A brand with no literal label names itself by the checker's spelling.
+// The brand a branded type carries, its phantom keys read through this compiler API and named by the one reader, so an
+// import alias or a `TypeIdOf<"chat">` spelling names the brand the type is.
 function brandNameOf(checker: ts.TypeChecker, member: ts.Type): string {
-  const keys = member.getProperties().filter((property) => BRAND_LABEL_KEY.test(property.getName()) || PROOF_KEY.test(property.getName()));
-  const labels = keys.flatMap((key) => {
-    const type = BRAND_LABEL_KEY.test(key.getName()) ? checker.getTypeOfSymbol(key) : undefined;
-    return type?.isStringLiteral() === true ? [type.value] : [];
-  });
-  const [label] = labels;
-  return label === undefined
-    ? checker.typeToString(member)
-    : brandOfLabel(
-        label,
-        keys.some((key) => PROOF_KEY.test(key.getName())),
-      );
+  const keys = member
+    .getProperties()
+    .filter((property) => isPhantomKey(property.getName()))
+    .map((key) => {
+      const type = checker.getTypeOfSymbol(key);
+      return { name: key.getName(), literal: type.isStringLiteral() ? type.value : undefined };
+    });
+  return brandOfPhantomKeys(keys) ?? checker.typeToString(member);
 }
 
 function collectBrand(seen: Set<string>, checker: ts.TypeChecker, brand: ts.Type, name: ts.Node): void {
@@ -268,14 +264,14 @@ function heldBrands(checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): str
 }
 
 // A value read straight from a declaration in a library: the declaration it fills holds that library's handle.
-function fromLibrary(program: ts.Program, checker: ts.TypeChecker, value: ts.Expression): boolean {
+function fromLibrary(checker: ts.TypeChecker, value: ts.Expression): boolean {
   let read: ts.Expression = value;
   while (ts.isParenthesizedExpression(read) || ts.isNonNullExpression(read) || ts.isAsExpression(read)) {
     read = read.expression;
   }
   const name = ts.isPropertyAccessExpression(read) ? read.name : read;
   const declarations = ts.isIdentifier(name) ? (resolvedSymbol(checker, name)?.declarations ?? []) : [];
-  return declarations.length > 0 && declarations.every((declaration) => program.isSourceFileFromExternalLibrary(declaration.getSourceFile()));
+  return declarations.length > 0 && declarations.every((declaration) => isLibraryFile(declaration.getSourceFile().fileName));
 }
 
 interface HandOff {
@@ -331,16 +327,19 @@ function handOffs(checker: ts.TypeChecker, node: ts.Node): readonly HandOff[] {
 }
 
 // What this file hands each declaration. A target is resolved only for a value that carries a brand or a library's own
-// value, so a file of plain strings asks the checker for no signature.
-function fileInflow(program: ts.Program, checker: ts.TypeChecker, brand: ts.Type, source: ts.SourceFile): ReadonlyMap<ts.Node, Inflow> {
+// value, so a file of plain strings asks the checker for no signature. Once a library's value is handed somewhere, the
+// file's own values are resolved too: a declaration they also fill holds the file's value, not the library's.
+function fileInflow(checker: ts.TypeChecker, brand: ts.Type, source: ts.SourceFile): ReadonlyMap<ts.Node, Inflow> {
   const fed = new Map<ts.Node, { readonly brands: Set<string>; foreign: boolean }>();
-  const note = ({ value, targets }: HandOff): void => {
-    const brands = heldBrands(checker, brand, checker.getTypeAtLocation(value));
-    const foreign = brands.length === 0 && fromLibrary(program, checker, value);
+  const own: HandOff[] = [];
+  const note = (hand: HandOff): void => {
+    const brands = heldBrands(checker, brand, checker.getTypeAtLocation(hand.value));
+    const foreign = brands.length === 0 && fromLibrary(checker, hand.value);
     if (brands.length === 0 && !foreign) {
+      own.push(hand);
       return;
     }
-    for (const target of targets()) {
+    for (const target of hand.targets()) {
       const entry = fed.get(target) ?? { brands: new Set<string>(), foreign: false };
       for (const name of brands) {
         entry.brands.add(name);
@@ -356,7 +355,8 @@ function fileInflow(program: ts.Program, checker: ts.TypeChecker, brand: ts.Type
     ts.forEachChild(node, visit);
   };
   visit(source);
-  return new Map([...fed].map(([target, { brands, foreign }]) => [target, { brands: [...brands], foreign }]));
+  const filled = new Set([...fed.values()].some(({ foreign }) => foreign) ? own.flatMap((hand) => hand.targets()) : []);
+  return new Map([...fed].map(([target, { brands, foreign }]) => [target, { brands: [...brands], foreign: foreign && !filled.has(target) }]));
 }
 
 // A slot of only `string`, with null or undefined: the slot takes any string and names no brand.
@@ -502,7 +502,7 @@ export const rawIdRule: OrbRule = {
       if (named === null || !ENFORCED_MATCHES.has(named.match) || !visible.has(named.brand)) {
         return;
       }
-      inflow ??= fileInflow(program, checker, brand, source);
+      inflow ??= fileInflow(checker, brand, source);
       const { brand: held } = siteBrand(inflow.get(declaration), named);
       if (held !== null && !forwardsLibraryField(program, checker, declaration, name)) {
         context.report({ node, message: declaredMessage(name, held) });

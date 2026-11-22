@@ -5,6 +5,9 @@
 //   included), wherever it is declared, file-local and non-id brands too. Never a spelling pattern: brand-flow's set is
 //   every alias declared as one of {@link BRAND_MAKERS} with a literal label plus every `ID_PREFIX` entity, and
 //   `orb/no-raw-id`'s is the `ID_PREFIX` entities plus the brands its own file references.
+// - Both read a brand's name through {@link brandOfPhantomKeys}, each compiler API handing it the phantom keys it read, and
+//   both judge a site through {@link siteBrand}: the brands that flow in, else a library's own value when it is all that
+//   flows in, else the name. The rule sees the flows of its own file, the report those of each world.
 // - A typed site's brand is its type's: the declared brand, or the brands of the values that flow into a plain string.
 //   The name table guesses from a declaration's spelling and answers only a plain site no branded value is seen to reach.
 
@@ -21,14 +24,40 @@ const NAME_OF_PREFIX: ReadonlyMap<string, string> = new Map(Object.entries(ID_PR
 /** Every TypeID entity's brand, declared by `ID_PREFIX` whether or not an alias names it. */
 export const TYPE_ID_BRANDS: readonly string[] = [...NAME_OF_PREFIX.values()];
 
-/** The phantom key every brand carries; its value is the brand's label. */
-export const BRAND_LABEL_KEY = /^__@brand@/u;
-/** The phantom key a session-verified sub-brand adds. */
-export const PROOF_KEY = /^__@sessionVerified@/u;
+// The phantom key every brand carries, its value the brand's label, and the key a session-verified sub-brand adds.
+const BRAND_LABEL_KEY = /^__@brand@/u;
+const PROOF_KEY = /^__@sessionVerified@/u;
 
-/** A brand's name from its phantom label, so `TypeIdOf<"chat">` and `ChatId` are one brand however the type was written,
- *  and a local alias (`type ChatHandle = Branded<"PluginChatHandle">`) is the brand its label names. */
+/** Whether a property name is one of a brand's phantom keys, the only properties {@link brandOfPhantomKeys} reads. */
+export const isPhantomKey = (name: string): boolean => BRAND_LABEL_KEY.test(name) || PROOF_KEY.test(name);
+
+/** A phantom key as a compiler API hands it over: its name, and its type's string literal when it has one. */
+export interface PhantomKey {
+  readonly name: string;
+  readonly literal: string | undefined;
+}
+
+/** A brand's name from its phantom keys and their literal types, whichever compiler API read them: the label's name, so
+ *  `TypeIdOf<"chat">` and `ChatId` are one brand however the type was written, and a local alias
+ *  (`type ChatHandle = Branded<"PluginChatHandle">`) is the brand its label names. Undefined for a brand with no literal
+ *  label, which the caller names by the checker's spelling. */
+export function brandOfPhantomKeys(keys: readonly PhantomKey[]): string | undefined {
+  const label = keys.find((key) => BRAND_LABEL_KEY.test(key.name))?.literal;
+  return label === undefined
+    ? undefined
+    : brandOfLabel(
+        label,
+        keys.some((key) => PROOF_KEY.test(key.name)),
+      );
+}
+
+/** A brand's name from its literal label alone, for a label read from syntax. */
 export const brandOfLabel = (label: string, verified: boolean): string => `${verified ? "Verified" : ""}${NAME_OF_PREFIX.get(label) ?? label}`;
+
+const LIBRARY_PATH = /(?:^|[\\/])node_modules[\\/]/u;
+
+/** Whether a declaration's file is a library's own: an installed package, never the program's sources or a default lib. */
+export const isLibraryFile = (path: string): boolean => LIBRARY_PATH.test(path);
 
 /** A sub-brand reads as the brand it refines: a `VerifiedUserId` is a `UserId`. */
 const baseBrand = (name: string): string => name.replace(/^Verified/u, "");
@@ -64,7 +93,8 @@ export interface NameMatch {
 export interface Inflow {
   /** The brands of the values handed to the site. */
   readonly brands: readonly string[];
-  /** A value read from a library's own declaration is handed to the site: the site holds that library's handle. */
+  /** Every value handed to the site is read from a library's own declaration: the site holds that library's handle. A
+   *  site the code also hands its own plain strings is not foreign, so its name still answers. */
   readonly foreign: boolean;
 }
 

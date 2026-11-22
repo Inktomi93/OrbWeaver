@@ -5,6 +5,7 @@ import {
   isArrayTypeNode,
   isBinaryExpression,
   isCallExpression,
+  isIdentifier,
   isIndexedAccessTypeNode,
   isLiteralTypeNode,
   isParenthesizedTypeNode,
@@ -19,7 +20,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
-import { sharesBrand } from "../brand-names/index.ts";
+import { isLibraryFile, sharesBrand } from "../brand-names/index.ts";
 import type { NativeWorld } from "../unwired/index.ts";
 import { propertiesNamed } from "../unwired/index.ts";
 import type { DeclInfo } from "./decl.ts";
@@ -59,6 +60,15 @@ export interface BrandedDeclaration extends Where {
   readonly brands: readonly string[];
 }
 
+/** An unbranded value handed to a declaration: read from a library's own declaration, or the program's own value. */
+export interface PlainFeed {
+  readonly declSite: string;
+  readonly declFile: string | null;
+  /** The file the value is handed in. */
+  readonly file: string;
+  readonly library: boolean;
+}
+
 export interface WorldRecords {
   readonly config: string;
   readonly files: number;
@@ -68,6 +78,7 @@ export interface WorldRecords {
   readonly compares: readonly CompareCandidate[];
   readonly declarations: readonly DeclarationCandidate[];
   readonly branded: readonly BrandedDeclaration[];
+  readonly plainFeeds: readonly PlainFeed[];
   readonly seen: readonly string[];
   readonly vocabDeclarations: readonly VocabDeclaration[];
   readonly vocabObservations: readonly VocabObservation[];
@@ -307,6 +318,59 @@ function collectWidens(world: NativeWorld, reader: TypeReader, found: Gathered):
   return [...edges, ...collectCastWidens(world, reader, found)];
 }
 
+// The name a handed value is matched by before its slot is resolved: the callee, the property, the variable or the
+// attribute. A return or an element fills no declaration a plain feed is asked about.
+function slotWord(handed: Gathered["handed"][number]): string | undefined {
+  const { container, kind } = handed;
+  if (kind === "argument") {
+    return calleeName(container);
+  }
+  if (kind === "assign") {
+    return isBinaryExpression(container) ? rootNames(container.left)[0]?.getText() : undefined;
+  }
+  const { name } = container as Node & { readonly name?: Node };
+  return kind === "return" || kind === "element" ? undefined : name?.getText();
+}
+
+// The library declaration a plain value is read straight from: an identifier or a property, never a call's result.
+function libraryRead(value: Node): Node | undefined {
+  const read = peel(value);
+  if (isPropertyAccessExpression(read)) {
+    return read.name;
+  }
+  return isIdentifier(read) ? read : undefined;
+}
+
+/** The unbranded values handed to declarations a library's own value also reaches: each library read, and each of the
+ *  program's own values, literals included, handed under the same slot name, so a declaration fed both is no handle. */
+function collectPlainFeeds(world: NativeWorld, reader: TypeReader, found: Gathered): PlainFeed[] {
+  const facts = reader.read(world.typesAt(found.handed.map(({ value }) => value)));
+  const plain = [...found.handed.filter((_, at) => (facts[at] as TypeFacts).brands.length === 0), ...found.literals];
+  const asked = plain.flatMap((handed) => {
+    const read = libraryRead(handed.value);
+    return read === undefined ? [] : [{ handed, read }];
+  });
+  const symbols = world.symbolsAt(asked.map(({ read }) => read));
+  const library = new Set(
+    asked.flatMap(({ handed }, at) => {
+      const declarations = symbols[at]?.declarations ?? [];
+      return declarations.length > 0 && declarations.every((declaration) => isLibraryFile(declaration.path)) ? [handed] : [];
+    }),
+  );
+  if (library.size === 0) {
+    return [];
+  }
+  const words = new Set([...library].flatMap((handed) => slotWord(handed) ?? []));
+  const own = plain.filter((handed) => !library.has(handed) && words.has(slotWord(handed) ?? ""));
+  const fed = [...library, ...own];
+  const states = stateIndex(world, found.states);
+  const slots = world.batch(fed.map((handed) => slotOf(world, handed, states)));
+  return fed.flatMap((handed, at): PlainFeed[] => {
+    const { declSite, declFile } = slots[at] as Slot;
+    return declSite === null ? [] : [{ declSite, declFile, file: whereOf(world, handed.value).file, library: library.has(handed) }];
+  });
+}
+
 function collectComparisons(world: NativeWorld, reader: TypeReader, comparisons: readonly Node[]): CompareCandidate[] {
   const binaries = comparisons.filter(isBinaryExpression);
   const left = reader.read(world.typesAt(binaries.map((node) => node.left)));
@@ -450,7 +514,7 @@ export function collectWorld(world: NativeWorld, home: ReadonlySet<string>): Wor
   const vocab = collectVocab(world, reader, files);
   const vocabulary = { vocabDeclarations: vocab.declarations, vocabObservations: vocab.observations };
   if (constraint === null) {
-    return { ...base, ...vocabulary, brandless: true, mints: [], widens: [], compares: [], declarations: [], branded: [], seen: [] };
+    return { ...base, ...vocabulary, brandless: true, mints: [], widens: [], compares: [], declarations: [], branded: [], plainFeeds: [], seen: [] };
   }
   const found = gather(files);
   const declared = collectDeclarations(world, reader, found.declarations);
@@ -463,6 +527,7 @@ export function collectWorld(world: NativeWorld, home: ReadonlySet<string>): Wor
     compares: collectComparisons(world, reader, found.comparisons),
     declarations: declared.plain,
     branded: declared.branded,
+    plainFeeds: collectPlainFeeds(world, reader, found),
     seen: [...reader.seen],
   };
 }

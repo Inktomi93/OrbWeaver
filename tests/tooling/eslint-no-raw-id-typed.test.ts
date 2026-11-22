@@ -137,16 +137,17 @@ test.for([
     found: "LocalId",
   },
   // The type's answer: what the file hands an id-named declaration, whatever its name says. A string no id name claims is
-  // brand-flow's to report: a comparator's parameter fed a brand is no id slot.
+  // brand-flow's to report: a comparator's parameter fed a brand is no id slot. Each absence sits beside an id-named
+  // field the rule does report, so a case that reports nothing at all fails.
   {
     name: "a renamed field the file hands a brand is left to brand-flow",
-    source: "export interface Row { readonly room: string }\nexport const row: Row = { room: id };",
-    found: null,
+    source: "export interface Row { readonly room: string; readonly chatId: string }\nexport const row: Row = { room: id, chatId: raw };",
+    found: "`chatId`",
   },
   {
     name: "a renamed parameter a call hands a brand is left to brand-flow",
-    source: "function open(room: string): string {\n  return room;\n}\nexport const opened = open(id);",
-    found: null,
+    source: "function open(room: string, chatId: string): string {\n  return room + chatId;\n}\nexport const opened = open(id, raw);",
+    found: "`chatId`",
   },
   {
     name: "a lookalike name the file hands another brand",
@@ -155,13 +156,24 @@ test.for([
   },
   {
     name: "a lookalike name that holds a library's own handle",
-    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const row: Row = { messageId: reply.messageId };`,
-    found: null,
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string; readonly chatId: string }\nexport const row: Row = { messageId: reply.messageId, chatId: raw };`,
+    found: "`chatId`",
+  },
+  // A library read clears a declaration only when library values are all that fill it.
+  {
+    name: "a lookalike name the file fills with a library's handle and its own strings",
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const rows: Row[] = [{ messageId: reply.messageId }, { messageId: raw }];`,
+    found: "MessageId",
+  },
+  {
+    name: "a lookalike name the file fills with a library's handle and a literal",
+    source: `import type { MessageId } from "${kitFromProbe}";\nimport type { Reply } from "provider-sdk";\ndeclare const reply: Reply;\nexport type Seen = MessageId;\nexport interface Row { readonly messageId: string }\nexport const rows: Row[] = [{ messageId: reply.messageId }, { messageId: "m" }];`,
+    found: "MessageId",
   },
   {
     name: "a renamed field the file hands only strings",
-    source: "export interface Row { readonly room: string }\nexport const row: Row = { room: raw };",
-    found: null,
+    source: "export interface Row { readonly room: string; readonly chatId: string }\nexport const row: Row = { room: raw, chatId: raw };",
+    found: "`chatId`",
   },
   { name: "a field typed by an alias of string", source: "type Raw = string;\nexport interface Row { readonly chatId: Raw }", found: "ChatId" },
   // Controls: the shapes the rule must leave alone.
