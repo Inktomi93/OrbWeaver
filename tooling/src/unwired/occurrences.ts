@@ -1164,6 +1164,10 @@ function withCarried(index: ReferenceIndex, carried: ReadonlyMap<string, Readonl
   return joined;
 }
 
+// The declarations a module exports by value: a member read through a namespace object resolves to one of these.
+// biome-ignore lint/suspicious/noBitwiseOperators: TypeScript symbol flags are compiler-owned bitfields.
+const MODULE_MEMBER = SymbolFlags.Function | SymbolFlags.Class | SymbolFlags.Variable | SymbolFlags.Enum | SymbolFlags.ValueModule;
+
 // A name in a type position, a declaration's own name or a module binding: never a value reference.
 function isValueName(node: Identifier): boolean {
   const parent = node.parent;
@@ -1181,6 +1185,7 @@ function isValueName(node: Identifier): boolean {
  *  property assignment reads the value its name binds. */
 export function valueIndex(world: NativeWorld, home: ReadonlySet<string> = everyFile(world)): ReferenceIndex {
   const plain: Identifier[] = [];
+  const accessed: Identifier[] = [];
   const shorthand: Node[] = [];
   walk(world, home, (node) => {
     if (!isIdentifier(node)) {
@@ -1188,6 +1193,8 @@ export function valueIndex(world: NativeWorld, home: ReadonlySet<string> = every
     }
     if (isShorthandPropertyAssignment(node.parent) && node.parent.name === node) {
       shorthand.push(node.parent);
+    } else if (isPropertyAccessExpression(node.parent) && node.parent.name === node) {
+      accessed.push(node);
     } else if (isValueName(node)) {
       plain.push(node);
     }
@@ -1195,6 +1202,13 @@ export function valueIndex(world: NativeWorld, home: ReadonlySet<string> = every
   const index = new Map<string, Site[]>();
   for (const [at, symbol] of world.symbolsAt(plain).entries()) {
     credit(index, symbol === undefined ? [] : declarationKeys(symbol), world.siteOf(plain[at] as Node));
+  }
+  // A module namespace's member, as `m.X` in `import("./x.ts").then((m) => m.X)` or `ns.X` after `import * as ns`,
+  // reads the module's declaration of `X`; an object's property or method is the property index's to credit.
+  for (const [at, symbol] of world.symbolsAt(accessed).entries()) {
+    if (symbol !== undefined && hasFlag(symbol.flags, MODULE_MEMBER)) {
+      credit(index, declarationKeys(symbol), world.siteOf(accessed[at] as Node));
+    }
   }
   for (const [at, symbol] of world.shorthandValues(shorthand).entries()) {
     const assignment = shorthand[at] as Node & { readonly name: Node };

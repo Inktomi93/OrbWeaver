@@ -4,7 +4,7 @@
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { NativeWorld, Sources, scanUnwired, scanWorld, serviceReferences } from "../../../tooling/src/unwired/index.ts";
-import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
+import { JSX_NAMESPACE, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
 
 const TREE = {
   "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
@@ -265,4 +265,87 @@ test("a judged row reports apart with its open item, and an entry for a done ite
   expect(judgedOutcome(scanUnwired({ ...options, judged }), "Copy.unusedLine", "Clock.implementedOnly")).toEqual(
     judgedExpected("Copy.unusedLine", "Clock.implementedOnly"),
   );
+});
+
+// Find-references on a member groups every member that shares its base: the base's, each sibling override's and each
+// inheriting member's, beside the member's own. Engine two tags a site only a base or sibling group reached, and keeps
+// every site that reaches the member by type: a contextual literal, a returned literal, an intersection literal, a JSX
+// attribute on the component, an override and an implementation; an import alias and a re-export are never tagged.
+const FAMILY_SOURCE = [
+  "export interface Base { readonly tone?: string }",
+  "export interface Own extends Base { readonly tone?: string }",
+  "export interface Other extends Base { readonly tone?: string }",
+  "export interface Leaf extends Own { readonly tone?: string }",
+  'export const own = (props: Own): string => props.tone ?? "plain";',
+  'export const other = (props: Other): string => props.tone ?? "quiet";',
+  'export const shownOther = other({ tone: "loud" });',
+  'export const contextual: Own = { tone: "a" };',
+  'export const made = (): Own => ({ tone: "b" });',
+  'export class Impl implements Own { readonly tone = "c"; }',
+  "export type Composed = Own & { readonly size?: number };",
+  'export const composed: Composed = { tone: "d" };',
+  'export const leaf: Leaf = { tone: "e" };',
+  'export interface Boxed extends Omit<HostAttributes, "id"> { readonly className?: string }',
+  'export const boxed = ({ className }: Boxed): string => host({ className: className ?? "box" });',
+  'export const plain = host({ className: "plain" });',
+].join("\n");
+
+const FAMILY = {
+  "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB, jsx: "preserve" }),
+  "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
+  "packages/a/src/host.d.ts": [
+    "interface HostAttributes { readonly className?: string; readonly id?: string }",
+    "declare function host(attributes: HostAttributes): string;",
+  ].join("\n"),
+  "packages/a/src/family.ts": FAMILY_SOURCE,
+  "packages/a/src/view.tsx": [
+    'import type { Boxed } from "./family.ts";',
+    'import { own as ownAlias } from "./family.ts";',
+    'export { own as ownAgain } from "./family.ts";',
+    'export function Box(props: Boxed): JSX.Element { return <div className={props.className ?? ""} />; }',
+    'export const shownBox = <Box className="x" />;',
+    'export const viaAlias = ownAlias({ tone: "f" });',
+  ].join("\n"),
+};
+
+test("engine two tags the sites only a base or sibling member reaches, in both engines", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(FAMILY);
+  const sources = new Sources(root);
+  const file = "packages/a/src/family.ts";
+  const at = (needle: string, name: string): { readonly file: string; readonly position: number } => ({
+    file,
+    position: FAMILY_SOURCE.indexOf(needle) + needle.indexOf(name),
+  });
+  const asked = [at("Own extends Base { readonly tone", "tone"), at("readonly className?: string }", "className"), at("export const own", "own")];
+  const worlds = ["packages/a/tsconfig.json"];
+  const tagged = (crossCheck: boolean): string[][] => {
+    const served = serviceReferences(root, worlds, asked, { log: () => undefined, crossCheck, lists: NativeWorld.fileLists(root, worlds) });
+    return asked.map((site) =>
+      (served.get(`${site.file}:${site.position}`) ?? [])
+        // The planted declaration file stands in for a library, whose own sites neither engine counts as uses.
+        .filter((found) => !found.file.endsWith(".d.ts"))
+        .map((found) => `${found.file.replace("packages/a/src/", "")}:${sources.line(found)}${found.relative ? " relative" : ""}`)
+        .toSorted(),
+    );
+  };
+  const expected = [
+    [
+      "family.ts:1 relative",
+      "family.ts:10",
+      "family.ts:12",
+      "family.ts:13",
+      "family.ts:3 relative",
+      "family.ts:4",
+      "family.ts:5",
+      "family.ts:6 relative",
+      "family.ts:7 relative",
+      "family.ts:8",
+      "family.ts:9",
+      "view.tsx:6",
+    ],
+    ["family.ts:15", "family.ts:15 relative", "family.ts:16 relative", "view.tsx:4", "view.tsx:5"],
+    ["view.tsx:2", "view.tsx:2", "view.tsx:3", "view.tsx:3", "view.tsx:6"],
+  ];
+  expect(tagged(false)).toEqual(expected);
+  expect(tagged(true)).toEqual(expected);
 });

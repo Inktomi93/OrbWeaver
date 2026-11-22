@@ -297,3 +297,31 @@ test("a judged row reports apart with its open item, and an entry for a done ite
   const judged = plantJudged(scanParams(options), "greet.prefix", "tag.kind");
   expect(judgedOutcome(scanParams({ ...options, judged }), "greet.prefix", "tag.kind")).toEqual(judgedExpected("greet.prefix", "tag.kind"));
 });
+
+// A component reached only through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`,
+// escapes into the loader, so its props are never judged, whatever its other callers pass. `Shown`, rendered by name
+// only, is the judged twin.
+const LAZY_TREE = {
+  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
+  "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
+  "packages/a/src/editor.tsx": [
+    "export interface EditorProps { readonly value: string; readonly readOnly?: boolean }",
+    'export function Editor(props: EditorProps): JSX.Element { return <div>{props.value}{props.readOnly === true ? "ro" : ""}</div>; }',
+    "export interface ShownProps { readonly value: string; readonly muted?: boolean }",
+    'export function Shown(props: ShownProps): JSX.Element { return <div>{props.value}{props.muted === true ? "m" : ""}</div>; }',
+  ].join("\n"),
+  "packages/a/src/lazy-page.tsx": [
+    "const lazy = <T,>(load: () => Promise<{ readonly default: T }>): (() => Promise<T>) => async () => (await load()).default;",
+    'export const loadEditor = lazy(() => import("./editor.tsx").then((m) => ({ default: m.Editor })));',
+  ].join("\n"),
+  "packages/a/src/page.tsx": ['import { Editor, Shown } from "./editor.tsx";', 'export const page = [<Shown value="s" />, <Editor value="e" />];'].join("\n"),
+};
+
+test("a component a dynamic import's namespace hands on escapes in both engines", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(LAZY_TREE);
+  for (const crossCheck of [false, true]) {
+    const report = scanParams({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined, crossCheck });
+    expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Shown(props.muted)"]);
+    expect(report.disagreements).toEqual([]);
+  }
+});
