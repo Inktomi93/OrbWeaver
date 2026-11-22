@@ -31,6 +31,8 @@ export interface SdkSurface {
   readonly published: ReadonlyMap<string, string>;
   /** Each contract type name to the slots that hold it, `Home.fn()` or `Home.fn(0)` or `Home.member`. */
   readonly slots: ReadonlyMap<string, readonly string[]>;
+  /** Every interface and type alias name the SDK declares: a contract type of the same name is published whole. */
+  readonly names: ReadonlySet<string>;
 }
 
 type NamedMember = (ts.PropertySignature | ts.MethodSignature) & { readonly name: ts.Identifier | ts.StringLiteral };
@@ -106,10 +108,18 @@ function walkHomes(source: ts.SourceFile, walk: (home: string, members: ts.NodeA
 
 const parse = (root: string, file: string): ts.SourceFile => ts.createSourceFile(file, readFileSync(join(root, file), "utf8"), ts.ScriptTarget.Latest, true);
 
-function published(root: string): ReadonlyMap<string, string> {
+function published(root: string): { readonly members: ReadonlyMap<string, string>; readonly names: ReadonlySet<string> } {
   const surface = new Map<string, string>();
+  const names = new Set<string>();
+  const declared = (node: ts.Node): void => {
+    if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) {
+      names.add(node.name.text);
+    }
+    ts.forEachChild(node, declared);
+  };
   for (const file of SDK_FILES.filter((sdk) => existsSync(join(root, sdk)))) {
     const source = parse(root, file);
+    declared(source);
     const onMember = (key: string, member: NamedMember): void => {
       surface.set(key, surface.get(key) ?? `${file}:${String(source.getLineAndCharacterOfPosition(member.name.getStart(source)).line + 1)}`);
     };
@@ -120,7 +130,7 @@ function published(root: string): ReadonlyMap<string, string> {
     };
     walkHomes(source, (home, members) => walkMembers(home, members, onMember, visit));
   }
-  return surface;
+  return { members: surface, names };
 }
 
 function contractSlots(root: string): ReadonlyMap<string, readonly string[]> {
@@ -142,7 +152,8 @@ function contractSlots(root: string): ReadonlyMap<string, readonly string[]> {
 
 /** Every member the SDK publishes, and every slot of the plugin contract that holds a named type. */
 export function sdkSurface(root: string): SdkSurface {
-  return { published: published(root), slots: contractSlots(root) };
+  const { members, names } = published(root);
+  return { published: members, slots: contractSlots(root), names };
 }
 
 /** Where the SDK publishes a plugin contract field, by its type name or by a slot that holds its home, or null when

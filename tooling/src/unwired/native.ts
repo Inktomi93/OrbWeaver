@@ -14,10 +14,19 @@ import {
   isShorthandPropertyAssignment,
   isStringLiteral,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, LanguageService, Symbol as NativeSymbol, NodeHandle, ReferencedSymbolEntry, Type } from "@typescript/native/sync";
+import type {
+  APIRequestGenerator,
+  Checker,
+  LanguageService,
+  Symbol as NativeSymbol,
+  NodeHandle,
+  ReferencedSymbolEntry,
+  SignatureUsage,
+  Type,
+} from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
-import { bridgedConfigText } from "./worlds.ts";
+import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
 
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
@@ -45,6 +54,14 @@ interface Pending {
   readonly request: Request;
 }
 
+// One world asks one snapshot of one project, so the two fields every request carries say nothing about which answer it
+// wants; leaving them out of the key keeps a whole-program walk's cache a fraction of the size.
+const SESSION_FIELDS: ReadonlySet<string> = new Set(["snapshot", "project"]);
+const keyField = (field: string, value: unknown): unknown => (SESSION_FIELDS.has(field) ? undefined : value);
+
+const isLocated = (request: Request): boolean =>
+  "params" in request && typeof request.params === "object" && request.params !== null && ("location" in request.params || "locations" in request.params);
+
 const isAll = (request: Request): request is Extract<Request, { readonly method: "__all" }> => "method" in request && request.method === "__all";
 
 function* ask(request: Request): APIRequestGenerator<unknown> {
@@ -66,28 +83,35 @@ export class NativeWorld implements Disposable {
   readonly #fileOfPath: ReadonlyMap<string, string>;
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
+  // Answers about one node's location, kept apart so a whole-program walk can let a walked file's answers go.
+  readonly #located = new Map<string>();
 
-  private constructor(root: string, config: string, api: API, declarations: ReadonlySet<string>) {
+  private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
     this.#root = root;
     this.#api = api;
     const path = `${root}/${config}`;
-    // The world config is overlaid with the source bridge, the same programs engine two loads.
-    const snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: bridgedConfigText(root, config) } } });
+    const snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: text } } });
     const project = snapshot.getConfiguredProject(path);
     if (project === undefined) {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
     this.checker = project.checker;
     this.#languageService = project.languageService;
-    const names = project.program.getSourceFileNames().filter((name) => isWorldSource(name) || declarations.has(relative(root, name)));
+    const names = project.program.getSourceFileNames().filter((name) => isWorldSource(name) || declaration(relative(root, name)));
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
     this.#fileOfPath = new Map(this.files.map((file) => [file.path, relative(root, file.fileName)]));
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
   }
 
+  // The world config is overlaid with the source bridge, the same programs engine two loads.
   static open(root: string, config: string, declarations: ReadonlySet<string> = new Set()): NativeWorld {
-    return new NativeWorld(root, config, new API({ cwd: root }), declarations);
+    return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, new API({ cwd: root }), (file) => declarations.has(file));
+  }
+
+  /** The merged program over every world (`mergedConfigText`), with the declaration files `declaration` keeps. */
+  static openMerged(root: string, declaration: (file: string) => boolean): NativeWorld {
+    return new NativeWorld(root, { config: MERGED_CONFIG, text: mergedConfigText(root) }, new API({ cwd: root }), declaration);
   }
 
   /** The repository-relative source files and root files of every world, listed in one session rather than one
@@ -115,8 +139,8 @@ export class NativeWorld implements Disposable {
     return results;
   }
 
-  // Every query is pure in one snapshot, so each distinct request crosses to the compiler once in this world's life:
-  // later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
+  // Every query is pure in one snapshot, so each distinct request crosses to the compiler once in this world's life
+  // (until releaseLocated for a location's): later asks and same-round repeats share its answer. `API.batch` itself only deduplicates `initialize`.
   #settle<T>(generators: readonly APIRequestGenerator<T>[]): T[] {
     const results: T[] = [];
     let waiting: Pending[] = [];
@@ -128,12 +152,13 @@ export class NativeWorld implements Disposable {
           joined(request.generators as readonly APIRequestGenerator[], (answers) => run(generator, finish, answers));
           return;
         }
-        const key = JSON.stringify(request);
-        if (!this.#answers.has(key)) {
+        const key = JSON.stringify(request, keyField);
+        const store = isLocated(request) ? this.#located : this.#answers;
+        if (!store.has(key)) {
           waiting.push({ generator, finish, key, request });
           return;
         }
-        step = generator.next(this.#answers.get(key));
+        step = generator.next(store.get(key));
       }
       finish(step.value);
     };
@@ -164,15 +189,21 @@ export class NativeWorld implements Disposable {
       for (const start of pageStarts(distinct.length)) {
         const page = distinct.slice(start, start + BATCH);
         const answers = this.#api.batch(...page.map(([, request]) => ask(request)));
-        for (const [at, [key]] of page.entries()) {
-          this.#answers.set(key, answers[at]);
+        for (const [at, [key, request]] of page.entries()) {
+          (isLocated(request) ? this.#located : this.#answers).set(key, answers[at]);
         }
       }
-      for (const { generator, finish, key } of round) {
-        run(generator, finish, this.#answers.get(key));
+      for (const { generator, finish, key, request } of round) {
+        run(generator, finish, (isLocated(request) ? this.#located : this.#answers).get(key));
       }
     }
     return results;
+  }
+
+  /** Drop every answer asked about a node's location. A walk that moves on from a file calls this, so the answers about
+   *  the files behind it do not pile up; a later ask about one of their nodes crosses to the compiler again. */
+  releaseLocated(): void {
+    this.#located.clear();
   }
 
   /** The symbol at each node, an import alias followed to the symbol it names. */
@@ -214,6 +245,11 @@ export class NativeWorld implements Disposable {
     return this.#fileOfPath.get(handle.path) ?? null;
   }
 
+  /** The repository-relative file of one of the world's parsed files. */
+  fileOfSource(source: SourceFile): string {
+    return this.#fileOfPath.get(source.path) ?? relative(this.#root, source.fileName);
+  }
+
   /** Whether the world holds the repository-relative file. */
   has(file: string): boolean {
     return this.#sourceOf.has(file);
@@ -235,6 +271,11 @@ export class NativeWorld implements Disposable {
     const source = node.getSourceFile();
     const position = node.getStart(source) + 1;
     return yield* this.#languageService.getReferencedSymbolsForNode.gen(getTouchingPropertyName(source, position), position);
+  }
+
+  /** Every reference to the function a declaration names, each with the call that invokes it when one does. */
+  *signatureUsage(declaration: Node): APIRequestGenerator<SignatureUsage[]> {
+    return yield* this.#languageService.getSignatureUsage.gen(declaration);
   }
 
   *#referencesOf(site: Site): APIRequestGenerator<Site[]> {

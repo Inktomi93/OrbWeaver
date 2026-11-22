@@ -94,12 +94,14 @@ export function schemaTables(world: NativeWorld, files: (file: string) => boolea
 // Each table's columns by name, keyed by the table's sorted column names.
 type TablesBySignature = ReadonlyMap<string, ReadonlyMap<string, readonly NativeSymbol[]>>;
 
-const signatureOf = (names: Iterable<string>): string => [...names].toSorted().join(",");
+/** A row's signature: its member names, sorted. A row type and its table share one. */
+export const signatureOf = (names: Iterable<string>): string => [...names].toSorted().join(",");
 
 // One signature map per world: the resolver, the hand-offs and the sends all ask it.
 const TABLES = new WeakMap<NativeWorld, TablesBySignature>();
 
-function tablesOf(world: NativeWorld): TablesBySignature {
+/** Each table's column symbols by name, keyed by the table's {@link signatureOf}. */
+export function rowColumnsBySignature(world: NativeWorld): TablesBySignature {
   const known = TABLES.get(world);
   if (known !== undefined) {
     return known;
@@ -125,7 +127,7 @@ function tablesOf(world: NativeWorld): TablesBySignature {
 /** The columns a declaration-less member named `name` of a Drizzle row type `holder` stands for; empty for any other
  *  holder. A hand-off or a send of a whole row carries its members by this step. */
 export function* rowColumns(world: NativeWorld, holder: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
-  const tables = tablesOf(world);
+  const tables = rowColumnsBySignature(world);
   if (tables.size === 0) {
     return [];
   }

@@ -199,7 +199,7 @@ export { componentsIn, componentTables, firstFunction, propsPattern } from "./ui
 export type { Arm, ArmClasses, AxisUse, DeclaredVariants, VariantReport } from "./ui-classes/variants.ts";
 export { declaredVariants, totalUses, variantReport } from "./ui-classes/variants.ts";
 export { domLookupRule } from "./ui-dom.ts";
-export type { PropOwner, PropOwners } from "./ui-feature-classname.ts";
+export type { CandidatesToCss, PropOwner, PropOwners } from "./ui-feature-classname.ts";
 export { classClassifier } from "./ui-feature-classname.ts";
 export { DESTRUCTIVE_EXEMPT } from "./ui-feature-policy.ts";
 

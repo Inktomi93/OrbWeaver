@@ -1,4 +1,6 @@
-// The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
+// The `pnpm unwired` verbs. `graph`, `graph-verify` and `graph-css` run the reference graph over the one merged
+// program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, or the custom properties
+// nothing reads. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
 // one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
 // engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
@@ -14,6 +16,11 @@ import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
+import type { MemberBucket } from "./graph/analyse.ts";
+import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
+import { CSS_BUCKETS } from "./graph/css.ts";
+import { cssGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
@@ -36,7 +43,15 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+/** The reference-graph verbs: the buckets, a member bucket's find-references check, and the custom-property pass. */
+const GRAPH_VERBS = ["graph", "graph-verify", "graph-css"] as const;
+type GraphVerb = (typeof GRAPH_VERBS)[number];
+const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
+  graph: "reports/unwired/graph.json",
+  "graph-verify": "reports/unwired/graph-verify.json",
+  "graph-css": "reports/unwired/graph-css.json",
+};
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -293,10 +308,109 @@ const logLimits = (limits: readonly string[]): void => {
   log(["limits: what this scan cannot see", ...limits.map((limit) => `- ${limit}`)].join("\n"));
 };
 
-export function runUnwired(argv: readonly string[]): number | Promise<number> {
-  // `coverage` runs the test suites, so it owns its own flags and runs asynchronously.
+interface GraphArgs {
+  readonly verb: GraphVerb;
+  readonly root: string;
+  readonly out: string;
+  readonly bucket: MemberBucket | null;
+  readonly sample: number | null;
+}
+
+const GRAPH_FLAG = /^--(root|out|bucket|sample)=(.+)$/u;
+const VERIFY_FLAGS: ReadonlySet<string> = new Set(["bucket", "sample"]);
+
+function graphFlags(verb: GraphVerb, argv: readonly string[]): ReadonlyMap<string, string> {
+  const flags = new Map<string, string>();
+  for (const arg of argv) {
+    const [, name = "", value = ""] = GRAPH_FLAG.exec(arg) ?? [];
+    if (name === "" || (verb !== "graph-verify" && VERIFY_FLAGS.has(name))) {
+      throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
+    }
+    flags.set(name, value);
+  }
+  return flags;
+}
+
+function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
+  const flags = graphFlags(verb, argv);
+  const bucket = oneOf("bucket", flags.get("bucket") ?? null, MEMBER_BUCKETS);
+  if (verb === "graph-verify" && bucket === null) {
+    throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
+  }
+  const sample = flags.get("sample") ?? null;
+  if (sample !== null && !/^[1-9]\d*$/u.test(sample)) {
+    throw new UsageError(`--sample=${sample}: expected a positive count`);
+  }
+  return {
+    verb,
+    root: resolve(flags.get("root") ?? process.cwd()),
+    out: flags.get("out") ?? GRAPH_OUT[verb],
+    bucket,
+    sample: sample === null ? null : Number(sample),
+  };
+}
+
+async function runGraphCss(args: GraphArgs): Promise<number> {
+  const report = await cssGraph(args.root, log);
+  const path = write(args.root, args.out, report);
+  for (const bucket of CSS_BUCKETS) {
+    for (const entry of report.buckets[bucket]) {
+      process.stdout.write(`${bucket}\t${entry}\n`);
+    }
+  }
+  const counts = Object.entries(report.counts).map(([name, count]) => `${name}=${String(count)}`);
+  log(`${[...CSS_BUCKETS.map((bucket) => `${bucket}=${String(report.buckets[bucket].length)}`), ...counts].join(" ")} written to ${path}`);
+  return EXIT.clean;
+}
+
+async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<number> {
+  const { verification } = await verifyGraph(args.root, { bucket, sample: args.sample }, log);
+  const path = write(args.root, args.out, verification);
+  for (const entry of verification.entries.filter(({ verdict }) => verdict !== "confirmed")) {
+    process.stdout.write(`${entry.verdict}\t${entry.label}\t${entry.reads.join(",")}\n`);
+  }
+  const tally = VERDICTS.map((verdict) => `${verdict}=${String(verification.entries.filter((entry) => entry.verdict === verdict).length)}`);
+  log(`${bucket} sample=${String(verification.entries.length)} of ${String(verification.total)} ${tally.join(" ")} written to ${path}`);
+  return EXIT.clean;
+}
+
+async function runGraphScan(args: GraphArgs): Promise<number> {
+  const graph = await scanGraph(args.root, log);
+  const path = write(args.root, args.out, graph);
+  for (const bucket of BUCKETS) {
+    for (const finding of graph.analysis[bucket]) {
+      process.stdout.write(`${bucket}\t${finding.label}${finding.note === null ? "" : `\t${finding.note}`}\n`);
+    }
+  }
+  log(
+    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(graph.analysis[bucket].length)}`).join(" ")} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
+  );
+  return EXIT.clean;
+}
+
+async function runGraph(args: GraphArgs): Promise<number> {
+  if (args.verb === "graph-css") {
+    return await runGraphCss(args);
+  }
+  return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
+}
+
+const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VERBS.find((candidate) => candidate === verb);
+
+// The verbs that run asynchronously: `coverage` runs the test suites with its own flags, and the graph verbs load the
+// analysed tree's knip config and design system.
+function asyncVerb(argv: readonly string[]): Promise<number> | undefined {
   if (argv[0] === COVERAGE_VERB) {
     return runCoverage(argv.slice(1), log);
+  }
+  const graph = graphVerb(argv[0]);
+  return graph === undefined ? undefined : runGraph(parseGraphArgs(graph, argv.slice(1)));
+}
+
+export function runUnwired(argv: readonly string[]): number | Promise<number> {
+  const later = asyncVerb(argv);
+  if (later !== undefined) {
+    return later;
   }
   const args = parseArgs(argv);
   if (args.verb === "removed-keys") {
