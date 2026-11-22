@@ -79,7 +79,7 @@ A key an `.extend({ key })` call re-declares is the base schema's key, so its re
 
 ## Limits of the unions scan
 
-`UNION_LIMITS` in `tooling/src/unwired/unions.ts` is the one list. These classes stay reported, so judge them by hand:
+`UNION_LIMITS` in `tooling/src/unwired/graph/unions.ts` is the one list. These classes stay reported, so judge them by hand:
 
 - A tuple only a file outside every package world enumerates, such as `packages/ui/tokens.build.ts`. Adding those files to a world raises the run past the memory bar.
 - A value typed by one tuple that production hands into another tuple's slot. The tuples are separate vocabularies.

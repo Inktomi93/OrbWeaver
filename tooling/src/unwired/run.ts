@@ -1,8 +1,8 @@
 // The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css` and `codes` run the reference graph over the one merged
 // program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom properties
-// nothing reads, or the error codes nothing throws or handles. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines except `procedures` and `columns`, which run
-// engine one and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
+// nothing reads, or the error codes nothing throws or handles. `ports` writes the restated-port targets the derive
+// codemod reads; the bare verb runs engine one over every world, the dead-inside-live verbs run both engines except
+// `unions`, `procedures` and `columns`, which run one engine and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart;
 // `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
 // runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -25,7 +25,7 @@ import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { codesGraph, cssGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { codesGraph, cssGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -39,7 +39,6 @@ import { checkRemovedKeys } from "./removed-keys.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
-import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
@@ -100,14 +99,14 @@ interface Report {
 /** A scan verb's report path, and its run with what its summary line adds to the bucket counts. */
 interface Scan {
   readonly out: string;
-  readonly execute: (options: ScanOptions) => { readonly report: Report; readonly counts: string };
+  readonly execute: (options: ScanOptions) => Promise<{ readonly report: Report; readonly counts: string }>;
 }
 
-function scan<Found extends Report>(out: string, run: (options: ScanOptions) => Found, counts: (report: Found) => string = () => ""): Scan {
+function scan<Found extends Report>(out: string, run: (options: ScanOptions) => Found | Promise<Found>, counts: (report: Found) => string = () => ""): Scan {
   return {
     out,
-    execute: (options): { readonly report: Report; readonly counts: string } => {
-      const report = run(options);
+    execute: async (options): Promise<{ readonly report: Report; readonly counts: string }> => {
+      const report = await run(options);
       return { report, counts: counts(report) };
     },
   };
@@ -124,7 +123,7 @@ function literalLine(stage: LiteralStage | null): string {
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["procedures", "columns"]);
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["unions", "procedures", "columns"]);
 
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
@@ -157,7 +156,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
   params: scan("reports/unwired/params.json", scanParams),
-  unions: scan("reports/unwired/unions.json", scanUnions),
+  unions: scan("reports/unwired/unions.json", ({ root, deliberate, judged, log: report }) => unionsGraph(root, { deliberate, judged }, report)),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
   procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
   columns: scan("reports/unwired/columns.json", scanColumns),
@@ -679,12 +678,16 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
     logLimits(PORT_LIMITS);
     return EXIT.clean;
   }
-  const chosen = SCANS[args.verb];
-  const { report, counts } = chosen.execute({
+  return runScan(args, args.verb);
+}
+
+async function runScan(args: Args, verb: ScanVerb): Promise<number> {
+  const chosen = SCANS[verb];
+  const { report, counts } = await chosen.execute({
     root: args.root,
     testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
     deliberate: DELIBERATE,
-    judged: JUDGED[args.verb],
+    judged: JUDGED[verb],
     log,
     crossCheck: args.crossCheck,
   });

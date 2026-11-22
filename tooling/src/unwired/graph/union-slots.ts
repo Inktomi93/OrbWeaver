@@ -547,11 +547,10 @@ const isUnannotatedConstant = (declaration: VariableDeclaration): boolean =>
  *  the constant, or the constant's property, is read. An element of a constant array is no constant: the array is a
  *  tuple or a list production enumerates. */
 export function constantDepth(literal: Node): "direct" | "nested" | null {
-  let at: Node | undefined = literal;
+  let at: Node = literal;
   let nested = false;
   let inArray = false;
-  while (at !== undefined) {
-    const parent: Node = at.parent;
+  for (let parent = at.parent; ; parent = at.parent) {
     if (passesThrough(parent, at)) {
       inArray ||= isArrayLiteralExpression(parent);
       at = parent;
@@ -562,8 +561,8 @@ export function constantDepth(literal: Node): "direct" | "nested" | null {
       break;
     }
   }
-  const parent = at?.parent;
-  if (!(parent !== undefined && isVariableDeclaration(parent) && sameNode(parent.initializer, at) && isUnannotatedConstant(parent))) {
+  const { parent } = at;
+  if (!(isVariableDeclaration(parent) && sameNode(parent.initializer, at) && isUnannotatedConstant(parent))) {
     return null;
   }
   if (nested) {
@@ -841,9 +840,7 @@ function* readSpelling(world: NativeWorld, root: Node, reading: Reading): APIReq
 // The members named `property` in an interface or a type literal, and what an interface extends, still scoped to it.
 function memberSteps(members: readonly Node[], property: string): readonly Scoped[] {
   return members.flatMap((member) =>
-    isPropertySignatureDeclaration(member) && member.type !== undefined && propertyName(member.name) === property
-      ? [{ node: member.type, property: null }]
-      : [],
+    isPropertySignatureDeclaration(member) && propertyName(member.name) === property ? [{ node: member.type, property: null }] : [],
   );
 }
 
@@ -998,7 +995,7 @@ function* declaredAt(world: NativeWorld, node: Node, role: LiteralRole | "record
 export function* satisfiedOrigins(world: NativeWorld, name: Identifier): APIRequestGenerator<Spelled> {
   const declaration = name.parent;
   const spellings: TypeNode[] = [];
-  let node = declaration !== null && isVariableDeclaration(declaration) ? declaration.initializer : undefined;
+  let node = isVariableDeclaration(declaration) ? declaration.initializer : undefined;
   while (node !== undefined && (isSatisfiesExpression(node) || isParenthesizedExpression(node) || isAsExpression(node))) {
     if (isSatisfiesExpression(node)) {
       spellings.push(node.type);

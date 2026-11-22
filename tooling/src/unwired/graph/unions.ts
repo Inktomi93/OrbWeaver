@@ -757,7 +757,7 @@ export function scanUnionsOnGraph(world: NativeWorld, options: UnionsOptions): U
         line: member.line,
         home: tuple.name,
         member: member.text,
-        cases: [],
+        cases: of("case"),
         checks: of("compare"),
         keys: of("record-key"),
       });
