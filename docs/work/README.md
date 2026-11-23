@@ -825,6 +825,8 @@ None.
 - [3861](3861-library-calls-the-scans-read-are-recognized-by.md) P3 Library calls the scans read are recognized by symbol, not spelling `unwired-code` (on 3882)
 - [3862](3862-the-fields-scan-decides-the-four-review-classes.md) P3 The fields scan decides the four review classes the logged pass left open `unwired-code` (on 3882)
 - [3864](3864-the-unwired-scans-judge-in-one-program-instead.md) P2 The unwired scans judge in one program instead of one per world `unwired-code` (on 3882)
+- [3922](3922-pnpm-unwired-fields-runs-on-the-reference-graph.md) P2 pnpm unwired fields runs on the reference graph `unwired-code` (on 3891)
+- [3923](3923-pnpm-unwired-scan-runs-on-the-reference-graph.md) P2 pnpm unwired scan runs on the reference graph `unwired-code` (on 3891)
 
 ## Done
 
