@@ -10,6 +10,10 @@
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
 // - A spread into an object literal copies; it never escapes.
+// - Two instances of one generic pair their type arguments by each type parameter's variance (variance.ts): a parameter
+//   used only where a value comes out (`Box<T>`'s `value: T`) pairs forward, one used only where a value goes in
+//   (`Options<V>`'s `mutationFn: (vars: V) => …`) pairs backward, one used both ways pairs both ways, and one never used
+//   (a phantom `Token<A>`) pairs forward.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
 //   whole, its function members' returns walked too.
 //
@@ -39,6 +43,7 @@ import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
+import { Variances } from "./variance.ts";
 
 // A slot type and the value type that fills it.
 interface TypePair {
@@ -115,6 +120,7 @@ const CHECKED_MARK = "!checked";
 
 export class Flows {
   readonly #state: GraphState;
+  readonly #variances: Variances;
   readonly #opaque = new Map<number, boolean>();
   readonly #deep = new Map<string, readonly DeclKey[]>();
   readonly #done = new Set<string>();
@@ -128,6 +134,7 @@ export class Flows {
 
   constructor(state: GraphState) {
     this.#state = state;
+    this.#variances = new Variances(state);
     this.#walkTrace = tracing(state.session.options, "flow-walk") === undefined ? null : { record: 0 };
   }
 
@@ -546,9 +553,20 @@ export class Flows {
     }
     const instances = yield* this.#sameGeneric(a, b);
     if (instances !== null) {
-      return instances.value.flatMap((argument, at) => {
+      const variances = instances.generic === undefined ? [] : yield* this.#variances.of(instances.generic);
+      return instances.value.flatMap((argument, at): Step[] => {
         const slotArgument = instances.slot[at];
-        return slotArgument === undefined ? [] : [{ slot: slotArgument, value: argument, at: { kind: "argument", name: String(at) } }];
+        if (slotArgument === undefined) {
+          return [];
+        }
+        const step = { kind: "argument", name: String(at) } as const;
+        const forward = { slot: slotArgument, value: argument, at: step };
+        const backward = { slot: argument, value: slotArgument, at: step };
+        const variance = variances[at] ?? "none";
+        if (variance === "in") {
+          return [backward];
+        }
+        return variance === "both" ? [forward, backward] : [forward];
       });
     }
     const counterparts = yield* this.#libraryCounterparts(a, b);
@@ -571,20 +589,27 @@ export class Flows {
   }
 
   // Two instantiations of one generic, an interface's or an alias's (`Token<A>` into `Token<B>`): their type arguments,
-  // each pair of which flows as the two values do.
-  *#sameGeneric(slot: Type, value: Type): APIRequestGenerator<{ readonly slot: readonly Type[]; readonly value: readonly Type[] } | null> {
+  // with the generic whose variance decides which way each pair flows.
+  *#sameGeneric(
+    slot: Type,
+    value: Type,
+  ): APIRequestGenerator<{ readonly slot: readonly Type[]; readonly value: readonly Type[]; readonly generic: NativeSymbol | undefined } | null> {
     const { checker } = this.#state.world;
     if (slot.isTypeReference() && value.isTypeReference()) {
       const [slotTarget, valueTarget] = [yield* slot.getTarget.gen(), yield* value.getTarget.gen()];
       if (slotTarget.id === valueTarget.id) {
-        return { slot: yield* checker.getTypeArguments.gen(slot), value: yield* checker.getTypeArguments.gen(value) };
+        return {
+          slot: yield* checker.getTypeArguments.gen(slot),
+          value: yield* checker.getTypeArguments.gen(value),
+          generic: yield* slotTarget.getSymbol.gen(),
+        };
       }
     }
     const [slotAlias, valueAlias] = [yield* slot.getAliasSymbol.gen(), yield* value.getAliasSymbol.gen()];
     if (slotAlias === undefined || valueAlias === undefined || slotAlias.id !== valueAlias.id) {
       return null;
     }
-    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen() };
+    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen(), generic: slotAlias };
   }
 
   // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,

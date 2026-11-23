@@ -239,10 +239,11 @@ export const ZOD_MODULE = {
     "  readonly _output: T;",
     "  parse(value: unknown): T;",
     "  safeParse(value: unknown): { readonly success: boolean; readonly data?: T };",
-    "  refine(check: (value: T) => boolean, params?: Params): Schema<T>;",
+    // zod types a refinement and a default by the schema's own output, `this`, never by its type parameter
+    "  refine(check: (value: this['_output']) => boolean, params?: Params): Schema<T>;",
     // zod's util.Extend: a key the extension names replaces the base's
     "  extend<S>(shape: S): Schema<{ [K in keyof T as K extends keyof S ? never : K]: T[K] } & Shape<S>>;",
-    "  default(value: Exclude<T, undefined>): Schema<T>;",
+    "  default(value: Exclude<this['_output'], undefined>): Schema<T>;",
     "  optional(): Schema<T | undefined>;",
     "}",
     "export type ZodType<T = unknown> = Schema<T>;",
