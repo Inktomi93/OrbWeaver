@@ -130,6 +130,9 @@ import {
   NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
+import type { StoreWrite } from "../boundaries.ts";
+import { storeWritesAt } from "../boundaries.ts";
+import { isParseCall } from "../handoffs.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
@@ -519,6 +522,10 @@ export class FileSites {
   /** A product file's string-literal unions and `as const` string tuples: an axis's homes and its inline spellings. */
   readonly stringUnions: { readonly node: UnionTypeNode; readonly members: readonly string[]; readonly from: GraphKey }[] = [];
   readonly constTuples: { readonly node: VariableDeclaration; readonly members: readonly string[] }[] = [];
+  /** Drizzle builder calls that store a value into a table, by their syntax; build.ts confirms each by its declaration. */
+  readonly stores: StoreWrite[] = [];
+  /** Schema parse calls by their syntax; build.ts confirms each is zod's. */
+  readonly parses: CallExpression[] = [];
 
   readonly #source: SourceFile;
 
@@ -841,6 +848,10 @@ class Walker {
       return;
     }
     this.#sites.keyArguments.push(...node.arguments.filter((argument) => isStringLiteral(argument) || isNoSubstitutionTemplateLiteral(argument)));
+    this.#sites.stores.push(...storeWritesAt(node));
+    if (isParseCall(node)) {
+      this.#sites.parses.push(node);
+    }
     if (this.#frame.generic > 0) {
       this.#sites.genericCalls.push(node);
     }

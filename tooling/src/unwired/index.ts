@@ -8,11 +8,11 @@
 export type { Restatement } from "../eslint/index.ts";
 export { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../eslint/index.ts";
 export { Sources } from "./classify.ts";
-export { scanColumns } from "./columns.ts";
 export { scanFields } from "./fields.ts";
 export type { Analysis, Bucket, Finding, MemberBucket } from "./graph/analyse.ts";
 export { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 export type { CodesReport } from "./graph/codes.ts";
+export type { ColumnsReport } from "./graph/columns.ts";
 export type { CssBucket, CssReport } from "./graph/css.ts";
 export { CSS_BUCKETS } from "./graph/css.ts";
 export type { DomBucket, DomReport, Unresolved, World } from "./graph/dom.ts";
@@ -30,6 +30,7 @@ export type { RemovedKeysReport } from "./graph/removed-keys.ts";
 export type { GraphScan, GraphSessionReport, GraphVerification, WithSession } from "./graph/scan.ts";
 export {
   codesGraph,
+  columnsGraph,
   cssGraph,
   domGraph,
   proceduresGraph,

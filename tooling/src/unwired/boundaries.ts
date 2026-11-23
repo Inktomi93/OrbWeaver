@@ -175,20 +175,22 @@ export interface StoreWrite {
   readonly table: Expression;
   readonly value: Expression;
   readonly at: Node;
+  /** The `insert` or `update` name the builder chain opens with: with `at`, what a reader confirms is Drizzle's. */
+  readonly opener: Node;
 }
 
 const STORE_METHODS: ReadonlySet<string> = new Set(["values", "set"]);
 const CONFLICT_METHODS: ReadonlySet<string> = new Set(["onConflictDoUpdate"]);
 
 // `db.insert(T)` or `db.update(T)` somewhere down the call chain a builder method is called on.
-function tableOf(call: CallExpression): Expression | null {
+function tableOf(call: CallExpression): { readonly table: Expression; readonly opener: Node } | null {
   let at: Node = call.expression;
   while (isPropertyAccessExpression(at) || isCallExpression(at)) {
     if (isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
       const method = at.expression.name.text;
       const [table] = at.arguments;
       if ((method === "insert" || method === "update") && table !== undefined && at.arguments.length === 1) {
-        return table;
+        return { table, opener: at.expression.name };
       }
     }
     at = at.expression;
@@ -222,8 +224,8 @@ export function storeWritesAt(node: Node): readonly StoreWrite[] {
   if (argument === undefined || !(STORE_METHODS.has(method) || CONFLICT_METHODS.has(method))) {
     return [];
   }
-  const table = tableOf(node);
-  if (table === null) {
+  const opened = tableOf(node);
+  if (opened === null) {
     return [];
   }
   let value: Expression | undefined = storedValue(argument);
@@ -238,7 +240,7 @@ export function storeWritesAt(node: Node): readonly StoreWrite[] {
   }
   const values = isArrayLiteralExpression(value) ? value.elements.map(storedValue) : [value];
   const at = node.expression.name;
-  return values.map((stored) => ({ table, value: stored, at }));
+  return values.map((stored) => ({ ...opened, value: stored, at }));
 }
 
 /** The property read a stored key's value copies, through `??`, `||`, a conditional's branches and assertions: the

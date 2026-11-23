@@ -20,15 +20,21 @@ import {
   isIdentifier,
   isInterfaceDeclaration,
   isObjectBindingPattern,
+  isObjectLiteralExpression,
   isPropertyAccessExpression,
+  isPropertyAssignment,
   isQualifiedName,
+  isShorthandPropertyAssignment,
+  isSpreadAssignment,
   isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
-import { hasFlag, NativeWorld } from "../native.ts";
+import type { StoreWrite } from "../boundaries.ts";
+import { parsedColumns, schemaParses } from "../handoffs.ts";
+import { constituents, hasFlag, isPropertyName, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
@@ -187,6 +193,50 @@ function constructingInterfaces(file: Node, className: string): readonly Interfa
 }
 
 // A computed load's site and the argument it loads, as the source spells it.
+const DRIZZLE_PACKAGE = "drizzle-orm";
+
+/** A column a Drizzle store reaches: the site that writes it, and the stored value's member that fills it, if any. */
+interface StoredColumn {
+  readonly column: NativeSymbol;
+  readonly at: Node;
+  readonly member: NativeSymbol | null;
+  /** Whether the store itself writes the column: a literal's key, or a whole value's required member. */
+  readonly writes: boolean;
+}
+
+function* storedColumns(checker: Checker, { table, value, at }: StoreWrite): APIRequestGenerator<readonly StoredColumn[]> {
+  const tableType = yield* checker.getTypeAtLocation.gen(table);
+  if (!isObjectLiteralExpression(value)) {
+    return yield* wholeValueColumns(checker, tableType, value, at);
+  }
+  const out: StoredColumn[] = [];
+  for (const property of value.properties) {
+    if (isSpreadAssignment(property)) {
+      out.push(...(yield* wholeValueColumns(checker, tableType, property.expression, at)));
+    } else if ((isPropertyAssignment(property) || isShorthandPropertyAssignment(property)) && isPropertyName(property.name)) {
+      const column = yield* checker.getPropertyOfType.gen(tableType, property.name.text);
+      if (column !== undefined) {
+        out.push({ column, at: property.name, member: null, writes: true });
+      }
+    }
+  }
+  return out;
+}
+
+// A whole stored value's members land in the same-named columns, an array's through its element type. An optional
+// member the type only allows is no write here: the construction that sets it writes it, through the member's flow.
+function* wholeValueColumns(checker: Checker, tableType: Type, value: Node, at: Node): APIRequestGenerator<readonly StoredColumn[]> {
+  const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(value));
+  const element = (yield* checker.isArrayType.gen(type)) && type.isTypeReference() ? (yield* checker.getTypeArguments.gen(type))[0] : undefined;
+  const arms = yield* constituents(element ?? type);
+  const properties = (yield* allOf(arms.map((arm) => checker.getPropertiesOfType.gen(arm)))).flat();
+  const columns = yield* allOf(properties.map((property) => checker.getPropertyOfType.gen(tableType, property.name)));
+  return properties.flatMap((member, y) => {
+    const column = columns[y];
+    return column === undefined ? [] : [{ column, at, member, writes: !hasFlag(member.flags, SymbolFlags.Optional) }];
+  });
+}
+
 function computedLoad(call: CallExpression, file: string): ComputedLoad {
   const source = call.getSourceFile();
   const [argument = call] = call.arguments;
@@ -288,6 +338,8 @@ class Builder {
     this.#variants.readTables(state, sites.tvCalls, sites.file);
     this.#keys.file(sites);
     this.#zodTwins(sites);
+    this.#stores(sites);
+    this.#parses(sites);
     this.#hookTuples(sites);
     this.#docs(sites);
     this.#shorthands(sites);
@@ -514,6 +566,46 @@ class Builder {
       for (const member of members[y] ?? []) {
         state.twins.push([ask.decl, member]);
       }
+    }
+  }
+
+  // A Drizzle store writes its table's columns: each key a stored literal sets writes its column there, and a whole value,
+  // or one spread into the literal, writes its required members' columns at the builder method. Every member of a
+  // whole value flows to its column, so an optional one is written where the value that sets it is built.
+  #stores(sites: FileSites): void {
+    const state = this.#state;
+    if (sites.stores.length === 0) {
+      return;
+    }
+    const symbols = state.world.symbolsAt(sites.stores.flatMap(({ at, opener }) => [at, opener]));
+    const drizzle = state.world.fromPackage(
+      symbols.map((symbol) => symbol?.declarations ?? []),
+      DRIZZLE_PACKAGE,
+    );
+    const stores = sites.stores.filter((_, x) => drizzle[2 * x] === true && drizzle[2 * x + 1] === true);
+    const stored = state.batch(stores.map((store) => storedColumns(state.world.checker, store))).flat();
+    const columns = state.declarations(stored.map(({ column }) => column));
+    const members = state.declarations(stored.map(({ member }) => member ?? undefined));
+    for (const [y, { at, writes }] of stored.entries()) {
+      for (const column of columns[y] ?? []) {
+        if (writes) {
+          state.role(column, "write", sites.file, at.pos);
+        }
+        for (const member of members[y] ?? []) {
+          state.flow(column, member);
+        }
+      }
+    }
+    state.count("drizzle stores", stores.length);
+  }
+
+  // A zod parse of a Drizzle row copies out the columns its output names, so it reads them at the parse method.
+  #parses(sites: FileSites): void {
+    const state = this.#state;
+    const parses = schemaParses(state.world, sites.parses);
+    const columns = state.batch(parses.map((call) => parsedColumns(state.world, call)));
+    for (const [y, call] of parses.entries()) {
+      state.roleAll(state.declarations(columns[y] ?? []).flat(), "read", sites.file, call.expression.end);
     }
   }
 

@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
 // find-references check of a member bucket, the custom-property pass, the DOM-hook pass, the unions scan, the codes
-// scan, the removed-keys check or the shapes scan over it. Every result carries what the session ran under, so a narrowed, ablated or dumped run is never read as
+// scan, the removed-keys check, the shapes scan or the columns scan over it. Every result carries what the session ran under, so a narrowed, ablated or dumped run is never read as
 // a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
@@ -10,6 +10,8 @@ import type { Graph } from "./build.ts";
 import { buildGraph, openGraphWorld } from "./build.ts";
 import type { CodesJudging, CodesReport } from "./codes.ts";
 import { codesPass } from "./codes.ts";
+import type { ColumnsOptions, ColumnsReport } from "./columns.ts";
+import { COLUMN_HOMES, columnsPass } from "./columns.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
 import type { DomReport } from "./dom.ts";
@@ -32,6 +34,7 @@ import { nothingRemoved, removedKeysPass, removedKeysPlan } from "./removed-keys
 import { loadRoots } from "./roots.ts";
 import type { ShapesOptions, ShapesReport } from "./shapes.ts";
 import { shapesPass } from "./shapes.ts";
+import type { BuildSession } from "./state.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
 import type { Verified } from "./verify.ts";
@@ -96,15 +99,15 @@ class Session implements Disposable {
   readonly #options: GraphOptions;
   readonly #log: GraphLog;
   readonly #profile: GraphProfile | null;
-  readonly #siteFiles: readonly string[];
+  readonly #homes: SessionHomes;
   #world: NativeWorld | null = null;
   #compiler: CompilerProfile | null = null;
 
-  constructor(root: string, options: GraphOptions, log: GraphLog, siteFiles: readonly string[]) {
+  constructor(root: string, options: GraphOptions, log: GraphLog, homes: SessionHomes) {
     this.#root = root;
     this.#options = options;
     this.#log = log;
-    this.#siteFiles = siteFiles;
+    this.#homes = homes;
     this.#profile = options.profile === null ? null : new GraphProfile();
   }
 
@@ -155,7 +158,7 @@ class Session implements Disposable {
     const options = this.#options;
     const roots = this.#profile === null ? await loadRoots(this.#root) : await this.#profile.timeAsync("open", () => loadRoots(this.#root));
     const world = this.world();
-    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, siteFiles: this.#siteFiles });
+    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, ...this.#homes });
     if (options.profile?.kind === "heap") {
       mkdirSync(options.profile.dir, { recursive: true });
       const path = String(world.debug.saveHeapProfile(options.profile.dir));
@@ -177,22 +180,24 @@ class Session implements Disposable {
   }
 }
 
-// What a session builds under: its options, and the file prefixes whose declarations keep their role sites.
-interface SessionPlan {
+// The file prefixes a build treats apart: whose declarations keep their role sites, and whose own sites only declare.
+type SessionHomes = Pick<BuildSession, "siteFiles" | "declaringHomes">;
+
+// What a session builds under: its options and its homes. Only a verb that reads role sites keeps any, and only one
+// that judges declarations a home declares names that home.
+interface SessionPlan extends Pick<SessionHomes, "siteFiles">, Partial<Pick<SessionHomes, "declaringHomes">> {
   readonly options: GraphOptions;
-  readonly siteFiles: readonly string[];
 }
 
-// Only a verb that reads role sites keeps any.
 const NO_SITES: readonly string[] = [];
 
 async function session<T>(
   root: string,
   log: GraphLog,
-  { options, siteFiles }: SessionPlan,
+  { options, siteFiles, declaringHomes = NO_SITES }: SessionPlan,
   use: (work: SessionWork) => T | Promise<T>,
 ): Promise<WithSession<T>> {
-  using running = new Session(root, options, log, siteFiles);
+  using running = new Session(root, options, log, { siteFiles, declaringHomes });
   return await running.run(use);
 }
 
@@ -289,4 +294,12 @@ export async function removedKeysGraph(
 /** Build the graph, then report the second homes, synonyms and re-export chains of the session's program. */
 export function shapesGraph(options: ShapesOptions, log: GraphLog): Promise<WithSession<ShapesReport>> {
   return session(options.root, log, { options: FRESH_BUILD, siteFiles: NO_SITES }, ({ world, time }) => time("analyse", () => shapesPass(world(), options)));
+}
+
+/** Build the graph with the schema files as the declaring home, then report the columns production never reads or
+ *  writes. */
+export function columnsGraph(options: ColumnsOptions, log: GraphLog): Promise<WithSession<ColumnsReport>> {
+  return session(options.root, log, { options: FRESH_BUILD, siteFiles: COLUMN_HOMES, declaringHomes: COLUMN_HOMES }, ({ graph, world, time }) =>
+    time("analyse", () => columnsPass(graph, world(), options)),
+  );
 }

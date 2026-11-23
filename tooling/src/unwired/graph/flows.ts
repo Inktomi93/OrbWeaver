@@ -19,8 +19,9 @@
 // (ZOD_OUTPUT_VALUES): that value fills the output slot like any hand-off.
 import type { Node } from "@typescript/native/ast";
 import { isCallExpression, isModuleDeclaration, isPropertyAccessExpression, isSpreadElement } from "@typescript/native/ast";
-import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
+import { rowColumns } from "../drizzle-rows.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf } from "./resolve.ts";
@@ -495,6 +496,24 @@ export class Flows {
     }
   }
 
+  // A Drizzle row's members have no declaration: each such member stands for its table's column, so the slot member it
+  // fills flows from the column, and a read of the slot reads the column.
+  #withRowColumns(
+    matched: readonly { readonly holder: Type; readonly value: NativeSymbol }[],
+    valueDecls: readonly (readonly DeclKey[])[],
+  ): readonly (readonly DeclKey[])[] {
+    const { state } = this;
+    const rowMembers = matched.flatMap(({ holder, value }, y) =>
+      (valueDecls[y]?.length ?? 0) === 0 && value.declarations.length === 0 ? [{ y, holder, value }] : [],
+    );
+    const columns = state.batch(rowMembers.map(({ holder, value }) => rowColumns(state.world, holder, value.name)));
+    const out = [...valueDecls];
+    for (const [x, { y }] of rowMembers.entries()) {
+      out[y] = state.declarations(columns[x] ?? []).flat();
+    }
+    return out;
+  }
+
   #isFresh({ slot, value }: FlowPair): boolean {
     return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(`${String(slot.id)}>${String(value.id)}`);
   }
@@ -505,12 +524,12 @@ export class Flows {
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
     const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
-    const matched = asks.flatMap(({ member }, y) => {
+    const matched = asks.flatMap(({ pair, member }, y) => {
       const valueMember = valueMembers[y];
-      return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember }];
+      return valueMember === undefined || valueMember.id === member.id ? [] : [{ holder: pair.value, slot: member, value: valueMember }];
     });
     const slotDecls = state.declarations(matched.map(({ slot }) => slot));
-    const valueDecls = state.declarations(matched.map(({ value }) => value));
+    const valueDecls = this.#withRowColumns(matched, state.declarations(matched.map(({ value }) => value)));
     for (const y of matched.keys()) {
       this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file);
     }

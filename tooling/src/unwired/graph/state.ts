@@ -232,6 +232,9 @@ export interface BuildSession {
   readonly profile: GraphProfile | null;
   /** The file prefixes whose declarations keep every role site. */
   readonly siteFiles: readonly string[];
+  /** Declaring homes: a site in one on a declaration the same home holds gives no role, since the home declares what it
+   *  names there. A Drizzle schema file's table definition declares its columns and never reads or writes them. */
+  readonly declaringHomes: readonly string[];
 }
 
 /** The value types whose apparent type is a lib wrapper interface: they carry no member of ours. */
@@ -346,6 +349,9 @@ export class GraphState implements GraphFacts {
   }
 
   role(key: DeclKey, role: Role, file: string, at: number): void {
+    if (this.session.declaringHomes.some((home) => file.startsWith(home) && key.startsWith(home))) {
+      return;
+    }
     this.why?.note(key, role, file, at);
     if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
       const sites = this.roleSites.get(key) ?? [];

@@ -1,19 +1,16 @@
 // The columns scan over planted Drizzle trees: one case per rule of the columns design, each with a twin of the same
-// shape that stays reported. The stub models drizzle's typing: a table's column members keep their declarations, and
-// its select and insert rows are mapped types whose members carry none.
+// shape that stays reported. The stub, at drizzle-orm's own package path, models drizzle's typing: a table's column
+// members keep their declarations, and its select and insert rows are mapped types whose members carry none.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { runUnwired, scanColumns, scanFields } from "../../../tooling/src/unwired/index.ts";
-import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+import type { ColumnsReport, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
+import { columnsGraph, runUnwired, scanFields } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
 
-type Report = ReturnType<typeof scanColumns>;
-
-const ROOT_WORLD = "tsconfig.json";
-
-const scan = (root: string): Report => scanColumns({ root, worlds: [ROOT_WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-const named = (report: Report): string[] => report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted();
+const scan = (root: string, judged?: readonly JudgedEntry[]): Promise<ColumnsReport> => columnsGraph({ root, deliberate: [], judged }, () => undefined);
+const named = (report: ColumnsReport): string[] => report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted();
 
 const DRIZZLE = [
   "export interface Column<R extends boolean> { readonly required: R; primaryKey(): Column<R> }",
@@ -37,18 +34,19 @@ const DRIZZLE = [
   "export declare const rawDb: { run(statement: unknown): void };",
   "export declare function sql(text: TemplateStringsArray, ...values: unknown[]): unknown;",
   "export declare const logger: { info(fields: Record<string, unknown> | string): void };",
-  "export declare function writeFileSync(path: string, data: string): void;",
 ].join("\n");
+const DRIZZLE_PKG = {
+  "node_modules/drizzle-orm/package.json": JSON.stringify({ name: "drizzle-orm", types: "index.d.ts" }),
+  "node_modules/drizzle-orm/index.d.ts": DRIZZLE,
+};
 
 const tree = (schema: readonly string[], product: readonly string[], extra: Readonly<Record<string, string>> = {}): Readonly<Record<string, string>> => ({
-  [ROOT_WORLD]: plantedTsconfig({ lib: LIB, include: ["packages"] }),
-  "packages/db/src/drizzle.ts": DRIZZLE,
-  "packages/db/src/schema/tables.ts": ['import { index, required, sqliteTable, text } from "../drizzle.ts";', ...schema].join("\n"),
-  "packages/a/src/product.ts": [
-    'import { db, eq, logger, writeFileSync } from "../../db/src/drizzle.ts";',
-    'import * as schema from "../../db/src/schema/tables.ts";',
-    ...product,
-  ].join("\n"),
+  ...graphTree({ "packages/db/src/x.ts": "", "packages/a/src/x.ts": "" }),
+  ...DRIZZLE_PKG,
+  "packages/db/src/schema/tables.ts": ['import { index, required, sqliteTable, text } from "drizzle-orm";', ...schema].join("\n"),
+  "packages/a/src/product.ts": ['import { db, eq, logger } from "drizzle-orm";', 'import * as schema from "../../db/src/schema/tables.ts";', ...product].join(
+    "\n",
+  ),
   ...extra,
 });
 
@@ -69,9 +67,11 @@ const WHOLE_SELECT = tree(
 );
 
 test("a whole-row select reads only the columns production reads by member", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(WHOLE_SELECT));
+  const report = await scan(await plantedTree(WHOLE_SELECT));
   expect(named(report)).toEqual(["cards.blurb never-read", "notes.body never-read"]);
-  expect(report.columns.find(({ key }) => key.endsWith("cards.name"))).toMatchObject({ reads: 1, writes: 1 });
+  // the shape member's read reaches the column through the row member's flow, so it is counted only in the verdict
+  expect(report.columns.find(({ key }) => key.endsWith("cards.name"))).toMatchObject({ reads: 0, writes: 1 });
+  expect(report.columns.find(({ key }) => key.endsWith("notes.title"))).toMatchObject({ reads: 1, writes: 1 });
 });
 
 // The schema file's own index and the relations file's reference are no read, and a migration is SQL no program holds:
@@ -89,7 +89,7 @@ const SCHEMA_SITES = tree(
 );
 
 test("schema files and migrations neither read nor write a column", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(SCHEMA_SITES));
+  const report = await scan(await plantedTree(SCHEMA_SITES));
   expect(named(report)).toEqual(["tags.slug never-read"]);
 });
 
@@ -110,14 +110,14 @@ const LOGGED = tree(
 );
 
 test("a column logged by name is read and a whole-row log dump reads none", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(LOGGED));
+  const report = await scan(await plantedTree(LOGGED));
   expect(named(report)).toEqual(["events.detail never-read"]);
 });
 
-// An export serializes whole rows into a file, which reads every column they carry; the same rows serialized into a log
-// read none, so `archive.summary` stays never read. A store of a whole value writes its required members' columns: the
-// import fills `profiles.name` and `bio`. An optional column only the value's type allows is no write, so `motto`,
-// which the imported value never carries, stays never written, as `archive.extra` does under an insert-typed draft.
+// Rows serialized into a log read none, so `archive.summary` stays never read. A store of a whole value writes its
+// required members' columns: the import fills `profiles.name` and `bio`. An optional column only the value's type
+// allows is no write, so `motto`, which the imported value never carries, stays never written, as `archive.extra`
+// does under an insert-typed draft.
 const PORTED = tree(
   [
     'export const profiles = sqliteTable("profiles", { name: required(), bio: required(), motto: text() });',
@@ -126,14 +126,14 @@ const PORTED = tree(
   [
     "interface ImportedProfile { readonly name: string; readonly bio: string; readonly motto?: string }",
     "export const importProfile = (text: string): void => { db.insert(schema.profiles).values(JSON.parse(text) as ImportedProfile); };",
-    "export const exportProfiles = (path: string): void => { writeFileSync(path, JSON.stringify(db.select().from(schema.profiles))); };",
+    "export const shownProfiles = db.select().from(schema.profiles).map((row) => [row.name, row.bio, row.motto]);",
     "export const archived = (draft: typeof schema.archive.$inferInsert): void => { db.insert(schema.archive).values(draft); };",
     "export const dump = (): void => { logger.info(JSON.stringify(db.select().from(schema.archive))); };",
   ],
 );
 
-test("an export to a file reads its columns and an import writes the required ones", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(PORTED));
+test("an import writes the required columns and a log dump reads none", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scan(await plantedTree(PORTED));
   expect(named(report)).toEqual(["archive.extra unreferenced", "archive.summary never-read", "archive.title never-read", "profiles.motto never-written"]);
 });
 
@@ -145,9 +145,41 @@ const FILTERED = tree(
 );
 
 test("a filter reads its column and an update writes it", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(FILTERED));
+  const report = await scan(await plantedTree(FILTERED));
   expect(named(report)).toEqual(["users.hidden unreferenced"]);
   expect(report.columns.find(({ key }) => key.endsWith("users.email"))).toMatchObject({ reads: 1, writes: 1 });
+});
+
+// A store writes a stored literal's keys: `posts.title` is set and `posts.body` is not. A whole value writes its
+// required members, so `drafts.title` is written though no literal key names it, and an optional member only where
+// the value that sets it is built: `drafts.body` is left unset and `pages.body` is set by a caller of the store. A
+// same-named builder drizzle does not declare stores nothing, so `ghosts` stays never written.
+const STORES = tree(
+  [
+    'export const posts = sqliteTable("posts", { title: text(), body: text() });',
+    'export const drafts = sqliteTable("drafts", { title: text(), body: text() });',
+    'export const pages = sqliteTable("pages", { title: text(), body: text() });',
+    'export const ghosts = sqliteTable("ghosts", { title: text(), body: text() });',
+  ],
+  [
+    'export const post = (): void => { db.insert(schema.posts).values({ title: "t" }); };',
+    "interface Draft { readonly title: string; readonly body?: string }",
+    "const storeDraft = (draft: Draft): void => { db.insert(schema.drafts).values(draft); };",
+    'export const draft = (): void => { storeDraft({ title: "t" }); };',
+    "interface PageDraft { readonly title: string; readonly body?: string }",
+    "const storePage = (page: PageDraft): void => { db.insert(schema.pages).values(page); };",
+    'export const page = (): void => { storePage({ title: "t", body: "b" }); };',
+    "const local = { insert: (table: unknown) => ({ values: (value: unknown): unknown => [table, value] }) };",
+    'export const ghost = (): unknown => local.insert(schema.ghosts).values({ title: "t", body: "b" });',
+    "export const shown = [schema.posts, schema.drafts, schema.pages, schema.ghosts].flatMap((table) => db.select().from(table)).map((row) => [row.title, row.body]);",
+  ],
+);
+
+test("a store writes a literal's keys, a whole value's required members, and an optional member where it is set", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await scan(await plantedTree(STORES));
+  expect(named(report)).toEqual(["drafts.body never-written", "ghosts.body never-written", "ghosts.title never-written", "posts.body never-written"]);
 });
 
 // A store whose value is typed by a mapped subset of the row, `Omit<>`, `Pick<>` or `Partial<>`, writes each column the
@@ -167,13 +199,13 @@ const SUBSET_STORE = tree(
     'export const raise = (): void => { patchBudget({ max: "9" }); db.insert(schema.budgets).values({ owner: "o" }); };',
     "export const shown = db.select().from(schema.invites).map((row) => [row.id, row.cap, row.note]);",
     "export const limits = db.select().from(schema.budgets).map((row) => [row.max, row.min]);",
-    'declare const loose: { [K in "note" | "other"]: string };',
+    'declare const loose: { [K in Lowercase<"NOTE" | "OTHER">]: string };',
     "export const stray = loose.note + loose.other;",
   ],
 );
 
 test("a store typed by a mapped subset of the row writes the columns its construction sets", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(SUBSET_STORE));
+  const report = await scan(await plantedTree(SUBSET_STORE));
   expect(named(report)).toEqual(["budgets.min never-written", "invites.note never-written"]);
   expect(report.unresolved).toEqual(["packages/a/src/product.ts:12 note"]);
 });
@@ -182,9 +214,10 @@ test("a store typed by a mapped subset of the row writes the columns its constru
 // column's members, so a read of `row.name` must still read the table's column. `spare` is read by nobody.
 const DRIZZLE_ORM = join(import.meta.dirname, "../../../packages/db/node_modules/drizzle-orm");
 const REAL_TYPING = {
-  [ROOT_WORLD]: plantedTsconfig({
+  ...graphTree({ "packages/db/src/x.ts": "", "packages/a/src/x.ts": "" }),
+  [WORLD]: plantedTsconfig({
     lib: LIB,
-    include: ["packages"],
+    include: ["../*/src"],
     paths: { "drizzle-orm/sqlite-core": [join(DRIZZLE_ORM, "sqlite-core/index.d.ts")], "drizzle-orm": [join(DRIZZLE_ORM, "index.d.ts")] },
   }),
   "packages/db/src/schema/rules.ts": [
@@ -199,7 +232,7 @@ const REAL_TYPING = {
 };
 
 test("a whole-row read of a column named like a library column member reads the table's column", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(REAL_TYPING));
+  const report = await scan(await plantedTree(REAL_TYPING));
   expect(named(report)).toEqual(["rules.dialect never-written", "rules.id never-written", "rules.name never-written", "rules.spare unreferenced"]);
 });
 
@@ -207,10 +240,10 @@ test("a whole-row read of a column named like a library column member reads the 
 // the column on another row credits no member of the shape. Nobody reads RunView, so both members stay unreferenced.
 const ROW_VIEW = {
   [WORLD]: plantedTsconfig({ lib: LIB, include: ["src", "../db/src"] }),
-  "packages/db/src/drizzle.ts": DRIZZLE,
-  "packages/db/src/schema/tables.ts": 'import { sqliteTable, text } from "../drizzle.ts";\nexport const runs = sqliteTable("runs", { a: text(), b: text() });',
+  ...DRIZZLE_PKG,
+  "packages/db/src/schema/tables.ts": 'import { sqliteTable, text } from "drizzle-orm";\nexport const runs = sqliteTable("runs", { a: text(), b: text() });',
   "packages/a/src/views.ts": [
-    'import { db } from "../../db/src/drizzle.ts";',
+    'import { db } from "drizzle-orm";',
     'import { runs } from "../../db/src/schema/tables.ts";',
     "export interface RunView { readonly a: string; readonly b: string }",
     "export function views(): RunView[] { return db.select().from(runs); }",
@@ -258,7 +291,7 @@ const SPREAD_PARSE = tree(
 );
 
 test("a zod parse of a row reads the columns its output names and no other", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(SPREAD_PARSE));
+  const report = await scan(await plantedTree(SPREAD_PARSE));
   expect(named(report)).toEqual(["calls.cost never-read", "calls.wire never-read", "obs.ttft never-read"]);
 });
 
@@ -266,7 +299,7 @@ test("a zod parse of a row reads the columns its output names and no other", { t
 // columns a `primaryKey({ columns })` lists are reported apart. `pairs.note`, a plain column with the same uses, stays.
 const PRIMARY_KEYS = tree(
   [
-    'import { primaryKey } from "../drizzle.ts";',
+    'import { primaryKey } from "drizzle-orm";',
     'export const stats = sqliteTable("stats", { id: text().primaryKey(), total: text() });',
     'export const pairs = sqliteTable("pairs", { left: text(), right: text(), note: text() }, (table) => [primaryKey({ columns: [table.left, table.right] })]);',
   ],
@@ -277,7 +310,7 @@ const PRIMARY_KEYS = tree(
 );
 
 test("a primary-key column production never reads is reported apart from the unwired columns", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(PRIMARY_KEYS));
+  const report = await scan(await plantedTree(PRIMARY_KEYS));
   expect(named(report)).toEqual(["pairs.note never-read"]);
   expect(report.primaryKeys.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted()).toEqual([
     "pairs.left never-read",
@@ -289,15 +322,14 @@ test("a primary-key column production never reads is reported apart from the unw
 // The verb's own door with the shipped deliberate list: plugin-kv's raw INSERT is the only writer of `pluginId`,
 // `ownerId` and `key`, which list as deliberate with their reason. `stray` has the same shape and stays reported.
 const RAW_SQL = {
-  "packages/db/tsconfig.json": plantedTsconfig({ lib: LIB }),
-  "packages/db/src/drizzle.ts": DRIZZLE,
+  ...graphTree({ "packages/db/src/x.ts": "", "packages/server/src/x.ts": "" }),
+  ...DRIZZLE_PKG,
   "packages/db/src/schema/plugin.ts": [
-    'import { sqliteTable, text } from "../drizzle.ts";',
+    'import { sqliteTable, text } from "drizzle-orm";',
     'export const pluginKv = sqliteTable("plugin_kv", { pluginId: text(), ownerId: text(), key: text(), value: text(), stray: text() });',
   ].join("\n"),
-  "packages/server/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src", "../db/src"] }),
   "packages/server/src/domain/plugin/persistence/plugin-kv.ts": [
-    'import { db, rawDb, sql } from "../../../../../db/src/drizzle.ts";',
+    'import { db, rawDb, sql } from "drizzle-orm";',
     'import { pluginKv } from "../../../../../db/src/schema/plugin.ts";',
     "export const put = (): void => { rawDb.run(sql`INSERT INTO plugin_kv (plugin_id, owner_id, key, value) VALUES ('p', 'o', 'k', 'v')`); };",
     "export const update = (value: string): void => { db.update(pluginKv).set({ value }); };",
@@ -309,7 +341,7 @@ test("a column only raw SQL writes lists as deliberate, and its twin stays repor
   const root = await plantedTree(RAW_SQL);
   const out = join(root, "columns.json");
   expect(await runUnwired(["columns", `--root=${root}`, `--out=${out}`])).toBe(0);
-  const report = JSON.parse(readFileSync(out, "utf8")) as Report;
+  const report = JSON.parse(readFileSync(out, "utf8")) as ColumnsReport;
   expect(named(report)).toEqual(["pluginKv.stray never-written"]);
   expect(report.deliberate.map(({ member, kind }) => `${member} ${kind}`).toSorted()).toEqual([
     "key never-written",
@@ -321,13 +353,7 @@ test("a column only raw SQL writes lists as deliberate, and its twin stays repor
 // A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
 // reports is stale, and the done item's row reports as unwired again.
 test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const options = {
-    root: await plantedTree({ ...WHOLE_SELECT, ...JUDGED_WORK }),
-    worlds: [ROOT_WORLD],
-    testWorlds: [],
-    deliberate: [],
-    log: (): undefined => undefined,
-  };
-  const judged = plantJudged(scanColumns(options), "cards.blurb", "notes.body");
-  expect(judgedOutcome(scanColumns({ ...options, judged }), "cards.blurb", "notes.body")).toEqual(judgedExpected("cards.blurb", "notes.body"));
+  const root = await plantedTree({ ...WHOLE_SELECT, ...JUDGED_WORK });
+  const judged = plantJudged(await scan(root), "cards.blurb", "notes.body");
+  expect(judgedOutcome(await scan(root, judged), "cards.blurb", "notes.body")).toEqual(judgedExpected("cards.blurb", "notes.body"));
 });
