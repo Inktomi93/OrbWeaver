@@ -23,7 +23,7 @@ import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sy
 import { TypeFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer, constituentsOf } from "./resolve.ts";
+import { allOf, answer, constituentsOf } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive } from "./state.ts";
@@ -85,8 +85,19 @@ export class Flows {
    *  message door's send, paired later (message-doors.ts). */
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
-    this.link([...this.#handedWhole(sites, held.node), ...this.#flowSites(sites, held.node)], sites.file);
+    this.link([...this.#handedWhole(sites, held.node), ...this.#flowSites(sites, held.node), ...this.#typePairs(sites)], sites.file);
     this.#heldTypes = NO_HELD_TYPES;
+  }
+
+  #typePairs(sites: FileSites): readonly FlowPair[] {
+    const { world } = this.state;
+    const values = world.typesAt(sites.typePairs.map(({ value }) => value));
+    const slots = world.typesAt(sites.typePairs.map(({ slot }) => slot));
+    return sites.typePairs.flatMap((_, at) => {
+      const value = values[at];
+      const slot = slots[at];
+      return value === undefined || slot === undefined ? [] : [{ slot, value }];
+    });
   }
 
   /** Link slot and value pairs to their fixpoint, the roles they give landing in `file`. */
@@ -212,10 +223,14 @@ export class Flows {
     const contextual = state.batch(slotAt.flatMap((at) => (nodes[at] === undefined ? [] : [state.world.checker.getContextualType.gen(nodes[at])])));
     const slots = new Map(slotAt.map((at, y) => [at, contextual[y]]));
     this.#opaqueOf([...slots.values()].flatMap((type) => (type === undefined ? [] : [type])));
-    const pairs: FlowPair[] = [];
+    const spreads = this.#spreadPairs(handed, values);
+    const pairs: FlowPair[] = [...spreads.pairs];
     for (const [at, entry] of handed.entries()) {
       const value = values[at];
       const slot = slots.get(at);
+      if (spreads.paired.has(at)) {
+        continue;
+      }
       const opaque = entry.spread || entry.door || libraryGeneric.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true);
       if (value === undefined || isPrimitive(value)) {
         continue;
@@ -227,6 +242,41 @@ export class Flows {
       }
     }
     return pairs;
+  }
+
+  // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
+  // element; an array of unknown length stays a whole hand-off.
+  #spreadPairs(
+    handed: readonly HandedWhole[],
+    values: readonly (Type | undefined)[],
+  ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
+    const state = this.#state;
+    const { checker } = state.world;
+    const asks = handed.flatMap((entry, x) => {
+      const value = values[x];
+      return entry.spread && entry.call !== undefined && value?.isTupleType() === true ? [{ x, call: entry.call, value }] : [];
+    });
+    const signatures = state.batch(asks.map(({ call }) => checker.getResolvedSignature.gen(call.node)));
+    const elements = state.batch(asks.map(({ value }) => checker.getTypeArguments.gen(value)));
+    const slots = state.batch(
+      asks.map(({ call }, y) => {
+        const signature = signatures[y];
+        const count = elements[y]?.length ?? 0;
+        return allOf(
+          Array.from({ length: count }, (_, k) => (signature === undefined ? answer(undefined) : declaredParameterType(state, signature, call.index + k))),
+        );
+      }),
+    );
+    const pairs: FlowPair[] = [];
+    for (const y of asks.keys()) {
+      for (const [k, value] of (elements[y] ?? []).entries()) {
+        const slot = slots[y]?.[k];
+        if (slot !== undefined) {
+          pairs.push({ slot, value });
+        }
+      }
+    }
+    return { pairs, paired: new Set(asks.filter((_, y) => (slots[y] ?? []).some((slot) => slot !== undefined)).map(({ x }) => x)) };
   }
 
   // A call zod declares takes its argument as schema input, not as a send (the module header holds the reason); a value
@@ -331,6 +381,10 @@ export class Flows {
       const [elementB] = yield* checker.getTypeArguments.gen(b);
       return elementA !== undefined && elementB !== undefined ? yield* this.#operands(elementA, elementB, seen) : [];
     }
+    const instances = yield* this.#sameGeneric(a, b);
+    if (instances !== null) {
+      return yield* this.#argumentOperands(instances, seen);
+    }
     const [slotSignature] = yield* a.getCallSignatures.gen();
     const [valueSignature] = yield* b.getCallSignatures.gen();
     if (slotSignature !== undefined && valueSignature !== undefined) {
@@ -347,6 +401,37 @@ export class Flows {
     }
     const arms = (yield* slot.getTypes.gen()).filter((arm) => !isPrimitive(arm));
     return arms.length > 1 || (arms.length === 1 && arms[0]?.id !== slot.id) ? arms : null;
+  }
+
+  // Two instantiations of one generic, an interface's or an alias's (`Token<A>` into `Token<B>`): their type arguments,
+  // each pair of which flows as the two values do.
+  *#sameGeneric(slot: Type, value: Type): APIRequestGenerator<{ readonly slot: readonly Type[]; readonly value: readonly Type[] } | null> {
+    const { checker } = this.#state.world;
+    if (slot.isTypeReference() && value.isTypeReference()) {
+      const [slotTarget, valueTarget] = [yield* slot.getTarget.gen(), yield* value.getTarget.gen()];
+      if (slotTarget.id === valueTarget.id) {
+        return { slot: yield* checker.getTypeArguments.gen(slot), value: yield* checker.getTypeArguments.gen(value) };
+      }
+    }
+    const [slotAlias, valueAlias] = [yield* slot.getAliasSymbol.gen(), yield* value.getAliasSymbol.gen()];
+    if (slotAlias === undefined || valueAlias === undefined || slotAlias.id !== valueAlias.id) {
+      return null;
+    }
+    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen() };
+  }
+
+  *#argumentOperands(
+    instances: { readonly slot: readonly Type[]; readonly value: readonly Type[] },
+    seen: Set<string>,
+  ): APIRequestGenerator<readonly FlowPair[]> {
+    const out: FlowPair[] = [];
+    for (const [at, argument] of instances.value.entries()) {
+      const slotArgument = instances.slot[at];
+      if (slotArgument !== undefined) {
+        out.push(...(yield* this.#operands(slotArgument, argument, seen)));
+      }
+    }
+    return out;
   }
 
   *#signatureOperands(slot: Signature, value: Signature, seen: Set<string>): APIRequestGenerator<readonly FlowPair[]> {

@@ -1,5 +1,6 @@
 // A unit only code outside the product reaches is split by who reaches it: the testkit, tooling, or a test file itself;
-// a unit nothing reaches whose initializer runs a call is an unused effect, apart from a dead one.
+// a unit nothing reaches whose initializer runs a call is an unused effect, apart from a dead one. Snap drives the real
+// app, so what it reaches is product-used (D357).
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, LIB } from "./_planted.ts";
@@ -9,6 +10,7 @@ const UNITS = `${GRAPH_SOURCE}/units.ts`;
 const KIT = "tests/support/kit.ts";
 const TOOL = "tooling/src/tool.ts";
 const DIRECT = "tests/a/units.test.ts";
+const SNAP = "tooling/src/snap/drive.ts";
 const labels = (scan: GraphScan, bucket: Bucket): readonly string[] => scan.analysis[bucket].map(({ label }) => label);
 
 // A knip config that adds the tree's own tests and tooling to the population, beside the package's entry.
@@ -31,12 +33,14 @@ test("a unit the testkit, tooling or a test file alone reaches is split by its r
       "export const kitOnly = (): number => 2;",
       "export const toolOnly = (): number => 3;",
       "export const testOnly = (): number => 4;",
+      "export const snapOnly = (): number => 7;",
       "const start = (): number => 5;",
       "export const started = start();",
       "export const plain = 6;",
     ].join("\n"),
     [KIT]: 'import { kitOnly } from "../../packages/a/src/units.ts";\nkitOnly();',
     [TOOL]: 'import { toolOnly } from "../../packages/a/src/units.ts";\ntoolOnly();',
+    [SNAP]: 'import { snapOnly } from "../../../packages/a/src/units.ts";\nsnapOnly();',
     [DIRECT]: 'import { testOnly } from "../../packages/a/src/units.ts";\ntestOnly();',
   });
   expect({

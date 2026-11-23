@@ -29,9 +29,13 @@ export interface MemberRoles {
 }
 
 const SNAP_SOURCE = "tooling/src/snap/";
+const TEST_SOURCE = "tests/";
 
 /** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
 export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
+
+/** Whether a repository-relative file is one of the tree's tests or their testkit. */
+export const testSource = (file: string): boolean => file.startsWith(TEST_SOURCE);
 
 /** Directed edges between graph nodes. */
 export type Edges = Map<GraphKey, Set<GraphKey>>;
@@ -140,7 +144,7 @@ export interface DanglingDoc {
 
 /** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
 /** The doors a message can cross (message-doors.ts): the names {@link MessageReceiver.door} reports. */
-const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics"] as const;
+const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics", "window"] as const;
 export type MessageDoor = (typeof MESSAGE_DOORS)[number];
 
 /** A receiver no send reaches through its door. */

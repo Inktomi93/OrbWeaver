@@ -11,15 +11,18 @@
 import { existsSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import process from "node:process";
-import type { CallExpression, Node } from "@typescript/native/ast";
+import type { CallExpression, InterfaceDeclaration, Node } from "@typescript/native/ast";
 import {
   isAwaitExpression,
   isCallExpression,
+  isConstructSignatureDeclaration,
   isExportDeclaration,
   isIdentifier,
+  isInterfaceDeclaration,
   isObjectBindingPattern,
   isPropertyAccessExpression,
   isQualifiedName,
+  isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
@@ -29,6 +32,7 @@ import { hasFlag, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
+import { Constraints } from "./constraints.ts";
 import { Flows } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
@@ -158,6 +162,30 @@ const MB = 1e6;
 // The walk reports its progress every this many files.
 const PROGRESS_EVERY = 1000;
 
+// The interfaces in a declaration file, namespaces included, with a construct signature that returns the named class.
+function constructingInterfaces(file: Node, className: string): readonly InterfaceDeclaration[] {
+  const found: InterfaceDeclaration[] = [];
+  const visit = (node: Node): void => {
+    if (isInterfaceDeclaration(node)) {
+      const builds = node.members.some(
+        (member) =>
+          isConstructSignatureDeclaration(member) &&
+          member.type !== undefined &&
+          isTypeReferenceNode(member.type) &&
+          isIdentifier(member.type.typeName) &&
+          member.type.typeName.text === className,
+      );
+      if (builds) {
+        found.push(node);
+      }
+      return;
+    }
+    node.forEachChild(visit);
+  };
+  visit(file);
+  return found;
+}
+
 // A computed load's site and the argument it loads, as the source spells it.
 function computedLoad(call: CallExpression, file: string): ComputedLoad {
   const source = call.getSourceFile();
@@ -174,6 +202,8 @@ class Builder {
   readonly #classes = new Map<DeclKey, ClassFacts>();
   readonly #doors: MessageDoors;
   readonly #routes: RouteParams;
+  readonly #constraints: Constraints;
+  readonly #staticSideCache = new Map<number, readonly Type[]>();
   // The current file's binding readers, filled by its name and shorthand passes.
   #fileReaders: { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } = { readers: new Map(), written: new Set() };
   readonly #pendingSlots: PendingClass[] = [];
@@ -186,6 +216,7 @@ class Builder {
     this.#flows = new Flows(this.#state);
     this.#doors = new MessageDoors(this.#state);
     this.#routes = new RouteParams(this.#state);
+    this.#constraints = new Constraints(this.#state);
     this.#keys = new Keys(this.#state);
   }
 
@@ -291,6 +322,7 @@ class Builder {
     this.#bindingReads(sites, resolved);
     this.#doors.file(sites, symbols, resolved);
     this.#routes.file(sites.routeCalls, sites.file);
+    this.#constraints.file(sites, sites.file);
     this.#bareReads(sites, symbols, resolved);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(
@@ -612,7 +644,9 @@ class Builder {
       this.#classes.set(facts.key, facts);
       if (facts.heritage.length > 0) {
         this.#dispatch(state.world.typesAt(facts.heritage), facts, "instance");
-        this.#dispatch(state.world.typesAt(facts.bases.map(({ expression }) => expression)), facts, "static");
+        const bases = state.world.typesAt(facts.bases.map(({ expression }) => expression));
+        this.#dispatch(bases, facts, "static");
+        this.#dispatch(state.batch(bases.map((base) => this.#staticSides(base))).flat(), facts, "static");
       }
     }
     const slots = state.contextualTypes(sites.newExpressions);
@@ -622,6 +656,31 @@ class Builder {
         this.#pendingSlots.push({ slot, decls: targets[at] ?? [] });
       }
     }
+  }
+
+  // The library interfaces that type a library class's static side: each one in the class's own declaration file with a
+  // construct signature that builds the class (@types/react's `ComponentClass` builds `Component`, and its
+  // `StaticLifecycle` members are the statics React calls). Our own base declares its statics itself.
+  *#staticSides(base: Type): APIRequestGenerator<readonly Type[]> {
+    const state = this.#state;
+    const { checker } = state.world;
+    const symbol = yield* base.getSymbol.gen();
+    const handle = symbol?.declarations.find((at) => !state.resolver.ours(at));
+    if (symbol === undefined || handle === undefined) {
+      return [];
+    }
+    const known = this.#staticSideCache.get(symbol.id);
+    if (known !== undefined) {
+      return known;
+    }
+    const declaration = yield* handle.resolve.gen();
+    const builders = declaration === undefined ? [] : constructingInterfaces(declaration.getSourceFile(), symbol.name);
+    const types: Type[] = [];
+    for (const builder of builders) {
+      types.push(yield* checker.getTypeAtLocation.gen(builder.name));
+    }
+    this.#staticSideCache.set(symbol.id, types);
+    return types;
   }
 
   // A class member that fills a member of these types is used through it; one whose filled member is the platform's
@@ -634,11 +693,12 @@ class Builder {
     const decls = state.declarations(props);
     for (const [y, { key }] of asks.entries()) {
       const others = (decls[y] ?? []).filter((decl) => decl !== key);
-      for (const other of others) {
+      const ours = others.filter((decl) => state.decls.has(decl));
+      for (const other of ours) {
         state.edge("run", other, key);
         state.count("dispatch edges");
       }
-      if (others.length === 0 && props[y] !== undefined) {
+      if (ours.length < others.length || (others.length === 0 && props[y] !== undefined)) {
         state.edge("run", facts.key, key);
         state.unseenCalls.add(key);
         state.count("platform-called members");
@@ -646,7 +706,8 @@ class Builder {
     }
   }
 
-  // Object literal methods: filled for a contextual type's member, or the platform's to call, or reached by their name.
+  // Object literal methods: filled for a contextual type's member, or the platform's to call, or reached by their name;
+  // a library member's declaration is no node the walk reaches, so the literal's container carries the edge.
   // A member its slot does not name (an excess property, a slot the checker cannot read) lives with its container.
   #literals(sites: FileSites): void {
     const state = this.#state;
@@ -656,12 +717,18 @@ class Builder {
     const props = state.batch(asks.map(({ slot, name }) => (slot === undefined ? answer(undefined) : state.world.checker.getPropertyOfType.gen(slot, name))));
     const decls = state.declarations(props);
     for (const [y, { literal, key }] of asks.entries()) {
-      const ours = (decls[y] ?? []).filter((decl) => decl !== key);
+      const filled = (decls[y] ?? []).filter((decl) => decl !== key);
+      const ours = filled.filter((decl) => state.decls.has(decl));
       for (const other of ours) {
         state.edge("run", other, key);
       }
       if (ours.length === 0) {
         state.edge("run", literal.container, key);
+      }
+      // a member that fills a library's declared member (Node's `WritableOptions.write`) is the library's to call
+      if (ours.length < filled.length) {
+        state.unseenCalls.add(key);
+        state.count("platform-called members");
       }
     }
   }

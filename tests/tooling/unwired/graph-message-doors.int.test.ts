@@ -17,6 +17,12 @@ const sentAndWritten = (
   written: labelsIn(scan, "member-write-only", file),
 });
 
+// the merged program takes its libs from the browser world
+const DOM_WORLDS = {
+  "tsconfig.world-browser.json": plantedTsconfig({ lib: DOM_LIB, include: [] }),
+  [WORLD]: plantedTsconfig({ lib: DOM_LIB, include: ["../*/src"] }),
+};
+
 const PARENT = `${GRAPH_SOURCE}/parent.ts`;
 const CHILD = `${GRAPH_SOURCE}/child.ts`;
 const SHAPES = `${GRAPH_SOURCE}/shapes.ts`;
@@ -177,4 +183,76 @@ test("a receiver no send reaches is reported; a local class spelled like a door 
   };
   const scan = await graphScan(plantedTree, files, entries(files));
   expect(scan.analysis["message-receiver-unpaired"].map(({ label }) => label)).toEqual([`${Lonely}:4 worker`]);
+});
+
+test("a broadcast channel set into a variable after its start links by the name it was opened with", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const files = {
+    [SHAPES]: SHAPES_SOURCE,
+    [PARENT]: [
+      'import type { Got, Sent } from "./shapes.ts";',
+      "let channel: BroadcastChannel | null = null;",
+      'const openChannel = (): BroadcastChannel => { const opened = new BroadcastChannel("orb:session"); channel = opened; return channel; };',
+      'openChannel().addEventListener("message", (event: MessageEvent<Got>) => { void event.data.wanted; });',
+      "const sent: Sent = { wanted: 1, spare: 2 };",
+      "openChannel().postMessage(sent);",
+      'const other = new BroadcastChannel("orb:other");',
+      'other.addEventListener("message", (event: MessageEvent<Got>) => { void event.data.wanted; });',
+    ].join("\n"),
+  };
+  const scan = await graphScan(plantedTree, { ...files, ...DOM_WORLDS }, entries(files));
+  expect({ ...sentAndWritten(scan, SHAPES), unpaired: scan.analysis["message-receiver-unpaired"].map(({ label }) => label) }).toEqual({
+    sent: [],
+    written: ["Sent.spare"],
+    unpaired: [`${PARENT}:8 broadcast`],
+  });
+});
+
+test("a window listener takes what any window posts to it; an untyped receiver reads by name", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const files = {
+    [SHAPES]: SHAPES_SOURCE,
+    [PARENT]: [
+      'import type { Sent } from "./shapes.ts";',
+      "declare const frame: HTMLIFrameElement;",
+      'window.addEventListener("message", (event) => { void event.data.wanted; });',
+      "const sent: Sent = { wanted: 1, spare: 2 };",
+      'frame.contentWindow?.postMessage(sent, "*");',
+    ].join("\n"),
+  };
+  const scan = await graphScan(plantedTree, { ...files, ...DOM_WORLDS }, entries(files));
+  expect({ ...sentAndWritten(scan, SHAPES), unpaired: scan.analysis["message-receiver-unpaired"] }).toEqual({
+    sent: ["Sent.spare"],
+    written: [],
+    unpaired: [],
+  });
+});
+
+test("an emitter event of another name and a worker module the parent does not load pair with nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const files = {
+    ...NODE_TYPES,
+    [SHAPES]: SHAPES_SOURCE,
+    [PARENT]: [
+      NODE,
+      'import { EventEmitter } from "events";',
+      'import { Worker } from "worker_threads";',
+      'import type { Got, Sent } from "./shapes.ts";',
+      "const bus = new EventEmitter();",
+      "const sent: Sent = { wanted: 1, spare: 2 };",
+      'bus.emit("tick", sent);',
+      'bus.on("tock", (value: Got) => { void value.wanted; });',
+      'const worker = new Worker(new URL("./elsewhere.ts", import.meta.url));',
+      "worker.postMessage(sent);",
+    ].join("\n"),
+    [CHILD]: [
+      NODE,
+      'import { parentPort } from "worker_threads";',
+      'import type { Got } from "./shapes.ts";',
+      'parentPort?.on("message", (value: Got) => { void value.wanted; });',
+    ].join("\n"),
+  };
+  const scan = await graphScan(plantedTree, files, entries(files));
+  expect({ ...sentAndWritten(scan, SHAPES), unpaired: scan.analysis["message-receiver-unpaired"].map(({ label }) => label) }).toEqual({
+    sent: ["Sent.wanted", "Sent.spare"],
+    written: [],
+    unpaired: [`${CHILD}:4 worker`, `${PARENT}:8 emitter`],
+  });
 });

@@ -51,8 +51,10 @@ import {
   isCallExpression,
   isCatchClause,
   isClassDeclaration,
+  isClassExpression,
   isComputedPropertyName,
   isConditionalExpression,
+  isConditionalTypeNode,
   isConstructorDeclaration,
   isElementAccessExpression,
   isEnumDeclaration,
@@ -64,6 +66,7 @@ import {
   isForOfStatement,
   isFunctionDeclaration,
   isFunctionExpression,
+  isFunctionLikeDeclaration,
   isFunctionTypeNode,
   isGetAccessorDeclaration,
   isIdentifier,
@@ -86,6 +89,7 @@ import {
   isLiteralTypeNode,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
+  isModuleBlock,
   isModuleDeclaration,
   isNamedImports,
   isNamespaceExport,
@@ -407,6 +411,12 @@ export type FlowSite =
   | { readonly slot: "contextual"; readonly value: Expression }
   | { readonly slot: "holder"; readonly value: Expression; readonly holder: Expression };
 
+/** A call or construction with explicit type arguments. */
+export interface TypeArgumentSite {
+  readonly call: CallExpression | NewExpression;
+  readonly arguments: readonly TypeNode[];
+}
+
 /** `x[k]`: the receiver, the literal keys `k` can be (null for a computed key) and the key's expression. */
 export interface ElementKey {
   readonly receiver: Node;
@@ -474,6 +484,14 @@ export class FileSites {
   readonly urlModules: { readonly target: string; readonly from: GraphKey }[] = [];
   /** A file a createRequire function loads by its literal relative path: it runs as an import's module does. */
   readonly requiredModules: { readonly target: string; readonly from: GraphKey }[] = [];
+  /** Calls and constructions with explicit type arguments: constraints.ts keys what each argument's constraint names. */
+  readonly typeArguments: TypeArgumentSite[] = [];
+  /** Calls inside a generic function, which may hand its type parameters to another generic's. */
+  readonly genericCalls: CallExpression[] = [];
+  /** String literal arguments, which name a member where the parameter is `keyof` a type. */
+  readonly keyArguments: Expression[] = [];
+  /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
+  readonly typePairs: { readonly value: Node; readonly slot: Node }[] = [];
   /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
   readonly computedLoads: CallExpression[] = [];
   /** Calls of a method a Hono app registers routes with; routes.ts confirms each by its declaration. */
@@ -732,12 +750,22 @@ interface Frame {
   readonly moduleNamespaces: Set<string>;
   /** The file's bindings that hold a require function createRequire made. */
   readonly requires: Set<string>;
+  /** How many generic functions enclose the walk. */
+  generic: number;
 }
 
 /** Walk one file: every site its checker passes need, with the declarations and syntax-decided edges told to `sink`. */
 export function collectSites(source: SourceFile, file: string, product: boolean, sink: WalkSink): FileSites {
   const sites = new FileSites(source, file, product);
-  const frame: Frame = { stack: [moduleKey(file)], literals: [], classes: [], createRequire: new Set(), moduleNamespaces: new Set(), requires: new Set() };
+  const frame: Frame = {
+    stack: [moduleKey(file)],
+    literals: [],
+    classes: [],
+    createRequire: new Set(),
+    moduleNamespaces: new Set(),
+    requires: new Set(),
+    generic: 0,
+  };
   const walker = new Walker(source, sites, sink, frame);
   walker.visit(source, false);
   return sites;
@@ -777,12 +805,7 @@ class Walker {
     if (isImportDeclaration(node)) {
       this.#moduleImport(node);
     }
-    if (isCallExpression(node)) {
-      this.#moduleLoad(node);
-      if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
-        this.#sites.routeCalls.push(node);
-      }
-    }
+    this.#callSites(node);
     const inType = typePosition || isTypePosition(node);
     this.#name(node, inType);
     this.#keyed(node, inType);
@@ -790,7 +813,10 @@ class Walker {
     this.#types(node);
     this.#strings(node, inType);
     this.#spellings(node);
+    const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0;
+    this.#frame.generic += generic ? 1 : 0;
     node.forEachChild((child) => this.visit(child, inType));
+    this.#frame.generic -= generic ? 1 : 0;
     if (pushed) {
       this.#frame.stack.pop();
       if (isClassDeclaration(node)) {
@@ -799,6 +825,75 @@ class Walker {
     }
     if (literal !== undefined) {
       this.#frame.literals.pop();
+    }
+  }
+
+  // Sites a call or a callee decides: an implementation's overloads, type arguments and literal keys, a generic
+  // hand-off, a module load and a route registration.
+  #callSites(node: Node): void {
+    if ((isFunctionDeclaration(node) || isMethodDeclaration(node)) && node.body !== undefined) {
+      this.#overloads(node);
+    }
+    if ((isCallExpression(node) || isNewExpression(node)) && node.typeArguments !== undefined && node.typeArguments.length > 0) {
+      this.#sites.typeArguments.push({ call: node, arguments: node.typeArguments });
+    }
+    if (!isCallExpression(node)) {
+      return;
+    }
+    this.#sites.keyArguments.push(...node.arguments.filter((argument) => isStringLiteral(argument) || isNoSubstitutionTemplateLiteral(argument)));
+    if (this.#frame.generic > 0) {
+      this.#sites.genericCalls.push(node);
+    }
+    this.#moduleLoad(node);
+    if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
+      this.#sites.routeCalls.push(node);
+    }
+  }
+
+  // A caller of an overload writes into the implementation's parameters through it: each overload's parameter fills
+  // the implementation's at the same index.
+  #overloads(implementation: FunctionDeclaration | MethodDeclaration): void {
+    const name = keyText(implementation.name);
+    const overloads = siblingsOf(implementation).filter(
+      (sibling): sibling is FunctionDeclaration | MethodDeclaration =>
+        (isFunctionDeclaration(sibling) || isMethodDeclaration(sibling)) && sibling.body === undefined && name !== undefined && keyText(sibling.name) === name,
+    );
+    for (const overload of overloads) {
+      for (const [at, parameter] of overload.parameters.entries()) {
+        const target = implementation.parameters[at];
+        if (target !== undefined) {
+          this.#sites.typePairs.push({ value: parameter, slot: target });
+        }
+      }
+    }
+  }
+
+  // A type literal that matches another type by shape keys that type's members: the extends pattern of a conditional
+  // (`T extends { default: infer C } ? C : T`), and a literal intersected with a union to select its arm
+  // (`Message & { subtype: "a" }`). The pattern's own members are key uses too: deleting one changes the match.
+  #typePatterns(node: Node): void {
+    const pairs: { readonly target: TypeNode; readonly pattern: TypeNode }[] = [];
+    if (isConditionalTypeNode(node)) {
+      pairs.push({ target: node.checkType, pattern: unparenType(node.extendsType) });
+    }
+    if (isIntersectionTypeNode(node)) {
+      const literals = node.types.filter((type) => isTypeLiteralNode(unparenType(type)));
+      for (const target of node.types.filter((type) => !isTypeLiteralNode(unparenType(type)))) {
+        pairs.push(...literals.map((pattern) => ({ target, pattern: unparenType(pattern) })));
+      }
+    }
+    for (const { target, pattern } of pairs) {
+      if (!isTypeLiteralNode(pattern)) {
+        continue;
+      }
+      const keys = pattern.members.flatMap((member) => {
+        const name = keyText(unitName(member));
+        return name === undefined ? [] : [name];
+      });
+      this.#sites.pickKeys.push({ target, keys });
+      for (const member of pattern.members) {
+        this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
+      }
     }
   }
 
@@ -955,8 +1050,16 @@ class Walker {
     if ((isMethodDeclaration(node) || isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node)) && isObjectLiteralExpression(node.parent)) {
       this.#frame.literals.at(-1)?.members.set(name, key);
     }
+    this.#protocolMember(node, key);
+  }
+
+  // A protocol member outside a class: a type's, which `using`, `await` or coercion calls on every value of that
+  // type, and a literal's, which carries one without a class's heritage.
+  #protocolMember(node: Node, key: DeclKey): void {
+    if ((isPropertySignatureDeclaration(node) || isMethodSignatureDeclaration(node)) && isRuntimeProtocol(node.name)) {
+      this.#sink.unseenCall(key);
+    }
     if ((isMethodDeclaration(node) || isPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isRuntimeProtocol(node.name)) {
-      // a literal carries a protocol member without a class's heritage: the runtime still calls it by name
       this.#sink.edge("run", this.#holder, key);
       this.#sink.unseenCall(key);
     }
@@ -1059,6 +1162,7 @@ class Walker {
     if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.InKeyword && !inType) {
       this.#sites.keyTests.push({ receiver: node.right, keys: keyLiterals(node.left), argument: node.left });
     }
+    this.#typePatterns(node);
     // `T[K]`: a literal key names one member of T; a generic or union key reads T as a dispatch table
     if (isIndexedAccessTypeNode(node) && !isTypeQueryNode(unparenType(node.objectType))) {
       this.#sites.indexedKeys.push({ object: node.objectType, keys: stringKeysIn(node.indexType), index: node.indexType });
@@ -1238,6 +1342,15 @@ function isRuntimeProtocol(name: Node): boolean {
   return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
 }
 
+// The statements or class members a declaration sits among.
+function siblingsOf(node: Node): readonly Node[] {
+  const { parent } = node;
+  if (isSourceFile(parent) || isBlock(parent) || isModuleBlock(parent)) {
+    return parent.statements;
+  }
+  return isClassDeclaration(parent) || isClassExpression(parent) ? parent.members : [];
+}
+
 const isImportDeclarationCall = (node: CallExpression): boolean => node.expression.kind === SyntaxKind.ImportKeyword;
 
 const wellKnownSymbol = (node: Node): boolean => isIdentifier(node) && node.text === WELL_KNOWN_SYMBOLS;
@@ -1381,7 +1494,12 @@ function bindingText(name: Node): string {
 }
 
 // The property a destructuring element reads, when it names one.
+// The member a pattern element names: `{ a }`, `{ a: b }` or a quoted `{ "aria-label": label }`.
 function bindingKey(element: BindingElement): readonly string[] {
   const named = element.propertyName ?? element.name;
-  return named !== undefined && isIdentifier(named) ? [named.text] : [];
+  if (named !== undefined && isIdentifier(named)) {
+    return [named.text];
+  }
+  const quoted = element.propertyName === undefined ? undefined : keyText(element.propertyName);
+  return quoted === undefined ? [] : [quoted];
 }

@@ -170,6 +170,9 @@ export const REACT_TYPES = {
   "node_modules/@types/react/index.d.ts": [
     "export declare function useState<S>(initial: S): [S, (next: S) => void];",
     "export declare class Component<P = object> { readonly props: P; render(): unknown; componentDidMount?(): void }",
+    // React's own shape: the statics React calls sit on the interfaces that build a Component, not on the class
+    "export interface StaticLifecycle<P, S> { getDerivedStateFromProps?: (props: P, state: S) => Partial<S> | null; getDerivedStateFromError?: (error: unknown) => Partial<S> | null }",
+    "export interface ComponentClass<P = object, S = object> extends StaticLifecycle<P, S> { new (props: P): Component<P>; displayName?: string; defaultProps?: Partial<P> }",
   ].join("\n"),
 };
 

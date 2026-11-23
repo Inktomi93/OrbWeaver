@@ -2,7 +2,7 @@
 // iterators and node:util's inspect hook. A class or a literal carrying one needs no lib heritage for it to count.
 import { expect, test } from "@orb/testkit/tooling";
 import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, labelsIn, NODE_TYPES } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/protocols.ts`;
 
@@ -30,5 +30,34 @@ test("a protocol member on a class or a literal counts as called; a member of an
     "member-write-only": [],
     "member-sent-only": ["Money.spare"],
     "member-untouched": ["lazy.spare", "bag.spare"],
+  });
+});
+
+test("a literal member that fills a library's declared member is the library's to call, and so are the reads in it", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const ring = `${GRAPH_SOURCE}/ring.ts`;
+  const scan = await graphScan(plantedTree, {
+    ...NODE_TYPES,
+    "node_modules/@types/node/stream.d.ts": [
+      'declare module "stream" {',
+      "  interface WritableOptions { write?(chunk: any, encoding: string, callback: () => void): void }",
+      "  class Writable { constructor(options?: WritableOptions); }",
+      "}",
+    ].join("\n"),
+    [ring]: [
+      '/// <reference path="../../../node_modules/@types/node/stream.d.ts" />',
+      'import { Writable } from "stream";',
+      "function ringStream(ring: string[], spare: string[]): Writable {",
+      '  return new Writable({ write(chunk: string, _encoding, callback): void { ring.push(chunk); callback(); }, spare(): void { spare.push(""); } });',
+      "}",
+      "export function createLogger(ring: string[] | null): readonly Writable[] { return ring === null ? [] : [ringStream(ring, [])]; }",
+      "createLogger([]);",
+    ].join("\n"),
+  });
+  // spare fills no member of the options, so nothing calls it
+  expect({ bindings: labelsIn(scan, "binding-read-only-by-dead", ring), untouched: labelsIn(scan, "member-untouched", ring) }).toEqual({
+    bindings: [],
+    untouched: ["ringStream.spare"],
   });
 });

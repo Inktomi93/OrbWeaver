@@ -1,6 +1,6 @@
 // Bindings: a local, a parameter or an import binding nothing reads is unread, judged as tsc's noUnusedLocals and
 // noUnusedParameters judge it; one read only by code nothing reaches is reported with the dead code that reads it.
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, graphTree } from "./_planted.ts";
 
@@ -98,4 +98,28 @@ test("a binding read as a bracket key, a computed key, a loop target's use, a te
   ].join("\n");
   const scan = await graphScan(plantedTree, { [LIB]: LIB_SOURCE, [FILE]: source });
   expect(inFile(scan.analysis["binding-unread"])).toEqual([[`${String(lineOf(source, "let total"))} total`, "local, only written"]]);
+});
+
+test("a binding whose reader only a test reaches is no dead read; one nothing reaches still is", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const main = `${GRAPH_SOURCE}/main.ts`;
+  const source = [
+    'import { used, unusedImport } from "./lib.ts";',
+    "export const testedReader = (): number => used;",
+    "const deadReader = (): number => unusedImport;",
+    "export const live = 1;",
+  ].join("\n");
+  const scan = await graphScan(plantedTree, {
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tsconfig.outside.json" }] }),
+    "tsconfig.outside.json": plantedTsconfig({ lib: ["ESNext"], include: ["tests"] }),
+    "knip.ts": [
+      `const config = ${JSON.stringify({ workspaces: { "packages/a": { entry: ["src/main.ts!"], project: ["src/**/*.ts!"] }, ".": { project: ["tests/**/*.ts"] } } })};`,
+      "export default (_flags: { readonly production: boolean }) => config;",
+      "export { config };",
+    ].join("\n"),
+    [main]: 'import { live } from "./bindings.ts";\nvoid live;',
+    [LIB]: LIB_SOURCE,
+    [FILE]: source,
+    "tests/a/reader.test.ts": 'import { testedReader } from "../../packages/a/src/bindings.ts";\ntestedReader();',
+  });
+  expect(inFile(scan.analysis["binding-read-only-by-dead"])).toEqual([["1 unusedImport", `import read only by ${FILE}:3 deadReader`]]);
 });

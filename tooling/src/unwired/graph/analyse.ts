@@ -27,6 +27,7 @@ import type { DeclInfo, GraphKey } from "./sites.ts";
 import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
 import { SERVER_SOURCE } from "./spellings.ts";
 import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
+import { productReader, testSource } from "./state.ts";
 
 /** The buckets an analysis reports, in report order. */
 export const BUCKETS = [
@@ -203,12 +204,12 @@ class Analyser {
 
   run(): Analysis {
     this.#rulings();
-    this.#liveness();
+    const reached = this.#reached();
+    this.#liveness(reached);
     this.#docLinks();
     const roles = settleRoles(this.#graph);
-    const liveTyped = this.#liveTyped();
-    this.#members(roles, liveTyped);
-    this.#bindings(liveTyped);
+    this.#members(roles, reached.liveTyped);
+    this.#bindings(reached);
     for (const { file, line, door } of this.#state.unpairedReceivers) {
       this.#push("message-receiver-unpaired", { label: `${file}:${String(line)} ${door}`, key: null, note: "no send reaches it through its door" });
     }
@@ -325,8 +326,11 @@ class Analyser {
   #reached(): Reached & { readonly live: ReadonlySet<GraphKey> } {
     const state = this.#state;
     const { run, typ } = state;
-    const product = this.#modules(["product", "published"]);
+    // D357: snap drives the real app, so what a snap file reaches the product uses
+    const snap = this.#graph.files.filter((file) => productReader(file) && !isProduction(file)).map(moduleKey);
+    const product = [...this.#modules(["product", "published"]), ...snap];
     const kept = [...product, ...this.#why.keys()];
+    const outside = this.#graph.files.filter((file) => !productReader(file));
     return {
       live: reach(product, [run]),
       liveKept: reach(kept, [run]),
@@ -334,9 +338,9 @@ class Analyser {
       productTyped: reach(product, [run, typ]),
       operator: reach(this.#modules(["operator"]), [run, typ]),
       consumer: reach(this.#modules(["consumer"]), [run, typ]),
-      any: reach(this.#graph.files.filter((file) => !isProduction(file)).map(moduleKey), [run, typ]),
-      testkit: reach(this.#graph.files.filter((file) => TESTKIT_HOMES.some((home) => file.startsWith(home))).map(moduleKey), [run, typ]),
-      tooling: reach(this.#graph.files.filter((file) => file.startsWith(TOOLING_HOME)).map(moduleKey), [run, typ]),
+      any: reach(outside.map(moduleKey), [run, typ]),
+      testkit: reach(outside.filter((file) => TESTKIT_HOMES.some((home) => file.startsWith(home))).map(moduleKey), [run, typ]),
+      tooling: reach(outside.filter((file) => !(testSource(file) || TESTKIT_HOMES.some((home) => file.startsWith(home)))).map(moduleKey), [run, typ]),
     };
   }
 
@@ -345,8 +349,7 @@ class Analyser {
     return info.top && isProduction(info.file) && info.name !== UNNAMED && (RUNTIME_UNITS.has(info.kind) || TYPE_UNITS.has(info.kind));
   }
 
-  #liveness(): void {
-    const reached = this.#reached();
+  #liveness(reached: Reached & { readonly live: ReadonlySet<GraphKey> }): void {
     for (const [key, info] of this.#state.decls) {
       if (!this.#judgedUnit(info)) {
         continue;
@@ -382,20 +385,17 @@ class Analyser {
     }
   }
 
-  // What the product's roots and the ruled keeps reach through run and type edges: the code a member or a binding's
-  // reader must sit in to count.
-  #liveTyped(): ReadonlySet<GraphKey> {
-    return reach([...this.#modules(["product", "published"]), ...this.#why.keys()], [this.#state.run, this.#state.typ]);
-  }
-
   // A binding nothing reads, and one whose every reader is code nothing reaches while the binding's own holder is
-  // reached: an import or a local the dead code alone keeps.
-  #bindings(liveTyped: ReadonlySet<GraphKey>): void {
+  // reached: an import or a local the dead code alone keeps. A reader only the operator, a consumer, the tests or the
+  // tooling reach is no dead reader.
+  #bindings(reached: Reached): void {
+    const liveTyped = reached.liveTyped;
+    const dead = (reader: GraphKey): boolean => ![liveTyped, reached.operator, reached.consumer, reached.any].some((set) => set.has(reader));
     for (const binding of this.#state.bindings) {
       const label = `${binding.file}:${String(binding.line)} ${binding.name}`;
       if (binding.readers.length === 0) {
         this.#push("binding-unread", { label, key: binding.key, note: binding.written ? `${binding.kind}, only written` : binding.kind });
-      } else if (isProduction(binding.file) && liveTyped.has(binding.holder) && binding.readers.every((reader) => !liveTyped.has(reader))) {
+      } else if (isProduction(binding.file) && liveTyped.has(binding.holder) && binding.readers.every(dead)) {
         const note = `${binding.kind} read only by ${binding.readers.map((reader) => this.#readerLabel(reader)).join(", ")}`;
         this.#push("binding-read-only-by-dead", { label, key: binding.key, note });
       }
@@ -501,7 +501,6 @@ type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "oper
 // The testkit's homes: its world subpaths and the component-test mount harness. A unit only they reach is a helper a
 // test reaches through the kit, apart from one a test file names itself.
 const TESTKIT_HOMES = ["tests/support/", "playwright/"] as const;
-const TOOLING_HOME = "tooling/";
 
 // Where the product first wrote a member, and what another world does to it.
 function memberNote(role: MemberRoles | undefined): string | null {

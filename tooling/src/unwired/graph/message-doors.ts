@@ -30,6 +30,7 @@ import type {
 import {
   isArrowFunction,
   isAsExpression,
+  isBinaryExpression,
   isBlock,
   isCallExpression,
   isClassDeclaration,
@@ -51,6 +52,7 @@ import {
   isSourceFile,
   isStringLiteral,
   isVariableDeclaration,
+  SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
@@ -121,8 +123,10 @@ const DOOR_MEMBERS: readonly DoorMember[] = [
   // a worker module compiled with the DOM library reaches its own scope through the window's globals
   { origin: DOM, container: null, member: "postMessage", door: "worker", side: "child", act: "send" },
   ...listen({ origin: DOM, container: null, door: "worker", side: "child" }, ["addEventListener"]),
-  { origin: DOM, container: "Window", member: "postMessage", door: "worker", side: "child", act: "send" },
-  ...listen({ origin: DOM, container: "Window", door: "worker", side: "child" }, ["addEventListener"]),
+  // a window takes messages from any window that posts to it (an iframe's `contentWindow`, its `parent`), so every
+  // window send links to every window listener
+  { origin: DOM, container: "Window", member: "postMessage", door: "window", side: "named", act: "send" },
+  ...listen({ origin: DOM, container: "Window", door: "window", side: "named" }, ["addEventListener"]),
   // the DOM declares a constructor as a global variable beside its interface
   { origin: DOM, container: null, member: "BroadcastChannel", door: "broadcast", side: "named", act: "open" },
   { origin: DOM, container: "BroadcastChannel", member: "postMessage", door: "broadcast", side: "named", act: "send" },
@@ -154,6 +158,8 @@ interface Receive {
   readonly door: MessageDoor;
   readonly index: number;
   readonly views: readonly Type[];
+  /** The members an untyped receiver reads off the value by name (`(value) => value.wanted`). */
+  readonly names: readonly string[];
   readonly file: string;
   readonly line: number;
 }
@@ -264,6 +270,7 @@ export class MessageDoors {
         door: member.door,
         index: 0,
         views: yield* this.#usesView([node], new Set()),
+        names: readNames([node]),
         file: sites.file,
         line: sites.lineOf(node),
       });
@@ -315,6 +322,9 @@ export class MessageDoors {
     if (member.door === "emitter") {
       return yield* this.#emitterLink(call);
     }
+    if (member.door === "window") {
+      return member.act === "receive" && (yield* this.#literal(call.arguments[0])) !== MESSAGE_EVENT ? null : { kind: "named", key: member.door };
+    }
     const named = receiverOf(call) === undefined ? call.arguments[0] : receiverOf(call);
     const channel = receiverOf(call) === undefined ? yield* this.#literal(named) : yield* this.#channelName(named, member.door, new Set());
     return channel === null ? null : { kind: "named", key: `${member.door}:${channel}` };
@@ -355,7 +365,8 @@ export class MessageDoors {
     for (let index = 0; index < count; index += 1) {
       const parameter = parameters[index];
       const views = parameter === undefined || fn === undefined ? [] : yield* this.#parameterView(parameter, fn, member.origin === DOM, new Set());
-      this.#receives.push({ link, door: member.door, index, views, file: sites.file, line: sites.lineOf(call) });
+      const names = parameter === undefined || fn === undefined ? [] : yield* this.#parameterNames(parameter, fn, member.origin === DOM);
+      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call) });
     }
   }
 
@@ -391,6 +402,13 @@ export class MessageDoors {
     const uses = symbol === undefined ? [] : yield* this.#references(fn, symbol);
     const reads = event ? uses.flatMap((use) => (isPropertyAccessExpression(use.parent) && use.parent.name.text === EVENT_DATA ? [use.parent] : [])) : uses;
     return yield* this.#usesView(reads, seen);
+  }
+
+  // The members a received parameter's uses read by name; through a DOM event's `data` for an event.
+  *#parameterNames(parameter: ParameterDeclaration, fn: FunctionLike, event: boolean): APIRequestGenerator<readonly string[]> {
+    const symbol = yield* this.#state.world.checker.getSymbolAtLocation.gen(parameter.name);
+    const uses = symbol === undefined ? [] : yield* this.#references(fn, symbol);
+    return readNames(event ? uses.flatMap((use) => (isPropertyAccessExpression(use.parent) && use.parent.name.text === EVENT_DATA ? [use.parent] : [])) : uses);
   }
 
   // What each use of a received value types it as.
@@ -506,11 +524,37 @@ export class MessageDoors {
     const out: Node[] = [];
     for (const handle of (symbol?.declarations ?? []).filter((declaration) => this.#state.resolver.ours(declaration))) {
       const declared = yield* handle.resolve.gen();
-      if (declared !== undefined && (isVariableDeclaration(declared) || isPropertyDeclaration(declared)) && declared.initializer !== undefined) {
-        out.push(declared.initializer);
+      if (declared !== undefined && symbol !== undefined) {
+        out.push(...(yield* this.#declaredValues(declared, symbol)));
       }
     }
     return out;
+  }
+
+  // A variable's or field's values: its initializer, and what a `let` or a field is set to later (`channel = opened`).
+  *#declaredValues(declared: Node, symbol: NativeSymbol): APIRequestGenerator<readonly Node[]> {
+    if (!(isVariableDeclaration(declared) || isPropertyDeclaration(declared))) {
+      return [];
+    }
+    return [...(declared.initializer === undefined ? [] : [declared.initializer]), ...(yield* this.#assignedTo(declared.getSourceFile(), symbol))];
+  }
+
+  // The values a file assigns to a symbol: `x = v` and `this.x = v`.
+  *#assignedTo(file: Node, symbol: NativeSymbol): APIRequestGenerator<readonly Node[]> {
+    const { checker } = this.#state.world;
+    const assignments: { readonly target: Node; readonly value: Node }[] = [];
+    const visit = (node: Node): void => {
+      if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.EqualsToken) {
+        const target = namePart(unwrap(node.left));
+        if (isIdentifier(target) && target.text === symbol.name) {
+          assignments.push({ target, value: node.right });
+        }
+      }
+      node.forEachChild(visit);
+    };
+    visit(file);
+    const symbols = yield* allOf(assignments.map(({ target }) => checker.getSymbolAtLocation.gen(target)));
+    return assignments.filter((_, at) => symbols[at]?.id === symbol.id).map(({ value }) => value);
   }
 
   /** Pair every send with the receivers its link names: a pair flows into the receiver's view, an unpaired send
@@ -518,6 +562,7 @@ export class MessageDoors {
   settle(flows: Flows): void {
     const paired = new Set<Receive>();
     const pairs = new Map<string, FlowPair[]>();
+    const state = this.#state;
     for (const send of this.#sends) {
       const receivers = this.#receives.filter((receive) => receive.door === send.door && receive.index === send.index && this.#linked(send.link, receive.link));
       for (const receive of receivers) {
@@ -525,8 +570,10 @@ export class MessageDoors {
         const into = pairs.get(receive.file) ?? [];
         into.push(...receive.views.map((slot) => ({ slot, value: send.value })));
         pairs.set(receive.file, into);
+        state.roleAll(state.slotMembers(receive.names.map((name) => ({ type: send.value, name }))).flat(), "read", receive.file, 0);
       }
-      if (receivers.length === 0) {
+      // a send no receiver types goes on as an opaque hand-off does; a by-name read above still reads its member
+      if (!receivers.some((receive) => receive.views.length > 0)) {
         flows.escape(send.value, false, send.file, send.at);
       }
     }
@@ -549,6 +596,14 @@ export class MessageDoors {
     const [loader, loaded] = send.kind === "up" ? [receive.file, send.file] : [send.file, receive.file];
     return this.#loads.get(loader)?.has(loaded) === true;
   }
+}
+
+// The member names uses read off a value: `value.wanted`.
+function readNames(uses: readonly Node[]): readonly string[] {
+  return uses.flatMap((use) => {
+    const at = outer(use);
+    return isPropertyAccessExpression(at.parent) && at.parent.expression === at ? [at.parent.name.text] : [];
+  });
 }
 
 // The node whose type a use's holder declares: `x as T`, `x satisfies T`, `const y: T = x`.
