@@ -32,7 +32,6 @@
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
-import { mkdirSync } from "node:fs";
 import { relative } from "node:path";
 import type { Declaration, Expression, Node, SourceFile } from "@typescript/native/ast";
 import {
@@ -126,7 +125,7 @@ interface Removal {
 
 // One candidate's trial: the product reads find-references named (`file:line`), what the delete removed, the files it
 // checked, the errors it added, how many snapshots held it and whether tsc reports it unused.
-interface Trial {
+export interface Trial {
   readonly bucket: TrialBucket;
   readonly label: string;
   readonly verdict: TrialVerdict;
@@ -140,6 +139,12 @@ interface Trial {
   /** For a compile-clean candidate, the hits of its name outside its own sites and off other declarations of the name,
    *  the ones that can be a read first: the reason for confirmed-literal, else an annotation on confirmed. */
   readonly literal: LiteralEvidence["hits"];
+}
+
+/** Where a run keeps each trial as it lands, and the trials an earlier run of the same tree already kept. */
+export interface TrialLedger {
+  readonly recorded: (bucket: TrialBucket, key: DeclKey) => Trial | undefined;
+  readonly record: (bucket: TrialBucket, key: DeclKey, trial: Trial) => void;
 }
 
 /** The trial's phases, in run order. */
@@ -169,8 +174,7 @@ interface ControlRow {
   readonly graph: string;
 }
 
-/** The trials of every named bucket's findings, the unused-diagnostics control, each phase's cost, and the path of the
- *  compiler CPU profile of one group when one was asked for. */
+/** The trials of every named bucket's findings, the unused-diagnostics control, and each phase's cost. */
 export interface TrialReport {
   /** The tracked files the literal pass searched, or null for a root with no git index, where confirmed is the compile's
    *  word alone. */
@@ -178,7 +182,6 @@ export interface TrialReport {
   readonly trials: readonly Trial[];
   readonly control: readonly ControlRow[];
   readonly phases: Readonly<Record<TrialPhase, PhaseCost>>;
-  readonly cpuProfile: string | null;
 }
 
 // An object literal writes a property its type no longer has.
@@ -301,6 +304,9 @@ const MIN_MINUTES = 1 / 60;
 // of many declaring files share one, and only a group with an error splits. The cap bounds one snapshot's edited and
 // checked files on a whole-tree run.
 const GROUP_CANDIDATES = 256;
+
+/** What each progress line of a trial group starts with, so a failure can name the group it came on. */
+export const TRIAL_GROUP = "trial group";
 
 const unresolvedTrial = (
   { bucket, finding, tsUnused }: { readonly bucket: TrialBucket; readonly finding: Finding; readonly tsUnused: boolean },
@@ -774,40 +780,32 @@ class Trials {
     return packs.map(({ items }) => items);
   }
 
-  /** Trial every group, logging progress after each; the compiler CPU profile covers the first group with more than
-   *  one candidate when `cpuProfile` names a directory. */
+  /** Trial every group, logging progress before and after each, and keeping each trial in the ledger as its group lands. */
   tryGroups(
     groups: readonly (readonly Candidate[])[],
-    run: { readonly total: number; readonly cpuProfile: string | null },
+    run: { readonly total: number; readonly ledger: TrialLedger | undefined },
     log: (line: string) => void,
-  ): { readonly tried: ReadonlyMap<Finding, Trial>; readonly profiled: string | null } {
+  ): ReadonlyMap<Finding, Trial> {
     const tried = new Map<Finding, Trial>();
     const started = performance.now();
     let done = 0;
-    let profiled: string | null = null;
     for (const [at, items] of groups.entries()) {
-      const dir = profiled === null && items.length > 1 ? run.cpuProfile : null;
-      if (dir !== null) {
-        mkdirSync(dir, { recursive: true });
-        this.#world.debug.startCPUProfile(dir);
-      }
+      log(`${TRIAL_GROUP} ${String(at + 1)}/${String(groups.length)} starting: ${String(items.length)} candidates, first ${items[0]?.finding.label ?? ""}`);
       const outcome = this.group(items);
-      if (dir !== null) {
-        profiled = String(this.#world.debug.stopCPUProfile());
-      }
       for (const [x, item] of items.entries()) {
         const trial = outcome[x];
         if (trial !== undefined) {
           tried.set(item.finding, trial);
+          run.ledger?.record(item.bucket, item.key, trial);
         }
       }
       done += items.length;
       const minutes = (performance.now() - started) / MS_PER_MINUTE;
       log(
-        `trial groups ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+        `${TRIAL_GROUP}s ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
       );
     }
-    return { tried, profiled };
+    return tried;
   }
 
   /** The declaration a key names, in the world's parse. */
@@ -971,8 +969,8 @@ const siteOf = (world: NativeWorld, node: Node): string =>
 
 /** Run the delete trial over every finding of the named buckets, or an even sample of `limit` of them, then the
  *  unused-diagnostics control; `verdicts` keeps only the member findings the judge sorted to one of them (the sort needs a
- *  graph built with member sites); `cpuProfile` names a directory for the compiler CPU profile of the first group with
- *  more than one candidate. */
+ *  graph built with member sites); `ledger` keeps each trial as its group lands and supplies the ones an earlier run
+ *  kept. */
 export function runTrials(
   graph: Graph,
   world: NativeWorld,
@@ -981,9 +979,10 @@ export function runTrials(
     readonly analysis: Analysis;
     readonly buckets: readonly TrialBucket[];
     readonly limit: number | null;
-    readonly cpuProfile: string | null;
     /** Only the member findings the judge sorted to one of these; every finding when empty. */
     readonly verdicts?: readonly Verdict[];
+    /** Keeps each trial as its group lands, and supplies the ones an earlier run of the same tree kept, which are not tried again. */
+    readonly ledger?: TrialLedger;
   },
   log: (line: string) => void,
 ): TrialReport {
@@ -1006,20 +1005,30 @@ export function runTrials(
   const tsUnused = phases.time("unused", () => trials.tsUnused(found.map(({ name }) => name)));
   const decided = new Map<Finding, Trial>();
   const groups = new Map<string, Candidate[]>();
+  let resumed = 0;
   for (const [at, pick] of picked.entries()) {
     const outcome = trials.decide(pick, found[at] ?? { occurrences: [], reads: [] }, tsUnused[at] ?? false);
     if ("trial" in outcome) {
       decided.set(pick.finding, outcome.trial);
     } else {
-      const { file } = declKeyParts(outcome.candidate.key);
-      groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
+      const kept = run.ledger?.recorded(pick.bucket, outcome.candidate.key);
+      if (kept === undefined) {
+        const { file } = declKeyParts(outcome.candidate.key);
+        groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
+      } else {
+        decided.set(pick.finding, kept);
+        resumed += 1;
+      }
     }
   }
-  const { tried, profiled } = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, cpuProfile: run.cpuProfile }, log);
+  if (resumed > 0) {
+    log(`resumed ${String(resumed)} trials an earlier run of this tree kept`);
+  }
+  const tried = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, ledger: run.ledger }, log);
   const compiled = picked.flatMap(({ finding }, at) => {
     const trial = decided.get(finding) ?? tried.get(finding);
     return trial === undefined ? [] : [{ trial, references: found[at] }];
   });
   const literal = phases.time("literal", () => literalPass(run.root, world, compiled));
-  return { literalFiles: literal.files, trials: literal.trials, control: trials.control(run.analysis), phases: phases.report(), cpuProfile: profiled };
+  return { literalFiles: literal.files, trials: literal.trials, control: trials.control(run.analysis), phases: phases.report() };
 }
