@@ -596,10 +596,36 @@ function unparsedHits(file: string, type: FileType, generated: boolean, found: r
   }));
 }
 
+// git counts lines by LF alone; TypeScript's line table also breaks at CR, U+2028 and U+2029, so a git line number read
+// through getPositionOfLineAndCharacter lands short after any of those. Each hit is placed by git's own line starts over
+// the program's text, both in UTF-16 units, and the text there must spell the word.
+function gitLineStarts(text: string): readonly number[] {
+  const starts = [0];
+  for (let at = text.indexOf("\n"); at !== -1; at = text.indexOf("\n", at + 1)) {
+    starts.push(at + 1);
+  }
+  return starts;
+}
+
+// The program's text drops a leading byte-order mark that git's first line still carries.
+const BYTE_ORDER_MARK = "\u{feff}";
+
+function hitOffset(source: SourceFile, starts: readonly number[], { name, line, index }: Found): number {
+  const dropped = line.line === 1 && line.text.startsWith(BYTE_ORDER_MARK) && !source.text.startsWith(BYTE_ORDER_MARK) ? BYTE_ORDER_MARK.length : 0;
+  const offset = (starts[line.line - 1] ?? Number.NaN) + index - dropped;
+  if (!source.text.startsWith(name, offset)) {
+    const reads = JSON.stringify(source.text.slice(offset, offset + name.length));
+    throw new Error(`literal hits: ${line.file}:${String(line.line)} names ${name} at offset ${String(offset)}, where the program's text reads ${reads}`);
+  }
+  return offset;
+}
+
 function parsedHits(source: SourceFile, file: string, found: readonly Found[], graph: boolean): readonly LiteralHit[] {
   const scope = scopeOf(file, "parsed");
-  return found.map(({ name, line, index }) => {
-    const offset = source.getPositionOfLineAndCharacter(line.line - 1, 0) + index;
+  const starts = gitLineStarts(source.text);
+  return found.map((hit) => {
+    const { name, line } = hit;
+    const offset = hitOffset(source, starts, hit);
     return { name, file, line: line.line, at: `${file}:${String(line.line)}`, offset, graph, scope, kind: parsedKind(source, offset) };
   });
 }

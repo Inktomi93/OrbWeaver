@@ -64,6 +64,29 @@ const CODE = [
 
 const VIEW = ["export const View = () => (", '  <div zqAttr="1">', "    {/* zqJsx in a container */}", "    zqText", "  </div>", ");"].join("\n");
 
+// git numbers lines by LF alone, while the program's line table also breaks at U+2028 and U+2029; a hit placed by the
+// program's line table lands short after either. Neither an astral character, a variation selector, an accented
+// letter, a byte-order mark nor a lone-surrogate escape before the hit may move it off its word.
+const char = (point: number): string => String.fromCodePoint(point);
+const LONE_SURROGATE_ESCAPE = `${String.fromCodePoint(92)}uD800`;
+const AWKWARD_TEXT = [
+  `${char(0xfe_ff)}export const bag = { zqShifted: 1 };`,
+  `export const awkward = "${char(0x20_28)} ${char(0x20_29)} ${char(0x1_f5_6f)}${char(0xfe_0f)} caf${char(0xe9)} ${LONE_SURROGATE_ESCAPE}";`,
+  "export const read = bag.zqShifted;",
+].join("\n");
+
+test("a hit after a line or paragraph separator, an astral character and a BOM stays on its word", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/awkward.ts";
+  const root = await plantedTree(graphTree({ [file]: AWKWARD_TEXT }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const hits = searchLiterals(root, world, ["zqShifted"])?.hits.get("zqShifted") ?? [];
+  expect(hits.map(({ at, kind }) => `${at} ${kind}`)).toEqual([`${file}:1 write`, `${file}:3 read`]);
+  const text = world.source(file)?.text ?? "";
+  expect(hits.map(({ offset }) => text.slice(offset ?? 0, (offset ?? 0) + "zqShifted".length))).toEqual(["zqShifted", "zqShifted"]);
+});
+
 test("every kind of hit is classified where it sits", { timeout: TIMEOUT }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({
