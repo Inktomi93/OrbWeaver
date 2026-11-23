@@ -433,6 +433,7 @@ class Builder {
     this.#doors.file(sites, symbols, resolved);
     this.#routes.file(sites.routeCalls, sites.file);
     this.#constraints.file(sites, sites.file);
+    this.#flows.link(this.#constraints.inferredPairs(sites.inferredCalls), sites.file);
     this.#bareReads(sites, symbols, resolved);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(

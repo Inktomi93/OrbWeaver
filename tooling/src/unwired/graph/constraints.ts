@@ -14,6 +14,10 @@
 //   does a literal returned where the function's return type is an alias of `keyof T`.
 // - A generic type spelled with type arguments fills its declaration's constraints as a call's type arguments do, and
 //   a list handed to a generic's list parameter fills that parameter's element constraint with its own.
+// - A value a call's type argument is inferred from (`split(rows)` for `split<Room extends Candidate>(items: Room[])`)
+//   fills the constraint as a flow too: the body reads the value through the constraint's members, so those reads
+//   carry to the value's (inferredPairs). A generic hand-off flows our constraint into the callee's the same way. Only a
+//   generic the tree declares takes the flow.
 import type { CallExpression, Expression, Node, TypeNode, TypeParameterDeclaration, TypeReferenceNode } from "@typescript/native/ast";
 import {
   isCallExpression,
@@ -29,9 +33,10 @@ import {
   isTypeReferenceNode,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, NodeHandle, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, NodeHandle, Signature, Type, TypeParameter } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
+import type { FlowPair } from "./flows.ts";
 import type { TypeArgumentSite } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
@@ -86,6 +91,56 @@ export class Constraints {
       ...sited(state.batch(sites.keyReturns.map((returned) => this.#keyReturn(returned))), (y) => sites.keyReturns[y]?.value.pos ?? 0),
     ];
     state.roleNamed(named, "key", file);
+  }
+
+  /** The flow pairs of each call whose callee's type parameter is inferred from a concrete argument: the parameter's
+   *  constraint is the slot, the argument's part that bound it the value. */
+  inferredPairs(calls: readonly CallExpression[]): readonly FlowPair[] {
+    return this.#state.batch(calls.map((call) => this.#inferred(call))).flat();
+  }
+
+  *#inferred(call: CallExpression): APIRequestGenerator<readonly FlowPair[]> {
+    const { checker } = this.#state.world;
+    const generic = yield* (yield* checker.getResolvedSignature.gen(call)).getTarget.gen();
+    // a library's constraint is no reader of ours: its rules live with the library slots (flows.ts)
+    if (generic?.declaration === undefined || !this.#state.resolver.ours(generic.declaration)) {
+      return [];
+    }
+    const own = new Set((yield* generic.getTypeParameters.gen()).map(({ id }) => id));
+    const slots = yield* this.#parameterTypes(generic);
+    const seen = new Set<string>();
+    const out: FlowPair[] = [];
+    for (const [at, argument] of call.arguments.entries()) {
+      const slot = slots[at];
+      const bound = slot === undefined ? [] : yield* this.#boundBy(slot, yield* checker.getTypeAtLocation.gen(argument), own, seen);
+      for (const [parameter, value] of bound) {
+        const constraint = yield* parameter.getConstraint.gen();
+        // a type parameter of ours handed on holds what its own constraint requires
+        const held = value.isTypeParameter() ? yield* value.getConstraint.gen() : value;
+        if (constraint !== undefined && held !== undefined && !isPrimitive(constraint) && !isPrimitive(held)) {
+          out.push({ slot: constraint, value: held, site: argument.pos });
+        }
+      }
+    }
+    return out;
+  }
+
+  // Walk a generic parameter's type and an argument's type together to each of the callee's own type parameters and the
+  // part of the argument that binds it.
+  *#boundBy(slot: Type, value: Type, own: ReadonlySet<number>, seen: Set<string>): APIRequestGenerator<readonly (readonly [TypeParameter, Type])[]> {
+    const pair = `${String(slot.id)}>${String(value.id)}`;
+    if (seen.has(pair)) {
+      return [];
+    }
+    seen.add(pair);
+    if (slot.isTypeParameter()) {
+      return own.has(slot.id) ? [[slot, value]] : [];
+    }
+    const out: (readonly [TypeParameter, Type])[] = [];
+    for (const [inner, outer] of yield* this.#children(slot, value)) {
+      out.push(...(yield* this.#boundBy(inner, outer, own, seen)));
+    }
+    return out;
   }
 
   *#explicit(site: TypeArgumentSite): APIRequestGenerator<readonly Named[]> {

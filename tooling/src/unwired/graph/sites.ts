@@ -568,6 +568,9 @@ export class FileSites {
   readonly typeArguments: TypeArgumentSite[] = [];
   /** Calls inside a generic function, which may hand its type parameters to another generic's. */
   readonly genericCalls: CallExpression[] = [];
+  /** Product calls with arguments and no explicit type arguments: constraints.ts pairs each value a generic callee's
+   *  type parameter is inferred from with that parameter's constraint. */
+  readonly inferredCalls: CallExpression[] = [];
   /** String literal arguments, which name a member where the parameter is `keyof` a type. */
   readonly keyArguments: Expression[] = [];
   /** A returned key literal, or a conditional of them, with its function's declared return type. */
@@ -1059,6 +1062,9 @@ class Walker {
     }
     if (this.#frame.generic > 0) {
       this.#sites.genericCalls.push(node);
+    }
+    if (this.#sites.product && node.typeArguments === undefined && node.arguments.length > 0) {
+      this.#sites.inferredCalls.push(node);
     }
     this.#moduleLoad(node);
     this.#stores(node);

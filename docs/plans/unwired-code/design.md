@@ -119,6 +119,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A binding or literal under `satisfies T`, such as `defs satisfies Record<Task, TaskFields>` | fills `T` as a slot, and a read of its members reads `T`'s, at any depth | the same | The compiler holds each member to the checked one (tooling/src/unwired/graph/flows.ts `#checkedPairs`). A zod schema twins instead. |
 | An array spread, `[...entries, ...offs]` | each spread list fills the array's element type, as a list argument does | the same | tooling/src/unwired/graph/sites.ts `copyFlowSite`. |
 | The input of a tRPC `infiniteQueryOptions(input, …)` call | writes the input's `cursor`, and no other member | the same | TanStack Query fills the cursor from `getNextPageParam` on every page (tooling/src/unwired/graph/slots.ts `pagedWrites`). |
+| A value a call's type argument is inferred from, such as `split(rows)` for `split<Room extends Candidate>(items: Room[])`, and a type parameter of ours handed to another generic | fills the callee's constraint as a flow: the body's reads through the constraint reach the value | links the value to the constraint | tooling/src/unwired/graph/constraints.ts `inferredPairs`. An explicit type argument stays a key use. |
 | The unread member of a one-key tRPC mutation output | listed as acknowledged, apart from the judged rows | the same | The key is the procedure's whole answer (tooling/src/unwired/graph/judge.ts `acknowledgements`). |
 
 Classes still open:
