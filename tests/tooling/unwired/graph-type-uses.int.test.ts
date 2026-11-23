@@ -1,11 +1,11 @@
 // Members the type system names without a read: a type predicate's pattern, a constraint a type argument fills, a
 // literal checked against a `keyof`, and slots the flow walk pairs through a library's symbol keys, a callback's
 // parameters, a library value behind our interface and a library's inferred type parameter. Each case keeps one member
-// nothing names, which stays untouched.
+// nothing names, which no type use reaches.
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
-import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, tailwindVariants } from "./_planted.ts";
+import { FRESH_BUILD, MEMBER_BUCKETS, scanGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, labelsIn, libraryModule, tailwindVariants } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/type-uses.ts`;
 
@@ -54,16 +54,26 @@ test("a list handed to a generic's list parameter fills that parameter's element
 });
 
 test("a literal returned where the declared return is an alias of keyof names that member", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const scan = await graphScan(plantedTree, {
-    [FILE]: [
-      "export interface Report { readonly restored: number; readonly failed: number; readonly held: number }",
-      "type Disposition = keyof Report;",
-      "declare function attempt(): boolean;",
-      'async function one(): Promise<Disposition> { return attempt() ? "restored" : "failed"; }',
-      "export async function sweep(): Promise<Report> { const report = { restored: 0, failed: 0, held: 0 }; report[await one()] += 1; return report; }",
-    ].join("\n"),
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface Report { readonly restored: number; readonly failed: number; readonly held: number }",
+        "type Disposition = keyof Report;",
+        "declare function attempt(): boolean;",
+        'async function one(): Promise<Disposition> { return attempt() ? "restored" : "failed"; }',
+        "export async function sweep(): Promise<Report> { const report = { restored: 0, failed: 0, held: 0 }; report[await one()] += 1; return report; }",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, () => undefined, {
+    ...FRESH_BUILD,
+    why: ["restored", "failed", "held"].map((name) => ({ kind: "member", owner: "Report", name }) as const),
   });
-  expect(bucketsIn(scan)).toEqual(["member-untouched Report.held"]);
+  expect(bucketsIn(scan)).toEqual(["member-write-only Report.restored", "member-write-only Report.failed", "member-write-only Report.held"]);
+  expect(scan.session.why.filter(({ role }) => role === "key").map(({ member, site }) => [member, site])).toEqual([
+    ["Report.restored", `${FILE}:4`],
+    ["Report.failed", `${FILE}:4`],
+  ]);
 });
 
 // `pairs.values()` fills an `Iterable` slot through `[Symbol.iterator]`, a member only its escaped name carries. The
