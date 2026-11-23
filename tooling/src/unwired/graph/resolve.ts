@@ -147,7 +147,7 @@ const NO_VALUE_SPELLING: ValueSpelling = { roots: [], tuples: [] };
 
 // Lib type names whose arguments are key sets, by the argument that is: `Record<K, V>`, `Pick<T, K>`, `Omit<T, K>`,
 // `Exclude<K, X>`, `Extract<K, X>`; and the ones that pass a key set through whole. By name, as
-// tooling/src/unwired/union-origins.ts reads them, since lib declares each once.
+// tooling/src/unwired/graph/union-slots.ts reads them, since lib declares each once.
 const KEY_ARGUMENT: ReadonlyMap<string, number> = new Map([
   ["Record", 0],
   ["Pick", 1],
