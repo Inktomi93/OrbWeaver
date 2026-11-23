@@ -1,7 +1,7 @@
 // Members the type system names without a read: a type predicate's pattern, a constraint a type argument fills, a
-// literal checked against a `keyof`, and slots the flow walk pairs through a library's symbol keys, a callback's
-// parameters, a library value behind our interface and a library's inferred type parameter. Each case keeps one member
-// nothing names, which no type use reaches.
+// literal checked against a `keyof` (a key use only, so a member the product writes and never reads stays write-only),
+// and slots the flow walk pairs through a library's symbol keys, a callback's parameters, a library value behind our
+// interface and a library's inferred type parameter. Each case keeps one member nothing names, which no type use reaches.
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
 import { FRESH_BUILD, MEMBER_BUCKETS, scanGraph } from "../../../tooling/src/unwired/index.ts";
@@ -53,7 +53,9 @@ test("a list handed to a generic's list parameter fills that parameter's element
   expect(bucketsIn(scan)).toEqual(["member-untouched rerankOrKeep.spare"]);
 });
 
-test("a literal returned where the declared return is an alias of keyof names that member", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("a literal returned where the declared return is an alias of keyof keys that member, which a discarded bump only writes", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
   const root = await plantedTree(
     graphTree({
       [FILE]: [

@@ -199,6 +199,30 @@ test("a library type parameter its holder binds pairs the value with the holder'
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Boxed.unread", "Shown.unread"]);
 });
 
+// The same holds for a value inside a literal argument: `{ value: item }` fills the holder's bound `T`, not a type
+// parameter `put` declares, so the value pairs with Held and is read where `take` hands it back. A value under the call's
+// own type parameter is still sent whole.
+test("a value inside a literal argument typed by a type parameter its holder binds pairs with that instantiation", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export interface Shelf<T extends object> { put(entry: { readonly value: T }): void; take(): T }",
+      "export declare function shelf<T extends object>(): Shelf<T>;",
+      "export declare function stash<V extends object>(entry: { readonly value: V }): void;",
+    ]),
+    ...source([
+      'import { shelf, stash } from "lib";',
+      "export interface Held { readonly kept: string; readonly unread: string }",
+      "export interface Stashed { readonly unread: string }",
+      "export const held = (item: Held): string => { const at = shelf<Held>(); at.put({ value: item }); return at.take().kept; };",
+      "export const stashed = (item: Stashed): void => { stash({ value: item }); };",
+    ]),
+  });
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Stashed.unread"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Held.unread"]);
+});
+
 // A library slot typed `unknown` takes a value by identity (open-sends.ts identitySlot), as React compares a dependency
 // list, so nothing in the value is read or sent; a library slot that takes keys still sends what it is given.
 test("a library slot typed unknown takes a value by identity; a keyed library slot sends it", { timeout: 120_000 }, async ({ plantedTree }) => {

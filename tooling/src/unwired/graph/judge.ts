@@ -43,6 +43,7 @@ import { declKeyParts } from "./resolve.ts";
 import type { DeclInfo } from "./sites.ts";
 import { isDeclKey, MEMBER_KINDS } from "./sites.ts";
 import type { GraphFacts, RoleSite } from "./state.ts";
+import { siteLine } from "./why.ts";
 
 /** The lists a member row is judged by. */
 export interface MemberRulings {
@@ -119,8 +120,7 @@ class Sources {
   }
 
   located(file: string, at: number): string {
-    const source = this.#source(file);
-    return source === undefined || at === 0 ? file : `${file}:${String(source.getLineAndCharacterOfPosition(at).line + 1)}`;
+    return `${file}:${String(siteLine(this.#world, file, at))}`;
   }
 
   // Whether a write site gives the member a literal: a key's or a field's initializer, or a JSX attribute's, through

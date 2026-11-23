@@ -1413,11 +1413,15 @@ class Walker {
     }
   }
 
-  // A returned key literal: the function's declared return type may be a `keyof` that names a member by it.
+  // A key literal a function returns, by a `return` or as a concise arrow body: the function's declared return type may
+  // be a `keyof` that names a member by it.
   #keyReturn(node: Node): void {
-    const returned = isReturnStatement(node) && node.expression !== undefined && keyLiterals(node.expression) !== null ? node.expression : undefined;
-    const declared = returned === undefined ? undefined : declaredReturnType(node);
-    if (returned !== undefined && declared !== undefined) {
+    const returned = returnedValue(node);
+    if (returned === undefined || keyLiterals(returned) === null) {
+      return;
+    }
+    const declared = isArrowFunction(node) ? node.type : declaredReturnType(node);
+    if (declared !== undefined) {
       this.#sites.keyReturns.push({ value: returned, type: declared });
     }
   }
@@ -1678,6 +1682,14 @@ function exportedStatement(node: Node): boolean {
 
 const isDocNameHolder = (node: Node): boolean =>
   isJSDocLink(node) || isJSDocLinkCode(node) || isJSDocLinkPlain(node) || isJSDocNameReference(node) || isJSDocTypeExpression(node);
+
+// The value a function hands back at `node`: a `return`'s expression or a concise arrow body.
+function returnedValue(node: Node): Expression | undefined {
+  if (isReturnStatement(node)) {
+    return node.expression;
+  }
+  return isArrowFunction(node) && !isBlock(node.body) ? node.body : undefined;
+}
 
 // The return type the function holding a return statement declares.
 function declaredReturnType(node: Node): TypeNode | undefined {

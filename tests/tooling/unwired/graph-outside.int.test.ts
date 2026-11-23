@@ -57,7 +57,8 @@ test("a unit the testkit, tooling or a test file alone reaches is split by its r
 });
 
 // A member the product never reads, writes or reaches is untouched though a test reads it: a testkit read is no edge the
-// product runs. The member the product reads off the same value is the control.
+// product runs. The member the product reads off the same value is one control; the member a concise arrow's literal
+// names through `keyof Report` is the other, as deleting it fails the compile.
 const REPORT = `${GRAPH_SOURCE}/report.ts`;
 
 test("a member only the testkit reads is untouched; a test's read is no product edge into it", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -69,16 +70,16 @@ test("a member only the testkit reads is untouched; a test's read is no product 
     [REPORT]: [
       "export interface Report { readonly restored: number; readonly held: number; readonly failed: number }",
       "type Disposition = keyof Report;",
-      'const one = (ok: boolean): Disposition => (ok ? "restored" : "failed");',
+      'const one = (): Disposition => "restored";',
       "export function sweep(): Report {",
       "  const report = { restored: 0, held: 0, failed: 0 } satisfies Record<Disposition, number>;",
-      "  report[one(true)] += 1;",
+      "  report[one()] += 1;",
       "  return report;",
       "}",
     ].join("\n"),
     [KIT]: 'import { sweep } from "../../packages/a/src/report.ts";\nexport const seen = sweep().failed;',
   });
-  expect(labelsIn(scan, "member-untouched", REPORT)).toEqual(["Report.restored", "Report.failed"]);
+  expect(labelsIn(scan, "member-untouched", REPORT)).toEqual(["Report.failed"]);
 });
 
 // A leading underscore pins a top-level binding unread on purpose (noUnusedLocals' convention), so what it reaches is

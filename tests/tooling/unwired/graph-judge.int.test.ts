@@ -93,23 +93,26 @@ test("an untwinned schema key nothing reads reports as validated, apart from the
 });
 
 // A value serialized into a file sends every member it holds, nested ones too, to a file: an outside receiver, so the
-// sort asks a person.
+// sort asks a person. The destination names the line the sent value sits on, past the comment and line break before it.
 test("a member sent whole into a file names the file destination, to its nested members, and sorts as ask", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({
       [RULES]: [
         "declare function writeFileSync(path: string, data: string): void;",
         "export interface Export { readonly rows: string; readonly inner: { readonly deep: string } }",
-        'export const save = (value: Export): void => writeFileSync("out.json", JSON.stringify(value));',
+        'export const save = (value: Export): void => writeFileSync("out.json", JSON.stringify(',
+        "  // the export, whole",
+        "  value,",
+        "));",
       ].join("\n"),
     }),
   );
   const scan = await scanGraph(root, quiet);
   const sent = scan.members.unwired.map(({ key, sent: to, verdict }) => [key.slice(RULES.length + 1), to, verdict]);
   expect(sent).toEqual([
-    ["Export.rows", [`file ${RULES}:3`], "ask"],
-    ["Export.inner", [`file ${RULES}:3`], "ask"],
-    ["Export.inner.deep", [`file ${RULES}:3`], "ask"],
+    ["Export.rows", [`file ${RULES}:5`], "ask"],
+    ["Export.inner", [`file ${RULES}:5`], "ask"],
+    ["Export.inner.deep", [`file ${RULES}:5`], "ask"],
   ]);
 });
 
