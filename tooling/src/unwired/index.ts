@@ -8,7 +8,6 @@
 export type { Restatement } from "../eslint/index.ts";
 export { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../eslint/index.ts";
 export { Sources } from "./classify.ts";
-export { scanFields } from "./fields.ts";
 export type { Analysis, Bucket, Finding, MemberBucket } from "./graph/analyse.ts";
 export { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 export type { CodesReport } from "./graph/codes.ts";
@@ -18,6 +17,7 @@ export { CSS_BUCKETS } from "./graph/css.ts";
 export type { DomBucket, DomReport, Unresolved, World } from "./graph/dom.ts";
 export { DOM_BUCKETS, WORLDS } from "./graph/dom.ts";
 export { GRAPH_DUMP_FORMAT } from "./graph/dump.ts";
+export type { FieldsReport } from "./graph/fields.ts";
 export type { Ablation, GraphOptions, Trace, WhyTarget } from "./graph/options.ts";
 export { ABLATIONS, FRESH_BUILD } from "./graph/options.ts";
 export type { ParamsReport } from "./graph/params.ts";
@@ -34,6 +34,7 @@ export {
   columnsGraph,
   cssGraph,
   domGraph,
+  fieldsGraph,
   paramsGraph,
   proceduresGraph,
   queryGraph,

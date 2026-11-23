@@ -66,8 +66,8 @@ export interface MemberReferences {
 
 const emptyCounts = (): Record<ReferenceKind, number> => ({ use: 0, builder: 0, plumbing: 0, test: 0, external: 0 });
 
-/** The sites an index holds for a declaration's keys, its own name excluded. */
-export function sitesOf(index: ReferenceIndex, keys: readonly string[], own: Site): readonly Site[] {
+// The sites an index holds for a declaration's keys, its own name excluded.
+function sitesOf(index: ReferenceIndex, keys: readonly string[], own: Site): readonly Site[] {
   const seen = new Map<string, Site>();
   for (const site of keys.flatMap((key) => index.get(key) ?? [])) {
     seen.set(siteKey(site), site);
@@ -102,8 +102,8 @@ function memberReferences(members: readonly DetachedMember[], index: ReferenceIn
   });
 }
 
-/** The package worlds and the test worlds a scan runs over, defaulted from the root. */
-export function scanWorlds(options: ScanOptions): { readonly worlds: readonly string[]; readonly testWorlds: readonly string[] } {
+// The package worlds and the test worlds a scan runs over, defaulted from the root.
+function scanWorlds(options: ScanOptions): { readonly worlds: readonly string[]; readonly testWorlds: readonly string[] } {
   return { worlds: options.worlds ?? packageWorlds(options.root), testWorlds: options.testWorlds ?? TEST_WORLDS };
 }
 

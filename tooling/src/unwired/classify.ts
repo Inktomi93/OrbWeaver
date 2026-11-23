@@ -1,9 +1,8 @@
 // What one reference means, read from the TypeScript 6 syntax at its position. Both engines report sites and classify
 // through here, so they disagree only about which references exist, never about what a reference means.
 //
-// - The fields scan takes a member's writes from the site-role reader on the 7.1 tree (graph/roles.ts) and asks
-//   {@link roleAt} only whether a site is a read or a type position. The other scans still take writes from here,
-//   which keeps a bump, a destructuring slot and a for-of target as reads (docs/work/3858-one-write-access-reader-covers-every-write-form.md).
+// - A write is read from here, which keeps a bump, a destructuring slot and a for-of target as reads
+//   (docs/work/3858-one-write-access-reader-covers-every-write-form.md).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
@@ -28,8 +27,8 @@ export type SyntaxRole = (typeof SYNTAX_ROLES)[number];
 
 const PRODUCTION = /^packages\/[^/]+\/(?:src\/|[^/]+\.(?:ts|tsx|mts)$)/u;
 
-/** A file whose references count as production. */
-export const isProductionFile = (relativePath: string): boolean => PRODUCTION.test(relativePath);
+// A file whose references count as production.
+const isProductionFile = (relativePath: string): boolean => PRODUCTION.test(relativePath);
 
 /** Source files parsed alone by TypeScript 6, one parse per file for the whole run. */
 export class Sources {
@@ -129,8 +128,8 @@ function roleOf(node: ts.Node | undefined): SyntaxRole {
   return ts.isPropertyAccessExpression(parent) && parent.name === node ? accessRole(parent) : "read";
 }
 
-/** The role of the reference at `position` in `source`. */
-export function roleAt(source: ts.SourceFile, position: number): SyntaxRole {
+// The role of the reference at `position` in `source`.
+function roleAt(source: ts.SourceFile, position: number): SyntaxRole {
   return roleOf(nameAt(source, position));
 }
 

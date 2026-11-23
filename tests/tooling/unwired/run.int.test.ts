@@ -21,16 +21,17 @@ test.for([
   expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
 });
 
-// The unions, codes, params, shapes, procedures and columns scans have no engine two, so a cross-check request is refused
-// before any world loads; the fields scan, which has one, is the control that takes the flag.
+// The fields, unions, codes, params, shapes, procedures and columns scans have no engine two, so a cross-check request is
+// refused before any world loads; the member scan, which has one, is the control that takes the flag.
 test.for([
+  { verb: "fields", exit: EXIT.misuse },
   { verb: "unions", exit: EXIT.misuse },
   { verb: "codes", exit: EXIT.misuse },
   { verb: "params", exit: EXIT.misuse },
   { verb: "shapes", exit: EXIT.misuse },
   { verb: "procedures", exit: EXIT.misuse },
   { verb: "columns", exit: EXIT.misuse },
-  { verb: "fields", exit: EXIT.clean },
+  { verb: "scan", exit: EXIT.clean },
 ])("unwired $verb --cross-check exits $exit", SPAWNS_CLI, async ({ verb, exit }, { runCli, scratch }) => {
   const run = await runCli("unwired", [verb, "--cross-check", `--root=${scratch}`]);
   await expect(run).toExitWith(exit);
@@ -56,9 +57,9 @@ function expectEveryBucket(run: { readonly stderr: string }, out: string): void 
   expect(buckets.filter((bucket) => !summary.split(" ").includes(bucket))).toEqual([]);
 }
 
-// The params, shapes, procedures and columns queries build the graph, which reads its roots from the tree's knip config,
-// so their root is an empty graph tree; every other scan here runs over the empty scratch root.
-const GRAPH_VERBS: ReadonlySet<string> = new Set(["params", "shapes", "procedures", "columns"]);
+// The fields, params, shapes, procedures and columns queries build the graph, which reads its roots from the tree's knip
+// config, so their root is an empty graph tree; the member scan runs over the empty scratch root.
+const GRAPH_VERBS: ReadonlySet<string> = new Set(["fields", "params", "shapes", "procedures", "columns"]);
 test.for(["scan", "fields", "params", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
   SPAWNS_CLI,

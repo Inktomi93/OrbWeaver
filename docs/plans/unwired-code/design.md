@@ -50,12 +50,12 @@ Scan tables are not committed, because `reports/` is gitignored. Each scan write
 
 Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. 3838 traced the rows.
 
-- Find-references on a member also returns the sites of every member that shares its base: the base's own and each sibling override's, as `<p className>` beside a props type that redeclares `className`. Engine two tags those sites `relative`. A tagged write builds the base's or the sibling's value, so the fields audit never counts it as a write. A tagged read still counts, since a subtype value can reach a base-typed reader. The member's own sites and those of the members that inherit it stay untagged.
+- Find-references on a member also returns the sites of every member that shares its base: the base's own and each sibling override's, as `<p className>` beside a props type that redeclares `className`. Engine two tags those sites `relative`. A tagged write builds the base's or the sibling's value, so it is no write of the asked member. A tagged read still counts, since a subtype value can reach a base-typed reader. The member's own sites and those of the members that inherit it stay untagged.
 - A component handed on through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`, escapes: engine one's value index and the params graph query both read a namespace member as a value use of the module's declaration.
 
 ## One pass for the member scan
 
-`pnpm unwired scan` builds each world's program once and judges every member with engine one. Engine two and the TypeScript 6 flow pass found no use engine one lacks, in the fixtures and on the real tree, so engine two runs only under `--cross-check`, through the TypeScript 6 language service, and a member it finds used is a disagreement to fix in engine one. The fields and unions scans keep both engines while the fields disagreement stands. The params scan is a query over the reference graph (D357) and has no engine two.
+`pnpm unwired scan` builds each world's program once and judges every member with engine one. Engine two and the TypeScript 6 flow pass found no use engine one lacks, in the fixtures and on the real tree, so engine two runs only under `--cross-check`, through the TypeScript 6 language service, and a member it finds used is a disagreement to fix in engine one. The fields, unions and params scans are queries over the reference graph (D357) and have no engine two.
 
 Engine one counts two uses no name shows:
 
@@ -64,7 +64,7 @@ Engine one counts two uses no name shows:
 
 ## Limits of the fields scan
 
-Engine one links a hand-off through a generic constraint, a spread into a typed literal down its nested members, an `in` check and a key typed by a type parameter. These forms stay reported as findings, so judge them by hand:
+The fields query links a hand-off through a generic constraint and a spread into a typed literal down its nested members. These forms stay reported as findings, so judge them by hand:
 
 - A computed key built from runtime strings, such as a template of `prefix` and `suffix`, types as `string`. No name is known, so no field is read or written.
 - A type-level registry entry reached only through `Registry[K]` in a type position. The scan counts a type position as no read, so the entry needs a value read by name.
@@ -79,7 +79,7 @@ A key an `.extend({ key })` call re-declares is the base schema's key, so its re
 
 ## Member rows on the graph against the fields scan
 
-The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields scan's `file:Home.member` key, so one judged list and one deliberate list serve both. Where a row differs from the fields row of the same key, this table holds the reason. The graph's answer is the target unless the row says otherwise.
+The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields scan's `file:Home.member` key, so one judged list and one deliberate list serve both. `pnpm unwired fields` reports those rows (tooling/src/unwired/graph/fields.ts); the fields scan column gives engine one's answer, which the switch's row diff is checked against. Where a row differs from the fields row of the same key, this table holds the reason. The graph's answer is the target unless the row says otherwise.
 
 | Class | Graph | Fields scan | Ruling |
 | - | - | - | - |
@@ -126,6 +126,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A value whose `JSON.stringify` string is compared, hashed or keyed, or handed to a dotted-path reader (`nestedValue(value, path)`) | reads every member, at any depth | reads the members | tooling/src/unwired/open-sends.ts `sendChase`; the dotted-path readers are `NESTED_READS` in tooling/src/unwired/boundaries.ts. |
 | A value handed to an in-tree body that only tests, voids or drops it on every path, itself or through a helper it calls | no escape: nothing receives it | sends nothing | tooling/src/unwired/open-sends.ts `sendChase`. A body that returns, stores or passes the value on along any path keeps the escape. |
 | An assertion: `tree as Chip` of a parameter a library typed, of a returned closure's `unknown` parameter, or a cast into an opaque type | the asserted type's members are sent to that library, or to the closure's unseen caller; a cast's operand is sent only where the chase names a receiver or a provider request | the same | tooling/src/unwired/open-sends.ts `assertedDestination`, tooling/src/unwired/graph/flows.ts `#assertions`. A cast nothing follows is no send. |
+| A member a Drizzle store copies by key or carries whole, such as `values({ body: input.body })`, with no other use | read only where the product reads the column back; the copy's own use reaches nothing, so a member nothing else uses reports `member-untouched` | the same | tooling/src/unwired/graph/analyse.ts `stored`. A member that also fills one of our slots stays judged at that slot. |
 | A property read off a receiver typed `any`, such as `untyped.stray` | credits no member; a lost read (`any-receiver`) by its name, so the member rows can list it beside a row of that name | credits no field; listed in `unresolved` beside a reported row of that name | tooling/src/unwired/graph/build.ts `#anyReceiverReads`. A write through `any` is not listed. |
 | A literal key read through a string-indexed type a typed value was handed into in the same file, such as `line["done"]` on a `Record<string, unknown>` | reads the value's members of the key's name, at any depth | the same | tooling/src/unwired/graph/keys.ts `#sinkReads`. It cannot tell two values handed into one type apart. |
 | A value handed into a slot with a string index signature, such as an `Entry` into a `LogRecord` with `[field: string]: unknown` | pairs the members the slot names; each other member is sent, nested members too, where the value goes | the same | tooling/src/unwired/graph/flows.ts `#indexedEscapes`. |

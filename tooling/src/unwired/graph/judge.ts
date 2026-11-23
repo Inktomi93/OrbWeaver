@@ -74,7 +74,7 @@ const MEMBER_ORIGINS = ["type", "schema"] as const;
 type MemberOrigin = (typeof MEMBER_ORIGINS)[number];
 
 /** One member finding as a row the lists can name, with its sort, its sends and its literal search. */
-interface MemberRow {
+export interface MemberRow {
   readonly key: string;
   readonly bucket: MemberBucket;
   readonly file: string;
