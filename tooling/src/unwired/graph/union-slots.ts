@@ -30,6 +30,7 @@ import type {
   GetAccessorDeclaration,
   Identifier,
   IndexedAccessTypeNode,
+  JsxAttribute,
   MethodDeclaration,
   MethodSignatureDeclaration,
   NewExpression,
@@ -72,6 +73,9 @@ import {
   isIndexedAccessTypeNode,
   isInterfaceDeclaration,
   isIntersectionTypeNode,
+  isJsxAttribute,
+  isJsxAttributes,
+  isJsxExpression,
   isLiteralTypeNode,
   isMappedTypeNode,
   isMethodDeclaration,
@@ -584,6 +588,7 @@ function passesThrough(parent: Node, node: Node): boolean {
   return (
     isParenthesizedExpression(parent) ||
     isNonNullExpression(parent) ||
+    isJsxExpression(parent) ||
     isArrayLiteralExpression(parent) ||
     (isConditionalExpression(parent) && !sameNode(parent.condition, node)) ||
     (isBinaryExpression(parent) && PASSING_OPERATORS.has(parent.operatorToken.kind)) ||
@@ -1144,6 +1149,9 @@ function* receivingStep(world: NativeWorld, { node, path, element }: Climb & { r
   if (returning !== undefined) {
     return { done: marked(yield* returnSpellings(world, returning), element) };
   }
+  if (isJsxAttribute(parent) && parent.initializer !== undefined && sameNode(parent.initializer, node)) {
+    return { done: marked(yield* jsxAttributeSpellings(world, parent), element) };
+  }
   return yield* objectStep(world, node, { path, element });
 }
 
@@ -1263,7 +1271,23 @@ function* destructuredSpellings(world: NativeWorld, element: BindingElement): AP
   if (annotation === undefined || name === null) {
     return null;
   }
-  const found = yield* propertyOn(world, yield* constituents(yield* world.checker.getTypeAtLocation.gen(annotation)), name);
+  return yield* foundSpellings(world, yield* propertyOn(world, yield* constituents(yield* world.checker.getTypeAtLocation.gen(annotation)), name));
+}
+
+// A JSX attribute's value (`<Pane inset="block" />`): the declaration of the props property it sets, under the props
+// type's instantiation.
+function* jsxAttributeSpellings(world: NativeWorld, attribute: JsxAttribute): APIRequestGenerator<Declared> {
+  const { parent } = attribute;
+  const props = isIdentifier(attribute.name) && isJsxAttributes(parent) ? yield* world.checker.getContextualType.gen(parent) : undefined;
+  if (props === undefined || !isIdentifier(attribute.name)) {
+    return null;
+  }
+  return yield* foundSpellings(world, yield* propertyOn(world, yield* constituents(props), attribute.name.text));
+}
+
+// The annotations of a found property's declarations, under its owners' instantiations; null when one is unannotated
+// or outside the production sources.
+function* foundSpellings(world: NativeWorld, found: FoundProperty): APIRequestGenerator<Declared> {
   const types = found.sites.map((site) => annotationOf(declarationAt(world, site)));
   if (types.length === 0 || types.includes(undefined)) {
     return null;

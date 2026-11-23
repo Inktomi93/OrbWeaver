@@ -785,6 +785,28 @@ test("a React state setter is read through the state's type argument, and credit
   expect(sortedRows(await scanUnions(plantedTree, REACT_SETTER_TREE))).toEqual(["PHASES.open", "STAGES.gone"]);
 });
 
+// A JSX attribute is read through the props property it sets, directly or through a `{...}` expression. INSETS and
+// GAPS share `block` and `none`; each attribute credits only the tuple its own prop is typed by.
+const JSX_ATTRIBUTE_TREE = {
+  "packages/a/src/pane.tsx": [
+    'const INSETS = ["section", "block", "none"] as const;',
+    "type Inset = (typeof INSETS)[number];",
+    'const GAPS = ["block", "none", "wide"] as const;',
+    "type Gap = (typeof GAPS)[number];",
+    "interface PaneProps { readonly inset?: Inset }",
+    "interface GapProps { readonly gap?: Gap }",
+    "export function Pane({ inset }: PaneProps): unknown { return inset; }",
+    "export function Spacer({ gap }: GapProps): unknown { return gap; }",
+    'export const pane = <Pane inset="block" />;',
+    'export const either = (wide: boolean): unknown => <Pane inset={wide ? "section" : "none"} />;',
+    'export const spacer = <Spacer gap="wide" />;',
+  ].join("\n"),
+};
+
+test("a JSX attribute is read through the props property it sets, and credits only that prop's tuple", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, JSX_ATTRIBUTE_TREE))).toEqual(["GAPS.block", "GAPS.none"]);
+});
+
 // A destructured name reads the property its annotated holder declares: `level` in `{ level }: Gauge` is a Level, so
 // the case and the comparison on it count for LEVELS. The same name destructured from an inline-typed holder traces
 // to no tuple, so `"high"` counts for none.
