@@ -10,6 +10,7 @@
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
 // - A spread into an object literal copies; it never escapes.
+// - A slot with a string index signature pairs the members it names; the value's other members escape with it.
 // - Two instances of one generic pair their type arguments by each type parameter's variance (variance.ts): a parameter
 //   used only where a value comes out (`Box<T>`'s `value: T`) pairs forward, one used only where a value goes in
 //   (`Options<V>`'s `mutationFn: (vars: V) => …`) pairs backward, one used both ways pairs both ways, and one never used
@@ -35,7 +36,7 @@ import {
   isSpreadElement,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
-import { TypeFlags } from "@typescript/native/sync";
+import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Destination, ProviderReach } from "../open-sends.ts";
@@ -381,6 +382,18 @@ export class Flows {
     });
   }
 
+  // Where a value a pair hands on goes, chased from the value at the pair's site; the pair's value is that site's own
+  // when their types are one.
+  #pairDestinations(pairs: readonly FlowPair[]): readonly Destination[] {
+    const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
+    const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
+    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
+    return this.#destinations(nodes, (at) => {
+      const node = nodes[at];
+      return node !== undefined && types.get(node)?.id === pairs[at]?.value.id;
+    });
+  }
+
   // The backends' request reach over the program's production files, made once.
   #providerReach(): ProviderReach {
     const { world } = this.#state;
@@ -720,13 +733,7 @@ export class Flows {
         escaping.push(pair);
       }
     }
-    const siteValues = escaping.map(({ site }) => this.#siteNodes.get(site));
-    const siteTypes = state.world.typesAt(siteValues.flatMap((node) => (node === undefined ? [] : [node])));
-    const typeOf = new Map(siteValues.flatMap((node) => (node === undefined ? [] : [node])).map((node, y) => [node, siteTypes[y]] as const));
-    const sends = this.#destinations(siteValues, (y) => {
-      const node = siteValues[y];
-      return node !== undefined && typeOf.get(node)?.id === escaping[y]?.value.id;
-    });
+    const sends = this.#pairDestinations(escaping);
     for (const [y, pair] of escaping.entries()) {
       this.escape(pair.value, false, { file, at: pair.site }, sends[y] ?? UNCLASSIFIED);
     }
@@ -785,10 +792,39 @@ export class Flows {
     return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(this.#pairKey(pair));
   }
 
+  // A slot with a string index signature takes the value's members it does not name as open entries: whoever reads
+  // the slot reads them by no name, so each escapes with everything it holds, chased from the value at the pair's site.
+  #indexedEscapes(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[], file: string): void {
+    const { state } = this;
+    const { checker } = state.world;
+    const indexed = state.batch(
+      fresh.map(function* ({ slot }): APIRequestGenerator<boolean> {
+        for (const arm of yield* constituentsOf(slot)) {
+          if (!isPrimitive(arm) && (yield* checker.getIndexInfoOfType.gen(arm, IndexKind.String)) !== undefined) {
+            return true;
+          }
+        }
+        return false;
+      }),
+    );
+    const open = fresh.flatMap((pair, x) => (indexed[x] === true ? [{ pair, named: new Set((slotMembers[x] ?? []).map(({ name }) => name)) }] : []));
+    const values = state.batch(open.map(({ pair }) => state.membersOf(pair.value)));
+    const unnamed = open.map(({ named }, y) => (values[y] ?? []).filter(({ name }) => !named.has(name)));
+    const types = state.batch(unnamed.map((members) => allOf(members.map((member) => checker.getTypeOfSymbol.gen(member)))));
+    const decls = unnamed.map((members) => state.declarations(members).flat());
+    const escaping = open.flatMap(({ pair }, y) => ((decls[y]?.length ?? 0) === 0 ? [] : [{ pair, y }]));
+    const sends = this.#pairDestinations(escaping.map(({ pair }) => pair));
+    for (const [z, { pair, y }] of escaping.entries()) {
+      const held = (types[y] ?? []).filter((type) => !isPrimitive(type)).flatMap((type) => this.deepMembers(type, false));
+      state.escapeAll([...(decls[y] ?? []), ...held], { file, at: pair.site }, sends[z] ?? UNCLASSIFIED);
+    }
+  }
+
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
+    this.#indexedEscapes(fresh, slotMembers, file);
     const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
     const matched = asks.flatMap(({ pair, member, x }, y) => {

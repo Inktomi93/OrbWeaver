@@ -291,3 +291,27 @@ test("a written data attribute is sent, a written aria attribute is read, and an
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Props.aria-unused"]);
   expect(labelsIn(scan, "member-write-only", FILE)).toEqual([]);
 });
+
+// A slot with a string index signature names some members and takes the rest as open entries: the members it does not
+// name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
+// it names pairs, so a read of the slot's member reads it.
+test("a value's members a string-index slot does not name are sent where the slot's value goes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export interface Logger { debug<T extends object>(obj: T, msg?: string): void }"], "pino"),
+    ...source([
+      'import type { Logger } from "pino";',
+      "export interface Trace { readonly built: number }",
+      "export interface Entry { readonly event: string; readonly trace: Trace }",
+      "export interface LogRecord { readonly event: string; readonly [field: string]: unknown }",
+      "const record = (entry: LogRecord, base: Logger): void => base.debug({ memory: true, ...entry }, entry.event);",
+      "export const build = (base: Logger): void => {",
+      "  const sink = { log: (entry: Entry): void => record(entry, base) };",
+      '  sink.log({ event: "e", trace: { built: 1 } });',
+      "};",
+    ]),
+  });
+  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+    ["Trace.built", "member-sent-only", [`log ${FILE}:7 pino`]],
+    ["Entry.trace", "member-sent-only", [`log ${FILE}:7 pino`]],
+  ]);
+});
