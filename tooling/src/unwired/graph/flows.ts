@@ -42,7 +42,7 @@ import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
-import { identitySlot, providerReach, sendChase } from "../open-sends.ts";
+import { assertedDestination, identitySlot, providerReach, sendChase } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -184,9 +184,50 @@ export class Flows {
     const checked = this.#checkedPairs(sites);
     this.#checkSites = new Set(checked.map(({ site }) => site));
     this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites), ...checked], sites.file);
+    this.#assertions(sites);
     this.#heldTypes = NO_HELD_TYPES;
     this.#checkSites = NO_CHECK_SITES;
     this.#siteNodes = NO_SITE_NODES;
+  }
+
+  // An assertion hands its operand to the asserted type. Of a parameter a library typed (or a returned closure's
+  // `unknown` parameter), the asserted type's members go to that library (or the closure's unseen caller), which hands
+  // the object in and reads it back (open-sends.ts assertedDestination). Into an opaque type the operand is handed on
+  // and escapes only where the chase names a receiver or a provider request: an unfollowed cast is no send.
+  #assertions(sites: FileSites): void {
+    const { state } = this;
+    const { assertions } = sites;
+    if (assertions.length === 0) {
+      return;
+    }
+    const asserted = state.world.typesAt(assertions);
+    const operands = state.world.typesAt(assertions.map(({ expression }) => expression));
+    const libraries = state.batch(assertions.map((assertion) => assertedDestination(state.world, assertion)));
+    this.#opaqueOf(asserted);
+    const handedOn = assertions.flatMap((assertion, at) => {
+      const [type, operand] = [asserted[at], operands[at]];
+      return libraries[at] === null &&
+        type !== undefined &&
+        operand !== undefined &&
+        this.#opaque.get(type.id) === true &&
+        !isPrimitive(operand) &&
+        !opaqueFlag(operand)
+        ? [{ assertion, operand }]
+        : [];
+    });
+    const chases = state.batch(handedOn.map(({ assertion }) => sendChase(state.world, assertion)));
+    for (const [at, assertion] of assertions.entries()) {
+      const [library, type] = [libraries[at], asserted[at]];
+      if (library !== null && library !== undefined && type !== undefined) {
+        this.escape(type, false, { file: sites.file, at: assertion.pos }, library);
+      }
+    }
+    for (const [y, { assertion, operand }] of handedOn.entries()) {
+      const send = chases[y]?.to[0] ?? (this.#providerReach().has(assertion) ? PROVIDER_SEND : undefined);
+      if (send !== undefined) {
+        this.escape(operand, false, { file: sites.file, at: assertion.pos }, send);
+      }
+    }
   }
 
   // `defs satisfies Record<Task, TaskFields>`: the checked type is the value's slot, made at the type node.

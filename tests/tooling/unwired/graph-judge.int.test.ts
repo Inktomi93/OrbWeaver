@@ -359,7 +359,7 @@ test("a never-read one-member mutation output reports as an acknowledgement, apa
 });
 
 // Inside the provider backends a value no destination takes is a provider send only where it reaches a request: through
-// a helper's return and a parameter's callers here. A value a Response reader returns never does, even inside a literal
+// a helper's return, a parameter's callers and a cast keyed into a binding here. A value a Response reader returns never does, even inside a literal
 // that reaches one, and a nested value keeps the destination of the call its literal goes to. A provider field a README names is received, never judged.
 test("a backend value that reaches a provider request is sent to the provider, and received where a doc names it", { timeout: 120_000 }, async ({
   plantedTree,
@@ -387,10 +387,17 @@ test("a backend value that reaches a provider request is sent to the provider, a
         "declare const answer: Answer;",
         "const knobsOf = (): JSONObject => knobs;",
         "const decode = (res: Response): Answer => (res.ok ? answer : answer);",
+        "interface Extras { readonly keyed: number }",
+        "declare const extras: Extras;",
+        "const extrasFor = (key: string): JSONObject => {",
+        "  const out: JSONObject = {};",
+        "  out[key] = extras as JSONObject[string];",
+        "  return out;",
+        "};",
         "interface Call { readonly options: { readonly providerOptions?: Record<string, JSONObject> }; readonly translate: (res: Response) => Json }",
         "const stream = (model: Model, args: Call): Promise<void> => model.doStream({ ...args.options });",
         "export const run = async (model: Model): Promise<void> => {",
-        "  await model.doStream({ providerOptions: { router: { routing } } });",
+        '  await model.doStream({ providerOptions: { router: { routing }, keyed: extrasFor("k") } });',
         "  const providerOptions = { router: knobsOf() };",
         "  await stream(model, { options: { providerOptions }, translate: decode });",
         "};",
@@ -406,8 +413,9 @@ test("a backend value that reaches a provider request is sent to the provider, a
     unwired: [
       ["Call.translate", "member-write-only", []],
       ["Knobs.minP", "member-sent-only", [`provider ${backend}:10`]],
-      ["Routing.order", "member-sent-only", [`provider ${backend}:15 @ai-sdk/provider`]],
-      ["Answer.code", "member-sent-only", [`unclassified ${backend}:17`]],
+      ["Routing.order", "member-sent-only", [`provider ${backend}:22 @ai-sdk/provider`]],
+      ["Answer.code", "member-sent-only", [`unclassified ${backend}:24`]],
+      ["Extras.keyed", "member-sent-only", [`provider ${backend}:16`]],
     ],
   });
 });

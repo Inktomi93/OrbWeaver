@@ -700,10 +700,13 @@ function feeding(world: NativeWorld, declaration: Node, calls: Calls): readonly 
 
 // --- Assertions and module augmentations --------------------------------------------------------------------
 
-// `tree as MarkdownNode` on a parameter a library typed: the library hands the object in and reads it back, so the
-// asserted type's in-tree members are that library's. On a returned closure's `unknown` parameter the receiver is the
-// unseen caller of the factory.
-function* assertedSend(world: NativeWorld, assertion: Node & { readonly expression: Expression }): APIRequestGenerator<OpenSend | null> {
+/** An `as` or angle-bracket assertion: its operand is handed to the asserted type. */
+export type Assertion = Node & { readonly expression: Expression };
+
+/** `tree as MarkdownNode` on a parameter a library typed: the library hands the object in and reads it back, so the
+ *  asserted type's in-tree members are sent to that library. On a returned closure's `unknown` parameter the receiver is
+ *  the unseen caller of the factory. Null for any other assertion. */
+export function* assertedDestination(world: NativeWorld, assertion: Assertion): APIRequestGenerator<Destination | null> {
   const { checker } = world;
   const operand = assertion.expression;
   if (!isIdentifier(operand)) {
@@ -717,16 +720,20 @@ function* assertedSend(world: NativeWorld, assertion: Node & { readonly expressi
   const typed = yield* operandType.getSymbol.gen();
   const declarations = typed?.declarations ?? [];
   const pkg = declarations.length > 0 && declarations.every((handle) => world.fileOf(handle) === null) ? packageOf(declarations[0]?.path ?? "") : null;
-  const caller = pkg === null && hasFlag(operandType.flags, TypeFlags.Unknown) ? yield* unseenCaller(world, symbol.valueDeclaration) : null;
-  if (pkg === null && caller === null) {
+  if (pkg !== null) {
+    return { destination: "dependency", receiver: pkg };
+  }
+  const caller = hasFlag(operandType.flags, TypeFlags.Unknown) ? yield* unseenCaller(world, symbol.valueDeclaration) : null;
+  return caller === null ? null : { destination: "unclassified", receiver: caller };
+}
+
+function* assertedSend(world: NativeWorld, assertion: Assertion): APIRequestGenerator<OpenSend | null> {
+  const to = yield* assertedDestination(world, assertion);
+  if (to === null) {
     return null;
   }
-  const keys = (yield* heldNamed(world, [yield* checker.getTypeAtLocation.gen(assertion)], SEND_DEPTH)).flatMap((property) => declarationKeys(property));
-  if (keys.length === 0) {
-    return null;
-  }
-  const site = world.siteOf(assertion);
-  return pkg === null ? { site, destination: "unclassified", receiver: caller, keys } : { site, destination: "dependency", receiver: pkg, keys };
+  const keys = (yield* heldNamed(world, [yield* world.checker.getTypeAtLocation.gen(assertion)], SEND_DEPTH)).flatMap((property) => declarationKeys(property));
+  return keys.length === 0 ? null : { site: world.siteOf(assertion), ...to, keys };
 }
 
 // The function a returned closure comes from, when the closure's `unknown` parameter is the one asserted: whoever calls
@@ -812,8 +819,6 @@ export interface OpenFacts {
   readonly sends: readonly OpenSend[];
   readonly reads: readonly { readonly site: Site; readonly keys: readonly string[] }[];
 }
-
-type Assertion = Node & { readonly expression: Expression };
 
 interface HandedValues {
   readonly values: readonly Node[];

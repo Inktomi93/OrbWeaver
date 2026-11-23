@@ -342,6 +342,36 @@ test("a value an in-tree body drops on every path is not sent; one it passes on 
   expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Returned.c", "Stored.d", "Passed.e"]);
 });
 
+// An assertion of a parameter a library typed hands the object to that library, which reads it back as the asserted
+// type; on a returned closure's `unknown` parameter the reader is the closure's unseen caller. A cast nothing follows
+// further, into a binding, sends nothing.
+test("an assertion of a library's parameter sends the asserted type to that library; a bare cast sends nothing", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export interface Root { type: string; children: unknown[] }"], "mdast"),
+    ...source([
+      'import type { Root } from "mdast";',
+      "export interface Chip { type: string; data?: { tag: string } }",
+      "export interface Dice { data?: { face: string } }",
+      "export interface Cast { readonly kept: string }",
+      'const walk = (node: Chip): void => { node.data = { tag: "span" }; };',
+      "export const plugin = () => (tree: Root): void => walk(tree as Chip);",
+      'const roll = (node: Dice): void => { node.data = { face: "d" }; };',
+      "export function dicePlugin() { return (tree: unknown): void => roll(tree as Dice); }",
+      'export const loose = (): unknown => { const cast: Cast = { kept: "k" }; const held = cast as unknown; return [held]; };',
+    ]),
+  });
+  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+    ["Cast.kept", "member-write-only", []],
+    ["Chip.type", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
+    ["Chip.data", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
+    ["Chip.data.tag", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
+    ["Dice.data", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
+    ["Dice.data.face", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
+  ]);
+});
+
 // A slot with a string index signature names some members and takes the rest as open entries: the members it does not
 // name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
 // it names pairs, so a read of the slot's member reads it.
