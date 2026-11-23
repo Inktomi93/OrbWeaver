@@ -4,10 +4,10 @@
 // `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
 // restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
-// verbs run both engines except `unions`, `params`, `shapes`, `procedures` and `columns`, which run one engine (`unions`,
-// `params`, `shapes` and `procedures` query the graph) and refuse `--cross-check`, and each writes one report under
-// reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver site of a removed contract key
-// over the graph session's merged program and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
+// verbs run both engines except `unions`, `params`, `shapes`, `procedures` and `columns`, which query the graph and refuse
+// `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves
+// every receiver site of a removed contract key over the graph session's merged program and exits 1 while one still
+// sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
 // (./literal-hits.ts); `graph-trial` deletes each finding of the named buckets in a throwaway snapshot
 // (./graph/trial.ts).
@@ -17,7 +17,6 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
@@ -35,6 +34,7 @@ import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import {
   codesGraph,
+  columnsGraph,
   cssGraph,
   domGraph,
   paramsGraph,
@@ -198,7 +198,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   unions: scan("reports/unwired/unions.json", ({ root, deliberate, judged, log: report }) => unionsGraph(root, { deliberate, judged }, report)),
   shapes: scan("reports/unwired/shapes.json", ({ root, deliberate, judged, log: report }) => shapesGraph({ root, deliberate, judged }, report)),
   procedures: scan("reports/unwired/procedures.json", (options) => proceduresGraph(options, options.log), outsideTable),
-  columns: scan("reports/unwired/columns.json", scanColumns),
+  columns: scan("reports/unwired/columns.json", ({ root, deliberate, judged, log: report }) => columnsGraph({ root, deliberate, judged }, report)),
 };
 
 interface Args {

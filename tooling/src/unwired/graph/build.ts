@@ -26,9 +26,9 @@ import {
   isPropertyAccessExpression,
   isPropertyAssignment,
   isQualifiedName,
+  isShorthandPropertyAssignment,
   isSpreadAssignment,
   isSpreadElement,
-  isStringLiteral,
   isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
@@ -37,7 +37,9 @@ import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol
 import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
 import type { StoreWrite } from "../boundaries.ts";
 import { copiedReads } from "../boundaries.ts";
-import { hasFlag, NativeWorld } from "../native.ts";
+import { parsedColumns, schemaParses } from "../handoffs.ts";
+import type { PropertyName } from "../native.ts";
+import { hasFlag, isPropertyName, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
@@ -236,6 +238,9 @@ function constructingInterfaces(file: Node, className: string): readonly Interfa
   return found;
 }
 
+// The package whose builder methods a store must resolve to before the build reads it as a Drizzle write.
+const DRIZZLE_PACKAGE = "drizzle-orm";
+
 // A computed load's site and the argument it loads, as the source spells it.
 function computedLoad(call: CallExpression, file: string): ComputedLoad {
   const source = call.getSourceFile();
@@ -339,6 +344,7 @@ class Builder {
     this.#variants.readTables(state, sites.tvCalls, sites.file);
     this.#keys.file(sites);
     this.#zodTwins(sites);
+    this.#parses(sites);
     this.#parameterHomes(sites);
     this.#hookTuples(sites);
     this.#docs(sites);
@@ -363,25 +369,43 @@ class Builder {
     }
   }
 
-  // A Drizzle write flows each stored value into its columns (sites.ts holds the ruling): a key's copied read into the
-  // column the key names, and each member of a whole or spread value into the same-named column, so a column read back
-  // reads the member.
+  // A Drizzle write, once its builder methods resolve to Drizzle's, writes and fills its table's columns (sites.ts holds
+  // the ruling). Each key a stored literal sets writes its column at the key, and flows the reads it copies into that
+  // column. A whole or spread value writes the columns of its required members at the builder method, and flows each
+  // member into the same-named column, so a column read back reads the member and an optional member is written where
+  // the value that sets it is built.
   #stores(sites: FileSites): void {
     if (sites.stores.length === 0) {
       return;
     }
     const state = this.#state;
     const { checker } = state.world;
-    const tables = state.world.typesAt(sites.stores.map(({ table }) => table));
-    const { copies, wholes } = storedParts(sites.stores);
+    const symbols = state.world.symbolsAt(sites.stores.flatMap(({ at, opener }) => [at, opener]));
+    const drizzle = state.world.fromPackage(
+      symbols.map((symbol) => symbol?.declarations ?? []),
+      DRIZZLE_PACKAGE,
+    );
+    const stores = sites.stores.filter((_, x) => drizzle[2 * x] === true && drizzle[2 * x + 1] === true);
+    const tables = state.world.typesAt(stores.map(({ table }) => table));
+    const { keys, wholes } = storedParts(stores);
+    const keyColumns = state.declarations(state.batch(keys.map(({ at, name }) => columnOf(checker, tables[at], name.text))));
+    const copies = keys.flatMap(({ reads }, y) => reads.map((read) => ({ y, read })));
     const sources = state.declarations(state.world.symbolsAt(copies.map(({ read }) => read)));
-    const columns = state.declarations(state.batch(copies.map(({ at, name }) => columnOf(checker, tables[at], name))));
     const values = state.world.typesAt(wholes.map(({ value }) => value));
-    const members = state.batch(wholes.map(({ at }, y) => storedMembers(state, tables[at], values[y]))).flat();
+    const found = state.batch(wholes.map(({ at }, y) => storedMembers(state, tables[at], values[y])));
+    const members = wholes.flatMap(({ method }, y) => (found[y] ?? []).map((pair) => ({ ...pair, method })));
     const memberKeys = state.declarations(members.map(({ member }) => member));
     const memberColumns = state.declarations(members.map(({ column }) => column));
+    for (const [y, { name }] of keys.entries()) {
+      state.roleAll(keyColumns[y] ?? [], "write", sites.file, name.pos);
+    }
+    for (const [y, { member, method }] of members.entries()) {
+      if (!hasFlag(member.flags, SymbolFlags.Optional)) {
+        state.roleAll(memberColumns[y] ?? [], "write", sites.file, method.pos);
+      }
+    }
     const pairs = [
-      ...copies.map((_, y) => ({ columns: columns[y] ?? [], sources: sources[y] ?? [] })),
+      ...copies.map(({ y }, x) => ({ columns: keyColumns[y] ?? [], sources: sources[x] ?? [] })),
       ...members.map((_, y) => ({ columns: memberColumns[y] ?? [], sources: memberKeys[y] ?? [] })),
     ];
     for (const pair of pairs) {
@@ -391,6 +415,7 @@ class Builder {
         }
       }
     }
+    state.count("drizzle stores", stores.length);
   }
 
   // Each name resolves to its declarations: an edge from the declaration it sits in, and the roles its syntax gives.
@@ -630,6 +655,16 @@ class Builder {
       for (const member of members[y] ?? []) {
         state.twins.push([ask.decl, member]);
       }
+    }
+  }
+
+  // A zod parse of a Drizzle row copies out the columns its output names, so it reads them at the parse method.
+  #parses(sites: FileSites): void {
+    const state = this.#state;
+    const parses = schemaParses(state.world, sites.parses);
+    const columns = state.batch(parses.map((call) => parsedColumns(state.world, call)));
+    for (const [y, call] of parses.entries()) {
+      state.roleAll(state.declarations(columns[y] ?? []).flat(), "read", sites.file, call.expression.end);
     }
   }
 
@@ -964,32 +999,42 @@ function destructured(call: Node): boolean {
   return isVariableDeclaration(up) && isObjectBindingPattern(up.name);
 }
 
-// What each Drizzle write stores, by the write's index: the reads its literal keys copy, with the key, and the whole
-// values it stores, a spread into the literal among them.
-function storedParts(stores: readonly StoreWrite[]): {
-  readonly copies: readonly { readonly at: number; readonly name: string; readonly read: Node }[];
-  readonly wholes: readonly { readonly at: number; readonly value: Node }[];
-} {
-  const copies: { readonly at: number; readonly name: string; readonly read: Node }[] = [];
-  const wholes: { readonly at: number; readonly value: Node }[] = [];
-  for (const [at, { value }] of stores.entries()) {
-    if (!isObjectLiteralExpression(value)) {
-      wholes.push({ at, value: isSpreadElement(value) ? value.expression : value });
-      continue;
-    }
-    wholes.push(...value.properties.flatMap((property) => (isSpreadAssignment(property) ? [{ at, value: property.expression }] : [])));
-    copies.push(...value.properties.flatMap((property) => keyCopies(at, property)));
-  }
-  return { copies, wholes };
+// A key a stored literal sets, by its write's index, with the reads its value copies into the column the key names.
+interface StoredKey {
+  readonly at: number;
+  readonly name: PropertyName;
+  readonly reads: readonly Node[];
 }
 
-// The reads a stored literal's key copies into the column the key names.
-function keyCopies(at: number, property: Node): readonly { readonly at: number; readonly name: string; readonly read: Node }[] {
-  if (!(isPropertyAssignment(property) && (isIdentifier(property.name) || isStringLiteral(property.name)))) {
-    return [];
+// A whole value a Drizzle write stores, by the write's index, with the builder method that stores it.
+interface StoredWhole {
+  readonly at: number;
+  readonly value: Node;
+  readonly method: Node;
+}
+
+// What each Drizzle write stores, by the write's index: the keys its literal sets, and the whole values it stores, a
+// spread into the literal among them.
+function storedParts(stores: readonly StoreWrite[]): { readonly keys: readonly StoredKey[]; readonly wholes: readonly StoredWhole[] } {
+  const keys: StoredKey[] = [];
+  const wholes: StoredWhole[] = [];
+  for (const [at, { value, at: method }] of stores.entries()) {
+    if (!isObjectLiteralExpression(value)) {
+      wholes.push({ at, value: isSpreadElement(value) ? value.expression : value, method });
+      continue;
+    }
+    wholes.push(...value.properties.flatMap((property) => (isSpreadAssignment(property) ? [{ at, value: property.expression, method }] : [])));
+    keys.push(...value.properties.flatMap((property) => storedKey(at, property)));
   }
-  const { text } = property.name;
-  return copiedReads(property.initializer).map((read) => ({ at, name: text, read }));
+  return { keys, wholes };
+}
+
+// A stored literal's key and the reads it copies; a shorthand key copies a local binding, which is no member.
+function storedKey(at: number, property: Node): readonly StoredKey[] {
+  if (isShorthandPropertyAssignment(property) && isPropertyName(property.name)) {
+    return [{ at, name: property.name, reads: [] }];
+  }
+  return isPropertyAssignment(property) && isPropertyName(property.name) ? [{ at, name: property.name, reads: copiedReads(property.initializer) }] : [];
 }
 
 // The column a stored key names on its table.

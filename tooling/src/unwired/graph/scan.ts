@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
 // find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
-// pass, the unions scan, the codes scan, the removed-keys check or the shapes scan over it. Every result carries what
+// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan or the columns scan over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
@@ -10,6 +10,8 @@ import type { Graph } from "./build.ts";
 import { buildGraph, openGraphWorld } from "./build.ts";
 import type { CodesJudging, CodesReport } from "./codes.ts";
 import { codesPass } from "./codes.ts";
+import type { ColumnsOptions, ColumnsReport } from "./columns.ts";
+import { COLUMN_HOMES, columnsPass } from "./columns.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
 import type { DomReport } from "./dom.ts";
@@ -207,18 +209,19 @@ class Session implements Disposable {
   }
 }
 
-// Which role sites a build keeps: every site of a declaration under a prefix, and every production member's.
-type SitePlan = Pick<BuildSession, "siteFiles" | "memberSites">;
+// Which role sites a build keeps: every site of a declaration under a prefix, and every production member's; and the
+// homes whose own sites only declare.
+type SitePlan = Pick<BuildSession, "siteFiles" | "memberSites" | "declaringHomes">;
 
 // What a session builds under: its options and the role sites it keeps.
 interface SessionPlan extends SitePlan {
   readonly options: GraphOptions;
 }
 
-// Only a verb that reads role sites keeps any.
-const NO_SITES: SitePlan = { siteFiles: [], memberSites: false };
+// Only a verb that reads role sites keeps any, and only one that judges what a home declares names that home.
+const NO_SITES: SitePlan = { siteFiles: [], memberSites: false, declaringHomes: [] };
 // The member scan's sort and literal search read each reported member's own sites.
-const MEMBER_SITES: SitePlan = { siteFiles: [], memberSites: true };
+const MEMBER_SITES: SitePlan = { ...NO_SITES, memberSites: true };
 
 async function session<T>(root: string, log: GraphLog, plan: SessionPlan, use: (work: SessionWork) => T | Promise<T>): Promise<WithSession<T>> {
   using running = new Session(root, log, plan);
@@ -292,7 +295,7 @@ export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FR
 
 /** Build the graph, then report the tRPC procedures and HTTP routes no production code calls. */
 export function proceduresGraph(options: ProceduresOptions, log: GraphLog): Promise<WithSession<ProceduresReport>> {
-  return session(options.root, log, { options: FRESH_BUILD, siteFiles: PROCEDURE_HOMES, memberSites: false }, ({ graph, world, time }) =>
+  return session(options.root, log, { options: FRESH_BUILD, ...NO_SITES, siteFiles: PROCEDURE_HOMES }, ({ graph, world, time }) =>
     time("analyse", () => proceduresOf(graph, world(), options)),
   );
 }
@@ -350,7 +353,15 @@ export function shapesGraph(options: ShapesOptions, log: GraphLog): Promise<With
 /** Build the graph, then judge every product callable's parameters against its calls. The calls come from the merged
  *  program, which a dump does not carry, so it takes no `from`. */
 export function paramsGraph(rows: ParamsLists, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<ParamsReport>> {
-  return session(rows.root, log, { options: { ...options, from: null }, siteFiles: PARAMS_HOMES, memberSites: false }, ({ graph, world, time }) =>
+  return session(rows.root, log, { options: { ...options, from: null }, ...NO_SITES, siteFiles: PARAMS_HOMES }, ({ graph, world, time }) =>
     time("analyse", () => paramsPass(graph, world(), rows)),
+  );
+}
+
+/** Build the graph with the schema files as the declaring home, then report the columns production never reads or
+ *  writes. */
+export function columnsGraph(options: ColumnsOptions, log: GraphLog): Promise<WithSession<ColumnsReport>> {
+  return session(options.root, log, { options: FRESH_BUILD, ...NO_SITES, siteFiles: COLUMN_HOMES, declaringHomes: COLUMN_HOMES }, ({ graph, world, time }) =>
+    time("analyse", () => columnsPass(graph, world(), options)),
   );
 }

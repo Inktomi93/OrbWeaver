@@ -259,10 +259,11 @@ export const ZOD_MODULE = {
   ].join("\n"),
 };
 
-/** A library at `node_modules/lib`: its declarations are outside the tree, so a slot it types is a receiver. */
-export const libraryModule = (lines: readonly string[]): Record<string, string> => ({
-  "node_modules/lib/package.json": JSON.stringify({ name: "lib", types: "index.d.ts" }),
-  "node_modules/lib/index.d.ts": lines.join("\n"),
+/** A library at `node_modules/<name>`, `lib` unless a case models a package the graph confirms by name: its
+ *  declarations are outside the tree, so a slot it types is a receiver. */
+export const libraryModule = (lines: readonly string[], name = "lib"): Record<string, string> => ({
+  [`node_modules/${name}/package.json`]: JSON.stringify({ name, types: "index.d.ts" }),
+  [`node_modules/${name}/index.d.ts`]: lines.join("\n"),
 });
 
 // The ui package owns tailwind-variants; a planted tree takes the installed declarations whole, since the variant pass

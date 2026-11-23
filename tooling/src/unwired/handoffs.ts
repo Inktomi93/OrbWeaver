@@ -299,7 +299,8 @@ function* compared(world: NativeWorld, pair: TypePair): APIRequestGenerator<Comp
   };
 }
 
-const isParseCall = (node: Node): node is CallExpression =>
+/** A call of a schema parse method, by its syntax: {@link schemaParses} confirms zod declares it. */
+export const isParseCall = (node: Node): node is CallExpression =>
   isCallExpression(node) && isPropertyAccessExpression(node.expression) && PARSE_METHODS.has(node.expression.name.text);
 
 // The types a parse answers with: the parsed value, or a safe parse's `data`.
@@ -341,9 +342,9 @@ function parsedValues(argument: Node): readonly { readonly node: Node; readonly 
   );
 }
 
-// The columns a zod parse reads: each row member, of the argument or of a spread inside an object literal argument,
-// whose name the parsed output carries. A key the schema strips is no read.
-function* parseReads(world: NativeWorld, call: CallExpression): APIRequestGenerator<readonly LibraryRead[]> {
+/** The columns a zod parse reads: each row member, of the argument or of a spread inside an object literal argument,
+ *  whose name the parsed output carries. A key the schema strips, or one the literal sets over the spread, is no read. */
+export function* parsedColumns(world: NativeWorld, call: CallExpression): APIRequestGenerator<readonly NativeSymbol[]> {
   const { checker } = world;
   const [argument] = call.arguments;
   if (argument === undefined || !isPropertyAccessExpression(call.expression)) {
@@ -352,21 +353,26 @@ function* parseReads(world: NativeWorld, call: CallExpression): APIRequestGenera
   const outputs = yield* parsedTypes(world, call, call.expression.name.text.startsWith("safe"));
   const shapes = (yield* all(...outputs.map((output) => objectMembers(world, output)))).flat();
   const named = new Set((yield* all(...shapes.map((shape) => checker.getPropertiesOfType.gen(shape)))).flat().map((property) => property.name));
-  const keys: string[] = [];
+  const columns: NativeSymbol[] = [];
   for (const { node, overridden } of parsedValues(argument)) {
     const type = yield* checker.getTypeAtLocation.gen(node);
     for (const holder of yield* objectMembers(world, type)) {
       const members = (yield* checker.getPropertiesOfType.gen(holder)).filter(
         (member) => member.declarations.length === 0 && named.has(member.name) && !overridden.has(member.name),
       );
-      keys.push(...(yield* all(...members.map((member) => rowColumns(world, holder, member.name)))).flat().flatMap(declarationKeys));
+      columns.push(...(yield* all(...members.map((member) => rowColumns(world, holder, member.name)))).flat());
     }
   }
-  return keys.length === 0 ? [] : [{ site: world.siteOf(call.expression.name), keys }];
+  return columns;
 }
 
-// The production parse calls a zod schema answers.
-function schemaParses(world: NativeWorld, calls: readonly Node[]): readonly CallExpression[] {
+function* parseReads(world: NativeWorld, call: CallExpression): APIRequestGenerator<readonly LibraryRead[]> {
+  const keys = (yield* parsedColumns(world, call)).flatMap(declarationKeys);
+  return keys.length === 0 || !isPropertyAccessExpression(call.expression) ? [] : [{ site: world.siteOf(call.expression.name), keys }];
+}
+
+/** The parse calls a zod schema answers. */
+export function schemaParses(world: NativeWorld, calls: readonly Node[]): readonly CallExpression[] {
   const parses = calls.filter(isParseCall);
   const symbols = world.symbolsAt(parses.map((call) => (call.expression as Expression & { readonly name: Node }).name));
   return parses.filter((_, at) => (symbols[at]?.declarations ?? []).some((handle) => handle.path.includes(SCHEMA_LIBRARY)));

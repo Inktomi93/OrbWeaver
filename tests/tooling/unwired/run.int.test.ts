@@ -56,9 +56,9 @@ function expectEveryBucket(run: { readonly stderr: string }, out: string): void 
   expect(buckets.filter((bucket) => !summary.split(" ").includes(bucket))).toEqual([]);
 }
 
-// The params, shapes and procedures queries build the graph, which reads its roots from the tree's knip config, so their
-// root is an empty graph tree; every other scan here runs over the empty scratch root.
-const GRAPH_VERBS: ReadonlySet<string> = new Set(["params", "shapes", "procedures"]);
+// The params, shapes, procedures and columns queries build the graph, which reads its roots from the tree's knip config,
+// so their root is an empty graph tree; every other scan here runs over the empty scratch root.
+const GRAPH_VERBS: ReadonlySet<string> = new Set(["params", "shapes", "procedures", "columns"]);
 test.for(["scan", "fields", "params", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
   SPAWNS_CLI,

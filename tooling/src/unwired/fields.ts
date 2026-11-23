@@ -544,8 +544,8 @@ interface Tally {
   readonly sends: Map<string, Send>;
 }
 
-/** A member's production reads and writes, and how many test sites name it. */
-export interface Roles {
+// A member's production reads and writes, and how many test sites name it.
+interface Roles {
   readonly read: readonly Site[];
   readonly write: readonly Site[];
   readonly tests: number;
@@ -563,10 +563,10 @@ function rolesOfSite(sources: Sources, site: Site, { written, readWritten, keyed
   return [keyed.get(key) ?? roleAt(sources.get(site.file), site.position)];
 }
 
-/** Split sites by role. `written`: sites that store into the member, including a library's write the syntax reads
- *  (a paged query filling its cursor); `readWritten`: the written sites that read it too, which count as both.
- *  `keyed`: the role of a string key outside a property position, such as a form field path, which syntax types as none. */
-export function rolesOf(sources: Sources, sites: Iterable<Site>, facts: SiteFacts): Roles {
+// Split sites by role. `written`: sites that store into the member, including a library's write the syntax reads
+// (a paged query filling its cursor); `readWritten`: the written sites that read it too, which count as both.
+// `keyed`: the role of a string key outside a property position, such as a form field path, which syntax types as none.
+function rolesOf(sources: Sources, sites: Iterable<Site>, facts: SiteFacts): Roles {
   const read: Site[] = [];
   const write: Site[] = [];
   let tests = 0;

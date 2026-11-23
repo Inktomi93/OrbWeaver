@@ -41,36 +41,42 @@ test("a row member read finds its table's column by the row's whole name set, an
   expect(scan.lostReads).toEqual([]);
 });
 
+// A store is read as Drizzle's only where its builder methods resolve to this package's declarations.
+const STORE_PACKAGE = "drizzle-orm";
+
 // drizzle-orm's write builders in miniature: a stored value's slot is the library's own mapped type, keyed by a remap
 // over the columns, as InferInsertModel is, so the slot declares no member of ours.
-const STORES = libraryModule([
-  "export interface Column { readonly name: string }",
-  "export declare const text: () => Column;",
-  "export declare const index: (column: Column) => unknown;",
-  "export interface TableConfig<C> { readonly columns: C }",
-  "export type Simplify<T> = { [K in keyof T]: T[K] } & {};",
-  'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: Simplify<{ [K in keyof T["columns"] & string]: string }>; readonly $selected: { [K in keyof T["columns"]]: string } }',
-  "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
-  // a whole-row query's rows keep the columns' declarations, as drizzle's select result does; `$inferSelect` remaps them away
-  'export declare function findMany<T extends { readonly $selected: unknown }>(table: T): Promise<T["$selected"][]>;',
-  'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
-  "export interface Conflict<T> { readonly target: unknown; readonly set: Insert<T> }",
-  "export interface Stored<T> { onConflictDoUpdate(config: Conflict<T>): Promise<void> }",
-  "export declare const db: {",
-  '  select(): { from<T extends { readonly $inferSelect: unknown }>(table: T): T["$inferSelect"][] };',
-  "  insert<T>(table: T): { values(value: Insert<T> | readonly Insert<T>[]): Stored<T> };",
-  "  update<T>(table: T): { set(value: Insert<T>): Promise<void> };",
-  "};",
-]);
+const STORES = libraryModule(
+  [
+    "export interface Column { readonly name: string }",
+    "export declare const text: () => Column;",
+    "export declare const index: (column: Column) => unknown;",
+    "export interface TableConfig<C> { readonly columns: C }",
+    "export type Simplify<T> = { [K in keyof T]: T[K] } & {};",
+    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: Simplify<{ [K in keyof T["columns"] & string]: string }>; readonly $selected: { [K in keyof T["columns"]]: string } }',
+    "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
+    // a whole-row query's rows keep the columns' declarations, as drizzle's select result does; `$inferSelect` remaps them away
+    'export declare function findMany<T extends { readonly $selected: unknown }>(table: T): Promise<T["$selected"][]>;',
+    'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
+    "export interface Conflict<T> { readonly target: unknown; readonly set: Insert<T> }",
+    "export interface Stored<T> { onConflictDoUpdate(config: Conflict<T>): Promise<void> }",
+    "export declare const db: {",
+    '  select(): { from<T extends { readonly $inferSelect: unknown }>(table: T): T["$inferSelect"][] };',
+    "  insert<T>(table: T): { values(value: Insert<T> | readonly Insert<T>[]): Stored<T> };",
+    "  update<T>(table: T): { set(value: Insert<T>): Promise<void> };",
+    "};",
+  ],
+  STORE_PACKAGE,
+);
 
 const STORED_TABLES = [
-  'import { index, sqliteTable, text } from "lib";',
+  `import { index, sqliteTable, text } from "${STORE_PACKAGE}";`,
   'export const notes = sqliteTable("notes", { id: text(), title: text(), body: text() });',
   'export const cards = sqliteTable("cards", { id: text(), blurb: text() }, (table) => [index(table.blurb)]);',
 ].join("\n");
 
 const STORE_LINES = [
-  'import { db } from "lib";',
+  `import { db } from "${STORE_PACKAGE}";`,
   'import { cards, notes } from "../../db/src/schema/tables.ts";',
   "export interface NoteWrite { readonly title: string; readonly body: string }",
   "export interface Stamp { readonly at: string; readonly by: string; readonly id: string }",
@@ -121,7 +127,7 @@ test("a whole row handed to a row-typed slot reads only the columns the slot's h
     ...STORES,
     [SCHEMA]: STORED_TABLES,
     [FILE]: [
-      'import { db, findMany } from "lib";',
+      `import { db, findMany } from "${STORE_PACKAGE}";`,
       'import { notes } from "../../db/src/schema/tables.ts";',
       "export interface NoteWrite { readonly id: string; readonly title: string; readonly body: string }",
       "export const store = (write: NoteWrite): Promise<void> => db.insert(notes).values(write).onConflictDoUpdate({ target: notes.id, set: write });",
@@ -133,4 +139,47 @@ test("a whole row handed to a row-typed slot reads only the columns the slot's h
     ].join("\n"),
   });
   expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(FILE.length + 1), bucket])).toEqual([["NoteWrite.body", "member-write-only"]]);
+});
+
+// drizzle-orm's JSON column in miniature: the select row types the column by the value type it was declared with.
+const JSON_COLUMNS = libraryModule(
+  [
+    "export interface Column { readonly name: string }",
+    "export interface Json<T> extends Column { readonly json: T }",
+    "export declare const text: () => Column;",
+    "export declare const json: <T>() => Json<T>;",
+    "export interface TableConfig<C> { readonly columns: C }",
+    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"] & string]: T["columns"][K] extends Json<infer V> ? V : string } }',
+    "export declare function sqliteTable<C>(name: string, columns: C): Table<TableConfig<C>> & C;",
+    "export declare const db: {",
+    '  select(): { from<T extends { readonly $inferSelect: unknown }>(table: T): T["$inferSelect"][] };',
+    "  insert<T>(table: T): { values(value: unknown): void };",
+    "};",
+  ],
+  STORE_PACKAGE,
+);
+
+// A whole row serialized out of the process sends each column it carries, and a JSON column's value all the way down,
+// so the trace members stored there are sent, not only written.
+test("a whole row sent out sends its columns and a JSON column's declared members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...JSON_COLUMNS,
+    [SCHEMA]: [
+      `import { json, sqliteTable, text } from "${STORE_PACKAGE}";`,
+      'import type { Trace } from "../../../a/src/trace.ts";',
+      'export const snaps = sqliteTable("snaps", { id: text(), snapshot: json<Trace>() });',
+    ].join("\n"),
+    [`${GRAPH_SOURCE}/trace.ts`]: "export interface Trace { readonly dropped: readonly { readonly id: string }[] }",
+    [FILE]: [
+      `import { db } from "${STORE_PACKAGE}";`,
+      'import { snaps } from "../../db/src/schema/tables.ts";',
+      'import type { Trace } from "./trace.ts";',
+      'export const store = (): void => { const snapshot: Trace = { dropped: [{ id: "x" }] }; db.insert(snaps).values({ id: "i", snapshot }); };',
+      "export const dump = (): string => JSON.stringify(db.select().from(snaps));",
+    ].join("\n"),
+  });
+  expect(scan.members.unwired.map(({ key, bucket }) => `${key} ${bucket}`)).toEqual([
+    `${GRAPH_SOURCE}/trace.ts:Trace.dropped member-sent-only`,
+    `${GRAPH_SOURCE}/trace.ts:Trace.dropped.id member-sent-only`,
+  ]);
 });

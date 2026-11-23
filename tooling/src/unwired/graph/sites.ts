@@ -2,7 +2,8 @@
 // literal keys, hand-offs, flow sites, keyed reads, variant tables, JSX attributes, module specifiers, classes, doc
 // names), the declarations it meets and the edges syntax alone decides. No checker call happens here.
 //
-// - A Drizzle write hands each stored value to its column (../boundaries.ts storeWritesAt): a read it copies into a key
+// - A Drizzle write hands each stored value to its column (../boundaries.ts storeWritesAt, and insertSelectWritesAt for
+//   an insert-select's field object): a read it copies into a key
 //   gets no role and the stored value is not handed whole, so build.ts flows each member into its column instead. A
 //   property read inside a table definition defines an index or a foreign key and reads no stored value.
 import type {
@@ -139,7 +140,8 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { StoreWrite } from "../boundaries.ts";
-import { copiedReads, storeWritesAt, tableDefinition } from "../boundaries.ts";
+import { copiedReads, insertSelectWritesAt, storeWritesAt, tableDefinition } from "../boundaries.ts";
+import { isParseCall } from "../handoffs.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
@@ -533,7 +535,8 @@ export class FileSites {
   /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
   readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
-  /** The Drizzle writes: each stored value and the table it lands in. */
+  /** The Drizzle writes by their syntax: each stored value and the table it lands in; build.ts confirms each by its
+   *  declaration. */
   readonly stores: StoreWrite[] = [];
   /** The type names a production parameter is annotated with: a home whose optional members a caller may leave unset. */
   readonly parameterTypes: Node[] = [];
@@ -593,6 +596,8 @@ export class FileSites {
   /** A product file's string-literal unions and `as const` string tuples: an axis's homes and its inline spellings. */
   readonly stringUnions: { readonly node: UnionTypeNode; readonly members: readonly string[]; readonly from: GraphKey }[] = [];
   readonly constTuples: { readonly node: VariableDeclaration; readonly members: readonly string[] }[] = [];
+  /** Schema parse calls by their syntax; build.ts confirms each is zod's. */
+  readonly parses: CallExpression[] = [];
 
   readonly #source: SourceFile;
 
@@ -990,6 +995,9 @@ class Walker {
       return;
     }
     this.#sites.keyArguments.push(...node.arguments.filter((argument) => isStringLiteral(argument) || isNoSubstitutionTemplateLiteral(argument)));
+    if (isParseCall(node)) {
+      this.#sites.parses.push(node);
+    }
     if (this.#frame.generic > 0) {
       this.#sites.genericCalls.push(node);
     }
@@ -1461,7 +1469,7 @@ class Walker {
 
   // A Drizzle write's stored values, the reads its literal keys copy, and the argument it stores (the header's ruling).
   #stores(node: CallExpression): void {
-    const stores = storeWritesAt(node);
+    const stores = [...storeWritesAt(node), ...insertSelectWritesAt(node)];
     if (stores.length === 0) {
       return;
     }

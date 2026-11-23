@@ -27,9 +27,9 @@ import {
   isPropertyAssignment,
   isSpreadElement,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
-import { signatureOf } from "../drizzle-rows.ts";
+import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Destination } from "../open-sends.ts";
 import { identitySlot, sendDestinations } from "../open-sends.ts";
@@ -202,11 +202,16 @@ export class Flows {
     return this.#state;
   }
 
-  // One level of a deep walk: the members of ours it adds to `found`, and the types they and the level hold.
+  // One level of a deep walk: the members of ours it adds to `found`, and the types they and the level hold. A Drizzle
+  // row's members declare nothing and stand for its table's columns, so a row sent whole sends each column.
   #deepLevel(level: readonly Type[], throughCalls: boolean, found: Set<DeclKey>): readonly Type[] {
     const { state } = this;
-    const symbols = state.batch(level.map((type) => state.membersOf(type))).flat();
-    const decls = state.declarations(symbols);
+    const held = state.batch(level.map((type) => state.membersOf(type))).flatMap((members, at) => {
+      const holder = level[at];
+      return holder === undefined ? [] : members.map((value) => ({ holder, value }));
+    });
+    const symbols = held.map(({ value }) => value);
+    const decls = this.#withRowColumns(held, state.declarations(symbols));
     for (const decl of decls.flat()) {
       found.add(decl);
     }
@@ -649,6 +654,24 @@ export class Flows {
     }
   }
 
+  // A Drizzle row's members have no declaration: each such member stands for its table's column, so the slot member it
+  // fills flows from the column, and a read of the slot reads the column.
+  #withRowColumns(
+    matched: readonly { readonly holder: Type; readonly value: NativeSymbol }[],
+    valueDecls: readonly (readonly DeclKey[])[],
+  ): readonly (readonly DeclKey[])[] {
+    const { state } = this;
+    const rowMembers = matched.flatMap(({ holder, value }, y) =>
+      (valueDecls[y]?.length ?? 0) === 0 && value.declarations.length === 0 ? [{ y, holder, value }] : [],
+    );
+    const columns = state.batch(rowMembers.map(({ holder, value }) => rowColumns(state.world, holder, value.name)));
+    const out = [...valueDecls];
+    for (const [x, { y }] of rowMembers.entries()) {
+      out[y] = state.declarations(columns[x] ?? []).flat();
+    }
+    return out;
+  }
+
   #isFresh({ slot, value }: FlowPair): boolean {
     return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(`${String(slot.id)}>${String(value.id)}`);
   }
@@ -661,7 +684,7 @@ export class Flows {
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
     const matched = asks.flatMap(({ pair, member, x }, y) => {
       const valueMember = valueMembers[y];
-      return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember, site: pair.site, x }];
+      return valueMember === undefined || valueMember.id === member.id ? [] : [{ holder: pair.value, slot: member, value: valueMember, site: pair.site, x }];
     });
     // a Drizzle row slot's members declare nothing, as the row type remaps its table's columns: each stands for its
     // column, so a row handed to a row slot hands each column on and reads none (resolve.ts `rows`)
@@ -671,7 +694,7 @@ export class Flows {
       const entry = matched[y];
       return decls.length > 0 || entry === undefined ? decls : [...(rowSlots[entry.x]?.get(entry.slot.name) ?? [])];
     });
-    const valueDecls = state.declarations(matched.map(({ value }) => value));
+    const valueDecls = this.#withRowColumns(matched, state.declarations(matched.map(({ value }) => value)));
     for (const y of matched.keys()) {
       this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file, matched[y]?.site ?? 0);
     }
