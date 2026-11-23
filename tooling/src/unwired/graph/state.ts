@@ -206,7 +206,8 @@ export interface GraphFacts {
   /** Drizzle column hand-offs, column to the stored member: a read of the column reads the member, and a send of the
    *  column, which hands the library its definition, sends no stored value. */
   readonly columnFlows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
-  readonly door: ReadonlySet<DeclKey>;
+  /** Members read through our own global door (`window.__orb`), in code or a script's text, with a file that reads each. */
+  readonly doorReads: ReadonlyMap<DeclKey, string>;
   /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
   readonly unseenCalls: ReadonlySet<DeclKey>;
   /** Each local binding, parameter and import binding with the declarations whose code reads it. */
@@ -289,8 +290,7 @@ export class GraphState implements GraphFacts {
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
   readonly columnFlows = new Map<DeclKey, Set<DeclKey>>();
-  /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
-  readonly door = new Set<DeclKey>();
+  readonly doorReads = new Map<DeclKey, string>();
   readonly unseenCalls = new Set<DeclKey>();
   readonly bindings: BindingFact[] = [];
   readonly unpairedReceivers: MessageReceiver[] = [];
@@ -406,6 +406,15 @@ export class GraphState implements GraphFacts {
     const members = this.slotMembers(asks);
     for (const [y, { at }] of asks.entries()) {
       this.roleAll(members[y] ?? [], role, file, at);
+    }
+  }
+
+  /** Each key is read through our own global door, from `file`. */
+  doorRead(keys: Iterable<DeclKey>, file: string): void {
+    for (const key of keys) {
+      if (!this.doorReads.has(key)) {
+        this.doorReads.set(key, file);
+      }
     }
   }
 

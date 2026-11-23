@@ -230,18 +230,12 @@ export class Flows {
   }
 
   /** Record every member a value holds as escaping at `site`, each sent where `send` names; a value published through
-   *  our own global door also marks its members as the door's. */
+   *  our own global door escapes through its calls' returns too, as the door's reader calls what it finds. */
   escape(value: Type, door: boolean, site: { readonly file: string; readonly at: number }, send: Destination): void {
     if (this.#state.session.options.ablate.has("escape")) {
       return;
     }
-    const members = this.deepMembers(value, door);
-    this.#state.escapeAll(members, site, send);
-    if (door) {
-      for (const member of members) {
-        this.#state.door.add(member);
-      }
-    }
+    this.#state.escapeAll(this.deepMembers(value, door), site, send);
     this.#state.count("values escaped whole");
   }
 
@@ -653,7 +647,8 @@ const calleeName = (call: Node | undefined): Node | undefined => {
   return isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression;
 };
 
-function insideGlobalScope(node: Node | undefined): boolean {
+/** Whether a declaration sits inside our own `declare global` block. */
+export function insideGlobalScope(node: Node | undefined): boolean {
   for (let up = node?.parent; up !== undefined; up = up.parent) {
     if (isModuleDeclaration(up) && "text" in up.name && up.name.text === GLOBAL_SCOPE) {
       return true;

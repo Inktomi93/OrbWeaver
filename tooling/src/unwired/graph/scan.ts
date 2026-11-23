@@ -31,6 +31,7 @@ import type { Query, QueryAnswer } from "./query.ts";
 import { GraphQueries } from "./query.ts";
 import type { RemovedKeysOptions, RemovedKeysReport } from "./removed-keys.ts";
 import { nothingRemoved, removedKeysPass, removedKeysPlan } from "./removed-keys.ts";
+import type { CarrySink, CarryStep } from "./roles.ts";
 import { loadRoots } from "./roots.ts";
 import type { ShapesOptions, ShapesReport } from "./shapes.ts";
 import { shapesPass } from "./shapes.ts";
@@ -40,6 +41,7 @@ import { scanUnionsOnGraph } from "./unions.ts";
 import type { Verified } from "./verify.ts";
 import { evenSample, verifyFindings } from "./verify.ts";
 import type { WhyEntry } from "./why.ts";
+import { carriedEntries } from "./why.ts";
 
 /** A graph scan's buckets and what the build counted on the way. */
 export interface GraphScan {
@@ -81,6 +83,8 @@ export type WithSession<T> = T & { readonly session: GraphSessionReport };
 // timer for the work's own phases.
 interface SessionWork {
   readonly graph: Graph;
+  /** Where an analysis names each role its carry gives, for the `--why` record. */
+  readonly carried: CarrySink;
   readonly world: () => NativeWorld;
   readonly time: <R>(phase: ProfilePhase, work: () => R) => R;
 }
@@ -135,7 +139,15 @@ class Session implements Disposable {
     const options = this.#options;
     const source = options.from === null ? await this.#build() : this.#read(options.from);
     const { graph } = source;
-    const value = await use({ graph, world: () => this.world(), time: (phase, work) => this.time(phase, work) });
+    const steps: CarryStep[] = [];
+    // only a session that asks why keeps the carry's steps
+    const carried: CarrySink =
+      options.why.length === 0
+        ? (): undefined => undefined
+        : (step): void => {
+            steps.push(step);
+          };
+    const value = await use({ graph, carried, world: () => this.world(), time: (phase, work) => this.time(phase, work) });
     this.#stopCpu();
     const measures = {
       counts: graph.facts.counts,
@@ -148,7 +160,7 @@ class Session implements Disposable {
       files: options.files,
       from: source.from,
       dumped: source.dumped,
-      why: source.why,
+      why: [...source.why, ...carriedEntries(options.why, graph.facts.decls, steps)],
       lost: options.explainLost ? explainLost(graph.facts) : null,
       profile: this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, this.#compiler) ?? null,
     };
@@ -205,8 +217,8 @@ async function session<T>(root: string, log: GraphLog, plan: SessionPlan, use: (
   return await running.run(use);
 }
 
-const scanOf = (root: string, { graph, time, world }: SessionWork, rulings: MemberRulings): GraphScan => {
-  const analysis = time("analyse", () => analyse(graph));
+const scanOf = (root: string, { graph, carried, time, world }: SessionWork, rulings: MemberRulings): GraphScan => {
+  const analysis = time("analyse", () => analyse(graph, carried));
   return {
     files: graph.files.length,
     analysis,

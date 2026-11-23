@@ -824,7 +824,9 @@ function zodShapeOf(expression: Node): ObjectLiteralExpression | undefined {
 }
 
 // `window.X.a.b` / `globalThis.X.a` in a string: the global, the member chain, and whether a computed key follows it.
-const GLOBAL_READ = /\b(?:window|globalThis|self)\.([A-Za-z_$][\w$]*)((?:\??\.[A-Za-z_$][\w$]*)*)(\??\.\$\{|\[)?/gu;
+/** The global objects a published global is read off: `window.__orb`, `globalThis.__orb`, `self.__orb`. */
+export const GLOBAL_OBJECTS = ["window", "globalThis", "self"] as const;
+const GLOBAL_READ = new RegExp(`\\b(?:${GLOBAL_OBJECTS.join("|")})\\.([A-Za-z_$][\\w$]*)((?:\\??\\.[A-Za-z_$][\\w$]*)*)(\\??\\.\\$\\{|\\[)?`, "gu");
 // `const nav = window.__orb && window.__orb.nav;` names an alias the rest of the script reads through.
 const GLOBAL_ALIAS =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:[^;\n]*?(?:&&|\?\?|\|\|)\s*)?(?:window|globalThis|self)\.([A-Za-z_$][\w$]*)((?:\??\.[A-Za-z_$][\w$]*)*)/gu;

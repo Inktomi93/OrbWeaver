@@ -19,8 +19,10 @@ import {
   isExportDeclaration,
   isIdentifier,
   isInterfaceDeclaration,
+  isNonNullExpression,
   isObjectBindingPattern,
   isObjectLiteralExpression,
+  isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isQualifiedName,
@@ -40,19 +42,19 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
-import { Flows, ZOD_PACKAGE } from "./flows.ts";
+import { Flows, insideGlobalScope, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
 import { addAll, allOf, answer, constituentsOf } from "./resolve.ts";
-import { sameNode } from "./roles.ts";
+import { READS, sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
 import type { ValueSelector } from "./selectors.ts";
 import { valueSelectors } from "./selectors.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
-import { collectSites, moduleKey } from "./sites.ts";
+import { collectSites, GLOBAL_OBJECTS, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
 import type { BuildSession, ComputedLoad, GraphFacts, LostCause } from "./state.ts";
@@ -68,6 +70,37 @@ const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
 const REACT_TYPES = "@types/react";
 const TYPE_DECLARATIONS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
+const GLOBAL_OBJECT_NAMES: ReadonlySet<string> = new Set(GLOBAL_OBJECTS);
+
+// The name read off a global object: `__orb` in `window.__orb`.
+const globalObjectMember = (node: Node): boolean => {
+  const { parent } = node;
+  return (
+    isPropertyAccessExpression(parent) && sameNode(parent.name, node) && isIdentifier(parent.expression) && GLOBAL_OBJECT_NAMES.has(parent.expression.text)
+  );
+};
+
+// Whether a property read's receiver chain passes through one of the door names at `doors`: calls, `!` and parentheses
+// on the way are part of the chain.
+function throughDoor(node: Node, doors: ReadonlySet<number>): boolean {
+  const { parent } = node;
+  if (!(isPropertyAccessExpression(parent) && sameNode(parent.name, node))) {
+    return false;
+  }
+  let receiver: Node = parent.expression;
+  for (;;) {
+    if (isCallExpression(receiver) || isNonNullExpression(receiver) || isParenthesizedExpression(receiver)) {
+      receiver = receiver.expression;
+    } else if (isPropertyAccessExpression(receiver)) {
+      if (doors.has(receiver.name.pos)) {
+        return true;
+      }
+      receiver = receiver.expression;
+    } else {
+      return false;
+    }
+  }
+}
 
 // A declaration a published or trusted file exports, kept by that file's ruling.
 interface KeptExport {
@@ -368,6 +401,7 @@ class Builder {
     for (const [at, site] of sites.names.entries()) {
       this.#use(site, resolved[at] ?? [], sites.file);
     }
+    this.#doorReads(sites, symbols, resolved);
     this.#bindingReads(sites, resolved);
     this.#doors.file(sites, symbols, resolved);
     this.#routes.file(sites.routeCalls, sites.file);
@@ -434,6 +468,26 @@ class Builder {
         readers: exported ? [moduleKey(sites.file)] : [...(readers.get(binding.key) ?? [])],
         written: written.has(binding.key),
       });
+    }
+  }
+
+  // A read whose receiver chain passes through a global our own `declare global` declares, read off a global object
+  // (`window.__orb.x`), reaches its member through the dev-bridge door. A read of the same member off an imported value
+  // is no door read.
+  #doorReads(sites: FileSites, symbols: readonly (NativeSymbol | undefined)[], resolved: readonly DeclKey[][]): void {
+    const state = this.#state;
+    const asks = sites.names.flatMap(({ node }, at) =>
+      globalObjectMember(node) ? (symbols[at]?.declarations ?? []).filter((handle) => state.resolver.ours(handle)).map((handle) => ({ node, handle })) : [],
+    );
+    const declared = state.batch(asks.map(({ handle }) => handle.resolve.gen()));
+    const doors = new Set(asks.flatMap(({ node }, y) => (insideGlobalScope(declared[y]) ? [node.pos] : [])));
+    if (doors.size === 0) {
+      return;
+    }
+    for (const [at, site] of sites.names.entries()) {
+      if (site.roles.some((role) => READS.has(role)) && throughDoor(site.node, doors)) {
+        state.doorRead(resolved[at] ?? [], sites.file);
+      }
     }
   }
 

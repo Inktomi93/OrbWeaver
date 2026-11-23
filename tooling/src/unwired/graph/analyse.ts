@@ -2,8 +2,9 @@
 // operators, consumers or tests reach, what nothing reaches, and what the product does to each live member.
 //
 // Owner rulings this module holds (roles.ts states the escape and bump rulings; a flow here carries a send on as a send):
-// - The dev bridge: a member of a value published through our own `declare global` global (`window.__orb`) that only
-//   tooling or tests read is used, since that read reaches it through the global door; it counts as a product read.
+// - The dev bridge: a read through our own `declare global` global (`window.__orb`), in code or in a script's text, is a
+//   product read, since it reaches the member through the global door. A test that imports the member's module reads it
+//   as a test does.
 // - Snap's reads count as product reads (state.ts holds the ruling), and so do the reads of a file a product root reaches
 //   outside the product's sources, such as a build script's import closure (D357: a script whose output ships).
 // - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
@@ -28,7 +29,7 @@ import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.t
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
-import type { Role } from "./roles.ts";
+import type { CarrySink, CarryStep, ReadCredit, Role } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
@@ -197,17 +198,20 @@ export function keptByRuling(graph: Graph): ReadonlyMap<GraphKey, string> {
 }
 
 /** Analyse a built graph into its buckets. */
-export function analyse(graph: Graph): Analysis {
-  return new Analyser(graph).run();
+/** Analyse a built graph; each role the carry gives a member goes to `onCarry`. */
+export function analyse(graph: Graph, onCarry: CarrySink = ignoreCarry): Analysis {
+  return new Analyser(graph, onCarry).run();
 }
 
 class Analyser {
   readonly #graph: Graph;
   readonly #why = new Map<GraphKey, string>();
   readonly #out = new Map<Bucket, Finding[]>(BUCKETS.map((bucket) => [bucket, []]));
+  readonly #onCarry: CarrySink;
 
-  constructor(graph: Graph) {
+  constructor(graph: Graph, onCarry: CarrySink) {
     this.#graph = graph;
+    this.#onCarry = onCarry;
   }
 
   run(): Analysis {
@@ -215,7 +219,7 @@ class Analyser {
     const reached = this.#reached();
     this.#liveness(reached);
     this.#docLinks();
-    const roles = settleRoles(this.#graph, this.#buildReads(reached.live));
+    const roles = settleRoles(this.#graph, this.#credits(reached.live), this.#onCarry);
     this.#members(roles, reached.liveTyped);
     this.#bindings(reached);
     for (const { file, line, door } of this.#state.unpairedReceivers) {
@@ -332,13 +336,18 @@ class Analyser {
 
   // D357: a script whose output ships is the product's, so a file a product root reaches outside the product's sources,
   // a build script's import closure, reads as the product does. A read is seen only where the build kept its role sites.
-  #buildReads(live: ReadonlySet<GraphKey>): ReadonlySet<DeclKey> {
+  // A dev-bridge door read credits its member too (the module header holds the ruling).
+  #credits(live: ReadonlySet<GraphKey>): ReadonlyMap<DeclKey, ReadCredit> {
     const state = this.#state;
+    const credits = new Map<DeclKey, ReadCredit>([...state.doorReads].map(([key, file]) => [key, { link: "door-read", file }]));
     const files = new Set(this.#graph.files.filter((file) => !productReader(file) && live.has(moduleKey(file))));
-    if (files.size === 0) {
-      return NO_KEYS;
+    for (const [key, sites] of files.size === 0 ? [] : state.roleSites) {
+      const site = sites.find(({ role, file }) => READS.has(role) && files.has(file));
+      if (site !== undefined && !credits.has(key)) {
+        credits.set(key, { link: "build-read", file: site.file });
+      }
     }
-    return new Set([...state.roleSites].flatMap(([key, sites]) => (sites.some((site) => READS.has(site.role) && files.has(site.file)) ? [key] : [])));
+    return credits;
   }
 
   #modules(kinds: readonly RootKind[]): readonly GraphKey[] {
@@ -442,8 +451,6 @@ class Analyser {
         continue;
       }
       const role = roles.get(key);
-      // the dev bridge ruling: another world's read through our own global door is a product read
-      const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
       const shape = {
         name: info.name,
         schemaKey: info.schemaKey,
@@ -452,7 +459,7 @@ class Analyser {
         reachedOtherwise: info.kind === SyntaxKind.EnumMember || dispatched.has(key) || fills.has(key),
       };
       // a member the runtime calls by its well-known name is read, even on a value the product only sends
-      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(shape, role);
+      const bucket = state.unseenCalls.has(key) ? null : memberBucket(shape, role);
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
@@ -567,7 +574,8 @@ function stampedValues(axes: readonly VariantAxis[]): ReadonlyMap<string, Readon
   return new Map(STAMPED_VARIANT_AXES.map((axis) => [`${DATA_PREFIX}${axis}`, new Set([...declared(axis), ...extra[axis]])]));
 }
 
-const NO_KEYS: ReadonlySet<DeclKey> = new Set<DeclKey>();
+const NO_CREDITS: ReadonlyMap<DeclKey, ReadCredit> = new Map<DeclKey, ReadCredit>();
+const ignoreCarry: CarrySink = () => undefined;
 
 type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any" | "testkit" | "tooling", ReadonlySet<GraphKey>>>;
 
@@ -687,64 +695,87 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
- * with one role set. A member in `productReads` is read by the product before the carry. A Drizzle column hand-off carries a read of the column to the stored member, never a send.
+ * with one role set. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
+ * a read of the column to the stored member, never a send. Each role a member takes here goes to `onCarry`, so the
+ * `--why` record names a role no site gave.
  */
-export function settleRoles(graph: Graph, productReads: ReadonlySet<DeclKey> = NO_KEYS): ReadonlyMap<DeclKey, MemberRoles> {
+export function settleRoles(
+  graph: Graph,
+  credits: ReadonlyMap<DeclKey, ReadCredit> = NO_CREDITS,
+  onCarry: CarrySink = ignoreCarry,
+): ReadonlyMap<DeclKey, MemberRoles> {
   const { facts: state } = graph;
-  const roles = new Map(
-    [...state.roles].map(([key, value]) => [key, productReads.has(key) ? { ...value, product: withRoles(value.product, ["read"]) } : { ...value }]),
-  );
-  const { readTo, columnReadTo, writeTo } = roleLinks(state);
+  const roles = new Map([...state.roles].map(([key, value]) => [key, { ...value }]));
+  for (const [key, { link, file }] of credits) {
+    carry(roles, key, { product: ["read"], other: [], write: null }, (role, product) => onCarry({ to: key, role, product, link, from: null, file }));
+  }
+  const links = roleLinks(state);
   const queue = [...roles.keys()];
   for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
     const current = roles.get(key);
     if (current === undefined) {
       continue;
     }
-    const read = { product: carriedReads(current.product), other: carriedReads(current.other), write: current.write };
-    const written = { product: carriedWrites(current.product), other: carriedWrites(current.other), write: current.write };
-    queue.push(...(readTo.get(key) ?? []).filter((value) => carry(roles, value, read)));
-    const columnRead = { product: onlyReads(current.product), other: onlyReads(current.other), write: current.write };
-    queue.push(...(columnReadTo.get(key) ?? []).filter((value) => carry(roles, value, columnRead)));
-    queue.push(...(writeTo.get(key) ?? []).filter((slot) => carry(roles, slot, written)));
+    const carried = {
+      read: { product: carriedReads(current.product), other: carriedReads(current.other), write: current.write },
+      columnRead: { product: onlyReads(current.product), other: onlyReads(current.other), write: current.write },
+      written: { product: carriedWrites(current.product), other: carriedWrites(current.other), write: current.write },
+    } as const;
+    for (const [kind, map] of [
+      ["read", links.readTo],
+      ["columnRead", links.columnReadTo],
+      ["written", links.writeTo],
+    ] as const) {
+      for (const { to, link } of map.get(key) ?? []) {
+        if (carry(roles, to, carried[kind], (role, product) => onCarry({ to, role, product, link, from: key, file: null }))) {
+          queue.push(to);
+        }
+      }
+    }
   }
   return roles;
+}
+
+// One carry edge: the member a role goes to and the link it goes along.
+interface RoleLink {
+  readonly to: DeclKey;
+  readonly link: CarryStep["link"];
 }
 
 // Which members a role carries to: a read or send of a slot member goes to the value member that filled it, a write of
 // the value member to the slot, and a zod twin's halves both ways; a read of a column goes to the member stored into it.
 function roleLinks(state: GraphFacts): {
-  readonly readTo: ReadonlyMap<DeclKey, DeclKey[]>;
-  readonly columnReadTo: ReadonlyMap<DeclKey, DeclKey[]>;
-  readonly writeTo: ReadonlyMap<DeclKey, DeclKey[]>;
+  readonly readTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
+  readonly columnReadTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
+  readonly writeTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
 } {
-  const readTo = new Map<DeclKey, DeclKey[]>();
-  const columnReadTo = new Map<DeclKey, DeclKey[]>();
-  const writeTo = new Map<DeclKey, DeclKey[]>();
-  const link = (map: Map<DeclKey, DeclKey[]>, from: DeclKey, to: DeclKey): void => {
+  const readTo = new Map<DeclKey, RoleLink[]>();
+  const columnReadTo = new Map<DeclKey, RoleLink[]>();
+  const writeTo = new Map<DeclKey, RoleLink[]>();
+  const add = (map: Map<DeclKey, RoleLink[]>, from: DeclKey, to: DeclKey, link: CarryStep["link"]): void => {
     const list = map.get(from);
     if (list === undefined) {
-      map.set(from, [to]);
+      map.set(from, [{ to, link }]);
     } else {
-      list.push(to);
+      list.push({ to, link });
     }
   };
   for (const [slot, values] of state.flows) {
     for (const value of values) {
-      link(readTo, slot, value);
-      link(writeTo, value, slot);
+      add(readTo, slot, value, "flow");
+      add(writeTo, value, slot, "flow");
     }
   }
   for (const [a, b] of state.twins) {
-    link(readTo, a, b);
-    link(readTo, b, a);
-    link(writeTo, a, b);
-    link(writeTo, b, a);
+    add(readTo, a, b, "twin");
+    add(readTo, b, a, "twin");
+    add(writeTo, a, b, "twin");
+    add(writeTo, b, a, "twin");
   }
   for (const [column, members] of state.columnFlows) {
     for (const member of members) {
-      link(columnReadTo, column, member);
-      link(writeTo, member, column);
+      add(columnReadTo, column, member, "column");
+      add(writeTo, member, column, "column");
     }
   }
   return { readTo, columnReadTo, writeTo };
@@ -758,14 +789,21 @@ const carriedReads = (side: ReadonlySet<Role>): readonly Role[] => [
 const onlyReads = (side: ReadonlySet<Role>): readonly Role[] => (readsIn(side) ? ["read"] : []);
 const carriedWrites = (side: ReadonlySet<Role>): readonly Role[] => (side.has("write") ? ["write"] : []);
 
-// Add roles to a member; whether anything was new.
+// Add roles to a member, naming each new one to `added`; whether anything was new.
 function carry(
   roles: Map<DeclKey, MemberRoles>,
   key: DeclKey,
   add: { readonly product: readonly Role[]; readonly other: readonly Role[]; readonly write: string | null },
+  added: (role: Role, product: boolean) => void,
 ): boolean {
   const target = roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
   const { product, other } = target;
+  for (const role of add.product.filter((next) => !product.has(next))) {
+    added(role, true);
+  }
+  for (const role of add.other.filter((next) => !other.has(next))) {
+    added(role, false);
+  }
   target.product = withRoles(product, add.product);
   target.other = withRoles(other, add.other);
   target.write ??= add.product.length > 0 ? add.write : null;

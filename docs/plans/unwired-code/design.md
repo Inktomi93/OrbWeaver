@@ -98,7 +98,8 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A type registry entry reached only through `Registry[K]` | a key use, so no row | `unreferenced` | A key use names the member when `K` can be that entry's key, as a mapped type over the whole key tuple is; see "Limits of the fields scan". |
 | A read of a discriminant through the union | reads the member of every option | can report an option's member `never-read` | Every option's member is read. |
 | A member stored into a Drizzle column, copied by a key or carried by a whole value | flows into the column: read only where the product reads the column back; a read in a table definition reads nothing | the same | One rule (tooling/src/unwired/boundaries.ts `storeWritesAt`, tooling/src/unwired/graph/build.ts `#stores`). A send of the column hands the library its definition and sends no stored value. |
-| A read by snap or a value published to the dev bridge | a use | not a use: its population is production files | D357. |
+| A read by snap or a value published to the dev bridge | a use | not a use: its population is production files | D357. A dev-bridge read is one through our own `declare global` global off `window`, `globalThis` or `self`, in code or in a script's text (tooling/src/unwired/graph/build.ts `#doorReads`). A test that imports the member's module reads it as a test does, as `AppearanceMatrixContract.executable` in packages/client/src/lib/appearance-carrier-manifest.ts is read. |
+| A member that takes a read only through the carry: a flow, a zod twin, a column, a build script's closure or the dev-bridge door | no row | reports the member | The `--why` record names each role the carry gives, with its link and the member or reading file it came from (tooling/src/unwired/graph/why.ts `carriedEntries`). |
 | A read through a `keyof` mapped type, such as `Partial<Record<keyof Persisted, unknown>>` | reads the member the key names | no read | The key names the member. |
 | A destructuring assignment, `({ a } = value)` | the pattern's key reads the member | no read | tooling/src/unwired/graph/roles.ts states the pattern invariant. |
 | A member a library reads: a `declare module` augmentation of a library interface, or a type that fills a library slot | read by the library | `unreferenced` | A library slot names the field in its published declaration (tooling/src/unwired/graph/flows.ts). |
@@ -108,7 +109,6 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 
 Classes still open:
 
-- A member published through our own global door and read only by a test that imports its module, such as `AppearanceMatrixContract.executable` in packages/client/src/lib/appearance-carrier-manifest.ts, counts as a door read today. A read through the door and a direct import read are not yet told apart.
 - A member of a `declare class`, such as a mint class that brands a type, has no run-time presence either. It reports `member-sent-only` or `member-untouched` today.
 - A member of a type that exists only to name a type error, such as the members of `NamesEvery` in packages/kit/src/guards/index.ts, reports `member-untouched`.
 - A computed key built from a runtime symbol (`{ [token]: true }`) writes nothing, as in the fields scan.

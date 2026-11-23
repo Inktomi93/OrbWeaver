@@ -111,6 +111,18 @@ test("why names the site that gave each role to the asked member and to no other
   ]);
 });
 
+// A role no site gives a member, here a read through its zod twin, still shows in the record, with the link and the
+// member it came along; a member the record shows no read for would be kept with nothing to show why.
+test("why names a role the carry gives, so a member no bucket holds shows the read that keeps it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [FILE]: SESSION, ...FACTS }));
+  const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: "User", name: "name" }] }));
+  const held = Object.values(scan.analysis).some((findings) => findings.some(({ label }) => label.startsWith(`${TWIN}:User.name`)));
+  expect(held).toBe(false);
+  expect(scan.session.why.map(({ member, role, site, via }) => [member, role, site, via])).toEqual([
+    ["User.name", "read", `${TWIN}:3`, "carry twin from userSchema.name"],
+  ]);
+});
+
 // A value landing in an opaque member slot escapes there: the site is that line, not the file's first token past its
 // header, and the two slots one literal fills with the same value give the member one escape at that site. A library
 // slot naming the member reads it at the hand-off's own line, and a keyed read and an indexed type name it at theirs.

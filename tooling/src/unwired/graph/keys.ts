@@ -7,7 +7,7 @@
 //   that passes a wide value, or a reference that is not a call, reads the table whole, as any other computed key does.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
-//   a computed key after the chain reads the last type whole.
+//   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
 import type { Node } from "@typescript/native/ast";
 import {
   isArrowFunction,
@@ -260,6 +260,7 @@ export class Keys {
       if (end !== undefined && read.dynamic) {
         flows.deepMembers(end, true);
         state.roleWhole([{ type: end, at: read.at }], "read", read.file);
+        state.doorRead(state.memberDeclarations([end]).flat(), read.file);
       }
     }
   }
@@ -273,7 +274,9 @@ export class Keys {
         return undefined;
       }
       const [members = []] = state.batch([state.propsOnSlot(at, step)]);
-      state.roleAll(state.declarations(members).flat(), "read", read.file, read.at);
+      const stepped = state.declarations(members).flat();
+      state.roleAll(stepped, "read", read.file, read.at);
+      state.doorRead(stepped, read.file);
       at = this.#stepType(members[0]);
     }
     return at;

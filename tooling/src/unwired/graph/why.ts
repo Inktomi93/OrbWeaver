@@ -8,7 +8,7 @@ import type { NativeWorld } from "../native.ts";
 import type { WhyTarget } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts } from "./resolve.ts";
-import type { Role } from "./roles.ts";
+import type { CarryStep, Role } from "./roles.ts";
 import type { DeclInfo } from "./sites.ts";
 import { isDeclKey } from "./sites.ts";
 
@@ -50,6 +50,44 @@ const recorder = (): string => {
     ? ANONYMOUS
     : `${frame.functionName === "" ? ANONYMOUS : frame.functionName} ${basename(frame.scriptName)}:${String(frame.lineNumber)}`;
 };
+
+// Each target a declaration answers, with the member as the record names it.
+function targetsOf(
+  targets: readonly WhyTarget[],
+  decls: ReadonlyMap<DeclKey, DeclInfo>,
+  key: DeclKey,
+): readonly Pick<WhyEntry, "target" | "member" | "declared">[] {
+  const info = decls.get(key);
+  if (info === undefined) {
+    return [];
+  }
+  const owner = memberName(decls, info);
+  return targets
+    .filter((target) =>
+      target.kind === "member"
+        ? info.name === target.name && (target.owner === null || owner === `${target.owner}.${info.name}`)
+        : info.file === target.file && info.line === target.line,
+    )
+    .map((target) => ({ target: targetText(target), member: owner, declared: `${info.file}:${String(info.line)}` }));
+}
+
+// A member as `Owner.member`, or its bare name when it has no named holder.
+function memberName(decls: ReadonlyMap<DeclKey, DeclInfo>, info: DeclInfo): string {
+  const owner = isDeclKey(info.holder) ? decls.get(info.holder)?.name : undefined;
+  return owner === undefined ? info.name : `${owner}.${info.name}`;
+}
+
+/** The roles the carry gave each target's member, after the build's own: the link, and the member or reading file it
+ *  came from. A role the product does not hold is marked as outside it. */
+export function carriedEntries(targets: readonly WhyTarget[], decls: ReadonlyMap<DeclKey, DeclInfo>, steps: readonly CarryStep[]): readonly WhyEntry[] {
+  return steps.flatMap((step) => {
+    const source = step.from === null ? undefined : decls.get(step.from);
+    const site = source === undefined ? (step.file ?? "") : `${source.file}:${String(source.line)}`;
+    const from = source === undefined ? "" : ` from ${memberName(decls, source)}`;
+    const outside = step.product ? "" : " outside the product";
+    return targetsOf(targets, decls, step.to).map((named) => ({ ...named, role: step.role, site, via: `carry ${step.link}${from}${outside}` }));
+  });
+}
 
 const targetText = (target: WhyTarget): string =>
   target.kind === "site" ? `${target.file}:${String(target.line)}` : `${target.owner === null ? "" : `${target.owner}.`}${target.name}`;
@@ -101,26 +139,13 @@ export class WhyTracker {
 
   /** Each target's roles, judged against the walked declarations, in the order the build recorded them. */
   entries(decls: ReadonlyMap<DeclKey, DeclInfo>): readonly WhyEntry[] {
-    const ownerOf = (info: DeclInfo): string | null => (isDeclKey(info.holder) ? (decls.get(info.holder)?.name ?? null) : null);
-    return this.#events.flatMap((event) => {
-      const info = decls.get(event.key);
-      if (info === undefined) {
-        return [];
-      }
-      const owner = ownerOf(info);
-      const matched = this.#targets.filter((target) =>
-        target.kind === "member"
-          ? info.name === target.name && (target.owner === null || owner === target.owner)
-          : info.file === target.file && info.line === target.line,
-      );
-      return matched.map((target) => ({
-        target: targetText(target),
-        member: owner === null ? info.name : `${owner}.${info.name}`,
-        declared: `${info.file}:${String(info.line)}`,
+    return this.#events.flatMap((event) =>
+      targetsOf(this.#targets, decls, event.key).map((named) => ({
+        ...named,
         role: event.role,
         site: `${event.file}:${String(event.line)}`,
         via: event.via,
-      }));
-    });
+      })),
+    );
   }
 }
