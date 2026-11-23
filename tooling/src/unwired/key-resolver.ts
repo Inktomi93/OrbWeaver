@@ -345,6 +345,18 @@ function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | und
   return alias !== undefined && FORM_APIS.has(alias.name) ? (yield* type.getAliasTypeArguments.gen())[0] : undefined;
 }
 
+/** A TanStack Form field path: the member each dotted segment of `key` walks, in order, and whether the path stores
+ *  into the field (a form write method) or reads it; null for a key in no form path slot. A segment that names no member
+ *  ends the walk with what it found. */
+export function* formPath(
+  checker: Checker,
+  key: StringLiteral | NoSubstitutionTemplateLiteral,
+): APIRequestGenerator<{ readonly members: readonly NativeSymbol[]; readonly role: SyntaxRole } | null> {
+  const form = formPathOf(slotOf(key));
+  const data = form === null ? undefined : yield* formData(checker, form.form);
+  return form === null || data === undefined ? null : { members: (yield* walkPath(checker, data, key.text)) ?? [], role: form.role };
+}
+
 // An array's element type, or undefined for a type that is no array.
 function* elementOf(checker: Checker, type: Type): APIRequestGenerator<Type | undefined> {
   const plain = yield* checker.getNonNullableType.gen(type);

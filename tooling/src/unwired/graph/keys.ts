@@ -17,12 +17,15 @@ import {
   isFunctionExpression,
   isIdentifier,
   isNewExpression,
+  isNoSubstitutionTemplateLiteral,
   isParameterDeclaration,
+  isStringLiteral,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import { formPath } from "../key-resolver.ts";
 import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { tracing } from "./options.ts";
@@ -51,6 +54,9 @@ const symbolKey = (type: Type | undefined): boolean => type !== undefined && has
 // The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id.
 const symbolMemberName = (symbol: NativeSymbol): string => `__@${symbol.name}@${String(symbol.id)}`;
 
+// The attribute a form's field component takes its path in.
+const FORM_NAME = "name";
+
 export class Keys {
   readonly #state: GraphState;
   readonly #parameterKeyed: ParameterKeyed[] = [];
@@ -64,6 +70,7 @@ export class Keys {
   file(sites: FileSites, flows: Flows): void {
     this.#elementKeys(sites);
     this.#sinkReads(sites, flows);
+    this.#formPaths(sites);
     this.#keyTests(sites);
     this.#typeKeys(sites);
     this.#reflectiveReads(sites);
@@ -145,6 +152,23 @@ export class Keys {
     const found = state.batch(asks.map(({ value, name }) => this.#namedAtAnyDepth(value, name)));
     for (const [y, { at }] of asks.entries()) {
       state.roleAll(state.declarations(found[y] ?? []).flat(), "read", sites.file, at);
+    }
+  }
+
+  // A TanStack Form field path, `form.setFieldValue("params.seed", v)` or `<form.Field name="title">`: each segment's
+  // member is written by a form write method and read by any other path (../key-resolver.ts formPath).
+  #formPaths(sites: FileSites): void {
+    const state = this.#state;
+    const keys = [
+      ...sites.keyArguments,
+      ...sites.jsxAttributes.flatMap(({ name, value }) => (name === FORM_NAME && value !== undefined ? [value] : [])),
+    ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key));
+    const paths = state.batch(keys.map((key) => formPath(state.world.checker, key)));
+    for (const [y, key] of keys.entries()) {
+      const path = paths[y];
+      if (path !== null && path !== undefined) {
+        state.roleAll(state.declarations(path.members).flat(), path.role === "write" ? "write" : "read", sites.file, key.pos);
+      }
     }
   }
 
