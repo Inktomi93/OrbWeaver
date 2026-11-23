@@ -9,6 +9,7 @@ import type { WhyTarget } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts } from "./resolve.ts";
 import type { CarryStep, Role } from "./roles.ts";
+import { READS } from "./roles.ts";
 import type { DeclInfo } from "./sites.ts";
 import { isDeclKey } from "./sites.ts";
 
@@ -77,17 +78,64 @@ function memberName(decls: ReadonlyMap<DeclKey, DeclInfo>, info: DeclInfo): stri
   return owner === undefined ? info.name : `${owner}.${info.name}`;
 }
 
-/** The roles the carry gave each target's member, after the build's own: the link, and the member or reading file it
- *  came from. A role the product does not hold is marked as outside it. */
-export function carriedEntries(targets: readonly WhyTarget[], decls: ReadonlyMap<DeclKey, DeclInfo>, steps: readonly CarryStep[]): readonly WhyEntry[] {
+/** A role's recorded sites and the files whose reads the product makes: what a carried role is traced back through. */
+export interface CarryOrigins {
+  readonly sites: ReadonlyMap<DeclKey, readonly { readonly role: Role; readonly file: string; readonly at: number }[]>;
+  readonly product: (file: string) => boolean;
+  /** The source world, to name a site's line; a graph read back from a dump has none, and names the file alone. */
+  readonly world: NativeWorld | null;
+}
+
+/** The roles the carry gave each target's member, after the build's own. Each names the link it came along and the
+ *  member it came from, at the occurrence that gave that member the role first: a recorded site, a credit's reading
+ *  file, or, through a chain of carries, the site at its start. A role the product does not hold is marked as outside it. */
+export function carriedEntries(
+  targets: readonly WhyTarget[],
+  decls: ReadonlyMap<DeclKey, DeclInfo>,
+  steps: readonly CarryStep[],
+  origins: CarryOrigins,
+): readonly WhyEntry[] {
+  const given = new Map<string, CarryStep>();
+  for (const step of steps) {
+    const id = stepId(step.to, step.role, step.product);
+    if (!given.has(id)) {
+      given.set(id, step);
+    }
+  }
+  const label = (key: DeclKey): string => {
+    const info = decls.get(key);
+    if (info !== undefined) {
+      return memberName(decls, info);
+    }
+    const { file, pos } = declKeyParts(key);
+    return lineOf(origins.world, file, pos);
+  };
+  // The occurrence that first gave `key` the role on this side, following carries back to their start.
+  const originOf = (key: DeclKey, role: Role, product: boolean, seen: Set<string>): string => {
+    const recorded = origins.sites.get(key)?.find((site) => sameRole(site.role, role) && origins.product(site.file) === product);
+    if (recorded !== undefined) {
+      return lineOf(origins.world, recorded.file, recorded.at);
+    }
+    const id = stepId(key, role, product);
+    const step = given.get(id);
+    if (step === undefined || seen.has(id)) {
+      return `${label(key)} (no recorded site)`;
+    }
+    seen.add(id);
+    return step.from === null ? (step.file ?? "") : originOf(step.from, role, product, seen);
+  };
   return steps.flatMap((step) => {
-    const source = step.from === null ? undefined : decls.get(step.from);
-    const site = source === undefined ? (step.file ?? "") : `${source.file}:${String(source.line)}`;
-    const from = source === undefined ? "" : ` from ${memberName(decls, source)}`;
+    const site = step.from === null ? (step.file ?? "") : originOf(step.from, step.role, step.product, new Set());
+    const from = step.from === null ? "" : ` from ${label(step.from)}`;
     const outside = step.product ? "" : " outside the product";
     return targetsOf(targets, decls, step.to).map((named) => ({ ...named, role: step.role, site, via: `carry ${step.link}${from}${outside}` }));
   });
 }
+
+const stepId = (key: DeclKey, role: Role, product: boolean): string => `${key}\t${role}\t${String(product)}`;
+// A carry hands a read on as a read, so any read role at the source is the origin of a carried read.
+const sameRole = (site: Role, carried: Role): boolean => site === carried || (READS.has(site) && READS.has(carried));
+const lineOf = (world: NativeWorld | null, file: string, at: number): string => (world === null ? file : `${file}:${String(siteLine(world, file, at))}`);
 
 const targetText = (target: WhyTarget): string =>
   target.kind === "site" ? `${target.file}:${String(target.line)}` : `${target.owner === null ? "" : `${target.owner}.`}${target.name}`;

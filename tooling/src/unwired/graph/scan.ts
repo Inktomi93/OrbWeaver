@@ -36,6 +36,7 @@ import { loadRoots } from "./roots.ts";
 import type { ShapesOptions, ShapesReport } from "./shapes.ts";
 import { shapesPass } from "./shapes.ts";
 import type { BuildSession } from "./state.ts";
+import { productReader } from "./state.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
 import type { Verified } from "./verify.ts";
@@ -160,7 +161,10 @@ class Session implements Disposable {
       files: options.files,
       from: source.from,
       dumped: source.dumped,
-      why: [...source.why, ...carriedEntries(options.why, graph.facts.decls, steps)],
+      why: [
+        ...source.why,
+        ...carriedEntries(options.why, graph.facts.decls, steps, { sites: graph.facts.roleSites, product: productReader, world: this.#world }),
+      ],
       lost: options.explainLost ? explainLost(graph.facts) : null,
       profile: this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, this.#compiler) ?? null,
     };

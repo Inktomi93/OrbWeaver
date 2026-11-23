@@ -112,14 +112,38 @@ test("why names the site that gave each role to the asked member and to no other
 });
 
 // A role no site gives a member, here a read through its zod twin, still shows in the record, with the link and the
-// member it came along; a member the record shows no read for would be kept with nothing to show why.
+// member it came along, at the read itself; a member the record shows no read for would be kept with nothing to show why.
 test("why names a role the carry gives, so a member no bucket holds shows the read that keeps it", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree({ [FILE]: SESSION, ...FACTS }));
   const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: "User", name: "name" }] }));
   const held = Object.values(scan.analysis).some((findings) => findings.some(({ label }) => label.startsWith(`${TWIN}:User.name`)));
   expect(held).toBe(false);
   expect(scan.session.why.map(({ member, role, site, via }) => [member, role, site, via])).toEqual([
-    ["User.name", "read", `${TWIN}:3`, "carry twin from userSchema.name"],
+    ["User.name", "read", `${TWIN}:${String(FACTS[TWIN].split("\n").findIndex((line) => line.includes("user.name")) + 1)}`, "carry twin from userSchema.name"],
+  ]);
+});
+
+// A zod twin pair nothing reads: both halves stay unread, so the type member reports, and a carried role names the
+// occurrence that gave it, never a half's own declaration.
+const PAIR = `${GRAPH_SOURCE}/pair.ts`;
+const PAIR_SOURCE = [
+  'import { z } from "zod";',
+  "export interface View { readonly chatId: string; readonly spare: string }",
+  "export const viewSchema = z.strictObject({",
+  "  chatId: z.string(),",
+  "  spare: z.string(),",
+  "}) satisfies z.ZodType<View>;",
+  'export const toView = (): View => ({ chatId: "c", spare: "s" });',
+];
+
+test("a zod twin pair nothing reads reports, and a carried role names where it was given", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [PAIR]: PAIR_SOURCE.join("\n"), ...ZOD_MODULE }));
+  const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: null, name: "chatId" }] }));
+  expect(labelsIn(scan, "member-write-only", PAIR)).toEqual(["View.chatId", "View.spare"]);
+  const written = PAIR_SOURCE.findIndex((line) => line.startsWith("export const toView")) + 1;
+  expect(scan.session.why.map(({ member, role, site, via }) => [member, role, site, via])).toEqual([
+    ["View.chatId", "write", `${PAIR}:${String(written)}`, expect.stringContaining("recordWrites")],
+    ["viewSchema.chatId", "write", `${PAIR}:${String(written)}`, "carry twin from View.chatId"],
   ]);
 });
 

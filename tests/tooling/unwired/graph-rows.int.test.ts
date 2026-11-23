@@ -1,7 +1,8 @@
 // A Drizzle row's members carry no declaration of their own: a read of one finds its column through the row's table,
 // matched by the whole set of column names, whether the row was annotated, selected whole or destructured.
 import { expect, test } from "@orb/testkit/tooling";
-import { GRAPH_SOURCE, graphScan, libraryModule } from "./_planted.ts";
+import { FRESH_BUILD, scanGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, libraryModule } from "./_planted.ts";
 
 const SCHEMA = "packages/db/src/schema/tables.ts";
 const FILE = `${GRAPH_SOURCE}/rows.ts`;
@@ -96,5 +97,17 @@ test("a member stored into a column is read only where the column is read back i
     ["NoteWrite.body", "member-write-only", `written at ${FILE}:${String(STORE_LINES.length - 2)}`],
     ["Stamp.at", "member-write-only", `written at ${FILE}:${String(stampLine)}`],
     ["Stamp.by", "member-write-only", `written at ${FILE}:${String(stampLine)}`],
+  ]);
+});
+
+// A role the carry gives names the occurrence that gave it first: a stored member's read is the column's read back, at
+// the read's own line, and the record names the column it came through.
+test("why names a column-carried read at the read back of the column", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ ...STORES, [SCHEMA]: STORED_TABLES, [FILE]: STORE_LINES.join("\n") }));
+  const scan = await scanGraph(root, () => undefined, { ...FRESH_BUILD, why: [{ kind: "member", owner: "NoteWrite", name: "title" }] });
+  const readBack = STORE_LINES.findIndex((line) => line.startsWith("export const titles")) + 1;
+  const column = STORED_TABLES.split("\n").findIndex((line) => line.includes('sqliteTable("notes"')) + 1;
+  expect(scan.session.why.filter(({ role }) => role === "read").map(({ site, via }) => [site, via])).toEqual([
+    [`${FILE}:${String(readBack)}`, `carry column from ${SCHEMA}:${String(column)}`],
   ]);
 });
