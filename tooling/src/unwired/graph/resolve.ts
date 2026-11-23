@@ -166,6 +166,8 @@ const KEY_ARGUMENT: ReadonlyMap<string, number> = new Map([
 const KEY_TRANSPARENT: ReadonlySet<string> = new Set(["Readonly", "Partial", "Required", "NonNullable", "Promise", "Awaited"]);
 // zod's inferred types, whose keys are the queried schema's: `z.infer<typeof S>` over `S = z.enum(T)` is T's. Taught by hand.
 const ZOD_INFERS: ReadonlySet<string> = new Set(["infer", "output", "input"]);
+/** The package whose declarations make a call a validator and a `satisfies` reference a schema twin. */
+export const ZOD_PACKAGE = "zod";
 
 // zod's enum door: `schema.enum.k` on `schema = z.enum(T)` reads T's member. Taught by hand.
 const ZOD_ENUM_DOORS: ReadonlySet<string> = new Set(["enum", "Enum"]);

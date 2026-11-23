@@ -49,7 +49,7 @@ import { assertedDestination, identitySlot, providerReach, sendChase } from "../
 import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
+import { allOf, answer, constituentsOf, keyText, ZOD_PACKAGE } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
@@ -61,9 +61,11 @@ interface TypePair {
   readonly value: Type;
 }
 
-/** A slot and value pair, with the position of the code that made it: the roles the pair gives are recorded there. */
+/** A slot and value pair, with the position of the code that made it: the roles the pair gives are recorded there.
+ *  `whole` marks a pair whose value is the site's own value, not a part the walk reached below it. */
 export interface FlowPair extends TypePair {
   readonly site: number;
+  readonly whole?: boolean;
 }
 
 // The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
@@ -91,8 +93,6 @@ function* declarationOf(type: Type): APIRequestGenerator<string> {
 
 const GLOBAL_SCOPE = "global";
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
-/** The package whose declarations make a call a validator and a `satisfies` reference a schema twin. */
-export const ZOD_PACKAGE = "zod";
 // zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
 const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
 
@@ -292,7 +292,7 @@ export class Flows {
 
   /** Link slot and value pairs to their fixpoint, the roles they give landing in `file`. */
   link(pairs: readonly FlowPair[], file: string): void {
-    for (let level: readonly FlowPair[] = pairs; level.length > 0; ) {
+    for (let level: readonly FlowPair[] = pairs.map((pair) => ({ ...pair, whole: true })); level.length > 0; ) {
       level = this.#linkLevel(level, file);
     }
   }
@@ -503,29 +503,19 @@ export class Flows {
     return checks.map((type) => (type === undefined ? undefined : types.get(type)));
   }
 
-  // Where a value a pair hands on goes, chased from the value at the pair's site; the pair's value is that site's own
-  // when their types are one.
+  // Where a value a pair hands on goes, chased from the value at the pair's site.
   #pairDestinations(pairs: readonly FlowPair[]): readonly Outcome[] {
-    const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
-    const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
-    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
-    return this.#destinations(nodes, (at) => {
-      const node = nodes[at];
-      return node !== undefined && types.get(node)?.id === pairs[at]?.value.id;
-    });
+    return this.#destinations(
+      pairs.map(({ site }) => this.#siteNodes.get(site)),
+      (at) => pairs[at]?.whole === true,
+    );
   }
 
   // The type a `satisfies` holds each pair's value to, where the value is its site's own (`{ … } satisfies View` returned
   // as `unknown`); a value the walk reached below the site's is a part of it, which the check does not hold.
   #pairCheckedTypes(pairs: readonly FlowPair[]): readonly (Type | undefined)[] {
-    const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
-    const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
-    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
-    const checked = this.#checkedTypes(nodes);
-    return pairs.map(({ value }, at) => {
-      const node = nodes[at];
-      return node !== undefined && types.get(node)?.id === value.id ? checked[at] : undefined;
-    });
+    const checked = this.#checkedTypes(pairs.map(({ site, whole }) => (whole === true ? this.#siteNodes.get(site) : undefined)));
+    return pairs.map((_, at) => checked[at]);
   }
 
   // Note each value handed into a slot type that carries a string index signature, by the file it was handed in.
@@ -703,8 +693,10 @@ export class Flows {
   // The walk is a worklist that ends on its seen-set, keyed by the declarations of the slot and the value and the step
   // that reached them, never by type: a recursive generic instantiates a new type at every level (`Deep<Box<T>>`), so a
   // type key never repeats, while its declarations do.
-  *#operands({ slot, value, site }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
+  *#operands({ slot, value, site, whole }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
+    // a step that keeps the value (a slot's arm) leaves it the site's own; any other step reaches a part of it
+    const own = whole === true ? ((yield* checker.getAwaitedType.gen(value)) ?? value).id : undefined;
     const seen = new Set<string>();
     const visits = new Map<string, number>();
     const out: FlowPair[] = [];
@@ -730,7 +722,7 @@ export class Flows {
       visits.set(slotDeclaration, (visits.get(slotDeclaration) ?? 0) + 1);
       const inner = yield* this.#innerOperands(a, b);
       if (inner === null) {
-        out.push({ slot: a, value: b, site });
+        out.push({ slot: a, value: b, site, whole: b.id === own });
       } else {
         work.push(...inner);
       }

@@ -21,6 +21,8 @@
 // - The walk is keyed by the declaring symbol. A generic reached again while its own walk runs on the same stack (a
 //   tree node holding `Node<T>[]`, two mutually recursive aliases) answers the polarity seen so far, its declared
 //   modifiers applied, so every walk ends. Another walk running beside it never reads that partial answer.
+// - A type reference names the generic's parameter by the symbol it resolves to, never by its text: a signature that
+//   declares its own `T` (`map<T>(fn: (x: T) => T)`) uses another type.
 // - A parameter the declaration never uses is `none`.
 import type { Node, TypeParameterDeclaration } from "@typescript/native/ast";
 import {
@@ -61,10 +63,12 @@ interface Running {
   readonly fixed: readonly (Variance | null)[];
 }
 
-// What one walk records into: the parameters by name, their variances so far, the generics running on its stack, and
-// whether the generic's own methods count (they do not for a generic a type argument is handed to).
+// What one walk records into: the parameters by their declaration and the names they go by, their variances so far,
+// the generics running on its stack, and whether the generic's own methods count (they do not for a generic a type
+// argument is handed to).
 interface Walk {
-  readonly names: ReadonlyMap<string, number>;
+  readonly parameters: ReadonlyMap<string, number>;
+  readonly names: ReadonlySet<string>;
   readonly result: Variance[];
   readonly stack: ReadonlyMap<string, Running>;
   readonly methods: boolean;
@@ -119,21 +123,6 @@ const COMPUTED_RESULTS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.SymbolKeyword,
 ]);
 
-// Whether a type node names one of the walked generic's own type parameters anywhere inside it.
-function namesParameter(node: Node, names: ReadonlyMap<string, number>): boolean {
-  if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && names.has(node.typeName.text)) {
-    return true;
-  }
-  return childrenOf(node).some((child) => namesParameter(child, names));
-}
-
-// Whether a method or constructor keeps the values its parameters take: a constructor and a method with no declared
-// result do, and so does any method whose result is neither computed nor handed back (the module header holds why).
-function keepsWhatItTakes(node: Node, names: ReadonlyMap<string, number>): boolean {
-  const result = isMethodSignatureDeclaration(node) || isMethodDeclaration(node) ? node.type : undefined;
-  return result === undefined || !(COMPUTED_RESULTS.has(result.kind) || namesParameter(result, names));
-}
-
 const childrenOf = (node: Node): readonly Node[] => {
   const out: Node[] = [];
   node.forEachChild((child) => {
@@ -174,8 +163,15 @@ export class Variances {
     const parameters = declarations.map(typeParametersOf).find((list) => list.length > 0) ?? [];
     const fixed = parameters.map(declared);
     const result: Variance[] = parameters.map(() => "none");
+    // each declaration of a merged generic declares its own parameter symbols, at the same positions
+    const own = declarations.flatMap((node) => typeParametersOf(node).map((parameter, at) => ({ parameter, at })));
+    const keys: [string, number][] = [];
+    for (const { parameter, at } of own) {
+      keys.push([yield* this.#keyOf(parameter.name), at]);
+    }
     const walk: Walk = {
-      names: new Map(parameters.map(({ name }, at) => [name.text, at])),
+      parameters: new Map(keys),
+      names: new Set(own.map(({ parameter }) => parameter.name.text)),
       result,
       stack: new Map([...stack, [key, { result, fixed }]]),
       methods,
@@ -195,7 +191,7 @@ export class Variances {
       return;
     }
     if (isTypeReferenceNode(node)) {
-      const at = isIdentifier(node.typeName) ? walk.names.get(node.typeName.text) : undefined;
+      const at = yield* this.#parameterAt(node, walk);
       if (at !== undefined) {
         walk.result[at] = joined(walk.result[at] ?? "none", polarity);
         return;
@@ -231,7 +227,7 @@ export class Variances {
   // A signature's parameters take values against its polarity, and a method's only when it keeps them; its return and
   // its other parts keep the polarity.
   *#signature(node: Node, polarity: Polarity, walk: Walk): APIRequestGenerator<void> {
-    const takes = !isMemberSignature(node) || (walk.methods && keepsWhatItTakes(node, walk.names));
+    const takes = !isMemberSignature(node) || (walk.methods && (yield* this.#keepsWhatItTakes(node, walk)));
     for (const child of childrenOf(node)) {
       if (child.kind !== SyntaxKind.Parameter) {
         yield* this.#walk(child, polarity, walk);
@@ -239,6 +235,37 @@ export class Variances {
         yield* this.#walk(child, flip(polarity), walk);
       }
     }
+  }
+
+  // The walked generic's parameter a type reference names, by the symbol it resolves to: a signature's own type
+  // parameter of the same name (`map<T>(fn: (x: T) => T)`) is another type.
+  *#parameterAt(node: Node & { readonly typeName: Node }, walk: Walk): APIRequestGenerator<number | undefined> {
+    return isIdentifier(node.typeName) && walk.names.has(node.typeName.text) ? walk.parameters.get(yield* this.#keyOf(node.typeName)) : undefined;
+  }
+
+  *#keyOf(name: Node): APIRequestGenerator<string> {
+    const symbol = yield* this.#state.world.checker.getSymbolAtLocation.gen(name);
+    return symbol === undefined ? "" : declarationKeys(symbol).join(",");
+  }
+
+  // Whether a method or constructor keeps the values its parameters take: a constructor and a method with no declared
+  // result do, and so does any method whose result is neither computed nor handed back (the module header holds why).
+  *#keepsWhatItTakes(node: Node, walk: Walk): APIRequestGenerator<boolean> {
+    const result = isMethodSignatureDeclaration(node) || isMethodDeclaration(node) ? node.type : undefined;
+    return result === undefined || !(COMPUTED_RESULTS.has(result.kind) || (yield* this.#namesParameter(result, walk)));
+  }
+
+  // Whether a type node names one of the walked generic's own type parameters anywhere inside it.
+  *#namesParameter(node: Node, walk: Walk): APIRequestGenerator<boolean> {
+    if (isTypeReferenceNode(node) && (yield* this.#parameterAt(node, walk)) !== undefined) {
+      return true;
+    }
+    for (const child of childrenOf(node)) {
+      if (yield* this.#namesParameter(child, walk)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // A type argument handed to another generic moves as that generic's parameter at its position does.

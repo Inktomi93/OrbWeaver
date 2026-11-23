@@ -135,6 +135,26 @@ test("a generic declared inside a generic function pairs its own type arguments 
   expect(bucketsIn(scan)).toEqual(["member-untouched NominateVars.stale"]);
 });
 
+// `map<T>` declares a `T` of its own: its parameter takes that type in, not the box's, so `Box<Probe>` handed as
+// `Box<Other>` still pairs forward only. `Other.label` stays written and never read, and `Probe.label` read and never
+// written.
+test("a method's own type parameter of the generic's name is not the generic's", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Probe { readonly label?: string; readonly kept: string }",
+      "export interface Other { readonly label?: string; readonly kept: string }",
+      "export interface Box<T> { readonly value: T; map<T>(fn: (x: T) => T): void }",
+      "declare const box: Box<Probe>;",
+      'const seed: Other = { label: "o", kept: "k" };',
+      'const seedProbe: Probe = { kept: "k" };',
+      "const take = (b: Box<Other>): string => b.value.kept;",
+      'export const shown = (): string => take(box) + (box.value.label ?? "") + seed.kept + seedProbe.kept;',
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Other.label", "member-untouched Box.map", "member-read-only Probe.label"]);
+});
+
 // A library's unconstrained type parameter is a slot that names nothing, under an optional property too, where the
 // checker's non-nullable form of it (`V & {}`) no longer reads as a type parameter.
 test("a value held under a library's unconstrained type parameter is sent", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -157,21 +177,36 @@ test("a value held under a library's unconstrained type parameter is sent", { ti
 
 // A debug probe labels an unreadable value with a checked literal and returns it as `unknown`: each branch of the
 // conditional fills the return, so the checked view's members are sent where the probe's reply goes. The same literal
-// returned into a typed slot only pairs, and its members stay written and never read.
+// returned into a typed slot only pairs, and its members stay written and never read. A literal of constant or computed
+// values, under a conditional or returned bare, sends its checked type the same way.
 test("a checked literal returned as unknown from a conditional sends its checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
     source([
       "export interface UnreadableView { readonly storedText: string }",
       "export interface TypedView { readonly storedText: string }",
+      "export interface ConstView { readonly a: string }",
+      "export interface ComputedView { readonly b: string }",
+      "export interface BareView { readonly c: string }",
       "class Unreadable { constructor(readonly text: string) {} }",
+      "declare const flag: boolean;",
       "const view = (value: unknown): unknown => (value instanceof Unreadable ? ({ storedText: value.text } satisfies UnreadableView) : value);",
       "const typed = (value: unknown): TypedView | undefined => (value instanceof Unreadable ? ({ storedText: value.text } satisfies TypedView) : undefined);",
+      "const constant = (value: unknown): unknown => (value instanceof Unreadable ? ({ a: 'a' } satisfies ConstView) : value);",
+      "const computed = (value: unknown): unknown => (flag ? ({ b: String(value) } satisfies ComputedView) : value);",
+      "const bare = (value: unknown): unknown => { if (flag) { return { c: 'c' } satisfies BareView; } return value; };",
       "const reply = { json: (value: unknown): unknown => value };",
-      "export const probe = (raw: unknown): unknown => reply.json({ config: view(raw), typed: typed(raw) !== undefined });",
+      "export const probe = (raw: unknown): unknown =>",
+      "  reply.json({ config: view(raw), typed: typed(raw) !== undefined, a: constant(raw), b: computed(raw), c: bare(raw) });",
     ]),
   );
-  expect(bucketsIn(scan)).toEqual(["member-write-only TypedView.storedText", "member-sent-only UnreadableView.storedText"]);
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only TypedView.storedText",
+    "member-sent-only UnreadableView.storedText",
+    "member-sent-only ConstView.a",
+    "member-sent-only ComputedView.b",
+    "member-sent-only BareView.c",
+  ]);
 });
 
 // `Object.values` and `structuredClone` read every member of the value they take; a value no reflective call takes keeps
@@ -221,4 +256,29 @@ test("a literal parsed by a zod schema writes the keys it holds", { timeout: 120
     ]),
   });
   expect(bucketsIn(scan)).toEqual(["member-read-only RowBase.spare", "member-read-only Loose.funderUserId"]);
+});
+
+// Every zod validator takes the schema's input: each `Via*` member is written only through the literal one validator is
+// handed, and a transform's literal writes the input keys the output no longer names (`In.b`). `In.c`, which no literal
+// holds, stays read and never written.
+const VALIDATORS = ["parse", "safeParse", "parseAsync", "safeParseAsync"] as const;
+test("each zod validator's literal writes the schema input keys it holds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      ...VALIDATORS.flatMap((name) => [
+        `export interface Via_${name} { readonly kept: string; readonly field?: string }`,
+        `const ${name}Schema = z.strictObject({ kept: z.string(), field: z.string().optional() }) satisfies z.ZodType<Via_${name}>;`,
+        `const ${name}Seed: Via_${name} = { kept: "s" };`,
+        `export const ${name}Run = (): unknown => [${name}Schema.${name}({ kept: "k", field: "f" }), ${name}Seed.field ?? "", ${name}Seed.kept];`,
+      ]),
+      "export interface In { readonly a: string; readonly b?: string; readonly c?: string }",
+      "const inSchema = z.object({ a: z.string(), b: z.string().optional(), c: z.string().optional() }) satisfies z.ZodType<In>;",
+      "const sized = inSchema.transform((value) => ({ size: value.a.length }));",
+      'const seedIn: In = { a: "s" };',
+      'export const size = (): number => sized.parse({ a: "a", b: "b" }).size + (seedIn.b ?? "").length + (seedIn.c ?? "").length;',
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-read-only In.c"]);
 });
