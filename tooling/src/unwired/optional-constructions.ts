@@ -25,6 +25,7 @@ import { constructionWrites, joinConstructionWrites } from "./occurrences.ts";
 import type { ContextRecords } from "./optional-contexts.ts";
 import type { ConstructionSite, OptionalInventory } from "./optional-inventory.ts";
 import { OptionalEvidence } from "./optional-inventory.ts";
+import type { PluginSources } from "./optional-population.ts";
 import { isProduction } from "./optional-population.ts";
 import type { ReaderEvidence } from "./optional-readers.ts";
 import { optionalUsage } from "./optional-readers.ts";
@@ -50,7 +51,7 @@ function enclosingName(node: Node): string {
 
 // Unlike the unwired member report, mutually exclusive fields matter in anonymous parameter and return
 // types, union arms and intersections too. The same declaration key joins their writers across worlds.
-function inlineFields(world: NativeWorld, home: ReadonlySet<string>, known: ReadonlySet<string>): OptionalField[] {
+function inlineFields(world: NativeWorld, home: ReadonlySet<string>, known: ReadonlySet<string>, plugins: PluginSources): OptionalField[] {
   const names: (Identifier | StringLiteral)[] = [];
   const visit = (node: Node): void => {
     if (
@@ -65,7 +66,7 @@ function inlineFields(world: NativeWorld, home: ReadonlySet<string>, known: Read
   };
   for (const source of world.files) {
     const file = world.siteOf(source).file;
-    if (isProduction(file) && home.has(file)) {
+    if (isProduction(file, plugins) && home.has(file)) {
       source.forEachChild(visit);
     }
   }
@@ -90,11 +91,16 @@ interface ConstructionFacts {
   readonly contexts: ContextRecords;
 }
 
-export function optionalConstructionFacts(world: NativeWorld, home: ReadonlySet<string>, registry: Map<string, number>): ConstructionFacts {
+export function optionalConstructionFacts(
+  world: NativeWorld,
+  home: ReadonlySet<string>,
+  registry: Map<string, number>,
+  plugins: PluginSources,
+): ConstructionFacts {
   const fields: OptionalField[] = fieldDeclarations(world, true).filter((field) => field.optional && home.has(field.site.file));
-  fields.push(...inlineFields(world, home, new Set(fields.map(({ site }) => siteKey(site)))));
+  fields.push(...inlineFields(world, home, new Set(fields.map(({ site }) => siteKey(site))), plugins));
   const files = world.files.filter((file) => home.has(world.siteOf(file).file));
-  return { fields, properties: constructionWrites(world, home), ...optionalUsage(world, files, registry) };
+  return { fields, properties: constructionWrites(world, home), ...optionalUsage(world, files, registry, plugins) };
 }
 
 interface Branch {
@@ -167,17 +173,23 @@ function construction(sources: Sources, site: Site): { readonly site: Constructi
   return { site: { file: site.file, position: owner.getStart(), branches }, uncertain: uncertainKeys(owner) };
 }
 
-function writesOf(sources: Sources, sites: readonly Site[]): Writes {
+/** What a join reads a site's construction and its population from: the parsed sources and the plugin sources. */
+interface Scope {
+  readonly sources: Sources;
+  readonly plugins: PluginSources;
+}
+
+function writesOf({ sources, plugins }: Scope, sites: readonly Site[]): Writes {
   const built = new Map<string, ConstructionSite>();
   const tests = new Map<string, ConstructionSite>();
   const unknown = new Set<string>();
   for (const site of sites) {
     const evidence = construction(sources, site);
-    if (isProduction(site.file) && (evidence === undefined || evidence.uncertain)) {
+    if (isProduction(site.file, plugins) && (evidence === undefined || evidence.uncertain)) {
       unknown.add(siteKey(site));
     }
-    if (evidence !== undefined && (isProduction(site.file) || site.file.startsWith("tests/"))) {
-      const population = isProduction(site.file) ? built : tests;
+    if (evidence !== undefined && (isProduction(site.file, plugins) || site.file.startsWith("tests/"))) {
+      const population = isProduction(site.file, plugins) ? built : tests;
       population.set(siteKey(site), evidence.site);
     }
   }
@@ -291,7 +303,7 @@ function contextualIds(parts: readonly ContextRecords[]): {
 }
 
 function contextualAlternatives(
-  sources: Sources,
+  scope: Scope,
   parts: readonly ContextRecords[],
   readers: ReadonlyMap<string, ReaderEvidence[]>,
   output: OptionalEvidence,
@@ -319,7 +331,7 @@ function contextualAlternatives(
         return [];
       }
       const writes = writesOf(
-        sources,
+        scope,
         entries.map((entry) => entry.writer),
       );
       if (writes.sites.size === 0) {
@@ -332,7 +344,7 @@ function contextualAlternatives(
             home: first.owner,
             member: name,
             site: first.site,
-            line: sources.line(first.site),
+            line: scope.sources.line(first.site),
           },
           writes,
           parent: first.parent,
@@ -340,7 +352,7 @@ function contextualAlternatives(
       ];
     });
     const representative = observations
-      .filter((entry) => isProduction(entry.writer.file))
+      .filter((entry) => isProduction(entry.writer.file, scope.plugins))
       .sort((a, b) => a.writer.file.localeCompare(b.writer.file) || a.writer.position - b.writer.position)[0];
     if (representative !== undefined) {
       const uncertain: (Site | string)[] = (unknown.get(id) ?? []).map((entry) => entry.site);
@@ -352,18 +364,18 @@ function contextualAlternatives(
   }
 }
 
-export function joinOptionalConstructions(root: string, facts: readonly ConstructionFacts[]): OptionalInventory {
-  const sources = new Sources(root);
+export function joinOptionalConstructions(root: string, facts: readonly ConstructionFacts[], plugins: PluginSources): OptionalInventory {
+  const scope: Scope = { sources: new Sources(root), plugins };
   const parts = facts.map((part) => part.properties);
   const direct = joinConstructionWrites(parts);
   const owners = new Map<string, ObservedField[]>();
   for (const field of facts.flatMap((part) => part.fields)) {
-    const node = nameAt(sources.get(field.site.file), field.site.position);
+    const node = nameAt(scope.sources.get(field.site.file), field.site.position);
     if (node === undefined || (ts.isPropertySignature(node.parent) && node.parent.type?.kind === ts.SyntaxKind.NeverKeyword)) {
       continue;
     }
     const writes = writesOf(
-      sources,
+      scope,
       field.keys.flatMap((key) => direct.get(key) ?? []),
     );
     if (writes.sites.size > 0) {
@@ -382,7 +394,7 @@ export function joinOptionalConstructions(root: string, facts: readonly Construc
     alternatives(fields, readers, { id: `declaration:${key}` }, output);
   }
   contextualAlternatives(
-    sources,
+    scope,
     facts.map((part) => part.contexts),
     readers,
     output,

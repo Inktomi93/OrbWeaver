@@ -236,6 +236,62 @@ test("a file-local alias of a library type is not a synonym row", { timeout: 120
   expect((await scanned(root)).unwired).toEqual(["synonym LocalCode~Code", "synonym Matcher~RegExp"]);
 });
 
+// An ambient module our own .d.ts declares to type an untyped library: its members are the library's. The wrappers'
+// only own member is `className`, one short of the minimum; the control adds a second own member to each side.
+test("a src .d.ts shim that types an untyped library makes no restated pair of its wrappers", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/shim.d.ts": [
+        'declare module "untyped-ui" {',
+        "  export interface ABase { id: string; label: string }",
+        "  export interface BBase { id: string; label: string }",
+        "}",
+      ].join("\n"),
+      "packages/a/src/wa.ts": 'import type { ABase } from "untyped-ui";\nexport interface WrapA extends ABase {\n  className?: string;\n}',
+      "packages/a/src/wb.ts": 'import type { BBase } from "untyped-ui";\nexport interface WrapB extends BBase {\n  className?: string;\n}',
+      "packages/a/src/wc.ts": 'import type { ABase } from "untyped-ui";\nexport interface WrapC extends ABase {\n  className?: string;\n  style?: string;\n}',
+      "packages/a/src/wd.ts": 'import type { BBase } from "untyped-ui";\nexport interface WrapD extends BBase {\n  className?: string;\n  style?: string;\n}',
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated WrapC~WrapD"]);
+});
+
+// A callable type and a generic type hold no home, so two of them in different files are no pair; each case's twin is
+// the same shape without the call signature or the type parameter, and that pair reports.
+test("a callable type and a generic type hold no home of their own", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/callable-a.ts": "export interface HandlerA {\n  (value: string): void;\n  id: string;\n  label: string;\n}",
+      "packages/a/src/callable-b.ts": "export interface HandlerB {\n  (value: string): void;\n  id: string;\n  label: string;\n}",
+      "packages/a/src/plain-a.ts": "export interface PlainA {\n  id: string;\n  label: string;\n}",
+      "packages/a/src/plain-b.ts": "export interface PlainB {\n  id: string;\n  label: string;\n}",
+      "packages/a/src/generic-a.ts": "export interface TagA<T> {\n  tag: string;\n  text: string;\n}",
+      "packages/a/src/generic-b.ts": "export interface TagB<T> {\n  tag: string;\n  text: string;\n}",
+      "packages/a/src/mono-a.ts": "export interface MonoA {\n  tag: string;\n  text: string;\n}",
+      "packages/a/src/mono-b.ts": "export interface MonoB {\n  tag: string;\n  text: string;\n}",
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated MonoA~MonoB", "restated PlainA~PlainB"]);
+});
+
+// A library's own re-export is not a hop the tree can shorten: our door over a library that re-exports from its own
+// module is one hop. The twin is a chain across two of our own files.
+test("a library's own re-export is not a hop of a chain", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "node_modules/@fx/wide/package.json": JSON.stringify({ name: "@fx/wide", types: "index.d.ts" }),
+      "node_modules/@fx/wide/index.d.ts": 'export { Thing } from "./thing";',
+      "node_modules/@fx/wide/thing.d.ts": "export declare const Thing: number;",
+      "packages/a/src/door.ts": 'export { Thing } from "@fx/wide";',
+      "packages/a/src/own-a.ts": 'export { Own } from "./own-b.ts";',
+      "packages/a/src/own-b.ts": 'export { Own } from "./own-c.ts";',
+      "packages/a/src/own-c.ts": "export const Own = 1;",
+    }),
+  );
+  const found = (await shapes(root)).unwired.map(({ kind, file, home }) => `${kind} ${file} ${home}`);
+  expect(found).toEqual(["reexport-chain packages/a/src/own-a.ts Own"]);
+});
+
 // Rows the shapes judgement held as true findings, and the classes it named that no checker fact can separate: these
 // must keep reporting. A re-export over another package's door is a finding by ruling, and two bare look-alikes can
 // only be told apart by their meaning.

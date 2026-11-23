@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { BrandVerdict, Inflow } from "../brand-names/index.ts";
 import { BrandTable, sharesBrand, siteBrand } from "../brand-names/index.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import type { OptionalInventory } from "../unwired/index.ts";
+import type { OptionalInventory, PluginSources } from "../unwired/index.ts";
 import {
   homeFiles,
   isOptionalProduction,
@@ -15,6 +15,7 @@ import {
   optionalConstructionFacts,
   packageWorlds,
   pluginAuthorWorlds,
+  pluginSources,
   publishedSdkSources,
 } from "../unwired/index.ts";
 import type { BrandedDeclaration, CompareCandidate, DeclarationCandidate, PlainFeed, WorldRecords } from "./collect.ts";
@@ -328,7 +329,13 @@ export function scanBrandEdgesAt(root: string, config: string, files: readonly s
 export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
   const configs = options.worlds ?? brandFlowWorlds(options.root);
   const sdk = publishedSdkSources(options.root);
-  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs, sdk));
+  const lists = NativeWorld.fileLists(options.root, configs, sdk);
+  const homes = homeFiles(configs, lists);
+  const authorWorlds = pluginAuthorWorlds(options.root);
+  const plugins = pluginSources(
+    lists,
+    configs.filter((config) => authorWorlds.includes(config)),
+  );
   const worlds: WorldRecords[] = [];
   const constructions: ReturnType<typeof optionalConstructionFacts>[] = [];
   const contextualTypes = new Map<string, number>();
@@ -336,7 +343,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     using world = NativeWorld.open(options.root, config, sdk);
     const home = homes.get(config) ?? new Set<string>();
     const records = collectWorld(world, home);
-    constructions.push(optionalConstructionFacts(world, home, contextualTypes));
+    constructions.push(optionalConstructionFacts(world, home, contextualTypes, plugins));
     options.log(`${config}: files=${records.files} mints=${records.mints.length} widens=${records.widens.length} declarations=${records.declarations.length}`);
     worlds.push(records);
   }
@@ -362,7 +369,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
   return {
     worlds: worlds.map(({ config, files, brandless }) => ({ config, files, brandless })),
     scanned: {
-      ...scannedFiles(homed),
+      ...scannedFiles(homed, plugins),
       doubleCounted: doubleCounted([
         ...mints.map((site) => `mint ${site.via} ${site.file}:${site.position} ${site.source}`),
         ...widens.map((site) => `widen ${site.file}:${site.position} ${site.slot.name} ${site.brands.join()}`),
@@ -379,16 +386,16 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     generic,
     crossBrand,
     brandAnswers: { agree: answers.agree, unnamed: answers.unnamed, disagreements: answers.disagreements },
-    ...joinOptionalConstructions(options.root, constructions),
+    ...joinOptionalConstructions(options.root, constructions, plugins),
     vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
   };
 }
 
-function scannedFiles(homed: readonly string[]): Omit<BrandFlowReport["scanned"], "doubleCounted"> {
+function scannedFiles(homed: readonly string[], plugins: PluginSources): Omit<BrandFlowReport["scanned"], "doubleCounted"> {
   return {
     files: homed.length,
     production: homed.filter(isProduction).length,
-    optionalProduction: homed.filter(isOptionalProduction).length,
+    optionalProduction: homed.filter((file) => isOptionalProduction(file, plugins)).length,
     byPackage: count(
       homed.map((file) =>
         file
