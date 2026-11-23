@@ -209,10 +209,13 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 - CT and e2e pages record Chromium coverage through the fixtures in `tooling/src/floor/testing/coverage-collection.ts`. Those fixtures sit on the `@orb/testkit/ct-corpus` and e2e corpus and surface bases. A spec that takes `test` straight from `@playwright/test` records nothing, and the report lists it.
 - The e2e servers write `NODE_V8_COVERAGE` dumps. A process that loaded first-party code outside `packages/*/src` is harness, and all of its hits are dropped.
 - Browser and server coverage converts with ast-v8-to-istanbul, the converter `@vitest/coverage-v8` runs. A hit lands on the universe entry at the same start position. Failing that, a named function lands by name and line. An anonymous function lands where its declared point and the start of its whole range agree, or on the one key that finds a function; when the two keys find different functions, the hit stays unmatched. Last, an anonymous function or a branch lands at the same place among its line's anonymous functions or same-type branches, when both maps hold the same number there. Each transform moves columns its own way, but none reorders two functions on one line.
+- The bundler renames a module-level function that another module of its chunk declares too, by appending `$<n>`. A hit tries its own name first. Then the name without that suffix lands only at the same declared point.
 - The client build skips the React Compiler under the command. The compiler lowers source branches into other shapes and adds memo-cache branches, so no compiled branch maps soundly to a source branch. Behaviour only the compiler's memoisation produces does not run in a coverage build.
 - A CT or e2e pass or failure under the command is not a test verdict. The compiled suites stay the verdict.
 - The report gives each suite's matched and unmatched hits and the matched share of each kind. Read the share before you judge an unexecuted entry in a file that suite ran.
 - Suites run one after another, never side by side. The report records the peak memory of each suite's process tree and of the merge.
+- Each finished suite writes a run record beside its output. `--merge=<suites>` merges recorded suites without a new run, so the suites can run as separate commands. A suite's worker count sets its peak; separate commands do not lower it.
+- `--merge` refuses a record whose HEAD or working tree differs from the current tree. A list merged from two trees names code that one of them lacks.
 - A branch no run executes is judged like a finding: write a test that runs it through production, close it with a type, or delete it.
 - The report is input to judgement and never a gate.
 

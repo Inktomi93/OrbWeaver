@@ -207,6 +207,41 @@ test("a compiled copy lands on its source function by name and line, or as the o
   });
 });
 
+test("a bundler's `$<n>` suffix drops only at the declared point, after a source's own `$` name had its turn", ({ plantedTree }) => {
+  return plantedTree({ [SOURCE]: TEXT }).then((root) => {
+    const path = join(root, SOURCE);
+    const range = (line: number, column: number): { start: { line: number; column: number }; end: { line: number; column: number } } => ({
+      start: { line, column },
+      end: { line, column: column + 1 },
+    });
+    const file = (fns: readonly { readonly name: string; readonly column: number; readonly hit: number }[]): Awaited<ReturnType<typeof istanbulOf>> => ({
+      [path]: {
+        path,
+        fnMap: Object.fromEntries(fns.map((fn, index) => [String(index), { name: fn.name, decl: range(5, fn.column), loc: range(5, fn.column) }])),
+        f: Object.fromEntries(fns.map((fn, index) => [String(index), fn.hit])),
+        branchMap: {},
+        b: {},
+      },
+    });
+    // The source declares both `validateProperty$1` and `validateProperty` on line 5, as react-dom does.
+    const universe = file([
+      { name: "validateProperty$1", column: 9, hit: 0 },
+      { name: "validateProperty", column: 40, hit: 0 },
+    ]);
+    const unexecuted = (ct: Awaited<ReturnType<typeof istanbulOf>>): readonly string[] =>
+      mergeCoverage(root, [
+        { suite: "node", map: universe },
+        { suite: "ct", map: ct },
+      ]).unexecuted.flatMap((entry) => entry.functions.map((fn) => fn.name));
+    // A moved copy of the source's own `validateProperty$1` sits at its twin's point: its own name on its line wins.
+    expect(unexecuted(file([{ name: "validateProperty$1", column: 40, hit: 1 }]))).toEqual(["validateProperty"]);
+    // A renamed copy at the twin's declared point is the twin.
+    expect(unexecuted(file([{ name: "validateProperty$2", column: 40, hit: 1 }]))).toEqual(["validateProperty$1"]);
+    // Control: at a point no function declares, a renamed name matches nothing, though its line holds that name.
+    expect(unexecuted(file([{ name: "validateProperty$2", column: 70, hit: 1 }]))).toEqual(["validateProperty$1", "validateProperty"]);
+  });
+});
+
 // A real vitest json entry, counts zeroed, and the source it was recorded from.
 const recorded = z
   .object({ source: z.string(), entry: z.record(z.string(), z.unknown()) })

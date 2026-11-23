@@ -1,11 +1,14 @@
 // `pnpm unwired coverage`: runs the Node, CT and e2e suites one after another with V8 coverage on, merges what they
 // executed, and writes the production functions and branch arms no run executed. Input to judgement, never a gate:
 // the suites' own exit codes are recorded and never turn into this command's verdict.
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
+import { z } from "zod";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
+import { execGit, runGit } from "../floor/git/git.ts";
 import { execNicedSync, spawnNicedTranscript } from "../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../floor/process/process-env.ts";
 import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "../floor/process/run-marker.ts";
@@ -30,7 +33,7 @@ const COVERAGE_LIMITS: readonly string[] = [
   "A CT or e2e spec whose `test` comes straight from @playwright/test records no browser coverage; the report lists every such spec that ran.",
   "Only Chromium pages are recorded, and a page a test closes itself is not; workers and service workers are not recorded.",
   "A production file no input listed is in unseenFiles, never counted as executed; a run with the Node suite lists every one.",
-  "A browser or server hit lands on the Node suite's entry with the same start position, else on the same-named function of its line, else on the entry with the same place among its line's anonymous functions or same-type branches when both maps hold the same number there; a hit that finds none is counted per suite, not added.",
+  "A browser or server hit lands on the Node suite's entry with the same start position, else on the same-named function of its line, else a bundler-renamed `name$<n>` on the `name` that declares at its own start, else on the entry with the same place among its line's anonymous functions or same-type branches when both maps hold the same number there; a hit that finds none is counted per suite, not added.",
   "The client build skips the React Compiler under this command, so browser branches are the source's own and land on the Node suite's: behaviour only the compiler's memoisation produces does not run here, and a CT or e2e pass or failure under this command is no test verdict; the compiled suites stay the verdict.",
   "Each suite's functionMatchRate and armMatchRate is the share of its hits that found a universe entry; read it before you judge an unexecuted entry in a file that suite ran.",
   "Code the e2e harness alone runs is dropped with its whole process; a CT's in-worker server responder is never recorded.",
@@ -42,15 +45,31 @@ interface Args {
   readonly root: string;
   readonly out: string;
   readonly suites: readonly CoverageSuite[];
+  /** Suites whose recorded run in the run folder is merged without running them again. */
+  readonly merge: readonly CoverageSuite[];
   readonly paths: Readonly<Record<CoverageSuite, readonly string[]>>;
 }
 
-const FLAG = /^--(root|out|suites|node|ct|e2e)=(.+)$/u;
+const FLAG = /^--(root|out|suites|merge|node|ct|e2e)=(.+)$/u;
+
+/** The usage line of the `coverage` verb. */
+export const COVERAGE_USAGE =
+  "pnpm unwired coverage [--suites=node,ct,e2e] [--merge=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... [--out=<file>]";
+
+function suiteList(flag: string, value: string): readonly CoverageSuite[] {
+  return value.split(",").map((name) => {
+    const suite = COVERAGE_SUITES.find((candidate) => candidate === name);
+    if (suite === undefined) {
+      throw new UsageError(`--${flag}=${value}: expected a comma list of ${COVERAGE_SUITES.join(", ")}`);
+    }
+    return suite;
+  });
+}
 
 function parseCoverageArgs(argv: readonly string[]): Args {
   let root = process.cwd();
   let out = DEFAULT_OUT;
-  let suites: readonly CoverageSuite[] = COVERAGE_SUITES;
+  const lists: { suites?: readonly CoverageSuite[]; merge?: readonly CoverageSuite[] } = {};
   const paths: Record<CoverageSuite, string[]> = { node: [], ct: [], e2e: [] };
   for (const arg of argv) {
     const [, flag, value = ""] = FLAG.exec(arg) ?? [];
@@ -58,24 +77,52 @@ function parseCoverageArgs(argv: readonly string[]): Args {
       root = resolve(value);
     } else if (flag === "out") {
       out = value;
-    } else if (flag === "suites") {
-      suites = value.split(",").map((name) => {
-        const suite = COVERAGE_SUITES.find((candidate) => candidate === name);
-        if (suite === undefined) {
-          throw new UsageError(`--suites=${value}: expected a comma list of ${COVERAGE_SUITES.join(", ")}`);
-        }
-        return suite;
-      });
+    } else if (flag === "suites" || flag === "merge") {
+      lists[flag] = suiteList(flag, value);
     } else if (flag === "node" || flag === "ct" || flag === "e2e") {
       paths[flag].push(value);
     } else {
-      throw new UsageError(
-        `${arg}: unknown argument\nusage: pnpm unwired coverage [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... [--out=<file>]`,
-      );
+      throw new UsageError(`${arg}: unknown argument\nusage: ${COVERAGE_USAGE}`);
     }
   }
-  return { root, out, suites, paths };
+  return { root, out, ...chosenSuites(lists), paths };
 }
+
+// A merge of recorded suites runs nothing unless suites are named too; a suite that runs is never also read back.
+function chosenSuites(lists: { readonly suites?: readonly CoverageSuite[]; readonly merge?: readonly CoverageSuite[] }): Pick<Args, "suites" | "merge"> {
+  const merge = lists.merge ?? [];
+  const suites = lists.suites ?? (merge.length === 0 ? COVERAGE_SUITES : []);
+  return { suites, merge: merge.filter((suite) => !suites.includes(suite)) };
+}
+
+// The tree a run measured: its HEAD and the id of its whole working tree, uncommitted and untracked files included.
+interface TreeState {
+  readonly head: string | null;
+  readonly tree: string;
+}
+
+// The tree id is `git write-tree` over a scratch copy of the index after `git add --all`, so two runs share it only
+// when every tracked and untracked file matched; the copy keeps the index's stat cache, so only changed files are
+// hashed. A dead-code list merged from two trees would name code that one of them never had.
+function treeState(root: string): TreeState {
+  const head = runGit(root, ["rev-parse", "--verify", "--quiet", "HEAD"]);
+  const scratch = mkdtempSync(join(tmpdir(), "orb-coverage-tree-"));
+  try {
+    const index = join(scratch, "index");
+    const live = resolve(root, execGit(root, ["rev-parse", "--git-path", "index"]).trim());
+    if (existsSync(live)) {
+      copyFileSync(live, index);
+    }
+    const scoped = { extra: { ["GIT_INDEX_FILE"]: index } };
+    execGit(root, ["add", "--all"], scoped);
+    return { head: head.status === 0 ? head.stdout.trim() : null, tree: execGit(root, ["write-tree"], scoped).trim() };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+const sameTree = (a: TreeState, b: TreeState): boolean => a.head === b.head && a.tree === b.tree;
+const describeTree = (state: TreeState): string => `head ${state.head ?? "none"} tree ${state.tree}`;
 
 // Linux reports per-process memory under /proc; elsewhere the peak is not measured.
 function treeRssBytes(rootPid: number): number | null {
@@ -131,12 +178,50 @@ function sampleTreePeak(): { readonly stop: () => number | null } {
   };
 }
 
-interface SuiteRun {
-  readonly suite: CoverageSuite;
-  readonly command: string;
-  readonly exitCode: number | null;
-  readonly seconds: number;
-  readonly peakRssBytes: number | null;
+// A suite's run record, written beside its output once the suite ends, so a later `--merge` reads it back.
+const suiteRunSchema = z.object({
+  suite: z.enum(COVERAGE_SUITES),
+  command: z.string(),
+  exitCode: z.number().nullable(),
+  seconds: z.number(),
+  peakRssBytes: z.number().nullable(),
+  paths: z.array(z.string()),
+  head: z.string().nullable(),
+  tree: z.string(),
+});
+type SuiteRun = z.infer<typeof suiteRunSchema>;
+
+const recordPath = (runDir: string, suite: CoverageSuite): string => join(runDir, `${suite}.run.json`);
+
+// Everything one suite's run leaves in the run folder, cleared before the suite runs again.
+const suiteOutputs = (runDir: string, suite: CoverageSuite): readonly string[] => [
+  join(runDir, suite),
+  join(runDir, `${suite}.log`),
+  join(runDir, `${suite}-istanbul.json`),
+  recordPath(runDir, suite),
+  ...(suite === "node" ? [join(runDir, NODE_ISTANBUL)] : []),
+];
+
+/**
+ * The recorded runs of the suites `--merge` names, refused unless each was made on the tree this command runs on.
+ *
+ * @throws UsageError when a suite has no record, or a record's tree differs from the current one.
+ */
+function recordedRuns(runDir: string, suites: readonly CoverageSuite[], current: TreeState): readonly SuiteRun[] {
+  const runs = suites.map((suite) => {
+    const path = recordPath(runDir, suite);
+    if (!existsSync(path)) {
+      throw new UsageError(`--merge=${suite}: no finished ${suite} run is recorded in ${runDir}; run it with --suites=${suite} first`);
+    }
+    return suiteRunSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+  });
+  const mismatched = runs.filter((run) => !sameTree(run, current));
+  if (mismatched.length > 0) {
+    throw new UsageError(
+      `--merge: ${mismatched.map((run) => `${run.suite} was recorded on ${describeTree(run)}`).join("; ")}, but the current tree is ${describeTree(current)}; rerun ${mismatched.map((run) => run.suite).join(",")} on this tree`,
+    );
+  }
+  return runs;
 }
 
 function suiteCommand(suite: CoverageSuite, paths: readonly string[], runDir: string): readonly string[] {
@@ -162,6 +247,7 @@ function suiteCommand(suite: CoverageSuite, paths: readonly string[], runDir: st
 interface SuitePlan {
   readonly root: string;
   readonly runDir: string;
+  readonly tree: TreeState;
   readonly log: (line: string) => void;
 }
 
@@ -169,6 +255,9 @@ async function runSuite(plan: SuitePlan, suite: CoverageSuite, paths: readonly s
   const { root, runDir, log } = plan;
   const args = suiteCommand(suite, paths, runDir);
   const suiteDir = join(runDir, suite);
+  for (const output of suiteOutputs(runDir, suite)) {
+    rmSync(output, { recursive: true, force: true });
+  }
   mkdirSync(suiteDir, { recursive: true });
   log(`coverage: ${suite}: pnpm ${args.join(" ")}`);
   const started = performance.now();
@@ -185,13 +274,17 @@ async function runSuite(plan: SuitePlan, suite: CoverageSuite, paths: readonly s
     },
   }).finally(() => joinRunMarkerSweep(marker));
   writeFileSync(join(runDir, `${suite}.log`), result.transcript);
-  return {
+  const run: SuiteRun = {
     suite,
     command: `pnpm ${args.join(" ")}`,
     exitCode: result.code,
     seconds: Math.round((performance.now() - started) / MS_PER_SECOND),
     peakRssBytes: sampler.stop(),
+    paths: [...paths],
+    ...plan.tree,
   };
+  writeFileSync(recordPath(runDir, suite), `${JSON.stringify(run, null, 1)}\n`);
+  return run;
 }
 
 // The specs a browser suite can run: the ones named, else every tracked spec of its kind.
@@ -235,17 +328,21 @@ async function suiteInput(
 export async function runCoverage(argv: readonly string[], log: (line: string) => void): Promise<number> {
   const args = parseCoverageArgs(argv);
   const runDir = join(args.root, RUN_DIR);
-  rmSync(runDir, { recursive: true, force: true });
   mkdirSync(runDir, { recursive: true });
-  const runs: SuiteRun[] = [];
+  const tree = treeState(args.root);
+  // Refused before any suite runs, so a mismatch costs no hours of suite time.
+  const recorded = recordedRuns(runDir, args.merge, tree);
+  const fresh: SuiteRun[] = [];
   for (const suite of args.suites) {
-    runs.push(await runSuite({ root: args.root, runDir, log }, suite, args.paths[suite]));
+    fresh.push(await runSuite({ root: args.root, runDir, tree, log }, suite, args.paths[suite]));
   }
+  // The Node suite's map is the universe, so the inputs go in the order the suites are declared.
+  const runs = COVERAGE_SUITES.flatMap((suite) => [...recorded, ...fresh].filter((run) => run.suite === suite));
   const sampler = sampleTreePeak();
   const inputs: CoverageInput[] = [];
   const unmapped: string[] = [];
   const lostPages: string[] = [];
-  for (const suite of args.suites) {
+  for (const { suite } of runs) {
     const converted = await suiteInput(args.root, runDir, suite);
     inputs.push(converted.input);
     unmapped.push(...converted.unmapped);
@@ -258,7 +355,7 @@ export async function runCoverage(argv: readonly string[], log: (line: string) =
     .split("\n")
     .filter((rel) => rel !== "" && isProductionSource(rel, readHead) && !merged.seen.has(rel));
   const uncollected = Object.fromEntries(
-    args.suites.flatMap((suite) => (suite === "node" ? [] : [[suite, uncollectedSpecs(args.root, suite, args.paths[suite])] as const])),
+    runs.flatMap(({ suite, paths }) => (suite === "node" ? [] : [[suite, uncollectedSpecs(args.root, suite, paths)] as const])),
   );
   const out = resolve(args.root, args.out);
   mkdirSync(dirname(out), { recursive: true });
