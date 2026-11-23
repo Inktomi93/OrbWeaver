@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
 // find-references check of a member bucket, the custom-property pass, the DOM-hook pass, the unions scan, the codes
-// scan or the removed-keys check over it. Every result carries what the session ran under, so a narrowed, ablated or dumped run is never read as
+// scan, the removed-keys check or the shapes scan over it. Every result carries what the session ran under, so a narrowed, ablated or dumped run is never read as
 // a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
@@ -30,6 +30,8 @@ import { GraphQueries } from "./query.ts";
 import type { RemovedKeysOptions, RemovedKeysReport } from "./removed-keys.ts";
 import { nothingRemoved, removedKeysPass, removedKeysPlan } from "./removed-keys.ts";
 import { loadRoots } from "./roots.ts";
+import type { ShapesOptions, ShapesReport } from "./shapes.ts";
+import { shapesPass } from "./shapes.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
 import type { Verified } from "./verify.ts";
@@ -282,4 +284,9 @@ export async function removedKeysGraph(
   return await session(options.root, log, { options: FRESH_BUILD, siteFiles: NO_SITES }, ({ world, time }) =>
     time("analyse", () => removedKeysPass(world(), plan)),
   );
+}
+
+/** Build the graph, then report the second homes, synonyms and re-export chains of the session's program. */
+export function shapesGraph(options: ShapesOptions, log: GraphLog): Promise<WithSession<ShapesReport>> {
+  return session(options.root, log, { options: FRESH_BUILD, siteFiles: NO_SITES }, ({ world, time }) => time("analyse", () => shapesPass(world(), options)));
 }

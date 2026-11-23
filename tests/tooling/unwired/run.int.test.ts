@@ -18,11 +18,12 @@ test.for([
   expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
 });
 
-// The unions, codes, procedures and columns scans have no engine two, so a cross-check request is refused before any
+// The unions, codes, shapes, procedures and columns scans have no engine two, so a cross-check request is refused before any
 // world loads; the params scan, which has one, is the control that takes the flag.
 test.for([
   { verb: "unions", exit: EXIT.misuse },
   { verb: "codes", exit: EXIT.misuse },
+  { verb: "shapes", exit: EXIT.misuse },
   { verb: "procedures", exit: EXIT.misuse },
   { verb: "columns", exit: EXIT.misuse },
   { verb: "params", exit: EXIT.clean },
@@ -51,13 +52,13 @@ function expectEveryBucket(run: { readonly stderr: string }, out: string): void 
   expect(buckets.filter((bucket) => !summary.split(" ").includes(bucket))).toEqual([]);
 }
 
-// The procedures query builds the graph, which reads its roots from the tree's knip config, so its root is an empty graph
-// tree; every other scan here runs over the empty scratch root.
+// The procedures and shapes queries build the graph, which reads its roots from the tree's knip config, so their root is
+// an empty graph tree; every other scan here runs over the empty scratch root.
 test.for(["scan", "fields", "params", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
   async (verb, { runCli, scratch, plantedTree }) => {
     const out = join(scratch, "report.json");
-    const root = verb === "procedures" ? await plantedTree(graphTree({})) : scratch;
+    const root = verb === "procedures" || verb === "shapes" ? await plantedTree(graphTree({})) : scratch;
     const run = await runCli("unwired", [verb, `--root=${root}`, `--out=${out}`]);
     await expect(run).toExitWith(0);
     expectEveryBucket(run, out);

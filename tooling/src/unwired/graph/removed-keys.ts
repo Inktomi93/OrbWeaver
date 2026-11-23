@@ -345,7 +345,7 @@ function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): A
 }
 
 // A body a platform request sends to a path on our own origin, which our routes receive; a URL of any other origin, or
-// one whose start the fold cannot read, leaves the repo. The URL folds through ./graph/urls.ts.
+// one whose start the fold cannot read, leaves the repo. The URL folds through ./urls.ts.
 function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
   const request = yield* platformCall(world, call);
   if (request === null || request.body === null || call.arguments.indexOf(argument as Expression) !== request.body) {

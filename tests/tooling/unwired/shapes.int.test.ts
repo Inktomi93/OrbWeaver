@@ -5,11 +5,22 @@
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { DeliberateEntry } from "../../../tooling/src/unwired/deliberate.ts";
 import type { DistinctRegistry } from "../../../tooling/src/unwired/distinct-lookalikes.ts";
-import { scanShapes } from "../../../tooling/src/unwired/index.ts";
-import { JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+import type { JudgedEntry, ShapesReport } from "../../../tooling/src/unwired/index.ts";
+import { shapesGraph } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+
+interface ShapesLists {
+  readonly deliberate?: readonly DeliberateEntry[];
+  readonly distinct?: DistinctRegistry;
+  readonly judged?: readonly JudgedEntry[];
+}
+
+// The shapes scan over a planted graph tree: one solution, one world over every planted package's source.
+async function shapes(root: string, { deliberate = [], distinct = [], judged }: ShapesLists = {}): Promise<ShapesReport> {
+  return await shapesGraph({ root, deliberate, distinct, judged }, () => undefined);
+}
 
 const TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   "packages/a/src/user.ts": ["export interface User {", "  id: string;", "  name: string;", "}", "export type Alias = User;"].join("\n"),
   "packages/a/src/person.ts": [
     "export interface Person {",
@@ -32,11 +43,16 @@ const TREE = {
     "}",
   ].join("\n"),
   // Two library components with the same props, each wrapped with one prop of its own: a match by the library's shape.
-  "packages/a/src/library.d.ts": ["interface DialogTitleBase { id: string; label: string }", "interface PopoverTitleBase { id: string; label: string }"].join(
-    "\n",
-  ),
-  "packages/a/src/dialog.ts": "export interface DialogTitleProps extends DialogTitleBase {\n  className?: string;\n}",
-  "packages/a/src/popover.ts": "export interface PopoverTitleProps extends PopoverTitleBase {\n  className?: string;\n}",
+  // The bases sit in a package under node_modules, as a library's do: the merged program holds our own declaration files.
+  "node_modules/@fx/ui/package.json": JSON.stringify({ name: "@fx/ui", types: "index.d.ts" }),
+  "node_modules/@fx/ui/index.d.ts": [
+    "export interface DialogTitleBase { id: string; label: string }",
+    "export interface PopoverTitleBase { id: string; label: string }",
+  ].join("\n"),
+  "packages/a/src/dialog.ts":
+    'import type { DialogTitleBase } from "@fx/ui";\nexport interface DialogTitleProps extends DialogTitleBase {\n  className?: string;\n}',
+  "packages/a/src/popover.ts":
+    'import type { PopoverTitleBase } from "@fx/ui";\nexport interface PopoverTitleProps extends PopoverTitleBase {\n  className?: string;\n}',
   // A result type computed through another named type's member is derived from that type, not a second home.
   "packages/a/src/service.ts": "export interface Service {\n  bounds(): Promise<{ id: string; name: string }>;\n}",
   "packages/a/src/bounds.ts": 'import type { Service } from "./service.ts";\nexport type Bounds = Awaited<ReturnType<Service["bounds"]>>;',
@@ -45,8 +61,7 @@ const TREE = {
 };
 
 test("the shapes scan reports restated shapes, synonyms, re-export chains and renamed re-exports", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree(TREE);
-  const report = scanShapes({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await shapes(await plantedTree(graphTree(TREE)));
   const found = report.unwired.map(({ kind, file, home, member, at }) => ({ kind, file, home, member, at }));
   expect(found.toSorted((a, b) => `${a.kind}${a.file}`.localeCompare(`${b.kind}${b.file}`))).toEqual([
     { kind: "reexport-chain", file: "packages/a/src/door.ts", home: "User", member: "User", at: ["packages/a/src/door.ts", "packages/a/src/index.ts"] },
@@ -54,7 +69,6 @@ test("the shapes scan reports restated shapes, synonyms, re-export chains and re
     { kind: "restated", file: "packages/a/src/person.ts", home: "Person", member: "User", at: ["packages/a/src/user.ts:1"] },
     { kind: "synonym", file: "packages/a/src/user.ts", home: "Alias", member: "User", at: ["packages/a/src/user.ts"] },
   ]);
-  expect(report.disagreements).toEqual([]);
 });
 
 interface Scanned {
@@ -65,17 +79,9 @@ interface Scanned {
 
 const PAIR = ({ kind, home, member }: { readonly kind: string; readonly home: string; readonly member: string }): string => `${kind} ${home}~${member}`;
 
-// One package world over the planted files, read as `kind home~member` rows per bucket.
-function scanned(
-  root: string,
-  {
-    worlds = [WORLD],
-    deliberate = [],
-    distinct = [],
-  }: { worlds?: readonly string[]; deliberate?: readonly DeliberateEntry[]; distinct?: DistinctRegistry } = {},
-): Scanned {
-  const report = scanShapes({ root, worlds, testWorlds: [], deliberate, log: () => undefined }, distinct);
-  expect(report.disagreements).toEqual([]);
+// The planted files' rows, read as `kind home~member` per bucket.
+async function scanned(root: string, lists: ShapesLists = {}): Promise<Scanned> {
+  const report = await shapes(root, lists);
   return {
     unwired: report.unwired.map(PAIR).toSorted(),
     deliberate: report.deliberate.map(PAIR).toSorted(),
@@ -85,83 +91,70 @@ function scanned(
 
 const PAIR_BODY = "{\n  id: string;\n  label: string;\n}";
 
-test("a pair two worlds hold in opposite order is one row", { timeout: 120_000 }, async ({ plantedTree }) => {
-  // Each world roots the other file, so each program lists the two files in the opposite order.
-  const root = await plantedTree({
-    "packages/one/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["../shared/src/a.ts"] }),
-    "packages/two/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["../shared/src/b.ts"] }),
-    "packages/shared/src/a.ts": `import "./b.ts";\nexport interface Alpha ${PAIR_BODY}\nexport interface Gamma { x: string; y: string }`,
-    "packages/shared/src/b.ts": `import "./a.ts";\nexport interface Beta ${PAIR_BODY}\nexport interface Delta { x: string; y: string }`,
-  });
-  const found = scanned(root, { worlds: ["packages/one/tsconfig.json", "packages/two/tsconfig.json"] });
-  expect(found.unwired).toEqual(["restated Alpha~Beta", "restated Gamma~Delta"]);
-});
-
 test("a type computed from a function's declared return is not a second home of that return type", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree({
-    [WORLD]: plantedTsconfig({ lib: LIB }),
-    "packages/a/src/segments.ts": [
-      "export interface Collected {",
-      "  rows: string;",
-      "  seq: number;",
-      "}",
-      "export declare function collect(): Promise<Collected>;",
-      "export declare function inline(): { rows: string; seq: number };",
-    ].join("\n"),
-    "packages/a/src/backfill.ts": [
-      'import type { collect, inline } from "./segments.ts";',
-      "export type Work = Awaited<ReturnType<typeof collect>>;",
-      // The twin: a function whose return type spells the members itself is a second home.
-      "export type InlineWork = ReturnType<typeof inline>;",
-    ].join("\n"),
-  });
-  expect(scanned(root).unwired).toEqual(["restated InlineWork~Collected"]);
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/segments.ts": [
+        "export interface Collected {",
+        "  rows: string;",
+        "  seq: number;",
+        "}",
+        "export declare function collect(): Promise<Collected>;",
+        "export declare function inline(): { rows: string; seq: number };",
+      ].join("\n"),
+      "packages/a/src/backfill.ts": [
+        'import type { collect, inline } from "./segments.ts";',
+        "export type Work = Awaited<ReturnType<typeof collect>>;",
+        // The twin: a function whose return type spells the members itself is a second home.
+        "export type InlineWork = ReturnType<typeof inline>;",
+      ].join("\n"),
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated InlineWork~Collected"]);
 });
 
 test("two types that only pick one base's members are not two homes", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree({
-    [WORLD]: plantedTsconfig({ lib: LIB }),
-    "packages/a/src/base.ts": "export interface Entity {\n  kind: string;\n  label: string;\n  owner: string;\n}",
-    "packages/a/src/imagery.ts": [
-      'import type { Entity } from "./base.ts";',
-      'export interface ImageryService extends Readonly<Pick<Entity, "kind" | "label">> {}',
-      'export interface ImageryRow extends Readonly<Pick<Entity, "kind" | "label">> {\n  extra: string;\n}',
-    ].join("\n"),
-    "packages/a/src/ledger.ts": [
-      'import type { Entity } from "./base.ts";',
-      'export interface LedgerService extends Readonly<Pick<Entity, "kind" | "label">> {}',
-      // The twin: each adds one member of its own over the shared base, so the pair restates a shape.
-      'export interface LedgerRow extends Readonly<Pick<Entity, "kind" | "label">> {\n  extra: string;\n}',
-    ].join("\n"),
-  });
-  expect(scanned(root).unwired).toEqual(["restated ImageryRow~LedgerRow"]);
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/base.ts": "export interface Entity {\n  kind: string;\n  label: string;\n  owner: string;\n}",
+      "packages/a/src/imagery.ts": [
+        'import type { Entity } from "./base.ts";',
+        'export interface ImageryService extends Readonly<Pick<Entity, "kind" | "label">> {}',
+        'export interface ImageryRow extends Readonly<Pick<Entity, "kind" | "label">> {\n  extra: string;\n}',
+      ].join("\n"),
+      "packages/a/src/ledger.ts": [
+        'import type { Entity } from "./base.ts";',
+        'export interface LedgerService extends Readonly<Pick<Entity, "kind" | "label">> {}',
+        // The twin: each adds one member of its own over the shared base, so the pair restates a shape.
+        'export interface LedgerRow extends Readonly<Pick<Entity, "kind" | "label">> {\n  extra: string;\n}',
+      ].join("\n"),
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated ImageryRow~LedgerRow"]);
 });
 
 test("perVerb follows a verb's Params or Result name in its Core-0 §4 home, and restated verb params are deliberate", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
-  const root = await plantedTree({
-    "packages/server/tsconfig.json": plantedTsconfig({ lib: LIB }),
-    "packages/server/src/domain/actor/contract/params.ts": [
-      "export interface ActorKey {\n  principal: string;\n  chatId: string;\n}",
-      "export type StoredActor = ActorKey;",
-      "export type ReadActorParams = ActorKey;",
-    ].join("\n"),
-    "packages/server/src/domain/rpg/contract/params.ts": "export interface ReadGameParams {\n  userId: string;\n  gameId: string;\n}",
-    "packages/server/src/domain/rule/contract/params.ts": "export interface ListRulesParams {\n  userId: string;\n  gameId: string;\n}",
-    // The twin: a Params type restated by a context type is not a verb pair.
-    "packages/server/src/domain/rule/contract/context.ts": "export interface HandlerContext {\n  userId: string;\n  gameId: string;\n}",
-    // Twins outside the homes Core-0 §4 names: a verb file's Params beside a contract one, and two client Results.
-    "packages/server/src/domain/rule/contract/results.ts": "export interface ExportRuleResult {\n  ruleId: string;\n  bytes: number;\n}",
-    "packages/server/src/domain/rule/verbs/export.ts": "export interface ExportRuleParams {\n  ruleId: string;\n  bytes: number;\n}",
-    "packages/client/tsconfig.json": plantedTsconfig({ lib: LIB }),
-    "packages/client/src/features/search/search.ts": "export interface SearchResult {\n  id: string;\n  label: string;\n}",
-    "packages/client/src/features/list/list.ts": "export interface ListResult {\n  id: string;\n  label: string;\n}",
-  });
-  const report = scanShapes(
-    { root, worlds: ["packages/client/tsconfig.json", "packages/server/tsconfig.json"], testWorlds: [], deliberate: [], log: () => undefined },
-    [],
+  const root = await plantedTree(
+    graphTree({
+      "packages/server/src/domain/actor/contract/params.ts": [
+        "export interface ActorKey {\n  principal: string;\n  chatId: string;\n}",
+        "export type StoredActor = ActorKey;",
+        "export type ReadActorParams = ActorKey;",
+      ].join("\n"),
+      "packages/server/src/domain/rpg/contract/params.ts": "export interface ReadGameParams {\n  userId: string;\n  gameId: string;\n}",
+      "packages/server/src/domain/rule/contract/params.ts": "export interface ListRulesParams {\n  userId: string;\n  gameId: string;\n}",
+      // The twin: a Params type restated by a context type is not a verb pair.
+      "packages/server/src/domain/rule/contract/context.ts": "export interface HandlerContext {\n  userId: string;\n  gameId: string;\n}",
+      // Twins outside the homes Core-0 §4 names: a verb file's Params beside a contract one, and two client Results.
+      "packages/server/src/domain/rule/contract/results.ts": "export interface ExportRuleResult {\n  ruleId: string;\n  bytes: number;\n}",
+      "packages/server/src/domain/rule/verbs/export.ts": "export interface ExportRuleParams {\n  ruleId: string;\n  bytes: number;\n}",
+      "packages/client/src/features/search/search.ts": "export interface SearchResult {\n  id: string;\n  label: string;\n}",
+      "packages/client/src/features/list/list.ts": "export interface ListResult {\n  id: string;\n  label: string;\n}",
+    }),
   );
+  const report = await shapes(root);
   const flags = [...report.unwired, ...report.deliberate].filter(({ kind }) => kind === "synonym").map(({ home, perVerb }) => `${home} ${String(perVerb)}`);
   expect(flags.toSorted()).toEqual(["ReadActorParams true", "StoredActor false"]);
   expect(report.deliberate.map(PAIR).toSorted()).toEqual(["restated ReadGameParams~ListRulesParams", "synonym ReadActorParams~ActorKey"]);
@@ -175,46 +168,49 @@ test("perVerb follows a verb's Params or Result name in its Core-0 §4 home, and
 });
 
 test("a pair whose second side sits under a deliberate directory is deliberate", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree({
-    [WORLD]: plantedTsconfig({ lib: LIB }),
-    "packages/a/src/panel.ts": `export interface LogPanelProps ${PAIR_BODY}\nexport interface LocalRow { x: string; y: string }`,
-    "packages/a/src/plugin/view.ts": `export interface PluginView ${PAIR_BODY}`,
-    // The twin: neither side is under the directory.
-    "packages/a/src/row.ts": "export interface OtherRow { x: string; y: string }",
-  });
-  const found = scanned(root, { deliberate: [{ directory: "packages/a/src/plugin/", reason: "the planted published surface" }] });
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/panel.ts": `export interface LogPanelProps ${PAIR_BODY}\nexport interface LocalRow { x: string; y: string }`,
+      "packages/a/src/plugin/view.ts": `export interface PluginView ${PAIR_BODY}`,
+      // The twin: neither side is under the directory.
+      "packages/a/src/row.ts": "export interface OtherRow { x: string; y: string }",
+    }),
+  );
+  const found = await scanned(root, { deliberate: [{ directory: "packages/a/src/plugin/", reason: "the planted published surface" }] });
   expect(found.deliberate).toEqual(["restated LogPanelProps~PluginView"]);
   expect(found.unwired).toEqual(["restated LocalRow~OtherRow"]);
 });
 
 test("a pair the distinct registry lists is reported as distinct, not unwired", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree({
-    [WORLD]: plantedTsconfig({ lib: LIB }),
-    "packages/a/src/books.ts": `export interface BooksSectionProps ${PAIR_BODY}\nexport interface BookRow { x: string; y: string }`,
-    "packages/a/src/regex.ts": `export interface RegexSectionProps ${PAIR_BODY}\nexport interface RegexRow { x: string; y: string }`,
-  });
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/books.ts": `export interface BooksSectionProps ${PAIR_BODY}\nexport interface BookRow { x: string; y: string }`,
+      "packages/a/src/regex.ts": `export interface RegexSectionProps ${PAIR_BODY}\nexport interface RegexRow { x: string; y: string }`,
+    }),
+  );
   // Listed from the second side, as the registry may record a pair from either side; the twin pair is not listed.
   const distinct: DistinctRegistry = [
     { shape: "packages/a/src/regex.ts#RegexSectionProps", distinctFrom: ["packages/a/src/books.ts#BooksSectionProps"], reason: "planted: two sections' props" },
   ];
-  const found = scanned(root, { distinct });
+  const found = await scanned(root, { distinct });
   expect(found.distinct).toEqual(["restated BooksSectionProps~RegexSectionProps"]);
   expect(found.unwired).toEqual(["restated BookRow~RegexRow"]);
 });
 
 test("a file-local alias of a library type is not a synonym row", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree({
-    [WORLD]: plantedTsconfig({ lib: LIB }),
-    "packages/a/src/schema.ts": "type Pattern = RegExp;\nexport const probe = (value: Pattern): string => value.source;",
-    // The twins: an exported alias of a library type and a file-local alias of a tree type are both second names.
-    "packages/a/src/logging.ts": "export type Matcher = RegExp;",
-    "packages/a/src/codes.ts": [
-      "export interface Code {\n  id: string;\n  label: string;\n}",
-      "type LocalCode = Code;",
-      "export const codeOf = (value: LocalCode): string => value.id;",
-    ].join("\n"),
-  });
-  expect(scanned(root).unwired).toEqual(["synonym LocalCode~Code", "synonym Matcher~RegExp"]);
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/schema.ts": "type Pattern = RegExp;\nexport const probe = (value: Pattern): string => value.source;",
+      // The twins: an exported alias of a library type and a file-local alias of a tree type are both second names.
+      "packages/a/src/logging.ts": "export type Matcher = RegExp;",
+      "packages/a/src/codes.ts": [
+        "export interface Code {\n  id: string;\n  label: string;\n}",
+        "type LocalCode = Code;",
+        "export const codeOf = (value: LocalCode): string => value.id;",
+      ].join("\n"),
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["synonym LocalCode~Code", "synonym Matcher~RegExp"]);
 });
 
 // Rows the shapes judgement held as true findings, and the classes it named that no checker fact can separate: these
@@ -222,10 +218,10 @@ test("a file-local alias of a library type is not a synonym row", { timeout: 120
 // only be told apart by their meaning.
 test("true findings and bare look-alikes keep reporting", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree({
-    "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
+    ...graphTree({}),
+    [WORLD]: plantedTsconfig({ lib: LIB, include: ["../*/src"], paths: { "@fx/a": ["../a/src/index.ts"] } }),
     "packages/a/src/kind.ts": 'export const GALLERY_KIND = "gallery";',
     "packages/a/src/index.ts": 'export { GALLERY_KIND } from "./kind.ts";',
-    "packages/b/tsconfig.json": plantedTsconfig({ lib: LIB, paths: { "@fx/a": ["../a/src/index.ts"] } }),
     "packages/b/src/serde.ts": 'export { GALLERY_KIND } from "@fx/a";',
     // A private copy of an exported contract type left behind in a verb file.
     "packages/b/src/contract/gather.ts": "export interface SendRegexSink {\n  emit(text: string): void;\n  flush(): void;\n}",
@@ -235,14 +231,40 @@ test("true findings and bare look-alikes keep reporting", { timeout: 120_000 }, 
     "packages/b/src/split.ts": "/** A half-open character span. */\nexport interface Span {\n  start: number;\n  end: number;\n}",
     "packages/b/src/hidden.ts": "/** A byte range of hidden text. */\nexport interface HiddenRun {\n  start: number;\n  end: number;\n}",
   });
-  const found = scanned(root, { worlds: ["packages/b/tsconfig.json"] });
+  const found = await scanned(root);
   expect(found.unwired).toEqual(["reexport-chain GALLERY_KIND~GALLERY_KIND", "restated HiddenRun~Span", "restated SendRegexSink~SendRegexSink"]);
+});
+
+// A type read off a value (`typeof DEFAULTS`) is that value's own shape, so it holds a home and pairs with a restatement.
+test("a type read off a value is a home of its own", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/defaults.ts": 'export const DEFAULTS = { mode: "a", size: 1 };\nexport type Defaults = typeof DEFAULTS;',
+      "packages/a/src/settings.ts": "export interface Settings {\n  mode: string;\n  size: number;\n}",
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated Defaults~Settings"]);
+});
+
+// Every product package sits in the one merged program, so a client type and a server type of one shape pair. A test's
+// type of the same shape is in that program too, and declares no home.
+test("a client type and a server type of one shape are a pair, and a test's twin is none", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree({
+    ...graphTree({
+      "packages/client/src/turn.ts": `export interface TurnView ${PAIR_BODY}`,
+      "packages/server/src/turn.ts": `export interface TurnRow ${PAIR_BODY}`,
+    }),
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tests/tsconfig.json" }] }),
+    "tests/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["fixtures"] }),
+    "tests/fixtures/turn.ts": `export interface TurnFixture ${PAIR_BODY}`,
+  });
+  expect((await scanned(root)).unwired).toEqual(["restated TurnView~TurnRow"]);
 });
 
 // A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
 // reports is stale, and the done item's row reports as unwired again.
 test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const options = { root: await plantedTree({ ...TREE, ...JUDGED_WORK }), worlds: [WORLD], testWorlds: [], deliberate: [], log: (): undefined => undefined };
-  const judged = plantJudged(scanShapes(options), "Person.User", "Alias.User");
-  expect(judgedOutcome(scanShapes({ ...options, judged }), "Person.User", "Alias.User")).toEqual(judgedExpected("Person.User", "Alias.User"));
+  const root = await plantedTree(graphTree({ ...TREE, ...JUDGED_WORK }));
+  const judged = plantJudged(await shapes(root), "Person.User", "Alias.User");
+  expect(judgedOutcome(await shapes(root, { judged }), "Person.User", "Alias.User")).toEqual(judgedExpected("Person.User", "Alias.User"));
 });
