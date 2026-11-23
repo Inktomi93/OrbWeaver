@@ -92,7 +92,7 @@ test("an escape carried across a flow stays a send on the member it reaches", { 
   expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["Val.b"]);
 });
 
-// `probe.ts` sits outside the product: its read of `T.a` and its key use of `U.a` leave both write-only, each noted
+// The planted probe file sits outside the product: its read of `T.a` and its key use of `U.a` leave both write-only, each noted
 // with what the other world did. `T.b` is the control nothing outside touches.
 test("a read or a key use outside the product only annotates a product member", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {

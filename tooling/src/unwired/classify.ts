@@ -27,10 +27,6 @@ const SYNTAX_ROLES = ["read", "write", "type"] as const;
  *  a declaration or an import names it. `read`: everything else. */
 export type SyntaxRole = (typeof SYNTAX_ROLES)[number];
 
-const LITERAL_ROLES = ["construct", "compare", "case", "key", "type", "module"] as const;
-/** What a string literal does with its value: builds one, tests one, names a key or a module, or sits in a type. */
-export type LiteralRole = (typeof LITERAL_ROLES)[number];
-
 const PRODUCTION = /^packages\/[^/]+\/(?:src\/|[^/]+\.(?:ts|tsx|mts)$)/u;
 
 /** A file whose references count as production. */
@@ -213,88 +209,6 @@ export function callAt(source: ts.SourceFile, position: number): CallShape | nul
 }
 
 const MEMBERSHIP_METHODS: ReadonlySet<string> = new Set(["includes", "has", "indexOf", "lastIndexOf"]);
-const EQUALITY: ReadonlySet<ts.SyntaxKind> = new Set([
-  ts.SyntaxKind.EqualsEqualsEqualsToken,
-  ts.SyntaxKind.ExclamationEqualsEqualsToken,
-  ts.SyntaxKind.EqualsEqualsToken,
-  ts.SyntaxKind.ExclamationEqualsToken,
-]);
-
-function isMembershipArgument(node: ts.Node, parent: ts.Node): boolean {
-  return (
-    ts.isCallExpression(parent) &&
-    parent.arguments.includes(node as ts.Expression) &&
-    ts.isPropertyAccessExpression(parent.expression) &&
-    MEMBERSHIP_METHODS.has(parent.expression.name.text)
-  );
-}
-
-function isModuleSpecifier(node: ts.Node, parent: ts.Node): boolean {
-  if (ts.isImportDeclaration(parent) || ts.isExportDeclaration(parent) || ts.isExternalModuleReference(parent)) {
-    return true;
-  }
-  return (
-    ts.isCallExpression(parent) &&
-    (parent.expression.kind === ts.SyntaxKind.ImportKeyword || parent.expression.getText() === "require") &&
-    parent.arguments[0] === node
-  );
-}
-
-function isKeyName(node: ts.Node, parent: ts.Node): boolean {
-  if (ts.isComputedPropertyName(parent) || ts.isEnumMember(parent) || (ts.isElementAccessExpression(parent) && parent.argumentExpression === node)) {
-    return true;
-  }
-  return (ts.isPropertyAssignment(parent) || ts.isMethodDeclaration(parent) || ts.isPropertySignature(parent)) && parent.name === node;
-}
-
-/** What the string literal at `position` does with its value. */
-export function literalRoleAt(source: ts.SourceFile, position: number): LiteralRole {
-  const node = nameAt(source, position);
-  const parent = node?.parent;
-  if (node === undefined || parent === undefined) {
-    return "type";
-  }
-  if (isModuleSpecifier(node, parent)) {
-    return "module";
-  }
-  if (ts.isLiteralTypeNode(parent)) {
-    return "type";
-  }
-  return valueRole(node, parent);
-}
-
-// What a value expression does where it stands: a `case` label, an equality or membership operand, a key, or a construction.
-function valueRole(node: ts.Node, parent: ts.Node): LiteralRole {
-  if (ts.isCaseClause(parent)) {
-    return "case";
-  }
-  if ((ts.isBinaryExpression(parent) && EQUALITY.has(parent.operatorToken.kind)) || isMembershipArgument(node, parent)) {
-    return "compare";
-  }
-  return isKeyName(node, parent) ? "key" : "construct";
-}
-
-/** What the value the name at `position` reads does there, judged as {@link literalRoleAt} judges a literal: the name, or
- *  the member access it ends, through parentheses and assertions. `null` where the name reads no value: a type position,
- *  an import, a write or a declaration's own name. */
-export function readRoleAt(source: ts.SourceFile, position: number): LiteralRole | null {
-  const node = nameAt(source, position);
-  const parent = node?.parent;
-  if (node === undefined || parent === undefined || roleOf(node) !== "read" || (ts.isVariableDeclaration(parent) && parent.name === node)) {
-    return null;
-  }
-  let value: ts.Node = ts.isPropertyAccessExpression(parent) && parent.name === node ? parent : node;
-  while (
-    ts.isParenthesizedExpression(value.parent) ||
-    ts.isAsExpression(value.parent) ||
-    ts.isSatisfiesExpression(value.parent) ||
-    ts.isNonNullExpression(value.parent)
-  ) {
-    value = value.parent;
-  }
-  return valueRole(value, value.parent);
-}
-
 const VALUE_USES = ["call", "define", "type", "test", "parse", "escape"] as const;
 /** What a reference to a function, a callable member or a tuple does with the value. `define`: an implementation
  *  supplies the member. `test`: a membership method reads it. `parse`: `z.enum` reads it. `escape`: the value

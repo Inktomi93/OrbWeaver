@@ -1,7 +1,7 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   getTouchingPropertyName,
@@ -28,6 +28,7 @@ import type {
   NodeHandle,
   Program,
   ReferencedSymbolEntry,
+  RetainedSourceFile,
   SignatureUsage,
   Snapshot,
   TimingAccumulators,
@@ -35,7 +36,8 @@ import type {
 } from "@typescript/native/sync";
 import { API, all, SymbolFlags } from "@typescript/native/sync";
 import { z } from "zod";
-import { workspacePackageDirs } from "../package-effects/index.ts";
+import { isLibrarySource } from "../brand-names/index.ts";
+import { workspacePackageRoots } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
 
@@ -49,6 +51,9 @@ const chunked = <T>(items: readonly T[]): readonly (readonly T[])[] =>
 /** The two steps of a throwaway trial: making its snapshot and asking its program. */
 export const TRIAL_STEPS = ["snapshot", "diagnostics"] as const;
 export type TrialStep = (typeof TRIAL_STEPS)[number];
+
+/** The name {@link NativeWorld.libraryOf} gives the compiler's own default library files, which belong to no manifest. */
+export const DEFAULT_LIBRARY = "(default library)";
 
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
@@ -74,11 +79,11 @@ export interface WorldFiles {
 const DECLARATION_FILE = ".d.ts";
 const PACKAGE_MANIFEST = "package.json";
 const PackageManifest = z.looseObject({ name: z.string().optional() });
-const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+const workspaceDirs = (root: string): ReadonlySet<string> => new Set(workspacePackageRoots(root));
 
-// The absolute directories of the workspace's own packages; a tree with no workspace manifest has none.
-const workspaceDirs = (root: string): ReadonlySet<string> =>
-  new Set(existsSync(join(root, WORKSPACE_MANIFEST)) ? workspacePackageDirs(root).map((dir) => join(root, dir)) : []);
+// A file the program loaded from a package that is not the workspace's own, under isLibrarySource.
+const fromLibrary = (meta: { readonly isFromExternalLibrary: boolean; readonly packageJsonDirectory: string }, workspace: ReadonlySet<string>): boolean =>
+  isLibrarySource({ external: meta.isFromExternalLibrary, workspacePackage: workspace.has(meta.packageJsonDirectory) });
 
 // Which program files are the tree's own, by the program's answer rather than the path's text: a dependency resolved
 // through a pnpm symlink outside any node_modules directory is still a library, and a workspace package reached through
@@ -93,7 +98,7 @@ function ownSources(api: API, program: Program, own: { readonly workspace: Reado
     const metadata = api.batch(...page.map((name) => program.getSourceFileMetadata.gen(name)));
     for (const [at, name] of page.entries()) {
       const meta = metadata[at];
-      const library = meta === undefined || meta.isDefaultLibrary || (meta.isFromExternalLibrary && !workspace.has(meta.packageJsonDirectory));
+      const library = meta === undefined || meta.isDefaultLibrary || fromLibrary(meta, workspace);
       if (!library && (!name.endsWith(DECLARATION_FILE) || keep(name))) {
         kept.push(name);
       }
@@ -387,7 +392,25 @@ export class NativeWorld implements Disposable {
    *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
   *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
     const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
-    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory) ? this.#packageName(meta.packageJsonDirectory) : null;
+    return meta !== undefined && fromLibrary(meta, this.#workspace) ? this.#packageName(meta.packageJsonDirectory) : null;
+  }
+
+  /** Whether a declaration's file is one the compiler supplies, `lib.dom.d.ts` and the rest of the standard library. */
+  *isDefaultLibrary(handle: NodeHandle): APIRequestGenerator<boolean> {
+    const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
+    return meta?.isDefaultLibrary === true;
+  }
+
+  /** The package a program file is a library of, by the rule ownSources keeps the tree's own files by: a default library
+   *  (named {@link DEFAULT_LIBRARY}) or an external package outside the workspace. Null for a file of the tree's own. */
+  *libraryOf(fileName: string): APIRequestGenerator<string | null> {
+    const meta = yield* this.program.getSourceFileMetadata.gen(fileName);
+    if (meta?.isDefaultLibrary === true) {
+      return DEFAULT_LIBRARY;
+    }
+    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory)
+      ? (this.#packageName(meta.packageJsonDirectory) ?? meta.packageJsonDirectory)
+      : null;
   }
 
   /** For each list of declarations, whether one of them was loaded from the package `name`. */
@@ -423,6 +446,12 @@ export class NativeWorld implements Disposable {
   /** The repository-relative file of one of the world's parsed files. */
   fileOfSource(source: SourceFile): string {
     return this.#fileOfPath.get(source.path) ?? relative(this.#root, source.fileName);
+  }
+
+  /** A parse of each repository-relative file on its own, outside the program, in one batch. Each lease is the
+   *  caller's to dispose. */
+  parseAlone(files: readonly string[]): RetainedSourceFile[] {
+    return this.#api.batch(...files.map((file) => this.#api.createSourceFileFromFile.gen(resolve(this.#root, file))));
   }
 
   /** Whether the world holds the repository-relative file. */

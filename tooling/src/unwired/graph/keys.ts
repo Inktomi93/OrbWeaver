@@ -29,10 +29,7 @@ import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
-import { isPrimitive } from "./state.ts";
-
-// A caller that hands its own parameter on is asked in turn, this many callers deep; deeper reads the table whole.
-const PARAMETER_KEY_DEPTH = 4;
+import { isPrimitive, literalValues } from "./state.ts";
 
 /** A table read through a key that is a function's parameter: resolved at the end of the build through the callers. */
 interface ParameterKeyed {
@@ -54,9 +51,23 @@ export class Keys {
 
   file(sites: FileSites): void {
     this.#elementKeys(sites);
+    this.#keyTests(sites);
     this.#typeKeys(sites);
     this.#state.roleAll(sites.armSelectorMembers, "key", sites.file, 0);
     this.#scriptReads.push(...sites.scriptGlobalReads.map((read) => ({ ...read, file: sites.file })));
+  }
+
+  // A key test's literal, or each literal its key's type can be, touches that member of the tested value as a key use.
+  #keyTests(sites: FileSites): void {
+    const state = this.#state;
+    const receivers = state.world.typedAt(sites.keyTests, ({ receiver }) => receiver);
+    const computed = receivers.filter(({ item }) => item.keys === null);
+    const typedKeys = state.batch(state.world.typesAt(computed.map(({ item }) => item.argument)).map((type) => literalValues(type)));
+    const named = [
+      ...receivers.flatMap(({ item: { keys }, type }) => (keys ?? []).map((name) => ({ type, name }))),
+      ...computed.flatMap(({ type }, at) => (typedKeys[at] ?? []).map((name) => ({ type, name }))),
+    ];
+    state.roleAll(state.slotMembers(named).flat(), "key", sites.file, 0);
   }
 
   #elementKeys(sites: FileSites): void {
@@ -74,7 +85,7 @@ export class Keys {
       return parameter === undefined;
     });
     const keyTypes = state.world.typesAt(rest.map(({ argument }) => argument));
-    const typedKeys = state.batch(keyTypes.map((type) => state.literalValues(type)));
+    const typedKeys = state.batch(keyTypes.map((type) => literalValues(type)));
     const typedNamed = rest.flatMap(({ type }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name })));
     state.roleAll(state.slotMembers(typedNamed).flat(), "read", sites.file, 0);
     const whole = rest.filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type)).map(({ type }) => type);
@@ -116,7 +127,7 @@ export class Keys {
   finish(flows: Flows): void {
     const state = this.#state;
     for (const keyed of this.#parameterKeyed) {
-      const keys = this.#keysOf(keyed.fn, keyed.index, 0);
+      const keys = this.#keysOf(keyed.fn, keyed.index);
       if (keys === "whole") {
         this.#traceWhole(keyed);
         state.count("parameter-keyed lookups read whole");
@@ -146,22 +157,21 @@ export class Keys {
   }
 
   // The keys a function's parameter takes across its callers.
-  #keysOf(fn: Node, index: number, depth: number): ReadonlySet<string> | "whole" {
+  // The memo is the walk's seen-set: a function already asked answers what it found, and one still being asked (a cycle
+  // of callers) answers "whole".
+  #keysOf(fn: Node, index: number): ReadonlySet<string> | "whole" {
     const memo = `${this.#state.resolver.keyOf(fn)}:${String(index)}`;
     const known = this.#memo.get(memo);
     if (known !== undefined) {
       return known;
     }
     this.#memo.set(memo, "whole");
-    if (depth > PARAMETER_KEY_DEPTH) {
-      return "whole";
-    }
-    const keys = this.#callerKeys(fn, index, depth);
+    const keys = this.#callerKeys(fn, index);
     this.#memo.set(memo, keys);
     return keys;
   }
 
-  #callerKeys(fn: Node, index: number, depth: number): ReadonlySet<string> | "whole" {
+  #callerKeys(fn: Node, index: number): ReadonlySet<string> | "whole" {
     const state = this.#state;
     const declaration = (isArrowFunction(fn) || isFunctionExpression(fn)) && isVariableDeclaration(fn.parent) ? fn.parent : fn;
     const [usages = []] = state.batch([state.world.signatureUsage(declaration)]);
@@ -172,7 +182,7 @@ export class Keys {
     const keys = new Set<string>();
     for (const call of calls) {
       const argument = argumentAt(call, index);
-      const found = argument === undefined ? "whole" : this.#argumentKeys(argument, depth);
+      const found = argument === undefined ? "whole" : this.#argumentKeys(argument);
       if (found === "whole") {
         return "whole";
       }
@@ -183,7 +193,7 @@ export class Keys {
     return keys;
   }
 
-  #argumentKeys(argument: Node, depth: number): ReadonlySet<string> | "whole" {
+  #argumentKeys(argument: Node): ReadonlySet<string> | "whole" {
     const state = this.#state;
     const literals = keyLiterals(argument);
     if (literals !== null) {
@@ -192,10 +202,10 @@ export class Keys {
     if (isIdentifier(argument)) {
       const [parameter] = this.#parameterKeys([argument]);
       if (parameter !== undefined) {
-        return this.#keysOf(parameter.fn, parameter.index, depth + 1);
+        return this.#keysOf(parameter.fn, parameter.index);
       }
     }
-    const [typed] = state.batch([state.literalValues(state.world.typesAt([argument])[0])]);
+    const [typed] = state.batch([literalValues(state.world.typesAt([argument])[0])]);
     return typed === null || typed === undefined ? "whole" : new Set(typed);
   }
 

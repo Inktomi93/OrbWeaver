@@ -280,3 +280,42 @@ test("a walk deeper than any fixed cap still reaches its end", { timeout: 120_00
   expect(await ask("why", step(DEPTH))).toEqual([[DEEP, steps.map(deepLabel)]]);
   expect(await ask("reach", step(0))).toEqual([[1, DEEP], ...steps.slice(1).map((at) => [at, deepLabel(at)])]);
 });
+
+// The last shapes the real tree lost: a key set naming a const by `typeof`, a generic holder whose spelling is a union
+// with null, a member whose value a mapped holder spells, and an interface whose key set is its heritage clause's.
+test("a key set is followed through a const query, a nullable holder, a mapped holder's value and an interface's heritage", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const shapes = `${GRAPH_SOURCE}/shapes.ts`;
+  const source = [
+    'const NONE = "none";',
+    'export const STATUSES = ["ok", "bad"] as const;',
+    "type Counts = Readonly<Record<(typeof STATUSES)[number] | typeof NONE, number>>;",
+    "declare const counts: Counts;",
+    "export const fromConstKey = counts.none;",
+    "type Tones<Host extends string> = { readonly hosts: Readonly<Record<Host, number>> } & { readonly polarity: string };",
+    "declare function tonesOf(): Tones<(typeof STATUSES)[number]> | null;",
+    "const tones = tonesOf();",
+    "export const fromNullableHolder = tones === null ? 0 : tones.hosts.ok;",
+    "type Names = Readonly<Record<(typeof STATUSES)[number], readonly string[]>>;",
+    'declare function folders(): { readonly names: Readonly<Record<"held" | "fresh", Names>> };',
+    "const { names } = folders();",
+    "export const fromMappedValue = names.held.bad;",
+    "export interface Caps extends Readonly<Record<(typeof STATUSES)[number], number>> { readonly share: number }",
+    "declare function capsOf(): Caps;",
+    "const whole = { ...capsOf(), share: 1 };",
+    "export const fromHeritage = whole.ok;",
+  ].join("\n");
+  const lineOf = (name: string): number => source.split("\n").findIndex((line) => line.includes(`const ${name} `)) + 1;
+  const root = await plantedTree(graphTree({ [shapes]: source }));
+  const users = async (name: string): Promise<readonly string[]> =>
+    (await queryGraph(root, { query: "users", names: [name] }, quiet)).answers.flatMap((answer) =>
+      answer.query === "users" ? answer.nodes.map(({ label }) => label) : [],
+    );
+  const { session } = await queryGraph(root, { query: "users", names: ["STATUSES"] }, quiet, { ...FRESH_BUILD, explainLost: true });
+  expect(session.lost?.bySlot.map(({ slot, sample }) => `${slot} ${sample}`)).toEqual([]);
+  expect(await users("NONE")).toContain(`${shapes}:${lineOf("fromConstKey")} fromConstKey`);
+  expect(await users("STATUSES")).toEqual(
+    expect.arrayContaining(["fromNullableHolder", "fromMappedValue", "fromHeritage"].map((name) => `${shapes}:${lineOf(name)} ${name}`)),
+  );
+});
