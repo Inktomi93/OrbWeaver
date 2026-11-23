@@ -710,8 +710,11 @@ class Builder {
     const flat = pairs.flat();
     const outputs = state.declarations(flat.map(([output]) => output));
     const targets = state.declarations(flat.map(([, target]) => target));
+    // A declaration the walk pairs with itself sits where the declared type is the schema's own output (`z.infer` of
+    // it): nothing there is checked, and the union cross product would pair one option's key with a sibling's.
+    const own = new Set(outputs.flatMap((output, y) => output.filter((decl) => targets[y]?.includes(decl) === true)));
     for (const [y, output] of outputs.entries()) {
-      for (const from of output.filter((decl) => state.decls.has(decl))) {
+      for (const from of output.filter((decl) => state.decls.has(decl) && !own.has(decl))) {
         for (const to of (targets[y] ?? []).filter((decl) => decl !== from && state.decls.has(decl))) {
           this.#pair(from, to);
         }

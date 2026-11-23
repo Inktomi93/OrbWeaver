@@ -152,6 +152,26 @@ test("a key a discriminated union's options share is judged at the checked type'
   expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Down.reason"]);
 });
 
+// A type inferred from a schema is that schema's output: a check that reaches it pairs nothing there, so each option's
+// key stays judged as itself instead of checked against its sibling option's same-named key.
+test("a check whose type reaches an inferred schema's own options pairs nothing there", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      'export const sourceSchema = z.discriminatedUnion("kind", [z.object({ kind: z.string(), rule: z.string() }), z.object({ kind: z.string(), plugin: z.string() })]);',
+      "export type Source = z.infer<typeof sourceSchema>;",
+      "export interface Notice { readonly source: Source }",
+      "export const noticeSchema = z.object({ source: sourceSchema }) satisfies z.ZodType<Notice>;",
+      'export const notice: Notice = { source: { kind: "rule", rule: "r" } };',
+      "export const shown = notice.source;",
+    ]),
+  });
+  // the literal writes `kind` on both options and `rule` on its own; `plugin` is a schema key nothing writes
+  expect(bare(labelsIn(scan, "member-write-only", FILE)).toSorted()).toEqual(["sourceSchema.kind", "sourceSchema.kind", "sourceSchema.rule"]);
+  expect(bare(labelsIn(scan, "member-validated", FILE))).toEqual(["sourceSchema.plugin"]);
+});
+
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,
