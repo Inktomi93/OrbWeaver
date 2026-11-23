@@ -256,6 +256,19 @@ test("a src .d.ts shim that types an untyped library makes no restated pair of i
   expect((await scanned(root)).unwired).toEqual(["restated WrapC~WrapD"]);
 });
 
+// A relative `declare module "./x"` augments our own module, so the members it adds are the tree's own: the merged
+// Foo holds `a` and `b` and restates Bar.
+test("a relative module augmentation of our own file adds own members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/x.ts": "export interface Foo {\n  a: string;\n}",
+      "packages/a/src/aug.ts": 'declare module "./x.ts" {\n  interface Foo {\n    b: string;\n  }\n}\nexport {};',
+      "packages/a/src/y.ts": "export interface Bar {\n  a: string;\n  b: string;\n}",
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated Foo~Bar", "restated Foo~Bar"]);
+});
+
 // A callable type and a generic type hold no home, so two of them in different files are no pair; each case's twin is
 // the same shape without the call signature or the type parameter, and that pair reports.
 test("a callable type and a generic type hold no home of their own", { timeout: 120_000 }, async ({ plantedTree }) => {

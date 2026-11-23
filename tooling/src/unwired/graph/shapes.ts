@@ -163,14 +163,15 @@ function declared(world: NativeWorld): readonly Declared[] {
 }
 
 // Whether a member declaration is the tree's own: in one of the world's files and outside a `declare module "name"`,
-// which types a module the tree does not author, an untyped library's, even where our own .d.ts declares it.
+// which types a module the tree does not author, an untyped library's, even where our own .d.ts declares it. A relative
+// name augments one of our own files, so its members stay ours.
 function* authored(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<boolean> {
   if (world.fileOf(handle) === null) {
     return false;
   }
   const declaration = yield* handle.resolve.gen();
   for (let at = declaration?.parent; at !== undefined && !isSourceFile(at); at = at.parent) {
-    if (isModuleDeclaration(at) && isStringLiteral(at.name)) {
+    if (isModuleDeclaration(at) && isStringLiteral(at.name) && !at.name.text.startsWith(".")) {
       return false;
     }
   }
