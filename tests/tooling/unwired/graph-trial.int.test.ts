@@ -736,3 +736,61 @@ test.for([
     ).toEqual([{ verdict: "refuted", checked, errors: [`${READER}:${String(line)} read`] }]);
   },
 );
+
+// A computed member's find-references is the member's own, never the constant its brackets read: the constant is read
+// in another file and the member nowhere, so the member stays confirmed.
+test("a computed member whose constant is read elsewhere is confirmed by its own references", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [KEYS]: 'export const KEY = "zqComputed";',
+        [LIB]: [
+          'import { KEY } from "./keys.ts";',
+          "export interface Shape { readonly kept: string; readonly [KEY]?: string }",
+          "export const keptOf = (shape: Shape): string => shape.kept;",
+        ].join("\n"),
+        [MAIN]: [
+          'import { KEY } from "./keys.ts";',
+          'import { keptOf } from "./lib.ts";',
+          "const use = (value: unknown): unknown => value;",
+          "use(KEY);",
+          'use(keptOf({ kept: "k" }));',
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  // The constant's own files are no reader of the member: only the member's file and the file importing it are checked.
+  expect(report.trials.map(({ label, verdict, checked, errors }) => ({ label, verdict, checked, errors }))).toEqual([
+    { label: `${LIB}:Shape.[KEY]`, verdict: "confirmed", checked: [LIB, MAIN], errors: [] },
+  ]);
+});
+
+// The member is read only by a test that reaches it through a relay, naming neither its holder nor its file: the
+// member's own references are what put that test in the checked set.
+test("a computed member a test reads through a relay is refuted test-only under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        ...WITH_TESTS,
+        [KEYS]: 'export const KEY = "zqComputed";',
+        [LIB]: [
+          'import { KEY } from "./keys.ts";',
+          "export interface Shape { readonly kept: string; readonly [KEY]?: string }",
+          'export const made = (): Shape => ({ kept: "k" });',
+        ].join("\n"),
+        [RELAY]: 'export { made } from "./lib.ts";',
+        [MAIN]: ['import { made } from "./relay.ts";', "const use = (value: unknown): unknown => value;", "use(made().kept);"].join("\n"),
+        [TEST_FILE]: ['import { made } from "../../packages/a/src/relay.ts";', "export const read = made().zqComputed;"].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
+      .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
+  ).toEqual([{ verdict: "refuted-test-only", checked: [LIB, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
+});

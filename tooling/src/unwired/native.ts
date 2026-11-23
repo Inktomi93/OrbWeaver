@@ -2,11 +2,11 @@
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
+import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
-  getTouchingPropertyName,
   isArrowFunction,
   isClassDeclaration,
+  isComputedPropertyName,
   isFunctionDeclaration,
   isFunctionExpression,
   isGetAccessorDeclaration,
@@ -520,11 +520,29 @@ export class NativeWorld implements Disposable {
     return this.batch(sites.map((site) => this.#referencesOf(site)));
   }
 
-  /** Find-references at a node, one group per symbol it may mean. */
+  /** Find-references at a node, one group per symbol it may mean. A computed member name is asked through the
+   *  member's own symbol: find-references answers nothing at a `[…]`, and a position inside it means the expression
+   *  the brackets hold. */
   *referencedSymbolsOf(node: Node): APIRequestGenerator<ReferencedSymbolEntry[]> {
-    const source = node.getSourceFile();
-    const position = node.getStart(source) + 1;
-    return yield* this.#languageService.getReferencedSymbolsForNode.gen(getTouchingPropertyName(source, position), position);
+    if (isComputedPropertyName(node)) {
+      return yield* this.#computedReferences(node);
+    }
+    return yield* this.#languageService.getReferencedSymbolsForNode.gen(node, node.getStart(node.getSourceFile()));
+  }
+
+  // TypeScript 7.1 find-references answers nothing for a late-bound member, at its name or at a read of it, so the
+  // member's one group is the checker's own per-file references in every file that spells the member's name. Like
+  // find-references it sees a read by name (`shape.zqKey`), never one through the constant (`shape[KEY]`), and it
+  // leaves out the declaration. A member whose name no source spells, a unique symbol's, has no references.
+  *#computedReferences(name: ComputedPropertyName): APIRequestGenerator<ReferencedSymbolEntry[]> {
+    const member = yield* this.checker.getSymbolAtLocation.gen(name);
+    const [definition] = member?.declarations ?? [];
+    if (member === undefined || definition === undefined) {
+      return [];
+    }
+    const spelling = [...this.#sourceOf].filter(([, source]) => source.text.includes(member.name)).map(([file]) => resolve(this.#root, file));
+    const found = yield* all(...spelling.map((file) => this.checker.getReferencesToSymbolInFile.gen(file, member)));
+    return [{ definition, symbol: member, references: found.flat() }];
   }
 
   /** Every reference to the function a declaration names, each with the call that invokes it when one does. */
@@ -537,8 +555,11 @@ export class NativeWorld implements Disposable {
     if (file === undefined) {
       return [];
     }
-    const node = getTouchingPropertyName(file, site.position);
-    const groups = yield* this.#languageService.getReferencedSymbolsForNode.gen(node, site.position);
+    const node = nameAt(file, site.position);
+    if (node === undefined) {
+      return [];
+    }
+    const groups = yield* this.referencedSymbolsOf(node);
     const asked = yield* this.checker.getSymbolAtLocation.gen(node);
     const found: FoundReference[] = [];
     for (const group of groups) {
