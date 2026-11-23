@@ -217,6 +217,8 @@ export interface GraphFacts {
   readonly computedLoads: readonly ComputedLoad[];
   readonly unreadRouteParams: readonly RouteParam[];
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
+  /** An interface member and the member of an extended type it redeclares, `[member, base]`. */
+  readonly overrides: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
   readonly pins: readonly DeclKey[];
@@ -301,6 +303,7 @@ export class GraphState implements GraphFacts {
   readonly unreadRouteParams: RouteParam[] = [];
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
+  readonly overrides: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];
   readonly cssNames: CssName[] = [];
   readonly pins: DeclKey[] = [];

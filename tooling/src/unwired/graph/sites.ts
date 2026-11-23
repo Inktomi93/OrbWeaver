@@ -69,6 +69,7 @@ import {
   isExportSpecifier,
   isExpressionWithTypeArguments,
   isExternalModuleReference,
+  isForInStatement,
   isForOfStatement,
   isFunctionDeclaration,
   isFunctionExpression,
@@ -549,6 +550,10 @@ export class FileSites {
   readonly pickKeys: { readonly target: TypeNode; readonly keys: readonly string[] }[] = [];
   readonly indexedKeys: IndexedKey[] = [];
   readonly elementKeys: ElementKey[] = [];
+  /** The values a reflective call or a `for…in` loop takes every member of: `Object.entries(x)` and `structuredClone(x)`
+   *  read each value, `Object.keys(x)` and a loop list each key; the callee, which keys.ts confirms is the platform's,
+   *  or null for a loop. */
+  readonly reflectiveReads: { readonly value: Expression; readonly callee: Expression | null; readonly role: ReflectiveRole }[] = [];
   /** `"k" in x`: a key test touches the member it names without reading its value. */
   readonly keyTests: ElementKey[] = [];
   /** Members a lib arm selector's pattern names: `Extract<T, { k: … }>`. */
@@ -581,6 +586,8 @@ export class FileSites {
     readonly from: GraphKey;
   } & PatternRoute)[] = [];
   readonly classes: ClassFacts[] = [];
+  /** Interfaces with an `extends` clause: a member that redeclares an extended type's member is one field with it. */
+  readonly extendingInterfaces: InterfaceDeclaration[] = [];
   readonly newExpressions: NewExpression[] = [];
   readonly literals: LiteralMembers[] = [];
   readonly tagged: UnitDeclaration[] = [];
@@ -675,6 +682,27 @@ const ZOD_OBJECT_BUILDERS: ReadonlySet<string> = new Set(["object", "strictObjec
 // An inline `z.union` or `z.discriminatedUnion` spells each arm; an arm held in a constant twins at its own `satisfies`.
 const ZOD_UNION_BUILDERS: ReadonlySet<string> = new Set(["union", "discriminatedUnion"]);
 const ZOD_EXTENDERS: ReadonlySet<string> = new Set(["extend", "safeExtend"]);
+const ZOD_LAZY = "lazy";
+/** How a reflective use takes each member: `read` takes its value, `key` only its name, as an `in` test does. */
+type ReflectiveRole = Extract<Role, "read" | "key">;
+// The platform calls that take every member of their arguments: the `Object` statics that list or copy them, and a deep
+// clone. `Object.keys` lists names alone, so it is a key use of each member, never a read of its value.
+const REFLECTIVE_STATICS: ReadonlyMap<string, ReflectiveRole> = new Map([
+  ["entries", "read"],
+  ["values", "read"],
+  ["assign", "read"],
+  ["keys", "key"],
+]);
+const OBJECT_GLOBAL = "Object";
+const CLONE = "structuredClone";
+const reflectiveRole = (callee: Node): ReflectiveRole | undefined => {
+  if (isIdentifier(callee) && callee.text === CLONE) {
+    return "read";
+  }
+  return isPropertyAccessExpression(callee) && isIdentifier(callee.expression) && callee.expression.text === OBJECT_GLOBAL
+    ? REFLECTIVE_STATICS.get(callee.name.text)
+    : undefined;
+};
 const ZOD_NAMESPACE = "z";
 // A builder method anywhere on a key's chain (`z.string().optional()`) makes the key optional or gives it a default.
 const ZOD_OPTIONAL: ReadonlySet<string> = new Set(["optional", "nullish", "default", "prefault", "catch"]);
@@ -746,8 +774,30 @@ function stringKeysIn(node: TypeNode): readonly string[] {
 
 const referenceName = (node: TypeReferenceNode): string => (isQualifiedName(node.typeName) ? node.typeName.right.text : node.typeName.text);
 
-// Every object shape a zod schema expression spells: one `z.object` literal, each arm of an inline union, and each
-// `base.extend({ … })` literal along the chain (the base keeps its own twin through its own `satisfies`).
+// A schema expression checked against a type: `schema satisfies z.ZodType<T>`, or `const schema: z.ZodType<T> = …`.
+function checkedSchema(node: Node): { readonly schema: Node; readonly type: TypeReferenceNode } | undefined {
+  if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type)) {
+    return { schema: node.expression, type: node.type };
+  }
+  if (isVariableDeclaration(node) && node.type !== undefined && isTypeReferenceNode(node.type) && node.initializer !== undefined) {
+    return { schema: node.initializer, type: node.type };
+  }
+  return undefined;
+}
+
+// The schemas a zod builder wraps whole: each arm of `z.union([…])`, or the schema `z.lazy(() => schema)` returns;
+// undefined for any other builder.
+function zodWrappedSchemas(args: readonly Expression[], builder: string): readonly Node[] | undefined {
+  if (ZOD_UNION_BUILDERS.has(builder)) {
+    return args.find(isArrayLiteralExpression)?.elements ?? [];
+  }
+  const [made] = args;
+  return builder === ZOD_LAZY && made !== undefined && isArrowFunction(made) && !isBlock(made.body) ? [made.body] : undefined;
+}
+
+// Every object shape a zod schema expression spells: one `z.object` literal, each arm of an inline union, each
+// `base.extend({ … })` literal along the chain (the base keeps its own twin through its own `satisfies`), and the
+// schema a `z.lazy(() => schema)` arrow returns.
 function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
   const one = zodShapeOf(expression);
   if (one !== undefined) {
@@ -759,9 +809,9 @@ function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
     if (!isPropertyAccessExpression(callee)) {
       return shapes;
     }
-    if (ZOD_UNION_BUILDERS.has(callee.name.text)) {
-      const arms = at.arguments.find(isArrayLiteralExpression);
-      return [...shapes, ...(arms?.elements ?? []).flatMap(zodShapesOf)];
+    const wrapped = zodWrappedSchemas(at.arguments, callee.name.text);
+    if (wrapped !== undefined) {
+      return [...shapes, ...wrapped.flatMap(zodShapesOf)];
     }
     const [added] = at.arguments;
     if (ZOD_EXTENDERS.has(callee.name.text) && added !== undefined && isObjectLiteralExpression(added)) {
@@ -1151,9 +1201,7 @@ class Walker {
     }
     this.#declarationEdges(node, key, top);
     this.#member(node, key);
-    if (isClassDeclaration(node)) {
-      this.#class(node, key);
-    }
+    this.#heritage(node, key);
     // a class field's initializer runs when the class is constructed, not when the field is read: its uses are the class's
     if (isPropertyDeclaration(node) && isClassDeclaration(node.parent)) {
       return false;
@@ -1271,6 +1319,16 @@ class Walker {
     if ((isMethodDeclaration(node) || isPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isRuntimeProtocol(node.name)) {
       this.#sink.edge("run", this.#holder, key);
       this.#sink.unseenCall(key);
+    }
+  }
+
+  // A class's heritage, whose members its own may fill, and an interface that extends another type.
+  #heritage(node: Node, key: DeclKey): void {
+    if (isClassDeclaration(node)) {
+      this.#class(node, key);
+    }
+    if (isInterfaceDeclaration(node) && (node.heritageClauses?.length ?? 0) > 0) {
+      this.#sites.extendingInterfaces.push(node);
     }
   }
 
@@ -1436,6 +1494,7 @@ class Walker {
 
   // The library calls whose syntax the graph reads: a `tv()` table, a JSX attribute's value, a zod schema's twin keys.
   #libraryShapes(node: Node): void {
+    this.#reflective(node);
     if (isCallExpression(node) && isTvCallee(node.expression) && node.arguments[0] !== undefined && isObjectLiteralExpression(node.arguments[0])) {
       this.#sites.tvCalls.push(node);
       this.#sites.tvSpans.push([node.pos, node.end]);
@@ -1444,14 +1503,26 @@ class Walker {
       const value = node.initializer !== undefined && isJsxExpression(node.initializer) ? node.initializer.expression : node.initializer;
       this.#sites.jsxAttributes.push({ attributes: node.parent, name: node.name.text, value });
     }
-    if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type) && node.type.typeArguments?.[0] !== undefined) {
-      const [shape] = node.type.typeArguments;
-      const { typeName } = node.type;
+    const checked = checkedSchema(node);
+    if (checked !== undefined && checked.type.typeArguments?.[0] !== undefined) {
+      const [shape] = checked.type.typeArguments;
+      const { typeName } = checked.type;
       const type = isQualifiedName(typeName) ? typeName.right : typeName;
-      for (const literal of zodShapesOf(node.expression)) {
+      for (const literal of zodShapesOf(checked.schema)) {
         this.#frame.twinShapes.add(spanOf(literal));
         this.#sites.zodTwins.push({ type, shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });
       }
+    }
+  }
+
+  // A call that reads its arguments' members by reflection, and a `for…in` loop over a value.
+  #reflective(node: Node): void {
+    if (isForInStatement(node)) {
+      this.#sites.reflectiveReads.push({ value: node.expression, callee: null, role: "key" });
+    }
+    const role = isCallExpression(node) ? reflectiveRole(node.expression) : undefined;
+    if (role !== undefined && isCallExpression(node)) {
+      this.#sites.reflectiveReads.push(...node.arguments.map((value) => ({ value, callee: node.expression, role })));
     }
   }
 

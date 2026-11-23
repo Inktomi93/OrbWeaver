@@ -681,11 +681,18 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
   for (const entry of members.staleJudged) {
     process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
   }
+  for (const row of members.acknowledged) {
+    process.stdout.write(`acknowledged\t${row.bucket}\t${row.key}\n`);
+  }
+  for (const row of members.received) {
+    process.stdout.write(`received\t${row.receiver}\t${row.key}\t${row.cite}\n`);
+  }
   logSession(graph.session);
   log(literalLine(members.literalStage));
   const ruled = `deliberate=${String(members.deliberate.length)} judged=${String(members.judged.length)} stale-judged=${String(members.staleJudged.length)}`;
+  const apart = `acknowledged=${String(members.acknowledged.length)} received=${String(members.received.length)}`;
   log(
-    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(shown(bucket).length)}`).join(" ")} ${ruled} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
+    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(shown(bucket).length)}`).join(" ")} ${ruled} ${apart} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
   );
   return EXIT.clean;
 }

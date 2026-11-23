@@ -225,8 +225,8 @@ export const NODE_TYPES = {
   ].join("\n"),
 };
 
-/** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
- *  validator, a default and an optional key. */
+/** A minimal zod at zod's own path: object schemas that keep their keys and their `shape`, `z.ZodType` for `satisfies`,
+ *  `extend`, unions, `lazy`, a validator, a default and an optional key. */
 export const ZOD_MODULE = {
   "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
   // zod's declarations sit under a nested scope manifest that names no package, as the installed zod's do
@@ -250,8 +250,11 @@ export const ZOD_MODULE = {
     "  type infer<S> = S extends Schema<infer T> ? T : never;",
     "}",
     "export declare const z: {",
-    "  strictObject<S>(shape: S, params?: Params): Schema<Shape<S>>;",
+    "  object<S>(shape: S, params?: Params): Schema<Shape<S>> & { readonly shape: S };",
+    "  strictObject<S>(shape: S, params?: Params): Schema<Shape<S>> & { readonly shape: S };",
     "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
+    "  discriminatedUnion<A extends readonly Schema[]>(key: string, arms: A): Schema<A[number]['_output']>;",
+    "  lazy<T>(make: () => Schema<T>): Schema<T>;",
     "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
     "  string(): Schema<string>;",
     "  number(): Schema<number>;",

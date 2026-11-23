@@ -1,6 +1,7 @@
-// Reads that reach a member through a key, a twin or a flow: a lookup keyed by a parameter reads what its callers pass,
-// a zod schema's keys are its satisfied type's members (an inline union's arms and an `extend` literal's too), a function
-// filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
+// Reads that reach a member through a key, a twin, a flow or a redeclaration: a lookup keyed by a parameter reads what
+// its callers pass, a zod schema's keys are its checked type's members (an inline union's arms, an `extend` literal's and
+// a `z.lazy` arrow's too), a reflective platform call reads every member, a redeclared member shares its reads, a
+// function filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
 import { expect, test } from "@orb/testkit/tooling";
 import { GRAPH_SOURCE, graphScan, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
 
@@ -105,6 +106,92 @@ test("a satisfies reference twins only through zod's ZodType, never a local type
     untouched: ["ZodType._output", "Twinned.hidden", "Aliased.hidden", "Local.count", "Local.hidden"],
     validated: ["localSchema.hidden"],
   });
+});
+
+// A binding annotated `z.ZodType<T>` checks its schema as `satisfies` does, through a `z.lazy` arrow too, so its keys are
+// T's members; an unchecked schema beside them keeps keys of its own, which only validate.
+test("a schema bound under a z.ZodType annotation twins its keys, through z.lazy too", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Note { readonly text: string; readonly spare: string }",
+      "export interface Tree { readonly kind: string; readonly leaf?: string }",
+      "export const noteSchema: z.ZodType<Note> = z.object({ text: z.string(), spare: z.string() });",
+      "export const treeSchema: z.ZodType<Tree> = z.lazy(() => z.object({ kind: z.string(), leaf: z.string().optional() }));",
+      "export const looseSchema = z.object({ loose: z.string() });",
+      "export const shown = (note: Note, tree: Tree): string => note.text + tree.kind;",
+    ]),
+  });
+  expect({ untouched: bare(labelsIn(scan, "member-untouched", FILE)), validated: bare(labelsIn(scan, "member-validated", FILE)) }).toEqual({
+    untouched: ["Note.spare", "Tree.leaf"],
+    validated: ["looseSchema.loose"],
+  });
+});
+
+// The platform's reflective calls read every member of the value they take. A `for…in` loop uses each key's name and
+// reads no value, so `Looped.l` stays written and never read, as does `Kept.k` under a call of our own that shadows
+// `Object`.
+test("a reflective platform call reads every member of its value, and a for-in loop only its keys", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Listed { readonly p: string; readonly q: string }",
+      "export interface Merged { readonly m: string }",
+      "export interface Looped { readonly l: string }",
+      "export interface Kept { readonly k: string }",
+      'const listed: Listed = { p: "p", q: "q" };',
+      'const merged: Merged = { m: "m" };',
+      'const looped: Looped = { l: "l" };',
+      'const kept: Kept = { k: "k" };',
+      "export const entries = Object.entries(listed);",
+      "export const copy = Object.assign({}, merged);",
+      "export function keysOf(): string[] { const out: string[] = []; for (const key in looped) { out.push(key); } return out; }",
+      "export function shadowed(): number { const Object = { entries: (value: Kept): number => (value === kept ? 1 : 0) }; return Object.entries(kept); }",
+    ]),
+  );
+  expect({ writeOnly: bare(labelsIn(scan, "member-write-only", FILE)), sentOnly: bare(labelsIn(scan, "member-sent-only", FILE)) }).toEqual({
+    writeOnly: ["Looped.l", "Kept.k"],
+    sentOnly: [],
+  });
+});
+
+// A lookup keyed by a parameter no caller narrows reads only what the parameter's own literal type allows.
+test("a parameter-keyed lookup no caller narrows reads the literals its key type allows", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Keyed { readonly x: number; readonly y: number; readonly unkeyed: number }",
+      "const keyed: Keyed = { x: 1, y: 2, unkeyed: 3 };",
+      'export const pick = (key: "x" | "y"): number => keyed[key];',
+    ]),
+  );
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Keyed.unkeyed"]);
+});
+
+// An interface member that redeclares an extended member holds the same field: a read of either reads the other, up the
+// chain and down it. `Other.title`, of no heritage, stays written and never read.
+test("a redeclared interface member and the member it redeclares share their reads", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface BaseCfg { readonly title: string; readonly spare: string }",
+      "export interface LeafCfg extends BaseCfg { readonly title: string }",
+      'export const leaf: LeafCfg = { title: "t", spare: "s" };',
+      "export const shownLeaf = leaf.title;",
+      "export interface Card { readonly starred: boolean }",
+      "export interface Detail extends Card { readonly starred: boolean }",
+      "export const detail: Detail = { starred: true };",
+      "export const card: Card = { starred: false };",
+      "export const isStarred = card.starred;",
+      "export interface Other { readonly title: string }",
+      'export const other: Other = { title: "o" };',
+    ]),
+  );
+  expect({
+    writeOnly: bare(labelsIn(scan, "member-write-only", FILE)),
+    untouched: bare(labelsIn(scan, "member-untouched", FILE)),
+  }).toEqual({ writeOnly: ["BaseCfg.spare", "Other.title"], untouched: [] });
 });
 
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {
