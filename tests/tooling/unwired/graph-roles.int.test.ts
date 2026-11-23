@@ -132,28 +132,35 @@ test("a member read only by snap counts as read; one read only by another tool s
   expect(notes).toEqual([["Shown.other", expect.stringContaining(OUTSIDE_NOTES.read)]]);
 });
 
-// `__orb` is the dev bridge: our own `declare global` publishes it, so a tooling read through the global is a product
-// read and `Bridge.foo` leaves the buckets. `Bridge.bar`, which nothing reads, stays sent; `Plain.p`, read from tooling
-// without the global, stays write-only with the outside note.
-test("a dev-bridge member read only from tooling through the global counts as read", { timeout: 120_000 }, async ({ plantedTree }) => {
+// `__orb` is the dev bridge: our own `declare global` publishes it, so a tooling read through the global, in code or in
+// a script's text, is a product read: `Bridge.foo` and `Bridge.scripted` leave the buckets. `Bridge.bar`, which nothing
+// reads, stays sent, and so does `Bridge.direct`, read only off the imported value: that is a test's read, not the
+// door's. `Plain.p`, read from tooling without the global, stays write-only with the outside note.
+test("a dev-bridge member read through the global counts as read; one read off its import does not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...source([
-      "export interface Bridge { readonly foo: string; readonly bar: string }",
+      "export interface Bridge { readonly foo: string; readonly bar: string; readonly direct: string; readonly scripted: string }",
       "declare global {",
       "  var __orb: Bridge | undefined;",
       "}",
       "export const install = (bridge: Bridge): void => {",
       "  globalThis.__orb = bridge;",
       "};",
-      'export const made: Bridge = { foo: "f", bar: "b" };',
+      'export const made: Bridge = { foo: "f", bar: "b", direct: "d", scripted: "s" };',
       "export interface Plain { readonly p: string }",
       'export const plain: Plain = { p: "1" };',
     ]),
     "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: ["probe.ts"] }),
-    "probe.ts": [`import { plain } from "./${FILE}";`, "export const seen = globalThis.__orb?.foo;", "export const shown = plain.p;"].join("\n"),
+    "probe.ts": [
+      `import { made, plain } from "./${FILE}";`,
+      "export const seen = globalThis.__orb?.foo;",
+      "export const shown = plain.p;",
+      "export const imported = made.direct;",
+      'export const script = "window.__orb.scripted";',
+    ].join("\n"),
   });
   const judged = (bucket: "member-sent-only" | "member-write-only"): readonly (readonly [string, string | null])[] =>
     scan.analysis[bucket].filter(({ label }) => label.startsWith(`${FILE}:`)).map(({ label, note }) => [label.slice(FILE.length + 1), note]);
-  expect(judged("member-sent-only").map(([label]) => label)).toEqual(["Bridge.bar"]);
+  expect(judged("member-sent-only").map(([label]) => label)).toEqual(["Bridge.bar", "Bridge.direct"]);
   expect(judged("member-write-only")).toEqual([["Plain.p", expect.stringContaining(OUTSIDE_NOTES.read)]]);
 });

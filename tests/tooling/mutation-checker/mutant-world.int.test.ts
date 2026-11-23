@@ -86,6 +86,25 @@ test.for(AUGMENTED_WORLDS)("a mutant whose break shows only through $name it aug
   expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
 });
 
+// A script file's declarations are global: the reader names its constant without importing anything.
+const SCRIPT_TEXT = `const SCRIPT_FLAGS = ${FLAGS_VALUE};`;
+
+test("a mutant in a script file fails on a reader that names its global", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: ["ESNext"] }),
+    [FLAGS]: SCRIPT_TEXT,
+    [READER]: "export const dark = (): boolean => SCRIPT_FLAGS.dark;",
+  });
+  using world = MutantWorld.open(root, WORLD);
+  const column = SCRIPT_TEXT.indexOf(FLAGS_VALUE);
+  const verdict = world.judge({
+    fileName: join(root, FLAGS),
+    replacement: "{}",
+    location: { start: { line: 0, column }, end: { line: 0, column: column + FLAGS_VALUE.length } },
+  });
+  expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
+});
+
 // The mutated file only feeds the augmenting file; the reader imports neither, so only the augmentation's reach finds it.
 const ROUTE = "src/route.ts";
 const ROUTE_VALUE = '{ path: "/a" }';

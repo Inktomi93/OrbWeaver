@@ -6,20 +6,23 @@
 // - Owner ruling: snap (tooling/src/snap/) drives the product as its user does, so its read of a member is a product
 //   read, as a dev-bridge read is (analyse.ts); its other roles, and every other tool's, only annotate.
 import type { Expression } from "@typescript/native/ast";
+import { SyntaxKind } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
+import type { Destination } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
 import type { GraphOptions } from "./options.ts";
 import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
-import { answer, constituentsOf, EXHAUSTED, Resolver } from "./resolve.ts";
+import { answer, constituentsOf, declKeyParts, EXHAUSTED, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
-import type { DeclInfo, GraphKey } from "./sites.ts";
-import { WhyTracker } from "./why.ts";
+import type { DeclInfo, GraphKey, LocalBinding } from "./sites.ts";
+import { MEMBER_KINDS } from "./sites.ts";
+import { siteLine, WhyTracker } from "./why.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
 export interface MemberRoles {
@@ -28,18 +31,25 @@ export interface MemberRoles {
   write: string | null;
 }
 
-/** One role a declaration was given and the site that gave it. */
-export interface RoleSite {
-  readonly role: Role;
-  readonly file: string;
-  readonly at: number;
-}
+const LITERAL_KEY_KINDS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment]);
+
+/** A send no destination was found for, or one made at no position. */
+export const UNCLASSIFIED: Destination = { destination: "unclassified", receiver: null };
+
+/** One role a declaration was given and the site that gave it; an escape site names where the value went. */
+export type RoleSite =
+  | { readonly role: Exclude<Role, "escape">; readonly file: string; readonly at: number }
+  | ({ readonly role: "escape"; readonly file: string; readonly at: number } & Destination);
 
 /** Where snap lives: it drives the product as its user does, so its reads and its requests are the product's. */
 export const SNAP_SOURCE = "tooling/src/snap/";
+const TEST_SOURCE = "tests/";
 
 /** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
 export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
+
+/** Whether a repository-relative file is one of the tree's tests or their testkit. */
+export const testSource = (file: string): boolean => file.startsWith(TEST_SOURCE);
 
 /** Directed edges between graph nodes. */
 export type Edges = Map<GraphKey, Set<GraphKey>>;
@@ -147,6 +157,41 @@ export interface DanglingDoc {
 }
 
 /** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
+/** The doors a message can cross (message-doors.ts): the names {@link MessageReceiver.door} reports. */
+const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics", "window"] as const;
+export type MessageDoor = (typeof MESSAGE_DOORS)[number];
+
+/** A receiver no send reaches through its door. */
+/** A module load no edge follows: `import(x)` or a createRequire function called with a computed path. */
+export interface ComputedLoad {
+  readonly file: string;
+  readonly line: number;
+  readonly argument: string;
+}
+
+/** A route path's `:name` segment no handler of the route reads. */
+export interface RouteParam {
+  readonly file: string;
+  readonly line: number;
+  readonly path: string;
+  readonly param: string;
+}
+
+export interface MessageReceiver {
+  readonly file: string;
+  readonly line: number;
+  readonly door: MessageDoor;
+}
+
+/** A binding as binding-unread and binding-read-only-by-dead judge it: where it sits, what holds it, which
+ *  declarations' code reads it, and whether anything writes it. */
+export interface BindingFact extends LocalBinding {
+  readonly file: string;
+  readonly holder: GraphKey;
+  readonly readers: readonly GraphKey[];
+  readonly written: boolean;
+}
+
 export interface GraphFacts {
   readonly decls: ReadonlyMap<DeclKey, DeclInfo>;
   readonly run: ReadonlyEdges;
@@ -155,8 +200,22 @@ export interface GraphFacts {
   readonly roles: ReadonlyMap<DeclKey, MemberRoles>;
   /** Every role site of a declaration whose file starts with one of the build's {@link BuildSession.siteFiles}, for a verb that counts and inspects sites. */
   readonly roleSites: ReadonlyMap<DeclKey, readonly RoleSite[]>;
+  /** The types a production parameter is annotated with: a caller may leave their optional members unset. */
+  readonly parameterHomes: ReadonlySet<DeclKey>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
-  readonly door: ReadonlySet<DeclKey>;
+  /** Drizzle column hand-offs, column to the stored member: a read of the column reads the member, and a send of the
+   *  column, which hands the library its definition, sends no stored value. */
+  readonly columnFlows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
+  /** Members read through our own global door (`window.__orb`), in code or a script's text, with a file that reads each. */
+  readonly doorReads: ReadonlyMap<DeclKey, string>;
+  /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
+  readonly unseenCalls: ReadonlySet<DeclKey>;
+  /** Each local binding, parameter and import binding with the declarations whose code reads it. */
+  readonly bindings: readonly BindingFact[];
+  /** Message receivers no send reaches through their door (message-doors.ts). */
+  readonly unpairedReceivers: readonly MessageReceiver[];
+  readonly computedLoads: readonly ComputedLoad[];
+  readonly unreadRouteParams: readonly RouteParam[];
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
@@ -185,6 +244,8 @@ export interface BuildSession {
   readonly profile: GraphProfile | null;
   /** The file prefixes whose declarations keep every role site. */
   readonly siteFiles: readonly string[];
+  /** Keep every role site of each production member too: the sites a member row's sort and literal search read. */
+  readonly memberSites: boolean;
 }
 
 /** The value types whose apparent type is a lib wrapper interface: they carry no member of ours. */
@@ -214,8 +275,8 @@ const addEdge = <K extends GraphKey>(edges: Map<K, Set<K>>, from: K, to: K): voi
 /** The graph a build writes and its analysis reads. */
 export class GraphState implements GraphFacts {
   readonly root: string;
-  readonly world: NativeWorld;
-  readonly resolver: Resolver;
+  #world: NativeWorld;
+  #resolver: Resolver;
   readonly roots: Roots;
   readonly session: BuildSession;
   readonly why: WhyTracker | null;
@@ -225,10 +286,16 @@ export class GraphState implements GraphFacts {
   readonly doc: Edges = new Map();
   readonly roles = new Map<DeclKey, MemberRoles>();
   readonly roleSites = new Map<DeclKey, RoleSite[]>();
+  readonly parameterHomes = new Set<DeclKey>();
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
-  /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
-  readonly door = new Set<DeclKey>();
+  readonly columnFlows = new Map<DeclKey, Set<DeclKey>>();
+  readonly doorReads = new Map<DeclKey, string>();
+  readonly unseenCalls = new Set<DeclKey>();
+  readonly bindings: BindingFact[] = [];
+  readonly unpairedReceivers: MessageReceiver[] = [];
+  readonly computedLoads: ComputedLoad[] = [];
+  readonly unreadRouteParams: RouteParam[] = [];
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];
@@ -250,11 +317,29 @@ export class GraphState implements GraphFacts {
 
   constructor(root: string, world: NativeWorld, roots: Roots, session: BuildSession) {
     this.root = root;
-    this.world = world;
-    this.resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
+    this.#world = world;
+    this.#resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
     this.roots = roots;
     this.session = session;
     this.why = session.options.why.length > 0 ? new WhyTracker(world, session.options.why) : null;
+  }
+
+  /** The program the build walks now. */
+  get world(): NativeWorld {
+    return this.#world;
+  }
+
+  get resolver(): Resolver {
+    return this.#resolver;
+  }
+
+  /** Walk another program into the same facts: a declaration keeps its key across programs, as a key is its file and
+   *  position, while every cache keyed by a type or symbol id belongs to the program that answered it. */
+  enter(world: NativeWorld): void {
+    this.#world = world;
+    this.#resolver = new Resolver(world, { spelling: !this.session.options.ablate.has("spelling") });
+    this.#origins.clear();
+    this.#members.clear();
   }
 
   /** Whether a repository-relative file ships in the product. */
@@ -275,18 +360,34 @@ export class GraphState implements GraphFacts {
     addEdge(this.flows, slot, value);
   }
 
+  columnFlow(column: DeclKey, member: DeclKey): void {
+    addEdge(this.columnFlows, column, member);
+  }
+
   role(key: DeclKey, role: Role, file: string, at: number): void {
+    this.#record(key, role === "escape" ? { role, file, at, ...UNCLASSIFIED } : { role, file, at });
+  }
+
+  /** Every key escapes at one site, sent where `send` names. */
+  escapeAll(keys: Iterable<DeclKey>, site: { readonly file: string; readonly at: number }, send: Destination): void {
+    for (const key of keys) {
+      this.#record(key, { role: "escape", ...site, ...send });
+    }
+  }
+
+  #record(key: DeclKey, site: RoleSite): void {
+    const { role, file, at } = site;
     this.why?.note(key, role, file, at);
-    if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
+    if (this.keepsSites(key)) {
       const sites = this.roleSites.get(key) ?? [];
-      sites.push({ role, file, at });
+      sites.push(site);
       this.roleSites.set(key, sites);
     }
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
     if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {
-        roles.write = `${file}:${String(at)}`;
+        roles.write = `${file}:${String(siteLine(this.world, file, at))}`;
       }
     } else {
       roles.other = withRoles(roles.other, [role]);
@@ -298,6 +399,45 @@ export class GraphState implements GraphFacts {
     for (const key of keys) {
       this.role(key, role, file, at);
     }
+  }
+
+  /** Each ask's slot members take `role` at the ask's own site. */
+  roleNamed(asks: readonly { readonly type: Type; readonly name: string; readonly at: number }[], role: Role, file: string): void {
+    const members = this.slotMembers(asks);
+    for (const [y, { at }] of asks.entries()) {
+      this.roleAll(members[y] ?? [], role, file, at);
+    }
+  }
+
+  /** Each key is read through our own global door, from `file`. */
+  doorRead(keys: Iterable<DeclKey>, file: string): void {
+    for (const key of keys) {
+      if (!this.doorReads.has(key)) {
+        this.doorReads.set(key, file);
+      }
+    }
+  }
+
+  /** Every member of each type takes `role` at that type's own site. */
+  roleWhole(wholes: readonly { readonly type: Type; readonly at: number }[], role: Role, file: string): void {
+    const members = this.memberDeclarations(wholes.map(({ type }) => type));
+    for (const [y, { at }] of wholes.entries()) {
+      this.roleAll(members[y] ?? [], role, file, at);
+    }
+  }
+
+  /** Whether the build keeps every role site of `key`: a declaration under a site prefix, or a production member when
+   *  the session keeps member sites. */
+  keepsSites(key: DeclKey): boolean {
+    if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
+      return true;
+    }
+    if (!this.session.memberSites) {
+      return false;
+    }
+    const { file, kind } = declKeyParts(key);
+    // a literal key is a member when it is a zod schema's, which only its declaration says; keep every one's sites
+    return (MEMBER_KINDS.has(kind) || LITERAL_KEY_KINDS.has(kind)) && this.product(file);
   }
 
   count(name: string, by = 1): void {

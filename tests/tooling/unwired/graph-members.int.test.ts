@@ -124,7 +124,8 @@ test("a key written beside a spread writes the member its source declares, throu
 });
 
 // A key beside a spread fills the member of the literal's own slot: a row spread into a wire shape writes the wire's
-// member, never the row's, so a row member nothing else writes stays untouched while the wire's is written.
+// member, never the row's. The row's member fills the wire's through the spread, so it is judged at that slot and
+// reports nowhere; a false write would report it write-only.
 test("a key beside a spread into another type's slot writes that slot's member, not the spread source's", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
@@ -139,6 +140,35 @@ test("a key beside a spread into another type's slot writes that slot's member, 
     labelsIn(scan, bucket, FILE)
       .map((label) => label.split("  ")[0])
       .filter((label) => label?.endsWith(".createdAt") === true);
-  expect(createdAt("member-untouched")).toEqual(["Row.createdAt"]);
+  expect(createdAt("member-untouched")).toEqual([]);
   expect(createdAt("member-write-only")).toEqual(["Wire.createdAt"]);
+});
+
+// A method is judged once its class is live: one nothing calls is untouched. A member code we do not see calls stays
+// live: an override its base is called through, an interface implementation, a lib override, a React lifecycle method
+// and a runtime protocol member.
+test("a class method nothing calls is untouched; one called, dispatched or called by the runtime is not", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...REACT_TYPES,
+    ...source([
+      'import { Component } from "react";',
+      "export class Box {",
+      "  spare(): number { return 1; }",
+      "  static spareStatic(): number { return 2; }",
+      "  shown(): number { return 3; }",
+      '  toString(): string { return "box"; }',
+      "  toJSON(): object { return {}; }",
+      "  [Symbol.dispose](): void {}",
+      "}",
+      "export const seen = new Box().shown();",
+      "export class Base { step(): number { return 1; } }",
+      "export class Sub extends Base { override step(): number { return 2; } }",
+      "export const stepped = (base: Base): number => base.step();",
+      "export interface Runner { run(): void }",
+      "export class Job implements Runner { run(): void {} }",
+      "export const ran = (runner: Runner): void => runner.run();",
+      "export class View extends Component { render(): unknown { return null; } componentDidMount(): void {} }",
+    ]),
+  });
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Box.spare", "Box.spareStatic"]);
 });

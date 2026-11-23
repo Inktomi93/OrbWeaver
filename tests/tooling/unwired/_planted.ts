@@ -3,7 +3,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { plantedTsconfig } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
@@ -107,10 +107,12 @@ export const GRAPH_SOURCE = "packages/a/src";
 // A planted workspace: a package, or the tooling workspace beside them.
 const WORKSPACE_SOURCE = /^(packages\/[^/]+|tooling)\/src\//u;
 const SOURCE_GLOB = "src/**/*.{ts,tsx}";
+const TOOLING = "tooling";
+const WHOLE = "**";
 
 // A knip config with one workspace per planted package. With no `entries`, every source file ships and its exports are
 // trusted, so the member buckets judge what the planted code does with them; with `entries`, only those files run and
-// liveness decides the rest.
+// liveness decides the rest. The tooling workspace only consumes production, as the tree's knip view ignores it whole.
 function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOptions): string {
   const workspace = (name: string): object => {
     if (entries === undefined) {
@@ -119,10 +121,16 @@ function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOpti
     const own = entries.filter((file) => file.startsWith(`${name}/`)).map((file) => `${file.slice(name.length + 1)}!`);
     return { entry: own, project: [`${SOURCE_GLOB}!`] };
   };
-  const workspaces = Object.fromEntries(packages.map((name) => [name, workspace(name)]));
+  const workspaces = Object.fromEntries(packages.map((name) => [name, name === TOOLING ? { ...workspace(name), ignore: [WHOLE] } : workspace(name)]));
+  return plantedKnip({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces });
+}
+
+/** A planted `knip.ts`: one config for both views, and the operator globs per workspace the graph's roots read. */
+export function plantedKnip(config: object, operators: Readonly<Record<string, readonly string[]>> = {}): string {
   return [
-    `const config = ${JSON.stringify({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces })};`,
+    `const config = ${JSON.stringify(config)};`,
     "export default (_flags: { readonly production: boolean }) => config;",
+    `export const operators = ${JSON.stringify(operators)};`,
     "export { config };",
   ].join("\n");
 }
@@ -163,14 +171,62 @@ export async function graphScan(
 export const labelsIn = (scan: GraphScan, bucket: Bucket, file: string): readonly string[] =>
   scan.analysis[bucket].filter(({ label }) => label.startsWith(`${file}:`)).map(({ label }) => label.slice(file.length + 1));
 
-/** A minimal React: the state hooks the graph reads a `[value, setter]` tuple from, at React's own types path. */
+/** A minimal React at React's own types path: the state hook the graph reads a `[value, setter]` tuple from, and the class
+ *  component whose lifecycle methods React calls. */
 export const REACT_TYPES = {
   "node_modules/@types/react/package.json": JSON.stringify({ name: "@types/react", types: "index.d.ts" }),
-  "node_modules/@types/react/index.d.ts": "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+  "node_modules/@types/react/index.d.ts": [
+    "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+    "export declare class Component<P = object> { readonly props: P; render(): unknown; componentDidMount?(): void }",
+    // React's own shape: the statics React calls sit on the interfaces that build a Component, not on the class
+    "export interface StaticLifecycle<P, S> { getDerivedStateFromProps?: (props: P, state: S) => Partial<S> | null; getDerivedStateFromError?: (error: unknown) => Partial<S> | null }",
+    "export interface ComponentClass<P = object, S = object> extends StaticLifecycle<P, S> { new (props: P): Component<P>; displayName?: string; defaultProps?: Partial<P> }",
+  ].join("\n"),
+};
+
+/** A minimal `@types/node` at its own path: the message doors' declarations in the ambient modules Node's types
+ *  declare them in. A planted source reaches it through `/// <reference types="node" />`. */
+export const NODE_TYPES = {
+  "node_modules/@types/node/package.json": JSON.stringify({ name: "@types/node", types: "index.d.ts" }),
+  "node_modules/@types/node/index.d.ts": [
+    'declare module "worker_threads" {',
+    '  export class MessagePort { postMessage(value: any): void; on(event: "message", listener: (value: any) => void): this; }',
+    "  export class Worker {",
+    "    constructor(url: URL | string, options?: { workerData?: any });",
+    "    postMessage(value: any): void;",
+    '    on(event: "message", listener: (value: any) => void): this;',
+    "  }",
+    "  export const parentPort: MessagePort | null;",
+    "  export const workerData: any;",
+    "}",
+    'declare module "child_process" {',
+    '  export interface ChildProcess { send(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
+    "  export function spawn(command: string, args: readonly string[]): ChildProcess;",
+    "}",
+    'declare module "process" {',
+    "  global {",
+    "    var process: NodeJS.Process;",
+    "    namespace NodeJS {",
+    '      interface Process { send?(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
+    "    }",
+    "  }",
+    "}",
+    'declare module "events" {',
+    "  export class EventEmitter { emit(event: string, ...args: any[]): boolean; on(event: string, listener: (...args: any[]) => void): this; }",
+    "}",
+    'declare module "diagnostics_channel" {',
+    "  export class Channel { publish(message: unknown): void; subscribe(listener: (message: unknown) => void): void; }",
+    "  export function channel(name: string): Channel;",
+    "  export function subscribe(name: string, listener: (message: unknown) => void): void;",
+    "}",
+    'declare module "async_hooks" {',
+    "  export class AsyncLocalStorage<T> { run<R>(store: T, callback: () => R): R; getStore(): T | undefined; }",
+    "}",
+  ].join("\n"),
 };
 
 /** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
- *  validator and a default. */
+ *  validator, a default and an optional key. */
 export const ZOD_MODULE = {
   "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
   // zod's declarations sit under a nested scope manifest that names no package, as the installed zod's do
@@ -178,18 +234,23 @@ export const ZOD_MODULE = {
   "node_modules/zod/v4/classic/package.json": JSON.stringify({ type: "module" }),
   "node_modules/zod/v4/classic/index.d.ts": [
     "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    "export interface Params { readonly error?: string }",
     "export interface Schema<T = unknown> {",
     "  readonly _output: T;",
     "  parse(value: unknown): T;",
+    "  safeParse(value: unknown): { readonly success: boolean; readonly data?: T };",
+    "  refine(check: (value: T) => boolean, params?: Params): Schema<T>;",
     "  extend<S>(shape: S): Schema<T & Shape<S>>;",
     "  default(value: Exclude<T, undefined>): Schema<T>;",
+    "  optional(): Schema<T | undefined>;",
     "}",
+    "export type ZodType<T = unknown> = Schema<T>;",
     "export declare namespace z {",
     "  type ZodType<T = unknown> = Schema<T>;",
     "  type infer<S> = S extends Schema<infer T> ? T : never;",
     "}",
     "export declare const z: {",
-    "  strictObject<S>(shape: S): Schema<Shape<S>>;",
+    "  strictObject<S>(shape: S, params?: Params): Schema<Shape<S>>;",
     "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
     "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
     "  string(): Schema<string>;",
@@ -219,6 +280,25 @@ export function tailwindVariants(): Record<string, string> {
   return {
     [`${at}/package.json`]: JSON.stringify({ name: TV_PACKAGE, types: `${TV_DIST}/index.d.ts` }),
     ...Object.fromEntries(declarations.map((name) => [`${at}/${TV_DIST}/${name}`, readFileSync(join(dist, name), "utf8")])),
+  };
+}
+
+// The server package owns hono; the route pass recognises a route and a parameter read by hono's own declarations.
+const SERVER_MANIFEST = join(import.meta.dirname, "../../../packages/server/package.json");
+const HONO_PACKAGE = "hono";
+const HONO_TYPES = "dist/types";
+
+/** The installed hono declarations at `node_modules/hono`. */
+export function hono(): Record<string, string> {
+  // hono's exports map hides its package.json, so its folder is read off the module it resolves to
+  const entry = createRequire(SERVER_MANIFEST).resolve(HONO_PACKAGE);
+  const folder = `${sep}node_modules${sep}${HONO_PACKAGE}${sep}`;
+  const types = join(entry.slice(0, entry.lastIndexOf(folder) + folder.length), HONO_TYPES);
+  const at = `node_modules/${HONO_PACKAGE}`;
+  const declarations = readdirSync(types, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(DECLARATION));
+  return {
+    [`${at}/package.json`]: JSON.stringify({ name: HONO_PACKAGE, types: `${HONO_TYPES}/index.d.ts` }),
+    ...Object.fromEntries(declarations.map((name) => [`${at}/${HONO_TYPES}/${name}`, readFileSync(join(types, name), "utf8")])),
   };
 }
 

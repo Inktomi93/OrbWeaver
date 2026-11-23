@@ -16,7 +16,15 @@
 //   fill, a constant nothing passes) supplies nothing.
 // - The buckets are the engine scan's; its `disagreements` list is gone with its second engine, and the verb refuses
 //   `--cross-check`.
-import type { Expression, MethodSignatureDeclaration, Node, ParameterDeclaration, PropertySignatureDeclaration } from "@typescript/native/ast";
+import type {
+  Expression,
+  JsxAttributeLike,
+  MethodSignatureDeclaration,
+  Node,
+  ObjectLiteralElementLike,
+  ParameterDeclaration,
+  PropertySignatureDeclaration,
+} from "@typescript/native/ast";
 import {
   isArrowFunction,
   isAsExpression,
@@ -530,26 +538,28 @@ function referencesOf(world: NativeWorld, props: readonly Prop[]): readonly (rea
   });
 }
 
-// The key a slot write names: the graph records a write at the full start of the object literal or JSX attribute list
-// that holds it (./slots.ts), and the key is that holder's property of the prop's name.
+// The key a slot write names. The graph records an object literal key's write at the full start of the key itself, and
+// a JSX attribute's at the full start of the attribute list that holds it (./slots.ts), so the key is the property of
+// the prop's name that starts there, or that list's attribute of the prop's name.
 function writtenKey(world: NativeWorld, { file, at }: RoleSite, name: string): Reference | null {
   let found: Node | undefined;
+  const keyNamed = (property: ObjectLiteralElementLike | JsxAttributeLike): Node | undefined =>
+    isSpreadAssignment(property) || isJsxSpreadAttribute(property) || keyText(property.name) !== name ? undefined : property.name;
   const visit = (node: Node): void => {
     if (found !== undefined || node.pos > at || node.end <= at) {
       return;
     }
-    if (node.pos === at && (isObjectLiteralExpression(node) || isJsxAttributes(node))) {
-      found = node;
-      return;
+    if (isObjectLiteralExpression(node)) {
+      found = node.properties.map(keyNamed).find((key) => key?.pos === at);
+    } else if (isJsxAttributes(node) && node.pos === at) {
+      found = node.properties.map(keyNamed).find((key) => key !== undefined);
     }
-    node.forEachChild(visit);
+    if (found === undefined) {
+      node.forEachChild(visit);
+    }
   };
   world.source(file)?.forEachChild(visit);
-  const properties = found !== undefined && (isObjectLiteralExpression(found) || isJsxAttributes(found)) ? found.properties : [];
-  const key = properties.flatMap((property) =>
-    isSpreadAssignment(property) || isJsxSpreadAttribute(property) || keyText(property.name) !== name ? [] : [property.name],
-  );
-  return key[0] === undefined ? null : { node: key[0], file };
+  return found === undefined ? null : { node: found, file };
 }
 
 // Whether a product construction supplies each prop: an occurrence in its find-references group, or any product write

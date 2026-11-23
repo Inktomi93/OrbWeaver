@@ -18,7 +18,6 @@ export { CSS_BUCKETS } from "./graph/css.ts";
 export type { DomBucket, DomReport, Unresolved, World } from "./graph/dom.ts";
 export { DOM_BUCKETS, WORLDS } from "./graph/dom.ts";
 export { GRAPH_DUMP_FORMAT } from "./graph/dump.ts";
-export { DEFAULT_LIBRARY } from "./graph/lost.ts";
 export type { Ablation, GraphOptions, Trace, WhyTarget } from "./graph/options.ts";
 export { ABLATIONS, FRESH_BUILD } from "./graph/options.ts";
 export type { ParamsReport } from "./graph/params.ts";
@@ -28,14 +27,30 @@ export type { GraphProfileReport } from "./graph/profile.ts";
 export { PROFILE_PHASES } from "./graph/profile.ts";
 export type { Query, QueryAnswer } from "./graph/query.ts";
 export { QUERIES } from "./graph/query.ts";
+export type { RemovedKeysReport } from "./graph/removed-keys.ts";
 export type { GraphScan, GraphSessionReport, GraphVerification, WithSession } from "./graph/scan.ts";
-export { codesGraph, cssGraph, domGraph, paramsGraph, proceduresGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
+export {
+  codesGraph,
+  cssGraph,
+  domGraph,
+  paramsGraph,
+  proceduresGraph,
+  queryGraph,
+  removedKeysGraph,
+  scanGraph,
+  shapesGraph,
+  trialGraph,
+  unionsGraph,
+  verifyGraph,
+} from "./graph/scan.ts";
+export type { ShapesReport } from "./graph/shapes.ts";
+export type { TrialReport } from "./graph/trial.ts";
 export type { UnionsReport } from "./graph/unions.ts";
 export type { Verdict, Verified } from "./graph/verify.ts";
 export { VERDICTS } from "./graph/verify.ts";
 export type { JudgedEntry } from "./judged.ts";
 export { serviceReferences } from "./language-service.ts";
-export { constituents, hasFlag, homeFiles, NativeWorld, propertiesNamed } from "./native.ts";
+export { constituents, DEFAULT_LIBRARY, hasFlag, homeFiles, NativeWorld, propertiesNamed } from "./native.ts";
 export { joinOptionalConstructions, optionalConstructionFacts } from "./optional-constructions.ts";
 export type { OptionalInventory } from "./optional-inventory.ts";
 export { isProduction as isOptionalProduction, pluginAuthorWorlds } from "./optional-population.ts";
@@ -43,7 +58,6 @@ export { publishedSdkSources } from "./plugin-surface.ts";
 export type { PortCensus } from "./port-census.ts";
 export { portCensus } from "./port-census.ts";
 export type { PortTarget, TargetKind } from "./port-targets.ts";
-export { runUnwired } from "./run.ts";
+export { runUnwired, TRIAL_VERB } from "./run.ts";
 export { scanUnwired, scanWorld } from "./scan.ts";
-export { scanShapes } from "./shapes.ts";
 export { isProduction, packageWorlds } from "./worlds.ts";

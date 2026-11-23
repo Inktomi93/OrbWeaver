@@ -9,7 +9,7 @@
 //   or `toggleAttribute`, or a `dataset` assignment, in product code. A read is an attribute getter, `toggleAttribute`, `toHaveAttribute`, a
 //   `dataset` read, a sheet selector, or a selector or Tailwind data variant a string spells. A read in tests or tooling
 //   only annotates its row, as the graph's roles do (./state.ts header), except that a test's `getByTestId` or selector
-//   reads a test id, since those hooks exist for tests, and that a snap read (SNAP) counts as the product's.
+//   reads a test id, since those hooks exist for tests, and that a snap read ({@link productReader}) counts as the product's.
 // - Script source a string holds runs in a page or a frame, so an attribute call or a `dataset` use it spells is a
 //   site of the string's world (SCRIPT_CALL, SCRIPT_DATASET).
 // - A read by name of a house attribute model (ATTRIBUTE_MODELS) is an attribute read: snap's DOM snapshot and
@@ -76,11 +76,13 @@ import type { APIRequestGenerator } from "@typescript/native/sync";
 import { kebab, SEALED_NAME } from "../../eslint/index.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
-import { NOT_SOURCE, OWNER_CSS_SURFACE, SHEETS, STRING } from "./css.ts";
+import { OWNER_CSS_SURFACE, STRING } from "./css.ts";
 import type { Text, Texts } from "./held.ts";
 import { HeldTexts } from "./held.ts";
 import { holds, meets, nameCount, selects } from "./patterns.ts";
 import { sameNode } from "./roles.ts";
+import { BARE_VARIANT_READ, DATA, NOT_SOURCE, SELECTOR_READ, SHEETS, VARIANT_READ } from "./selectors.ts";
+import { productReader, testSource } from "./state.ts";
 
 /** The DOM-hook buckets, in report order. */
 export const DOM_BUCKETS = [
@@ -100,7 +102,6 @@ export type World = (typeof WORLDS)[number];
 
 // D357: snap drives the real app, so a hook only snap reads is used, as a dev-bridge global read is. Other tooling and
 // the tests only annotate.
-const SNAP = "tooling/src/snap/";
 /** The worlds whose read of a data-* attribute counts; a test id counts its tests' reads too. */
 const USES: ReadonlySet<World> = new Set<World>(["product", "snap"]);
 const TEST_ID_USES: ReadonlySet<World> = new Set<World>([...USES, "tests"]);
@@ -135,16 +136,11 @@ const HTML = "packages/*/src/**/*.html";
 const DEPENDENCIES = "packages/*/node_modules";
 const DEPENDENCY_CODE = /\.[cm]?js$/u;
 const NODE_MODULES = "node_modules";
-const DATA = "data-";
 const TEST_ID = "data-testid";
 /** A whole string that is one data-* name. */
 const DATA_NAME = /^data-[a-z][\w-]*[a-z0-9]$/u;
 /** A plain `data-testid` value: one a lookup can spell. */
 const TEST_ID_VALUE = /^[\w:-]+$/u;
-/** Selector reads a string spells: `[data-x]`, `[data-x="v"]`, Tailwind's `data-[x=v]:` and `data-x:`. */
-const SELECTOR_READ = /\[(data-[a-z][\w-]*)(?:[~|^$*]?=["']?([\w:-]+))?/gu;
-const VARIANT_READ = /(?:^|[\s:])(?:group-|peer-|in-|not-|has-)?data-\[([a-z][\w-]*)(?:=([\w-]+))?\]/gu;
-const BARE_VARIANT_READ = /(?:^|[\s:])(?:group-|peer-|in-|not-|has-)?data-([a-z][\w-]*):/gu;
 /** An open selector a template ends inside: `[data-appearance-${key}]` reads every name that head starts. */
 const OPEN_SELECTOR = /\[(data-[a-z][\w-]*-)$/u;
 const HTML_ATTRIBUTE = /\s(data-[a-z][\w-]*[a-z0-9])(?:=(["'])(.*?)\2)?/gu;
@@ -171,7 +167,6 @@ const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EqualsEqualsToken,
   SyntaxKind.ExclamationEqualsToken,
 ]);
-const TESTS = "tests/";
 const DATASET = "dataset";
 /** React renders a valueless JSX attribute, and `true`, as the string "true". */
 const PRESENT = "true";
@@ -303,9 +298,9 @@ class Hooks {
     let world: World = "tooling";
     if (isProduction(file)) {
       world = "product";
-    } else if (file.startsWith(SNAP)) {
+    } else if (productReader(file)) {
       world = "snap";
-    } else if (file.startsWith(TESTS)) {
+    } else if (testSource(file)) {
       world = "tests";
     }
     const visit = (node: Node): void => {

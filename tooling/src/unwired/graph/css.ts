@@ -23,6 +23,7 @@ import { settleRoles } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import { READS } from "./roles.ts";
+import { NOT_SOURCE, SHEETS } from "./selectors.ts";
 
 /** The custom-property buckets, in report order. */
 export const CSS_BUCKETS = ["css-property-unread", "css-property-named-in-script-only", "css-property-owner-css-only"] as const;
@@ -44,12 +45,9 @@ export interface CssReport {
 const THEME = "packages/ui/src/styles/theme.css";
 const TOKENS = "packages/ui/src/tokens/tokens.json";
 const SOURCES = "packages/{client,ui}/src/**/*.{ts,tsx}";
-/** The author sheets of every package. */
-export const SHEETS = "packages/*/src/**/*.css";
 const GENERATED_REGISTRY = "packages/ui/src/tokens/index.ts";
 /** The generated list of every name the owner's custom CSS may target. */
 export const OWNER_CSS_SURFACE = "packages/client/owner-css-surface.ts";
-export const NOT_SOURCE = ["**/node_modules/**"];
 const TOKEN_REF = /"\{([\w.-]+)\}"/gu;
 /** A quoted string of any of the three kinds: group 1 double, 2 single, 3 backtick. */
 export const STRING = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/gu;

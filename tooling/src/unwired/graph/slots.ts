@@ -5,11 +5,14 @@
 // - A mapped property names its source member's declaration; it carries that member's data only when the source type
 //   fits it (`Partial`, `Readonly`, `Pick`). A mapping that changes the type (`{ [F in keyof V]: Schema<V[F]> }`) fills
 //   a table keyed by the member: a key use of it, not a write.
+// - A zod schema's inferred type maps each shape key's schema to the value it parses, so a mapped member whose source is a
+//   shape key is that field itself: a literal typed by `z.infer` or `z.input` writes the key, as a read through it reads.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
 // - A key fills the member of its literal's own slot, never the member a spread beside it copies from: `{ ...row, at: iso }`
 //   handed to a wire shape writes the wire's `at`, not the row's. Only a key the slot declares no member for (a generic
 //   call infers the slot from the literal itself, `run<R>({ req: { ...req, accounting } })`) fills the spread source's.
+// - A literal no slot types writes its own keys, so a flow from the slot it is handed into carries the writes.
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
 //   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
@@ -19,6 +22,7 @@ import {
   isBindingElement,
   isCallExpression,
   isIdentifier,
+  isMethodDeclaration,
   isObjectBindingPattern,
   isParameterDeclaration,
   isPropertyAccessExpression,
@@ -34,7 +38,7 @@ import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
-import { declarationNameOf } from "./sites.ts";
+import { declarationNameOf, isZodShapeKey } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { literalValues } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
@@ -70,15 +74,16 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   for (const [key, type] of coInferredSlots(state, literals)) {
     slots.set(key, type);
   }
-  // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
-  const writes = state.session.options.ablate.has("literal-keys")
-    ? []
-    : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
-        const type = slots.get(spanKey(literal));
-        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
-      });
-  const spreadFills = state.session.options.ablate.has("literal-keys") ? [] : spreadWrites(state, sites, slots);
-  slotWrites(state, variants, sites, [...writes, ...spreadFills]);
+  // `--ablate=literal-keys` drops every object literal key's write: through its contextual type, through the spreads
+  // beside it and into its own key.
+  if (!state.session.options.ablate.has("literal-keys")) {
+    const writes = sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
+      const type = schema ? undefined : slots.get(spanKey(literal));
+      return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
+    });
+    slotWrites(state, variants, sites, [...writes, ...spreadWrites(state, sites, slots)]);
+    ownKeyWrites(state, sites, slots);
+  }
   bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];
   const listSlots = state.contextualTypes(lists);
@@ -96,16 +101,17 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
 
 // The writes a key makes through the spreads beside it: a key its literal's own object slot does not declare (a generic
 // call's slot is its parameter's constraint, `{ readonly signal: string }`) fills the member each spread source's type
-// declares, since the literal is that source's value with the key overridden. A key the slot declares is the slot's.
+// declares, since the literal is that source's value with the key overridden. A key the slot declares is the slot's. A
+// zod shape key is schema input, never a write, here as through the slot.
 function spreadWrites(
   state: GraphState,
   { file, literalProperties: properties }: Pick<FileSites, "file" | "literalProperties">,
   slots: ReadonlyMap<string, Type | undefined>,
 ): readonly SlotWrite[] {
-  const candidates = properties.flatMap(({ literal, name, value }) => {
-    const type = slots.get(spanKey(literal));
+  const candidates = properties.flatMap(({ literal, name, at, value, schema }) => {
+    const type = schema ? undefined : slots.get(spanKey(literal));
     const spreads = literal.properties.filter(isSpreadAssignment);
-    return type !== undefined && spreads.length > 0 && hasFlag(type.flags, TypeFlags.Object) ? [{ type, name, value, literal, spreads }] : [];
+    return type !== undefined && spreads.length > 0 && hasFlag(type.flags, TypeFlags.Object) ? [{ type, name, at, value, literal, spreads }] : [];
   });
   const own = state.batch(candidates.map(({ type, name }) => state.propsOnSlot(type, name)));
   // A slot the checker inferred from the literal itself names the literal's own key, which declares no member.
@@ -116,9 +122,9 @@ function spreadWrites(
       : [],
   );
   const types = state.slotTypes(state.world.typesAt(sources.map(({ source }) => source)));
-  return sources.flatMap(({ candidate: { name, value, literal } }, at) => {
-    const type = types[at];
-    return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+  return sources.flatMap(({ candidate: { name, at, value } }, x) => {
+    const type = types[x];
+    return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
   });
 }
 
@@ -126,6 +132,16 @@ function spreadWrites(
 function insideLiteral(key: DeclKey, file: string, literal: ObjectLiteralExpression): boolean {
   const parts = declKeyParts(key);
   return parts.file === file && parts.pos >= literal.pos && parts.end <= literal.end;
+}
+
+// A literal no slot types, such as a local `as const` table handed on later, writes its own keys; the flow from the slot
+// it lands in (./flows.ts) carries each write to the slot's member, at any depth. A method key is called, not written.
+function ownKeyWrites(state: GraphState, sites: FileSites, slots: ReadonlyMap<string, Type | undefined>): void {
+  for (const { literal, property, at, schema } of sites.literalProperties) {
+    if (!(schema || isMethodDeclaration(property)) && slots.get(spanKey(literal)) === undefined) {
+      state.role(state.resolver.keyOf(property), "write", sites.file, at);
+    }
+  }
 }
 
 // `recipe(bag)`: a recipe handed a whole value selects, on each axis the value's type names, every literal that member's
@@ -344,7 +360,7 @@ function forwardSources(state: GraphState, values: readonly Node[]): DeclKey[][]
   return out;
 }
 
-// For each symbol, whether it is a mapped member whose type its source member's type does not fit.
+// For each symbol, whether it is a mapped member whose type its source member's type does not fit, a zod shape key aside.
 function transformingMapped(state: GraphState, symbols: readonly NativeSymbol[]): boolean[] {
   const { checker } = state.world;
   const out = symbols.map(() => false);
@@ -356,7 +372,7 @@ function transformingMapped(state: GraphState, symbols: readonly NativeSymbol[])
   const sources = state.batch(mapped.map(({ source }) => source.resolve.gen()));
   const located = mapped.flatMap((entry, z) => {
     const node = sources[z];
-    return node === undefined ? [] : [{ ...entry, z, node: declarationNameOf(node) ?? node }];
+    return node === undefined || isZodShapeKey(node) ? [] : [{ ...entry, z, node: declarationNameOf(node) ?? node }];
   });
   const sourceTypes = state.world.typesAt(located.map(({ node }) => node));
   const fits = state.batch(

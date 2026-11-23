@@ -16,6 +16,7 @@
 //   pattern's own keys (`a` above) read the source's member.
 // - A type or interface member's own name declares the member and does nothing; a class member that supplies its value
 //   where it is declared (a field with an initializer, a method, an accessor) writes it. A doc comment does nothing.
+
 import type {
   EnumMember,
   GetAccessorDeclaration,
@@ -81,6 +82,7 @@ import {
   isVoidExpression,
   SyntaxKind,
 } from "@typescript/native/ast";
+import type { DeclKey } from "./resolve.ts";
 
 // What an occurrence does: reads, stores, calls, deletes, hands the value whole to an opaque receiver, or names the
 // member as a key (a type selector, a mapped key) without touching its data.
@@ -193,10 +195,13 @@ function isPatternSlot(node: Node): boolean {
 }
 
 // The expression a reference names: `x.m` and `x["m"]` for a member name, else the name itself.
+// The access a name is the member of: `x.k`, or `x["k"]` for a literal key. An identifier in the brackets (`x[k]`) is
+// a value the access reads, not the member it names.
 function accessOf(name: Node): Node {
   const { parent } = name;
   const named =
-    (isPropertyAccessExpression(parent) && sameNode(parent.name, name)) || (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, name));
+    (isPropertyAccessExpression(parent) && sameNode(parent.name, name)) ||
+    (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, name) && !isIdentifier(name));
   return named ? parent : name;
 }
 
@@ -487,3 +492,27 @@ export function valueUse(name: Node): ValueUse {
   }
   return isCallExpression(parent) && isPropertyAccessExpression(parent.expression) && parent.expression.name.text === ENUM_PARSE ? "parse" : "escape";
 }
+
+const CARRY_LINKS = ["flow", "twin", "column", "build-read", "door-read"] as const;
+/** How a member took a role no site gave it: along a flow, a zod twin or a column, or from a credit. */
+type CarryLink = (typeof CARRY_LINKS)[number];
+
+/** A product read credited before the carry, with the file that reads: a build script's closure or the dev-bridge door. */
+export interface ReadCredit {
+  readonly link: Extract<CarryLink, "build-read" | "door-read">;
+  readonly file: string;
+}
+
+/** A role a member took in the carry: from the linked member `from`, or from a credit read in `file`. */
+export interface CarryStep {
+  readonly to: DeclKey;
+  readonly role: Role;
+  /** Whether the role is the product's, or only outside it. */
+  readonly product: boolean;
+  readonly link: CarryLink;
+  readonly from: DeclKey | null;
+  readonly file: string | null;
+}
+
+/** Where a carry names each role it gives. */
+export type CarrySink = (step: CarryStep) => void;

@@ -14,7 +14,7 @@ export const PROFILES = ["wall", "cpu", "heap"] as const;
 export type ProfileKind = (typeof PROFILES)[number];
 
 /** The build sites a run can trace to its log. */
-const TRACES = ["axis", "tv", "param-key", "verify-chain"] as const;
+const TRACES = ["axis", "tv", "param-key", "verify-chain", "flow-walk"] as const;
 export type TraceKind = (typeof TRACES)[number];
 
 /** A trace and what it narrows to: `axis` names one prop, `param-key` a file prefix (null for every file). */
@@ -22,7 +22,8 @@ export type Trace =
   | { readonly kind: "axis"; readonly prop: string }
   | { readonly kind: "tv" }
   | { readonly kind: "param-key"; readonly file: string | null }
-  | { readonly kind: "verify-chain" };
+  | { readonly kind: "verify-chain" }
+  | { readonly kind: "flow-walk" };
 
 /** A `--why` target: a member by name (`Owner.member` or a bare name), or the declaration at a file's line. */
 export type WhyTarget =
@@ -91,6 +92,7 @@ export function traceOf(text: string): Trace | null {
       return { kind, file: argument === "" ? null : argument };
     case "tv":
     case "verify-chain":
+    case "flow-walk":
       return argument === null ? { kind } : null;
   }
 }

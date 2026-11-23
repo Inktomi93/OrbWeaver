@@ -2,11 +2,11 @@
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import type { Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
+import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
-  getTouchingPropertyName,
   isArrowFunction,
   isClassDeclaration,
+  isComputedPropertyName,
   isFunctionDeclaration,
   isFunctionExpression,
   isGetAccessorDeclaration,
@@ -19,31 +19,78 @@ import {
   isSetAccessorDeclaration,
   isShorthandPropertyAssignment,
   isStringLiteral,
+  SyntaxKind,
 } from "@typescript/native/ast";
 import type {
   APIRequestGenerator,
   Checker,
+  ConfiguredProjectId,
   LanguageService,
   Symbol as NativeSymbol,
   NodeHandle,
   Program,
+  ProjectId,
   ReferencedSymbolEntry,
   RetainedSourceFile,
   SignatureUsage,
+  Snapshot,
   TimingAccumulators,
   Type,
 } from "@typescript/native/sync";
-import { API, all, SymbolFlags } from "@typescript/native/sync";
+import { API, all, isRemoteNode, SymbolFlags } from "@typescript/native/sync";
 import { z } from "zod";
-import { workspacePackageDirs } from "../package-effects/index.ts";
+import { isLibrarySource } from "../brand-names/index.ts";
+import { workspacePackageRoots } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
 
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
 
+// A list in pieces of at most BATCH, for the wire's array-form requests.
+const chunked = <T>(items: readonly T[]): readonly (readonly T[])[] =>
+  Array.from({ length: Math.ceil(items.length / BATCH) }, (_, at) => items.slice(at * BATCH, (at + 1) * BATCH));
+
+/** The two steps of a throwaway trial: making its snapshot and asking its program. */
+export const TRIAL_STEPS = ["snapshot", "diagnostics"] as const;
+export type TrialStep = (typeof TRIAL_STEPS)[number];
+
 /** The name {@link NativeWorld.libraryOf} gives the compiler's own default library files, which belong to no manifest. */
-const DEFAULT_LIBRARY = "(default library)";
+export const DEFAULT_LIBRARY = "(default library)";
+
+/** A node's place for an error: its file, span and syntax kind, and whether it came from the program's own tree (a
+ *  token the AST navigator makes for syntax with no node does not). */
+export function nodePlace(node: Node): string {
+  const file = node.getSourceFile().fileName;
+  const origin = isRemoteNode(node) ? "program tree" : "navigator token";
+  return `${file} pos=${String(node.pos)} end=${String(node.end)} ${SyntaxKind[node.kind]} (${origin})`;
+}
+
+/** The deepest node of the program's tree whose text, trivia aside, holds `position`. */
+export function deepestAt(source: SourceFile, position: number): Node | undefined {
+  let found: Node | undefined;
+  const visit = (node: Node): void => {
+    if (position >= node.getStart(source) && position < node.end) {
+      found = node;
+      node.forEachChild(visit);
+    }
+  };
+  source.forEachChild(visit);
+  return found;
+}
+
+/** The name a site key points at: the deepest node of the program's tree that starts at `position`, the rule a key
+ *  is minted by (a declaration's name or a reference's start, so a computed name is its whole `[…]`), or a string
+ *  literal whose reported span starts inside its quote. Undefined when no node starts there: a reference in a doc
+ *  comment names no code. A tree walk, never a token lookup: the navigator makes its own tokens for syntax the tree
+ *  holds no node for, and the checker takes none of them. */
+export function nameAt(source: SourceFile, position: number): Node | undefined {
+  const found = deepestAt(source, position);
+  const start = found?.getStart(source);
+  return start === position || (found !== undefined && (isStringLiteral(found) || isNoSubstitutionTemplateLiteral(found)) && start === position - 1)
+    ? found
+    : undefined;
+}
 
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
@@ -69,11 +116,11 @@ export interface WorldFiles {
 const DECLARATION_FILE = ".d.ts";
 const PACKAGE_MANIFEST = "package.json";
 const PackageManifest = z.looseObject({ name: z.string().optional() });
-const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+const workspaceDirs = (root: string): ReadonlySet<string> => new Set(workspacePackageRoots(root));
 
-// The absolute directories of the workspace's own packages; a tree with no workspace manifest has none.
-const workspaceDirs = (root: string): ReadonlySet<string> =>
-  new Set(existsSync(join(root, WORKSPACE_MANIFEST)) ? workspacePackageDirs(root).map((dir) => join(root, dir)) : []);
+// A file the program loaded from a package that is not the workspace's own, under isLibrarySource.
+const fromLibrary = (meta: { readonly isFromExternalLibrary: boolean; readonly packageJsonDirectory: string }, workspace: ReadonlySet<string>): boolean =>
+  isLibrarySource({ external: meta.isFromExternalLibrary, workspacePackage: workspace.has(meta.packageJsonDirectory) });
 
 // Which program files are the tree's own, by the program's answer rather than the path's text: a dependency resolved
 // through a pnpm symlink outside any node_modules directory is still a library, and a workspace package reached through
@@ -88,7 +135,7 @@ function ownSources(api: API, program: Program, own: { readonly workspace: Reado
     const metadata = api.batch(...page.map((name) => program.getSourceFileMetadata.gen(name)));
     for (const [at, name] of page.entries()) {
       const meta = metadata[at];
-      const library = meta === undefined || meta.isDefaultLibrary || (meta.isFromExternalLibrary && !workspace.has(meta.packageJsonDirectory));
+      const library = meta === undefined || meta.isDefaultLibrary || fromLibrary(meta, workspace);
       if (!library && (!name.endsWith(DECLARATION_FILE) || keep(name))) {
         kept.push(name);
       }
@@ -169,6 +216,8 @@ export class NativeWorld implements Disposable {
   readonly #stats = { batches: 0, rounds: 0, sent: 0, memoHits: 0, ms: 0 };
   // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
   #settling = false;
+  readonly #snapshot: Snapshot;
+  readonly #project: ConfiguredProjectId;
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
@@ -177,9 +226,11 @@ export class NativeWorld implements Disposable {
     const path = `${root}/${config}`;
     const snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: text } } });
     const project = snapshot.getConfiguredProject(path);
+    this.#snapshot = snapshot;
     if (project === undefined) {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
+    this.#project = project.id;
     this.checker = project.checker;
     this.program = project.program;
     this.#languageService = project.languageService;
@@ -331,10 +382,22 @@ export class NativeWorld implements Disposable {
     this.#answers.clear();
   }
 
-  /** The symbol at each node, an import alias followed to the symbol it names. */
+  /** The symbol at each node, an import alias followed to the symbol it names. Each chunk of nodes is one wire request
+   *  (`getSymbolsAtLocations`), not one request per node. */
   symbolsAt(nodes: readonly Node[]): (NativeSymbol | undefined)[] {
-    const found = this.batch(nodes.map((node) => this.checker.getSymbolAtLocation.gen(node)));
-    return this.#unalias(found);
+    const foreign = nodes.filter((node) => !isRemoteNode(node));
+    if (foreign.length > 0) {
+      throw new Error(
+        `getSymbolAtLocation: ${String(foreign.length)} of ${String(nodes.length)} nodes are not from the program's tree:\n${foreign.map((node) => `  ${nodePlace(node)}`).join("\n")}`,
+      );
+    }
+    try {
+      return this.#unalias(this.batch(chunked(nodes).map((chunk) => this.checker.getSymbolAtLocation.gen(chunk))).flat());
+    } catch (error) {
+      throw new Error(`getSymbolAtLocation over ${String(nodes.length)} nodes failed; the first is ${nodes[0] === undefined ? "none" : nodePlace(nodes[0])}`, {
+        cause: error,
+      });
+    }
   }
 
   /** The value symbol each shorthand property assignment's name reads. */
@@ -360,9 +423,9 @@ export class NativeWorld implements Disposable {
     return this.batch(nodes.map((node) => this.checker.getContextualType.gen(node)));
   }
 
-  /** The type at each node. */
+  /** The type at each node, each chunk of nodes in one wire request (`getTypeAtLocations`). */
   typesAt(nodes: readonly Node[]): Type[] {
-    return this.batch(nodes.map((node) => this.checker.getTypeAtLocation.gen(node)));
+    return this.batch(chunked(nodes).map((chunk) => this.checker.getTypeAtLocation.gen(chunk))).flat();
   }
 
   /** Each item with the type at the node it names, in one batch. */
@@ -379,7 +442,13 @@ export class NativeWorld implements Disposable {
    *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
   *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
     const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
-    return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory) ? this.#packageName(meta.packageJsonDirectory) : null;
+    return meta !== undefined && fromLibrary(meta, this.#workspace) ? this.#packageName(meta.packageJsonDirectory) : null;
+  }
+
+  /** Whether a declaration's file is one the compiler supplies, `lib.dom.d.ts` and the rest of the standard library. */
+  *isDefaultLibrary(handle: NodeHandle): APIRequestGenerator<boolean> {
+    const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
+    return meta?.isDefaultLibrary === true;
   }
 
   /** The package a program file is a library of, by the rule ownSources keeps the tree's own files by: a default library
@@ -435,6 +504,21 @@ export class NativeWorld implements Disposable {
     return this.#api.batch(...files.map((file) => this.#api.createSourceFileFromFile.gen(resolve(this.#root, file))));
   }
 
+  /** Parse each text on its own, outside any program, by its repository-relative file name, and read each parse with
+   *  `read` before its lease ends. */
+  static readTexts<T>(root: string, texts: ReadonlyMap<string, string>, read: (source: SourceFile) => T): ReadonlyMap<string, T> {
+    using api = new API({ cwd: root });
+    const entries = [...texts];
+    const retained = api.batch(...entries.map(([file, text]) => api.createSourceFile.gen(resolve(root, file), text)));
+    try {
+      return new Map(entries.map(([file], at) => [file, read((retained[at] as RetainedSourceFile).sourceFile)]));
+    } finally {
+      for (const lease of retained) {
+        lease[Symbol.dispose]();
+      }
+    }
+  }
+
   /** Whether the world holds the repository-relative file. */
   has(file: string): boolean {
     return this.#sourceOf.has(file);
@@ -451,11 +535,29 @@ export class NativeWorld implements Disposable {
     return this.batch(sites.map((site) => this.#referencesOf(site)));
   }
 
-  /** Find-references at a node, one group per symbol it may mean. */
+  /** Find-references at a node, one group per symbol it may mean. A computed member name is asked through the
+   *  member's own symbol: find-references answers nothing at a `[…]`, and a position inside it means the expression
+   *  the brackets hold. */
   *referencedSymbolsOf(node: Node): APIRequestGenerator<ReferencedSymbolEntry[]> {
-    const source = node.getSourceFile();
-    const position = node.getStart(source) + 1;
-    return yield* this.#languageService.getReferencedSymbolsForNode.gen(getTouchingPropertyName(source, position), position);
+    if (isComputedPropertyName(node)) {
+      return yield* this.#computedReferences(node);
+    }
+    return yield* this.#languageService.getReferencedSymbolsForNode.gen(node, node.getStart(node.getSourceFile()));
+  }
+
+  // TypeScript 7.1 find-references answers nothing for a late-bound member, at its name or at a read of it, so the
+  // member's one group is the checker's own per-file references in every file that spells the member's name. Like
+  // find-references it sees a read by name (`shape.zqKey`), never one through the constant (`shape[KEY]`), and it
+  // leaves out the declaration. A member whose name no source spells, a unique symbol's, has no references.
+  *#computedReferences(name: ComputedPropertyName): APIRequestGenerator<ReferencedSymbolEntry[]> {
+    const member = yield* this.checker.getSymbolAtLocation.gen(name);
+    const [definition] = member?.declarations ?? [];
+    if (member === undefined || definition === undefined) {
+      return [];
+    }
+    const spelling = [...this.#sourceOf].filter(([, source]) => source.text.includes(member.name)).map(([file]) => resolve(this.#root, file));
+    const found = yield* all(...spelling.map((file) => this.checker.getReferencesToSymbolInFile.gen(file, member)));
+    return [{ definition, symbol: member, references: found.flat() }];
   }
 
   /** Every reference to the function a declaration names, each with the call that invokes it when one does. */
@@ -468,8 +570,11 @@ export class NativeWorld implements Disposable {
     if (file === undefined) {
       return [];
     }
-    const node = getTouchingPropertyName(file, site.position);
-    const groups = yield* this.#languageService.getReferencedSymbolsForNode.gen(node, site.position);
+    const node = nameAt(file, site.position);
+    if (node === undefined) {
+      return [];
+    }
+    const groups = yield* this.referencedSymbolsOf(node);
     const asked = yield* this.checker.getSymbolAtLocation.gen(node);
     const found: FoundReference[] = [];
     for (const group of groups) {
@@ -520,6 +625,30 @@ export class NativeWorld implements Disposable {
 
   [Symbol.dispose](): void {
     this.#api.close();
+  }
+
+  /** The answers to `requests`, asked of the program of a throwaway snapshot where each absolute file in `files` reads
+   *  its text, in one batch round; the snapshot is disposed after it.
+   *  @remarks The round goes straight to the API, never through {@link NativeWorld.batch}: its answer memo keys a request
+   *  without its snapshot, so a throwaway program's question would get the world's own answer back. */
+  trial<T>(
+    files: Readonly<Record<string, string>>,
+    requests: (program: Program) => readonly APIRequestGenerator<T>[],
+    time: <R>(step: TrialStep, work: () => R) => R = (_, work) => work(),
+  ): { readonly answers: T[]; readonly projects: readonly ProjectId[] } {
+    using held = new DisposableStack();
+    // Only the merged project is built: `true` asks a program of every project the snapshot holds, and an edited
+    // file's own nearest tsconfig can open one more.
+    const snapshot = held.adopt(
+      time("snapshot", () => this.#snapshot.update({ fileSystem: { kind: "layer", files }, ensurePrograms: [this.#project] })),
+      (made) => made.dispose(),
+    );
+    const project = snapshot.getProject(this.#project);
+    if (project === undefined) {
+      throw new Error(`${this.config}: the throwaway snapshot holds no project`);
+    }
+    const { program } = project;
+    return { answers: time("diagnostics", () => this.#api.batch(...requests(program))), projects: snapshot.getProjects().map(({ id }) => id) };
   }
 }
 
