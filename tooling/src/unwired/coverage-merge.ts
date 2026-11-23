@@ -3,8 +3,9 @@
 // A hit that lands on no universe entry is counted as unmatched, never added, so a transform's extra nodes cannot report
 // as code nothing ran.
 import { readFileSync } from "node:fs";
-import { basename, relative, sep } from "node:path";
+import { relative, sep } from "node:path";
 import { z } from "zod";
+import { GENERATED_HEAD_CHARS, isGeneratedFile } from "../floor/paths/generated-file.ts";
 
 const positionSchema = z.object({ line: z.number(), column: z.number().nullable() });
 const rangeSchema = z.object({ start: positionSchema, end: positionSchema });
@@ -40,10 +41,6 @@ export interface CoverageInput {
 export const PRODUCTION_COVERAGE_SCOPE = { include: "packages/*/src/**/*.{ts,tsx}", exclude: ["**/*.d.ts", "**/*.test-d.ts"] } as const;
 const PRODUCTION_SOURCE = /^packages\/[^/]+\/src\/.+\.tsx?$/u;
 const NOT_PRODUCTION = /\.d\.ts$|\.test-d\.ts$/u;
-const GENERATED_NAME = /\.(?:gen|generated)\.[jt]sx?$/u;
-// The house marker on a generated file's first line, as `packages/kit/src/handle-key/unicode-data.ts` carries it.
-const GENERATED_HEADER = /^\/\/ GENERATED\b|@generated\b/mu;
-const HEADER_BYTES = 512;
 
 /** The repository-relative path when `path` is inside `root`, with forward slashes; null outside it. */
 function repoRelative(root: string, path: string): string | null {
@@ -57,17 +54,17 @@ function repoRelative(root: string, path: string): string | null {
  * @param readHead - the file's opening text, read only for a path that passes the path rules.
  */
 export function isProductionSource(rel: string, readHead: (rel: string) => string): boolean {
-  if (!PRODUCTION_SOURCE.test(rel) || NOT_PRODUCTION.test(rel) || GENERATED_NAME.test(basename(rel))) {
+  if (!PRODUCTION_SOURCE.test(rel) || NOT_PRODUCTION.test(rel)) {
     return false;
   }
-  return !GENERATED_HEADER.test(readHead(rel).slice(0, HEADER_BYTES));
+  return !isGeneratedFile(rel, () => readHead(rel));
 }
 
 /** Reads a file's head from disk, for {@link isProductionSource}. */
 export const diskHead =
   (root: string) =>
   (rel: string): string =>
-    readFileSync(`${root}/${rel}`, "utf8").slice(0, HEADER_BYTES);
+    readFileSync(`${root}/${rel}`, "utf8").slice(0, GENERATED_HEAD_CHARS);
 
 /**
  * Whether a Node process dump comes from the harness rather than the product.
