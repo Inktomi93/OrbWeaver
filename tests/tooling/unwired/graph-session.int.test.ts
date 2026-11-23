@@ -9,15 +9,23 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, labelsIn, libraryModule, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
+import {
+  DEAD_CHANNEL_MESSAGES,
+  GRAPH_SOURCE,
+  graphTree,
+  labelsIn,
+  libraryModule,
+  NODE_TYPES,
+  REACT_TYPES,
+  tailwindVariants,
+  WORLD,
+  ZOD_MODULE,
+} from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const quiet = (): undefined => undefined;
 const SAVED_AT_FAILURE = "heap profile saved at failure: ";
-// The compiler's first observations of its death: the read sees end of input, or the sync write hits the broken pipe first
-// (recorded by a crash as the SuppressedError's `.error`: "EPIPE: broken pipe, write"). Nothing else is the run's own error.
-const DEAD_CHANNEL_MESSAGES = ["Unexpected EOF", "EPIPE: broken pipe, write"] as const;
 const options = (changes: Partial<GraphOptions>): GraphOptions => ({ ...FRESH_BUILD, ...changes });
 
 // A sent member, a written one, a read one and a parameter-keyed table one caller cannot narrow.

@@ -18,7 +18,7 @@ import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
+import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
 
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
 const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
@@ -851,8 +851,9 @@ test("a trial that fails keeps the trials that landed with its failure, and a re
     .parse(JSON.parse(readFileSync(out, "utf8")));
   expect(partial.trials.map(({ label, verdict }) => [label, verdict])).toEqual([[`${FIRST}:Ax.x`, NAMED_ONLY]]);
   // the failure keeps the run's own error, the time and the group it was on; the tool prints the run's own error
-  expect(partial.failure).toMatch(/Unexpected EOF.*the trial failed at \S+; last progress: trial group 2\/2 starting/u);
-  expect(crashed.stderr).toContain("TOOL ERROR (thrown): Error: Unexpected EOF");
+  expect(DEAD_CHANNEL_MESSAGES.some((message) => partial.failure.startsWith(message))).toBe(true);
+  expect(partial.failure).toMatch(/the trial failed at \S+; last progress: trial group 2\/2 starting/u);
+  expect(DEAD_CHANNEL_MESSAGES.some((message) => crashed.stderr.includes(`TOOL ERROR (thrown): Error: ${message}`))).toBe(true);
   expect(crashed.stderr).not.toContain("SuppressedError");
   const rerun = await runCli("unwired", argv);
   await expect(rerun).toExitWith(EXIT.clean);
