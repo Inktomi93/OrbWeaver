@@ -30,6 +30,7 @@
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
   isCallExpression,
+  isConditionalExpression,
   isModuleDeclaration,
   isNewExpression,
   isObjectLiteralExpression,
@@ -48,7 +49,7 @@ import { assertedDestination, identitySlot, providerReach, sendChase } from "../
 import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
+import { allOf, answer, constituentsOf, keyText, ZOD_PACKAGE } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
@@ -60,9 +61,11 @@ interface TypePair {
   readonly value: Type;
 }
 
-/** A slot and value pair, with the position of the code that made it: the roles the pair gives are recorded there. */
+/** A slot and value pair, with the position of the code that made it: the roles the pair gives are recorded there.
+ *  `whole` marks a pair whose value is the site's own value, not a part the walk reached below it. */
 export interface FlowPair extends TypePair {
   readonly site: number;
+  readonly whole?: boolean;
 }
 
 // The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
@@ -90,8 +93,6 @@ function* declarationOf(type: Type): APIRequestGenerator<string> {
 
 const GLOBAL_SCOPE = "global";
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
-/** The package whose declarations make a call a validator and a `satisfies` reference a schema twin. */
-export const ZOD_PACKAGE = "zod";
 // zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
 const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
 
@@ -179,7 +180,12 @@ function siteNodesOf(sites: FileSites): ReadonlyMap<number, Node> {
     const value = isSpreadElement(node) ? node.expression : node;
     add(value.pos, value);
   }
-  for (const { value } of [...sites.flowSites, ...sites.typePairs]) {
+  for (const { value } of sites.flowSites) {
+    for (const branch of branchesOf(value)) {
+      add(branch.pos, branch);
+    }
+  }
+  for (const { value } of sites.typePairs) {
     add(value.pos, value);
   }
   for (const { value, type } of sites.checkedValues) {
@@ -304,7 +310,7 @@ export class Flows {
 
   /** Link slot and value pairs to their fixpoint, the roles they give landing in `file`. */
   link(pairs: readonly FlowPair[], file: string): void {
-    for (let level: readonly FlowPair[] = pairs; level.length > 0; ) {
+    for (let level: readonly FlowPair[] = pairs.map((pair) => ({ ...pair, whole: true })); level.length > 0; ) {
       level = this.#linkLevel(level, file);
     }
   }
@@ -515,16 +521,19 @@ export class Flows {
     return checks.map((type) => (type === undefined ? undefined : types.get(type)));
   }
 
-  // Where a value a pair hands on goes, chased from the value at the pair's site; the pair's value is that site's own
-  // when their types are one.
+  // Where a value a pair hands on goes, chased from the value at the pair's site.
   #pairDestinations(pairs: readonly FlowPair[]): readonly Outcome[] {
-    const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
-    const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
-    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
-    return this.#destinations(nodes, (at) => {
-      const node = nodes[at];
-      return node !== undefined && types.get(node)?.id === pairs[at]?.value.id;
-    });
+    return this.#destinations(
+      pairs.map(({ site }) => this.#siteNodes.get(site)),
+      (at) => pairs[at]?.whole === true,
+    );
+  }
+
+  // The type a `satisfies` holds each pair's value to, where the value is its site's own (`{ … } satisfies View` returned
+  // as `unknown`); a value the walk reached below the site's is a part of it, which the check does not hold.
+  #pairCheckedTypes(pairs: readonly FlowPair[]): readonly (Type | undefined)[] {
+    const checked = this.#checkedTypes(pairs.map(({ site, whole }) => (whole === true ? this.#siteNodes.get(site) : undefined)));
+    return pairs.map((_, at) => checked[at]);
   }
 
   // Note each value handed into a slot type that carries a string index signature, by the file it was handed in.
@@ -659,10 +668,14 @@ export class Flows {
     return sites.globalAssigns.flatMap(({ value }, x) => (published.has(x) ? [{ node: value, spread: false, door: true }] : []));
   }
 
-  // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder.
+  // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder. A
+  // conditional's branches each fill the slot: their union can collapse (`checked ? view : value` into `unknown` is
+  // `unknown`), which would hide a branch's members from the walk.
   #flowSites(all: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
     const { state } = this;
-    const sites = { flowSites: all.flowSites.filter(({ value }) => !held(value)) };
+    const sites = {
+      flowSites: all.flowSites.flatMap((site) => (held(site.value) ? [] : branchesOf(site.value).map((value) => ({ ...site, value, whole: site.value })))),
+    };
     const values = state.world.typesAt(sites.flowSites.map(({ value }) => value));
     const declared = sites.flowSites.flatMap((site, at) => (site.slot === "declared" ? [{ at, node: site.holder }] : []));
     const declaredTypes = state.world.typesAt(declared.map(({ node }) => node));
@@ -680,7 +693,7 @@ export class Flows {
     // a value inside a literal handed to a library signature's bare type parameter (`tv({ variants: { ink: table } })`)
     // takes its contextual type from its own inference, so its slot is itself: the library takes it whole, as a value
     // handed straight to that parameter does
-    const inferred = this.#libraryInferred(sites.flowSites.map((site) => (site.slot === "contextual" ? argumentHolding(site.value) : undefined)));
+    const inferred = this.#libraryInferred(sites.flowSites.map((site) => (site.slot === "contextual" ? argumentHolding(site.whole) : undefined)));
     return sites.flowSites.flatMap((site, at) => {
       const slot = slots.get(at);
       const value = values[at];
@@ -698,8 +711,10 @@ export class Flows {
   // The walk is a worklist that ends on its seen-set, keyed by the declarations of the slot and the value and the step
   // that reached them, never by type: a recursive generic instantiates a new type at every level (`Deep<Box<T>>`), so a
   // type key never repeats, while its declarations do.
-  *#operands({ slot, value, site }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
+  *#operands({ slot, value, site, whole }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
+    // a step that keeps the value (a slot's arm) leaves it the site's own; any other step reaches a part of it
+    const own = whole === true ? ((yield* checker.getAwaitedType.gen(value)) ?? value).id : undefined;
     const seen = new Set<string>();
     const visits = new Map<string, number>();
     const out: FlowPair[] = [];
@@ -725,7 +740,7 @@ export class Flows {
       visits.set(slotDeclaration, (visits.get(slotDeclaration) ?? 0) + 1);
       const inner = yield* this.#innerOperands(a, b);
       if (inner === null) {
-        out.push({ slot: a, value: b, site });
+        out.push({ slot: a, value: b, site, whole: b.id === own });
       } else {
         work.push(...inner);
       }
@@ -770,7 +785,7 @@ export class Flows {
         const step = { kind: "argument", name: String(at) } as const;
         const forward = { slot: slotArgument, value: argument, at: step };
         const backward = { slot: argument, value: slotArgument, at: step };
-        const variance = variances[at] ?? "none";
+        const variance = variances[at - instances.outer] ?? "none";
         if (variance === "in") {
           return [backward];
         }
@@ -797,11 +812,18 @@ export class Flows {
   }
 
   // Two instantiations of one generic, an interface's or an alias's (`Token<A>` into `Token<B>`): their type arguments,
-  // with the generic whose variance decides which way each pair flows.
+  // with the generic whose variance decides which way each pair flows. An interface or class declared inside a generic
+  // function leads its type arguments with the enclosing type parameters it references (`outer` of them), which its
+  // declaration does not list; an alias's arguments are its own.
   *#sameGeneric(
     slot: Type,
     value: Type,
-  ): APIRequestGenerator<{ readonly slot: readonly Type[]; readonly value: readonly Type[]; readonly generic: NativeSymbol | undefined } | null> {
+  ): APIRequestGenerator<{
+    readonly slot: readonly Type[];
+    readonly value: readonly Type[];
+    readonly generic: NativeSymbol | undefined;
+    readonly outer: number;
+  } | null> {
     const { checker } = this.#state.world;
     if (slot.isTypeReference() && value.isTypeReference()) {
       const [slotTarget, valueTarget] = [yield* slot.getTarget.gen(), yield* value.getTarget.gen()];
@@ -810,6 +832,7 @@ export class Flows {
           slot: yield* checker.getTypeArguments.gen(slot),
           value: yield* checker.getTypeArguments.gen(value),
           generic: yield* slotTarget.getSymbol.gen(),
+          outer: (yield* slotTarget.getOuterTypeParameters.gen()).length,
         };
       }
     }
@@ -817,7 +840,7 @@ export class Flows {
     if (slotAlias === undefined || valueAlias === undefined || slotAlias.id !== valueAlias.id) {
       return null;
     }
-    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen(), generic: slotAlias };
+    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen(), generic: slotAlias, outer: 0 };
   }
 
   // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,
@@ -884,9 +907,12 @@ export class Flows {
       }
     }
     const outcomes = this.#pairDestinations(escaping);
+    const checked = this.#pairCheckedTypes(escaping);
     this.#recordSinks(file, escaping);
     for (const [y, pair] of escaping.entries()) {
-      this.#settle(pair.value, false, { file, at: pair.site }, outcomes[y]);
+      for (const type of [pair.value, ...(checked[y] === undefined ? [] : [checked[y]])]) {
+        this.#settle(type, false, { file, at: pair.site }, outcomes[y]);
+      }
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's
     const unions = pairs.filter(({ value }) => value.isUnionType());
@@ -1075,9 +1101,17 @@ function* declaredPropertyType(state: GraphState, signature: Signature, { index,
       return at;
     }
     const property = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(at), name);
-    at = property === undefined ? undefined : yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(property));
+    at = property === undefined ? undefined : yield* withoutNullish(checker, yield* checker.getTypeOfSymbol.gen(property));
   }
   return at;
+}
+
+// A declared type without its `null` and `undefined` arms. An unconstrained type parameter is kept as itself, where the
+// checker's non-nullable form (`V & {}`) would no longer read as a type parameter.
+function* withoutNullish(checker: Checker, type: Type): APIRequestGenerator<Type> {
+  const arms = (yield* constituentsOf(type)).filter((arm) => !(hasFlag(arm.flags, TypeFlags.Undefined) || hasFlag(arm.flags, TypeFlags.Null)));
+  const [only] = arms;
+  return arms.length === 1 && only?.isTypeParameter() === true ? only : yield* checker.getNonNullableType.gen(type);
 }
 
 // The type a signature's declaration gives its parameter at `index`, before instantiation.
@@ -1085,6 +1119,15 @@ function* declaredParameterType(state: GraphState, signature: Signature, index: 
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const parameter = (yield* target.getParameters.gen())[index];
   return parameter === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(parameter);
+}
+
+// The values an expression can be: each branch of a conditional, through parentheses, else the expression itself.
+function branchesOf(value: Expression): readonly Expression[] {
+  let at = value;
+  while (isParenthesizedExpression(at)) {
+    at = at.expression;
+  }
+  return isConditionalExpression(at) ? [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)] : [value];
 }
 
 const calleeName = (call: Node | undefined): Node | undefined => {

@@ -253,7 +253,7 @@ export const NODE_TYPES = {
 };
 
 /** A minimal zod at zod's own path: object schemas that keep their keys and their `shape`, `z.ZodType` for `satisfies`,
- *  `extend`, unions, `lazy`, a validator, a default and an optional key. */
+ *  `extend`, unions, `lazy`, the validators, a transform, a default and an optional key. */
 export const ZOD_MODULE = {
   "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
   // zod's declarations sit under a nested scope manifest that names no package, as the installed zod's do
@@ -262,10 +262,15 @@ export const ZOD_MODULE = {
   "node_modules/zod/v4/classic/index.d.ts": [
     "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
     "export interface Params { readonly error?: string }",
-    "export interface Schema<T = unknown> {",
+    // `I` is the input parse takes, which a transform keeps while it changes the output
+    "export interface Schema<T = unknown, I = T> {",
     "  readonly _output: T;",
+    "  readonly _input: I;",
     "  parse(value: unknown): T;",
     "  safeParse(value: unknown): { readonly success: boolean; readonly data?: T };",
+    "  parseAsync(value: unknown): Promise<T>;",
+    "  safeParseAsync(value: unknown): Promise<{ readonly success: boolean; readonly data?: T }>;",
+    "  transform<U>(change: (value: T) => U): Schema<U, I>;",
     // zod types a refinement and a default by the schema's own output, `this`, never by its type parameter
     "  refine(check: (value: this['_output']) => boolean, params?: Params): Schema<T>;",
     // zod's util.Extend: a key the extension names replaces the base's
