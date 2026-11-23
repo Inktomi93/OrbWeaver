@@ -60,6 +60,55 @@ test("a type argument inferred at a call links its value to the parameter's cons
   expect(bucketsIn(scan)).toEqual(["member-write-only Summary.dead", "member-write-only Lonely.id", "member-write-only Lonely.stamp"]);
 });
 
+// `Options<V>` takes `V` only through its mutation function's parameter: a value goes in there, so `Options<Input>`
+// into `Options<NominateVars>` pairs the vars backwards, and the router's reads of its input reach the client's vars
+// twin. Each spelling of the slot keeps that: an alias, a conditional's branch (its check type moves no value) and a
+// mapped type's template (its key moves no value). `NominateVars.stale` is never named.
+const OPTIONS_SPELLINGS = {
+  alias: ["type MutationFunction<V> = (vars: V) => Promise<unknown>;", "interface Options<V> { readonly mutationFn?: MutationFunction<V> }"],
+  conditional: [
+    "type MutationFunction<V> = V extends object ? (vars: V) => Promise<unknown> : never;",
+    "interface Options<V> { readonly mutationFn?: MutationFunction<V> }",
+  ],
+  mapped: ["type MutationFunction<V> = (vars: V) => Promise<unknown>;", 'type Options<V> = { readonly [K in keyof V as "mutationFn"]?: MutationFunction<V> };'],
+} as const;
+
+for (const [spelling, options] of Object.entries(OPTIONS_SPELLINGS)) {
+  test(`a generic's type argument pairs against its parameter's variance, through ${spelling}`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    const scan = await graphScan(plantedTree, {
+      [FILE]: [
+        ...options,
+        "export interface Input { readonly chatId: string; readonly offer?: string }",
+        'const verb = async (input: Input): Promise<string> => input.chatId + (input.offer ?? "");',
+        "const router = { nominate: { mutationOptions: (): Options<Input> => ({ mutationFn: verb }) } };",
+        "export interface NominateVars { readonly chatId: string; readonly offer?: string; readonly stale?: string }",
+        "const entity = <V>(config: { readonly options: (t: typeof router) => Options<V> }): ((vars: V) => void) => (vars) => {",
+        "  void config.options(router).mutationFn?.(vars);",
+        "};",
+        "export const useNominate = entity<NominateVars>({ options: (t) => t.nominate.mutationOptions() });",
+        'export const fire = (): void => useNominate({ chatId: "c", offer: "o" });',
+      ].join("\n"),
+    });
+    expect(bucketsIn(scan)).toEqual(["member-untouched NominateVars.stale"]);
+  });
+}
+
+// A generic that holds itself (`children: TreeNode<T>[]`) walks its variance once: the walk meets its own declaration
+// while it runs and takes the polarity seen so far, so the case ends and pairs `Leaf` forward into `Shown`.
+test("a self-referential generic pairs its type argument forward and its variance walk ends", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "export interface TreeNode<T> { readonly value: T; readonly children: readonly TreeNode<T>[] }",
+      "export interface Leaf { readonly label: string; readonly spare: string }",
+      "export interface Shown { readonly label: string }",
+      "declare const tree: TreeNode<Leaf>;",
+      "const show = (node: TreeNode<Shown>): string => node.value.label + String(node.children.length);",
+      "export const shown = show(tree);",
+    ].join("\n"),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-untouched Leaf.spare"]);
+});
+
 test("a list handed to a generic's list parameter fills that parameter's element constraint with its own", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     [FILE]: [
