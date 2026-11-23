@@ -1,12 +1,14 @@
 // The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css`, `graph-dom` and `codes` run the reference graph over
 // the one merged program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom
 // properties nothing reads, the class and data-* hooks with no partner, or the error codes nothing throws or handles;
-// `graph-dom` reads source, so it refuses `--from`. `ports` writes the restated-port targets the derive codemod reads;
-// the bare verb runs engine one over every world, the dead-inside-live verbs run both engines except `unions`,
-// `procedures` and `columns`, which run one engine and refuse `--cross-check`, and each writes one report under
-// reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver site of a removed contract key and
-// exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
-// (./coverage.ts).
+// `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
+// own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
+// restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
+// verbs run both engines except `unions`, `procedures` and `columns`, which run one engine and refuse `--cross-check`,
+// and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver
+// site of a removed contract key and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage
+// and writes what no run executed (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree,
+// classified by where it sits (./literal-hits.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
@@ -30,9 +32,12 @@ import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import { codesGraph, cssGraph, domGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
+import type { WorldsCheck } from "./graph/worlds-check.ts";
+import { checkWorlds } from "./graph/worlds-check.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
+import { HITS_USAGE, runHits } from "./literal-hits.ts";
 import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
@@ -51,9 +56,21 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
+const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
- *  DOM-hook pass, and the queries each name is asked (./graph/query.ts). */
-const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-dom", "graph-why", "graph-users", "graph-impact", "graph-reach", "codes"] as const;
+ *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
+const GRAPH_VERBS = [
+  "graph",
+  "graph-verify",
+  "graph-css",
+  "graph-dom",
+  "graph-why",
+  "graph-users",
+  "graph-impact",
+  "graph-reach",
+  "graph-worlds-check",
+  "codes",
+] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
 const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   graph: "reports/unwired/graph.json",
@@ -65,11 +82,12 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   "graph-impact": "reports/unwired/graph-impact.json",
   "graph-reach": "reports/unwired/graph-reach.json",
   codes: "reports/unwired/codes.json",
+  "graph-worlds-check": "reports/unwired/graph-worlds-check.json",
 };
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -642,6 +660,41 @@ async function runGraphCodes(args: GraphArgs): Promise<number> {
   return EXIT.clean;
 }
 
+// A world's differences, one row each; the libraries only the merged program loads are one row per package, and the
+// report keeps a row per file.
+function writeDifferences({ config, differences, libraries }: WorldsCheck["worlds"][number]): void {
+  for (const { name, files } of libraries) {
+    process.stdout.write(`difference\t${config}\tlibrary-only-in-merged\t${name}\t${String(files)} files\n`);
+  }
+  for (const { kind, at, subject, world, merged, ...rest } of differences.filter((difference) => difference.kind !== "library-only-in-merged")) {
+    const cause = "cause" in rest ? `\t${rest.cause}${rest.mergedOnly.length === 0 ? "" : ` ${rest.mergedOnly.join(",")}`}` : "";
+    process.stdout.write(`difference\t${config}\t${kind}\t${at}\t${subject}\tworld: ${world}\tmerged: ${merged}${cause}\n`);
+  }
+}
+
+function runGraphWorldsCheck(args: GraphArgs): number {
+  const check = checkWorlds(args.root, log);
+  const path = write(args.root, args.out, check);
+  for (const world of check.worlds) {
+    writeDifferences(world);
+  }
+  for (const error of check.explained) {
+    process.stdout.write(
+      `explained\t${error.at}\tTS${String(error.code)}\t${error.explanation}\t${error.by}\tworld: ${error.inWorld}\tmerged: ${error.inMerged}\n`,
+    );
+  }
+  for (const error of check.unexplained) {
+    process.stdout.write(`unexplained\t${error.at}\tTS${String(error.code)}\t${error.worlds.join(",")}\t${error.text}\n`);
+  }
+  for (const error of check.worldOnly) {
+    process.stdout.write(`world-only\t${error.at}\tTS${String(error.code)}\t${error.worlds.join(",")}\t${error.text}\n`);
+  }
+  log(
+    `merged-errors=${String(check.mergedErrors)} matched=${String(check.matched.length)} explained=${String(check.explained.length)} unexplained=${String(check.unexplained.length)} world-only=${String(check.worldOnly.length)} written to ${path}`,
+  );
+  return check.unexplained.length === 0 ? EXIT.clean : EXIT.violations;
+}
+
 async function runGraph(args: GraphArgs): Promise<number> {
   const query = QUERY_OF[args.verb];
   if (query !== undefined) {
@@ -653,6 +706,9 @@ async function runGraph(args: GraphArgs): Promise<number> {
   if (args.verb === "codes") {
     return await runGraphCodes(args);
   }
+  if (args.verb === "graph-worlds-check") {
+    return runGraphWorldsCheck(args);
+  }
   if (args.verb === "graph-dom") {
     return await runGraphDom(args);
   }
@@ -661,9 +717,12 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VERBS.find((candidate) => candidate === verb);
 
-// The verbs that run asynchronously: `coverage` runs the test suites with its own flags, and the graph verbs load the
-// analysed tree's knip config and design system.
-function asyncVerb(argv: readonly string[]): Promise<number> | undefined {
+// The verbs that read their own flags or run asynchronously: `hits` takes names, `coverage` runs the test suites with
+// its own flags, and the graph verbs load the analysed tree's knip config and design system.
+function asyncVerb(argv: readonly string[]): number | Promise<number> | undefined {
+  if (argv[0] === HITS_VERB) {
+    return runHits(argv.slice(1), log);
+  }
   if (argv[0] === COVERAGE_VERB) {
     return runCoverage(argv.slice(1), log);
   }
