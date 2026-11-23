@@ -21,7 +21,8 @@ import type { Node } from "@typescript/native/ast";
 import { isCallExpression, isModuleDeclaration, isPropertyAccessExpression, isSpreadElement } from "@typescript/native/ast";
 import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
-import { hasFlag } from "../native.ts";
+import { declarationKeys, hasFlag } from "../native.ts";
+import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
@@ -32,6 +33,29 @@ import { isPrimitive } from "./state.ts";
 export interface FlowPair {
   readonly slot: Type;
   readonly value: Type;
+}
+
+// The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
+// of the type it came from), or through a member, a parameter or a return (each able to reach a new instantiation).
+const STEP_KINDS = ["root", "argument", "element", "arm", "member", "parameter", "return"] as const;
+type StepKind = (typeof STEP_KINDS)[number];
+const SUBTERM_STEPS: ReadonlySet<StepKind> = new Set<StepKind>(["root", "argument", "element", "arm"]);
+
+// A pair on the flow walk's worklist and the step that reached it, named by its index or member name.
+interface Step extends FlowPair {
+  readonly at: { readonly kind: StepKind; readonly name: string };
+}
+
+const ROOT_STEP: Step["at"] = { kind: "root", name: "" };
+// How many of a traced walk's declarations its log line names.
+const TRACE_TOP = 10;
+
+// A type's identity across its instantiations: the declarations of its alias, else of its symbol. A type with neither
+// (a union, an intersection, a primitive) is keyed by itself; its arms and members carry declarations of their own.
+function* declarationOf(type: Type): APIRequestGenerator<string> {
+  const symbol = (yield* type.getAliasSymbol.gen()) ?? (yield* type.getSymbol.gen());
+  const keys = symbol === undefined ? [] : declarationKeys(symbol);
+  return keys.length === 0 ? `type ${String(type.id)}` : keys.join(",");
 }
 
 const GLOBAL_SCOPE = "global";
@@ -75,11 +99,15 @@ export class Flows {
   readonly #opaque = new Map<number, boolean>();
   readonly #deep = new Map<string, readonly DeclKey[]>();
   readonly #done = new Set<string>();
+  // The member pairs a walk went below, by their declarations: another instantiation of one pair adds no new member.
+  readonly #doneMembers = new Set<string>();
+  readonly #walkTrace: { record: number } | null;
   // The value types a file's door sends hold inside an option literal (`{ workerData: v }`), kept from escaping there.
   #heldTypes: ReadonlySet<number> = NO_HELD_TYPES;
 
   constructor(state: GraphState) {
     this.#state = state;
+    this.#walkTrace = tracing(state.session.options, "flow-walk") === undefined ? null : { record: 0 };
   }
 
   /** A file's hand-offs and flow sites, linked to a fixpoint of member pairs; a value `held` answers true for is a
@@ -359,48 +387,75 @@ export class Flows {
   // A flow carries the value itself: through a promise to what it resolves to, through a list to its elements, and a
   // function value filling a function-typed slot pairs each parameter backwards (what a caller writes into the slot's
   // parameter is what the implementation's parameter reads) and the return forwards.
-  // The walk is a worklist that ends on its seen-set of slot and value pairs, so a recursive type unwraps once and a deep
-  // one all the way without a stack frame per level.
-  *#operands(slot: Type, value: Type): APIRequestGenerator<readonly FlowPair[]> {
+  // The walk is a worklist that ends on its seen-set, keyed by the declarations of the slot and the value and the step
+  // that reached them, never by type: a recursive generic instantiates a new type at every level (`Deep<Box<T>>`), so a
+  // type key never repeats, while its declarations do.
+  *#operands(slot: Type, value: Type, file: string): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
     const seen = new Set<string>();
+    const visits = new Map<string, number>();
     const out: FlowPair[] = [];
-    const work: FlowPair[] = [{ slot, value }];
+    const work: Step[] = [{ slot, value, at: ROOT_STEP }];
+    let widest = 0;
     for (let next = work.pop(); next !== undefined; next = work.pop()) {
       const a = (yield* checker.getAwaitedType.gen(next.slot)) ?? next.slot;
       const b = (yield* checker.getAwaitedType.gen(next.value)) ?? next.value;
-      const pair = `${String(a.id)}>${String(b.id)}`;
-      if (a.id === b.id || seen.has(pair)) {
+      if (a.id === b.id) {
+        continue;
+      }
+      const [slotDeclaration, valueDeclaration] = [yield* declarationOf(a), yield* declarationOf(b)];
+      // a step into an argument, an element or an arm reaches a part of the type it came from, so that descent ends with
+      // the type and is keyed by it; a step through a member or a signature can reach a new instantiation every time,
+      // so it is keyed by the declarations it lands on
+      const pair = SUBTERM_STEPS.has(next.at.kind)
+        ? `${String(a.id)}>${String(b.id)}`
+        : `${slotDeclaration}>${valueDeclaration}@${next.at.kind} ${next.at.name}`;
+      if (seen.has(pair)) {
         continue;
       }
       seen.add(pair);
+      visits.set(slotDeclaration, (visits.get(slotDeclaration) ?? 0) + 1);
       const inner = yield* this.#innerOperands(a, b);
       if (inner === null) {
         out.push({ slot: a, value: b });
       } else {
         work.push(...inner);
       }
+      widest = Math.max(widest, work.length);
     }
+    this.#traceWalk(file, seen.size, widest, visits);
     return out;
   }
 
-  // The pairs one slot and value pair flows through, or null when the pair is itself a leaf.
-  *#innerOperands(a: Type, b: Type): APIRequestGenerator<readonly FlowPair[] | null> {
+  // The flow-walk trace logs each walk that visits more pairs than any before it, with the declarations it met most.
+  #traceWalk(file: string, pairs: number, widest: number, visits: ReadonlyMap<string, number>): void {
+    if (this.#walkTrace === null || pairs <= this.#walkTrace.record) {
+      return;
+    }
+    this.#walkTrace.record = pairs;
+    const top = [...visits].sort(([, a], [, b]) => b - a).slice(0, TRACE_TOP);
+    this.#state.session.log(
+      `trace flow-walk ${file} ${String(pairs)} pairs, widest worklist ${String(widest)}: ${top.map(([key, count]) => `${key} x${String(count)}`).join(", ")}`,
+    );
+  }
+
+  // The steps one slot and value pair flows through, or null when the pair is itself a leaf.
+  *#innerOperands(a: Type, b: Type): APIRequestGenerator<readonly Step[] | null> {
     const { checker } = this.#state.world;
     const slotArms = yield* this.#objectArms(a, b);
     if (slotArms !== null) {
-      return slotArms.map((arm) => ({ slot: arm, value: b }));
+      return slotArms.map((arm) => ({ slot: arm, value: b, at: { kind: "arm", name: "" } }));
     }
     if (a.isTypeReference() && b.isTypeReference() && (yield* checker.isArrayLikeType.gen(a)) && (yield* checker.isArrayLikeType.gen(b))) {
       const [elementA] = yield* checker.getTypeArguments.gen(a);
       const [elementB] = yield* checker.getTypeArguments.gen(b);
-      return elementA !== undefined && elementB !== undefined ? [{ slot: elementA, value: elementB }] : [];
+      return elementA !== undefined && elementB !== undefined ? [{ slot: elementA, value: elementB, at: { kind: "element", name: "" } }] : [];
     }
     const instances = yield* this.#sameGeneric(a, b);
     if (instances !== null) {
       return instances.value.flatMap((argument, at) => {
         const slotArgument = instances.slot[at];
-        return slotArgument === undefined ? [] : [{ slot: slotArgument, value: argument }];
+        return slotArgument === undefined ? [] : [{ slot: slotArgument, value: argument, at: { kind: "argument", name: String(at) } }];
       });
     }
     const counterparts = yield* this.#libraryCounterparts(a, b);
@@ -441,7 +496,7 @@ export class Flows {
 
   // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,
   // so each slot member's type flows from the value's same-named member, which carries the type arguments through.
-  *#libraryCounterparts(slot: Type, value: Type): APIRequestGenerator<readonly FlowPair[] | null> {
+  *#libraryCounterparts(slot: Type, value: Type): APIRequestGenerator<readonly Step[] | null> {
     const { checker } = this.#state.world;
     if (!(slot.isTypeReference() && value.isTypeReference())) {
       return null;
@@ -450,32 +505,36 @@ export class Flows {
     if (targets.some((symbol) => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle)))) {
       return null;
     }
-    const out: FlowPair[] = [];
+    const out: Step[] = [];
     for (const member of yield* checker.getPropertiesOfType.gen(slot)) {
       const [slotMember, valueMember] = [
         yield* checker.getTypeOfPropertyOfType.gen(slot, member.name),
         yield* checker.getTypeOfPropertyOfType.gen(value, member.name),
       ];
       if (slotMember !== undefined && valueMember !== undefined) {
-        out.push({ slot: slotMember, value: valueMember });
+        out.push({ slot: slotMember, value: valueMember, at: { kind: "member", name: member.name } });
       }
     }
     return out;
   }
 
-  *#signatureOperands(slot: Signature, value: Signature): APIRequestGenerator<readonly FlowPair[]> {
+  *#signatureOperands(slot: Signature, value: Signature): APIRequestGenerator<readonly Step[]> {
     const { checker } = this.#state.world;
     const slotParameters = yield* slot.getParameters.gen();
     const valueParameters = yield* value.getParameters.gen();
-    const out: FlowPair[] = [];
+    const out: Step[] = [];
     for (let at = 0; at < Math.min(slotParameters.length, valueParameters.length); at++) {
       const slotParameter = slotParameters[at];
       const valueParameter = valueParameters[at];
       if (slotParameter !== undefined && valueParameter !== undefined) {
-        out.push({ slot: yield* checker.getTypeOfSymbol.gen(valueParameter), value: yield* checker.getTypeOfSymbol.gen(slotParameter) });
+        out.push({
+          slot: yield* checker.getTypeOfSymbol.gen(valueParameter),
+          value: yield* checker.getTypeOfSymbol.gen(slotParameter),
+          at: { kind: "parameter", name: String(at) },
+        });
       }
     }
-    out.push({ slot: yield* slot.getReturnType.gen(), value: yield* value.getReturnType.gen() });
+    out.push({ slot: yield* slot.getReturnType.gen(), value: yield* value.getReturnType.gen(), at: { kind: "return", name: "" } });
     return out;
   }
 
@@ -483,7 +542,7 @@ export class Flows {
   // pair too (a port's op filled by another service's op), so the next level is returned until no pair is new.
   #linkLevel(raw: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
-    const unwrapped = state.batch(raw.map(({ slot, value }) => this.#operands(slot, value))).flat();
+    const unwrapped = state.batch(raw.map(({ slot, value }) => this.#operands(slot, value, file))).flat();
     // a value landing, after unwrapping, in a slot that names none of its members escapes whole, as an opaque argument does
     this.#opaqueOf(unwrapped.map(({ slot }) => slot));
     const pairs: FlowPair[] = [];
@@ -545,7 +604,14 @@ export class Flows {
     }
     // a pair goes deeper when the value member is declared in the tree: the walk follows the value's own members, and a
     // library slot names its nested fields as it names its top ones (an SDK block's `source.data`)
-    const deeper = matched.filter((_, y) => (valueDecls[y]?.length ?? 0) > 0);
+    const deeper = matched.filter(({ slot, value }, y) => {
+      const key = `${declarationKeys(slot).join(",")}>${declarationKeys(value).join(",")}`;
+      if ((valueDecls[y]?.length ?? 0) === 0 || this.#doneMembers.has(key)) {
+        return false;
+      }
+      this.#doneMembers.add(key);
+      return true;
+    });
     const types = state.batch(deeper.flatMap(({ slot, value }) => [checker.getTypeOfSymbol.gen(slot), checker.getTypeOfSymbol.gen(value)]));
     return deeper.flatMap((_, y) => {
       const slot = types[2 * y];

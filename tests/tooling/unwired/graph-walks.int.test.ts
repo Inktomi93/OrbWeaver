@@ -55,3 +55,23 @@ test("a value nested thousands of signatures deep still fills its slot's members
   // the value's leaf members fill the slot's, so each pair is judged once, at the slot
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["SlotLeaf.a", "SlotLeaf.b"]);
 });
+// Two recursive generics a value of one fills a slot of the other with: each level instantiates new types
+// (`Slot<Box<T>>`), so a walk keyed by type never repeats; keyed by declaration it walks each member pair once.
+test("a recursive generic filling its structural twin pairs each member once, however its instantiations nest", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "interface Box<T> { readonly item: T }",
+      "export type Slot<T> = { readonly value: T; readonly next: Slot<Box<T>> };",
+      "type Value<T> = { readonly value: T; readonly next: Value<Box<T>> };",
+      "export interface Read { readonly a: string; readonly spare: string }",
+      "interface Given { readonly a: string; readonly spare: string }",
+      "declare const given: Value<Given>;",
+      "export const slot: Slot<Read> = given;",
+      "export const shown = (read: Slot<Read>): string => read.value.a;",
+    ].join("\n"),
+  });
+  // the read reaches Given.a through the slot; each spare and each next is judged once, at the slot it fills
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Box.item", "Slot.next", "Read.spare"]);
+});
