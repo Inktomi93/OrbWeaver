@@ -4,7 +4,7 @@
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { execGit } from "../floor/git/git.ts";
+import { catBlobs, execGit } from "../floor/git/git.ts";
 import type { SendDestination } from "./boundaries.ts";
 import type { Site, Sources } from "./classify.ts";
 import { nameAt } from "./classify.ts";
@@ -37,9 +37,6 @@ const COMMIT_MARK = "@@C";
 const OLD_FILE = "--- a/";
 const READ_NAME = /[.?]\.?([A-Za-z_$][\w$]*)\b(?!\s*=[^=>])/gu;
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
-// `git cat-file --batch` prints each blob after this mark and the request's index, so the split needs no byte counts.
-const BLOB_MARK = /^@@B (\d+)$/mu;
-const BLOB_FORMAT = "--batch=@@B %(rest)";
 // One batch holds a bounded slice of the parents' blobs (about 18 MB of the 200 MB the history reaches).
 const BLOB_CHUNK = 1000;
 // `type X = z.infer<typeof H>`, `type X = H;` and `H as X`: the names a home also goes by.
@@ -126,17 +123,12 @@ function removedReads(root: string, members: ReadonlySet<string>): ReadonlyMap<s
 }
 
 // The parent-commit text of each removal's file, by its index in `removals`, one bounded batch at a time.
-function* parentBlobs(root: string, removals: readonly Removal[]): Generator<readonly [number, string]> {
-  for (let start = 0; start < removals.length; start += BLOB_CHUNK) {
-    const input = removals
-      .slice(start, start + BLOB_CHUNK)
-      .map(({ commit, file }, at) => `${commit}^:${file} ${String(start + at)}\n`)
-      .join("");
-    const parts = execGit(root, ["cat-file", BLOB_FORMAT], { input, maxBuffer: HISTORY_BUFFER }).split(BLOB_MARK);
-    for (let at = 1; at < parts.length; at += 2) {
-      yield [Number(parts[at]), parts[at + 1] ?? ""];
-    }
-  }
+function parentBlobs(root: string, removals: readonly Removal[]): Generator<readonly [number, string]> {
+  return catBlobs(
+    root,
+    removals.map(({ commit, file }) => `${commit}^:${file}`),
+    { chunk: BLOB_CHUNK, maxBuffer: HISTORY_BUFFER },
+  );
 }
 
 const wordOf = (names: readonly string[]): RegExp => new RegExp(String.raw`\b(?:${names.map((name) => name.replaceAll("$", "\\$")).join("|")})\b`, "u");

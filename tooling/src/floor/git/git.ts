@@ -45,6 +45,29 @@ export function execGit(root: string, args: readonly string[], opts: RunGitOptio
   return result.stdout;
 }
 
+// `git cat-file --batch` prints each object after this mark and its request's index, so the split needs no byte counts.
+const BLOB_MARK = /^@@B (\d+)$/mu;
+const BLOB_FORMAT = "--batch=@@B %(rest)";
+
+/** Each object's text with its index in `objects` (`rev:path` names), read `chunk` objects to a `git cat-file` batch. An
+ *  object git cannot find prints an unmarked `missing` line into the text before it, so ask only for objects that exist. */
+export function* catBlobs(
+  root: string,
+  objects: readonly string[],
+  { chunk, maxBuffer }: { readonly chunk: number; readonly maxBuffer: number },
+): Generator<readonly [number, string]> {
+  for (let start = 0; start < objects.length; start += chunk) {
+    const input = objects
+      .slice(start, start + chunk)
+      .map((object, at) => `${object} ${String(start + at)}\n`)
+      .join("");
+    const parts = execGit(root, ["cat-file", BLOB_FORMAT], { input, maxBuffer }).split(BLOB_MARK);
+    for (let at = 1; at < parts.length; at += 2) {
+      yield [Number(parts[at]), parts[at + 1] ?? ""];
+    }
+  }
+}
+
 /** Read raw Git output without decoding binary blobs; preserve the same repository and environment fence. */
 export function execGitBytes(root: string, args: readonly string[], opts: Pick<RunGitOptions, "env" | "extra" | "maxBuffer"> = {}): Buffer {
   return execNicedSyncBuffer("git", args, {

