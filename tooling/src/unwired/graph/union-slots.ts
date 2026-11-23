@@ -1362,9 +1362,10 @@ function expansion(site: Site, declaration: Node | null): Expansion {
   }
   if (isVariableDeclaration(declaration)) {
     const tuple = isIdentifier(declaration.name) ? `${site.file}:${declaration.name.text}` : null;
-    // A tuple spells only itself: what it `satisfies` is its lineage, which `satisfiedOrigins` reads, never its slot's.
-    const value = isTupleValue(declaration.initializer) ? undefined : declaration.initializer;
-    return { ...NOTHING, tuple, into: [declaration.type, value] };
+    // A tuple spells itself and the tuples it spreads, whose members it carries; what it `satisfies` is its lineage,
+    // which `satisfiedOrigins` reads, never its slot's.
+    const value = tupleSpreads(declaration.initializer) ?? [declaration.initializer];
+    return { ...NOTHING, tuple, into: [declaration.type, ...value] };
   }
   if (isFunctionDeclaration(declaration) || isMethodDeclaration(declaration)) {
     return { ...NOTHING, into: [declaration] };
@@ -1377,13 +1378,17 @@ function expansion(site: Site, declaration: Node | null): Expansion {
   return { ...NOTHING, into: [annotationOf(declaration), written] };
 }
 
-// An `as const` array literal, through parentheses and `satisfies`.
-function isTupleValue(node: Expression | undefined): boolean {
+// The spread elements' operands of an `as const` array literal, through parentheses and `satisfies`; null for any other
+// value.
+function tupleSpreads(node: Expression | undefined): readonly Expression[] | null {
   let at = node;
   while (at !== undefined && (isParenthesizedExpression(at) || isSatisfiesExpression(at))) {
     at = at.expression;
   }
-  return at !== undefined && isConstAssertion(at) && isArrayLiteralExpression(at.expression);
+  if (at === undefined || !isConstAssertion(at) || !isArrayLiteralExpression(at.expression)) {
+    return null;
+  }
+  return at.expression.elements.flatMap((element) => (isSpreadElement(element) ? [element.expression] : []));
 }
 
 // What a type declaration adds: an alias its type, a type parameter its constraint, an interface what it extends and

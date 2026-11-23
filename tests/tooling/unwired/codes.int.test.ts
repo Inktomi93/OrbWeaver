@@ -636,6 +636,61 @@ test("a client branch is a computed or plain key, a tested Set element, a compar
   ]);
 });
 
+// A table keyed by a tuple composed by spread handles the spread tuple's codes: `REASONS` spreads `CARD_CODES` and adds
+// `failed`. `TWIN_CODES` holds the same texts and is spread nowhere, so the table handles none of its codes.
+const SPREAD = {
+  ...BASE,
+  "packages/contracts/src/codes.ts": [
+    'export const CARD_CODES = ["card_bad", "card_broken"] as const;',
+    "export type CardCode = (typeof CARD_CODES)[number];",
+    'export const REASONS = [...CARD_CODES, "failed"] as const;',
+    "export type Reason = (typeof REASONS)[number];",
+    'export const TWIN_CODES = ["card_bad", "card_broken"] as const;',
+    "export type TwinCode = (typeof TWIN_CODES)[number];",
+  ].join("\n"),
+  "packages/server/src/errors.ts": [
+    'import type { CardCode, TwinCode } from "../../contracts/src/codes.ts";',
+    'import { DomainOperationError } from "./kit-errors.ts";',
+    "export class CardError extends DomainOperationError {",
+    "  constructor(code: CardCode) {",
+    '    super(code, "The card was refused.");',
+    "  }",
+    "}",
+    "export class TwinError extends DomainOperationError {",
+    "  constructor(code: TwinCode) {",
+    '    super(code, "The twin was refused.");',
+    "  }",
+    "}",
+    "export function act(step: number): void {",
+    "  if (step === 0) {",
+    '    throw new CardError("card_bad");',
+    "  }",
+    "  if (step === 1) {",
+    '    throw new CardError("card_broken");',
+    "  }",
+    '  throw new TwinError(step > 2 ? "card_bad" : "card_broken");',
+    "}",
+  ].join("\n"),
+  "packages/client/src/copy.ts": [
+    'import type { Reason } from "../../contracts/src/codes.ts";',
+    "export const REASON_COPY: Record<Reason, string> = {",
+    '  card_bad: "That file is no card.",',
+    '  card_broken: "That card is damaged.",',
+    '  failed: "The import failed.",',
+    "};",
+    "export const reasonCopy = (reason: Reason): string => REASON_COPY[reason];",
+  ].join("\n"),
+};
+
+test("a table keyed by a tuple composed by spread handles the spread tuple's codes, and a same-text twin it never spreads stays unhandled", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  expect(found(await scan(plantedTree, SPREAD))).toEqual([
+    { kind: "unhandled", home: "TWIN_CODES", member: "card_bad", line: 5 },
+    { kind: "unhandled", home: "TWIN_CODES", member: "card_broken", line: 5 },
+  ]);
+});
+
 // The hand-offs a code is followed through and the depth a refusal field is read at are what the tree has, so a chain of
 // subclass constructors and a notice nested in an answer are both read to their end.
 const CHAIN_DEPTH = 9;
