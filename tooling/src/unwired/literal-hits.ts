@@ -60,8 +60,12 @@ import {
   isJSDocNodeKind,
   isKeywordKind,
   isModuleDeclaration,
+  isNoSubstitutionTemplateLiteral,
+  isNumericLiteral,
   isParameterDeclaration,
+  isPrivateIdentifier,
   isSourceFile,
+  isStringLiteral,
   isTypeAliasDeclaration,
   isTypeNode,
   isTypeParameterDeclaration,
@@ -82,7 +86,7 @@ import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
-import { declarationKeys, nodePlace } from "./native.ts";
+import { declarationKeys, deepestAt, nameAt, nodePlace } from "./native.ts";
 import { isProduction } from "./optional-population.ts";
 
 const DEAD: Verdict = "dead";
@@ -161,6 +165,9 @@ interface LiteralHit {
   readonly at: string;
   /** The parsed file's UTF-16 offset of the hit, or null in a file the parser does not read. */
   readonly offset: number | null;
+  /** Where the name holding the hit starts, the start a site key names: a private name's `#`, a quoted name's quote,
+   *  else the hit's own offset; null where `offset` is. */
+  readonly site: number | null;
   /** The graph program holds the file, so the graph sees this hit; false for a file outside every world. */
   readonly graph: boolean;
   readonly kind: HitKind;
@@ -501,8 +508,9 @@ function rowDeclarations(world: NativeWorld, rows: readonly { readonly member: s
   const asked = rows.flatMap((row, at) =>
     row.known.flatMap((key) => {
       const split = key.lastIndexOf(":");
-      const node = heldNodeAt(world, key.slice(0, split), Number(key.slice(split + 1)));
-      return node === undefined ? [] : [{ at, node, what: `known site ${key} of ${row.member}, node from getTokenAtPosition` }];
+      const source = world.source(key.slice(0, split));
+      const node = source === undefined ? undefined : nameAt(source, Number(key.slice(split + 1)));
+      return node === undefined ? [] : [{ at, node, what: `known site ${key} of ${row.member}, node from the tree walk` }];
     }),
   );
   sendable("the rows' known sites", asked);
@@ -590,6 +598,7 @@ function unparsedHits(file: string, type: FileType, generated: boolean, found: r
     line: hit.line.line,
     at: `${file}:${String(hit.line.line)}`,
     offset: null,
+    site: null,
     graph: false,
     scope,
     kind: unparsedKind(type, generated, hit),
@@ -620,13 +629,32 @@ function hitOffset(source: SourceFile, starts: readonly number[], { name, line, 
   return offset;
 }
 
+// A hit inside a private name or a quoted, template or numeric name sits past the name's start, the offset a site key
+// carries; any other hit starts its own name.
+function nameStart(source: SourceFile, offset: number): number {
+  const holder = deepestAt(source, offset);
+  const named =
+    holder !== undefined && (isPrivateIdentifier(holder) || isStringLiteral(holder) || isNoSubstitutionTemplateLiteral(holder) || isNumericLiteral(holder));
+  return named ? holder.getStart(source) : offset;
+}
+
 function parsedHits(source: SourceFile, file: string, found: readonly Found[], graph: boolean): readonly LiteralHit[] {
   const scope = scopeOf(file, "parsed");
   const starts = gitLineStarts(source.text);
   return found.map((hit) => {
     const { name, line } = hit;
     const offset = hitOffset(source, starts, hit);
-    return { name, file, line: line.line, at: `${file}:${String(line.line)}`, offset, graph, scope, kind: parsedKind(source, offset) };
+    return {
+      name,
+      file,
+      line: line.line,
+      at: `${file}:${String(line.line)}`,
+      offset,
+      site: nameStart(source, offset),
+      graph,
+      scope,
+      kind: parsedKind(source, offset),
+    };
   });
 }
 
@@ -636,7 +664,7 @@ function parsedHits(source: SourceFile, file: string, found: readonly Found[], g
 const SAVING: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call", "import-export", "string", "template", "config-key", "generated", "other"]);
 const savesRow = (hit: LiteralHit): boolean => SAVING.has(hit.kind) || (hit.kind === "type" && hit.scope === "test");
 
-const offsetKey = (hit: LiteralHit): string | null => (hit.offset === null ? null : `${hit.file}:${String(hit.offset)}`);
+const offsetKey = (hit: LiteralHit): string | null => (hit.site === null ? null : `${hit.file}:${String(hit.site)}`);
 
 // A common name hits thousands of lines; the row keeps every count and this many hits, the saving ones first.
 const KEPT_HITS = 25;

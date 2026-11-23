@@ -11,7 +11,7 @@ import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { openGraphWorld } from "../../../tooling/src/unwired/graph/build.ts";
 import type { HitKind, HitScope } from "../../../tooling/src/unwired/literal-hits.ts";
-import { HIT_KINDS, HIT_SCOPES, hitsReport, literalStage, runHits, searchLiterals } from "../../../tooling/src/unwired/literal-hits.ts";
+import { HIT_KINDS, HIT_SCOPES, hitsReport, literalStage, rowsEvidence, runHits, searchLiterals } from "../../../tooling/src/unwired/literal-hits.ts";
 import { graphTree } from "./_planted.ts";
 
 const TIMEOUT = 120_000;
@@ -85,6 +85,60 @@ test("a hit after a line or paragraph separator, an astral character and a BOM s
   expect(hits.map(({ at, kind }) => `${at} ${kind}`)).toEqual([`${file}:1 write`, `${file}:3 read`]);
   const text = world.source(file)?.text ?? "";
   expect(hits.map(({ offset }) => text.slice(offset ?? 0, (offset ?? 0) + "zqShifted".length))).toEqual(["zqShifted", "zqShifted"]);
+});
+
+// A known site is the key of the name it was minted from: a computed name's key starts at its `[`, a private name's at
+// its `#`, a quoted name's at its quote. Each resolves through the tree to that name, so the member's own reads stay
+// evidence and a read of another declaration of the word drops.
+const NAMES_TEXT = [
+  'const KEY = "zqComputed";',
+  "export class Box {",
+  "  [KEY] = 1;",
+  "  #zqPrivate = 2;",
+  '  "zqQuoted" = 3;',
+  "  4242 = 4;",
+  "  *[Symbol.iterator](): Generator<number> { yield this.#zqPrivate; }",
+  "}",
+  "export const box = new Box();",
+  "export const reads = [box.zqComputed, box.zqQuoted, box[4242], box[Symbol.iterator]];",
+].join("\n");
+
+test("a known site with a computed, symbol, private, quoted or numeric name resolves to that name", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/names.ts";
+  const root = await plantedTree(graphTree({ [file]: NAMES_TEXT }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const rows = [
+    { member: "zqComputed", name: "[KEY]" },
+    { member: "iterator", name: "[Symbol.iterator]" },
+    { member: "zqPrivate", name: "#zqPrivate =" },
+    { member: "zqQuoted", name: '"zqQuoted" =' },
+    { member: "4242", name: "4242 =" },
+  ].map(({ member, name }) => ({ member, known: [`${file}:${String(NAMES_TEXT.indexOf(name))}`], neverWritten: false }));
+  const search = searchLiterals(
+    root,
+    world,
+    rows.map(({ member }) => member),
+  );
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  expect(
+    rowsEvidence(search, world, rows).map(({ elsewhere, productRead, hits }, at) => [
+      rows[at]?.member,
+      elsewhere,
+      productRead,
+      hits.map(({ at: site, kind }) => `${site} ${kind}`),
+    ]),
+  ).toEqual([
+    ["zqComputed", 0, true, [`${file}:1 string`, `${file}:10 read`]],
+    // Both words read SymbolConstructor.iterator, another declaration of the name.
+    ["iterator", 2, false, []],
+    ["zqPrivate", 0, true, [`${file}:7 read`]],
+    ["zqQuoted", 0, true, [`${file}:10 read`]],
+    ["4242", 0, true, [`${file}:10 read`]],
+  ]);
 });
 
 test("every kind of hit is classified where it sits", { timeout: TIMEOUT }, async ({ plantedTree }) => {

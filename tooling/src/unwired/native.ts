@@ -66,6 +66,32 @@ export function nodePlace(node: Node): string {
   return `${file} pos=${String(node.pos)} end=${String(node.end)} ${SyntaxKind[node.kind]} (${origin})`;
 }
 
+/** The deepest node of the program's tree whose text, trivia aside, holds `position`. */
+export function deepestAt(source: SourceFile, position: number): Node | undefined {
+  let found: Node | undefined;
+  const visit = (node: Node): void => {
+    if (position >= node.getStart(source) && position < node.end) {
+      found = node;
+      node.forEachChild(visit);
+    }
+  };
+  source.forEachChild(visit);
+  return found;
+}
+
+/** The name a site key points at: the deepest node of the program's tree that starts at `position`, the rule a key
+ *  is minted by (a declaration's name or a reference's start, so a computed name is its whole `[…]`), or a string
+ *  literal whose reported span starts inside its quote. Undefined when no node starts there: a reference in a doc
+ *  comment names no code. A tree walk, never a token lookup: the navigator makes its own tokens for syntax the tree
+ *  holds no node for, and the checker takes none of them. */
+export function nameAt(source: SourceFile, position: number): Node | undefined {
+  const found = deepestAt(source, position);
+  const start = found?.getStart(source);
+  return start === position || (found !== undefined && (isStringLiteral(found) || isNoSubstitutionTemplateLiteral(found)) && start === position - 1)
+    ? found
+    : undefined;
+}
+
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript symbol and type flags are compiler-owned bitfields.
