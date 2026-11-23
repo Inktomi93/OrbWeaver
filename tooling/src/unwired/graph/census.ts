@@ -33,10 +33,10 @@ import { declaredNameOf, evenSample } from "./verify.ts";
 /**
  * Where a reference site stands against the graph, first match wins: the graph gave the member a role at the site; the
  * graph's only role there is a send with no destination; the graph never walked the site's file; the graph gave the
- * member a role in the site's statement at a node no reference names; roles.ts rules the site does nothing; or the
- * compiler has a reference and the graph has nothing.
+ * member a role at the start of a node that encloses the site (a destructuring pattern, an indexed access type); the graph gave the member a role elsewhere in the site's statement at a node no reference names; roles.ts
+ * rules the site does nothing; or the compiler has a reference and the graph has nothing.
  */
-export const SITE_CLASSES = ["placed", "unclassified", "unwalked", "elsewhere", "declares", "gap"] as const;
+export const SITE_CLASSES = ["placed", "unclassified", "unwalked", "enclosing", "elsewhere", "declares", "gap"] as const;
 export type SiteClass = (typeof SITE_CLASSES)[number];
 
 // The buckets that say nothing in the product reads a declaration: a read the graph missed there is a false finding.
@@ -52,7 +52,6 @@ const STEP_JOIN = " < ";
 const UNKNOWN_SLOT = "?";
 const SHOWN_SAMPLES = 3;
 const SHOWN_VARIANTS = 3;
-const SHOWN_MEMBERS = 5;
 /** How many gap shapes a census prints as its short list. */
 export const TOP_SHAPES = 20;
 // Members asked in one batch: each batch's answers are released before the next, so the census holds one batch's nodes.
@@ -208,10 +207,11 @@ export interface CensusShape {
   readonly roles: readonly Role[];
   /** What roles.ts occurrenceRoles says each gap site does, by role. */
   readonly expected: Readonly<Partial<Record<Role, number>>>;
-  /** The gap sites whose member an unread bucket holds, the product reads among them, and the first such members. */
+  /** The gap sites whose member an unread bucket holds, the product reads among them, and every member with such a
+   *  read as `bucket member at file:line`, the line being its first one found. */
   readonly unread: { readonly sites: number; readonly productReads: number; readonly members: readonly string[] };
-  /** The first gap sites, `file:line member`, a product one first. */
-  readonly samples: readonly string[];
+  /** Every gap site, `file:line member`, the product ones first. */
+  readonly places: readonly string[];
   /** The whole signatures with the most gap sites, each to its statement. */
   readonly variants: readonly { readonly signature: string; readonly gaps: number }[];
 }
@@ -251,12 +251,13 @@ interface Tally {
   readonly expected: Map<Role, number>;
   unreadSites: number;
   unreadProductReads: number;
-  readonly unreadMembers: Set<string>;
-  readonly samples: string[];
+  readonly unreadMembers: Map<string, string>;
+  readonly productPlaces: string[];
+  readonly otherPlaces: string[];
   readonly variants: Map<string, number>;
 }
 
-const noCounts = (): Record<SiteClass, number> => ({ placed: 0, unclassified: 0, unwalked: 0, elsewhere: 0, declares: 0, gap: 0 });
+const noCounts = (): Record<SiteClass, number> => ({ placed: 0, unclassified: 0, unwalked: 0, enclosing: 0, elsewhere: 0, declares: 0, gap: 0 });
 
 const newTally = (): Tally => ({
   sites: 0,
@@ -266,8 +267,9 @@ const newTally = (): Tally => ({
   expected: new Map(),
   unreadSites: 0,
   unreadProductReads: 0,
-  unreadMembers: new Set(),
-  samples: [],
+  unreadMembers: new Map(),
+  productPlaces: [],
+  otherPlaces: [],
   variants: new Map(),
 });
 
@@ -365,17 +367,21 @@ class Census {
     for (const [place, { node, file }] of sites) {
       const context = contextOf(node, this.#slots);
       const exact = byPlace.get(place);
-      const found = exact === undefined ? this.#unplaced(node, file, context.statement, loose) : exactClass(exact);
+      const found = exact === undefined ? this.#unplaced({ node, file, statement: context.statement }, loose) : exactClass(exact);
       this.#count({ key, label, node, file, context, found, roles: exact?.map(({ role }) => role) ?? [] });
     }
   }
 
-  #unplaced(node: Node, file: string, statement: Node, loose: readonly RoleSite[]): SiteClass {
+  // A site with no role of its own: the member's roles no reference names decide whether the graph read it from a
+  // node around it.
+  #unplaced({ node, file, statement }: { readonly node: Node; readonly file: string; readonly statement: Node }, loose: readonly RoleSite[]): SiteClass {
     if (!this.#walked.has(file)) {
       return "unwalked";
     }
-    if (loose.some((site) => site.file === file && site.at >= statement.pos && site.at < statement.end)) {
-      return "elsewhere";
+    const near = loose.filter((site) => site.file === file && site.at >= statement.pos && site.at < statement.end);
+    if (near.length > 0) {
+      const edges = enclosingEdges(node, statement);
+      return near.some(({ at }) => edges.has(at)) ? "enclosing" : "elsewhere";
     }
     return occurrenceRoles(node).length === 0 ? "declares" : "gap";
   }
@@ -409,14 +415,13 @@ class Census {
     const signature = context.steps.join(STEP_JOIN);
     tally.variants.set(signature, (tally.variants.get(signature) ?? 0) + 1);
     const source = node.getSourceFile();
-    const sample = `${file}:${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)} ${label}`;
+    const line = `${file}:${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)}`;
     if (product) {
       tally.productGaps += 1;
-      tally.samples.unshift(sample);
+      tally.productPlaces.push(`${line} ${label}`);
     } else {
-      tally.samples.push(sample);
+      tally.otherPlaces.push(`${line} ${label}`);
     }
-    tally.samples.length = Math.min(tally.samples.length, SHOWN_SAMPLES);
     const bucket = this.#unread.get(key);
     if (bucket === undefined) {
       return;
@@ -424,8 +429,9 @@ class Census {
     tally.unreadSites += 1;
     if (product && expected.some((role) => READS.has(role))) {
       tally.unreadProductReads += 1;
-      if (tally.unreadMembers.size < SHOWN_MEMBERS) {
-        tally.unreadMembers.add(`${bucket} ${label}`);
+      const member = `${bucket} ${label}`;
+      if (!tally.unreadMembers.has(member)) {
+        tally.unreadMembers.set(member, line);
       }
     }
   }
@@ -451,6 +457,18 @@ class Census {
   }
 }
 
+// The start of every node from a site's parent out to its statement: where a pass that reads a whole construct (a
+// destructuring pattern, an indexed access type) records the role of a member the construct names.
+function enclosingEdges(node: Node, statement: Node): ReadonlySet<number> {
+  const edges = new Set<number>();
+  for (let at = node.parent; ; at = at.parent) {
+    edges.add(at.pos);
+    if (sameNode(at, statement) || isSourceFile(at)) {
+      return edges;
+    }
+  }
+}
+
 // The declarations an unread bucket holds, each with its bucket.
 const unreadOf = (analysis: Analysis): ReadonlyMap<GraphKey, Bucket> =>
   new Map(UNREAD_BUCKETS.flatMap((bucket) => analysis[bucket].flatMap(({ key }) => (key === null ? [] : [[key, bucket] as const]))));
@@ -469,8 +487,12 @@ function shapeOf(shape: string, tally: Tally): CensusShape {
     productGaps: tally.productGaps,
     roles: [...tally.roles].sort(),
     expected: Object.fromEntries(tally.expected),
-    unread: { sites: tally.unreadSites, productReads: tally.unreadProductReads, members: [...tally.unreadMembers] },
-    samples: tally.samples,
+    unread: {
+      sites: tally.unreadSites,
+      productReads: tally.unreadProductReads,
+      members: [...tally.unreadMembers].map(([member, line]) => `${member} at ${line}`),
+    },
+    places: [...tally.productPlaces, ...tally.otherPlaces],
     variants: [...tally.variants]
       .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
       .slice(0, SHOWN_VARIANTS)
@@ -526,7 +548,7 @@ export function censusText(report: CensusReport): string {
     `  graph roles at placed sites: ${shape.roles.join(",") || "none"}; a gap site would be: ${expectedText(shape.expected) || "nothing roles.ts names"}`,
     `  unread-bucket members: gap sites ${String(shape.unread.sites)}, product reads ${String(shape.unread.productReads)}`,
     ...shape.unread.members.map((member) => `    ${member}`),
-    ...shape.samples.map((sample) => `  at ${sample}`),
+    ...shape.places.slice(0, SHOWN_SAMPLES).map((place) => `  at ${place}`),
     ...shape.variants.map(({ signature, gaps }) => `  ${String(gaps)}\t${signature}`),
   ];
   return [

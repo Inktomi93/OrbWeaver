@@ -21,7 +21,7 @@ const KEY_IN_ARROW = "Identifier < PropertyAssignment.name < ObjectLiteralExpres
 const KEY_IN_ASSERTIONS = "Identifier < PropertyAssignment.name < ObjectLiteralExpression.properties < wrap(!,as)";
 const TO_STATEMENT = "VariableDeclarationList.declarations < VariableStatement.declarationList";
 
-const NO_SITES: Readonly<Record<SiteClass, number>> = { placed: 0, unclassified: 0, unwalked: 0, elsewhere: 0, declares: 0, gap: 0 };
+const NO_SITES: Readonly<Record<SiteClass, number>> = { placed: 0, unclassified: 0, unwalked: 0, enclosing: 0, elsewhere: 0, declares: 0, gap: 0 };
 const counted = (classes: Partial<Record<SiteClass, number>>): Readonly<Record<SiteClass, number>> => ({ ...NO_SITES, ...classes });
 
 const handledAt = (report: CensusReport, shape: string): unknown => report.handled.find((entry) => entry.shape === shape);
@@ -69,7 +69,7 @@ test("a context the graph gives no role is a gap with its count, what it would d
       roles: [],
       expected: { write: 2 },
       unread: { sites: 1, productReads: 0, members: [] },
-      samples: [`${FILE}:4 A.y`, `${FILE}:4 A.x`],
+      places: [`${FILE}:4 A.x`, `${FILE}:4 A.y`],
       variants: [{ signature: `${KEY_IN_ARROW} < VariableDeclaration.initializer < ${TO_STATEMENT}`, gaps: 2 }],
     },
     {
@@ -81,7 +81,7 @@ test("a context the graph gives no role is a gap with its count, what it would d
       roles: [],
       expected: { write: 2 },
       unread: { sites: 1, productReads: 0, members: [] },
-      samples: [`${FILE}:2 A.y`, `${FILE}:2 A.x`],
+      places: [`${FILE}:2 A.x`, `${FILE}:2 A.y`],
       variants: [{ signature: `${KEY_IN_INITIALIZER} < ${TO_STATEMENT}`, gaps: 2 }],
     },
   ]);
@@ -150,7 +150,7 @@ test("a role on another node of the statement, and a site roles.ts rules does no
   const destructured = "Identifier < BindingElement.name < ObjectBindingPattern.elements < VariableDeclaration.name";
   const linked = "Identifier < QualifiedName.right < JSDocLink.name < JSDoc.comment";
   expect(report.gaps).toEqual([]);
-  expect(handledAt(report, destructured)).toEqual({ shape: destructured, sites: 1, classes: counted({ elsewhere: 1 }), roles: [] });
+  expect(handledAt(report, destructured)).toEqual({ shape: destructured, sites: 1, classes: counted({ enclosing: 1 }), roles: [] });
   expect(handledAt(report, linked)).toEqual({ shape: linked, sites: 1, classes: counted({ declares: 1 }), roles: [] });
 });
 
@@ -194,7 +194,7 @@ test("pnpm unwired graph-census prints its top gap shapes and writes the report 
   const run = await runCli("unwired", ["graph-census", `--ablate=${KEYS_OFF}`, `--root=${root}`, `--out=${out}`]);
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout).toBe(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n`);
-  expect(run.stderr).toContain("members=2/2 unread=2 unresolved=0 placed=0 unclassified=0 unwalked=0 elsewhere=0 declares=0 gap=2 gap-shapes=1");
+  expect(run.stderr).toContain("members=2/2 unread=2 unresolved=0 placed=0 unclassified=0 unwalked=0 enclosing=0 elsewhere=0 declares=0 gap=2 gap-shapes=1");
   expect(existsSync(out)).toBe(true);
   expect(readFileSync(join(scratch, "census.txt"), "utf8")).toContain(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n  sites placed=0`);
 });
