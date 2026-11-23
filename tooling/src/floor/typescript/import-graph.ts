@@ -170,11 +170,14 @@ export class ImportGraph {
     return [...seen];
   }
 
-  /** The direct importers of each of `files`, and what each of them reaches without an import: the importers of a
-   *  module it augments and the files that spell a global it declares, with their importers. Every source when one of
-   *  them is a script or reaches every file. */
+  /** The importers of each of `files`, directly or through a chain, and what each of them and of `files` reaches
+   *  without an import: the importers of a module it augments and the files that spell a global it declares, with
+   *  their importers. Every source when one of them is a script or reaches every file.
+   *  @remarks Transitive, never direct only: a file can read a type through an inferred value or alias another file
+   *  exports, so a reader two imports from every file in `files` names none of them and still breaks. */
   around(files: readonly string[]): readonly string[] {
-    const reaches = files.flatMap((at) => {
+    const chained = [...new Set(files.flatMap((at) => this.importers(at)))];
+    const reaches = [...files, ...chained].flatMap((at) => {
       const reach = this.#reach.get(at);
       return reach === undefined ? [] : [reach];
     });
@@ -182,7 +185,7 @@ export class ImportGraph {
       return this.#files;
     }
     const reached = reaches.flatMap((reach) => (reach === "everywhere" ? [] : reach));
-    return [...new Set([...files.flatMap((at) => [...(this.#importers.get(at) ?? [])]), ...reached, ...reached.flatMap((at) => this.importers(at))])];
+    return [...new Set([...chained, ...reached, ...reached.flatMap((at) => this.importers(at))])];
   }
 
   /** The files besides `file` an edit of it can break: its importers, and the reach of each of them and of `file`

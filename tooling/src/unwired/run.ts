@@ -158,7 +158,7 @@ function literalLine(stage: LiteralStage | null): string {
   const moved = Object.entries(stage.movedBy)
     .map(([kind, count]) => `${kind}:${String(count)}`)
     .join(",");
-  return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)}`;
+  return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)} unsearchable=${String(stage.unsearchable)}`;
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */

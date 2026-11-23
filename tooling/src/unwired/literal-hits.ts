@@ -6,6 +6,8 @@
 // changed here changes the graph's literal evidence too.
 //
 // Rulings:
+// - A searched name is one word (isLiteralName): its text builds the pattern, so any other text is refused, never
+//   matched as something else. A caller searches a member by the word it is read by, never by its bracket text.
 // - TS and JS files are read on the graph program (D357): the caller hands in the NativeWorld it opened, the program's
 //   own tree serves a file the program holds, and a file outside it is parsed alone through the same process. Every
 //   other file is classified by its type. A literal search sees reads the compiler cannot: a JSON scenario, a
@@ -246,8 +248,11 @@ const isGenerated = (root: string, file: string): boolean => isGeneratedFile(fil
 const escaped = (name: string): string => name.replaceAll(/\$/gu, String.raw`\$`);
 // ASCII, spelled out: git's PCRE reads a Greek or accented letter as a word character, JavaScript's `\w` does not.
 const WORD_CHAR = "[A-Za-z0-9_$]";
-/** A name the search takes: one word of {@link WORD_CHAR}, since the match boundaries assume one. */
+// A name the search takes: one word of WORD_CHAR, since the match boundaries assume one.
 const NAME = /^[A-Za-z0-9_$]+$/u;
+
+/** Whether {@link searchLiterals} can search a name: one word of ASCII letters, digits, `_` and `$`. */
+export const isLiteralName = (name: string): boolean => NAME.test(name);
 // One pattern for both passes: git grep finds the lines and the JavaScript pass finds each hit on them, so the two
 // agree on every boundary. `git grep -w -F` with many names rescans each candidate and is far slower than one PCRE
 // alternation on a large tree.
@@ -443,12 +448,18 @@ interface Found {
 }
 
 /** Search the working tree's tracked files for each name as a whole word, or null for a root with no git index. Parsed
- *  files are read on `world`, the graph program the caller owns. */
+ *  files are read on `world`, the graph program the caller owns.
+ *  @throws Error when a name is not one {@link isLiteralName} word, before any search: its text would build a pattern
+ *  that is not the word, a `[KEY]` a character class. */
 export function searchLiterals(root: string, world: NativeWorld, names: readonly string[]): LiteralSearch | null {
+  const wanted = [...new Set(names)];
+  const refused = wanted.filter((name) => !isLiteralName(name));
+  if (refused.length > 0) {
+    throw new Error(`literal hits: ${refused.map((name) => JSON.stringify(name)).join(", ")} not one word of letters, digits, _ and $`);
+  }
   if (!existsSync(join(root, ".git"))) {
     return null;
   }
-  const wanted = [...new Set(names)].filter((name) => name !== "");
   const files = execGit(root, ["ls-files", "-z"]).split("\0").filter(Boolean).length;
   const ignored = execGit(root, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]).split("\0").filter(Boolean).length;
   const byFile = grepNames(root, wanted);
@@ -749,7 +760,12 @@ function parsedHits(source: SourceFile, file: string, found: readonly Found[], g
 const SAVING: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call", "import-export", "string", "template", "config-key", "generated", "other"]);
 const savesRow = (hit: LiteralHit): boolean => SAVING.has(hit.kind) || (hit.kind === "type" && hit.scope === "test");
 
-const offsetKey = (hit: LiteralHit): string | null => (hit.site === null ? null : `${hit.file}:${String(hit.site)}`);
+const siteKey = (file: string, site: number): string => `${file}:${String(site)}`;
+const offsetKey = (hit: LiteralHit): string | null => (hit.site === null ? null : siteKey(hit.file, hit.site));
+
+/** The key a row's own site is known by, the one a hit there carries: the name starting at `pos` past its trivia, a
+ *  private name at its `#` and a quoted name at its quote. `pos` may be a node's full start. */
+export const ownSiteKey = (source: SourceFile, file: string, pos: number): string => siteKey(file, nameStart(source, skipTrivia(source.text, pos)));
 
 // A common name hits thousands of lines; the row keeps every count and this many hits, the saving ones first.
 const KEPT_HITS = 25;
@@ -789,6 +805,8 @@ export interface LiteralStage {
   readonly ownHits: number;
   /** Never-written rows the stage searched, by where they ended. */
   readonly neverWritten: { readonly ask: number; readonly dead: number };
+  /** Dead rows whose member is not one word: no search can clear them, so they moved to ask unsearched. */
+  readonly unsearchable: number;
 }
 
 interface StageRow {
@@ -882,15 +900,17 @@ function countKinds(hits: readonly LiteralHit[]): Partial<Record<HitKind, number
 }
 
 /** Search every dead row's member name over the tracked tree and move a row with a hit that can be a read to ask. A
- *  row's own known sites are no hit: the stage looks for what the scan missed. Null stage for a root with no git index,
- *  which leaves every row as it was. */
+ *  row's own known sites are no hit: the stage looks for what the scan missed. A dead row whose member is not one word
+ *  (a quoted `"content-type"` key) moves to ask unsearched, since no search can clear it. Null stage for a root with no
+ *  git index, which leaves every row as it was. */
 export function literalStage<Row extends StageRow>(
   root: string,
   world: NativeWorld,
   rows: readonly Row[],
   control: { readonly key: string; readonly member: string; readonly known: readonly string[] },
 ): { readonly rows: readonly (Row & { readonly literal: LiteralEvidence | null })[]; readonly stage: LiteralStage | null } {
-  const dead = rows.filter((row) => row.verdict === DEAD);
+  const unsearchable = new Set(rows.filter((row) => row.verdict === DEAD && !isLiteralName(row.member)));
+  const dead = rows.filter((row) => row.verdict === DEAD && !unsearchable.has(row));
   const search = searchLiterals(root, world, [control.member, ...dead.map((row) => row.member)]);
   if (search === null) {
     return { rows: rows.map((row) => ({ ...row, literal: null })), stage: null };
@@ -905,6 +925,9 @@ export function literalStage<Row extends StageRow>(
   const verdicts = new Map(dead.map((row, at) => [row, at]));
   const judgedDead = judged(search, world, dead);
   const staged = rows.map((row) => {
+    if (unsearchable.has(row)) {
+      return { ...row, verdict: ASK, literal: null };
+    }
     const at = verdicts.get(row);
     const found = at === undefined ? undefined : judgedDead[at];
     if (found === undefined) {
@@ -927,12 +950,13 @@ export function literalStage<Row extends StageRow>(
       files: search.files,
       ignored: search.ignored,
       control: { key: control.key, hits: controlHits },
-      deadBefore: dead.length,
+      deadBefore: dead.length + unsearchable.size,
       deadAfter: staged.filter((row) => row.verdict === DEAD).length,
       movedBy,
       staleOnly,
       ownHits,
       neverWritten: { ask: unwritten.filter((row) => row.verdict === ASK).length, dead: unwritten.filter((row) => row.verdict === DEAD).length },
+      unsearchable: unsearchable.size,
     },
   };
 }

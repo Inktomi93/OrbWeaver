@@ -429,3 +429,20 @@ test("more names than one grep pattern holds are searched in parts, and each hit
   ]);
   expect(stage?.deadAfter).toBe(members.length - 2);
 });
+
+// A name's text builds the pattern, so a name that is not one word would search for something else: `[LIT]` is a
+// character class. The search refuses it, and the stage moves such a dead row to ask unsearched, never leaves it dead.
+test("a name that is not one word is refused by the search and moves its dead row to ask unsearched", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [DECLARATION]: DECLARED, "packages/a/src/letters.ts": "export const L = 1;\n" }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  expect(() => searchLiterals(root, world, ["zqWord", "[L]"])).toThrow(/"\[L\]" not one word/u);
+  const rows = ["zq-dash", "zqQuietRow"].map((member) => ({ member, verdict: "dead" as const, known: [], neverWritten: false }));
+  const { rows: staged, stage } = literalStage(root, world, rows, CONTROL);
+  expect(staged.map(({ member, verdict, literal }) => [member, verdict, literal === null])).toEqual([
+    ["zq-dash", "ask", true],
+    ["zqQuietRow", "dead", false],
+  ]);
+  expect([stage?.unsearchable, stage?.deadBefore, stage?.deadAfter]).toEqual([1, 2, 1]);
+});

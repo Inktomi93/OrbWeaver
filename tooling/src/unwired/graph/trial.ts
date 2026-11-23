@@ -22,7 +22,9 @@
 // - A compile-clean candidate whose name has a hit in product source outside its own sites that can be a read (a
 //   string key, a JSON key, a call by name) is confirmed-literal, through the fields literal stage's own judge
 //   (../literal-hits.ts). A hit in a test, the tooling or a config only annotates, and a code hit the checker resolves
-//   to another declaration of the name is no hit.
+//   to another declaration of the name is no hit. A name is searched by the word it is read by (a computed member by
+//   its key's value); a private name is never searched, and a name that is not one word keeps confirmed with a note.
+// - Reads under snap count as the product's (D357, ./state.ts productReader), in the trial and in the control.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
@@ -45,12 +47,15 @@ import {
   isMethodDeclaration,
   isNamedExports,
   isNamespaceImport,
+  isNoSubstitutionTemplateLiteral,
+  isNumericLiteral,
   isObjectLiteralExpression,
   isPrivateIdentifier,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isShorthandPropertyAssignment,
   isSourceFile,
+  isStringLiteral,
   isTypeLiteralNode,
   isVariableDeclaration,
   isVariableDeclarationList,
@@ -63,10 +68,9 @@ import { SymbolFlags } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { LiteralEvidence } from "../literal-hits.ts";
-import { rowsEvidence, searchLiterals } from "../literal-hits.ts";
+import { isLiteralName, ownSiteKey, rowsEvidence, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
-import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -74,6 +78,7 @@ import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
 import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
+import { productReader } from "./state.ts";
 import type { FindingReferences } from "./verify.ts";
 import { evenSample, nodeAt, referencesOf } from "./verify.ts";
 
@@ -559,10 +564,11 @@ class Trials {
   }
 
   // The files a snapshot of these candidates checks. Under `references`: the edited files, each file that names a
-  // candidate or a declaration holding it (its home type and the declarations up to its file's top level), the direct
-  // importers of those (a re-export, a derived type) and what an augmentation among them reaches. A delete breaks a site
-  // that names the member, or one that builds, assigns or constrains a holder, and both name the holder. A computed
-  // member adds what its {@link Bracket} reaches.
+  // candidate or a declaration holding it (its home type and the declarations up to its file's top level), every
+  // importer of those, directly or through a chain (a re-export, a derived type, an alias of an inferred one), and what
+  // an augmentation among them reaches. A delete breaks a site that names the member, or one that builds, assigns or
+  // constrains a holder through a type that leads back to a file naming it. A computed member adds what its
+  // {@link Bracket} reaches. The edited file is among the named ones, so this set holds every file `imports` checks.
   #checkedFor(items: readonly Candidate[], edited: readonly string[]): readonly string[] {
     if (this.#reach === "imports") {
       return [
@@ -700,7 +706,7 @@ class Trials {
   // A new error, placed at the reader when an import's own file reads the binding it breaks.
   #error({ diagnostic, pos }: AddedError): TrialError {
     const file = this.#relative(diagnostic);
-    const base = { code: diagnostic.code, product: isProduction(file), text: firstLine(diagnostic.text) };
+    const base = { code: diagnostic.code, product: productReader(file), text: firstLine(diagnostic.text) };
     const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
     const source = this.#world.source(file);
     const site = source === undefined ? undefined : moduleSite(touching(source, pos));
@@ -736,7 +742,7 @@ class Trials {
   // TypeScript's unused-code diagnostics on the product files against the graph's dead units and private members.
   control(analysis: Analysis): readonly ControlRow[] {
     const { facts } = this.#graph;
-    const product = this.#graph.files.filter((file) => isProduction(file) && this.#world.has(file)).map((file) => this.#absolute(file));
+    const product = this.#graph.files.filter((file) => productReader(file) && this.#world.has(file)).map((file) => this.#absolute(file));
     const { program } = this.#world;
     const unused = [...program.getSuggestionDiagnostics(product), ...program.getSemanticDiagnostics(product)].filter(
       ({ reportsUnnecessary }) => reportsUnnecessary === true,
@@ -960,6 +966,22 @@ function holdersOf(node: Node): readonly Node[] {
   return names;
 }
 
+// The word a string, a JSON key or a plugin reads a declaration by: an identifier's text, a quoted or numeric name's
+// value, and for a computed name the member symbol's name, which is the key's value (`[KEY]` with `KEY = "a"` is `a`).
+// Null for a private name: no string reaches `#x`, so the compile is the whole answer.
+function* searchedWord(world: NativeWorld, name: Node): APIRequestGenerator<string | null> {
+  if (isPrivateIdentifier(name)) {
+    return null;
+  }
+  if (isComputedPropertyName(name)) {
+    const member = yield* world.checker.getSymbolAtLocation.gen(name);
+    return member?.name ?? name.getText(name.getSourceFile());
+  }
+  return isIdentifier(name) || isStringLiteral(name) || isNoSubstitutionTemplateLiteral(name) || isNumericLiteral(name)
+    ? name.text
+    : name.getText(name.getSourceFile());
+}
+
 // A compile clean only says the compiler needs no site of the name: a string key, a JSON or fixture key or a plugin
 // reading the member by name can still be one. Each confirmed candidate's name is searched over the tracked tree, its
 // own sites (the occurrences find-references gave) left out as the fields literal stage leaves them out, and a hit
@@ -969,17 +991,23 @@ function literalPass(
   world: NativeWorld,
   compiled: readonly { readonly trial: Trial; readonly references: FindingReferences | undefined }[],
 ): { readonly trials: readonly Trial[]; readonly files: number | null } {
-  const asked = compiled.flatMap(({ trial, references }) =>
+  const clean = compiled.flatMap(({ trial, references }) =>
     trial.verdict === "confirmed" && references?.name !== undefined ? [{ trial, name: references.name, occurrences: references.occurrences }] : [],
   );
-  const textOf = (node: Node): string => node.getText(node.getSourceFile());
+  const words = world.batch(clean.map(({ name }) => searchedWord(world, name)));
+  const named = clean.flatMap((entry, at) => {
+    const word = words[at];
+    return word === undefined || word === null ? [] : [{ ...entry, word }];
+  });
+  const asked = named.filter(({ word }) => isLiteralName(word));
+  const unsearchable = new Map(named.filter(({ word }) => !isLiteralName(word)).map(({ trial, word }) => [trial, word]));
   const search =
     asked.length === 0
       ? null
       : searchLiterals(
           root,
           world,
-          asked.map(({ name }) => textOf(name)),
+          asked.map(({ word }) => word),
         );
   const found =
     search === null
@@ -987,14 +1015,18 @@ function literalPass(
       : rowsEvidence(
           search,
           world,
-          asked.map(({ name, occurrences }) => ({
-            member: textOf(name),
-            known: [name, ...occurrences].map((node) => `${world.fileOfSource(node.getSourceFile())}:${String(node.getStart(node.getSourceFile()))}`),
+          asked.map(({ word, name, occurrences }) => ({
+            member: word,
+            known: [name, ...occurrences].map((node) => ownSiteKey(node.getSourceFile(), world.fileOfSource(node.getSourceFile()), node.pos)),
             neverWritten: false,
           })),
         );
   const evidence = new Map(asked.flatMap(({ trial }, at) => (found[at] === undefined ? [] : [[trial, found[at]] as const])));
   const trials = compiled.map(({ trial }) => {
+    const word = unsearchable.get(trial);
+    if (word !== undefined) {
+      return { ...trial, note: `${JSON.stringify(word)} is not one word, so no literal search could look for a read by name` };
+    }
     const literal = evidence.get(trial);
     if (literal === undefined || !literal.saved) {
       return trial;

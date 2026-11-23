@@ -8,13 +8,19 @@ import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
-import { TRIAL_REACHES } from "../../../tooling/src/unwired/graph/trial.ts";
+import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
+import { TRIAL_BUCKETS, TRIAL_REACHES, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
-import { trialGraph } from "../../../tooling/src/unwired/index.ts";
+import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree, LIB as LIBS, WORLD } from "./_planted.ts";
+
+const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
+const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
+const [, KEPT_BY_RULING] = BUCKETS;
 
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
+const MID = `${GRAPH_SOURCE}/mid.ts`;
 const SHAPE = `${GRAPH_SOURCE}/shape.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
@@ -69,12 +75,12 @@ test("a delete removes a whole interface member, class member or literal method 
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
   expect(outcomes(report)).toEqual([
-    [`${LIB}:Shape.gone`, "confirmed", `${LIB}: readonly gone?: string;`],
-    [`${LIB}:table.middle`, "confirmed", `${LIB}: middle(): number { return 2; },`],
-    [`${LIB}:table.last`, "confirmed", `${LIB}: , last(): number { return 3; }`],
-    [`${LIB}:Box.written`, "confirmed", `${LIB}: written = 3;`],
+    [`${LIB}:Shape.gone`, CONFIRMED, `${LIB}: readonly gone?: string;`],
+    [`${LIB}:table.middle`, CONFIRMED, `${LIB}: middle(): number { return 2; },`],
+    [`${LIB}:table.last`, CONFIRMED, `${LIB}: , last(): number { return 3; }`],
+    [`${LIB}:Box.written`, CONFIRMED, `${LIB}: written = 3;`],
   ]);
   // One file, one snapshot: a clean compile confirms the whole group, and the two literal neighbours share the comma
   // between them.
@@ -92,8 +98,8 @@ test("a delete removes a dead exported function's whole statement", { timeout: 1
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
-  expect(outcomes(report)).toEqual([[`${LIB}:orphan`, "confirmed", `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
+  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  expect(outcomes(report)).toEqual([[`${LIB}:orphan`, CONFIRMED, `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
 });
 
 // The delete edits every export site that names the candidate, so neither a local export list nor a re-export in
@@ -118,8 +124,8 @@ test.for([
   },
 ])("a dead function named by $site is confirmed with that site removed too", { timeout: 120_000 }, async ({ files, removed }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
-  expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, "confirmed", ...removed]]);
+  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, CONFIRMED, ...removed]]);
 });
 
 test("an import its own file never uses is a binding the delete removes: named-only, not refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -132,16 +138,16 @@ test("an import its own file never uses is a binding the delete removes: named-o
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
-    [`${LIB}:orphan`, "named-only", [`${MAIN}:1 binding`]],
+    [`${LIB}:orphan`, NAMED_ONLY, [`${MAIN}:1 binding`]],
   ]);
 });
 
 // A for-of binding is a declaration no delete can remove alone: cutting its name leaves a loop that does not parse.
 test("a delete that leaves its file unparsable is unresolved, with the edit it tried", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree({ [MAIN]: ["for (const spare of [1]) {", "}"].join("\n") }, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(
     report.trials.map(({ label, verdict, removed, note }) => [
       label,
@@ -149,7 +155,7 @@ test("a delete that leaves its file unparsable is unresolved, with the edit it t
       removed.map(({ text }) => text.trim()),
       note?.startsWith("the delete edit does not parse"),
     ]),
-  ).toEqual([[`${MAIN}:spare`, "unresolved", ["spare"], true]]);
+  ).toEqual([[`${MAIN}:spare`, UNRESOLVED, ["spare"], true]]);
 });
 
 const READER_TREE = (lib: string): Record<string, string> => ({
@@ -165,9 +171,9 @@ const READER_TREE = (lib: string): Record<string, string> => ({
 test("a product read find-references names refutes the finding with no snapshot", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
   const lines: string[] = [];
-  const report = await trial(root, { buckets: ["type-only"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: [TYPE_ONLY], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, references, checked, errors, compiles }) => ({ label, verdict, references, checked, errors, compiles }))).toEqual(
-    [{ label: `${LIB}:DEFAULTS`, verdict: "refuted-references", references: [`${SHAPE}:3`], checked: [], errors: [], compiles: 0 }],
+    [{ label: `${LIB}:DEFAULTS`, verdict: REFUTED_REFERENCES, references: [`${SHAPE}:3`], checked: [], errors: [], compiles: 0 }],
   );
   expect(lines.filter((line) => line.startsWith("trial groups "))).toEqual([]);
 });
@@ -191,16 +197,16 @@ test("a group with an unowned error bisects to the one member it reads, counting
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
       .map(({ label, verdict, errors, compiles }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`), compiles]),
   ).toEqual([
-    [`${LIB}:Shape.kept`, "confirmed", [], 2],
-    [`${LIB}:Shape.a`, "confirmed", [], 2],
-    [`${LIB}:Shape.b`, "refuted", [`${MAIN}:3 read`], 3],
-    [`${LIB}:Shape.c`, "confirmed", [], 3],
+    [`${LIB}:Shape.kept`, CONFIRMED, [], 2],
+    [`${LIB}:Shape.a`, CONFIRMED, [], 2],
+    [`${LIB}:Shape.b`, REFUTED, [`${MAIN}:3 read`], 3],
+    [`${LIB}:Shape.c`, CONFIRMED, [], 3],
   ]);
   // The whole group, its clean half kept+a, the half b+c, then b and c alone.
   expect(progress(lines)).toMatch(/ snapshots 5 /u);
@@ -208,7 +214,8 @@ test("a group with an unowned error bisects to the one member it reads, counting
 
 // A delete breaks a site that names neither the member nor its file: one that constrains the home type through a
 // re-export, found by the references to the home type, and one that constrains a home-type value, found as an
-// importer of a file that names the home type; and an assignment that names the member two re-exports away from any file naming the home type.
+// importer of a file that names the home type; an assignment that names the member two re-exports away from any file
+// naming the home type; and a constraint on an alias another file infers, two imports from any file naming the home type.
 test.for([
   {
     site: "a constraint on the home type through a re-export",
@@ -258,14 +265,34 @@ test.for([
     },
     error: `${MAIN}:2 read`,
   },
+  {
+    site: "a constraint on an inferred alias two imports from every file that names the home type",
+    files: {
+      [LIB]: "export interface Shape { readonly kept: string; readonly b: string }",
+      [DOOR]: [
+        'import type { Shape } from "./lib.ts";',
+        "export declare const made: Shape;",
+        "export const keptOf = (shape: Shape): string => shape.kept;",
+      ].join("\n"),
+      [MID]: ['import { keptOf, made } from "./door.ts";', "export type Made = typeof made;", "export const kept = keptOf(made);"].join("\n"),
+      [MAIN]: [
+        'import { kept, type Made } from "./mid.ts";',
+        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "const view: Needs<Made> = true;",
+        "const use = (value: unknown): unknown => value;",
+        "use(view ? kept : undefined);",
+      ].join("\n"),
+    },
+    error: `${MAIN}:3 read`,
+  },
 ])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, error }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null });
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null });
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.b`)
       .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
-  ).toEqual([[`${LIB}:Shape.b`, "refuted", [error]]]);
+  ).toEqual([[`${LIB}:Shape.b`, REFUTED, [error]]]);
   // The narrowed set checks the breaking file even though it names neither the member nor the file that declares it.
   expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(MAIN);
 });
@@ -313,20 +340,52 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: ["member-untouched", "dead"], limit: null });
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null });
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq") || label.endsWith(":zqOrphan"))
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:2 string product`, `${KEYS}:1 string product`]],
-    [`${LIB}:Shape.zqFixture`, "confirmed", [`${FIXTURE}:1 config-key product`]],
-    [`${LIB}:Shape.zqQuiet`, "confirmed", []],
-    [`${LIB}:Shape.zqScripted`, "confirmed", [`${SCRIPT}:1 string tooling`]],
-    [`${LIB}:Shape.zqShared`, "confirmed", []],
-    [`${LIB}:zqOrphan`, "confirmed", []],
+    [`${LIB}:Shape.zqSecret`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`, `${KEYS}:1 string product`]],
+    [`${LIB}:Shape.zqFixture`, CONFIRMED, [`${FIXTURE}:1 config-key product`]],
+    [`${LIB}:Shape.zqQuiet`, CONFIRMED, []],
+    [`${LIB}:Shape.zqScripted`, CONFIRMED, [`${SCRIPT}:1 string tooling`]],
+    [`${LIB}:Shape.zqShared`, CONFIRMED, []],
+    [`${LIB}:zqOrphan`, CONFIRMED, []],
   ]);
   expect(report.literalFiles).toBeGreaterThan(0);
+});
+
+// A computed member is searched by the name its key resolves to, never by its bracket text: the same `in` operand reads
+// the plain member and the computed one, so both are confirmed-literal.
+test("a computed member a product string spells through its key's value is confirmed-literal like a plain one", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [KEYS]: ['export const LIT = "zqLit";', 'export const has = (o: object): boolean => "zqPlain" in o || "zqLit" in o;'].join("\n"),
+        [LIB]: [
+          'import { LIT } from "./keys.ts";',
+          "export interface Shape { readonly kept: string; readonly zqPlain?: string; readonly [LIT]?: string }",
+          "export const keptOf = (shape: Shape): string => shape.kept;",
+        ].join("\n"),
+        [MAIN]: ['import { keptOf } from "./lib.ts";', 'keptOf({ kept: "k" });'].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Shape.`))
+      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zqPlain`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`]],
+    [`${LIB}:Shape.[LIT]`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`, `${KEYS}:1 string product`]],
+  ]);
 });
 
 // A member named like a keyword (`get`, `new`, `default`, `of`, `as`) hits that keyword in code, where the tree
@@ -356,9 +415,9 @@ test("a member named like a keyword is confirmed past its keyword hits", { timeo
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null });
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:Shape.`)).map(({ label, verdict, literal }) => [label, verdict, literal.length])).toEqual(
-    ["get", "new", "default", "of", "as"].map((member) => [`${LIB}:Shape.${member}`, "confirmed", 0]),
+    ["get", "new", "default", "of", "as"].map((member) => [`${LIB}:Shape.${member}`, CONFIRMED, 0]),
   );
 });
 
@@ -399,15 +458,15 @@ test("a key in a JSON file a product module imports or in a bundle manifest is c
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null });
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq"))
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqImported`, "confirmed-literal", ["packages/a/data/table.json:1 config-key"]],
-    [`${LIB}:Shape.zqScriptOnly`, "confirmed", ["packages/a/data/script.json:1 config-key"]],
-    [`${LIB}:Shape.zqManifest`, "confirmed-literal", [`${manifest}:1 config-key`]],
+    [`${LIB}:Shape.zqImported`, CONFIRMED_LITERAL, ["packages/a/data/table.json:1 config-key"]],
+    [`${LIB}:Shape.zqScriptOnly`, CONFIRMED, ["packages/a/data/script.json:1 config-key"]],
+    [`${LIB}:Shape.zqManifest`, CONFIRMED_LITERAL, [`${manifest}:1 config-key`]],
   ]);
 });
 
@@ -439,13 +498,13 @@ test.for([
 ])("sixteen candidates of eight files share snapshots when $reading reads them", { timeout: 120_000 }, async ({ constrained, snapshots }, { plantedTree }) => {
   const root = await plantedTree(graphTree(sharedTree(constrained), { entries: LIBS_SHARED.map(({ reader }) => reader) }));
   const lines: string[] = [];
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
   const mine = report.trials.filter(({ label }) => /:S\d\.(gone|spare)$/u.test(label));
   expect(mine).toHaveLength(16);
   const bad = constrained === null ? null : `${LIBS_SHARED[constrained]?.lib}:S${String(constrained)}.spare`;
   expect(
-    mine.filter(({ verdict }) => verdict !== "confirmed").map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
-  ).toEqual(bad === null ? [] : [[bad, "refuted", [`${LIBS_SHARED[3]?.reader}:3 read`]]]);
+    mine.filter(({ verdict }) => verdict !== CONFIRMED).map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual(bad === null ? [] : [[bad, REFUTED, [`${LIBS_SHARED[3]?.reader}:3 read`]]]);
   // One shared snapshot of the libraries' twenty-four (each `kept` too, which no reader reads); the halving adds 2 per
   // level down to the one reading member, 2 * log2(16).
   expect(progress(lines)).toMatch(new RegExp(`^trial groups 1/1 candidates 24/24 snapshots ${String(snapshots)} `, "u"));
@@ -471,10 +530,10 @@ test("two write-only members of one literal each keep their own write, the maske
     }),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: ["member-write-only"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
-    [`${LIB}:A.a`, "named-only", [`${LIB}:4 write`]],
-    [`${LIB}:A.b`, "named-only", [`${LIB}:5 write`]],
+    [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:4 write`]],
+    [`${LIB}:A.b`, NAMED_ONLY, [`${LIB}:5 write`]],
   ]);
   expect(progress(lines)).toMatch(/^trial groups 1\/1 candidates 2\/2 snapshots 2 /u);
 });
@@ -491,14 +550,14 @@ test("an error no single candidate owns splits the group, and each half finds it
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: ["dead"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: [DEAD], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
       .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`)]),
   ).toEqual([
-    [`${LIB}:one`, "named-only", [`${MAIN}:1 TS2305 binding`]],
-    [`${LIB}:two`, "named-only", [`${MAIN}:1 TS2305 binding`]],
+    [`${LIB}:one`, NAMED_ONLY, [`${MAIN}:1 TS2305 binding`]],
+    [`${LIB}:two`, NAMED_ONLY, [`${MAIN}:1 TS2305 binding`]],
   ]);
   expect(progress(lines)).toMatch(/ snapshots 3 /u);
 });
@@ -507,7 +566,7 @@ test("--limit trials an even sample of the findings it names", { timeout: 120_00
   const root = await plantedTree(
     graphTree({ [MAIN]: "export {};", [LIB]: ["const one = 1;", "const two = 2;", "const three = 3;", "const four = 4;"].join("\n") }, { entries: [MAIN] }),
   );
-  const report = await trial(root, { buckets: ["dead"], limit: 2 }, () => undefined);
+  const report = await trial(root, { buckets: [DEAD], limit: 2 }, () => undefined);
   expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
 });
 
@@ -515,23 +574,25 @@ test("pnpm unwired graph-trial takes each --bucket, prints every trial with its 
   timeout: 120_000,
 }, async ({ plantedTree, runCli, scratch }) => {
   const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
-  const run = await runCli("unwired", ["graph-trial", "--bucket=type-only", "--bucket=dead", `--root=${root}`, `--out=${join(scratch, "trial.json")}`]);
+  const run = await runCli("unwired", ["graph-trial", `--bucket=${TYPE_ONLY}`, `--bucket=${DEAD}`, `--root=${root}`, `--out=${join(scratch, "trial.json")}`]);
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout.split("\n").filter((line) => !line.startsWith("control-") && line !== "")).toEqual([
-    `refuted-references\ttype-only\t${LIB}:DEFAULTS\t${SHAPE}:3`,
-    `confirmed\tdead\t${LIB}:SPARE\t`,
-    `confirmed\tdead\t${OTHER}:alone\t`,
+    `${REFUTED_REFERENCES}\t${TYPE_ONLY}\t${LIB}:DEFAULTS\t${SHAPE}:3`,
+    `${CONFIRMED}\t${DEAD}\t${LIB}:SPARE\t`,
+    `${CONFIRMED}\t${DEAD}\t${OTHER}:alone\t`,
   ]);
   const tallies = run.stderr.split("\n").filter((line) => line.includes(" trials="));
   expect(tallies).toEqual([
-    "type-only trials=1 confirmed=0 confirmed-literal=0 named-only=0 refuted-references=1 refuted=0 refuted-test-only=0 unresolved=0",
-    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ confirmed-literal=0 named-only=0 refuted-references=0 refuted=0 refuted-test-only=0 unresolved=0$/u),
+    `${TYPE_ONLY} trials=1 ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${verdict === REFUTED_REFERENCES ? "1" : "0"}`).join(" ")}`,
+    expect.stringMatching(
+      new RegExp(`^${DEAD} trials=\\d+ ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${verdict === CONFIRMED ? String.raw`\d+` : "0"}`).join(" ")}$`, "u"),
+    ),
   ]);
 });
 
 test.for([
   { refusal: "no bucket", argv: [] },
-  { refusal: "a bucket no delete can trial", argv: ["--bucket=kept-by-ruling"] },
+  { refusal: "a bucket no delete can trial", argv: [`--bucket=${KEPT_BY_RULING}`] },
 ])("pnpm unwired graph-trial refuses $refusal before any build", async ({ argv }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
@@ -550,8 +611,8 @@ test("an error the base program already has is not the removal's", { timeout: 12
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
-  expect(report.trials.filter(({ label }) => label === `${LIB}:orphan`).map(({ verdict, errors }) => [verdict, errors])).toEqual([["confirmed", []]]);
+  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  expect(report.trials.filter(({ label }) => label === `${LIB}:orphan`).map(({ verdict, errors }) => [verdict, errors])).toEqual([[CONFIRMED, []]]);
 });
 
 test("a write-only member's own literal write leaves it named-only, not refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -564,9 +625,9 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
       ].join("\n"),
     }),
   );
-  const report = await trial(root, { buckets: ["member-write-only"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
-    [`${LIB}:A.a`, "named-only", [`${LIB}:2 write`]],
+    [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:2 write`]],
   ]);
 });
 
@@ -592,11 +653,11 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.control.map(({ side, at, name, graph }) => [side, at, name, graph].join(" ")).sort((a, b) => a.localeCompare(b))).toEqual([
-    `agree ${LIB}:1 unusedHelper dead`,
-    `agree ${LIB}:4 #spare member-write-only`,
-    `graph-only ${LIB}:2 chained dead`,
+    `agree ${LIB}:1 unusedHelper ${DEAD}`,
+    `agree ${LIB}:4 #spare ${MEMBER_WRITE_ONLY}`,
+    `graph-only ${LIB}:2 chained ${DEAD}`,
     `graph-unjudged ${LIB}:6 unusedLocal VariableDeclaration`,
   ]);
   // tsc's own verdict rides on each trial: it reports the helper nothing calls, not the one that helper calls.
@@ -632,15 +693,44 @@ test("a reader only outside the product refutes test-only; a product reader keep
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(`${LIB}:`) && label !== `${LIB}:Shape.kept`)
       .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind, product }) => `${at} ${kind} ${product ? "product" : "outside"}`)]),
   ).toEqual([
-    [`${LIB}:Shape.tested`, "refuted-test-only", [`${TYPE_TEST_FILE}:3 read outside`, `${TEST_FILE}:3 read outside`]],
-    [`${LIB}:Shape.used`, "refuted", [`${MAIN}:3 read product`, `${TYPE_TEST_FILE}:3 read outside`, `${TEST_FILE}:3 read outside`]],
+    [`${LIB}:Shape.tested`, REFUTED_TEST_ONLY, [`${TYPE_TEST_FILE}:3 read outside`, `${TEST_FILE}:3 read outside`]],
+    [`${LIB}:Shape.used`, REFUTED, [`${MAIN}:3 read product`, `${TYPE_TEST_FILE}:3 read outside`, `${TEST_FILE}:3 read outside`]],
   ]);
+});
+
+// Snap drives the product as its user does, so a snap reader is the product's (D357), in the trial and in the control.
+const SNAP_READER = `${SNAP_SOURCE}zq-reader.ts`;
+
+test("a reader under snap refutes the finding as a product read, and the control judges snap's unused code", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [WORLD]: plantedTsconfig({ lib: LIBS, include: ["../*/src", `../../${SNAP_SOURCE}`] }),
+        [LIB]: "export interface Shape { readonly kept: string; readonly snapped: string }",
+        [MAIN]: ['import type { Shape } from "./lib.ts";', "const use = (value: unknown): unknown => value;", "use((shape: Shape) => shape.kept);"].join("\n"),
+        [SNAP_READER]: [
+          'import type { Shape } from "../../../packages/a/src/lib.ts";',
+          "type Needs<T> = T extends { readonly snapped: string } ? true : false;",
+          "export const snapped: Needs<Shape> = true;",
+          "function zqSnapUnused(): number { return 1; }",
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label === `${LIB}:Shape.snapped`)
+      .map(({ verdict, errors }) => [verdict, errors.map(({ at, kind, product }) => `${at} ${kind} ${product ? "product" : "outside"}`)]),
+  ).toEqual([[REFUTED, [`${SNAP_READER}:3 read product`]]]);
+  expect(report.control.filter(({ at }) => at.startsWith(SNAP_SOURCE)).map(({ at, name }) => [at, name])).toEqual([[`${SNAP_READER}:4`, "zqSnapUnused"]]);
 });
 
 // noUnusedLocals makes an unused declaration an error: the one the delete leaves unread is the delete's own effect. The
@@ -669,11 +759,11 @@ test("a declaration the delete leaves unused is not a reader: the candidate stay
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:`)).map(({ label, verdict, errors }) => [label, verdict, errors])).toEqual([
-    [`${LIB}:Shape.tagged`, "confirmed", []],
-    [`${LIB}:Shape.local`, "confirmed", []],
-    [`${LIB}:Shape.typed`, "confirmed", []],
+    [`${LIB}:Shape.tagged`, CONFIRMED, []],
+    [`${LIB}:Shape.local`, CONFIRMED, []],
+    [`${LIB}:Shape.typed`, CONFIRMED, []],
   ]);
 });
 
@@ -730,12 +820,12 @@ test.for([
         { entries: [MAIN] },
       ),
     );
-    const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+    const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
     expect(
       report.trials
         .filter(({ label }) => label === `${LIB}:Shape.gone`)
         .map(({ verdict, checked: files, errors }) => ({ verdict, checked: files, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-    ).toEqual([{ verdict: "refuted", checked, errors: [`${READER}:${String(line)} read`] }]);
+    ).toEqual([{ verdict: REFUTED, checked, errors: [`${READER}:${String(line)} read`] }]);
   },
 );
 
@@ -762,16 +852,16 @@ test("a computed member whose constant is read elsewhere is confirmed by its own
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   // The constant's reads are not the member's: the delete breaks none of them. Its files are checked all the same,
   // since a read through the key names only the key.
   expect(report.trials.map(({ label, verdict, references, checked, errors }) => ({ label, verdict, references, checked, errors }))).toEqual([
-    { label: `${LIB}:Shape.[KEY]`, verdict: "confirmed", references: [], checked: [KEYS, LIB, MAIN], errors: [] },
+    { label: `${LIB}:Shape.[KEY]`, verdict: CONFIRMED, references: [], checked: [KEYS, LIB, MAIN], errors: [] },
   ]);
 });
 
 // The member is read only by a test that reaches it through a relay, naming neither its holder nor its file: the
-// member's own references are what put that test in the checked set.
+// member's own references and the relay's importers both put that test in the checked set.
 test("a computed member a test reads through a relay is refuted test-only under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
@@ -790,12 +880,12 @@ test("a computed member a test reads through a relay is refuted test-only under 
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: "refuted-test-only", checked: [KEYS, LIB, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
+  ).toEqual([{ verdict: REFUTED_TEST_ONLY, checked: [KEYS, LIB, MAIN, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
 });
 
 // A constraint through the key constant (`{ readonly [KEY]: string }`) names neither the member nor its holder, and its file imports
@@ -825,12 +915,12 @@ test("a computed member a constraint reads only through its key constant is refu
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: "refuted", checked: [KEYS, LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
+  ).toEqual([{ verdict: REFUTED, checked: [KEYS, LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
 });
 
 // A key that is no name, a string literal in brackets, has no symbol a reader names: a constraint that never names the
@@ -856,12 +946,12 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.zqDash`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: "refuted", checked: [LIB, MAIN, RELAY], errors: [`${LIB}:2 write`, `${MAIN}:3 read`] }]);
+  ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:2 write`, `${MAIN}:3 read`] }]);
 });
 
 // A key a library declares has no tree file naming its symbol: the reader is reached through the import graph, the
@@ -892,10 +982,10 @@ test("a computed member keyed by a library constant a constraint reads through a
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[LIB_KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: "refuted", checked: [LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:3 read`] }]);
+  ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:3 read`] }]);
 });
