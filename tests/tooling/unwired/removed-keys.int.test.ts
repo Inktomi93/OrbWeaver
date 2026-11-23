@@ -7,7 +7,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git-fixture";
-import { NO_DESTINATION, OUTSIDE_PROGRAM } from "../../../tooling/src/unwired/graph/removed-keys.ts";
+import { NO_DESTINATION, NO_KEY_POSITION, OUTSIDE_PROGRAM } from "../../../tooling/src/unwired/graph/removed-keys.ts";
 import type { RemovedKeysReport } from "../../../tooling/src/unwired/index.ts";
 import { removedKeysGraph } from "../../../tooling/src/unwired/index.ts";
 import { graphTree, LIB, WORLD, ZOD_STUB } from "./_planted.ts";
@@ -299,6 +299,66 @@ test("a loose body reaches our server through a route constant, a query's option
   expect(guidedPick?.unresolved.map(({ at, reason }) => `${at} ${reason}`).toSorted()).toEqual([
     `packages/client/src/loose.ts:3 ${NO_DESTINATION}`,
     `packages/client/src/store.ts:4 ${NO_DESTINATION}`,
+  ]);
+});
+
+// A local binding that spells the key is no key site; a string of the key's text in no key slot is listed for a person.
+test("a local binding named like the key is no site, and a plain string of its text is listed", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {
+    "packages/client/src/send.ts": [
+      "const guidedPick = 'g';",
+      "export const read = guidedPick.length;",
+      // The twin: the same text as a plain value sits in no key slot.
+      "export const text = 'guidedPick';",
+    ].join("\n"),
+  });
+  const guidedPick = entry(await check(repo), "guidedPick");
+  expect(guidedPick?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([`packages/client/src/send.ts:3 ${NO_KEY_POSITION}`]);
+  expect([guidedPick?.senders.length, guidedPick?.other]).toEqual([0, 0]);
+});
+
+// A `mutate` reaches one of our procedures only through TanStack's own mutation built from a tRPC `mutationOptions()`:
+// the mutation and the options must each be declared by their package.
+test("a same-named mutate on another receiver, or an options call another package declares, sends nowhere", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const sends = {
+    "packages/client/src/real.ts": [
+      'import { useMutation } from "@tanstack/react-query";',
+      'import { trpc } from "./trpc.ts";',
+      "export function save(): void {",
+      "  const edit = useMutation(trpc.chat.edit.mutationOptions());",
+      "  const vars: Record<string, unknown> = {};",
+      '  vars["guidedPick"] = "g";',
+      "  edit.mutate(vars);",
+      "}",
+    ].join("\n"),
+    // A mutation hook of our own, not TanStack's, handed a real procedure's options.
+    "packages/client/src/own-hook.ts": [
+      'import { trpc } from "./trpc.ts";',
+      "declare function useMutation<V>(options: { readonly input?: V }): { mutate(variables: V): void };",
+      "export function save(): void {",
+      "  const edit = useMutation(trpc.chat.edit.mutationOptions());",
+      "  const vars: Record<string, unknown> = {};",
+      '  vars["guidedPick"] = "g";',
+      "  edit.mutate(vars);",
+      "}",
+    ].join("\n"),
+    // TanStack's mutation over options some other package's object declares.
+    "packages/client/src/other-options.ts": [
+      'import { useMutation } from "@tanstack/react-query";',
+      "declare const app: { readonly other: { mutationOptions(): { readonly input?: Readonly<Record<string, unknown>> } } };",
+      "export function save(): void {",
+      "  const edit = useMutation(app.other.mutationOptions());",
+      "  const vars: Record<string, unknown> = {};",
+      '  vars["guidedPick"] = "g";',
+      "  edit.mutate(vars);",
+      "}",
+    ].join("\n"),
+  };
+  const guidedPick = entry(await check(await deletionBranch(plantedTree, sends)), "guidedPick");
+  expect(guidedPick?.loose.map(({ at, destination }) => `${at} ${destination}`)).toEqual(["packages/client/src/real.ts:6 trpc chat.edit"]);
+  expect(guidedPick?.unresolved.map(({ at, reason }) => `${at} ${reason}`).toSorted()).toEqual([
+    `packages/client/src/other-options.ts:6 ${NO_DESTINATION}`,
+    `packages/client/src/own-hook.ts:6 ${NO_DESTINATION}`,
   ]);
 });
 
