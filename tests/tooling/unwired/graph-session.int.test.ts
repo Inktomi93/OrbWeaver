@@ -15,6 +15,9 @@ const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const quiet = (): undefined => undefined;
 const SAVED_AT_FAILURE = "heap profile saved at failure: ";
+// The compiler's first observations of its death: the read sees end of input, or the sync write hits the broken pipe first
+// (recorded by a crash as the SuppressedError's `.error`: "EPIPE: broken pipe, write"). Nothing else is the run's own error.
+const DEAD_CHANNEL_MESSAGES = ["Unexpected EOF", "EPIPE: broken pipe, write"] as const;
 const options = (changes: Partial<GraphOptions>): GraphOptions => ({ ...FRESH_BUILD, ...changes });
 
 // A sent member, a written one, a read one and a parameter-keyed table one caller cannot narrow.
@@ -363,7 +366,7 @@ test("a compiler that dies mid-run leaves the run's own error thrown and the fai
   expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
   // The run's own error is the dead channel the compiler left, not the disposal's. The next write can hit the broken
   // pipe before the read sees end of input, so either is the first observation of the death; nothing else is.
-  expect((failed as Error).message).toMatch(/^(?:Unexpected EOF|write EPIPE)/u);
+  expect(DEAD_CHANNEL_MESSAGES.some((prefix) => (failed as Error).message.startsWith(prefix))).toBe(true);
 });
 
 test("the graph verbs refuse a build's options and a compiler profile on a dump before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {
