@@ -211,10 +211,10 @@ const KEYS_TEXT = [
   "export const tpl = (o: object): boolean => `zqTpl` in o;",
   "export const head = (o: object, k: string): boolean => `zqHead.\u0024{k}` in o;",
 ].join("\n");
-// A string holds a row only where it acts as a key: in key syntax, or where the checker types it as a string-literal
-// union holding the name, a dotted path by its segment. Copy text and a string the checker types as plain `string`
-// only annotate. An element access's quoted key is a read by the role rules and a key use, held off a `Record` too.
-test("a string or template hit holds a row only as a key, by its syntax or its contextual literal type", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+// A string holds a row only as a key use: its whole text is the name, as an `in` operand, an element access's argument
+// (off a `Record` too) or a computed name. Copy text, a call argument (even one typed `keyof T` or a literal union
+// holding the name, or a dotted path holding it as a segment) and a template that only contains the word annotate.
+test("a string or template hit holds a row only as a whole key, never as a value", { timeout: TIMEOUT }, async ({ plantedTree }) => {
   const file = "packages/a/src/keys.ts";
   const root = await plantedTree(graphTree({ [file]: KEYS_TEXT }));
   execFixtureGit(root, ["init", "-q"]);
@@ -235,10 +235,10 @@ test("a string or template hit holds a row only as a key, by its syntax or its c
     ["zqElem", true, ["read"]],
     ["zqIn", true, ["string"]],
     ["zqComputedKey", true, ["string"]],
-    ["zqBan", true, ["string", "type"]],
+    ["zqBan", false, ["string", "type"]],
     ["zqTpl", true, ["template"]],
-    ["zqHead", true, ["template"]],
-    ["zqField", true, ["string"]],
+    ["zqHead", false, ["template"]],
+    ["zqField", false, ["string"]],
   ]);
 });
 

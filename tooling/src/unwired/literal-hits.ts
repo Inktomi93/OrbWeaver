@@ -19,12 +19,13 @@
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
 //   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays. An
 //   object literal key, a shorthand's included, also resolves to the member its contextual type names, which it writes.
-// - A string or template hit holds a row only as a key, never as copy text: in key syntax, or where the checker's
-//   contextual type for it is a string-literal union holding the name, a dotted path by its segment (keyedHits).
-// - A code hit holds a row as a key use when it is an element access's quoted key (`raw["id"]`, quotedKeys), like an
-//   `in` operand, whatever the receiver is typed. Any other code hit holds only when it names the row's own
-//   declaration: the checker resolves it there (a key its slot names), or it resolves to nothing and the value it is
-//   read off, casts taken off, has the row's member of that name (`(row as any).id`, ownedHits).
+// - A string holds a row only as a key use, never as copy or data: its whole text is the name, as an `in` operand, an
+//   element access's argument (`raw["id"]`) or a property name, quoted or computed from a literal, whatever the
+//   receiver is typed (keyedHits). A returned value, a call argument, a JSX attribute value or a `z.literal` only
+//   annotates, even in a slot typed as a literal union holding the name; so does a key that only contains the word.
+// - Any other code hit holds only when it names the row's own declaration: the checker resolves it there (a key its
+//   slot names), or it resolves to nothing and the value it is read off, casts taken off, has the row's member of that
+//   name (`(row as any).id`, ownedHits).
 // - An unquoted read off a value typed `any` from the start (`raw.id`) names no owner, so it only annotates: a holder
 //   is a key use or a read of the row's own owner, never a word match on an untyped value.
 // - An import or export only annotates: one that binds the row's own declaration is always one of its own sites.
@@ -99,9 +100,6 @@ import {
   isShorthandPropertyAssignment,
   isSourceFile,
   isStringLiteral,
-  isTemplateExpression,
-  isTemplateHead,
-  isTemplateSpan,
   isTypeAliasDeclaration,
   isTypeAssertion,
   isTypeNode,
@@ -225,8 +223,8 @@ export interface LiteralSearch {
   readonly productData: ReadonlySet<string>;
   /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
-  /** The string and template hits in held product source that act as a key, and the quoted keys of element accesses
-   *  in held files: the hits that hold a row as a key use. */
+  /** The hits in held product source whose whole quoted text is the name, as an `in` operand, an element access's
+   *  argument or a property name: the hits that hold a row as a key use. */
   readonly keyed: ReadonlySet<LiteralHit>;
   /** For each code hit in a held file the checker resolves to nothing, the declaration keys of that name's members on
    *  the type of the value it is read off. */
@@ -508,7 +506,7 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
     hits,
     productData: loadedData(root, world, all, plugins),
     resolved,
-    keyed: new Set([...keyedHits(world, all, plugins), ...quotedKeys(world, all)]),
+    keyed: keyedHits(world, all, plugins),
     owned: ownedHits(world, all, resolved),
     plugins,
   };
@@ -533,57 +531,33 @@ function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[
 
 const CODE_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call"]);
 const TEXT_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["string", "template"]);
+// A quoted key is a string hit, or a code hit where the role rules judge it: an element access, an object literal key.
+const KEY_KINDS: ReadonlySet<HitKind> = new Set<HitKind>([...TEXT_KINDS, ...CODE_KINDS]);
 
-// A string or template hit in held product source acts as a key when it sits in key syntax, or when the checker's
-// contextual type for it is a string-literal union with a member whose dotted segments hold the name: a keyof
-// parameter, a typed registry, a form path. Judged by the type, never by the callee's name; copy text is neither.
+// The hits in held product source that are a key use: a string whose whole text is the name, as an `in` operand, an
+// element access's argument or a property name (quoted, or a computed name from a literal). A string in a value
+// position, such as a returned value, a call argument or a JSX attribute value, is copy or data, never a key use, even
+// where the checker types its slot as a literal union that holds the name; so is a key that only contains the word.
 function keyedHits(world: NativeWorld, hits: readonly LiteralHit[], plugins: PluginSources): ReadonlySet<LiteralHit> {
-  const asked = hits.flatMap((hit) => {
-    const token =
-      hit.graph && hit.offset !== null && TEXT_KINDS.has(hit.kind) && isProduction(hit.file, plugins) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
-    const text = token === undefined ? undefined : textExpression(token);
-    return text === undefined ? [] : [{ hit, text }];
-  });
-  const syntactic = asked.filter(({ text }) => inKeySyntax(text));
-  const typed = asked.filter(({ text }) => !inKeySyntax(text));
-  sendable(
-    "the literal hits' strings",
-    typed.map(({ hit, text }) => ({ node: text, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the string its token sits in` })),
+  return new Set(
+    hits.filter((hit) => {
+      const token =
+        hit.graph && hit.offset !== null && KEY_KINDS.has(hit.kind) && isProduction(hit.file, plugins) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+      return token !== undefined && isWholeKey(token, hit.name);
+    }),
   );
-  const literals = world.batch(typed.map(({ text }) => contextualLiterals(world, text)));
-  return new Set([
-    ...syntactic.map(({ hit }) => hit),
-    ...typed.flatMap(({ hit }, at) => ((literals[at] ?? []).some((value) => value.split(PATH_SEPARATOR).includes(hit.name)) ? [hit] : [])),
-  ]);
 }
 
-const PATH_SEPARATOR = ".";
-
-// The code hits in held files that are an element access's quoted key, `raw["name"]`: a key use whatever the receiver
-// is typed, as `"name" in raw` is. One the checker resolves to another declaration was already dropped as elsewhere.
-const quotedKeys = (world: NativeWorld, hits: readonly LiteralHit[]): readonly LiteralHit[] =>
-  hits.filter((hit) => {
-    const token = hit.graph && hit.offset !== null && CODE_KINDS.has(hit.kind) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
-    return (
-      token !== undefined &&
-      (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) &&
-      isElementAccessExpression(token.parent) &&
-      sameNode(token.parent.argumentExpression, token)
-    );
-  });
-
-// The string or template expression a text hit's token sits in: the literal itself, or the template a head, middle or
-// tail belongs to.
-function textExpression(token: Node): Expression | undefined {
-  if (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) {
-    return token;
+// A string or no-substitution template whose text is `name`, sitting where a key goes.
+function isWholeKey(token: Node, name: string): boolean {
+  if (!((isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) && token.text === name)) {
+    return false;
   }
-  const template = isTemplateHead(token) ? token.parent : token.parent.parent;
-  return (isTemplateHead(token) || isTemplateSpan(token.parent)) && isTemplateExpression(template) ? template : undefined;
+  const { parent } = token;
+  return (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, token)) || inKeySyntax(token);
 }
 
-// Key syntax: an `in` operand, a computed name, or a quoted member or property name. An element access's quoted key is
-// no string hit: the role rules read it as a read, and quotedKeys makes it a key use.
+// Key syntax: an `in` operand, a computed name, or a quoted member or property name.
 function inKeySyntax(text: Expression): boolean {
   const { parent } = text;
   if (isBinaryExpression(parent)) {
@@ -600,16 +574,6 @@ const isNamedMember = (
   isPropertyDeclaration(node) ||
   isMethodDeclaration(node) ||
   isMethodSignatureDeclaration(node);
-
-// The string-literal values of the type the checker expects at a text, each member of a union on its own.
-function* contextualLiterals(world: NativeWorld, text: Expression): APIRequestGenerator<readonly string[]> {
-  const type = yield* world.checker.getContextualType.gen(text);
-  if (type === undefined) {
-    return [];
-  }
-  const members = type.isUnionType() ? yield* type.getTypes.gen() : [type];
-  return members.flatMap((member) => (member.isStringLiteralType() ? [member.value] : []));
-}
 
 // The node a held file's hit or known site starts, by its `file:offset`.
 function heldNodeAt(world: NativeWorld, file: string, offset: number): Node | undefined {

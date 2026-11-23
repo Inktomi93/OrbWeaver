@@ -12,7 +12,7 @@ import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, LIB as LIBS, WORLD } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
 
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
 const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
@@ -534,6 +534,62 @@ test("a literal hit holds a row only as a key use or an unresolved read of its o
     [`${LIB}:Shape.zqImported`, CONFIRMED, [`${MAIN}:2 import-export`, `${OTHER}:1 declaration`]],
     [`${LIB}:Shape.zqQuoted`, CONFIRMED_LITERAL, [`${MAIN}:11 read`]],
     [`${LIB}:Shape.zqInLoose`, CONFIRMED_LITERAL, [`${MAIN}:12 string`]],
+  ]);
+});
+
+const VIEW = `${GRAPH_SOURCE}/view.tsx`;
+
+// A string is a key use only as an `in` operand, an element access's argument or a property name, and only when the
+// whole string is the member's name. A quoted key that merely contains the word, and a string in a value position (a
+// returned value, a literal call argument, a JSX attribute value), only annotate, even where the checker types the
+// slot as a literal union that holds the name. A whole quoted key is the control that still holds.
+test("a string holds a row only as a whole key, never as a value or a key that contains the word", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
+        [LIB]: [
+          "export interface Shape {",
+          "  readonly kept: string;",
+          "  readonly zqWhole: string;",
+          "  readonly zqSub: string;",
+          "  readonly zqReturned: string;",
+          "  readonly zqLit: string;",
+          "  readonly zqVoice: string;",
+          "}",
+          "export declare const made: Shape;",
+        ].join("\n"),
+        [MAIN]: [
+          'import { made } from "./lib.ts";',
+          'import { view } from "./view.tsx";',
+          "const use = (value: unknown): unknown => value;",
+          "const headers: Record<string, string> = {};",
+          "declare function literal<const T extends string>(value: T): { readonly value: T };",
+          'const kindOf = (flag: boolean): "zqReturned" | "other" => (flag ? "other" : "zqReturned");',
+          "use(made.kept);",
+          'use(headers["zqWhole"]);',
+          'headers["last-zqSub-id"] = "x";',
+          "use(kindOf(true));",
+          'use(literal("zqLit"));',
+          "use(view);",
+        ].join("\n"),
+        [VIEW]: [
+          'const Text = (props: { readonly voice: "datum" | "zqVoice" }): JSX.Element => props as unknown as JSX.Element;',
+          'export const view = (mono: boolean): JSX.Element => <Text voice={mono ? "datum" : "zqVoice"} />;',
+        ].join("\n"),
+      },
+      { entries: [MAIN], jsx: true },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(report.trials.filter(({ label }) => label.includes(":Shape.zq")).map(({ label, verdict }) => [label, verdict])).toEqual([
+    [`${LIB}:Shape.zqWhole`, CONFIRMED_LITERAL],
+    [`${LIB}:Shape.zqSub`, CONFIRMED],
+    [`${LIB}:Shape.zqReturned`, CONFIRMED],
+    [`${LIB}:Shape.zqLit`, CONFIRMED],
+    [`${LIB}:Shape.zqVoice`, CONFIRMED],
   ]);
 });
 
