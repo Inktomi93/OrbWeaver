@@ -564,7 +564,17 @@ function searched(search: LiteralSearch, member: string, known: ReadonlySet<stri
   return { hits, own: all.length - hits.length };
 }
 
-function evidenceOf(row: StageRow, hits: readonly LiteralHit[], own: number, files: number): LiteralEvidence {
+// One row's hits outside its known sites and the evidence they make.
+function judged(search: LiteralSearch, row: Omit<StageRow, "verdict">): { readonly hits: readonly LiteralHit[]; readonly literal: LiteralEvidence } {
+  const { hits, own } = searched(search, row.member, new Set(row.known));
+  return { hits, literal: evidenceOf(row, hits, own, search.files) };
+}
+
+/** One row's evidence from a search that covered its member name: its hits outside its own known sites, the ones that
+ *  can be a real read first, and whether any can. The fields literal stage and the delete trial judge a row by it. */
+export const rowEvidence = (search: LiteralSearch, row: Omit<StageRow, "verdict">): LiteralEvidence => judged(search, row).literal;
+
+function evidenceOf(row: Omit<StageRow, "verdict">, hits: readonly LiteralHit[], own: number, files: number): LiteralEvidence {
   const saving = hits.filter(savesRow);
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
@@ -616,9 +626,8 @@ export function literalStage<Row extends StageRow>(
     if (row.verdict !== DEAD) {
       return { ...row, literal: null };
     }
-    const { hits, own } = searched(search, row.member, new Set(row.known));
-    ownHits += own;
-    const literal = evidenceOf(row, hits, own, search.files);
+    const { hits, literal } = judged(search, row);
+    ownHits += literal.own;
     for (const kind of new Set(hits.filter(savesRow).map((hit) => hit.kind))) {
       movedBy[kind] = (movedBy[kind] ?? 0) + 1;
     }

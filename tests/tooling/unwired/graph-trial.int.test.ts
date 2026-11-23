@@ -3,6 +3,7 @@
 // file and its importers are checked, and TypeScript's unused-code diagnostics are diffed against the graph.
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { TRIAL_REACHES } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
@@ -15,6 +16,8 @@ const SHAPE = `${GRAPH_SOURCE}/shape.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
 const RELAY = `${GRAPH_SOURCE}/relay.ts`;
+const KEYS = `${GRAPH_SOURCE}/keys.ts`;
+const FIXTURE = "packages/a/fixtures/shape.json";
 
 const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
 
@@ -263,6 +266,92 @@ test.for([
   expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(MAIN);
 });
 
+// A clean compile says only that the compiler needs no site of the name. A member read through a key built from a
+// string in another file, or named by a JSON fixture key, is confirmed-literal with the hit; a comment and the
+// candidate's own sites (its declaration, a re-export the delete removes) are no hit, so a quiet member and a
+// re-exported dead function stay confirmed.
+test("a compile-clean candidate whose name a string or a JSON key spells is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [LIB]: [
+          "export interface Shape { readonly kept: string; readonly zqSecret: string; readonly zqFixture: string; readonly zqQuiet: string }",
+          "export declare const made: Shape;",
+          "export function zqOrphan(): number { return 2; }",
+        ].join("\n"),
+        [DOOR]: 'export { zqOrphan } from "./lib.ts";',
+        [KEYS]: 'export const KEY = "zqSecret";',
+        [MAIN]: [
+          'import { KEY } from "./keys.ts";',
+          'import { made } from "./lib.ts";',
+          "const use = (value: unknown): unknown => value;",
+          "use(made.kept);",
+          "// zqQuiet is only mentioned here.",
+          "use((made as unknown as Readonly<Record<string, unknown>>)[KEY]);",
+        ].join("\n"),
+        [FIXTURE]: '{ "kept": "k", "zqFixture": "f" }\n',
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trial(root, { buckets: ["member-untouched", "dead"], limit: null });
+  expect(
+    report.trials
+      .filter(({ label }) => label.includes(":Shape.zq") || label.endsWith(":zqOrphan"))
+      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:1 string`]],
+    [`${LIB}:Shape.zqFixture`, "confirmed-literal", [`${FIXTURE}:1 config-key`]],
+    [`${LIB}:Shape.zqQuiet`, "confirmed", []],
+    [`${LIB}:zqOrphan`, "confirmed", []],
+  ]);
+  expect(report.literalFiles).toBeGreaterThan(0);
+});
+
+// Candidates of many declaring files share a snapshot when no file group edits a file another checks, so a clean
+// compile confirms every one of them; an error no candidate owns then halves the shared group, isolating its reader's
+// candidate in log2 of the group's size.
+const LIBS_SHARED = Array.from({ length: 8 }, (_, at) => ({ lib: `${GRAPH_SOURCE}/lib${String(at)}.ts`, reader: `${GRAPH_SOURCE}/reader${String(at)}.ts` }));
+const sharedTree = (constrained: number | null): Readonly<Record<string, string>> =>
+  Object.fromEntries(
+    LIBS_SHARED.flatMap(({ lib, reader }, at) => [
+      [lib, `export interface S${String(at)} { readonly kept: string; readonly gone: string; readonly spare: string }`],
+      [
+        reader,
+        [
+          `import type { S${String(at)} } from "./lib${String(at)}.ts";`,
+          "type Needs<T extends { readonly spare: string }> = T;",
+          at === constrained ? `const value: Needs<S${String(at)}> | undefined = undefined;` : `const value: S${String(at)} | undefined = undefined;`,
+          "const use = (seen: unknown): unknown => seen;",
+          "use(value?.kept);",
+          "use(undefined as Needs<{ readonly spare: string }> | undefined);",
+        ].join("\n"),
+      ],
+    ]),
+  );
+
+test.for([
+  { reading: "nothing", constrained: null, snapshots: 2 },
+  { reading: "one member, through a constraint no candidate owns", constrained: 3, snapshots: 10 },
+])("sixteen candidates of eight files share snapshots when $reading reads them", { timeout: 120_000 }, async ({ constrained, snapshots }, { plantedTree }) => {
+  const root = await plantedTree(graphTree(sharedTree(constrained), { entries: LIBS_SHARED.map(({ reader }) => reader) }));
+  const lines: string[] = [];
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, (line) => lines.push(line));
+  const mine = report.trials.filter(({ label }) => /:S\d\.(gone|spare)$/u.test(label));
+  expect(mine).toHaveLength(16);
+  const bad = constrained === null ? null : `${LIBS_SHARED[constrained]?.lib}:S${String(constrained)}.spare`;
+  expect(
+    mine.filter(({ verdict }) => verdict !== "confirmed").map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual(bad === null ? [] : [[bad, "refuted", [`${LIBS_SHARED[3]?.reader}:3 read`]]]);
+  // Two shared snapshots: the libraries' sixteen, and the readers' own unread constraint members, which edit the files the
+  // libraries' snapshot checks; the halving adds 2 per level, 2 * log2(16).
+  expect(progress(lines)).toMatch(new RegExp(`^trial groups 2/2 candidates 32/32 snapshots ${String(snapshots)} `, "u"));
+  // The reader's candidate sits in the whole group and one half per halving: 1 + log2(16) compiles.
+  expect(Math.max(...mine.map(({ compiles }) => compiles))).toBe(constrained === null ? 1 : 5);
+});
+
 // The checker reports one excess property per literal, so the second member's write shows only once the first is settled.
 test("two write-only members of one literal each keep their own write, the masked one from a second snapshot", { timeout: 120_000 }, async ({
   plantedTree,
@@ -334,8 +423,8 @@ test("pnpm unwired graph-trial takes each --bucket, prints each refuting error a
   ]);
   const tallies = run.stderr.split("\n").filter((line) => line.includes(" trials="));
   expect(tallies).toEqual([
-    "type-only trials=1 confirmed=0 named-only=0 refuted-references=1 refuted=0 refuted-test-only=0 unresolved=0",
-    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ named-only=0 refuted-references=0 refuted=0 refuted-test-only=0 unresolved=0$/u),
+    "type-only trials=1 confirmed=0 confirmed-literal=0 named-only=0 refuted-references=1 refuted=0 refuted-test-only=0 unresolved=0",
+    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ confirmed-literal=0 named-only=0 refuted-references=0 refuted=0 refuted-test-only=0 unresolved=0$/u),
   ]);
 });
 

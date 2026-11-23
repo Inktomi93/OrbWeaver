@@ -1,7 +1,8 @@
 // The delete trial: each candidate of the named buckets is removed in a throwaway snapshot, with every export
-// specifier and re-export that names it, and every error the removal adds to the files an edit reaches (its importers,
-// directly or through a chain, and what an augmentation among them reaches) is a reader the graph missed, named by file
-// and line.
+// specifier and re-export that names it, and every error the removal adds to the files that can break is a reader the
+// graph missed, named by file and line. Those files are the ones find-references ties to the candidate (Trials
+// #checkedFor); --reach=imports checks every file the import graph says an edit reaches instead, the wider set the
+// narrowed one is proven against.
 //
 // - The import graph, the global and augmentation reach and the same-error key are the shared ones in
 //   tooling/src/floor/typescript/import-graph.ts.
@@ -18,6 +19,8 @@
 //   delete removes and the occurrence spans that attribute a group's errors, ahead of the base-symbol owner.
 // - tsc's own unused verdict, a reportsUnnecessary diagnostic at the candidate's name in the base program, is recorded
 //   beside each trial and never decides it.
+// - A compile-clean candidate whose name has a hit outside its own sites that can be a read (a string key, a JSON
+//   key, a call by name) is confirmed-literal, through the fields literal stage's own judge (../literal-hits.ts).
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
@@ -53,6 +56,8 @@ import {
 import type { Diagnostic, ProjectId } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
+import type { LiteralEvidence } from "../literal-hits.ts";
+import { rowEvidence, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import { isProduction } from "../worlds.ts";
@@ -82,9 +87,10 @@ export const TRIAL_BUCKETS = [
 ] as const satisfies readonly Bucket[];
 export type TrialBucket = (typeof TRIAL_BUCKETS)[number];
 
-/** A trial's outcome: no new error; only sites the delete removes with it; a product read find-references names, with
+/** A trial's outcome: no new error and no literal hit of its name; no new error, but a hit of its name outside its own
+ *  sites that can be a read the compiler does not see (a string key, a JSON key); only sites the delete removes with it; a product read find-references names, with
  *  no compile; a product reader the compile found; readers outside the product only; or no trial ran. */
-export const TRIAL_VERDICTS = ["confirmed", "named-only", "refuted-references", "refuted", "refuted-test-only", "unresolved"] as const;
+export const TRIAL_VERDICTS = ["confirmed", "confirmed-literal", "named-only", "refuted-references", "refuted", "refuted-test-only", "unresolved"] as const;
 type TrialVerdict = (typeof TRIAL_VERDICTS)[number];
 
 // What a new error's site does to the removed declaration.
@@ -120,6 +126,8 @@ interface Trial {
   readonly compiles: number;
   readonly tsUnused: boolean;
   readonly note: string | null;
+  /** For a compile-clean candidate, the hits of its name outside its own sites, the ones that can be a read first. */
+  readonly literal: LiteralEvidence["hits"];
 }
 
 /** Which files a snapshot checks: those find-references ties to the candidate (`references`), or every file the import
@@ -128,7 +136,7 @@ export const TRIAL_REACHES = ["references", "imports"] as const;
 export type TrialReach = (typeof TRIAL_REACHES)[number];
 
 /** The trial's phases, in run order. */
-export const TRIAL_PHASES = ["references", "unused", ...TRIAL_STEPS, "attribution"] as const;
+export const TRIAL_PHASES = ["references", "unused", ...TRIAL_STEPS, "attribution", "literal"] as const;
 type TrialPhase = (typeof TRIAL_PHASES)[number];
 
 // One phase's wall time and the compiler requests it sent, with their server and round-trip time; the request
@@ -157,6 +165,9 @@ interface ControlRow {
 /** The trials of every named bucket's findings, the unused-diagnostics control, each phase's cost, and the path of the
  *  compiler CPU profile of one group when one was asked for. */
 export interface TrialReport {
+  /** The tracked files the literal pass searched, or null for a root with no git index, where confirmed is the compile's
+   *  word alone. */
+  readonly literalFiles: number | null;
   readonly trials: readonly Trial[];
   readonly control: readonly ControlRow[];
   readonly phases: Readonly<Record<TrialPhase, PhaseCost>>;
@@ -280,6 +291,11 @@ const MS_PER_MINUTE = 60_000;
 // The rate a progress line divides by never starts below this, so the first group does not print a huge rate.
 const MIN_MINUTES = 1 / 60;
 
+// A snapshot pays a fixed price whatever it deletes (a fresh program, every checked file rechecked), so the candidates
+// of many declaring files share one, and only a group with an error splits. The cap bounds one snapshot's edited and
+// checked files on a whole-tree run.
+const GROUP_CANDIDATES = 256;
+
 const unresolvedTrial = (
   { bucket, finding, tsUnused }: { readonly bucket: TrialBucket; readonly finding: Finding; readonly tsUnused: boolean },
   note: string,
@@ -295,6 +311,7 @@ const unresolvedTrial = (
   compiles,
   tsUnused,
   note,
+  literal: [],
 });
 
 // Each file's splices from several deletes, overlapping ones joined: two neighbours in a comma list each take the comma
@@ -415,9 +432,9 @@ class Trials {
     return source === undefined ? (diagnostic.startPosition?.line ?? 0) + 1 : source.getLineAndCharacterOfPosition(pos).line + 1;
   }
 
-  /** Trial a group of candidates that share a declaring file: all deleted in one snapshot, every importer closure
-   *  checked once, and each added error attributed to the candidate whose declaration its site resolves to in the
-   *  base program.
+  /** Trial a group of candidates: all deleted in one snapshot, the files any of them can break checked once, and each
+   *  added error attributed to the candidate whose occurrence spans its site, else whose declaration its site resolves
+   *  to in the base program.
    *  @remarks A group whose edit does not parse, or with an error no single candidate owns, splits in half and each
    *  half is tried alone. One deleted candidate can mask another's error (the checker reports one excess property per
    *  object literal), so a candidate left without an error while others have some is tried again without them; a
@@ -456,6 +473,7 @@ class Trials {
         compiles,
         tsUnused: item.tsUnused,
         note: null,
+        literal: [],
       };
     });
   }
@@ -748,10 +766,40 @@ class Trials {
     return { candidate: { bucket, finding, key, edits, occurrences, holders: holdersOf(node), tsUnused } };
   }
 
+  /** The per-file groups packed into shared snapshots, first fit in order, each holding at most GROUP_CANDIDATES. Two
+   *  file groups share a snapshot only when neither edits a file the other checks: a delete that removes or rewrites
+   *  text where another candidate's reader sits would hide that reader, so a shared snapshot decides each candidate
+   *  exactly as its own file's snapshot would. */
+  pack(groups: readonly (readonly Candidate[])[]): readonly (readonly Candidate[])[] {
+    const packs: { items: Candidate[]; edited: Set<string>; checked: Set<string> }[] = [];
+    for (const items of groups) {
+      const edited = [...mergeEdits(items.map((item) => item.edits)).keys()];
+      const checked = this.#checkedFor(items, edited);
+      const fits = packs.find(
+        (pack) =>
+          pack.items.length + items.length <= GROUP_CANDIDATES &&
+          !edited.some((file) => pack.checked.has(file)) &&
+          !checked.some((file) => pack.edited.has(file)),
+      );
+      if (fits === undefined) {
+        packs.push({ items: [...items], edited: new Set(edited), checked: new Set(checked) });
+      } else {
+        fits.items.push(...items);
+        for (const file of edited) {
+          fits.edited.add(file);
+        }
+        for (const file of checked) {
+          fits.checked.add(file);
+        }
+      }
+    }
+    return packs.map(({ items }) => items);
+  }
+
   /** Trial every group, logging progress after each; the compiler CPU profile covers the first group with more than
    *  one candidate when `cpuProfile` names a directory. */
   tryGroups(
-    groups: ReadonlyMap<string, readonly Candidate[]>,
+    groups: readonly (readonly Candidate[])[],
     run: { readonly total: number; readonly cpuProfile: string | null },
     log: (line: string) => void,
   ): { readonly tried: ReadonlyMap<Finding, Trial>; readonly profiled: string | null } {
@@ -759,7 +807,7 @@ class Trials {
     const started = performance.now();
     let done = 0;
     let profiled: string | null = null;
-    for (const [at, items] of [...groups.values()].entries()) {
+    for (const [at, items] of groups.entries()) {
       const dir = profiled === null && items.length > 1 ? run.cpuProfile : null;
       if (dir !== null) {
         mkdirSync(dir, { recursive: true });
@@ -778,7 +826,7 @@ class Trials {
       done += items.length;
       const minutes = (performance.now() - started) / MS_PER_MINUTE;
       log(
-        `trial groups ${String(at + 1)}/${String(groups.size)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+        `trial groups ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
       );
     }
     return { tried, profiled };
@@ -852,6 +900,46 @@ function holdersOf(node: Node): readonly Node[] {
   return names;
 }
 
+// A compile clean only says the compiler needs no site of the name: a string key, a JSON or fixture key or a plugin
+// reading the member by name can still be one. Each confirmed candidate's name is searched over the tracked tree, its
+// own sites (the occurrences find-references gave) left out as the fields literal stage leaves them out, and a hit
+// that can be a read makes it confirmed-literal.
+function literalPass(
+  root: string,
+  world: NativeWorld,
+  compiled: readonly { readonly trial: Trial; readonly references: FindingReferences | undefined }[],
+): { readonly trials: readonly Trial[]; readonly files: number | null } {
+  const asked = compiled.flatMap(({ trial, references }) =>
+    trial.verdict === "confirmed" && references?.name !== undefined ? [{ trial, name: references.name, occurrences: references.occurrences }] : [],
+  );
+  const textOf = (node: Node): string => node.getText(node.getSourceFile());
+  const search =
+    asked.length === 0
+      ? null
+      : searchLiterals(
+          root,
+          world,
+          asked.map(({ name }) => textOf(name)),
+        );
+  const evidence = new Map(
+    search === null
+      ? []
+      : asked.map(({ trial, name, occurrences }) => [
+          trial,
+          rowEvidence(search, {
+            member: textOf(name),
+            known: [name, ...occurrences].map((node) => `${world.fileOfSource(node.getSourceFile())}:${String(node.getStart(node.getSourceFile()))}`),
+            neverWritten: false,
+          }),
+        ]),
+  );
+  const trials = compiled.map(({ trial }) => {
+    const found = evidence.get(trial);
+    return found?.saved === true ? { ...trial, verdict: "confirmed-literal" as const, literal: found.hits } : trial;
+  });
+  return { trials, files: search?.files ?? (asked.length === 0 ? 0 : null) };
+}
+
 // Each phase's wall time and the compiler requests sent inside it; phases nest only where none is timed twice.
 class Phases {
   readonly #world: NativeWorld;
@@ -886,6 +974,7 @@ class Phases {
       snapshot: cost("snapshot"),
       diagnostics: cost("diagnostics"),
       attribution: cost("attribution"),
+      literal: cost("literal"),
     } satisfies Record<TrialPhase, PhaseCost>;
   }
 }
@@ -938,7 +1027,11 @@ export function runTrials(
       groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
     }
   }
-  const { tried, profiled } = trials.tryGroups(groups, { total: picked.length, cpuProfile: run.cpuProfile }, log);
-  const trialsInOrder = picked.flatMap(({ finding }) => decided.get(finding) ?? tried.get(finding) ?? []);
-  return { trials: trialsInOrder, control: trials.control(run.analysis), phases: phases.report(), cpuProfile: profiled };
+  const { tried, profiled } = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, cpuProfile: run.cpuProfile }, log);
+  const compiled = picked.flatMap(({ finding }, at) => {
+    const trial = decided.get(finding) ?? tried.get(finding);
+    return trial === undefined ? [] : [{ trial, references: found[at] }];
+  });
+  const literal = phases.time("literal", () => literalPass(run.root, world, compiled));
+  return { literalFiles: literal.files, trials: literal.trials, control: trials.control(run.analysis), phases: phases.report(), cpuProfile: profiled };
 }

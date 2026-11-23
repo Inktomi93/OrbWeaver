@@ -783,7 +783,8 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
   const path = write(args.root, args.out, report);
   for (const trial of report.trials.filter(({ verdict }) => verdict !== "confirmed")) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
-    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors].join(",")}\n`);
+    const literal = trial.literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`);
+    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors, ...literal].join(",")}\n`);
   }
   for (const row of report.control.filter(({ side }) => side !== "agree")) {
     process.stdout.write(`control-${row.side}\t${row.at}\t${row.name}\t${row.code === null ? "" : `TS${String(row.code)}`}\t${row.graph}\n`);
@@ -806,6 +807,11 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
     }).join(" ")}${report.cpuProfile === null ? "" : ` cpu-profile=${report.cpuProfile}`}`,
   );
   const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
+  log(
+    report.literalFiles === null
+      ? "literal search: no git index, so confirmed is the compile's word alone"
+      : `literal search scanned=${String(report.literalFiles)} tracked files`,
+  );
   log(`control ${sides.join(" ")} written to ${path}`);
   return EXIT.clean;
 }
