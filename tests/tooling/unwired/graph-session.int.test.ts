@@ -361,8 +361,9 @@ test("a compiler that dies mid-run leaves the run's own error thrown and the fai
   expect(failed).toBeInstanceOf(Error);
   expect(failed).not.toBeInstanceOf(SuppressedError);
   expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
-  // the run's own error is the dead channel the compiler left, not the disposal's
-  expect((failed as Error).message).toContain("Unexpected EOF");
+  // The run's own error is the dead channel the compiler left, not the disposal's. The next write can hit the broken
+  // pipe before the read sees end of input, so either is the first observation of the death; nothing else is.
+  expect((failed as Error).message).toMatch(/^(?:Unexpected EOF|write EPIPE)/u);
 });
 
 test("the graph verbs refuse a build's options and a compiler profile on a dump before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {

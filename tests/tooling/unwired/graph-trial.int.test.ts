@@ -8,6 +8,7 @@ import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import type { TestOptions } from "vitest";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Verdict } from "../../../tooling/src/unwired/field-sort.ts";
@@ -24,6 +25,8 @@ const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRI
 const [, KEPT_BY_RULING] = BUCKETS;
 const [DEAD_VERDICT, , ASK_VERDICT] = VERDICTS;
 
+// Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
+const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
 const MID = `${GRAPH_SOURCE}/mid.ts`;
@@ -947,7 +950,7 @@ test.for([
   { refusal: "a bucket no delete can trial", argv: [`--bucket=${KEPT_BY_RULING}`] },
   { refusal: "an unknown verdict", argv: [`--bucket=${MEMBER_WRITE_ONLY}`, "--verdict=maybe"] },
   { refusal: "a verdict on a bucket whose rows carry none", argv: [`--bucket=${DEAD}`, `--verdict=${DEAD_VERDICT}`] },
-])("pnpm unwired graph-trial refuses $refusal before any build", async ({ argv }, { runCli, scratch }) => {
+])("pnpm unwired graph-trial refuses $refusal before any build", SPAWNS_CLI, async ({ argv }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
 });
@@ -965,7 +968,7 @@ test.for([
     says: `--profile=trace: expected one of ${PROFILES.join(", ")}`,
   },
   { refusal: "the retired --cpu-profile", argv: [`--bucket=${DEAD}`, "--cpu-profile=out"], says: "--cpu-profile=out: unknown argument" },
-])("pnpm unwired graph-trial says why it refuses $refusal", async ({ argv, says }, { runCli, scratch }) => {
+])("pnpm unwired graph-trial says why it refuses $refusal", SPAWNS_CLI, async ({ argv, says }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
   expect(run.stderr).toContain(says);
