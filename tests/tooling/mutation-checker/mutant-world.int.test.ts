@@ -129,6 +129,28 @@ test("a mutant whose file feeds an augmenting importer fails on the augmentation
   expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
 });
 
+// Inside an augmentation the augmented module's names are in scope with no import, so the augmenting file reads the
+// mutated file's declaration without importing it.
+const SHAPED_HOST = "export interface HostShape { readonly name: string }";
+
+test("a mutant fails on a read inside an augmentation of its own file", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: ["ESNext"] }),
+    [HOST]: SHAPED_HOST,
+    [FLAGS]: ["export const tag = 1;", 'declare module "./host.ts" {', "  interface HostShape {", '    readonly echo: HostShape["name"];', "  }", "}"].join(
+      "\n",
+    ),
+  });
+  using world = MutantWorld.open(root, WORLD);
+  const column = SHAPED_HOST.indexOf("name");
+  const verdict = world.judge({
+    fileName: join(root, HOST),
+    replacement: "nick",
+    location: { start: { line: 0, column }, end: { line: 0, column: column + "name".length } },
+  });
+  expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, FLAGS)]);
+});
+
 test("a mutant outside the world's program passes unread", async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
   using world = MutantWorld.open(root, WORLD);

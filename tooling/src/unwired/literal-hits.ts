@@ -21,10 +21,13 @@
 //   object literal key, a shorthand's included, also resolves to the member its contextual type names, which it writes.
 // - A string or template hit holds a row only as a key, never as copy text: in key syntax, or where the checker's
 //   contextual type for it is a string-literal union holding the name, a dotted path by its segment (keyedHits).
-// - A code hit holds a row only when it names the row's own declaration: the checker resolves it there (a key its
-//   slot names, an element access), or it resolves to nothing and the value it is read off, casts taken off, has the
-//   row's member of that name (`(row as any).id`). An import or export holds only when its aliased target is the row's
-//   declaration (ownedHits). A common word's read of an untyped value or import of another declaration only annotates.
+// - A code hit holds a row as a key use when it is an element access's quoted key (`raw["id"]`, quotedKeys), like an
+//   `in` operand, whatever the receiver is typed. Any other code hit holds only when it names the row's own
+//   declaration: the checker resolves it there (a key its slot names), or it resolves to nothing and the value it is
+//   read off, casts taken off, has the row's member of that name (`(row as any).id`, ownedHits).
+// - An unquoted read off a value typed `any` from the start (`raw.id`) names no owner, so it only annotates: a holder
+//   is a key use or a read of the row's own owner, never a word match on an untyped value.
+// - An import or export only annotates: one that binds the row's own declaration is always one of its own sites.
 // - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
 //   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
 //   file a product module imports; each showcase bundle's manifest, which the release build packs into the shipped
@@ -221,10 +224,11 @@ export interface LiteralSearch {
   readonly productData: ReadonlySet<string>;
   /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
-  /** The string and template hits in held product source that act as a key, the only ones that can hold a row. */
+  /** The string and template hits in held product source that act as a key, and the quoted keys of element accesses
+   *  in held files: the hits that hold a row as a key use. */
   readonly keyed: ReadonlySet<LiteralHit>;
-  /** The declaration keys of the member each held hit names through its owner: an import or export's aliased target,
-   *  and for a code hit the checker resolves to nothing, that name's members on the type of the value it is read off. */
+  /** For each code hit in a held file the checker resolves to nothing, the declaration keys of that name's members on
+   *  the type of the value it is read off. */
   readonly owned: ReadonlyMap<LiteralHit, readonly string[]>;
 }
 
@@ -494,7 +498,8 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
   }
   const all = [...hits.values()].flat();
   const resolved = resolvedHits(world, all);
-  return { files, ignored, hits, productData: loadedData(root, world, all), resolved, keyed: keyedHits(world, all), owned: ownedHits(world, all, resolved) };
+  const keyed = new Set([...keyedHits(world, all), ...quotedKeys(world, all)]);
+  return { files, ignored, hits, productData: loadedData(root, world, all), resolved, keyed, owned: ownedHits(world, all, resolved) };
 }
 
 // The data files among the hits' files that the product loads: a JSON file the program holds that a product module
@@ -541,6 +546,19 @@ function keyedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet
 
 const PATH_SEPARATOR = ".";
 
+// The code hits in held files that are an element access's quoted key, `raw["name"]`: a key use whatever the receiver
+// is typed, as `"name" in raw` is. One the checker resolves to another declaration was already dropped as elsewhere.
+const quotedKeys = (world: NativeWorld, hits: readonly LiteralHit[]): readonly LiteralHit[] =>
+  hits.filter((hit) => {
+    const token = hit.graph && hit.offset !== null && CODE_KINDS.has(hit.kind) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    return (
+      token !== undefined &&
+      (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) &&
+      isElementAccessExpression(token.parent) &&
+      sameNode(token.parent.argumentExpression, token)
+    );
+  });
+
 // The string or template expression a text hit's token sits in: the literal itself, or the template a head, middle or
 // tail belongs to.
 function textExpression(token: Node): Expression | undefined {
@@ -552,7 +570,7 @@ function textExpression(token: Node): Expression | undefined {
 }
 
 // Key syntax: an `in` operand, a computed name, or a quoted member or property name. An element access's quoted key is
-// no string hit: the role rules read it as a read, held unless the checker resolves it elsewhere.
+// no string hit: the role rules read it as a read, and quotedKeys makes it a key use.
 function inKeySyntax(text: Expression): boolean {
   const { parent } = text;
   if (isBinaryExpression(parent)) {
@@ -617,39 +635,28 @@ function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): Readonly
   );
 }
 
-// What each held import-export hit and each unresolved code hit names through its owner, in one batched lookup.
+// What each unresolved code hit in a held file names through the value it is read off, in one batched lookup.
 function ownedHits(
   world: NativeWorld,
   hits: readonly LiteralHit[],
   resolved: ReadonlyMap<LiteralHit, readonly string[]>,
 ): ReadonlyMap<LiteralHit, readonly string[]> {
-  const held = hits.flatMap((hit) => {
-    const asked = hit.kind === "import-export" || (CODE_KINDS.has(hit.kind) && !resolved.has(hit));
-    const node = asked && hit.graph && hit.offset !== null ? heldNodeAt(world, hit.file, hit.offset) : undefined;
-    return node === undefined ? [] : [{ hit, node }];
-  });
-  const bindings = held.filter(({ hit }) => hit.kind === "import-export");
-  const reads = held.flatMap(({ hit, node }) => {
-    const receiver = hit.kind === "import-export" ? undefined : receiverOf(node);
+  const reads = hits.flatMap((hit) => {
+    const token = CODE_KINDS.has(hit.kind) && !resolved.has(hit) && hit.graph && hit.offset !== null ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    const receiver = token === undefined ? undefined : receiverOf(token);
     return receiver === undefined ? [] : [{ hit, receiver }];
   });
-  sendable("the literal hits' owners", [
-    ...bindings.map(({ hit, node }) => ({ node, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the binding it names` })),
-    ...reads.map(({ hit, receiver }) => ({ node: receiver, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the value it is read off` })),
-  ]);
-  const targets = world.symbolsAt(bindings.map(({ node }) => node));
+  sendable(
+    "the literal hits' owners",
+    reads.map(({ hit, receiver }) => ({ node: receiver, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the value it is read off` })),
+  );
   const { checker } = world;
   const members = world.batch(
     reads.map(function* ({ hit, receiver }) {
       return yield* propertiesNamed(checker, yield* checker.getTypeAtLocation.gen(receiver), hit.name);
     }),
   );
-  const keysOf = (symbols: readonly (NativeSymbol | undefined)[]): readonly string[] =>
-    symbols.flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol)));
-  return new Map([
-    ...bindings.map(({ hit }, at) => [hit, keysOf([targets[at]])] as const),
-    ...reads.map(({ hit }, at) => [hit, keysOf(members[at] ?? [])] as const),
-  ]);
+  return new Map(reads.map(({ hit }, at) => [hit, (members[at] ?? []).flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol)))] as const));
 }
 
 // The value a property or element access reads a name off, with parentheses, casts, `satisfies` and non-null
@@ -976,14 +983,14 @@ function evidenceOf(
     readonly elsewhere: number;
     readonly productData: ReadonlySet<string>;
     readonly keyed: ReadonlySet<LiteralHit>;
-    /** Whether a code or import-export hit names the row's own declaration, directly or through its owner. */
+    /** Whether a code hit names the row's own declaration, directly or through the value it is read off. */
     readonly names: (hit: LiteralHit) => boolean;
   },
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
   const holding = saving.filter(
-    (hit) => (hit.offset !== null && isProduction(hit.file) && (TEXT_KINDS.has(hit.kind) ? keyed.has(hit) : names(hit))) || productData.has(hit.file),
+    (hit) => (hit.offset !== null && isProduction(hit.file) && (keyed.has(hit) || (!TEXT_KINDS.has(hit.kind) && names(hit)))) || productData.has(hit.file),
   );
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;

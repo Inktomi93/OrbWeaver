@@ -32,9 +32,6 @@ const SCRIPT = "scripts/names.ts";
 
 const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
 
-const trial = (root: string, ask: Parameters<typeof trialGraph>[1], log: (line: string) => void = () => undefined): Promise<TrialReport> =>
-  trialGraph(root, ask, log);
-
 const outcomes = (report: TrialReport): readonly (readonly string[])[] =>
   report.trials.map(({ label, verdict, removed }) => [label, verdict, ...removed.map(({ file, text }) => `${file}: ${text.trim()}`)]);
 
@@ -65,7 +62,7 @@ test("a delete removes a whole interface member, class member or literal method 
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
   expect(outcomes(report)).toEqual([
     [`${LIB}:Shape.gone`, CONFIRMED, `${LIB}: readonly gone?: string;`],
     [`${LIB}:table.middle`, CONFIRMED, `${LIB}: middle(): number { return 2; },`],
@@ -88,7 +85,7 @@ test("a delete removes a dead exported function's whole statement", { timeout: 1
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(outcomes(report)).toEqual([[`${LIB}:orphan`, CONFIRMED, `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
 });
 
@@ -114,7 +111,7 @@ test.for([
   },
 ])("a dead function named by $site is confirmed with that site removed too", { timeout: 120_000 }, async ({ files, removed }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, CONFIRMED, ...removed]]);
 });
 
@@ -128,7 +125,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:orphan`, NAMED_ONLY, [`${MAIN}:1 binding`]],
   ]);
@@ -137,7 +134,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
 // A for-of binding is a declaration no delete can remove alone: cutting its name leaves a loop that does not parse.
 test("a delete that leaves its file unparsable is unresolved, with the edit it tried", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree({ [MAIN]: ["for (const spare of [1]) {", "}"].join("\n") }, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(
     report.trials.map(({ label, verdict, removed, note }) => [
       label,
@@ -161,7 +158,7 @@ const READER_TREE = (lib: string): Record<string, string> => ({
 test("a product read find-references names refutes the finding with no snapshot", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [TYPE_ONLY], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [TYPE_ONLY], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, references, checked, errors, compiles }) => ({ label, verdict, references, checked, errors, compiles }))).toEqual(
     [{ label: `${LIB}:DEFAULTS`, verdict: REFUTED_REFERENCES, references: [`${SHAPE}:3`], checked: [], errors: [], compiles: 0 }],
   );
@@ -187,7 +184,7 @@ test("a group with an unowned error bisects to the one member it reads, counting
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
@@ -229,7 +226,7 @@ test.for([
         "use(shape);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     site: "a constraint on a home-type value from a file that names the home type",
@@ -248,7 +245,7 @@ test.for([
         "use(view ? keptOf(made) : undefined);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     site: "an assignment two re-exports away from every file that names the home type",
@@ -262,7 +259,7 @@ test.for([
       [RELAY]: 'export { keptOf, made } from "./door.ts";',
       [MAIN]: ['import { keptOf, made } from "./relay.ts";', 'made.b = "x";', "keptOf(made);"].join("\n"),
     },
-    error: `${MAIN}:2 read`,
+    errors: [`${MAIN}:2 read`],
   },
   {
     site: "a constraint on an inferred alias two imports from every file that names the home type",
@@ -282,7 +279,7 @@ test.for([
         "use(view ? kept : undefined);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     site: "a satisfies check on an inferred alias of a home-type value",
@@ -296,7 +293,7 @@ test.for([
         "use(checked);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     site: "a constraint on the typeof of an inferred alias",
@@ -310,7 +307,7 @@ test.for([
         "use(held);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     // A value assignment is a flow the graph follows, so its member is no finding; a type-level assignability check
@@ -326,7 +323,7 @@ test.for([
         "use(fits);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     // Inside an augmentation the augmented module's names are in scope with no import, so the augmenting file reads
@@ -342,22 +339,19 @@ test.for([
         'use(keptOf({ kept: "k", b: "v" }));',
       ].join("\n"),
     },
-    error: `${AUGMENT}:3 read`,
+    // The main file writes `b` in a literal, so that write is an error too; the augmentation's read refutes.
+    errors: [`${AUGMENT}:3 read`, `${MAIN}:4 write`],
   },
-])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, error }, { plantedTree }) => {
+])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, errors: expected }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null });
-  const [breaking] = error.split(":");
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.b`)
-      .map(({ label, verdict, errors }) => [
-        label,
-        verdict,
-        errors.filter(({ at }) => at.startsWith(`${breaking ?? ""}:`)).map(({ at, kind }) => `${at} ${kind}`),
-      ]),
-  ).toEqual([[`${LIB}:Shape.b`, REFUTED, [error]]]);
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([[`${LIB}:Shape.b`, REFUTED, expected]]);
   // The checked set holds the breaking file even though it names neither the member nor the file that declares it.
+  const [breaking] = expected[0]?.split(":") ?? [];
   expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(breaking);
 });
 
@@ -404,7 +398,7 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq") || label.endsWith(":zqOrphan"))
@@ -441,7 +435,7 @@ test("a computed member a product string spells through its key's value is confi
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(`${LIB}:Shape.`))
@@ -479,19 +473,17 @@ test("a member named like a keyword is confirmed past its keyword hits", { timeo
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:Shape.`)).map(({ label, verdict, literal }) => [label, verdict, literal.length])).toEqual(
     ["get", "new", "default", "of", "as"].map((member) => [`${LIB}:Shape.${member}`, CONFIRMED, 0]),
   );
 });
 
-// A common word hits code that names something else. A product hit holds a row only as a key use, as a read the
-// checker leaves unresolved on a value typed by the member's own owner (a cast to `any`), or as an import or export of
-// the candidate's own declaration. A read of an untyped value, a read of another type's member through a cast, and an
-// import of another declaration of the word stay listed and keep the row confirmed.
-test("a literal hit holds a row only as a key use, an unresolved read of its own owner or an import of its own name", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
+// A common word hits code that names something else. A product hit holds a row only as a key use (an `in` operand or
+// an element access's quoted key, whatever the receiver is typed) or as a read the checker leaves unresolved on a value
+// typed by the member's own owner (a cast to `any`). An unquoted read of an untyped value, a read of another type's
+// member through a cast, and an import of another declaration of the word stay listed and keep the row confirmed.
+test("a literal hit holds a row only as a key use or an unresolved read of its own owner", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -503,6 +495,8 @@ test("a literal hit holds a row only as a key use, an unresolved read of its own
           "  readonly zqLoose: string;",
           "  readonly zqForeign: string;",
           "  readonly zqImported: string;",
+          "  readonly zqQuoted: string;",
+          "  readonly zqInLoose: string;",
           "}",
           "export declare const made: Shape;",
         ].join("\n"),
@@ -518,6 +512,8 @@ test("a literal hit holds a row only as a key use, an unresolved read of its own
           "use((made as any).zqCast);",
           "use((other as any).zqForeign);",
           'use((o: object): boolean => "zqKeyed" in o);',
+          'use(loose["zqQuoted"]);',
+          'use("zqInLoose" in loose);',
         ].join("\n"),
       },
       { entries: [MAIN] },
@@ -525,7 +521,7 @@ test("a literal hit holds a row only as a key use, an unresolved read of its own
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq"))
@@ -536,6 +532,8 @@ test("a literal hit holds a row only as a key use, an unresolved read of its own
     [`${LIB}:Shape.zqLoose`, CONFIRMED, [`${MAIN}:7 read`]],
     [`${LIB}:Shape.zqForeign`, CONFIRMED, [`${MAIN}:9 read`, `${OTHER}:2 declaration`]],
     [`${LIB}:Shape.zqImported`, CONFIRMED, [`${MAIN}:2 import-export`, `${OTHER}:1 declaration`]],
+    [`${LIB}:Shape.zqQuoted`, CONFIRMED_LITERAL, [`${MAIN}:11 read`]],
+    [`${LIB}:Shape.zqInLoose`, CONFIRMED_LITERAL, [`${MAIN}:12 string`]],
   ]);
 });
 
@@ -576,7 +574,7 @@ test("a key in a JSON file a product module imports or in a bundle manifest is c
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq"))
@@ -616,7 +614,7 @@ test.for([
 ])("sixteen candidates of eight files share snapshots when $reading reads them", { timeout: 120_000 }, async ({ constrained, snapshots }, { plantedTree }) => {
   const root = await plantedTree(graphTree(sharedTree(constrained), { entries: LIBS_SHARED.map(({ reader }) => reader) }));
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
   const mine = report.trials.filter(({ label }) => /:S\d\.(gone|spare)$/u.test(label));
   expect(mine).toHaveLength(16);
   const bad = constrained === null ? null : `${LIBS_SHARED[constrained]?.lib}:S${String(constrained)}.spare`;
@@ -648,7 +646,7 @@ test("two write-only members of one literal each keep their own write, the maske
     }),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:4 write`]],
     [`${LIB}:A.b`, NAMED_ONLY, [`${LIB}:5 write`]],
@@ -668,7 +666,7 @@ test("an error no single candidate owns splits the group, and each half finds it
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [DEAD], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
@@ -684,7 +682,7 @@ test("--limit trials an even sample of the findings it names", { timeout: 120_00
   const root = await plantedTree(
     graphTree({ [MAIN]: "export {};", [LIB]: ["const one = 1;", "const two = 2;", "const three = 3;", "const four = 4;"].join("\n") }, { entries: [MAIN] }),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: 2 }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: 2 }, () => undefined);
   expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
 });
 
@@ -729,7 +727,7 @@ test("an error the base program already has is not the removal's", { timeout: 12
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label === `${LIB}:orphan`).map(({ verdict, errors }) => [verdict, errors])).toEqual([[CONFIRMED, []]]);
 });
 
@@ -743,7 +741,7 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
       ].join("\n"),
     }),
   );
-  const report = await trial(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:2 write`]],
   ]);
@@ -771,7 +769,7 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.control.map(({ side, at, name, graph }) => [side, at, name, graph].join(" ")).sort((a, b) => a.localeCompare(b))).toEqual([
     `agree ${LIB}:1 unusedHelper ${DEAD}`,
     `agree ${LIB}:4 #spare ${MEMBER_WRITE_ONLY}`,
@@ -811,7 +809,7 @@ test("a reader only outside the product refutes test-only; a product reader keep
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(`${LIB}:`) && label !== `${LIB}:Shape.kept`)
@@ -842,7 +840,7 @@ test("a reader under snap refutes the finding as a product read, and the control
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.snapped`)
@@ -877,7 +875,7 @@ test("a declaration the delete leaves unused is not a reader: the candidate stay
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:`)).map(({ label, verdict, errors }) => [label, verdict, errors])).toEqual([
     [`${LIB}:Shape.tagged`, CONFIRMED, []],
     [`${LIB}:Shape.local`, CONFIRMED, []],
@@ -937,7 +935,7 @@ test.for([
         { entries: [MAIN] },
       ),
     );
-    const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+    const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
     expect(
       report.trials
         .filter(({ label }) => label === `${LIB}:Shape.gone`)
@@ -969,7 +967,7 @@ test("a computed member whose constant is read elsewhere is confirmed by its own
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   // The constant's reads are not the member's: the delete breaks none of them. The constant's own file imports nothing
   // the delete edits, so it is not checked.
   expect(report.trials.map(({ label, verdict, references, checked, errors }) => ({ label, verdict, references, checked, errors }))).toEqual([
@@ -997,7 +995,7 @@ test("a computed member a test reads through a relay is refuted test-only", { ti
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
@@ -1031,7 +1029,7 @@ test("a computed member a constraint reads only through its key constant is refu
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
@@ -1062,7 +1060,7 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.zqDash`)
@@ -1096,7 +1094,7 @@ test("a computed member keyed by a library constant a constraint reads through a
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[LIB_KEY]`)
