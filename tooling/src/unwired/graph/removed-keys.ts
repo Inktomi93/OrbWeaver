@@ -43,7 +43,7 @@ import { resolveKeys } from "../key-resolver.ts";
 import { gitGrep } from "../literal-hits.ts";
 import type { PropertyName } from "../native.ts";
 import { constituents, declarationKeys, declaredBy, isPropertyName, NativeWorld } from "../native.ts";
-import { patternText, platformCall } from "../procedures.ts";
+import { patternText, platformCall } from "./urls.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
 const CONTRACT_PATHS = ["packages/contracts/src", "packages/server/src/transport"] as const;
@@ -345,7 +345,7 @@ function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): A
 }
 
 // A body a platform request sends to a path on our own origin, which our routes receive; a URL of any other origin, or
-// one whose start the fold cannot read, leaves the repo. The URL folds through the procedures scan's reader.
+// one whose start the fold cannot read, leaves the repo. The URL folds through ./graph/urls.ts.
 function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
   const request = yield* platformCall(world, call);
   if (request === null || request.body === null || call.arguments.indexOf(argument as Expression) !== request.body) {

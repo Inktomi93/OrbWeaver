@@ -4,11 +4,12 @@
 // `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
 // restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
-// verbs run both engines except `unions`, `procedures` and `columns`, which run one engine and refuse `--cross-check`,
-// and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver
-// site of a removed contract key over the graph session's merged program and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage
-// and writes what no run executed (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree,
-// classified by where it sits (./literal-hits.ts).
+// verbs run both engines except `unions`, `procedures` and `columns`, which run one engine (`unions` and `procedures`
+// query the graph) and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows
+// apart; `removed-keys` resolves every receiver site of a removed contract key over the graph session's merged program
+// and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
+// (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
+// (./literal-hits.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
@@ -26,11 +27,12 @@ import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
 import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import { outsideTable } from "./graph/procedures.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { codesGraph, cssGraph, domGraph, queryGraph, removedKeysGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
+import { codesGraph, cssGraph, domGraph, proceduresGraph, queryGraph, removedKeysGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -42,7 +44,6 @@ import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
-import { outsideTable, scanProcedures } from "./procedures.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
@@ -178,7 +179,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", ({ root, deliberate, judged, log: report }) => unionsGraph(root, { deliberate, judged }, report)),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
-  procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
+  procedures: scan("reports/unwired/procedures.json", (options) => proceduresGraph(options, options.log), outsideTable),
   columns: scan("reports/unwired/columns.json", scanColumns),
 };
 
@@ -210,7 +211,7 @@ function parseArgs(argv: readonly string[]): Args {
   const flags = new Map<string, string>();
   const crossCheck = argv.includes(CROSS_CHECK_FLAG);
   if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs engine one only, so there is no engine two to cross-check\n${USAGE}`);
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} has no engine two to cross-check\n${USAGE}`);
   }
   const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
   for (const arg of rest) {

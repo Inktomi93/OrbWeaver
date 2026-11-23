@@ -73,7 +73,7 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/state/config-section-partition.ts", home: "UnclaimedSettingsKey", member: "reason", reason: STATED_REASON },
 ];
 
-/** The entry that excuses `member` of `home` in `file`, if any. */
+// The entry that excuses `member` of `home` in `file`, if any.
 function deliberateEntry(entries: readonly DeliberateEntry[], file: string, home: string, member: string): DeliberateEntry | null {
   return (
     entries.find((entry) =>
