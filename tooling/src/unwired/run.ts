@@ -679,7 +679,7 @@ async function runGraphCensus(args: GraphArgs): Promise<number> {
   logSession(report.session);
   const { members, sites } = report;
   log(
-    `members=${String(members.asked)}/${String(members.of)} unresolved=${String(members.unresolved)} ${SITE_CLASSES.map((name) => `${name}=${String(sites[name])}`).join(" ")} gap-shapes=${String(report.gaps.length)} false-finding-shapes=${String(report.falseFindings.length)} unknown-slots=${String(report.unknownSlots)} written to ${path} and ${text}`,
+    `members=${String(members.asked)}/${String(members.of)} unread=${String(members.unread)} unresolved=${String(members.unresolved)} ${SITE_CLASSES.map((name) => `${name}=${String(sites[name])}`).join(" ")} gap-shapes=${String(report.gaps.length)} false-finding-shapes=${String(report.falseFindings.length)} unknown-slots=${String(report.unknownSlots)} written to ${path} and ${text}`,
   );
   logLimits(report.limits);
   return EXIT.clean;

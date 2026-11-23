@@ -218,8 +218,9 @@ export interface CensusShape {
 
 /** A census of the references to every product member. */
 export interface CensusReport {
-  /** The product members asked, and those whose declaration name the merged program does not hold. */
-  readonly members: { readonly asked: number; readonly of: number; readonly unresolved: number };
+  /** The product members asked, those among them an unread bucket holds, and those whose declaration name the merged
+   *  program does not hold. */
+  readonly members: { readonly asked: number; readonly of: number; readonly unread: number; readonly unresolved: number };
   /** The references find-references answered: in a group of the asked member's own symbol, and in a relative's group. */
   readonly references: { readonly own: number; readonly relative: number };
   readonly sites: Readonly<Record<SiteClass, number>>;
@@ -312,7 +313,7 @@ class Census {
     this.#world = world;
     this.#resolver = new Resolver(world);
     this.#walked = new Set(graph.files);
-    this.#unread = new Map(UNREAD_BUCKETS.flatMap((bucket) => analysis[bucket].flatMap(({ key }) => (key === null ? [] : [[key, bucket] as const]))));
+    this.#unread = unreadOf(analysis);
   }
 
   /** Ask find-references for one batch of members and count every site it answers. */
@@ -429,7 +430,7 @@ class Census {
     }
   }
 
-  report(members: { readonly asked: number; readonly of: number }): CensusReport {
+  report(members: { readonly asked: number; readonly of: number; readonly unread: number }): CensusReport {
     const shapes = [...this.#shapes].map(([shape, tally]) => shapeOf(shape, tally));
     const gaps = shapes.filter((shape) => shape.gaps > 0).sort((a, b) => b.gaps - a.gaps || a.shape.localeCompare(b.shape));
     return {
@@ -449,6 +450,10 @@ class Census {
     };
   }
 }
+
+// The declarations an unread bucket holds, each with its bucket.
+const unreadOf = (analysis: Analysis): ReadonlyMap<GraphKey, Bucket> =>
+  new Map(UNREAD_BUCKETS.flatMap((bucket) => analysis[bucket].flatMap(({ key }) => (key === null ? [] : [[key, bucket] as const]))));
 
 // A key no declaration has, so a member with no row matches no group.
 const NO_KEY = "#0-0.0" satisfies DeclKey;
@@ -473,8 +478,14 @@ function shapeOf(shape: string, tally: Tally): CensusShape {
   };
 }
 
-/** Count the references to every product member the graph declares, or to an even sample of `sample` of them, by the
- *  context each sits in and the role the graph gave it. The graph must hold every product member's role sites. */
+/** Count the references to every product member the graph declares by the context each sits in and the role the graph
+ *  gave it. The graph must hold every product member's role sites.
+ *
+ *  @remarks
+ *  A `sample` asks every member an unread bucket holds and an even sample of that size of the rest. A read the graph
+ *  missed is a false finding only on an unread member, so none of those is left to chance; the sample only estimates
+ *  how often each shape occurs. Find-references searches the whole program for each member asked, so the members asked
+ *  are the run's cost. */
 export function censusPass(
   graph: Graph,
   world: NativeWorld,
@@ -482,14 +493,17 @@ export function censusPass(
   log: GraphLog,
 ): CensusReport {
   const all = [...graph.facts.decls].filter(([, info]) => isMember(info) && isProduction(info.file));
-  const members = evenSample(all, run.sample);
+  const unread = unreadOf(run.analysis);
+  const held = all.filter(([key]) => unread.has(key));
+  const rest = all.filter(([key]) => !unread.has(key));
+  const members = run.sample === null ? all : [...held, ...evenSample(rest, run.sample)];
   const census = new Census(graph, world, run.analysis);
   for (let at = 0; at < members.length; at += CHUNK) {
     census.batch(members.slice(at, at + CHUNK));
     world.releaseAnswers();
     log(`census members ${String(Math.min(at + CHUNK, members.length))}/${String(members.length)}`);
   }
-  return census.report({ asked: members.length, of: all.length });
+  return census.report({ asked: members.length, of: all.length, unread: held.length });
 }
 
 const classCounts = (classes: Readonly<Record<SiteClass, number>>): string => SITE_CLASSES.map((name) => `${name}=${String(classes[name])}`).join(" ");
@@ -516,7 +530,7 @@ export function censusText(report: CensusReport): string {
     ...shape.variants.map(({ signature, gaps }) => `  ${String(gaps)}\t${signature}`),
   ];
   return [
-    `members asked ${String(members.asked)} of ${String(members.of)}, unresolved ${String(members.unresolved)}`,
+    `members asked ${String(members.asked)} of ${String(members.of)}, every one of the ${String(members.unread)} an unread bucket holds, unresolved ${String(members.unresolved)}`,
     `references own ${String(references.own)}, in a relative's group ${String(references.relative)}; unknown slots ${String(report.unknownSlots)}`,
     `sites ${classCounts(sites)}`,
     "",

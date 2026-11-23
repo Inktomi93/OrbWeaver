@@ -38,7 +38,7 @@ test("a read the graph placed is a handled shape and no gap", TIMEOUT, async ({ 
   );
   const report = await censusGraph(root, { sample: null }, () => undefined);
   expect(report.gaps).toEqual([]);
-  expect(report.members).toEqual({ asked: 2, of: 2, unresolved: 0 });
+  expect(report.members).toEqual({ asked: 2, of: 2, unread: 1, unresolved: 0 });
   expect(report.sites).toEqual(counted({ placed: 3 }));
   expect(handledAt(report, READ_IN_ARROW)).toEqual({ shape: READ_IN_ARROW, sites: 1, classes: counted({ placed: 1 }), roles: ["read"] });
   expect(handledAt(report, KEY_IN_INITIALIZER)).toEqual({ shape: KEY_IN_INITIALIZER, sites: 2, classes: counted({ placed: 2 }), roles: ["write"] });
@@ -168,13 +168,22 @@ test("a reference in a file the build did not walk is unwalked, not a gap", TIME
   expect(report.sites).toEqual(counted({ placed: 2, unwalked: 1 }));
 });
 
-test("a sample asks an even spread of the members", TIMEOUT, async ({ plantedTree }) => {
+// x, y and z are read and w is only written, so w sits in an unread bucket: a sample of one asks w and one read member.
+test("a sample asks every member an unread bucket holds and an even spread of the rest", TIMEOUT, async ({ plantedTree }) => {
   const root = await plantedTree(
-    graphTree({ [FILE]: ["export interface A { readonly x: string; readonly y: number }", 'export const made: A = { x: "1", y: 2 };'].join("\n") }),
+    graphTree({
+      [FILE]: [
+        "export interface A { readonly x: string; readonly y: string; readonly z: string; readonly w: string }",
+        'export const made: A = { x: "1", y: "2", z: "3", w: "4" };',
+        "export const read = (a: A): string => a.x + a.y + a.z;",
+      ].join("\n"),
+    }),
   );
-  const report = await censusGraph(root, { sample: 1 }, () => undefined);
-  expect(report.members).toEqual({ asked: 1, of: 2, unresolved: 0 });
-  expect(report.sites).toEqual(counted({ placed: 1 }));
+  const whole = await censusGraph(root, { sample: null }, () => undefined);
+  expect(whole.members).toEqual({ asked: 4, of: 4, unread: 1, unresolved: 0 });
+  const sampled = await censusGraph(root, { sample: 1 }, () => undefined);
+  expect(sampled.members).toEqual({ asked: 2, of: 4, unread: 1, unresolved: 0 });
+  expect(sampled.sites).toEqual(counted({ placed: 3 }));
 });
 
 test("pnpm unwired graph-census prints its top gap shapes and writes the report as JSON and as text", TIMEOUT, async ({ plantedTree, runCli, scratch }) => {
@@ -185,7 +194,7 @@ test("pnpm unwired graph-census prints its top gap shapes and writes the report 
   const run = await runCli("unwired", ["graph-census", `--ablate=${KEYS_OFF}`, `--root=${root}`, `--out=${out}`]);
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout).toBe(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n`);
-  expect(run.stderr).toContain("members=2/2 unresolved=0 placed=0 unclassified=0 unwalked=0 elsewhere=0 declares=0 gap=2 gap-shapes=1");
+  expect(run.stderr).toContain("members=2/2 unread=2 unresolved=0 placed=0 unclassified=0 unwalked=0 elsewhere=0 declares=0 gap=2 gap-shapes=1");
   expect(existsSync(out)).toBe(true);
   expect(readFileSync(join(scratch, "census.txt"), "utf8")).toContain(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n  sites placed=0`);
 });
