@@ -63,7 +63,8 @@ interface OpenSend {
   readonly keys: readonly string[];
 }
 
-interface Destination {
+/** Where a sent value goes: the destination's kind and the library, logger or call that takes it, when one is named. */
+export interface Destination {
   readonly destination: SendDestination;
   readonly receiver: string | null;
 }
@@ -345,11 +346,15 @@ const wireCall = (call: Invocation): readonly Destination[] => {
   return text !== null && WIRE_CALLS.has(text) ? [{ destination: "wire", receiver: text }] : [];
 };
 
-// A library slot typed `unknown` takes the value opaquely: a schema parse hands it back typed, React compares a
-// dependency list by identity. Only a slot that takes keys (an index signature, `object`) reads members. An optional
-// parameter's slot carries `undefined` (`deps?: DependencyList`), which the check strips first.
 function* isOpaqueSlot(world: NativeWorld, argument: Node | undefined): APIRequestGenerator<boolean> {
-  const contextual = argument === undefined ? undefined : yield* world.checker.getContextualType.gen(argument as Expression);
+  return yield* identitySlot(world, argument === undefined ? undefined : yield* world.checker.getContextualType.gen(argument as Expression));
+}
+
+/** Whether a library slot takes a value by identity: a slot typed `unknown`, or a list of `unknown`. A schema parse
+ *  hands the value back typed, React compares a dependency list by identity. Only a slot that takes keys (an index
+ *  signature, `object`) reads members. An optional parameter's slot carries `undefined` (`deps?: DependencyList`),
+ *  which the check strips first. */
+export function* identitySlot(world: NativeWorld, contextual: Type | undefined): APIRequestGenerator<boolean> {
   if (contextual === undefined || hasFlag(contextual.flags, TypeFlags.Unknown)) {
     return true;
   }
@@ -403,6 +408,9 @@ function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIReq
   const carrier = carrierOf(value);
   return carrier === null ? [] : yield* callDestinations(world, carrier.call, carrier.index, depth);
 }
+
+/** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
+export const sendDestinations = (world: NativeWorld, value: Node): APIRequestGenerator<readonly Destination[]> => destinationsOf(world, value, 0);
 
 // --- The provider request reach -----------------------------------------------------------------------------
 

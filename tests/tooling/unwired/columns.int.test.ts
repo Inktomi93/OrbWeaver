@@ -34,6 +34,7 @@ const DRIZZLE = [
   "export declare const rawDb: { run(statement: unknown): void };",
   "export declare function sql(text: TemplateStringsArray, ...values: unknown[]): unknown;",
   "export declare const logger: { info(fields: Record<string, unknown> | string): void };",
+  "export declare function writeFileSync(path: string, data: string): void;",
 ].join("\n");
 const DRIZZLE_PKG = {
   "node_modules/drizzle-orm/package.json": JSON.stringify({ name: "drizzle-orm", types: "index.d.ts" }),
@@ -114,25 +115,27 @@ test("a column logged by name is read and a whole-row log dump reads none", { ti
   expect(named(report)).toEqual(["events.detail never-read"]);
 });
 
-// Rows serialized into a log read none, so `archive.summary` stays never read. A store of a whole value writes its
-// required members' columns: the import fills `profiles.name` and `bio`. An optional column only the value's type
-// allows is no write, so `motto`, which the imported value never carries, stays never written, as `archive.extra`
-// does under an insert-typed draft.
+// An export serializes whole rows into a file, which reads every column they carry: `profiles.name`, `bio` and `motto`.
+// The same rows serialized into a log read none, so `archive.summary` stays never read. A store of a whole value writes
+// its required members' columns: the import fills `profiles.name` and `bio`. An optional column only the value's type
+// allows is no write, so `motto`, which the imported value never carries, stays never written, as `archive.extra` does
+// under an insert-typed draft.
 const PORTED = tree(
   [
     'export const profiles = sqliteTable("profiles", { name: required(), bio: required(), motto: text() });',
     'export const archive = sqliteTable("archive", { title: required(), summary: required(), extra: text() });',
   ],
   [
+    'import { writeFileSync } from "drizzle-orm";',
     "interface ImportedProfile { readonly name: string; readonly bio: string; readonly motto?: string }",
     "export const importProfile = (text: string): void => { db.insert(schema.profiles).values(JSON.parse(text) as ImportedProfile); };",
-    "export const shownProfiles = db.select().from(schema.profiles).map((row) => [row.name, row.bio, row.motto]);",
+    "export const exportProfiles = (path: string): void => { writeFileSync(path, JSON.stringify(db.select().from(schema.profiles))); };",
     "export const archived = (draft: typeof schema.archive.$inferInsert): void => { db.insert(schema.archive).values(draft); };",
     "export const dump = (): void => { logger.info(JSON.stringify(db.select().from(schema.archive))); };",
   ],
 );
 
-test("an import writes the required columns and a log dump reads none", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("an export to a file reads its columns, an import writes the required ones, and a log dump reads none", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = await scan(await plantedTree(PORTED));
   expect(named(report)).toEqual(["archive.extra unreferenced", "archive.summary never-read", "archive.title never-read", "profiles.motto never-written"]);
 });

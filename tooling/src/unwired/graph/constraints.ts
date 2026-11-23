@@ -10,29 +10,43 @@
 // - Inside a generic function, a call that hands its own type parameter to another generic's (`claiming(verb)` in
 //   `claim<P extends …>`) fills that generic's constraint with its own: the walk pairs the two signatures' parameter
 //   types in parallel, ending on a seen-set.
-// - A string literal argument whose contextual type is `keyof T` (`context.get("session")`) names T's member.
-import type { CallExpression, Expression, Node, TypeNode } from "@typescript/native/ast";
+// - A string literal argument whose contextual type is `keyof T` (`context.get("session")`) names T's member, and so
+//   does a literal returned where the function's return type is an alias of `keyof T`.
+// - A generic type spelled with type arguments fills its declaration's constraints as a call's type arguments do, and
+//   a list handed to a generic's list parameter fills that parameter's element constraint with its own.
+import type { CallExpression, Expression, Node, TypeNode, TypeParameterDeclaration, TypeReferenceNode } from "@typescript/native/ast";
 import {
   isCallExpression,
   isCallSignatureDeclaration,
   isFunctionLikeDeclaration,
   isIdentifier,
+  isInterfaceDeclaration,
   isMethodSignatureDeclaration,
   isPropertyAccessExpression,
+  isQualifiedName,
+  isTypeAliasDeclaration,
   isTypeOperatorNode,
   isTypeReferenceNode,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, NodeHandle, Signature, Type } from "@typescript/native/sync";
+import { SymbolFlags } from "@typescript/native/sync";
+import { hasFlag } from "../native.ts";
 import type { TypeArgumentSite } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, literalValues } from "./state.ts";
 
+const declarationKey = (handle: NodeHandle): string => `${handle.path}#${String(handle.index)}`;
+
 interface Named {
   readonly type: Type;
   readonly name: string;
 }
+
+// Each site's named members, at that site's position.
+const sited = (lists: readonly (readonly Named[])[], at: (y: number) => number): readonly (Named & { readonly at: number })[] =>
+  lists.flatMap((list, y) => list.map((ask) => ({ ...ask, at: at(y) })));
 
 // The operand of the `keyof` a parameter's type parameter is constrained by, as the declaration spells it:
 // `get<K extends keyof V>(key: K)` gives `V`. The checker hands back the constraint already evaluated to its keys, so
@@ -60,19 +74,24 @@ export class Constraints {
       readonly typeArguments: readonly TypeArgumentSite[];
       readonly genericCalls: readonly CallExpression[];
       readonly keyArguments: readonly Expression[];
+      readonly keyReturns: readonly { readonly value: Expression; readonly type: TypeNode }[];
     },
     file: string,
   ): void {
     const state = this.#state;
     const named = [
-      ...state.batch(sites.typeArguments.map((site) => this.#explicit(site))).flat(),
-      ...state.batch(sites.genericCalls.map((call) => this.#handOff(call))).flat(),
-      ...state.batch(sites.keyArguments.map((argument) => this.#keyArgument(argument))).flat(),
+      ...sited(state.batch(sites.typeArguments.map((site) => this.#explicit(site))), (y) => sites.typeArguments[y]?.call.pos ?? 0),
+      ...sited(state.batch(sites.genericCalls.map((call) => this.#handOff(call))), (y) => sites.genericCalls[y]?.pos ?? 0),
+      ...sited(state.batch(sites.keyArguments.map((argument) => this.#keyArgument(argument))), (y) => sites.keyArguments[y]?.pos ?? 0),
+      ...sited(state.batch(sites.keyReturns.map((returned) => this.#keyReturn(returned))), (y) => sites.keyReturns[y]?.value.pos ?? 0),
     ];
-    state.roleAll(state.slotMembers(named).flat(), "key", file, 0);
+    state.roleNamed(named, "key", file);
   }
 
   *#explicit(site: TypeArgumentSite): APIRequestGenerator<readonly Named[]> {
+    if (isTypeReferenceNode(site.call)) {
+      return yield* this.#referenced(site.call, site.arguments);
+    }
     const { checker } = this.#state.world;
     const signature = yield* checker.getResolvedSignature.gen(site.call);
     const generic = (yield* signature.getTarget.gen()) ?? signature;
@@ -98,6 +117,57 @@ export class Constraints {
       }
     }
     return out;
+  }
+
+  // A generic type spelled with its type arguments (`DbAssemblyInput<Deps>`): each argument fills the constraint its
+  // declaration gives that parameter, a `keyof` constraint naming the members its argument spells on the parameter it
+  // is keyof.
+  *#referenced(reference: TypeReferenceNode, argumentNodes: readonly TypeNode[]): APIRequestGenerator<readonly Named[]> {
+    const { checker } = this.#state.world;
+    const parameters = yield* this.#declaredParameters(reference);
+    const argumentTypes: Type[] = [];
+    for (const node of argumentNodes) {
+      argumentTypes.push(yield* checker.getTypeFromTypeNode.gen(node));
+    }
+    const out: Named[] = [];
+    for (const [at, parameter] of parameters.entries()) {
+      const argument = argumentTypes[at];
+      if (argument !== undefined && parameter.constraint !== undefined) {
+        out.push(
+          ...(yield* this.#referencedArgument(
+            parameter.constraint,
+            argument,
+            (name) => argumentTypes[parameters.findIndex((other) => other.name.text === name)],
+          )),
+        );
+      }
+    }
+    return out;
+  }
+
+  // The declaration a type reference names, imports followed.
+  *#referencedDeclaration(reference: TypeReferenceNode): APIRequestGenerator<NodeHandle | undefined> {
+    const { checker } = this.#state.world;
+    const named = yield* checker.getSymbolAtLocation.gen(isQualifiedName(reference.typeName) ? reference.typeName.right : reference.typeName);
+    const symbol = named !== undefined && hasFlag(named.flags, SymbolFlags.Alias) ? yield* checker.getAliasedSymbol.gen(named) : named;
+    return symbol?.declarations[0];
+  }
+
+  // The type parameters the declaration a reference names spells.
+  *#declaredParameters(reference: TypeReferenceNode): APIRequestGenerator<readonly TypeParameterDeclaration[]> {
+    const handle = yield* this.#referencedDeclaration(reference);
+    const declaration = handle === undefined ? undefined : yield* handle.resolve.gen();
+    return declaration !== undefined && (isTypeAliasDeclaration(declaration) || isInterfaceDeclaration(declaration)) ? (declaration.typeParameters ?? []) : [];
+  }
+
+  *#referencedArgument(constraint: TypeNode, argument: Type, argumentOf: (parameter: string) => Type | undefined): APIRequestGenerator<readonly Named[]> {
+    const keyed = isTypeOperatorNode(constraint) && constraint.operator === SyntaxKind.KeyOfKeyword ? constraint.type : undefined;
+    if (keyed === undefined) {
+      return yield* this.#filled(yield* this.#state.world.checker.getTypeFromTypeNode.gen(constraint), argument);
+    }
+    const holder = isTypeReferenceNode(keyed) && isIdentifier(keyed.typeName) ? argumentOf(keyed.typeName.text) : undefined;
+    const keys = yield* literalValues(argument);
+    return holder === undefined ? [] : (keys ?? []).map((name) => ({ type: holder, name }));
   }
 
   // The members of `argument` a constraint names: each one the constraint requires the argument to carry.
@@ -160,6 +230,11 @@ export class Constraints {
 
   *#children(slot: Type, value: Type): APIRequestGenerator<readonly (readonly [Type, Type])[]> {
     const { checker } = this.#state.world;
+    // a list into a list, a mutable one into a readonly one too: their elements
+    if (slot.isTypeReference() && value.isTypeReference() && (yield* checker.isArrayLikeType.gen(slot)) && (yield* checker.isArrayLikeType.gen(value))) {
+      const [[slotElement], [valueElement]] = [yield* checker.getTypeArguments.gen(slot), yield* checker.getTypeArguments.gen(value)];
+      return slotElement === undefined || valueElement === undefined ? [] : [[slotElement, valueElement]];
+    }
     if (slot.isTypeReference() && value.isTypeReference() && (yield* slot.getTarget.gen()).id === (yield* value.getTarget.gen()).id) {
       const [slotArguments, valueArguments] = [yield* checker.getTypeArguments.gen(slot), yield* checker.getTypeArguments.gen(value)];
       return slotArguments.flatMap((type, at) => {
@@ -179,6 +254,42 @@ export class Constraints {
     });
     pairs.push([yield* slotSignature.getReturnType.gen(), yield* valueSignature.getReturnType.gen()]);
     return pairs;
+  }
+
+  // `return "restored"` from a function declared to return `Disposition`, an alias of `keyof Report`: the literal
+  // names Report's member, as the compiler checks it against Report's keys.
+  *#keyReturn({ value, type }: { readonly value: Expression; readonly type: TypeNode }): APIRequestGenerator<readonly Named[]> {
+    const operand = yield* this.#keyofOperandOf(type);
+    if (operand === undefined) {
+      return [];
+    }
+    const holder = yield* this.#state.world.checker.getTypeFromTypeNode.gen(operand);
+    return (keyLiterals(value) ?? []).map((name) => ({ type: holder, name }));
+  }
+
+  // The operand of the `keyof` a type node spells: directly, through a type alias, or inside a default-library wrapper
+  // such as `Promise<…>`. The walk ends on its seen-set of declarations.
+  *#keyofOperandOf(start: TypeNode): APIRequestGenerator<TypeNode | undefined> {
+    const seen = new Set<string>();
+    let at: TypeNode | undefined = start;
+    while (at !== undefined && !(isTypeOperatorNode(at) && at.operator === SyntaxKind.KeyOfKeyword)) {
+      at = isTypeReferenceNode(at) ? yield* this.#referencedType(at, seen) : undefined;
+    }
+    return at?.type;
+  }
+
+  // The type a reference stands for: an alias's own, or a default-library wrapper's single argument.
+  *#referencedType(reference: TypeReferenceNode, seen: Set<string>): APIRequestGenerator<TypeNode | undefined> {
+    const handle = yield* this.#referencedDeclaration(reference);
+    if (handle === undefined || seen.has(declarationKey(handle))) {
+      return undefined;
+    }
+    seen.add(declarationKey(handle));
+    const declaration = yield* handle.resolve.gen();
+    if (declaration !== undefined && isTypeAliasDeclaration(declaration)) {
+      return declaration.type;
+    }
+    return (yield* this.#state.world.isDefaultLibrary(handle)) && reference.typeArguments?.length === 1 ? reference.typeArguments[0] : undefined;
   }
 
   // `get("session")` where the parameter is `K extends keyof Vars`: the literal names Vars's member. The generic's

@@ -28,5 +28,27 @@ test("a value a carrier writes for its primitive selects the primitive's axis", 
     },
     { jsx: true },
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["gap = spare"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["stack.gap = spare"]);
+});
+
+// A door's component that renders another door's core.tsx hands its props on: the value it is given selects the
+// owner's axis (tooling/src/eslint/ui-classes/variants.ts reads the same carrier by its core.tsx import).
+test("a value a door hands to another door's core selects the core's axis", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const core = `${GRAPH_SOURCE}/stack/core.tsx`;
+  const row = `${GRAPH_SOURCE}/row/row.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      ...tailwindVariants(),
+      [core]: STACK.join("\n"),
+      [row]: [
+        JSX_NAMESPACE,
+        'import { Stack } from "../stack/core.tsx";',
+        'export const Row = ({ gap }: { readonly gap: "row" | "field" }): JSX.Element => <Stack gap={gap} />;',
+        'export const page = (): JSX.Element => <Row gap="row" />;',
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect(labelsIn(scan, "variant-value-unused", core)).toEqual(["stack.gap = field, spare"]);
 });

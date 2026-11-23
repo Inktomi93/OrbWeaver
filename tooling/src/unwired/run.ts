@@ -8,7 +8,8 @@
 // apart; `removed-keys` resolves every receiver site of a removed contract key over the graph session's merged program
 // and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
-// (./literal-hits.ts).
+// (./literal-hits.ts); `graph-trial` deletes each finding of the named buckets in a throwaway snapshot
+// (./graph/trial.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
@@ -18,13 +19,13 @@ import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
-import type { MemberBucket } from "./graph/analyse.ts";
+import type { Bucket, MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
 import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
-import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import { ABLATIONS, FRESH_BUILD, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
 import { outsideTable } from "./graph/procedures.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
@@ -40,9 +41,12 @@ import {
   removedKeysGraph,
   scanGraph,
   shapesGraph,
+  trialGraph,
   unionsGraph,
   verifyGraph,
 } from "./graph/scan.ts";
+import type { TrialBucket, TrialReach } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_REACHES, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -65,6 +69,10 @@ type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
+const POSITIVE_COUNT = /^[1-9]\d*$/u;
+/** The verb that deletes each finding in a throwaway snapshot. */
+export const TRIAL_VERB = "graph-trial";
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--reach=<${TRIAL_REACHES.join("|")}>] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
@@ -95,8 +103,8 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
 };
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
-const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
+const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -149,7 +157,7 @@ function literalLine(stage: LiteralStage | null): string {
   const moved = Object.entries(stage.movedBy)
     .map(([kind, count]) => `${kind}:${String(count)}`)
     .join(",");
-  return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)}`;
+  return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)} unsearchable=${String(stage.unsearchable)}`;
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */
@@ -457,7 +465,7 @@ function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
     throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
   }
   const sample = single(flags, "sample");
-  if (sample !== null && !/^[1-9]\d*$/u.test(sample)) {
+  if (sample !== null && !POSITIVE_COUNT.test(sample)) {
     throw new UsageError(`--sample=${sample}: expected a positive count`);
   }
   const root = resolve(single(flags, "root") ?? process.cwd());
@@ -643,17 +651,40 @@ async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<nu
   return EXIT.clean;
 }
 
+const MEMBER_BUCKET_SET: ReadonlySet<Bucket> = new Set(MEMBER_BUCKETS);
+const isMemberBucket = (bucket: Bucket): bucket is MemberBucket => MEMBER_BUCKET_SET.has(bucket);
+
 async function runGraphScan(args: GraphArgs): Promise<number> {
-  const graph = await scanGraph(args.root, log, args.options);
+  const graph = await scanGraph(args.root, log, args.options, { deliberate: DELIBERATE, judged: JUDGED_FIELDS });
   const path = write(args.root, args.out, graph);
+  const { members } = graph;
+  // A member bucket lists only the rows no ruling names; the deliberate and judged rows follow it apart.
+  const shown = (bucket: Bucket): readonly { readonly label: string; readonly note: string | null }[] => {
+    if (!isMemberBucket(bucket)) {
+      return graph.analysis[bucket];
+    }
+    const rows = bucket === "member-validated" ? members.validated : members.unwired.filter((row) => row.bucket === bucket);
+    return rows.map(({ key, verdict, note }) => ({ label: `${key}\t${verdict}`, note }));
+  };
   for (const bucket of BUCKETS) {
-    for (const finding of graph.analysis[bucket]) {
+    for (const finding of shown(bucket)) {
       process.stdout.write(`${bucket}\t${finding.label}${finding.note === null ? "" : `\t${finding.note}`}\n`);
     }
   }
+  for (const row of members.deliberate) {
+    process.stdout.write(`deliberate\t${row.bucket}\t${row.key}\t${row.reason}\n`);
+  }
+  for (const row of members.judged) {
+    process.stdout.write(`judged\t${row.bucket}\t${row.key}\t${String(row.item)}\n`);
+  }
+  for (const entry of members.staleJudged) {
+    process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
+  }
   logSession(graph.session);
+  log(literalLine(members.literalStage));
+  const ruled = `deliberate=${String(members.deliberate.length)} judged=${String(members.judged.length)} stale-judged=${String(members.staleJudged.length)}`;
   log(
-    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(graph.analysis[bucket].length)}`).join(" ")} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
+    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(shown(bucket).length)}`).join(" ")} ${ruled} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
   );
   return EXIT.clean;
 }
@@ -728,6 +759,100 @@ async function runGraph(args: GraphArgs): Promise<number> {
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }
 
+const TRIAL_OUT = "reports/unwired/graph-trial.json";
+const [NARROWED_REACH] = TRIAL_REACHES;
+const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
+const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile|reach)=(.+)$/u;
+
+interface TrialArgs {
+  readonly root: string;
+  readonly out: string;
+  readonly buckets: readonly TrialBucket[];
+  /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
+  readonly limit: number | null;
+  /** Where the compiler CPU profile of one group is written; none when absent. */
+  readonly cpuProfile: string | null;
+  /** Which files each snapshot checks; the find-references set unless the import graph's is asked for. */
+  readonly reach: TrialReach;
+}
+
+function trialLimit(limit: string | null): number | null {
+  if (limit !== null && !POSITIVE_COUNT.test(limit)) {
+    throw new UsageError(`--limit=${limit}: expected a positive count\n${TRIAL_USAGE}`);
+  }
+  return limit === null ? null : Number(limit);
+}
+
+const trialReach = (value: string | null): TrialReach => oneOf("reach", value, TRIAL_REACHES) ?? NARROWED_REACH;
+
+function parseTrialArgs(argv: readonly string[]): TrialArgs {
+  const buckets: TrialBucket[] = [];
+  const flags = new Map<string, string>();
+  for (const arg of argv) {
+    const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
+    if (name === "") {
+      throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
+    }
+    const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
+    if (bucket === null) {
+      flags.set(name, value);
+    } else {
+      buckets.push(bucket);
+    }
+  }
+  if (buckets.length === 0) {
+    throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
+  }
+  return {
+    root: resolve(flags.get("root") ?? process.cwd()),
+    out: flags.get("out") ?? TRIAL_OUT,
+    buckets,
+    limit: trialLimit(flags.get("limit") ?? null),
+    cpuProfile: flags.get("cpu-profile") ?? null,
+    reach: trialReach(flags.get("reach") ?? null),
+  };
+}
+
+async function runGraphTrial(args: TrialArgs): Promise<number> {
+  // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
+  const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
+  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile, reach: args.reach }, log, timed);
+  const path = write(args.root, args.out, report);
+  for (const trial of report.trials) {
+    const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
+    const literal = trial.literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`);
+    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors, ...literal].join(",")}\n`);
+  }
+  for (const row of report.control.filter(({ side }) => side !== "agree")) {
+    process.stdout.write(`control-${row.side}\t${row.at}\t${row.name}\t${row.code === null ? "" : `TS${String(row.code)}`}\t${row.graph}\n`);
+  }
+  for (const bucket of new Set(args.buckets)) {
+    const mine = report.trials.filter((trial) => trial.bucket === bucket);
+    log(
+      `${bucket} trials=${String(mine.length)} ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${String(mine.filter((trial) => trial.verdict === verdict).length)}`).join(" ")}`,
+    );
+    const unused = mine.filter(({ tsUnused }) => tsUnused);
+    const compiles = mine.reduce((sum, trial) => sum + trial.compiles, 0);
+    log(
+      `${bucket} tsc-unused=${String(unused.length)} ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${String(unused.filter((trial) => trial.verdict === verdict).length)}`).join(" ")} compiles=${String(compiles)}`,
+    );
+  }
+  log(
+    `trial phases ${TRIAL_PHASES.map((phase) => {
+      const { ms: took, requests, serverMs } = report.phases[phase];
+      return `${phase}=${ms(took)}/${String(requests)}req/server ${ms(serverMs)}`;
+    }).join(" ")}${report.cpuProfile === null ? "" : ` cpu-profile=${report.cpuProfile}`}`,
+  );
+  const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
+  log(
+    report.literalFiles === null
+      ? "literal search: no git index, so confirmed is the compile's word alone"
+      : `literal search scanned=${String(report.literalFiles)} tracked files`,
+  );
+  log(`control ${sides.join(" ")} written to ${path}`);
+  return EXIT.clean;
+}
+
 const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VERBS.find((candidate) => candidate === verb);
 
 // The verbs that read their own flags or run asynchronously: `hits` takes names, `coverage` runs the test suites with
@@ -738,6 +863,9 @@ function asyncVerb(argv: readonly string[]): number | Promise<number> | undefine
   }
   if (argv[0] === COVERAGE_VERB) {
     return runCoverage(argv.slice(1), log);
+  }
+  if (argv[0] === TRIAL_VERB) {
+    return runGraphTrial(parseTrialArgs(argv.slice(1)));
   }
   const graph = graphVerb(argv[0]);
   return graph === undefined ? undefined : runGraph(parseGraphArgs(graph, argv.slice(1)));

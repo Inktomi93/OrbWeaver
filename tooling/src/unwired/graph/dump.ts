@@ -10,7 +10,7 @@ import { NO_ROLES, withRoles } from "./roles.ts";
 import type { GraphFacts } from "./state.ts";
 
 /** The dump format this build writes and reads. Raise it with any change to {@link Graph} or {@link GraphFacts}. */
-export const GRAPH_DUMP_FORMAT = 6;
+export const GRAPH_DUMP_FORMAT = 11;
 
 /** When and from which commit a dump was built; `head` is null outside a git checkout. */
 export interface DumpStamp {
@@ -34,8 +34,10 @@ const plainFacts = (facts: GraphFacts): GraphFacts => ({
   doc: facts.doc,
   roles: facts.roles,
   roleSites: facts.roleSites,
+  parameterHomes: facts.parameterHomes,
   flows: facts.flows,
-  door: facts.door,
+  columnFlows: facts.columnFlows,
+  doorReads: facts.doorReads,
   unseenCalls: facts.unseenCalls,
   bindings: facts.bindings,
   unpairedReceivers: facts.unpairedReceivers,

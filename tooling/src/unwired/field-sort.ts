@@ -3,11 +3,8 @@
 
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import ts from "typescript";
-import { catBlobs, execGit } from "../floor/git/git.ts";
+import { catBlobs, execGit, runGit } from "../floor/git/git.ts";
 import type { SendDestination } from "./boundaries.ts";
-import type { Site, Sources } from "./classify.ts";
-import { nameAt } from "./classify.ts";
 import { typeNameOf } from "./plugin-surface.ts";
 
 const VERDICTS = ["dead", "forgotten", "ask"] as const;
@@ -78,7 +75,12 @@ export function homeAliases(root: string): ReadonlyMap<string, ReadonlySet<strin
   if (!existsSync(join(root, ".git"))) {
     return aliases;
   }
-  const text = execGit(root, ["grep", "-h", "-E", ALIAS_GREP, "--", "packages"], { maxBuffer: HISTORY_BUFFER });
+  // git grep exits 1 when no line spells an alias
+  const grep = runGit(root, ["grep", "-h", "-E", ALIAS_GREP, "--", "packages"], { maxBuffer: HISTORY_BUFFER });
+  if (grep.status !== 0 && grep.status !== 1) {
+    throw new Error(`git grep failed (exit ${String(grep.status)}): ${grep.stderr.trim()}`);
+  }
+  const text = grep.stdout;
   for (const pattern of [TYPE_ALIAS, RENAMED]) {
     for (const [, from = "", to = ""] of text.matchAll(pattern)) {
       pair(from, to);
@@ -87,8 +89,8 @@ export function homeAliases(root: string): ReadonlyMap<string, ReadonlySet<strin
   return aliases;
 }
 
-/** The names a home is spelled by in source: its own, its schema or type twin, and the aliases the tree gives either. */
-export function homeNames(home: string, aliases: ReadonlyMap<string, ReadonlySet<string>>): readonly string[] {
+// The names a home is spelled by in source: its own, its schema or type twin, and the aliases the tree gives either.
+function homeNames(home: string, aliases: ReadonlyMap<string, ReadonlySet<string>>): readonly string[] {
   const [head = ""] = home.split(".");
   const twin = head.endsWith(SCHEMA) ? typeNameOf(head) : `${head.charAt(0).toLowerCase()}${head.slice(1)}${SCHEMA}`;
   return [...new Set([head, twin, ...(aliases.get(head) ?? []), ...(aliases.get(twin) ?? [])])];
@@ -230,33 +232,117 @@ function docTokens(root: string): DocTokens {
   return { first, lines };
 }
 
-const isLiteralValue = (node: ts.Node): boolean =>
-  ts.isStringLiteralLike(node) ||
-  ts.isNumericLiteral(node) ||
-  ts.isObjectLiteralExpression(node) ||
-  ts.isArrayLiteralExpression(node) ||
-  ts.isTemplateExpression(node) ||
-  node.kind === ts.SyntaxKind.TrueKeyword ||
-  node.kind === ts.SyntaxKind.FalseKeyword;
+// A settings field promises its feature to whoever sets it. A flow carries that promise into each field it fills, so a
+// knob mirrored into a carrier stays promised without a name match.
+const SETTINGS_HOMES = "packages/contracts/src/settings/";
 
-// A write site's value: a key's initializer through `as` and `satisfies`, or a JSX attribute's string.
-function isHandWritten(sources: Sources, site: Site): boolean {
-  const parent = nameAt(sources.get(site.file), site.position)?.parent;
-  let value: ts.Node | undefined;
-  if (parent !== undefined && ts.isPropertyAssignment(parent)) {
-    value = parent.initializer;
-  } else if (parent !== undefined && ts.isJsxAttribute(parent)) {
-    value = parent.initializer;
+/** One declared field as the promise test reads it: its report key, where it sits, its home and member, and the
+ *  declaration keys a flow from it starts at. */
+export interface PromiseField {
+  readonly key: string;
+  readonly file: string;
+  readonly line: number;
+  readonly home: string;
+  readonly member: string;
+  readonly keys: Iterable<string>;
+}
+
+/** What the sort's promise test needs about one field from the whole scan. */
+export type FieldPromise = Pick<SortedField, "onlyHome" | "setting" | "namedSetting"> & { readonly siblings: readonly string[] };
+
+interface SettingPromises {
+  /** Each settings field, and each field a flow from one fills, to that setting's `file:line`. */
+  readonly fed: ReadonlyMap<string, string>;
+  /** The first settings field of each member name, `file:line`. */
+  readonly named: ReadonlyMap<string, string>;
+}
+
+const homeOf = (field: PromiseField): string => `${field.file}:${field.home}`;
+
+// Every declaration key a value starting at `keys` reaches through flows, however many hops.
+function carriedFrom(keys: Iterable<string>, carriesInto: ReadonlyMap<string, ReadonlySet<string>>): ReadonlySet<string> {
+  const seen = new Set(keys);
+  const queue = [...seen];
+  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+    for (const into of [...(carriesInto.get(next) ?? [])].filter((key) => !seen.has(key))) {
+      seen.add(into);
+      queue.push(into);
+    }
   }
-  while (value !== undefined && (ts.isAsExpression(value) || ts.isSatisfiesExpression(value) || ts.isParenthesizedExpression(value))) {
-    value = value.expression;
+  return seen;
+}
+
+function settingPromises(fields: readonly PromiseField[], carriesInto: ReadonlyMap<string, ReadonlySet<string>>): SettingPromises {
+  const owner = new Map(fields.flatMap((field) => [...field.keys].map((key) => [key, field.key] as const)));
+  const fed = new Map<string, string>();
+  const named = new Map<string, string>();
+  for (const field of fields.filter((entry) => entry.file.startsWith(SETTINGS_HOMES))) {
+    const at = `${field.file}:${String(field.line)}`;
+    named.set(field.member, named.get(field.member) ?? at);
+    for (const filled of [field.key, ...[...carriedFrom(field.keys, carriesInto)].flatMap((key) => owner.get(key) ?? [])]) {
+      fed.set(filled, fed.get(filled) ?? at);
+    }
   }
-  return value !== undefined && isLiteralValue(value);
+  return { fed, named };
+}
+
+// One concept per home: a schema and its type twin, or a home and an alias the tree gives it, are one home even in two
+// files. Unrelated homes of one name in two files stay apart. Each home maps to the first home of its concept.
+function conceptsOf(fields: readonly PromiseField[], aliases: ReadonlyMap<string, ReadonlySet<string>>): ReadonlyMap<string, string> {
+  const byHome = new Map<string, string[]>();
+  for (const field of fields) {
+    const list = byHome.get(field.home) ?? [];
+    list.push(homeOf(field));
+    byHome.set(field.home, list);
+  }
+  const root = new Map<string, string>();
+  const find = (home: string): string => {
+    const up = root.get(home) ?? home;
+    return up === home ? home : find(up);
+  };
+  for (const field of fields) {
+    const [head, ...rest] = field.home.split(".");
+    const twins = homeNames(field.home, aliases)
+      .filter((name) => name !== head)
+      .flatMap((name) => byHome.get([name, ...rest].join(".")) ?? []);
+    for (const twin of twins) {
+      const [a, b] = [find(homeOf(field)), find(twin)].sort();
+      if (a !== undefined && b !== undefined && a !== b) {
+        root.set(b, a);
+      }
+    }
+  }
+  return new Map(fields.map((field) => [homeOf(field), find(homeOf(field))]));
+}
+
+/** What the sort's promise test needs about a field from the whole scan: whether one home alone declares its member
+ *  name, the other members of its home, the setting that feeds it, and a same-named setting no flow connects. */
+export function promiseFacts(
+  fields: readonly PromiseField[],
+  carriesInto: ReadonlyMap<string, ReadonlySet<string>>,
+  aliases: ReadonlyMap<string, ReadonlySet<string>>,
+): (field: PromiseField) => FieldPromise {
+  const concepts = conceptsOf(fields, aliases);
+  const conceptOf = (field: PromiseField): string => concepts.get(homeOf(field)) ?? homeOf(field);
+  const homes = new Map<string, Set<string>>();
+  const members = new Map<string, Set<string>>();
+  for (const field of fields) {
+    homes.set(field.member, (homes.get(field.member) ?? new Set()).add(conceptOf(field)));
+    members.set(conceptOf(field), (members.get(conceptOf(field)) ?? new Set()).add(field.member));
+  }
+  const { fed, named } = settingPromises(fields, carriesInto);
+  return (field) => ({
+    onlyHome: homes.get(field.member)?.size === 1,
+    siblings: [...(members.get(conceptOf(field)) ?? [])].filter((member) => member !== field.member),
+    setting: fed.get(field.key) ?? null,
+    namedSetting: named.get(field.member) ?? null,
+  });
 }
 
 /** One reported field as the sort reads it. */
 export interface SortedField extends Owned {
-  readonly writes: readonly Site[];
+  /** Some write gives the field a literal value rather than copying another value. */
+  readonly handAuthored: boolean;
   readonly siblingsUsed: boolean;
   /** Where the value leaves the process with no receiver found, if anywhere. */
   readonly sent: readonly string[];
@@ -272,15 +358,13 @@ export class FieldSort {
   readonly #history: ReadonlyMap<string, string>;
   readonly #promises: ReadonlyMap<string, string>;
   readonly #lines: ReadonlyMap<string, readonly DocLine[]>;
-  readonly #sources: Sources;
 
-  constructor(root: string, sources: Sources, fields: readonly Owned[], aliases: ReadonlyMap<string, ReadonlySet<string>>) {
+  constructor(root: string, fields: readonly Owned[], aliases: ReadonlyMap<string, ReadonlySet<string>>) {
     this.#aliases = aliases;
     this.#history = readerHistory(root, fields, this.#aliases);
     const { first, lines } = docTokens(root);
     this.#promises = first;
     this.#lines = lines;
-    this.#sources = sources;
   }
 
   /** The doc line that names a field a provider receives: a promise of the field, or a line that backticks the member
@@ -303,7 +387,7 @@ export class FieldSort {
     const promise = field.setting ?? this.#docPromise(field);
     const evidence: SortEvidence = {
       readerHistory: this.#history.get(field.key) ?? null,
-      handAuthored: field.writes.some((site) => isHandWritten(this.#sources, site)),
+      handAuthored: field.handAuthored,
       siblingsUsed: field.siblingsUsed,
       promise,
       unseenMirror: promise === null && isDistinctive(field.member) ? field.namedSetting : null,

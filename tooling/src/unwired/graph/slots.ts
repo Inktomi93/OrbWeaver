@@ -5,8 +5,11 @@
 // - A mapped property names its source member's declaration; it carries that member's data only when the source type
 //   fits it (`Partial`, `Readonly`, `Pick`). A mapping that changes the type (`{ [F in keyof V]: Schema<V[F]> }`) fills
 //   a table keyed by the member: a key use of it, not a write.
+// - A zod schema's inferred type maps each shape key's schema to the value it parses, so a mapped member whose source is a
+//   shape key is that field itself: a literal typed by `z.infer` or `z.input` writes the key, as a read through it reads.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
+// - A literal no slot types writes its own keys, so a flow from the slot it is handed into carries the writes.
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
 //   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
@@ -16,6 +19,7 @@ import {
   isBindingElement,
   isCallExpression,
   isIdentifier,
+  isMethodDeclaration,
   isObjectBindingPattern,
   isParameterDeclaration,
   isPropertyAccessExpression,
@@ -30,7 +34,7 @@ import type { DeclKey } from "./resolve.ts";
 import { answer, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
-import { declarationNameOf } from "./sites.ts";
+import { declarationNameOf, isZodShapeKey } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { literalValues } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
@@ -69,11 +73,14 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
   const writes = state.session.options.ablate.has("literal-keys")
     ? []
-    : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
-        const type = slots.get(spanKey(literal));
-        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+    : sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
+        const type = schema ? undefined : slots.get(spanKey(literal));
+        return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
       });
   slotWrites(state, variants, sites, writes);
+  if (!state.session.options.ablate.has("literal-keys")) {
+    ownKeyWrites(state, sites, slots);
+  }
   bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];
   const listSlots = state.contextualTypes(lists);
@@ -87,6 +94,16 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
       return type === undefined ? [] : [{ type, name, value, at: attributes.pos, jsx: true }];
     }),
   );
+}
+
+// A literal no slot types, such as a local `as const` table handed on later, writes its own keys; the flow from the slot
+// it lands in (./flows.ts) carries each write to the slot's member, at any depth. A method key is called, not written.
+function ownKeyWrites(state: GraphState, sites: FileSites, slots: ReadonlyMap<string, Type | undefined>): void {
+  for (const { literal, property, at, schema } of sites.literalProperties) {
+    if (!(schema || isMethodDeclaration(property)) && slots.get(spanKey(literal)) === undefined) {
+      state.role(state.resolver.keyOf(property), "write", sites.file, at);
+    }
+  }
 }
 
 // `recipe(bag)`: a recipe handed a whole value selects, on each axis the value's type names, every literal that member's
@@ -305,7 +322,7 @@ function forwardSources(state: GraphState, values: readonly Node[]): DeclKey[][]
   return out;
 }
 
-// For each symbol, whether it is a mapped member whose type its source member's type does not fit.
+// For each symbol, whether it is a mapped member whose type its source member's type does not fit, a zod shape key aside.
 function transformingMapped(state: GraphState, symbols: readonly NativeSymbol[]): boolean[] {
   const { checker } = state.world;
   const out = symbols.map(() => false);
@@ -317,7 +334,7 @@ function transformingMapped(state: GraphState, symbols: readonly NativeSymbol[])
   const sources = state.batch(mapped.map(({ source }) => source.resolve.gen()));
   const located = mapped.flatMap((entry, z) => {
     const node = sources[z];
-    return node === undefined ? [] : [{ ...entry, z, node: declarationNameOf(node) ?? node }];
+    return node === undefined || isZodShapeKey(node) ? [] : [{ ...entry, z, node: declarationNameOf(node) ?? node }];
   });
   const sourceTypes = state.world.typesAt(located.map(({ node }) => node));
   const fits = state.batch(

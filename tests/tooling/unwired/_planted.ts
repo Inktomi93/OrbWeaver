@@ -107,10 +107,12 @@ export const GRAPH_SOURCE = "packages/a/src";
 // A planted workspace: a package, or the tooling workspace beside them.
 const WORKSPACE_SOURCE = /^(packages\/[^/]+|tooling)\/src\//u;
 const SOURCE_GLOB = "src/**/*.{ts,tsx}";
+const TOOLING = "tooling";
+const WHOLE = "**";
 
 // A knip config with one workspace per planted package. With no `entries`, every source file ships and its exports are
 // trusted, so the member buckets judge what the planted code does with them; with `entries`, only those files run and
-// liveness decides the rest.
+// liveness decides the rest. The tooling workspace only consumes production, as the tree's knip view ignores it whole.
 function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOptions): string {
   const workspace = (name: string): object => {
     if (entries === undefined) {
@@ -119,10 +121,16 @@ function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOpti
     const own = entries.filter((file) => file.startsWith(`${name}/`)).map((file) => `${file.slice(name.length + 1)}!`);
     return { entry: own, project: [`${SOURCE_GLOB}!`] };
   };
-  const workspaces = Object.fromEntries(packages.map((name) => [name, workspace(name)]));
+  const workspaces = Object.fromEntries(packages.map((name) => [name, name === TOOLING ? { ...workspace(name), ignore: [WHOLE] } : workspace(name)]));
+  return plantedKnip({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces });
+}
+
+/** A planted `knip.ts`: one config for both views, and the operator globs per workspace the graph's roots read. */
+export function plantedKnip(config: object, operators: Readonly<Record<string, readonly string[]>> = {}): string {
   return [
-    `const config = ${JSON.stringify({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces })};`,
+    `const config = ${JSON.stringify(config)};`,
     "export default (_flags: { readonly production: boolean }) => config;",
+    `export const operators = ${JSON.stringify(operators)};`,
     "export { config };",
   ].join("\n");
 }
@@ -218,7 +226,7 @@ export const NODE_TYPES = {
 };
 
 /** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
- *  validator and a default. */
+ *  validator, a default and an optional key. */
 export const ZOD_MODULE = {
   "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
   // zod's declarations sit under a nested scope manifest that names no package, as the installed zod's do
@@ -226,18 +234,23 @@ export const ZOD_MODULE = {
   "node_modules/zod/v4/classic/package.json": JSON.stringify({ type: "module" }),
   "node_modules/zod/v4/classic/index.d.ts": [
     "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    "export interface Params { readonly error?: string }",
     "export interface Schema<T = unknown> {",
     "  readonly _output: T;",
     "  parse(value: unknown): T;",
+    "  safeParse(value: unknown): { readonly success: boolean; readonly data?: T };",
+    "  refine(check: (value: T) => boolean, params?: Params): Schema<T>;",
     "  extend<S>(shape: S): Schema<T & Shape<S>>;",
     "  default(value: Exclude<T, undefined>): Schema<T>;",
+    "  optional(): Schema<T | undefined>;",
     "}",
+    "export type ZodType<T = unknown> = Schema<T>;",
     "export declare namespace z {",
     "  type ZodType<T = unknown> = Schema<T>;",
     "  type infer<S> = S extends Schema<infer T> ? T : never;",
     "}",
     "export declare const z: {",
-    "  strictObject<S>(shape: S): Schema<Shape<S>>;",
+    "  strictObject<S>(shape: S, params?: Params): Schema<Shape<S>>;",
     "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
     "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
     "  string(): Schema<string>;",
@@ -246,10 +259,11 @@ export const ZOD_MODULE = {
   ].join("\n"),
 };
 
-/** A library at `node_modules/lib`: its declarations are outside the tree, so a slot it types is a receiver. */
-export const libraryModule = (lines: readonly string[]): Record<string, string> => ({
-  "node_modules/lib/package.json": JSON.stringify({ name: "lib", types: "index.d.ts" }),
-  "node_modules/lib/index.d.ts": lines.join("\n"),
+/** A library at `node_modules/<name>`, `lib` unless a case models a package the graph confirms by name: its
+ *  declarations are outside the tree, so a slot it types is a receiver. */
+export const libraryModule = (lines: readonly string[], name = "lib"): Record<string, string> => ({
+  [`node_modules/${name}/package.json`]: JSON.stringify({ name, types: "index.d.ts" }),
+  [`node_modules/${name}/index.d.ts`]: lines.join("\n"),
 });
 
 // The ui package owns tailwind-variants; a planted tree takes the installed declarations whole, since the variant pass

@@ -14,6 +14,7 @@
 //   it carries.
 // - A primary-key column production never reads is listed apart: the key is the row's identity.
 // - A product reader is a product file or snap (state.ts `productReader`, D357).
+import type { SendDestination } from "../boundaries.ts";
 import type { DeliberateEntry } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import { DB_SCHEMA, schemaTables } from "../drizzle-rows.ts";
@@ -116,8 +117,16 @@ function columnsOf(world: NativeWorld): readonly Column[] {
   );
 }
 
-function kindOf(roles: MemberRoles | undefined): ColumnKind | null {
-  const read = [...(roles?.product ?? [])].some((role) => READS.has(role));
+// The sends that read a column: an export into a file is read by whoever opens the file, while a log, a wire body or a
+// library takes the value without reading the column back.
+const READING_SENDS: ReadonlySet<SendDestination> = new Set<SendDestination>(["file"]);
+
+// Whether a role site reads the column: a read, or a send the destination reads.
+const readsAt = (site: RoleSite): boolean => READS.has(site.role) || (site.role === "escape" && READING_SENDS.has(site.destination));
+
+// A send keeps its destination only at its own site, so a column read by an export alone is read through its sites.
+function kindOf(roles: MemberRoles | undefined, exported: boolean): ColumnKind | null {
+  const read = exported || [...(roles?.product ?? [])].some((role) => READS.has(role));
   const written = roles?.product.has("write") === true;
   if (read) {
     return written ? null : "never-written";
@@ -145,13 +154,16 @@ export function columnsPass(graph: Graph, world: NativeWorld, options: ColumnsOp
   const columns = columnsOf(world);
   for (const column of columns) {
     const sites = graph.facts.roleSites.get(column.decl) ?? [];
-    const product = sites.filter(({ role, file }) => (role === "write" ? isProduction(file) : READS.has(role) && productReader(file)));
-    const reads = product.filter(({ role }) => READS.has(role));
+    const product = sites.filter((site) => (site.role === "write" ? isProduction(site.file) : readsAt(site) && productReader(site.file)));
+    const reads = product.filter(readsAt);
     const writes = product.filter(({ role }) => role === "write");
-    const tests = sites.filter(({ role, file }) => (READS.has(role) || role === "write") && !productReader(file)).length;
+    const tests = sites.filter((site) => (readsAt(site) || site.role === "write") && !productReader(site.file)).length;
     const count = { key: column.key, reads: reads.length, writes: writes.length, tests };
     counts.push(count);
-    const kind = kindOf(roles.get(column.decl));
+    const kind = kindOf(
+      roles.get(column.decl),
+      reads.some(({ role }) => role === "escape"),
+    );
     if (kind !== null) {
       const { file, position } = world.siteOf(column.name);
       const finding = {

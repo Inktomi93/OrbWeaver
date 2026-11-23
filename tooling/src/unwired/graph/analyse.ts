@@ -2,9 +2,11 @@
 // operators, consumers or tests reach, what nothing reaches, and what the product does to each live member.
 //
 // Owner rulings this module holds (roles.ts states the escape and bump rulings; a flow here carries a send on as a send):
-// - The dev bridge: a member of a value published through our own `declare global` global (`window.__orb`) that only
-//   tooling or tests read is used, since that read reaches it through the global door; it counts as a product read.
-// - Snap's reads count as product reads (state.ts holds the ruling).
+// - The dev bridge: a read through our own `declare global` global (`window.__orb`), in code or in a script's text, is a
+//   product read, since it reaches the member through the global door. A test that imports the member's module reads it
+//   as a test does.
+// - Snap's reads count as product reads (state.ts holds the ruling), and so do the reads of a file a product root reaches
+//   outside the product's sources, such as a build script's import closure (D357: a script whose output ships).
 // - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
 // - A doc link keeps nothing alive; a `{@link}` to a name declared outside the file's scope is legal and listed as
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
@@ -15,19 +17,27 @@
 //   its own holder is reached, is read only by dead code and names that code.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
+// - A sent field needs a receiver read: a zod schema key nothing in the product reads or writes only validates input
+//   from outside the tree, so it reports as member-validated, apart from the dead, and no judged list takes it.
+
+import type { StampedVariantAxis } from "@orb/ui/lib";
+import { STAMPED_VARIANT_AXES } from "@orb/ui/lib";
+import { TONES } from "@orb/ui/tokens";
 import { SyntaxKind } from "@typescript/native/ast";
+import { placementOf } from "../../eslint/index.ts";
 import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
-import type { Role } from "./roles.ts";
+import type { CarrySink, CarryStep, ReadCredit, Role } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
-import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
+import { isDeclKey, MEMBER_KINDS, moduleFile, moduleKey, UNNAMED } from "./sites.ts";
 import { SERVER_SOURCE } from "./spellings.ts";
 import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
 import { productReader, testSource } from "./state.ts";
+import type { VariantAxis } from "./variants.ts";
 
 /** The buckets an analysis reports, in report order. */
 export const BUCKETS = [
@@ -41,6 +51,7 @@ export const BUCKETS = [
   "unused-effect",
   "type-only",
   "variant-value-unused",
+  "variant-selector-stale",
   "ambient-unused",
   "ambient-files-walked",
   "doc-link-cross-scope",
@@ -48,6 +59,8 @@ export const BUCKETS = [
   "member-write-only",
   "member-sent-only",
   "member-untouched",
+  "member-read-only",
+  "member-validated",
   "state-never-read",
   "state-never-set",
   "binding-unread",
@@ -63,7 +76,13 @@ export const BUCKETS = [
 export type Bucket = (typeof BUCKETS)[number];
 
 /** The member buckets verify.ts asks the language service about. */
-export const MEMBER_BUCKETS = ["member-write-only", "member-sent-only", "member-untouched"] as const satisfies readonly Bucket[];
+export const MEMBER_BUCKETS = [
+  "member-write-only",
+  "member-sent-only",
+  "member-untouched",
+  "member-read-only",
+  "member-validated",
+] as const satisfies readonly Bucket[];
 export type MemberBucket = (typeof MEMBER_BUCKETS)[number];
 
 /** One reported entry: its label, the graph node it names (null for a file or a doc site) and a reason. */
@@ -82,15 +101,6 @@ const RUNTIME_UNITS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EnumDeclaration,
 ]);
 const TYPE_UNITS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
-const MEMBERS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.PropertySignature,
-  SyntaxKind.PropertyDeclaration,
-  SyntaxKind.MethodSignature,
-  SyntaxKind.MethodDeclaration,
-  SyntaxKind.GetAccessor,
-  SyntaxKind.SetAccessor,
-  SyntaxKind.EnumMember,
-]);
 const AMBIENT_KINDS: ReadonlySet<SyntaxKind> = new Set([...TYPE_UNITS, ...RUNTIME_UNITS, SyntaxKind.PropertySignature, SyntaxKind.MethodSignature]);
 // A written `data-*` member reaches the DOM as an attribute: a send whose receiver reads it by attribute name (a CSS
 // selector, a test locator). A written `aria-*` member is read by the platform's accessibility tree.
@@ -105,7 +115,6 @@ export const OUTSIDE_NOTES: Readonly<Record<Exclude<Role, "write">, string>> = {
   key: "named as a key outside the product: tests or tooling",
 };
 
-const SERVER_DOMAIN = /^packages\/server\/src\/domain\/([^/]+)\//u;
 const MEMBER_JOIN = "|";
 
 // Why a registry site exempts nothing, or null while it names a live declaration.
@@ -189,17 +198,20 @@ export function keptByRuling(graph: Graph): ReadonlyMap<GraphKey, string> {
 }
 
 /** Analyse a built graph into its buckets. */
-export function analyse(graph: Graph): Analysis {
-  return new Analyser(graph).run();
+/** Analyse a built graph; each role the carry gives a member goes to `onCarry`. */
+export function analyse(graph: Graph, onCarry: CarrySink = ignoreCarry): Analysis {
+  return new Analyser(graph, onCarry).run();
 }
 
 class Analyser {
   readonly #graph: Graph;
   readonly #why = new Map<GraphKey, string>();
   readonly #out = new Map<Bucket, Finding[]>(BUCKETS.map((bucket) => [bucket, []]));
+  readonly #onCarry: CarrySink;
 
-  constructor(graph: Graph) {
+  constructor(graph: Graph, onCarry: CarrySink) {
     this.#graph = graph;
+    this.#onCarry = onCarry;
   }
 
   run(): Analysis {
@@ -207,7 +219,7 @@ class Analyser {
     const reached = this.#reached();
     this.#liveness(reached);
     this.#docLinks();
-    const roles = settleRoles(this.#graph);
+    const roles = settleRoles(this.#graph, this.#credits(reached.live), this.#onCarry);
     this.#members(roles, reached.liveTyped);
     this.#bindings(reached);
     for (const { file, line, door } of this.#state.unpairedReceivers) {
@@ -236,6 +248,7 @@ class Analyser {
       "unused-effect": result("unused-effect"),
       "type-only": result("type-only"),
       "variant-value-unused": result("variant-value-unused"),
+      "variant-selector-stale": result("variant-selector-stale"),
       "ambient-unused": result("ambient-unused"),
       "ambient-files-walked": result("ambient-files-walked"),
       "doc-link-cross-scope": result("doc-link-cross-scope"),
@@ -243,6 +256,8 @@ class Analyser {
       "member-write-only": result("member-write-only"),
       "member-sent-only": result("member-sent-only"),
       "member-untouched": result("member-untouched"),
+      "member-read-only": result("member-read-only"),
+      "member-validated": result("member-validated"),
       "state-never-read": result("state-never-read"),
       "state-never-set": result("state-never-set"),
       "binding-unread": result("binding-unread"),
@@ -264,7 +279,7 @@ class Analyser {
     const declared = new Set([...state.decls.values()].map(({ file, name }) => `${file}#${name}`));
     const server = [...state.decls.values()].filter(({ file }) => file.startsWith(SERVER_SOURCE));
     const serverNames = new Set([...server.map(({ name }) => name), ...state.serverNames]);
-    const domains = new Set(server.flatMap(({ file }) => SERVER_DOMAIN.exec(file)?.[1] ?? []));
+    const domains = new Set(server.flatMap(({ file }) => placementOf(file)?.domain ?? []));
     for (const site of state.registrySites) {
       const { file, line, target, name } = site;
       const note = staleNote(site, { declared, serverNames, domains });
@@ -317,6 +332,22 @@ class Analyser {
     for (const [key, why] of keptByRuling(this.#graph)) {
       this.#why.set(key, why);
     }
+  }
+
+  // D357: a script whose output ships is the product's, so a file a product root reaches outside the product's sources,
+  // a build script's import closure, reads as the product does. A read is seen only where the build kept its role sites.
+  // A dev-bridge door read credits its member too (the module header holds the ruling).
+  #credits(live: ReadonlySet<GraphKey>): ReadonlyMap<DeclKey, ReadCredit> {
+    const state = this.#state;
+    const credits = new Map<DeclKey, ReadCredit>([...state.doorReads].map(([key, file]) => [key, { link: "door-read", file }]));
+    const files = new Set(this.#graph.files.filter((file) => !productReader(file) && live.has(moduleKey(file))));
+    for (const [key, sites] of files.size === 0 ? [] : state.roleSites) {
+      const site = sites.find(({ role, file }) => READS.has(role) && files.has(file));
+      if (site !== undefined && !credits.has(key)) {
+        credits.set(key, { link: "build-read", file: site.file });
+      }
+    }
+    return credits;
   }
 
   #modules(kinds: readonly RootKind[]): readonly GraphKey[] {
@@ -410,21 +441,36 @@ class Analyser {
   #members(roles: ReadonlyMap<DeclKey, MemberRoles>, liveTyped: ReadonlySet<GraphKey>): void {
     const state = this.#state;
     const dispatched = dispatchedMembers(state.run, state.decls);
+    // a schema key with a `satisfies` twin is its type's member, judged there
+    const twinned = new Set(state.twins.flat());
+    const written = writtenHomes(state.decls, roles);
+    // a member filling a typed slot of ours is judged at that slot: the slot requires it, so the two delete together
+    const fills = new Set([...state.flows].flatMap(([slot, values]) => (isProduction(state.decls.get(slot)?.file ?? "") ? [...values] : [])));
     for (const [key, info] of state.decls) {
-      // a class member is judged once its class is live: nothing but a call or a read reaches a method
-      const judged = liveTyped.has(key) || (isClassMember(info, state.decls) && liveTyped.has(info.holder));
-      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && judged) || info.shapeOnly !== null || this.#published(info)) {
+      if (!this.#judgedMember(key, info, liveTyped) || (info.schemaKey && twinned.has(key))) {
         continue;
       }
       const role = roles.get(key);
-      // the dev bridge ruling: another world's read through our own global door is a product read
-      const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
+      const shape = {
+        name: info.name,
+        schemaKey: info.schemaKey,
+        // an optional member a caller may leave unset, or one of a home no product code writes, is no default the tree chose
+        defaulted: info.optional && !state.parameterHomes.has(info.holder) && written.has(info.holder),
+        reachedOtherwise: info.kind === SyntaxKind.EnumMember || dispatched.has(key) || fills.has(key),
+      };
       // a member the runtime calls by its well-known name is read, even on a value the product only sends
-      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
+      const bucket = state.unseenCalls.has(key) ? null : memberBucket(shape, role);
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
     }
+  }
+
+  // A live production member that holds data: a class member is judged once its class is live, since nothing but a call
+  // or a read reaches a method.
+  #judgedMember(key: DeclKey, info: DeclInfo, liveTyped: ReadonlySet<GraphKey>): boolean {
+    const live = liveTyped.has(key) || (isClassMember(info, this.#state.decls) && liveTyped.has(info.holder));
+    return isMember(info) && isProduction(info.file) && live && info.shapeOnly === null && !this.#published(info);
   }
 
   // A plugin contract member the SDK publishes is read by plugin authors outside the tree.
@@ -432,18 +478,8 @@ class Analyser {
     return publishedAt(this.#graph.sdk, { file: info.file, home: info.surfacePath, member: info.name }) !== null;
   }
 
-  // The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal.
-  #home(holder: GraphKey): string {
-    const names: string[] = [];
-    const declOf = (key: GraphKey): DeclInfo | undefined => (isDeclKey(key) ? this.#state.decls.get(key) : undefined);
-    for (let at = declOf(holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
-      names.unshift(at.name);
-    }
-    return names.join(".");
-  }
-
   #memberLabel(info: DeclInfo): string {
-    const home = this.#home(info.holder);
+    const home = memberHome(this.#state.decls, info);
     return `${info.file}:${home === "" ? "" : `${home}.`}${info.name}`;
   }
 
@@ -480,21 +516,66 @@ class Analyser {
     }
   }
 
-  // A variant value no consumer selects, on an axis no write fed a wide value; an axis wholly unused is reported whole.
+  // A variant value no consumer selects, on an axis no write fed a wide value; an axis wholly unused is reported whole,
+  // with the stamped-attribute selectors that select it: variantAttrs stamps only the values
+  // callers select, so a selector alone keeps nothing, and one delete removes the arm and its selectors. A stamped
+  // selector whose value no recipe declares is stale.
   #variants(): void {
-    for (const axis of this.#graph.variants.filter(({ dynamic, file }) => !dynamic && isProduction(file))) {
+    const axes = this.#graph.variants.filter(({ file }) => isProduction(file));
+    const selectors = this.#graph.variantSelectors.filter(({ attribute }) => STAMPED_ATTRIBUTES.has(attribute));
+    for (const axis of axes.filter(({ dynamic }) => !dynamic)) {
       const unused = axis.values.filter(({ used }) => !used).map(({ name }) => name);
       if (unused.length > 0) {
         const whole = unused.length === axis.values.length;
+        const selecting = selectors.filter(({ attribute, value }) => attribute === `${DATA_PREFIX}${axis.name}` && unused.includes(value));
         this.#push("variant-value-unused", {
-          label: `${axis.file}:${axis.name}${whole ? ` (whole axis: ${unused.join(", ")})` : ` = ${unused.join(", ")}`}`,
+          label: `${axis.file}:${axis.table}.${axis.name}${whole ? ` (whole axis: ${unused.join(", ")})` : ` = ${unused.join(", ")}`}`,
           key: axis.key,
-          note: null,
+          note: selecting.length === 0 ? null : `selected by ${selecting.map(({ value, at }) => `${at} (${value})`).join(", ")}`,
         });
+      }
+    }
+    const declared = stampedValues(axes);
+    for (const { attribute, value, at } of selectors) {
+      if (declared.get(attribute)?.has(value) !== true) {
+        this.#push("variant-selector-stale", { label: `${at} [${attribute}="${value}"]`, key: null, note: "no recipe declares the value" });
       }
     }
   }
 }
+
+/** The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal, with each
+ *  schema key's {@link DeclInfo.via} path before it. */
+export function memberHome(decls: ReadonlyMap<DeclKey, DeclInfo>, member: DeclInfo): string {
+  const names = [...member.via];
+  const declOf = (key: GraphKey): DeclInfo | undefined => (isDeclKey(key) ? decls.get(key) : undefined);
+  for (let at = declOf(member.holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
+    names.unshift(...at.via, at.name);
+  }
+  return names.join(".");
+}
+
+const DATA_PREFIX = "data-";
+const TONE_AXIS = "tone" satisfies StampedVariantAxis;
+const STAMPED_ATTRIBUTES: ReadonlySet<string> = new Set(STAMPED_VARIANT_AXES.map((axis) => `${DATA_PREFIX}${axis}`));
+
+// The values each stamped attribute can hold: what the recipes declare on that axis; for data-tone also the D336 tones
+// the tone door writes; and for data-variant also the recipe tone arms the door moves there when a tone displaces one.
+function stampedValues(axes: readonly VariantAxis[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const declared = (name: string): readonly string[] => axes.filter((axis) => axis.name === name).flatMap(({ values }) => values.map((value) => value.name));
+  const extra: Readonly<Record<StampedVariantAxis, readonly string[]>> = {
+    variant: declared(TONE_AXIS),
+    size: [],
+    square: [],
+    tone: TONES,
+    glyph: [],
+    step: [],
+  };
+  return new Map(STAMPED_VARIANT_AXES.map((axis) => [`${DATA_PREFIX}${axis}`, new Set([...declared(axis), ...extra[axis]])]));
+}
+
+const NO_CREDITS: ReadonlyMap<DeclKey, ReadCredit> = new Map<DeclKey, ReadCredit>();
+const ignoreCarry: CarrySink = () => undefined;
 
 type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any" | "testkit" | "tooling", ReadonlySet<GraphKey>>>;
 
@@ -541,12 +622,43 @@ function outsideBucket(key: GraphKey, reached: Reached): Bucket {
   return reached.tooling.has(key) ? "tooling-only" : "test-direct-only";
 }
 
-// The member bucket a member's product roles put it in, or null when the product reads it. A key use (an arm
-// selector's pattern, a member `Pick` names) touches a member without reading its data.
-function memberBucket(name: string, role: MemberRoles | undefined, reachedOtherwise: boolean): MemberBucket | null {
+// A member as its bucket rule reads it: its name, whether it is a schema key, whether an unwritten value of it is a
+// default every reader sees, and whether a dispatch or an enum reaches it otherwise.
+interface MemberShape {
+  readonly name: string;
+  readonly schemaKey: boolean;
+  readonly defaulted: boolean;
+  readonly reachedOtherwise: boolean;
+}
+
+const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
+
+// The holders some member of which the product writes.
+function writtenHomes(decls: ReadonlyMap<DeclKey, DeclInfo>, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
+  const out = new Set<GraphKey>();
+  for (const [key, role] of roles) {
+    const holder = role.product.has("write") ? decls.get(key)?.holder : undefined;
+    if (holder !== undefined) {
+      out.add(holder);
+    }
+  }
+  return out;
+}
+
+// The member bucket a member's product roles put it in, or null when the product uses it. A key use (an arm selector's
+// pattern, a member `Pick` names) touches a member without reading its data. A member read and never written reports
+// only when every read sees a default. A schema key nothing reads or writes only validates outside input (owner ruling:
+// a sent field needs a receiver read), so it reports apart from the dead.
+function memberBucket({ name, schemaKey, defaulted, reachedOtherwise }: MemberShape, role: MemberRoles | undefined): MemberBucket | null {
   const product = role?.product ?? NO_ROLES;
-  if (readsIn(product) || (ARIA_ATTRIBUTE.test(name) && product.has("write"))) {
+  if (readsIn(product)) {
+    return product.has("write") || !defaulted ? null : "member-read-only";
+  }
+  if (ARIA_ATTRIBUTE.test(name) && product.has("write")) {
     return null;
+  }
+  if (schemaKey && !product.has("write")) {
+    return "member-validated";
   }
   if (product.has("escape") || (DATA_ATTRIBUTE.test(name) && product.has("write"))) {
     return "member-sent-only";
@@ -558,13 +670,18 @@ function memberBucket(name: string, role: MemberRoles | undefined, reachedOtherw
 }
 
 // A member another declaration fills or calls through (heritage, a typed slot, a platform call) has a run edge in from
-// something other than its own holder.
+// something other than its own holder. Only the product's edges count: a test's or a tool's use reaches nothing the
+// product runs.
 function dispatchedMembers(run: ReadonlyEdges, decls: ReadonlyMap<DeclKey, DeclInfo>): ReadonlySet<GraphKey> {
   const out = new Set<GraphKey>();
   for (const [from, targets] of run) {
+    const source = isDeclKey(from) ? decls.get(from)?.file : moduleFile(from);
+    if (source === undefined || !productReader(source)) {
+      continue;
+    }
     for (const target of targets) {
       const info = isDeclKey(target) ? decls.get(target) : undefined;
-      if (info !== undefined && MEMBERS.has(info.kind) && info.holder !== from) {
+      if (info !== undefined && isMember(info) && info.holder !== from) {
         out.add(target);
       }
     }
@@ -578,52 +695,90 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
- * with one role set.
+ * with one role set. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
+ * a read of the column to the stored member, never a send. Each role a member takes here goes to `onCarry`, so the
+ * `--why` record names a role no site gave.
  */
-export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
+export function settleRoles(
+  graph: Graph,
+  credits: ReadonlyMap<DeclKey, ReadCredit> = NO_CREDITS,
+  onCarry: CarrySink = ignoreCarry,
+): ReadonlyMap<DeclKey, MemberRoles> {
   const { facts: state } = graph;
   const roles = new Map([...state.roles].map(([key, value]) => [key, { ...value }]));
-  const { readTo, writeTo } = roleLinks(state);
+  for (const [key, { link, file }] of credits) {
+    carry(roles, key, { product: ["read"], other: [], write: null }, (role, product) => onCarry({ to: key, role, product, link, from: null, file }));
+  }
+  const links = roleLinks(state);
   const queue = [...roles.keys()];
   for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
     const current = roles.get(key);
     if (current === undefined) {
       continue;
     }
-    const read = { product: carriedReads(current.product), other: carriedReads(current.other), write: current.write };
-    const written = { product: carriedWrites(current.product), other: carriedWrites(current.other), write: current.write };
-    queue.push(...(readTo.get(key) ?? []).filter((value) => carry(roles, value, read)));
-    queue.push(...(writeTo.get(key) ?? []).filter((slot) => carry(roles, slot, written)));
+    const carried = {
+      read: { product: carriedReads(current.product), other: carriedReads(current.other), write: current.write },
+      columnRead: { product: onlyReads(current.product), other: onlyReads(current.other), write: current.write },
+      written: { product: carriedWrites(current.product), other: carriedWrites(current.other), write: current.write },
+    } as const;
+    for (const [kind, map] of [
+      ["read", links.readTo],
+      ["columnRead", links.columnReadTo],
+      ["written", links.writeTo],
+    ] as const) {
+      for (const { to, link } of map.get(key) ?? []) {
+        if (carry(roles, to, carried[kind], (role, product) => onCarry({ to, role, product, link, from: key, file: null }))) {
+          queue.push(to);
+        }
+      }
+    }
   }
   return roles;
 }
 
+// One carry edge: the member a role goes to and the link it goes along.
+interface RoleLink {
+  readonly to: DeclKey;
+  readonly link: CarryStep["link"];
+}
+
 // Which members a role carries to: a read or send of a slot member goes to the value member that filled it, a write of
-// the value member to the slot, and a zod twin's halves both ways.
-function roleLinks(state: GraphFacts): { readonly readTo: ReadonlyMap<DeclKey, DeclKey[]>; readonly writeTo: ReadonlyMap<DeclKey, DeclKey[]> } {
-  const readTo = new Map<DeclKey, DeclKey[]>();
-  const writeTo = new Map<DeclKey, DeclKey[]>();
-  const link = (map: Map<DeclKey, DeclKey[]>, from: DeclKey, to: DeclKey): void => {
+// the value member to the slot, and a zod twin's halves both ways; a read of a column goes to the member stored into it.
+function roleLinks(state: GraphFacts): {
+  readonly readTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
+  readonly columnReadTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
+  readonly writeTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
+} {
+  const readTo = new Map<DeclKey, RoleLink[]>();
+  const columnReadTo = new Map<DeclKey, RoleLink[]>();
+  const writeTo = new Map<DeclKey, RoleLink[]>();
+  const add = (map: Map<DeclKey, RoleLink[]>, from: DeclKey, to: DeclKey, link: CarryStep["link"]): void => {
     const list = map.get(from);
     if (list === undefined) {
-      map.set(from, [to]);
+      map.set(from, [{ to, link }]);
     } else {
-      list.push(to);
+      list.push({ to, link });
     }
   };
   for (const [slot, values] of state.flows) {
     for (const value of values) {
-      link(readTo, slot, value);
-      link(writeTo, value, slot);
+      add(readTo, slot, value, "flow");
+      add(writeTo, value, slot, "flow");
     }
   }
   for (const [a, b] of state.twins) {
-    link(readTo, a, b);
-    link(readTo, b, a);
-    link(writeTo, a, b);
-    link(writeTo, b, a);
+    add(readTo, a, b, "twin");
+    add(readTo, b, a, "twin");
+    add(writeTo, a, b, "twin");
+    add(writeTo, b, a, "twin");
   }
-  return { readTo, writeTo };
+  for (const [column, members] of state.columnFlows) {
+    for (const member of members) {
+      add(columnReadTo, column, member, "column");
+      add(writeTo, member, column, "column");
+    }
+  }
+  return { readTo, columnReadTo, writeTo };
 }
 
 // A read carries as a read and a send as a send: an escape never becomes a read on the member it reaches.
@@ -631,16 +786,24 @@ const carriedReads = (side: ReadonlySet<Role>): readonly Role[] => [
   ...(readsIn(side) ? (["read"] as const) : []),
   ...(side.has("escape") ? (["escape"] as const) : []),
 ];
+const onlyReads = (side: ReadonlySet<Role>): readonly Role[] => (readsIn(side) ? ["read"] : []);
 const carriedWrites = (side: ReadonlySet<Role>): readonly Role[] => (side.has("write") ? ["write"] : []);
 
-// Add roles to a member; whether anything was new.
+// Add roles to a member, naming each new one to `added`; whether anything was new.
 function carry(
   roles: Map<DeclKey, MemberRoles>,
   key: DeclKey,
   add: { readonly product: readonly Role[]; readonly other: readonly Role[]; readonly write: string | null },
+  added: (role: Role, product: boolean) => void,
 ): boolean {
   const target = roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
   const { product, other } = target;
+  for (const role of add.product.filter((next) => !product.has(next))) {
+    added(role, true);
+  }
+  for (const role of add.other.filter((next) => !other.has(next))) {
+    added(role, false);
+  }
   target.product = withRoles(product, add.product);
   target.other = withRoles(other, add.other);
   target.write ??= add.product.length > 0 ? add.write : null;

@@ -19,13 +19,16 @@ import {
   isExportDeclaration,
   isIdentifier,
   isInterfaceDeclaration,
+  isNonNullExpression,
   isObjectBindingPattern,
   isObjectLiteralExpression,
+  isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isQualifiedName,
   isShorthandPropertyAssignment,
   isSpreadAssignment,
+  isSpreadElement,
   isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
@@ -33,23 +36,27 @@ import {
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
 import type { StoreWrite } from "../boundaries.ts";
+import { copiedReads } from "../boundaries.ts";
 import { parsedColumns, schemaParses } from "../handoffs.ts";
-import { constituents, hasFlag, isPropertyName, NativeWorld } from "../native.ts";
+import type { PropertyName } from "../native.ts";
+import { hasFlag, isPropertyName, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
-import { Flows } from "./flows.ts";
+import { Flows, insideGlobalScope, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
-import { addAll, allOf, answer } from "./resolve.ts";
-import { sameNode } from "./roles.ts";
+import { addAll, allOf, answer, constituentsOf } from "./resolve.ts";
+import { READS, sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
+import type { ValueSelector } from "./selectors.ts";
+import { valueSelectors } from "./selectors.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
-import { collectSites, moduleKey } from "./sites.ts";
+import { collectSites, GLOBAL_OBJECTS, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
 import type { BuildSession, ComputedLoad, GraphFacts, LostCause } from "./state.ts";
@@ -58,11 +65,44 @@ import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
 
+const ZOD_TYPE = "ZodType";
+
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
 const REACT_TYPES = "@types/react";
 const TYPE_DECLARATIONS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
+const GLOBAL_OBJECT_NAMES: ReadonlySet<string> = new Set(GLOBAL_OBJECTS);
+
+// The name read off a global object: `__orb` in `window.__orb`.
+const globalObjectMember = (node: Node): boolean => {
+  const { parent } = node;
+  return (
+    isPropertyAccessExpression(parent) && sameNode(parent.name, node) && isIdentifier(parent.expression) && GLOBAL_OBJECT_NAMES.has(parent.expression.text)
+  );
+};
+
+// Whether a property read's receiver chain passes through one of the door names at `doors`: calls, `!` and parentheses
+// on the way are part of the chain.
+function throughDoor(node: Node, doors: ReadonlySet<number>): boolean {
+  const { parent } = node;
+  if (!(isPropertyAccessExpression(parent) && sameNode(parent.name, node))) {
+    return false;
+  }
+  let receiver: Node = parent.expression;
+  for (;;) {
+    if (isCallExpression(receiver) || isNonNullExpression(receiver) || isParenthesizedExpression(receiver)) {
+      receiver = receiver.expression;
+    } else if (isPropertyAccessExpression(receiver)) {
+      if (doors.has(receiver.name.pos)) {
+        return true;
+      }
+      receiver = receiver.expression;
+    } else {
+      return false;
+    }
+  }
+}
 
 // A declaration a published or trusted file exports, kept by that file's ruling.
 interface KeptExport {
@@ -81,11 +121,16 @@ interface UrlSpawn {
 export interface Graph {
   readonly facts: GraphFacts;
   readonly variants: readonly VariantAxis[];
+  /** Every exact data-* value selector the sheets and the product strings spell, which a variant value's row names. */
+  readonly variantSelectors: readonly ValueSelector[];
   readonly kept: readonly KeptExport[];
   readonly sdk: SdkSurface;
   readonly urlSpawns: readonly UrlSpawn[];
   readonly files: readonly string[];
 }
+
+// What one program's build yields; the tree's sheets are read once, beside the programs.
+type WorldGraph = Omit<Graph, "variantSelectors">;
 
 // The type a destructuring pattern's keys read: its source's, the element type for a for-of target, then down each step
 // (a tuple's element by its index, else the list's element type).
@@ -130,12 +175,13 @@ export interface BuiltGraph {
 export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
   const state = new GraphState(root, world, roots, session);
   const merged = new Builder(state).build(judgedFiles(state));
-  const apart = (): readonly Graph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
+  const apart = (): readonly WorldGraph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
   const parts = session.profile === null ? apart() : session.profile.time("apart", apart);
   state.enter(world);
   const all = [merged, ...parts];
   const graph: Graph = {
     ...merged,
+    variantSelectors: valueSelectors(root, world),
     variants: all.flatMap(({ variants }) => variants),
     kept: all.flatMap(({ kept }) => kept),
     urlSpawns: all.flatMap(({ urlSpawns }) => urlSpawns),
@@ -155,7 +201,7 @@ function judgedFiles(state: GraphState): readonly string[] {
 
 // A world the merge cannot hold (worlds.ts WORLDS_APART), walked as its own program into the same facts: only the files
 // the merged program does not hold, so a file both hold is walked once, in the merged program.
-function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): Graph {
+function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): WorldGraph {
   using world = NativeWorld.open(state.root, config);
   state.enter(world);
   const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
@@ -192,51 +238,10 @@ function constructingInterfaces(file: Node, className: string): readonly Interfa
   return found;
 }
 
-// A computed load's site and the argument it loads, as the source spells it.
+// The package whose builder methods a store must resolve to before the build reads it as a Drizzle write.
 const DRIZZLE_PACKAGE = "drizzle-orm";
 
-/** A column a Drizzle store reaches: the site that writes it, and the stored value's member that fills it, if any. */
-interface StoredColumn {
-  readonly column: NativeSymbol;
-  readonly at: Node;
-  readonly member: NativeSymbol | null;
-  /** Whether the store itself writes the column: a literal's key, or a whole value's required member. */
-  readonly writes: boolean;
-}
-
-function* storedColumns(checker: Checker, { table, value, at }: StoreWrite): APIRequestGenerator<readonly StoredColumn[]> {
-  const tableType = yield* checker.getTypeAtLocation.gen(table);
-  if (!isObjectLiteralExpression(value)) {
-    return yield* wholeValueColumns(checker, tableType, value, at);
-  }
-  const out: StoredColumn[] = [];
-  for (const property of value.properties) {
-    if (isSpreadAssignment(property)) {
-      out.push(...(yield* wholeValueColumns(checker, tableType, property.expression, at)));
-    } else if ((isPropertyAssignment(property) || isShorthandPropertyAssignment(property)) && isPropertyName(property.name)) {
-      const column = yield* checker.getPropertyOfType.gen(tableType, property.name.text);
-      if (column !== undefined) {
-        out.push({ column, at: property.name, member: null, writes: true });
-      }
-    }
-  }
-  return out;
-}
-
-// A whole stored value's members land in the same-named columns, an array's through its element type. An optional
-// member the type only allows is no write here: the construction that sets it writes it, through the member's flow.
-function* wholeValueColumns(checker: Checker, tableType: Type, value: Node, at: Node): APIRequestGenerator<readonly StoredColumn[]> {
-  const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(value));
-  const element = (yield* checker.isArrayType.gen(type)) && type.isTypeReference() ? (yield* checker.getTypeArguments.gen(type))[0] : undefined;
-  const arms = yield* constituents(element ?? type);
-  const properties = (yield* allOf(arms.map((arm) => checker.getPropertiesOfType.gen(arm)))).flat();
-  const columns = yield* allOf(properties.map((property) => checker.getPropertyOfType.gen(tableType, property.name)));
-  return properties.flatMap((member, y) => {
-    const column = columns[y];
-    return column === undefined ? [] : [{ column, at, member, writes: !hasFlag(member.flags, SymbolFlags.Optional) }];
-  });
-}
-
+// A computed load's site and the argument it loads, as the source spells it.
 function computedLoad(call: CallExpression, file: string): ComputedLoad {
   const source = call.getSourceFile();
   const [argument = call] = call.arguments;
@@ -270,7 +275,7 @@ class Builder {
     this.#keys = new Keys(this.#state);
   }
 
-  build(files: readonly string[]): Graph {
+  build(files: readonly string[]): WorldGraph {
     const state = this.#state;
     const { profile } = state.session;
     const walk = (): void => this.#walk(files);
@@ -333,13 +338,14 @@ class Builder {
   #file(sites: FileSites): void {
     const state = this.#state;
     this.#names(sites);
+    this.#stores(sites);
     fileSlotWrites(state, this.#variants, sites);
     this.#flows.file(sites, this.#doors.held(sites.file));
     this.#variants.readTables(state, sites.tvCalls, sites.file);
     this.#keys.file(sites);
     this.#zodTwins(sites);
-    this.#stores(sites);
     this.#parses(sites);
+    this.#parameterHomes(sites);
     this.#hookTuples(sites);
     this.#docs(sites);
     this.#shorthands(sites);
@@ -363,6 +369,55 @@ class Builder {
     }
   }
 
+  // A Drizzle write, once its builder methods resolve to Drizzle's, writes and fills its table's columns (sites.ts holds
+  // the ruling). Each key a stored literal sets writes its column at the key, and flows the reads it copies into that
+  // column. A whole or spread value writes the columns of its required members at the builder method, and flows each
+  // member into the same-named column, so a column read back reads the member and an optional member is written where
+  // the value that sets it is built.
+  #stores(sites: FileSites): void {
+    if (sites.stores.length === 0) {
+      return;
+    }
+    const state = this.#state;
+    const { checker } = state.world;
+    const symbols = state.world.symbolsAt(sites.stores.flatMap(({ at, opener }) => [at, opener]));
+    const drizzle = state.world.fromPackage(
+      symbols.map((symbol) => symbol?.declarations ?? []),
+      DRIZZLE_PACKAGE,
+    );
+    const stores = sites.stores.filter((_, x) => drizzle[2 * x] === true && drizzle[2 * x + 1] === true);
+    const tables = state.world.typesAt(stores.map(({ table }) => table));
+    const { keys, wholes } = storedParts(stores);
+    const keyColumns = state.declarations(state.batch(keys.map(({ at, name }) => columnOf(checker, tables[at], name.text))));
+    const copies = keys.flatMap(({ reads }, y) => reads.map((read) => ({ y, read })));
+    const sources = state.declarations(state.world.symbolsAt(copies.map(({ read }) => read)));
+    const values = state.world.typesAt(wholes.map(({ value }) => value));
+    const found = state.batch(wholes.map(({ at }, y) => storedMembers(state, tables[at], values[y])));
+    const members = wholes.flatMap(({ method }, y) => (found[y] ?? []).map((pair) => ({ ...pair, method })));
+    const memberKeys = state.declarations(members.map(({ member }) => member));
+    const memberColumns = state.declarations(members.map(({ column }) => column));
+    for (const [y, { name }] of keys.entries()) {
+      state.roleAll(keyColumns[y] ?? [], "write", sites.file, name.pos);
+    }
+    for (const [y, { member, method }] of members.entries()) {
+      if (!hasFlag(member.flags, SymbolFlags.Optional)) {
+        state.roleAll(memberColumns[y] ?? [], "write", sites.file, method.pos);
+      }
+    }
+    const pairs = [
+      ...copies.map(({ y }, x) => ({ columns: keyColumns[y] ?? [], sources: sources[x] ?? [] })),
+      ...members.map((_, y) => ({ columns: memberColumns[y] ?? [], sources: memberKeys[y] ?? [] })),
+    ];
+    for (const pair of pairs) {
+      for (const column of pair.columns) {
+        for (const source of pair.sources) {
+          state.columnFlow(column, source);
+        }
+      }
+    }
+    state.count("drizzle stores", stores.length);
+  }
+
   // Each name resolves to its declarations: an edge from the declaration it sits in, and the roles its syntax gives.
   #names(sites: FileSites): void {
     const state = this.#state;
@@ -371,6 +426,7 @@ class Builder {
     for (const [at, site] of sites.names.entries()) {
       this.#use(site, resolved[at] ?? [], sites.file);
     }
+    this.#doorReads(sites, symbols, resolved);
     this.#bindingReads(sites, resolved);
     this.#doors.file(sites, symbols, resolved);
     this.#routes.file(sites.routeCalls, sites.file);
@@ -437,6 +493,26 @@ class Builder {
         readers: exported ? [moduleKey(sites.file)] : [...(readers.get(binding.key) ?? [])],
         written: written.has(binding.key),
       });
+    }
+  }
+
+  // A read whose receiver chain passes through a global our own `declare global` declares, read off a global object
+  // (`window.__orb.x`), reaches its member through the dev-bridge door. A read of the same member off an imported value
+  // is no door read.
+  #doorReads(sites: FileSites, symbols: readonly (NativeSymbol | undefined)[], resolved: readonly DeclKey[][]): void {
+    const state = this.#state;
+    const asks = sites.names.flatMap(({ node }, at) =>
+      globalObjectMember(node) ? (symbols[at]?.declarations ?? []).filter((handle) => state.resolver.ours(handle)).map((handle) => ({ node, handle })) : [],
+    );
+    const declared = state.batch(asks.map(({ handle }) => handle.resolve.gen()));
+    const doors = new Set(asks.flatMap(({ node }, y) => (insideGlobalScope(declared[y]) ? [node.pos] : [])));
+    if (doors.size === 0) {
+      return;
+    }
+    for (const [at, site] of sites.names.entries()) {
+      if (site.roles.some((role) => READS.has(role)) && throughDoor(site.node, doors)) {
+        state.doorRead(resolved[at] ?? [], sites.file);
+      }
     }
   }
 
@@ -553,13 +629,26 @@ class Builder {
     state.count("whole-module uses", uses.length);
   }
 
-  // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each.
+  // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each. The twin holds
+  // where the reference means zod's own ZodType, imports and renames followed; a local type of that name twins nothing.
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
-    if (state.session.options.ablate.has("zod-twins")) {
+    if (state.session.options.ablate.has("zod-twins") || sites.zodTwins.length === 0) {
       return;
     }
-    const shapes = state.world.typedAt(sites.zodTwins, ({ shape }) => shape);
+    const { world } = state;
+    const named = world.symbolsAt(sites.zodTwins.map(({ type }) => type));
+    const meant = state.batch(
+      named.map((symbol) => (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? world.checker.getAliasedSymbol.gen(symbol) : answer(symbol))),
+    );
+    const zod = world.fromPackage(
+      meant.map((symbol) => (symbol?.name === ZOD_TYPE ? symbol.declarations : [])),
+      ZOD_PACKAGE,
+    );
+    const shapes = world.typedAt(
+      sites.zodTwins.filter((_, at) => zod[at] === true),
+      ({ shape }) => shape,
+    );
     const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
     const members = state.slotMembers(asks);
     for (const [y, ask] of asks.entries()) {
@@ -569,36 +658,6 @@ class Builder {
     }
   }
 
-  // A Drizzle store writes its table's columns: each key a stored literal sets writes its column there, and a whole value,
-  // or one spread into the literal, writes its required members' columns at the builder method. Every member of a
-  // whole value flows to its column, so an optional one is written where the value that sets it is built.
-  #stores(sites: FileSites): void {
-    const state = this.#state;
-    if (sites.stores.length === 0) {
-      return;
-    }
-    const symbols = state.world.symbolsAt(sites.stores.flatMap(({ at, opener }) => [at, opener]));
-    const drizzle = state.world.fromPackage(
-      symbols.map((symbol) => symbol?.declarations ?? []),
-      DRIZZLE_PACKAGE,
-    );
-    const stores = sites.stores.filter((_, x) => drizzle[2 * x] === true && drizzle[2 * x + 1] === true);
-    const stored = state.batch(stores.map((store) => storedColumns(state.world.checker, store))).flat();
-    const columns = state.declarations(stored.map(({ column }) => column));
-    const members = state.declarations(stored.map(({ member }) => member ?? undefined));
-    for (const [y, { at, writes }] of stored.entries()) {
-      for (const column of columns[y] ?? []) {
-        if (writes) {
-          state.role(column, "write", sites.file, at.pos);
-        }
-        for (const member of members[y] ?? []) {
-          state.flow(column, member);
-        }
-      }
-    }
-    state.count("drizzle stores", stores.length);
-  }
-
   // A zod parse of a Drizzle row copies out the columns its output names, so it reads them at the parse method.
   #parses(sites: FileSites): void {
     const state = this.#state;
@@ -606,6 +665,16 @@ class Builder {
     const columns = state.batch(parses.map((call) => parsedColumns(state.world, call)));
     for (const [y, call] of parses.entries()) {
       state.roleAll(state.declarations(columns[y] ?? []).flat(), "read", sites.file, call.expression.end);
+    }
+  }
+
+  // The types a production parameter is annotated with: a caller may leave their optional members unset.
+  #parameterHomes(sites: FileSites): void {
+    const state = this.#state;
+    for (const keys of state.declarations(state.world.symbolsAt(sites.parameterTypes))) {
+      for (const key of keys) {
+        state.parameterHomes.add(key);
+      }
     }
   }
 
@@ -928,4 +997,71 @@ function namesAMember(node: Node): boolean {
 function destructured(call: Node): boolean {
   const up = isAwaitExpression(call.parent) ? call.parent.parent : call.parent;
   return isVariableDeclaration(up) && isObjectBindingPattern(up.name);
+}
+
+// A key a stored literal sets, by its write's index, with the reads its value copies into the column the key names.
+interface StoredKey {
+  readonly at: number;
+  readonly name: PropertyName;
+  readonly reads: readonly Node[];
+}
+
+// A whole value a Drizzle write stores, by the write's index, with the builder method that stores it.
+interface StoredWhole {
+  readonly at: number;
+  readonly value: Node;
+  readonly method: Node;
+}
+
+// What each Drizzle write stores, by the write's index: the keys its literal sets, and the whole values it stores, a
+// spread into the literal among them.
+function storedParts(stores: readonly StoreWrite[]): { readonly keys: readonly StoredKey[]; readonly wholes: readonly StoredWhole[] } {
+  const keys: StoredKey[] = [];
+  const wholes: StoredWhole[] = [];
+  for (const [at, { value, at: method }] of stores.entries()) {
+    if (!isObjectLiteralExpression(value)) {
+      wholes.push({ at, value: isSpreadElement(value) ? value.expression : value, method });
+      continue;
+    }
+    wholes.push(...value.properties.flatMap((property) => (isSpreadAssignment(property) ? [{ at, value: property.expression, method }] : [])));
+    keys.push(...value.properties.flatMap((property) => storedKey(at, property)));
+  }
+  return { keys, wholes };
+}
+
+// A stored literal's key and the reads it copies; a shorthand key copies a local binding, which is no member.
+function storedKey(at: number, property: Node): readonly StoredKey[] {
+  if (isShorthandPropertyAssignment(property) && isPropertyName(property.name)) {
+    return [{ at, name: property.name, reads: [] }];
+  }
+  return isPropertyAssignment(property) && isPropertyName(property.name) ? [{ at, name: property.name, reads: copiedReads(property.initializer) }] : [];
+}
+
+// The column a stored key names on its table.
+function* columnOf(checker: Checker, table: Type | undefined, name: string): APIRequestGenerator<NativeSymbol | undefined> {
+  return table === undefined ? undefined : yield* checker.getPropertyOfType.gen(table, name);
+}
+
+// Each member of a stored value, a list's through its element type, beside the same-named column of the table.
+function* storedMembers(
+  state: GraphState,
+  table: Type | undefined,
+  value: Type | undefined,
+): APIRequestGenerator<readonly { readonly member: NativeSymbol; readonly column: NativeSymbol }[]> {
+  if (table === undefined || value === undefined) {
+    return [];
+  }
+  const { checker } = state.world;
+  const type = yield* checker.getNonNullableType.gen(value);
+  const element = (yield* checker.isArrayType.gen(type)) && type.isTypeReference() ? (yield* checker.getTypeArguments.gen(type))[0] : undefined;
+  const out: { readonly member: NativeSymbol; readonly column: NativeSymbol }[] = [];
+  for (const arm of yield* constituentsOf(element ?? type)) {
+    for (const member of yield* state.membersOf(arm)) {
+      const column = yield* checker.getPropertyOfType.gen(table, member.name);
+      if (column !== undefined) {
+        out.push({ member, column });
+      }
+    }
+  }
+  return out;
 }
