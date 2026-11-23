@@ -7,9 +7,8 @@ import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { ReferenceKind, Site } from "./classify.ts";
 import { classifyReference, Sources, siteKey } from "./classify.ts";
 import type { DeliberateEntry } from "./deliberate.ts";
-import { deliberateEntry } from "./deliberate.ts";
+import { sortRows } from "./deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "./judged.ts";
-import { sortJudged } from "./judged.ts";
 import { serviceReferences } from "./language-service.ts";
 import { homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, ReferenceIndex } from "./occurrences.ts";
@@ -106,46 +105,6 @@ function memberReferences(members: readonly DetachedMember[], index: ReferenceIn
 /** The package worlds and the test worlds a scan runs over, defaulted from the root. */
 export function scanWorlds(options: ScanOptions): { readonly worlds: readonly string[]; readonly testWorlds: readonly string[] } {
   return { worlds: options.worlds ?? packageWorlds(options.root), testWorlds: options.testWorlds ?? TEST_WORLDS };
-}
-
-/** A file, home and member the deliberate list is asked about. */
-export interface DeliberateSide {
-  readonly file: string;
-  readonly home: string;
-  readonly member: string;
-}
-
-/** Split findings into the unwired and the ones the deliberate list excuses, each of those with its reason. A finding
- *  that stands for several declarations, as a restated pair does, names each through `sides`; any excused side
- *  excuses it. */
-export function sortDeliberate<Finding extends DeliberateSide>(
-  findings: readonly Finding[],
-  entries: readonly DeliberateEntry[],
-  sides: (finding: Finding) => readonly DeliberateSide[] = (finding) => [finding],
-): { readonly unwired: readonly Finding[]; readonly deliberate: readonly (Finding & { readonly reason: string })[] } {
-  const unwired: Finding[] = [];
-  const deliberate: (Finding & { readonly reason: string })[] = [];
-  for (const finding of findings) {
-    const reason = sides(finding)
-      .map((side) => deliberateEntry(entries, side.file, side.home, side.member)?.reason)
-      .find((found) => found !== undefined);
-    if (reason === undefined) {
-      unwired.push(finding);
-    } else {
-      deliberate.push({ ...finding, reason });
-    }
-  }
-  return { unwired, deliberate };
-}
-
-/** {@link sortDeliberate}, then the judged list over what it leaves: every bucket a report without rulings of its own
- *  writes. */
-export function sortRows<Finding extends DeliberateSide & { readonly key: string }>(
-  findings: readonly Finding[],
-  options: Pick<ScanOptions, "root" | "deliberate" | "judged">,
-): JudgedSplit<Finding> & { readonly deliberate: readonly (Finding & { readonly reason: string })[] } {
-  const { unwired, deliberate } = sortDeliberate(findings, options.deliberate);
-  return { ...sortJudged(unwired, options), deliberate };
 }
 
 interface Tally {

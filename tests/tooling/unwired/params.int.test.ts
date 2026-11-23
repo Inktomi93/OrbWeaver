@@ -42,6 +42,8 @@ const TREE = {
     'export const lines = [greet("a"), greet("b", true), tag("x", 1), tag("x", 2), once("y"), paint({ color: "red" }), relay({})];',
     "export const handlers = [escaped];",
     "export type Greeter = typeof greet;",
+    "/** Built from {@link greet}. */",
+    'export const greeting = greet("c");',
     "export function pair(head: string, tail?: number): string {",
     "  return head + String(tail);",
     "}",
@@ -86,7 +88,7 @@ test("the params scan reports unsupplied parameters, constant literals and unset
   expect(found.toSorted((a, b) => a.at.localeCompare(b.at))).toEqual([
     { at: "Badge(props.size)", kind: "unsupplied-prop", literal: null, calls: 1 },
     { at: "FileSink.put(flush)", kind: "unsupplied", literal: null, calls: 2 },
-    { at: "greet(prefix)", kind: "unsupplied", literal: null, calls: 2 },
+    { at: "greet(prefix)", kind: "unsupplied", literal: null, calls: 3 },
     { at: "Port.send(retries)", kind: "unsupplied", literal: null, calls: 2 },
     { at: "relay(options.size)", kind: "unsupplied-prop", literal: null, calls: 1 },
     { at: "Sink.put(flush)", kind: "same-literal", literal: "true", calls: 2 },
@@ -310,6 +312,21 @@ const SUPPLY_TREE = {
     '  return (opts.label ?? "") + String(opts.size);',
     "}",
     'export const labels = [base({}), wide({ label: "w", size: 1 })];',
+    "export interface Internal {",
+    "  readonly id: string;",
+    "  readonly stamp?: number;",
+    "}",
+    "export interface Wire {",
+    "  readonly id: string;",
+    "  readonly stamp?: string;",
+    "}",
+    "function send(wire: Wire): string {",
+    '  return wire.id + (wire.stamp ?? "");',
+    "}",
+    "export function take(internal: Internal): string {",
+    '  return internal.id + String(internal.stamp ?? 0) + send({ ...internal, stamp: "x" });',
+    "}",
+    'export const taken = [take({ id: "a" }), take({ id: "b" })];',
   ].join("\n"),
 };
 
@@ -335,6 +352,7 @@ test("the params scan credits spread, shared-type and callee-body supplies and k
       "unsupplied-prop Credentials.markRevokedByUser(params.reason)",
       "unsupplied-prop ProviderLogger.capability(entry.servedModel)",
       "unsupplied-prop base(opts.label)",
+      "unsupplied-prop take(internal.stamp)",
     ]);
 });
 
@@ -368,3 +386,19 @@ test("a component a dynamic import's namespace hands on escapes, and its rendere
   const report = await scanParams(await plantedTree(graphTree(LAZY_TREE, { jsx: true })));
   expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Shown(props.muted)"]);
 });
+
+// Every product write of a prop is judged, so the order the walk meets them in decides nothing: a local store of the
+// request (no supply) before or after the executor's generic-slot construction (a supply) gives one verdict.
+const STASH =
+  "export function stash(req: EmbedRequest, accounting: Accounting): EmbedRequest {\n  const copy: EmbedRequest = { ...req, accounting };\n  return copy;\n}";
+test.for(["before", "after"])(
+  "a store of the prop %s the supplying construction leaves the verdict alone",
+  { timeout: 120_000 },
+  async (order, { plantedTree }) => {
+    const pipeline = SUPPLY_TREE["packages/a/src/pipeline-spread.ts"];
+    const at = pipeline.indexOf("export function executor");
+    const planted = order === "before" ? `${pipeline.slice(0, at)}${STASH}\n${pipeline.slice(at)}` : `${pipeline}\n${STASH}`;
+    const report = await scanParams(await plantedTree(graphTree({ "packages/a/src/pipeline-spread.ts": planted })));
+    expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Executor.embed(req.dimensions)"]);
+  },
+);

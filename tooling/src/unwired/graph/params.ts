@@ -1,7 +1,7 @@
 // `pnpm unwired params` as a query over the reference graph (D357): optional parameters and optional props no product
 // call or JSX element supplies, and parameters every product call passes the same literal. The callables are the
 // graph's declarations; their calls come from the session's merged program (getSignatureUsage), and a reference that is
-// no call is judged by the walk's own readers (roles.ts occurrenceRoles, sites.ts isTypePosition and forwards).
+// no call is judged by the graph's value-use reader (roles.ts valueUse).
 //
 // - A callable whose value escapes in product code (handed on, stored, exported as a default, read by a namespace
 //   member as a dynamic import's loader does) is never judged: a call the scan cannot see may supply anything.
@@ -10,8 +10,8 @@
 // - A shorthand key (`{ listed }`) hands on the binding it names, so it is resolved through that binding.
 // - A prop belongs to its declaration, not to one callable: a product construction anywhere in find-references' own
 //   group for the prop (a sibling callee's argument, a spread a pipeline adds) supplies it for every callable whose
-//   parameter carries it. Find-references does not search a literal whose slot is a generic parameter, so the graph's
-//   first product write of the prop (MemberRoles.write) is judged as a construction too. A construction whose value
+//   parameter carries it. Find-references does not search a literal whose slot is a generic parameter, so every product
+//   write the graph kept for the prop (GraphFacts.roleSites, kept for {@link PARAMS_HOMES}) is judged as a construction too. A construction whose value
 //   reads the same prop only relays it, and a literal that reaches no call or JSX attribute (a callee's own default
 //   fill, a constant nothing passes) supplies nothing.
 // - The buckets are the engine scan's; its `disagreements` list is gone with its second engine, and the verb refuses
@@ -50,7 +50,6 @@ import {
   isPropertySignatureDeclaration,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
-  isSourceFile,
   isSpreadAssignment,
   isSpreadElement,
   isStringLiteral,
@@ -61,17 +60,19 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, NodeHandle } from "@typescript/native/sync";
 import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
-import type { JudgedSplit } from "../judged.ts";
+import type { DeliberateEntry } from "../deliberate.ts";
+import { sortRows } from "../deliberate.ts";
+import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
-import type { ScanOptions } from "../scan.ts";
-import { sortRows } from "../scan.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, keyText, Resolver } from "./resolve.ts";
-import { occurrenceRoles, sameNode } from "./roles.ts";
-import { declarationNameOf, forwards, isTypePosition } from "./sites.ts";
+import { occurrenceRoles, sameNode, valueUse } from "./roles.ts";
+import { declarationNameOf } from "./sites.ts";
+import { unwrapValue } from "./slots.ts";
+import type { RoleSite } from "./state.ts";
 import { nodeAt } from "./verify.ts";
 
 const PARAM_KINDS = ["unsupplied", "same-literal", "unsupplied-prop"] as const;
@@ -93,6 +94,13 @@ interface UnwiredParam {
   readonly calls: number;
   /** Test calls that supply what the product never does. */
   readonly tests: number;
+}
+
+/** The root and the deliberate and judged lists a params report sorts its rows by. */
+export interface ParamsLists {
+  readonly root: string;
+  readonly deliberate: readonly DeliberateEntry[];
+  readonly judged?: readonly JudgedEntry[] | undefined;
 }
 
 /** The params report: its rows split by the deliberate and judged lists, and what the scan cannot see. */
@@ -117,10 +125,13 @@ const PARAM_LIMITS: readonly string[] = [
   "A value supplied only from a JSON or scenario file is not a supply; a reference in a type position is neither a call nor an escape.",
   "A prop any product construction of its declaration sets is supplied for every callable that takes it, so a callable whose own callers never set a shared prop keeps its default path unreported.",
   "A construction supplies a prop only when its literal reaches a call argument or is a JSX attribute, and its value does not read the same prop: a literal stored in a local or a constant and later handed to a sibling callee by name is not seen as that sibling's supply.",
-  "A construction find-references does not return (a literal whose slot is a generic parameter) supplies a prop only when it is the graph's first product write of that prop.",
   "Two declarations of one concept are separate homes: a prop supplied only through a restated options type reports on the other; judge it with the shapes scan.",
   "A parameter typed by a single literal is never same-literal: its type, not its callers, fixes the value, as in a structural view of a platform method.",
 ];
+
+/** The declaration files whose role sites the build keeps for params: every product package, so each product write of
+ *  a prop is judged. */
+export const PARAMS_HOMES = ["packages/"] as const;
 
 // The minimum calls before an identical literal says more than "it has one caller".
 const SAME_LITERAL_CALLS = 2;
@@ -187,14 +198,6 @@ interface Calls {
   readonly escapes: number;
 }
 
-function unwrap(node: Expression | undefined): Expression | undefined {
-  let at = node;
-  while (at !== undefined && (isParenthesizedExpression(at) || isSatisfiesExpression(at) || isAsExpression(at))) {
-    at = at.expression;
-  }
-  return at;
-}
-
 // A method signature's parameters, or those of a function type written on a property; a property typed any other way
 // names no parameters of its own.
 function signatureParameters(node: MethodSignatureDeclaration | PropertySignatureDeclaration): readonly ParameterDeclaration[] {
@@ -233,7 +236,7 @@ function valueCallable(node: Node): Pick<Written, "home" | "declared"> | null {
   if (!(isVariableDeclaration(node) && isIdentifier(node.name))) {
     return null;
   }
-  const value = unwrap(node.initializer);
+  const value = unwrapValue(node.initializer);
   return value !== undefined && (isArrowFunction(value) || isFunctionExpression(value)) ? { home: node.name.text, declared: value.parameters } : null;
 }
 
@@ -376,24 +379,11 @@ function jsxShape(name: Node): CallShape | null {
   return { arguments: [{ literal: null, keys }] };
 }
 
-// A name the walk keeps silent: one in a type position, or one an import or export specifier forwards.
-function silent(name: Node): boolean {
-  if (forwards(name.parent)) {
-    return true;
-  }
-  for (let at: Node = name; !isSourceFile(at); at = at.parent) {
-    if (isTypePosition(at)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Whether a product reference that is no call hands the value on: the walk's role reader decides. An implementation
-// supplying a member (`{ send: () => … }`) never reaches here, since its name resolves to the literal's own member.
-function escapes(name: Node): boolean {
-  return !silent(name) && occurrenceRoles(name).some((role) => role !== "key");
-}
+// Whether a product reference that is no call hands the value on, by the graph's value-use reader (roles.ts valueUse):
+// a type position and a forwarding specifier only label it; a doc comment, which occurrenceRoles gives no role, is
+// not code. An implementation supplying a member (`{ send: () => … }`) never reaches here, since its name resolves to
+// the literal's own member.
+const escapes = (name: Node): boolean => valueUse(name) !== "type" && occurrenceRoles(name).length > 0;
 
 function* noNode(): APIRequestGenerator<Node | undefined> {
   return yield* answer<Node | undefined>(undefined);
@@ -404,7 +394,7 @@ type Usage = { readonly kind: "call"; readonly shape: CallShape; readonly produc
 
 function usageOf(world: NativeWorld, name: Node, call: Node | undefined): Usage {
   const product = isProduction(world.fileOfSource(name.getSourceFile()));
-  const shape = (call === undefined ? null : callShape(call)) ?? jsxShape(name);
+  const shape = valueUse(name) === "call" ? ((call === undefined ? null : callShape(call)) ?? jsxShape(name)) : null;
   if (shape !== null) {
     return { kind: "call", shape, product };
   }
@@ -542,10 +532,7 @@ function referencesOf(world: NativeWorld, props: readonly Prop[]): readonly (rea
 
 // The key a slot write names: the graph records a write at the full start of the object literal or JSX attribute list
 // that holds it (./slots.ts), and the key is that holder's property of the prop's name.
-function writtenKey(world: NativeWorld, write: string, name: string): Reference | null {
-  const split = write.lastIndexOf(":");
-  const file = write.slice(0, split);
-  const at = Number(write.slice(split + 1));
+function writtenKey(world: NativeWorld, { file, at }: RoleSite, name: string): Reference | null {
   let found: Node | undefined;
   const visit = (node: Node): void => {
     if (found !== undefined || node.pos > at || node.end <= at) {
@@ -565,8 +552,9 @@ function writtenKey(world: NativeWorld, write: string, name: string): Reference 
   return key[0] === undefined ? null : { node: key[0], file };
 }
 
-// Whether a product construction supplies each prop: an occurrence in its find-references group, or the graph's first
-// product write of it, which also reaches a literal whose slot is a generic parameter find-references does not search.
+// Whether a product construction supplies each prop: an occurrence in its find-references group, or any product write
+// the graph kept for it (GraphFacts.roleSites), which also reaches a literal whose slot is a generic parameter
+// find-references does not search. Every write is judged, so the order the walk meets them in decides nothing.
 // A construction whose value reads the same prop (`inner({ ...options, tone: options.tone ?? "flat" })`) only relays
 // the value it was given, so it supplies nothing.
 function constructed(world: NativeWorld, graph: Graph, resolver: Resolver, props: readonly Prop[]): ReadonlySet<string> {
@@ -585,9 +573,12 @@ function constructed(world: NativeWorld, graph: Graph, resolver: Resolver, props
       const made = isProduction(file) ? constructionAt(node, file) : null;
       return made !== null && !relays(made, node);
     };
-    const writes = resolver.handleKeys(prop.declarations).flatMap((key) => graph.facts.roles.get(key)?.write ?? []);
-    const firstWrites = writes.flatMap((write) => writtenKey(world, write, prop.name) ?? []);
-    if (own.some(supplies) || firstWrites.some(supplies)) {
+    const writes = resolver
+      .handleKeys(prop.declarations)
+      .flatMap((key) => graph.facts.roleSites.get(key) ?? [])
+      .filter((site) => site.role === "write" && isProduction(site.file));
+    const written = writes.flatMap((site) => writtenKey(world, site, prop.name) ?? []);
+    if (own.some(supplies) || written.some(supplies)) {
       supplied.add(prop.keys.join(","));
     }
   }
@@ -641,7 +632,7 @@ function judge(callable: Callable, calls: Calls, supplied: ReadonlySet<string>):
 }
 
 /** Judge every product callable the graph declares against its calls in the session's merged program. */
-export function paramsPass(graph: Graph, world: NativeWorld, rows: Pick<ScanOptions, "root" | "deliberate" | "judged">): ParamsReport {
+export function paramsPass(graph: Graph, world: NativeWorld, rows: ParamsLists): ParamsReport {
   const resolver = new Resolver(world);
   const found = callables(world, writtenCallables(graph, world));
   const calls = callsOf(world, resolver, found);

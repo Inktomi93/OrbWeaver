@@ -1,20 +1,20 @@
-// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css` and `graph-dom` run the reference graph over the one
-// merged program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom
-// properties nothing reads, or the class and data-* hooks with no partner; `graph-dom` reads source, so it refuses `--from`.
-// `graph-worlds-check` proves the merged program against each world's own (./graph/worlds-check.ts) and exits 1 while a
-// merged-program error is unexplained. `ports` writes the restated-port targets the derive codemod reads; the bare verb runs engine
-// one over every world, the dead-inside-live verbs run both engines except `codes`, `procedures` and `columns`, which run
-// engine one, and `params`, a query over the reference graph (./graph/params.ts); those four refuse `--cross-check`, and each
-// writes one report under reports/unwired/ with its judged rows apart;
-// `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it; `coverage`
-// runs the test suites with V8 coverage and writes what no run executed (./coverage.ts).
+// The `pnpm unwired` verbs. `graph`, `graph-verify`, `graph-css`, `graph-dom` and `codes` run the reference graph over
+// the one merged program (./graph/scan.ts) and write its buckets, a member bucket's find-references verdicts, the custom
+// properties nothing reads, the class and data-* hooks with no partner, or the error codes nothing throws or handles;
+// `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
+// own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
+// restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
+// verbs run both engines except `unions`, `params`, `procedures` and `columns`, which run one engine (`unions`,
+// `params` and `procedures` query the graph) and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows
+// apart; `removed-keys` resolves every receiver site of a removed contract key and exits 1 while one still sends it;
+// `coverage` runs the test suites with V8 coverage and writes what no run executed (./coverage.ts); `hits` prints every
+// literal hit of a name across the tracked tree, classified by where it sits (./literal-hits.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import { scanCodes } from "./codes.ts";
 import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
@@ -26,35 +26,36 @@ import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
 import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import { outsideTable } from "./graph/procedures.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { cssGraph, domGraph, paramsGraph, queryGraph, scanGraph, verifyGraph } from "./graph/scan.ts";
+import { codesGraph, cssGraph, domGraph, paramsGraph, proceduresGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
+import { HITS_USAGE, runHits } from "./literal-hits.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
-import { outsideTable, scanProcedures } from "./procedures.ts";
 import { checkRemovedKeys } from "./removed-keys.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
-import { scanUnions } from "./unions.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
-const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "codes", "procedures", "columns"] as const;
+const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
+const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
 const GRAPH_VERBS = [
@@ -67,6 +68,7 @@ const GRAPH_VERBS = [
   "graph-impact",
   "graph-reach",
   "graph-worlds-check",
+  "codes",
 ] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
 const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
@@ -78,12 +80,13 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   "graph-users": "reports/unwired/graph-users.json",
   "graph-impact": "reports/unwired/graph-impact.json",
   "graph-reach": "reports/unwired/graph-reach.json",
+  codes: "reports/unwired/codes.json",
   "graph-worlds-check": "reports/unwired/graph-worlds-check.json",
 };
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]...`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -109,8 +112,6 @@ interface Report {
   readonly unwired: readonly Finding[];
   readonly deliberate: readonly Finding[];
   readonly staleJudged: readonly StaleJudged[];
-  /** Findings the engine-one cross-check refuted; a graph scan has no second engine and writes none. */
-  readonly disagreements?: readonly (string | object)[];
   /** What the scan cannot see, printed after its summary. */
   readonly limits?: readonly string[];
 }
@@ -141,8 +142,8 @@ function literalLine(stage: LiteralStage | null): string {
   return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)}`;
 }
 
-/** The scan verbs with no engine two, which refuse `--cross-check`: params runs on the graph alone. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["codes", "procedures", "columns", "params"]);
+/** The scan verbs with no engine two, which refuse `--cross-check`. */
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["unions", "params", "procedures", "columns"]);
 
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
@@ -151,14 +152,13 @@ const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
   params: [],
   unions: [],
   shapes: [],
-  codes: [],
   procedures: [],
   columns: [],
 };
 
 // Every list a report writes, by its name, so a new bucket reaches the summary line without a hand-kept count.
 const NOT_A_BUCKET: ReadonlySet<string> = new Set(["limits"]);
-const bucketCounts = (report: Report): string =>
+const bucketCounts = (report: object): string =>
   Object.entries(report)
     .flatMap(([name, value]: [string, unknown]) => (Array.isArray(value) && !NOT_A_BUCKET.has(name) ? [`${name}=${String(value.length)}`] : []))
     .join(" ");
@@ -175,11 +175,10 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
         .map(([destination, count]) => `${destination}:${count}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
-  params: scan("reports/unwired/params.json", (options) => paramsGraph(options, options.log)),
-  unions: scan("reports/unwired/unions.json", scanUnions),
+  params: scan("reports/unwired/params.json", ({ root, deliberate, judged, log: report }) => paramsGraph({ root, deliberate, judged }, report)),
+  unions: scan("reports/unwired/unions.json", ({ root, deliberate, judged, log: report }) => unionsGraph(root, { deliberate, judged }, report)),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
-  codes: scan("reports/unwired/codes.json", scanCodes),
-  procedures: scan("reports/unwired/procedures.json", scanProcedures, outsideTable),
+  procedures: scan("reports/unwired/procedures.json", (options) => proceduresGraph(options, options.log), outsideTable),
   columns: scan("reports/unwired/columns.json", scanColumns),
 };
 
@@ -211,7 +210,7 @@ function parseArgs(argv: readonly string[]): Args {
   const flags = new Map<string, string>();
   const crossCheck = argv.includes(CROSS_CHECK_FLAG);
   if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs engine one only, so there is no engine two to cross-check\n${USAGE}`);
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} has no engine two to cross-check\n${USAGE}`);
   }
   const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
   for (const arg of rest) {
@@ -645,6 +644,21 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
   return EXIT.clean;
 }
 
+async function runGraphCodes(args: GraphArgs): Promise<number> {
+  const report = await codesGraph(args.root, { root: args.root, deliberate: DELIBERATE }, log, args.options);
+  const path = write(args.root, args.out, report);
+  for (const finding of report.unwired) {
+    process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
+  }
+  for (const entry of report.staleJudged) {
+    process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
+  }
+  logSession(report.session);
+  log(`scanned=${report.scanned} ${bucketCounts(report)} written to ${path}`);
+  logLimits(report.limits);
+  return EXIT.clean;
+}
+
 // A world's differences, one row each; the libraries only the merged program loads are one row per package, and the
 // report keeps a row per file.
 function writeDifferences({ config, differences, libraries }: WorldsCheck["worlds"][number]): void {
@@ -688,6 +702,9 @@ async function runGraph(args: GraphArgs): Promise<number> {
   if (args.verb === "graph-css") {
     return await runGraphCss(args);
   }
+  if (args.verb === "codes") {
+    return await runGraphCodes(args);
+  }
   if (args.verb === "graph-worlds-check") {
     return runGraphWorldsCheck(args);
   }
@@ -699,9 +716,12 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const graphVerb = (verb: string | undefined): GraphVerb | undefined => GRAPH_VERBS.find((candidate) => candidate === verb);
 
-// The verbs that run asynchronously: `coverage` runs the test suites with its own flags, and the graph verbs load the
-// analysed tree's knip config and design system.
-function asyncVerb(argv: readonly string[]): Promise<number> | undefined {
+// The verbs that read their own flags or run asynchronously: `hits` takes names, `coverage` runs the test suites with
+// its own flags, and the graph verbs load the analysed tree's knip config and design system.
+function asyncVerb(argv: readonly string[]): number | Promise<number> | undefined {
+  if (argv[0] === HITS_VERB) {
+    return runHits(argv.slice(1), log);
+  }
   if (argv[0] === COVERAGE_VERB) {
     return runCoverage(argv.slice(1), log);
   }

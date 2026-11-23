@@ -122,3 +122,23 @@ test("a key written beside a spread writes the member its source declares, throu
   expect(labelsIn(scan, "member-write-only", FILE).map((label) => label.split("  ")[0])).toEqual(["Req.stamp"]);
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Req.spare"]);
 });
+
+// A key beside a spread fills the member of the literal's own slot: a row spread into a wire shape writes the wire's
+// member, never the row's, so a row member nothing else writes stays untouched while the wire's is written.
+test("a key beside a spread into another type's slot writes that slot's member, not the spread source's", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Row { readonly id: string; readonly createdAt?: Date }",
+      "export interface Wire { readonly id: string; readonly createdAt?: string }",
+      "declare function send(wire: Wire): void;",
+      "export const publish = (row: Row): void => send({ ...row, createdAt: row.id });",
+    ]),
+  );
+  const createdAt = (bucket: "member-untouched" | "member-write-only"): readonly (string | undefined)[] =>
+    labelsIn(scan, bucket, FILE)
+      .map((label) => label.split("  ")[0])
+      .filter((label) => label?.endsWith(".createdAt") === true);
+  expect(createdAt("member-untouched")).toEqual(["Row.createdAt"]);
+  expect(createdAt("member-write-only")).toEqual(["Wire.createdAt"]);
+});

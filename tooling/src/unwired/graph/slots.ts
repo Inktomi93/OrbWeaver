@@ -7,7 +7,9 @@
 //   a table keyed by the member: a key use of it, not a write.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
-// - A key written beside a spread (`{ ...req, accounting }`) also fills the member the spread source's type declares.
+// - A key fills the member of its literal's own slot, never the member a spread beside it copies from: `{ ...row, at: iso }`
+//   handed to a wire shape writes the wire's `at`, not the row's. Only a key the slot declares no member for (a generic
+//   call infers the slot from the literal itself, `run<R>({ req: { ...req, accounting } })`) fills the spread source's.
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
 //   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
@@ -29,7 +31,7 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescr
 import { CheckFlags, TypeFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer, unwrapExpression } from "./resolve.ts";
+import { answer, declKeyParts, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
 import { declarationNameOf } from "./sites.ts";
@@ -49,8 +51,8 @@ interface SlotWrite {
 
 const spanKey = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
 
-// The value with its parentheses, non-null and type assertions removed.
-function unwrapValue(node: Node | undefined): Node | undefined {
+/** The value with its parentheses, non-null and type assertions removed. */
+export function unwrapValue(node: Node | undefined): Node | undefined {
   let at = unwrapExpression(node);
   while (at !== undefined && (isAsExpression(at) || isSatisfiesExpression(at))) {
     at = unwrapExpression(at.expression);
@@ -68,16 +70,15 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   for (const [key, type] of coInferredSlots(state, literals)) {
     slots.set(key, type);
   }
-  const spreadTypes = spreadSlots(state, literals);
   // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
   const writes = state.session.options.ablate.has("literal-keys")
     ? []
     : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
         const type = slots.get(spanKey(literal));
-        const spread = spreadTypes.get(spanKey(literal)) ?? [];
-        return [...(type === undefined ? [] : [type]), ...spread].map((slot) => ({ type: slot, name, value, at: literal.pos, jsx: false }));
+        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
       });
-  slotWrites(state, variants, sites, writes);
+  const spreadFills = state.session.options.ablate.has("literal-keys") ? [] : spreadWrites(state, sites, slots);
+  slotWrites(state, variants, sites, [...writes, ...spreadFills]);
   bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];
   const listSlots = state.contextualTypes(lists);
@@ -93,21 +94,38 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   );
 }
 
-// The types a literal's spreads copy in: a key written beside `...source` overrides the member the source's type
-// declares, so the literal fills that member whatever slot it is handed to (a generic parameter's included).
-function spreadSlots(state: GraphState, literals: readonly ObjectLiteralExpression[]): ReadonlyMap<string, readonly Type[]> {
-  const spreads = literals.flatMap((literal) =>
-    literal.properties.flatMap((property) => (isSpreadAssignment(property) ? [{ literal, source: property.expression }] : [])),
+// The writes a key makes through the spreads beside it: a key its literal's own object slot does not declare (a generic
+// call's slot is its parameter's constraint, `{ readonly signal: string }`) fills the member each spread source's type
+// declares, since the literal is that source's value with the key overridden. A key the slot declares is the slot's.
+function spreadWrites(
+  state: GraphState,
+  { file, literalProperties: properties }: Pick<FileSites, "file" | "literalProperties">,
+  slots: ReadonlyMap<string, Type | undefined>,
+): readonly SlotWrite[] {
+  const candidates = properties.flatMap(({ literal, name, value }) => {
+    const type = slots.get(spanKey(literal));
+    const spreads = literal.properties.filter(isSpreadAssignment);
+    return type !== undefined && spreads.length > 0 && hasFlag(type.flags, TypeFlags.Object) ? [{ type, name, value, literal, spreads }] : [];
+  });
+  const own = state.batch(candidates.map(({ type, name }) => state.propsOnSlot(type, name)));
+  // A slot the checker inferred from the literal itself names the literal's own key, which declares no member.
+  const declared = own.map((symbols) => state.declarations(symbols).flat());
+  const sources = candidates.flatMap((candidate, at) =>
+    (declared[at] ?? []).every((key) => insideLiteral(key, file, candidate.literal))
+      ? candidate.spreads.map((spread) => ({ candidate, source: spread.expression }))
+      : [],
   );
-  const types = state.slotTypes(state.world.typesAt(spreads.map(({ source }) => source)));
-  const out = new Map<string, Type[]>();
-  for (const [at, { literal }] of spreads.entries()) {
+  const types = state.slotTypes(state.world.typesAt(sources.map(({ source }) => source)));
+  return sources.flatMap(({ candidate: { name, value, literal } }, at) => {
     const type = types[at];
-    if (type !== undefined) {
-      out.set(spanKey(literal), [...(out.get(spanKey(literal)) ?? []), type]);
-    }
-  }
-  return out;
+    return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+  });
+}
+
+// Whether a declaration key names a node inside the literal: one of its own keys.
+function insideLiteral(key: DeclKey, file: string, literal: ObjectLiteralExpression): boolean {
+  const parts = declKeyParts(key);
+  return parts.file === file && parts.pos >= literal.pos && parts.end <= literal.end;
 }
 
 // `recipe(bag)`: a recipe handed a whole value selects, on each axis the value's type names, every literal that member's
