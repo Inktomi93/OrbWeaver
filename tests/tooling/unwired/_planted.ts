@@ -9,6 +9,13 @@ import { plantedTsconfig } from "@orb/testkit/tooling";
 import type { Bucket, FieldsReport, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
 import { fieldsGraph, scanGraph } from "../../../tooling/src/unwired/index.ts";
 
+/**
+ * What a run's own error starts with when its compiler process dies: the read sees end of input, or the sync write hits
+ * the broken pipe first (a crash recorded the SuppressedError's `.error` as "EPIPE: broken pipe, write"). Nothing else
+ * is the run's own error.
+ */
+export const DEAD_CHANNEL_MESSAGES = ["Unexpected EOF", "EPIPE: broken pipe, write"] as const;
+
 /** The libs of a planted tree with no DOM. */
 export const LIB = ["ESNext"];
 

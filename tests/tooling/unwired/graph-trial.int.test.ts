@@ -8,6 +8,7 @@ import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import type { TestOptions } from "vitest";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Verdict } from "../../../tooling/src/unwired/field-sort.ts";
@@ -17,13 +18,15 @@ import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
+import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
 
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
 const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
 const [, KEPT_BY_RULING] = BUCKETS;
 const [DEAD_VERDICT, , ASK_VERDICT] = VERDICTS;
 
+// Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
+const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
 const MID = `${GRAPH_SOURCE}/mid.ts`;
@@ -848,8 +851,9 @@ test("a trial that fails keeps the trials that landed with its failure, and a re
     .parse(JSON.parse(readFileSync(out, "utf8")));
   expect(partial.trials.map(({ label, verdict }) => [label, verdict])).toEqual([[`${FIRST}:Ax.x`, NAMED_ONLY]]);
   // the failure keeps the run's own error, the time and the group it was on; the tool prints the run's own error
-  expect(partial.failure).toMatch(/Unexpected EOF.*the trial failed at \S+; last progress: trial group 2\/2 starting/u);
-  expect(crashed.stderr).toContain("TOOL ERROR (thrown): Error: Unexpected EOF");
+  expect(DEAD_CHANNEL_MESSAGES.some((message) => partial.failure.startsWith(message))).toBe(true);
+  expect(partial.failure).toMatch(/the trial failed at \S+; last progress: trial group 2\/2 starting/u);
+  expect(DEAD_CHANNEL_MESSAGES.some((message) => crashed.stderr.includes(`TOOL ERROR (thrown): Error: ${message}`))).toBe(true);
   expect(crashed.stderr).not.toContain("SuppressedError");
   const rerun = await runCli("unwired", argv);
   await expect(rerun).toExitWith(EXIT.clean);
@@ -947,7 +951,7 @@ test.for([
   { refusal: "a bucket no delete can trial", argv: [`--bucket=${KEPT_BY_RULING}`] },
   { refusal: "an unknown verdict", argv: [`--bucket=${MEMBER_WRITE_ONLY}`, "--verdict=maybe"] },
   { refusal: "a verdict on a bucket whose rows carry none", argv: [`--bucket=${DEAD}`, `--verdict=${DEAD_VERDICT}`] },
-])("pnpm unwired graph-trial refuses $refusal before any build", async ({ argv }, { runCli, scratch }) => {
+])("pnpm unwired graph-trial refuses $refusal before any build", SPAWNS_CLI, async ({ argv }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
 });
@@ -965,7 +969,7 @@ test.for([
     says: `--profile=trace: expected one of ${PROFILES.join(", ")}`,
   },
   { refusal: "the retired --cpu-profile", argv: [`--bucket=${DEAD}`, "--cpu-profile=out"], says: "--cpu-profile=out: unknown argument" },
-])("pnpm unwired graph-trial says why it refuses $refusal", async ({ argv, says }, { runCli, scratch }) => {
+])("pnpm unwired graph-trial says why it refuses $refusal", SPAWNS_CLI, async ({ argv, says }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
   expect(run.stderr).toContain(says);

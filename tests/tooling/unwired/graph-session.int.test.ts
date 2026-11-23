@@ -9,7 +9,18 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, labelsIn, libraryModule, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
+import {
+  DEAD_CHANNEL_MESSAGES,
+  GRAPH_SOURCE,
+  graphTree,
+  labelsIn,
+  libraryModule,
+  NODE_TYPES,
+  REACT_TYPES,
+  tailwindVariants,
+  WORLD,
+  ZOD_MODULE,
+} from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
@@ -361,8 +372,9 @@ test("a compiler that dies mid-run leaves the run's own error thrown and the fai
   expect(failed).toBeInstanceOf(Error);
   expect(failed).not.toBeInstanceOf(SuppressedError);
   expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
-  // the run's own error is the dead channel the compiler left, not the disposal's
-  expect((failed as Error).message).toContain("Unexpected EOF");
+  // The run's own error is the dead channel the compiler left, not the disposal's. The next write can hit the broken
+  // pipe before the read sees end of input, so either is the first observation of the death; nothing else is.
+  expect(DEAD_CHANNEL_MESSAGES.some((prefix) => (failed as Error).message.startsWith(prefix))).toBe(true);
 });
 
 test("the graph verbs refuse a build's options and a compiler profile on a dump before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {
