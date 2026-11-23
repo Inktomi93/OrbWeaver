@@ -49,6 +49,8 @@ type Workspace = z.infer<typeof workspaceSchema>;
 const knipModuleSchema = z.object({
   default: z.custom<(flags: { readonly production: boolean }) => unknown>((value) => typeof value === "function"),
   config: knipSchema,
+  /** Per workspace, the globs of the files an operator runs: knip ignores them as consumers, the graph roots them operator. */
+  operators: z.record(z.string(), z.array(z.string())),
 });
 // A package.json exports target: a path, a null exclusion, a fallback list, or a conditions map nesting any of them.
 type ExportTarget = string | null | readonly ExportTarget[] | { readonly [condition: string]: ExportTarget };
@@ -62,7 +64,25 @@ const manifestSchema = z.object({
 });
 
 const CODE = /\.(?:m|c)?[jt]sx?$/u;
-const RUN_FILE = /\bnode\s+(?:--[\w-]+(?:=\S+)?\s+)*([^\s;&|]+\.(?:m|c)?[jt]sx?)/gu;
+// A `node` invocation and what follows it up to the next shell separator.
+const NODE_RUN = /(?:^|[\s;&|(])node\s+([^;&|]+)/gu;
+// The node options that take their value as the next word (node --help); every other option is a flag or `--x=v`.
+const NODE_VALUE_OPTIONS: ReadonlySet<string> = new Set([
+  "--import",
+  "--require",
+  "-r",
+  "--loader",
+  "--experimental-loader",
+  "--env-file",
+  "--conditions",
+  "-C",
+  "--input-type",
+  "--eval",
+  "-e",
+  "--print",
+  "-p",
+]);
+const EVALUATES: ReadonlySet<string> = new Set(["--eval", "-e", "--print", "-p"]);
 const PNPM_RUN = /pnpm\s+(?:run\s+)?([\w:-]+)/gu;
 const SCRIPT_SRC = /<script\s(?:[^>]*\s)?type="module"(?:[^>]*\s)?src="([^"]+)"/gu;
 // The npm lifecycle scripts an installed package runs on its own (npm docs, "Life Cycle Scripts").
@@ -107,7 +127,7 @@ export async function loadRoots(root: string): Promise<Roots> {
   const production = knipSchema.parse(knip.default({ production: true }));
   const table = new RootTable(root);
   for (const [name, workspace] of Object.entries(production.workspaces)) {
-    workspaceRoots(root, table, name, workspace);
+    workspaceRoots(root, table, { name, workspace, operators: knip.operators[name] ?? [] });
   }
   const all = knipSchema.parse(knip.default({ production: false }));
   return {
@@ -118,9 +138,15 @@ export async function loadRoots(root: string): Promise<Roots> {
   };
 }
 
-function workspaceRoots(root: string, table: RootTable, name: string, workspace: Workspace): void {
+function workspaceRoots(
+  root: string,
+  table: RootTable,
+  { name, workspace, operators }: { readonly name: string; readonly workspace: Workspace; readonly operators: readonly string[] },
+): void {
   const dir = resolve(root, name);
   const consumers = list(workspace.ignore);
+  const operatorFiles = new Set(operators.flatMap((pattern) => table.glob(dir, pattern)));
+  const isOperator = (file: string): boolean => operatorFiles.has(file);
   // a workspace the production view ignores wholesale only consumes production (testkit, tooling)
   const consumerWorkspace = consumers.includes(WHOLE_WORKSPACE);
   const consumerFiles = new Set(consumers.flatMap((pattern) => table.glob(dir, pattern)));
@@ -128,7 +154,10 @@ function workspaceRoots(root: string, table: RootTable, name: string, workspace:
   for (const pattern of list(workspace.entry).filter((entry) => !entry.startsWith(PRODUCTION_MARK))) {
     const visible = pattern.endsWith(PRODUCTION_MARK);
     for (const file of table.glob(dir, visible ? pattern.slice(0, -PRODUCTION_MARK.length) : pattern)) {
-      table.add(table.modules, file, { kind: entryKind(file, isConsumer(file), visible && name !== ROOT_WORKSPACE), why: `knip ${name} entry ${pattern}` });
+      table.add(table.modules, file, {
+        kind: entryKind({ operator: isOperator(file), consumer: isConsumer(file), shipped: visible && name !== ROOT_WORKSPACE }),
+        why: `knip ${name} entry ${pattern}`,
+      });
     }
   }
   for (const [pattern] of Object.entries(workspace.ignoreIssues ?? {}).filter(([, issues]) => issues.includes("exports"))) {
@@ -144,6 +173,7 @@ function workspaceRoots(root: string, table: RootTable, name: string, workspace:
       workspace,
       consumerWorkspace,
       isConsumer,
+      isOperator,
       manifest: manifestSchema.parse(JSON.parse(readFileSync(manifestPath, "utf8"))),
     });
   }
@@ -164,11 +194,14 @@ function htmlRoots(root: string, table: RootTable, name: string, dir: string): v
   }
 }
 
-// An operator script runs from scripts/; a consumer file elsewhere drives production; a production-visible entry of a
-// package workspace ships; any other entry an operator runs.
-function entryKind(file: string, consumer: boolean, shipped: boolean): RootKind {
+// A file knip names an operator's runs by hand; another file the production view ignores drives production as a
+// consumer; a production-visible entry of a package workspace ships; any other entry an operator runs.
+function entryKind({ operator, consumer, shipped }: { readonly operator: boolean; readonly consumer: boolean; readonly shipped: boolean }): RootKind {
+  if (operator) {
+    return "operator";
+  }
   if (consumer) {
-    return file.startsWith("scripts/") ? "operator" : "consumer";
+    return "consumer";
   }
   return shipped ? "product" : "operator";
 }
@@ -179,6 +212,7 @@ interface ManifestContext {
   readonly workspace: Workspace;
   readonly consumerWorkspace: boolean;
   readonly isConsumer: (file: string) => boolean;
+  readonly isOperator: (file: string) => boolean;
   readonly manifest: z.infer<typeof manifestSchema>;
 }
 
@@ -192,8 +226,8 @@ function manifestRoots(root: string, table: RootTable, context: ManifestContext)
   const scripts = manifest.scripts ?? {};
   const shipped = shippedScripts(name, scripts);
   for (const [script, command] of Object.entries(scripts)) {
-    for (const match of command.matchAll(RUN_FILE)) {
-      const file = relative(root, resolve(dir, match[1] ?? ""));
+    for (const run of nodeRuns(command)) {
+      const file = relative(root, resolve(dir, run));
       if (existsSync(join(root, file))) {
         table.add(table.modules, file, { kind: scriptKind(context, file, shipped.has(script)), why: `${name} script ${script}` });
       }
@@ -216,10 +250,7 @@ function doorRoots(root: string, table: RootTable, { name, dir, workspace, manif
 }
 
 function scriptKind(context: ManifestContext, file: string, shipped: boolean): RootKind {
-  if (context.consumerWorkspace || context.isConsumer(file)) {
-    return "consumer";
-  }
-  return shipped ? "product" : "operator";
+  return entryKind({ operator: context.isOperator(file), consumer: context.consumerWorkspace || context.isConsumer(file), shipped });
 }
 
 // The scripts an installed application runs: its lifecycle scripts and every script they call through pnpm. The
@@ -241,6 +272,30 @@ function shippedScripts(name: string, scripts: Readonly<Record<string, string>>)
     }
   }
   return shipped;
+}
+
+// The script file each `node …` in a command runs: the first word after node's options, when it names a code file. An
+// option that takes a value skips that value too, and `-e` or `-p` runs code given inline, so no file.
+function nodeRuns(command: string): readonly string[] {
+  return [...command.matchAll(NODE_RUN)].flatMap((match) => {
+    const script = scriptWord((match[1] ?? "").trim().split(/\s+/u));
+    return script === null ? [] : [script];
+  });
+}
+
+// The first word past node's options, when it names a code file.
+function scriptWord(words: readonly string[]): string | null {
+  for (let at = 0; at < words.length; at += 1) {
+    const word = words[at] ?? "";
+    if (EVALUATES.has(word)) {
+      return null;
+    }
+    if (!word.startsWith("-")) {
+      return CODE.test(word) ? word : null;
+    }
+    at += NODE_VALUE_OPTIONS.has(word) ? 1 : 0;
+  }
+  return null;
 }
 
 // The code files an exports map names: a string target, at any nesting of conditions.

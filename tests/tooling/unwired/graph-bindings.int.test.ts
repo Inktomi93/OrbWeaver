@@ -2,7 +2,7 @@
 // noUnusedParameters judge it; one read only by code nothing reaches is reported with the dead code that reads it.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, graphTree } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, plantedKnip } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/bindings.ts`;
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
@@ -111,11 +111,7 @@ test("a binding whose reader only a test reaches is no dead read; one nothing re
   const scan = await graphScan(plantedTree, {
     "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tsconfig.outside.json" }] }),
     "tsconfig.outside.json": plantedTsconfig({ lib: ["ESNext"], include: ["tests"] }),
-    "knip.ts": [
-      `const config = ${JSON.stringify({ workspaces: { "packages/a": { entry: ["src/main.ts!"], project: ["src/**/*.ts!"] }, ".": { project: ["tests/**/*.ts"] } } })};`,
-      "export default (_flags: { readonly production: boolean }) => config;",
-      "export { config };",
-    ].join("\n"),
+    "knip.ts": plantedKnip({ workspaces: { "packages/a": { entry: ["src/main.ts!"], project: ["src/**/*.ts!"] }, ".": { project: ["tests/**/*.ts"] } } }),
     [main]: 'import { live } from "./bindings.ts";\nvoid live;',
     [LIB]: LIB_SOURCE,
     [FILE]: source,

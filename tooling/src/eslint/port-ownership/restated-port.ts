@@ -15,7 +15,8 @@ const PACKAGE_RANK: Readonly<Record<string, number>> = { kit: 0, contracts: 1, d
 const SERVER_BASE_RANK = 3;
 const MAX_INDEXED_HOPS = 8;
 
-const SOURCE_PATH = /\/packages\/([^/]+)\/src\/(.+)$/u;
+// A path absolute or repository-relative: the graph keeps relative files, ESLint hands absolute ones.
+const SOURCE_PATH = /(?:^|\/)packages\/([^/]+)\/src\/(.+)$/u;
 const SERVER_PATH = /^([^/]+)\/(?:([^/]+)\/)?/u;
 
 /** Where a declaration lives: its package, its server tier and its domain, when it has them. */
