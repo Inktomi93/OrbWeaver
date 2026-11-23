@@ -272,8 +272,8 @@ class Builder {
   readonly #pendingSlots: PendingClass[] = [];
   readonly #pendingValues: PendingClass[] = [];
   readonly #urlSpawns: UrlSpawn[] = [];
-  // The twin pairs already pushed: a schema key's shape twin and its output twin name the same pair.
-  readonly #twinPairs = new Set<string>();
+  // Each schema-side declaration with the checked types' members it pairs with, settled once every file is walked.
+  readonly #twinPartners = new Map<DeclKey, Set<DeclKey>>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -294,6 +294,7 @@ class Builder {
       state.unpairedReceivers.push(...this.#doors.unpaired);
       this.#settleClasses();
       this.#keys.finish(this.#flows);
+      this.#settleTwins();
       return this.#variants.finish();
     };
     if (profile === null) {
@@ -675,8 +676,8 @@ class Builder {
   // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each. The twin holds
   // where the reference means zod's own ZodType, imports and renames followed; a local type of that name twins nothing.
   // A schema checked so (by `satisfies`, an annotated binding or a declared return) holds its output to T at every
-  // depth: each member its output declares twins the same-named member of T at the same path, so a member a transform's
-  // annotation spells is T's member, and the check breaks when either is deleted.
+  // depth: each member its output declares pairs with the same-named member of T at the same path, so a member a
+  // transform's annotation spells is T's member, and the check breaks when either is deleted (`#settleTwins`).
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
     if (state.session.options.ablate.has("zod-twins") || sites.zodChecks.length === 0) {
@@ -688,7 +689,7 @@ class Builder {
     const members = state.slotMembers(asks);
     for (const [y, ask] of asks.entries()) {
       for (const member of members[y] ?? []) {
-        this.#twin(ask.decl, member);
+        this.#pair(ask.decl, member);
       }
     }
     const checks = this.#zodTypes(sites.zodChecks);
@@ -706,7 +707,7 @@ class Builder {
     for (const [y, output] of outputs.entries()) {
       for (const from of output.filter((decl) => state.decls.has(decl))) {
         for (const to of (targets[y] ?? []).filter((decl) => decl !== from && state.decls.has(decl))) {
-          this.#twin(from, to);
+          this.#pair(from, to);
         }
       }
     }
@@ -727,12 +728,28 @@ class Builder {
     return sites.filter((_, at) => zod[at] === true);
   }
 
-  #twin(a: DeclKey, b: DeclKey): void {
-    const pair = `${a}|${b}`;
-    if (!this.#twinPairs.has(pair)) {
-      this.#twinPairs.add(pair);
-      this.#state.twins.push([a, b]);
+  #pair(schema: DeclKey, member: DeclKey): void {
+    const partners = this.#twinPartners.get(schema) ?? new Set<DeclKey>();
+    partners.add(member);
+    this.#twinPartners.set(schema, partners);
+  }
+
+  // A schema declaration with one partner is that member: a twin, carrying reads both ways. One a check holds to several
+  // members (a sub-schema reused under two keys, a union output's key under each arm of T) only passes its own reads to
+  // each, as a `satisfies` check does: a twin there would carry one member's read through it to another, and a delete of
+  // that other member still compiles.
+  #settleTwins(): void {
+    const state = this.#state;
+    for (const [schema, partners] of this.#twinPartners) {
+      for (const member of partners) {
+        if (partners.size === 1) {
+          state.twins.push([schema, member]);
+        } else {
+          state.checks.push([schema, member]);
+        }
+      }
     }
+    this.#twinPartners.clear();
   }
 
   // A checked schema's output members beside the declared type's same-named members, at every depth: through null and

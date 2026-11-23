@@ -89,6 +89,52 @@ test("a schema checked against a declared ZodType reads that type's members at d
   );
 });
 
+// One schema declaration a check holds to two members of T passes its own reads to each, but never one member's read to
+// the other: a delete of `B.name` or `Y.name` still compiles. `A.name` and `X.name`, read directly, are the controls.
+test.for([
+  {
+    shape: "a sub-schema reused under two keys",
+    lines: [
+      "export interface A { readonly name: string }",
+      "export interface B { readonly name: string }",
+      "export interface Pair { readonly a: A; readonly b: B }",
+      "const inner = z.object({ name: z.string() });",
+      "export const pairSchema = z.object({ a: inner, b: inner }) satisfies z.ZodType<Pair>;",
+      "export const nameOf = (pair: Pair): string => pair.a.name;",
+    ],
+    read: "A.name",
+    dead: "B.name",
+  },
+  {
+    shape: "a union whose options share a key",
+    lines: [
+      "export interface X { readonly name: string; readonly x: string }",
+      "export interface Y { readonly name: string; readonly y: string }",
+      "export interface Holder { readonly item: X | Y }",
+      "export const holderSchema = z.object({ item: z.union([z.object({ name: z.string(), x: z.string() }), z.object({ name: z.string(), y: z.string() })]) }) satisfies z.ZodType<Holder>;",
+      "export const nameOf = (x: X): string => x.name + x.x;",
+    ],
+    read: "X.name",
+    dead: "Y.name",
+  },
+  {
+    shape: "a top-level union whose options share a key",
+    lines: [
+      "export interface X { readonly name: string; readonly x: string }",
+      "export interface Y { readonly name: string; readonly y: string }",
+      "export const eitherSchema = z.union([z.object({ name: z.string(), x: z.string() }), z.object({ name: z.string(), y: z.string() })]) satisfies z.ZodType<X | Y>;",
+      "export const nameOf = (x: X): string => x.name + x.x;",
+    ],
+    read: "X.name",
+    dead: "Y.name",
+  },
+])("a read of one checked member never reaches another through $shape", { timeout: 120_000 }, async ({ lines, read, dead }, { plantedTree }) => {
+  const scan = await graphScan(plantedTree, { ...ZOD_MODULE, ...source(['import { z } from "zod";', ...lines]) });
+  const untouched = bare(labelsIn(scan, "member-untouched", FILE));
+  expect(untouched).toContain(dead);
+  expect(untouched).not.toContain(read);
+});
+
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,
