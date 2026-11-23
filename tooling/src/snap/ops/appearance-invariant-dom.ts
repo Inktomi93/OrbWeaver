@@ -331,7 +331,8 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     occluded: subjects.reduce((sum, subject) => sum + subject.accounting.occluded, 0),
     offViewport: subjects.reduce((sum, subject) => sum + subject.accounting.offViewport, 0),
   };
-  return { subjects, accounting, cls: browser.__orb?.motion().nonVirtualizedCls ?? null };
+  const rawCls: unknown = browser.__orb?.motion().nonVirtualizedCls;
+  return { subjects, accounting, cls: typeof rawCls === "number" ? rawCls : null };
 }
 
 export async function probeAppearanceDom(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<AppearanceDomSnapshot> {

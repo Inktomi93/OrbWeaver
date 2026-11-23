@@ -82,7 +82,7 @@ export const DISTINCT_LOOKALIKES = [
       "packages/client/src/features/workloads/components/run-workload-dialog.tsx#onOpenChange",
       "packages/client/src/features/workloads/components/schedules-section.tsx#onToggle",
       "packages/client/src/features/world-info/components/book-details-dialog.tsx#onOpenChange",
-      "packages/client/src/lib/agent-bridge.ts#setMotionAuditDropTrackingPaused",
+      "packages/client/src/lib/agent-bridge-contract.ts#setMotionAuditDropTrackingPaused",
       "packages/ui/src/content/lightbox/lightbox.tsx#onOpenChange",
       "packages/ui/src/primitives/reveal-gate/reveal-gate.tsx#onReveal",
       "packages/client/src/components/sheet-dialog.tsx#onOpenChange",

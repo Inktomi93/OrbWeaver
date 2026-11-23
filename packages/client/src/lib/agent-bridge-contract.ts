@@ -4,7 +4,7 @@
 // name may enter this file or any module it imports: a record that holds an Element or an Event stays in its DOM-side home.
 
 import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
-import type { InputBorderFallback } from "../../../ui/src/content/theme-scope/derive-vars.ts";
+import type { InputBorderFallback } from "@orb/ui/theme-scope/derive-vars";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import type { OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridge.ts";
 import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";

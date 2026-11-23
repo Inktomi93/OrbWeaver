@@ -33,10 +33,12 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 async function settleDeadCssDrain(page: Page): Promise<DeadCssEvidence["drain"]> {
   return deadCssDrain(
     await page.evaluate(async () => {
-      if (globalThis.__orb === undefined) {
+      // A `--file` fixture, or any page whose bridge lacks the member, answers null: the type says it always exists, the page may not.
+      const drain = globalThis.__orb?.motionFlaggersDrain;
+      if (typeof drain !== "function") {
         return null;
       }
-      const receipt = await globalThis.__orb.motionFlaggersDrain();
+      const receipt = await drain();
       const { requestedGeneration, completedGeneration } = receipt;
       const valid =
         Number.isInteger(requestedGeneration) && Number.isInteger(completedGeneration) && requestedGeneration > 0 && completedGeneration >= requestedGeneration;

@@ -137,10 +137,11 @@ async function readMergeReceipt(session: ProbeSession, pageIndex: number): Promi
     throw new Error(`cascade page @${pageIndex} does not exist`);
   }
   const receipt = await page.evaluate(() => {
-    if (globalThis.__orb === undefined) {
+    const handle = globalThis.__orb?.css;
+    if (typeof handle?.read !== "function") {
       throw new Error("window.__orb.css.read is unavailable");
     }
-    return globalThis.__orb.css.read();
+    return handle.read();
   });
   return cssMergeTraceSnapshot(receipt);
 }

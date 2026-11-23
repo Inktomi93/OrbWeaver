@@ -41,7 +41,7 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/contracts/src/identity/index.ts", home: "AdminUserView", member: "kind", reason: DORMANT_AGENTS },
   { file: "packages/contracts/src/identity/index.ts", home: "AdminUserView", member: "ownerHandle", reason: DORMANT_AGENTS },
   { file: "packages/contracts/src/assets/index.ts", home: "AssetListItem", member: "kinds", reason: KIND_PER_USE },
-  { file: "packages/client/src/lib/theme-fallback-ring.ts", home: "ThemeFallbackRing", member: null, reason: AGENT_RESULT },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "ThemeFallbackRing", member: null, reason: AGENT_RESULT },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionSnapshot", member: null, reason: AGENT_RESULT },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionFlagRecord", member: null, reason: AGENT_RESULT },
   { file: "packages/ui/src/lib/css-merge-contract.ts", home: "CssMergeReceipt", member: null, reason: AGENT_RESULT },

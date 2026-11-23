@@ -111,8 +111,8 @@ async function applicationMotionEvidence(session: ProbeSession, opts: Args): Pro
 async function settleAndReset(page: ArmActionContext["page"], selector: string | null, actionIndex: number): Promise<void> {
   try {
     await page.evaluate(() => {
-      if (globalThis.__orb === undefined) {
-        throw new Error("__orb is unavailable");
+      if (typeof globalThis.__orb?.motionFlaggersSettled !== "function") {
+        throw new Error("__orb.motionFlaggersSettled is unavailable");
       }
       return globalThis.__orb.motionFlaggersSettled();
     });

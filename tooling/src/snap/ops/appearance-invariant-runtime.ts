@@ -41,7 +41,7 @@ async function resetCheckpoint(page: Page): Promise<void> {
   // wrong SHAPE, which is the arm that reads as success (a non-boolean is truthy).
   const reset = checkpointReset(
     await page.evaluate(() => {
-      if (globalThis.__orb === undefined) {
+      if (typeof globalThis.__orb?.resetEvidence !== "function") {
         return false;
       }
       globalThis.__orb.resetEvidence();
@@ -57,7 +57,7 @@ async function resetMeasuredEvidence(page: Page): Promise<void> {
   const failures = resetFailures(
     await page.evaluate(() => {
       const orb = globalThis.__orb;
-      if (orb === undefined) {
+      if (typeof orb?.resetRing !== "function") {
         return ["resetRing unavailable"];
       }
       return ["bus-events", "flags", "motion", "renders"].flatMap((name) => {
@@ -212,7 +212,7 @@ async function pixelEvidence(
 async function animationEvidence(page: Page): Promise<{ readonly total: number; readonly dirty: number; readonly properties: readonly string[] }> {
   const evidence = animationEvidenceShape(
     await page.evaluate(() => {
-      if (globalThis.__orb === undefined) {
+      if (typeof globalThis.__orb?.animations !== "function") {
         return null;
       }
       const rows = globalThis.__orb.animations();
