@@ -36,7 +36,8 @@ export interface FlowPair {
 
 const GLOBAL_SCOPE = "global";
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
-const ZOD_PACKAGE = "zod";
+/** The package whose declarations make a call a validator and a `satisfies` reference a schema twin. */
+export const ZOD_PACKAGE = "zod";
 // zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
 const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
 
@@ -370,11 +371,10 @@ export class Flows {
     seen.add(pair);
     const slotArms = yield* this.#objectArms(a, b);
     if (slotArms !== null) {
-      const out: FlowPair[] = [];
-      for (const arm of slotArms) {
-        out.push(...(yield* this.#operands(arm, b, seen)));
-      }
-      return out;
+      return yield* this.#eachOperands(
+        slotArms.map((arm) => ({ slot: arm, value: b })),
+        seen,
+      );
     }
     if (a.isTypeReference() && b.isTypeReference() && (yield* checker.isArrayLikeType.gen(a)) && (yield* checker.isArrayLikeType.gen(b))) {
       const [elementA] = yield* checker.getTypeArguments.gen(a);
@@ -384,6 +384,10 @@ export class Flows {
     const instances = yield* this.#sameGeneric(a, b);
     if (instances !== null) {
       return yield* this.#argumentOperands(instances, seen);
+    }
+    const counterparts = yield* this.#libraryCounterparts(a, b);
+    if (counterparts !== null) {
+      return yield* this.#eachOperands(counterparts, seen);
     }
     const [slotSignature] = yield* a.getCallSignatures.gen();
     const [valueSignature] = yield* b.getCallSignatures.gen();
@@ -418,6 +422,38 @@ export class Flows {
       return null;
     }
     return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen() };
+  }
+
+  *#eachOperands(pairs: readonly FlowPair[], seen: Set<string>): APIRequestGenerator<readonly FlowPair[]> {
+    const out: FlowPair[] = [];
+    for (const { slot, value } of pairs) {
+      out.push(...(yield* this.#operands(slot, value, seen)));
+    }
+    return out;
+  }
+
+  // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,
+  // so each slot member's type flows from the value's same-named member, which carries the type arguments through.
+  *#libraryCounterparts(slot: Type, value: Type): APIRequestGenerator<readonly FlowPair[] | null> {
+    const { checker } = this.#state.world;
+    if (!(slot.isTypeReference() && value.isTypeReference())) {
+      return null;
+    }
+    const targets = [yield* (yield* slot.getTarget.gen()).getSymbol.gen(), yield* (yield* value.getTarget.gen()).getSymbol.gen()];
+    if (targets.some((symbol) => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle)))) {
+      return null;
+    }
+    const out: FlowPair[] = [];
+    for (const member of yield* checker.getPropertiesOfType.gen(slot)) {
+      const [slotMember, valueMember] = [
+        yield* checker.getTypeOfPropertyOfType.gen(slot, member.name),
+        yield* checker.getTypeOfPropertyOfType.gen(value, member.name),
+      ];
+      if (slotMember !== undefined && valueMember !== undefined) {
+        out.push({ slot: slotMember, value: valueMember });
+      }
+    }
+    return out;
   }
 
   *#argumentOperands(

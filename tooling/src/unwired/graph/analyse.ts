@@ -20,6 +20,7 @@ import type { StampedVariantAxis } from "@orb/ui/lib";
 import { STAMPED_VARIANT_AXES } from "@orb/ui/lib";
 import { TONES } from "@orb/ui/tokens";
 import { SyntaxKind } from "@typescript/native/ast";
+import { placementOf } from "../../eslint/index.ts";
 import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
@@ -111,7 +112,6 @@ export const OUTSIDE_NOTES: Readonly<Record<Exclude<Role, "write">, string>> = {
   key: "named as a key outside the product: tests or tooling",
 };
 
-const SERVER_DOMAIN = /^packages\/server\/src\/domain\/([^/]+)\//u;
 const MEMBER_JOIN = "|";
 
 // Why a registry site exempts nothing, or null while it names a live declaration.
@@ -271,7 +271,7 @@ class Analyser {
     const declared = new Set([...state.decls.values()].map(({ file, name }) => `${file}#${name}`));
     const server = [...state.decls.values()].filter(({ file }) => file.startsWith(SERVER_SOURCE));
     const serverNames = new Set([...server.map(({ name }) => name), ...state.serverNames]);
-    const domains = new Set(server.flatMap(({ file }) => SERVER_DOMAIN.exec(file)?.[1] ?? []));
+    const domains = new Set(server.flatMap(({ file }) => placementOf(file)?.domain ?? []));
     for (const site of state.registrySites) {
       const { file, line, target, name } = site;
       const note = staleNote(site, { declared, serverNames, domains });
@@ -417,6 +417,8 @@ class Analyser {
   #members(roles: ReadonlyMap<DeclKey, MemberRoles>, liveTyped: ReadonlySet<GraphKey>): void {
     const state = this.#state;
     const dispatched = dispatchedMembers(state.run, state.decls);
+    // a member filling a typed slot of ours is judged at that slot: the slot requires it, so the two delete together
+    const fills = new Set([...state.flows].flatMap(([slot, values]) => (isProduction(state.decls.get(slot)?.file ?? "") ? [...values] : [])));
     for (const [key, info] of state.decls) {
       // a class member is judged once its class is live: nothing but a call or a read reaches a method
       const judged = liveTyped.has(key) || (isClassMember(info, state.decls) && liveTyped.has(info.holder));
@@ -427,7 +429,10 @@ class Analyser {
       // the dev bridge ruling: another world's read through our own global door is a product read
       const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
       // a member the runtime calls by its well-known name is read, even on a value the product only sends
-      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
+      const bucket =
+        doorRead || state.unseenCalls.has(key)
+          ? null
+          : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key) || fills.has(key));
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
@@ -487,8 +492,8 @@ class Analyser {
     }
   }
 
-  // A variant value no consumer selects, on an axis no write fed a wide value; an axis wholly unused is reported whole.
-  // A value no consumer selects, with the stamped-attribute selectors that select it: variantAttrs stamps only the values
+  // A variant value no consumer selects, on an axis no write fed a wide value; an axis wholly unused is reported whole,
+  // with the stamped-attribute selectors that select it: variantAttrs stamps only the values
   // callers select, so a selector alone keeps nothing, and one delete removes the arm and its selectors. A stamped
   // selector whose value no recipe declares is stale.
   #variants(): void {
@@ -500,7 +505,7 @@ class Analyser {
         const whole = unused.length === axis.values.length;
         const selecting = selectors.filter(({ attribute, value }) => attribute === `${DATA_PREFIX}${axis.name}` && unused.includes(value));
         this.#push("variant-value-unused", {
-          label: `${axis.file}:${axis.name}${whole ? ` (whole axis: ${unused.join(", ")})` : ` = ${unused.join(", ")}`}`,
+          label: `${axis.file}:${axis.table}.${axis.name}${whole ? ` (whole axis: ${unused.join(", ")})` : ` = ${unused.join(", ")}`}`,
           key: axis.key,
           note: selecting.length === 0 ? null : `selected by ${selecting.map(({ value, at }) => `${at} (${value})`).join(", ")}`,
         });

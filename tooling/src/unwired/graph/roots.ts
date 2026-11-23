@@ -62,7 +62,25 @@ const manifestSchema = z.object({
 });
 
 const CODE = /\.(?:m|c)?[jt]sx?$/u;
-const RUN_FILE = /\bnode\s+(?:--[\w-]+(?:=\S+)?\s+)*([^\s;&|]+\.(?:m|c)?[jt]sx?)/gu;
+// A `node` invocation and what follows it up to the next shell separator.
+const NODE_RUN = /(?:^|[\s;&|(])node\s+([^;&|]+)/gu;
+// The node options that take their value as the next word (node --help); every other option is a flag or `--x=v`.
+const NODE_VALUE_OPTIONS: ReadonlySet<string> = new Set([
+  "--import",
+  "--require",
+  "-r",
+  "--loader",
+  "--experimental-loader",
+  "--env-file",
+  "--conditions",
+  "-C",
+  "--input-type",
+  "--eval",
+  "-e",
+  "--print",
+  "-p",
+]);
+const EVALUATES: ReadonlySet<string> = new Set(["--eval", "-e", "--print", "-p"]);
 const PNPM_RUN = /pnpm\s+(?:run\s+)?([\w:-]+)/gu;
 const SCRIPT_SRC = /<script\s(?:[^>]*\s)?type="module"(?:[^>]*\s)?src="([^"]+)"/gu;
 // The npm lifecycle scripts an installed package runs on its own (npm docs, "Life Cycle Scripts").
@@ -192,8 +210,8 @@ function manifestRoots(root: string, table: RootTable, context: ManifestContext)
   const scripts = manifest.scripts ?? {};
   const shipped = shippedScripts(name, scripts);
   for (const [script, command] of Object.entries(scripts)) {
-    for (const match of command.matchAll(RUN_FILE)) {
-      const file = relative(root, resolve(dir, match[1] ?? ""));
+    for (const run of nodeRuns(command)) {
+      const file = relative(root, resolve(dir, run));
       if (existsSync(join(root, file))) {
         table.add(table.modules, file, { kind: scriptKind(context, file, shipped.has(script)), why: `${name} script ${script}` });
       }
@@ -241,6 +259,30 @@ function shippedScripts(name: string, scripts: Readonly<Record<string, string>>)
     }
   }
   return shipped;
+}
+
+// The script file each `node …` in a command runs: the first word after node's options, when it names a code file. An
+// option that takes a value skips that value too, and `-e` or `-p` runs code given inline, so no file.
+function nodeRuns(command: string): readonly string[] {
+  return [...command.matchAll(NODE_RUN)].flatMap((match) => {
+    const script = scriptWord((match[1] ?? "").trim().split(/\s+/u));
+    return script === null ? [] : [script];
+  });
+}
+
+// The first word past node's options, when it names a code file.
+function scriptWord(words: readonly string[]): string | null {
+  for (let at = 0; at < words.length; at += 1) {
+    const word = words[at] ?? "";
+    if (EVALUATES.has(word)) {
+      return null;
+    }
+    if (!word.startsWith("-")) {
+      return CODE.test(word) ? word : null;
+    }
+    at += NODE_VALUE_OPTIONS.has(word) ? 1 : 0;
+  }
+  return null;
 }
 
 // The code files an exports map names: a string target, at any nesting of conditions.

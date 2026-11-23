@@ -74,7 +74,8 @@ test("a JSX spread copies its members into the props it fills", { timeout: 120_0
     },
     { jsx: true },
   );
-  expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Data.b", "CardProps.b"]);
+  // Data.b fills CardProps.b, which requires it: the one row is the prop's, and the two delete together
+  expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["CardProps.b"]);
 });
 
 test("a callback's value returned into an opaque slot escapes after the signature is unwrapped", { timeout: 120_000 }, async ({ plantedTree }) => {

@@ -33,7 +33,7 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
-import { Flows } from "./flows.ts";
+import { Flows, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MessageDoors } from "./message-doors.ts";
@@ -53,6 +53,8 @@ import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
+
+const ZOD_TYPE = "ZodType";
 
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
@@ -509,13 +511,26 @@ class Builder {
     state.count("whole-module uses", uses.length);
   }
 
-  // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each.
+  // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each. The twin holds
+  // where the reference means zod's own ZodType, imports and renames followed; a local type of that name twins nothing.
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
-    if (state.session.options.ablate.has("zod-twins")) {
+    if (state.session.options.ablate.has("zod-twins") || sites.zodTwins.length === 0) {
       return;
     }
-    const shapes = state.world.typedAt(sites.zodTwins, ({ shape }) => shape);
+    const { world } = state;
+    const named = world.symbolsAt(sites.zodTwins.map(({ type }) => type));
+    const meant = state.batch(
+      named.map((symbol) => (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? world.checker.getAliasedSymbol.gen(symbol) : answer(symbol))),
+    );
+    const zod = world.fromPackage(
+      meant.map((symbol) => (symbol?.name === ZOD_TYPE ? symbol.declarations : [])),
+      ZOD_PACKAGE,
+    );
+    const shapes = world.typedAt(
+      sites.zodTwins.filter((_, at) => zod[at] === true),
+      ({ shape }) => shape,
+    );
     const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
     const members = state.slotMembers(asks);
     for (const [y, ask] of asks.entries()) {

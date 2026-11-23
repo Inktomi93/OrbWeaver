@@ -8,12 +8,12 @@
 // - tailwind-variants selects `values[key || "false"]` (dist getVariantValue): an axis a call omits, with no default,
 //   takes its `false` arm, so that arm is live wherever the table is applied.
 import type { CallExpression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
-import { isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, SyntaxKind } from "@typescript/native/ast";
+import { isIdentifier, isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, isVariableDeclaration, SyntaxKind } from "@typescript/native/ast";
 import type { Signature } from "@typescript/native/sync";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText } from "./resolve.ts";
-import { keyLiterals } from "./sites.ts";
+import { keyLiterals, UNNAMED } from "./sites.ts";
 import type { BuildSession, GraphState } from "./state.ts";
 
 const TAILWIND_VARIANTS = "tailwind-variants";
@@ -35,6 +35,8 @@ export type AxisValue = Node | undefined | { readonly typed: readonly string[] |
 /** One axis of a variant table. */
 export interface VariantAxis {
   readonly key: DeclKey;
+  /** The recipe binding the table builds (`linearMeterVariants`), so two recipes' axes of one name stay apart. */
+  readonly table: string;
   readonly name: string;
   readonly file: string;
   /** Each value's name, its declaration and whether a consumer selects it. */
@@ -70,7 +72,7 @@ export function writtenLiterals(value: Node | undefined): readonly string[] | nu
 }
 
 export class Variants {
-  readonly #axes = new Map<DeclKey, { readonly name: string; readonly file: string; readonly values: Map<string, DeclKey> }>();
+  readonly #axes = new Map<DeclKey, { readonly table: string; readonly name: string; readonly file: string; readonly values: Map<string, DeclKey> }>();
   readonly #used = new Set<DeclKey>();
   /** Each dynamic axis and the causes of its wide values. */
   readonly #dynamic = new Map<DeclKey, Set<string>>();
@@ -103,12 +105,13 @@ export class Variants {
     for (const [at, call] of calls.entries()) {
       const [options] = call.arguments;
       if (tables[at] === true && options !== undefined && isObjectLiteralExpression(options)) {
-        this.#readTable(state, options, file);
+        const { parent } = call;
+        this.#readTable(state, options, { file, table: isVariableDeclaration(parent) && isIdentifier(parent.name) ? parent.name.text : UNNAMED });
       }
     }
   }
 
-  #readTable(state: GraphState, options: ObjectLiteralExpression, file: string): void {
+  #readTable(state: GraphState, options: ObjectLiteralExpression, { file, table }: { readonly file: string; readonly table: string }): void {
     const axesByName = new Map<string, DeclKey>();
     const variants = propertyValue(options, VARIANTS);
     for (const axis of variants !== undefined && isObjectLiteralExpression(variants) ? variants.properties : []) {
@@ -123,7 +126,7 @@ export class Variants {
       );
       const key = state.resolver.keyOf(axis);
       const name = keyText(axis.name) ?? "";
-      this.#axes.set(key, { name, file, values });
+      this.#axes.set(key, { table, name, file, values });
       axesByName.set(name, key);
     }
     this.#defaults(options, axesByName);
@@ -215,6 +218,7 @@ export class Variants {
     }
     const axes = [...this.#axes].map(([key, axis]) => ({
       key,
+      table: axis.table,
       name: axis.name,
       file: axis.file,
       values: [...axis.values].map(([name, decl]) => ({ name, decl, used: this.#used.has(decl) })),

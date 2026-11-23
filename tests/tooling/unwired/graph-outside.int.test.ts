@@ -57,3 +57,28 @@ test("a unit the testkit, tooling or a test file alone reaches is split by its r
     dead: [`${UNITS}:start`, `${UNITS}:plain`],
   });
 });
+
+// A leading underscore pins a top-level binding unread on purpose (noUnusedLocals' convention), so what it reaches is
+// kept. Only a product file's pin is a ruling: a pin in a test keeps nothing.
+test("a product pin keeps what it reaches; a test's pin keeps nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tsconfig.outside.json" }] }),
+    "tsconfig.outside.json": plantedTsconfig({ lib: LIB, include: ["tests", "tooling"] }),
+    "knip.ts": KNIP,
+    [MAIN]: 'import { used } from "./units.ts";\nused();',
+    [UNITS]: [
+      "export const used = (): number => 1;",
+      "export const pinned = (): number => 2;",
+      "export const testPinned = (): number => 3;",
+      "const _pin = pinned();",
+      "const unpinned = pinned();",
+    ].join("\n"),
+    [DIRECT]: 'import { testPinned } from "../../packages/a/src/units.ts";\nconst _testPin = testPinned();',
+  });
+  // the test's pin is an unused binding like any other, so the unit only its initializer calls is dead
+  expect({ kept: labels(scan, "kept-by-ruling"), dead: labels(scan, "dead"), effect: labels(scan, "unused-effect") }).toEqual({
+    kept: [`${UNITS}:pinned`, `${UNITS}:_pin`],
+    dead: [`${UNITS}:testPinned`],
+    effect: [`${UNITS}:unpinned`],
+  });
+});

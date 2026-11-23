@@ -28,7 +28,7 @@ test("a value a carrier writes for its primitive selects the primitive's axis", 
     },
     { jsx: true },
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["gap = spare"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["stack.gap = spare"]);
 });
 
 // A door's component that renders another door's core.tsx hands its props on: the value it is given selects the
@@ -50,5 +50,5 @@ test("a value a door hands to another door's core selects the core's axis", { ti
     },
     { jsx: true },
   );
-  expect(labelsIn(scan, "variant-value-unused", core)).toEqual(["gap = field, spare"]);
+  expect(labelsIn(scan, "variant-value-unused", core)).toEqual(["stack.gap = field, spare"]);
 });
