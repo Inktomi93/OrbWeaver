@@ -417,3 +417,15 @@ export function judgeMembers(
     literalStage: staged.stage,
   };
 }
+
+/** The sort's verdict of each member declaration a judge under {@link NO_RULINGS} kept, whichever list holds its row. A
+ *  member the judge sets apart as received has no verdict and is absent. */
+export function verdictsByDecl(graph: Graph, members: JudgedMembers): ReadonlyMap<DeclKey, Verdict> {
+  const declOf = new Map(declaredMembers(graph.facts).map(({ decl, key }) => [key, decl]));
+  return new Map(
+    [...members.unwired, ...members.validated, ...members.acknowledged].flatMap(({ key, verdict }) => {
+      const decl = declOf.get(key);
+      return decl === undefined ? [] : [[decl, verdict] as const];
+    }),
+  );
+}
