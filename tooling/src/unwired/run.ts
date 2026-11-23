@@ -665,7 +665,7 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
   const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit }, log);
   const path = write(args.root, args.out, report);
   for (const trial of report.trials.filter(({ verdict }) => verdict !== "confirmed")) {
-    const errors = trial.errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`).join(",");
+    const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`).join(",");
     process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? errors}\n`);
   }
   for (const row of report.control.filter(({ side }) => side !== "agree")) {

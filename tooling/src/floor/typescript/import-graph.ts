@@ -1,12 +1,12 @@
 // One TypeScript 7.1 program's import graph and its error diff, for every tool that edits files in a throwaway snapshot
 // and checks what the edit breaks. Every file name is absolute, as the program spells it.
 //
-// - A file that augments a global or another module reaches files that never import it: they read the augmented name
-//   through the module they do import. A script file's declarations are global. Neither file's readers are on the
-//   import graph, so the whole program is.
+// - A file that augments another module reaches the files that import that module, directly or through a chain: they
+//   read the augmented name through it. A `declare global` block reaches the files that spell a name it declares, and
+//   their importers. A script file's declarations are global too, and its readers are the whole program.
 // - Two programs report the same error when its file, code and start agree. A start after an edit moves back to the
 //   base text first.
-import type { Node, SourceFile, Statement, StringLiteralLikeNode } from "@typescript/native/ast";
+import type { ModuleDeclaration, Node, SourceFile, Statement, StringLiteralLikeNode } from "@typescript/native/ast";
 import {
   getCombinedModifierFlags,
   isClassDeclaration,
@@ -14,11 +14,15 @@ import {
   isExportAssignment,
   isExportDeclaration,
   isFunctionDeclaration,
+  isIdentifier,
   isImportDeclaration,
   isImportEqualsDeclaration,
   isInterfaceDeclaration,
+  isMethodSignatureDeclaration,
+  isModuleBlock,
   isModuleDeclaration,
   isNoSubstitutionTemplateLiteral,
+  isPropertySignatureDeclaration,
   isStringLiteral,
   isTypeAliasDeclaration,
   isVariableStatement,
@@ -58,15 +62,55 @@ const exports = (statement: Statement): boolean =>
     isModuleDeclaration(statement)) &&
     exported(statement));
 
+// Where a file's declarations reach past its importers: every file, or the importers of each module it augments (by
+// that module's resolved file) and of each file that spells a global it declares.
+type Reach = "everywhere" | readonly string[];
+
+const nameText = (name: Node | undefined): readonly string[] => (name !== undefined && (isIdentifier(name) || isStringLiteral(name)) ? [name.text] : []);
+
+// The names a `declare global` block declares, with each global interface's members: an augmented interface's reader
+// spells the member, not the interface. Undefined for a statement whose names this does not know.
+function globalNames(block: ModuleDeclaration): readonly string[] | undefined {
+  const { body } = block;
+  if (body === undefined || !isModuleBlock(body)) {
+    return undefined;
+  }
+  const names = body.statements.map((statement): readonly string[] | undefined => {
+    if (isVariableStatement(statement)) {
+      return statement.declarationList.declarations.flatMap(({ name }) => nameText(name));
+    }
+    if (isInterfaceDeclaration(statement)) {
+      return [
+        statement.name.text,
+        ...statement.members.flatMap((member) => (isPropertySignatureDeclaration(member) || isMethodSignatureDeclaration(member) ? nameText(member.name) : [])),
+      ];
+    }
+    const named = isFunctionDeclaration(statement) || isClassDeclaration(statement) || isTypeAliasDeclaration(statement) || isEnumDeclaration(statement);
+    return named ? nameText(statement.name) : undefined;
+  });
+  return names.includes(undefined) ? undefined : names.flatMap((list) => list ?? []);
+}
+
+// `declare global`, the one module declaration named by an identifier that augments the global scope.
+const GLOBAL_SCOPE = "global";
+const isGlobalBlock = (statement: Statement): statement is ModuleDeclaration =>
+  isModuleDeclaration(statement) && isIdentifier(statement.name) && statement.name.text === GLOBAL_SCOPE;
+
+const REGEX_SPECIAL = /[$()*+.?[\\\]^{|}]/gu;
+
+// Whether a text spells a name as a whole identifier.
+const spells = (text: string, name: string): boolean =>
+  new RegExp(`(?<![\\w$])${name.replaceAll(REGEX_SPECIAL, (special) => `\\${special}`)}(?![\\w$])`, "u").test(text);
+
 /** Which source files import which, in one program. */
 export class ImportGraph {
   readonly #importers: ReadonlyMap<string, ReadonlySet<string>>;
-  readonly #global: ReadonlySet<string>;
+  readonly #reach: ReadonlyMap<string, Reach>;
   readonly #files: readonly string[];
 
-  private constructor(importers: ReadonlyMap<string, ReadonlySet<string>>, global: ReadonlySet<string>, files: readonly string[]) {
+  private constructor(importers: ReadonlyMap<string, ReadonlySet<string>>, reach: ReadonlyMap<string, Reach>, files: readonly string[]) {
     this.#importers = importers;
-    this.#global = global;
+    this.#reach = reach;
     this.#files = files;
   }
 
@@ -81,10 +125,31 @@ export class ImportGraph {
         importers.set(target, (importers.get(target) ?? new Set()).add(from));
       }
     }
-    const global = sources.filter((source) => augments(source.text) || !source.statements.some(exports)).map((source) => source.fileName);
+    // A `declare global` block's name is an identifier; a module augmentation's is the module's specifier.
+    const augmenting = sources.filter((source) => source.statements.some(exports) && source.moduleAugmentations.length > 0);
+    const named = augmenting.flatMap((source) =>
+      source.moduleAugmentations.filter(isModuleSpecifier).map((specifier) => ({ from: source.fileName, specifier })),
+    );
+    const targets = batch(named.map(({ from, specifier }) => program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
+    const reach = new Map<string, Reach>(sources.filter((source) => !source.statements.some(exports)).map((source) => [source.fileName, "everywhere"]));
+    for (const source of augmenting) {
+      const modules = named.flatMap(({ from }, at) => (from === source.fileName ? [targets[at]?.resolvedFileName] : []));
+      const blocks = source.statements.filter(isGlobalBlock).map(globalNames);
+      // An augmented module the program cannot resolve, or a global this cannot name, leaves no narrower answer.
+      if (modules.includes(undefined) || blocks.includes(undefined)) {
+        reach.set(source.fileName, "everywhere");
+        continue;
+      }
+      const globals = blocks.flatMap((names) => names ?? []);
+      const spelling =
+        globals.length === 0
+          ? []
+          : sources.filter((other) => other !== source && globals.some((name) => spells(other.text, name))).map(({ fileName }) => fileName);
+      reach.set(source.fileName, [...modules.filter((file) => file !== undefined), ...spelling]);
+    }
     return new ImportGraph(
       importers,
-      new Set(global),
+      reach,
       sources.map((source) => source.fileName),
     );
   }
@@ -105,12 +170,21 @@ export class ImportGraph {
     return [...seen];
   }
 
-  /** The files besides `file` an edit of it can break: its importers, or every other source when the edit augments
-   *  (`augmenting`), the file is global, or an importer is. */
+  /** The files besides `file` an edit of it can break: its importers, and the reach of each of them and of `file`
+   *  that augments a module or the global scope; every other source when the edit itself augments (`augmenting`). */
   readers(file: string, augmenting: boolean): readonly string[] {
     const importers = this.importers(file);
-    const global = augmenting || this.#global.has(file) || importers.some((importer) => this.#global.has(importer));
-    return global ? this.#files.filter((name) => name !== file) : importers;
+    const reaches = [file, ...importers].flatMap((at) => {
+      const reach = this.#reach.get(at);
+      return reach === undefined ? [] : [reach];
+    });
+    if (augmenting || reaches.includes("everywhere")) {
+      return this.#files.filter((name) => name !== file);
+    }
+    const reached = reaches.flatMap((reach) => (reach === "everywhere" ? [] : reach));
+    const readers = new Set([...importers, ...reached, ...reached.flatMap((at) => this.importers(at))]);
+    readers.delete(file);
+    return [...readers];
   }
 }
 

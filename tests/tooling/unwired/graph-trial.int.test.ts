@@ -2,11 +2,11 @@
 // property or declaration, an error the removal adds in a file that imports it names its reader, only the declaring
 // file and its importers are checked, and TypeScript's unused-code diagnostics are diffed against the graph.
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, LIB as LIBS, WORLD } from "./_planted.ts";
 
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
@@ -251,8 +251,8 @@ test("pnpm unwired graph-trial takes each --bucket, prints each refuting error a
   ]);
   const tallies = run.stderr.split("\n").filter((line) => line.includes(" trials="));
   expect(tallies).toEqual([
-    "type-only trials=1 confirmed=0 named-only=0 refuted=1 unresolved=0",
-    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ named-only=0 refuted=0 unresolved=0$/u),
+    "type-only trials=1 confirmed=0 named-only=0 refuted=1 refuted-test-only=0 unresolved=0",
+    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ named-only=0 refuted=0 refuted-test-only=0 unresolved=0$/u),
   ]);
 });
 
@@ -327,3 +327,136 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
     `graph-unjudged ${LIB}:6 unusedLocal VariableDeclaration`,
   ]);
 });
+
+// The world reaches the tests folder too, so a test file is a planted importer like any product file.
+const WITH_TESTS = { [WORLD]: plantedTsconfig({ lib: LIBS, include: ["../*/src", "../../tests"] }) };
+const TEST_FILE = "tests/a/shape.test.ts";
+const TYPE_TEST_FILE = "tests/a/shape.test-d.ts";
+// A constraint the member must meet: a structural read the graph does not see and the checker does.
+const NEEDS = "type Needs<T extends { readonly tested: string; readonly used: string }> = T;";
+
+test("a reader only outside the product refutes test-only; a product reader keeps the verdict refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        ...WITH_TESTS,
+        [LIB]: "export interface Shape { readonly kept: string; readonly tested: string; readonly used: string }",
+        [MAIN]: [
+          'import type { Shape } from "./lib.ts";',
+          "type Needs<T extends { readonly used: string }> = T;",
+          "const product: Needs<Shape> | undefined = undefined;",
+          "const use = (value: unknown): unknown => value;",
+          "use(product);",
+        ].join("\n"),
+        [TEST_FILE]: ['import type { Shape } from "../../packages/a/src/lib.ts";', NEEDS, "export type Tested = Needs<Shape>;"].join("\n"),
+        [TYPE_TEST_FILE]: ['import type { Shape } from "../../packages/a/src/lib.ts";', NEEDS, "export type TypeTested = Needs<Shape>;"].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:`) && label !== `${LIB}:Shape.kept`)
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind, product }) => `${at} ${kind} ${product ? "product" : "outside"}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.tested`, "refuted-test-only", [`${TYPE_TEST_FILE}:3 read outside`, `${TEST_FILE}:3 read outside`]],
+    [`${LIB}:Shape.used`, "refuted", [`${MAIN}:3 read product`, `${TYPE_TEST_FILE}:3 read outside`, `${TEST_FILE}:3 read outside`]],
+  ]);
+});
+
+// noUnusedLocals makes an unused declaration an error: the one the delete leaves unread is the delete's own effect. The
+// trial's merged program takes its options from the browser world.
+const BROWSER_WORLD = "tsconfig.world-browser.json";
+const UNUSED_WORLD = {
+  "tsconfig.planted-base.json": plantedTsconfig({ lib: LIBS, include: [] }),
+  [BROWSER_WORLD]: JSON.stringify({ extends: "./tsconfig.planted-base.json", compilerOptions: { noUnusedLocals: true } }),
+};
+
+test("a declaration the delete leaves unused is not a reader: the candidate stays confirmed", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        ...UNUSED_WORLD,
+        [OTHER]: ["export interface Tag { readonly tag: string }", 'export const tagOf = (): string => "t";'].join("\n"),
+        [LIB]: [
+          'import type { Tag } from "./other.ts";',
+          'import { tagOf } from "./other.ts";',
+          "type Local = number;",
+          "export interface Shape { readonly kept: string; readonly tagged?: Tag; readonly local?: Local; readonly typed?: ReturnType<typeof tagOf> }",
+          "export const keptOf = (shape: Shape): string => shape.kept;",
+        ].join("\n"),
+        [MAIN]: ['import { keptOf } from "./lib.ts";', 'keptOf({ kept: "k" });'].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:`)).map(({ label, verdict, errors }) => [label, verdict, errors])).toEqual([
+    [`${LIB}:Shape.tagged`, "confirmed", []],
+    [`${LIB}:Shape.local`, "confirmed", []],
+    [`${LIB}:Shape.typed`, "confirmed", []],
+  ]);
+});
+
+const HOST = `${GRAPH_SOURCE}/host.ts`;
+const AUGMENT = `${GRAPH_SOURCE}/augment.ts`;
+const READER = `${GRAPH_SOURCE}/reader.ts`;
+const REACH_LIB = [
+  "export interface Shape { readonly kept: string; readonly gone: string }",
+  "export const keptOf = (shape: Shape): string => shape.kept;",
+].join("\n");
+const REACH_NEEDS = "type Needs<T extends { readonly gone: string }> = T;";
+
+// The augmenting file imports the candidate's file; the reader imports neither, and reads it through what the
+// augmentation declares. A file that neither imports nor spells it is not checked.
+test.for([
+  {
+    through: "a module augmentation, by the augmented module's importers",
+    augment: ['import type { Shape } from "./lib.ts";', 'declare module "./host.ts" {', "  interface Host { readonly shape: Shape }", "}"].join("\n"),
+    reader: ['import type { Host } from "./host.ts";', REACH_NEEDS, 'export type Read = Needs<Host["shape"]>;'].join("\n"),
+    line: 3,
+    // The augmented module's own file is reached too.
+    checked: [AUGMENT, HOST, LIB, MAIN, READER],
+  },
+  {
+    through: "a global declaration, by the files that spell its name",
+    augment: ['import type { Shape } from "./lib.ts";', "declare global {", "  var plantedShape: Shape;", "}"].join("\n"),
+    reader: [REACH_NEEDS, "export type Read = Needs<typeof globalThis.plantedShape>;"].join("\n"),
+    line: 2,
+    checked: [AUGMENT, LIB, MAIN, READER],
+  },
+])(
+  "a reader reached through $through refutes the finding, and only the reached files are checked",
+  { timeout: 120_000 },
+  async ({ augment, reader, line, checked }, { plantedTree }) => {
+    const root = await plantedTree(
+      graphTree(
+        {
+          [LIB]: REACH_LIB,
+          [HOST]: "export interface Host { readonly name: string }",
+          [AUGMENT]: `${augment}\nexport const augmented = 1;`,
+          [READER]: reader,
+          [OTHER]: "export const alone = 1;",
+          [MAIN]: [
+            'import type { Shape } from "./lib.ts";',
+            'import { keptOf } from "./lib.ts";',
+            'import "./augment.ts";',
+            'import type { Read } from "./reader.ts";',
+            "const read: Read | undefined = undefined;",
+            "const use = (value: unknown): unknown => value;",
+            "use(read);",
+            "use((shape: Shape) => keptOf(shape));",
+          ].join("\n"),
+        },
+        { entries: [MAIN] },
+      ),
+    );
+    const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+    expect(
+      report.trials
+        .filter(({ label }) => label === `${LIB}:Shape.gone`)
+        .map(({ verdict, checked: files, errors }) => ({ verdict, checked: files, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
+    ).toEqual([{ verdict: "refuted", checked, errors: [`${READER}:${String(line)} read`] }]);
+  },
+);

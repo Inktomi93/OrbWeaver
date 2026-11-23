@@ -1,6 +1,7 @@
 // The delete trial: each candidate of the named buckets is removed in a throwaway snapshot, with every export
-// specifier and re-export that names it, and every error the removal adds to the files that import an edited file,
-// directly or through a chain, is a reader the graph missed, named by file and line.
+// specifier and re-export that names it, and every error the removal adds to the files an edit reaches (its importers,
+// directly or through a chain, and what an augmentation among them reaches) is a reader the graph missed, named by file
+// and line.
 //
 // - The import graph, the global and augmentation reach and the same-error key are the shared ones in
 //   tooling/src/floor/typescript/import-graph.ts.
@@ -8,6 +9,10 @@
 //   site with it: a binding. An excess-property error is the object literal that writes the member. Bindings and
 //   writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
 //   failed import types its uses without an error.
+// - An unused-code diagnostic (reportsUnnecessary) the delete adds is a declaration only the candidate read, not a
+//   reader of the candidate, so it refutes nothing and is dropped.
+// - Reads only outside the product (a test, a type test, tooling) make the verdict refuted-test-only: a test read
+//   annotates a candidate and never keeps it.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
@@ -68,19 +73,22 @@ export const TRIAL_BUCKETS = [
 ] as const satisfies readonly Bucket[];
 export type TrialBucket = (typeof TRIAL_BUCKETS)[number];
 
-/** A trial's outcome: no new error; only sites the delete removes with it; a reader; or no trial ran. */
-export const TRIAL_VERDICTS = ["confirmed", "named-only", "refuted", "unresolved"] as const;
+/** A trial's outcome: no new error; only sites the delete removes with it; a product reader; readers outside the
+ *  product only; or no trial ran. */
+export const TRIAL_VERDICTS = ["confirmed", "named-only", "refuted", "refuted-test-only", "unresolved"] as const;
 export type TrialVerdict = (typeof TRIAL_VERDICTS)[number];
 
 /** What a new error's site does to the removed declaration. */
 export const SITE_KINDS = ["write", "binding", "read"] as const;
 export type SiteKind = (typeof SITE_KINDS)[number];
 
-/** One error the removal added: `file:line` in the unedited tree, its TypeScript code, its site kind and its text. */
+/** One error the removal added: `file:line` in the unedited tree, its TypeScript code, its site kind, whether the site
+ *  is product source and its text. */
 export interface TrialError {
   readonly at: string;
   readonly code: number;
   readonly kind: SiteKind;
+  readonly product: boolean;
   readonly text: string;
 }
 
@@ -399,7 +407,7 @@ class Trials {
         base,
         program.getSemanticDiagnostics(checked.map((file) => this.#absolute(file))),
         new Map([...edits].map(([file, splices]) => [this.#absolute(file), splices])),
-      ),
+      ).filter(({ diagnostic }) => diagnostic.reportsUnnecessary !== true),
     }));
     const [first] = syntax;
     return {
@@ -473,7 +481,7 @@ class Trials {
   // A new error, placed at the reader when an import's own file reads the binding it breaks.
   #error({ diagnostic, pos }: AddedError): TrialError {
     const file = this.#relative(diagnostic);
-    const base = { code: diagnostic.code, text: firstLine(diagnostic.text) };
+    const base = { code: diagnostic.code, product: isProduction(file), text: firstLine(diagnostic.text) };
     const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
     const source = this.#world.source(file);
     const site = source === undefined ? undefined : moduleSite(touching(source, pos));
@@ -588,7 +596,11 @@ function verdictOf(errors: readonly TrialError[]): TrialVerdict {
   if (errors.length === 0) {
     return "confirmed";
   }
-  return errors.every(({ kind }) => kind !== "read") ? "named-only" : "refuted";
+  const reads = errors.filter(({ kind }) => kind === "read");
+  if (reads.length === 0) {
+    return "named-only";
+  }
+  return reads.some(({ product }) => product) ? "refuted" : "refuted-test-only";
 }
 
 const isClassMember = (node: Node): boolean => isClassDeclaration(node.parent) || isClassExpression(node.parent);
