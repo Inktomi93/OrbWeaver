@@ -114,7 +114,7 @@ test("graph-worlds-check lists each world's differences at file:line, an alias r
 });
 
 // One case per explanation: each names the error's own statement, so forcing any one of them off moves its row. The
-// counter.ts import feeds another statement than the error's, so it explains nothing and the run fails.
+// planted counter module's import feeds another statement than the error's, so it explains nothing and the run fails.
 test("graph-worlds-check matches or explains each merged-program error and fails on one it cannot explain", { timeout: 240_000 }, async ({
   plantedTree,
   runCli,

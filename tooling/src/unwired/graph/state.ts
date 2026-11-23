@@ -18,7 +18,7 @@ import { answer, constituentsOf, EXHAUSTED, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
-import type { DeclInfo, GraphKey } from "./sites.ts";
+import type { DeclInfo, GraphKey, LocalBinding } from "./sites.ts";
 import { WhyTracker } from "./why.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
@@ -28,10 +28,22 @@ export interface MemberRoles {
   write: string | null;
 }
 
-const SNAP_SOURCE = "tooling/src/snap/";
+/** One role a declaration was given and the site that gave it. */
+export interface RoleSite {
+  readonly role: Role;
+  readonly file: string;
+  readonly at: number;
+}
+
+/** Where snap lives: it drives the product as its user does, so its reads and its requests are the product's. */
+export const SNAP_SOURCE = "tooling/src/snap/";
+const TEST_SOURCE = "tests/";
 
 /** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
 export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
+
+/** Whether a repository-relative file is one of the tree's tests or their testkit. */
+export const testSource = (file: string): boolean => file.startsWith(TEST_SOURCE);
 
 /** Directed edges between graph nodes. */
 export type Edges = Map<GraphKey, Set<GraphKey>>;
@@ -139,14 +151,59 @@ export interface DanglingDoc {
 }
 
 /** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
+/** The doors a message can cross (message-doors.ts): the names {@link MessageReceiver.door} reports. */
+const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics", "window"] as const;
+export type MessageDoor = (typeof MESSAGE_DOORS)[number];
+
+/** A receiver no send reaches through its door. */
+/** A module load no edge follows: `import(x)` or a createRequire function called with a computed path. */
+export interface ComputedLoad {
+  readonly file: string;
+  readonly line: number;
+  readonly argument: string;
+}
+
+/** A route path's `:name` segment no handler of the route reads. */
+export interface RouteParam {
+  readonly file: string;
+  readonly line: number;
+  readonly path: string;
+  readonly param: string;
+}
+
+export interface MessageReceiver {
+  readonly file: string;
+  readonly line: number;
+  readonly door: MessageDoor;
+}
+
+/** A binding as binding-unread and binding-read-only-by-dead judge it: where it sits, what holds it, which
+ *  declarations' code reads it, and whether anything writes it. */
+export interface BindingFact extends LocalBinding {
+  readonly file: string;
+  readonly holder: GraphKey;
+  readonly readers: readonly GraphKey[];
+  readonly written: boolean;
+}
+
 export interface GraphFacts {
   readonly decls: ReadonlyMap<DeclKey, DeclInfo>;
   readonly run: ReadonlyEdges;
   readonly typ: ReadonlyEdges;
   readonly doc: ReadonlyEdges;
   readonly roles: ReadonlyMap<DeclKey, MemberRoles>;
+  /** Every role site of a declaration whose file starts with one of the build's {@link BuildSession.siteFiles}, for a verb that counts and inspects sites. */
+  readonly roleSites: ReadonlyMap<DeclKey, readonly RoleSite[]>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
   readonly door: ReadonlySet<DeclKey>;
+  /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
+  readonly unseenCalls: ReadonlySet<DeclKey>;
+  /** Each local binding, parameter and import binding with the declarations whose code reads it. */
+  readonly bindings: readonly BindingFact[];
+  /** Message receivers no send reaches through their door (message-doors.ts). */
+  readonly unpairedReceivers: readonly MessageReceiver[];
+  readonly computedLoads: readonly ComputedLoad[];
+  readonly unreadRouteParams: readonly RouteParam[];
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
@@ -173,6 +230,8 @@ export interface BuildSession {
   readonly options: GraphOptions;
   readonly log: (line: string) => void;
   readonly profile: GraphProfile | null;
+  /** The file prefixes whose declarations keep every role site. */
+  readonly siteFiles: readonly string[];
 }
 
 /** The value types whose apparent type is a lib wrapper interface: they carry no member of ours. */
@@ -202,8 +261,8 @@ const addEdge = <K extends GraphKey>(edges: Map<K, Set<K>>, from: K, to: K): voi
 /** The graph a build writes and its analysis reads. */
 export class GraphState implements GraphFacts {
   readonly root: string;
-  readonly world: NativeWorld;
-  readonly resolver: Resolver;
+  #world: NativeWorld;
+  #resolver: Resolver;
   readonly roots: Roots;
   readonly session: BuildSession;
   readonly why: WhyTracker | null;
@@ -212,10 +271,16 @@ export class GraphState implements GraphFacts {
   readonly typ: Edges = new Map();
   readonly doc: Edges = new Map();
   readonly roles = new Map<DeclKey, MemberRoles>();
+  readonly roleSites = new Map<DeclKey, RoleSite[]>();
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
   /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
   readonly door = new Set<DeclKey>();
+  readonly unseenCalls = new Set<DeclKey>();
+  readonly bindings: BindingFact[] = [];
+  readonly unpairedReceivers: MessageReceiver[] = [];
+  readonly computedLoads: ComputedLoad[] = [];
+  readonly unreadRouteParams: RouteParam[] = [];
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];
@@ -237,11 +302,29 @@ export class GraphState implements GraphFacts {
 
   constructor(root: string, world: NativeWorld, roots: Roots, session: BuildSession) {
     this.root = root;
-    this.world = world;
-    this.resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
+    this.#world = world;
+    this.#resolver = new Resolver(world, { spelling: !session.options.ablate.has("spelling") });
     this.roots = roots;
     this.session = session;
     this.why = session.options.why.length > 0 ? new WhyTracker(world, session.options.why) : null;
+  }
+
+  /** The program the build walks now. */
+  get world(): NativeWorld {
+    return this.#world;
+  }
+
+  get resolver(): Resolver {
+    return this.#resolver;
+  }
+
+  /** Walk another program into the same facts: a declaration keeps its key across programs, as a key is its file and
+   *  position, while every cache keyed by a type or symbol id belongs to the program that answered it. */
+  enter(world: NativeWorld): void {
+    this.#world = world;
+    this.#resolver = new Resolver(world, { spelling: !this.session.options.ablate.has("spelling") });
+    this.#origins.clear();
+    this.#members.clear();
   }
 
   /** Whether a repository-relative file ships in the product. */
@@ -264,6 +347,11 @@ export class GraphState implements GraphFacts {
 
   role(key: DeclKey, role: Role, file: string, at: number): void {
     this.why?.note(key, role, file, at);
+    if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
+      const sites = this.roleSites.get(key) ?? [];
+      sites.push({ role, file, at });
+      this.roleSites.set(key, sites);
+    }
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
     if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);

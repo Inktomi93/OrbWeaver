@@ -54,26 +54,50 @@ const SolutionConfig = z.looseObject({
     .optional(),
 });
 // Author-time rewrites with their own fixture trees, left out of the merged program as the per-world scans leave them out.
-const UNMERGED: ReadonlySet<string> = new Set(["tooling/src/codemods/tsconfig.json"]);
+/** Why a typecheck world stays out of the merged program. */
+const APART_REASONS = ["own-toolchain", "global-collision"] as const;
+type ApartReason = (typeof APART_REASONS)[number];
+
+/** Whether the reference graph walks a world of each reason as its own program, and why the merge cannot hold it. */
+const APART_POLICY: Readonly<Record<ApartReason, { readonly ownProgram: boolean; readonly why: string }>> = {
+  "own-toolchain": { ownProgram: false, why: "the codemods run on their own TypeScript, outside the product's reference graph" },
+  // one program has one global scope: packages/plugin-sdk/shared.d.ts keeps each runtime's `orb` to its own realm
+  "global-collision": { ownProgram: true, why: "it declares a global the merged program already declares with another shape" },
+};
+
+/** The worlds the merged program leaves out, each with its reason. */
+export const WORLDS_APART: Readonly<Record<string, ApartReason>> = {
+  "tooling/src/codemods/tsconfig.json": "own-toolchain",
+  "packages/showcase-plugins/tsconfig.author-ui.json": "global-collision",
+};
+
+/** The worlds the reference graph walks as programs of their own beside the merged one. */
+export function programsApart(root: string): readonly string[] {
+  return solutionWorlds(root).filter((config) => {
+    const reason = WORLDS_APART[config];
+    return reason !== undefined && APART_POLICY[reason].ownProgram;
+  });
+}
 // The merged program's option base: the browser world, so the DOM and Node libraries load together.
 const MERGED_BASE = "tsconfig.world-browser.json";
 /** Where the merged program's config sits in the in-memory file layer; nothing is written there. */
 export const MERGED_CONFIG = "tsconfig.unwired-merged.json";
 
-/** The worlds the merged program unites: the solution config's references, the codemods world excluded. */
-export function mergedWorlds(root: string): readonly string[] {
+// The solution config's references: every typecheck world.
+function solutionWorlds(root: string): readonly string[] {
   const read = ts.readConfigFile(join(root, SOLUTION), ts.sys.readFile);
   if (read.error !== undefined) {
     throw new Error(`${SOLUTION}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
   }
   const { references = [] } = SolutionConfig.parse(read.config);
-  return references
-    .map(({ path }) => {
-      const config = relative(root, resolve(root, path));
-      return config.endsWith(".json") ? config : join(config, "tsconfig.json");
-    })
-    .filter((config) => !UNMERGED.has(config));
+  return references.map(({ path }) => {
+    const config = relative(root, resolve(root, path));
+    return config.endsWith(".json") ? config : join(config, "tsconfig.json");
+  });
 }
+
+/** The worlds the merged program unites: every solution world {@link WORLDS_APART} does not name. */
+export const mergedWorlds = (root: string): readonly string[] => solutionWorlds(root).filter((config) => WORLDS_APART[config] === undefined);
 
 interface LoadedWorld {
   readonly config: string;
@@ -139,6 +163,24 @@ export function mergedConfigText(root: string): string {
 export function mergedOptionsConfigText(root: string, config: string): string {
   const own = loadWorld(root, config);
   return mergedText(root, loadMergedWorlds(root), own.fileNames, bridgedPaths(root, config, own));
+}
+
+// A world loads the DOM library when its `lib` names one, or names none and so takes the target's default set, which holds it.
+const DOM_LIB = /^lib\.dom\./u;
+
+/** The repository-relative files the merged program's worlds name whose own world loads the DOM library. The merged
+ *  program loads every library for every file, so whether a call is a browser's request is read from here. */
+export function browserFiles(root: string): ReadonlySet<string> {
+  const files = new Set<string>();
+  for (const config of mergedWorlds(root)) {
+    const parsed = loadWorld(root, config);
+    if (parsed.options.lib?.some((name) => DOM_LIB.test(name)) ?? true) {
+      for (const file of parsed.fileNames) {
+        files.add(relative(root, file));
+      }
+    }
+  }
+  return files;
 }
 
 /** The host's realpath; every scan host sets it, so a workspace package keeps its source path. */

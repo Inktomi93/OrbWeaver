@@ -2,6 +2,9 @@
 // threaded whole through the build, the analysis and the report. An ablated run's buckets are not the tree's: every
 // report names the ablations it ran under.
 
+/** Where a graph session reports its progress. */
+export type GraphLog = (line: string) => void;
+
 /** The recognizers a run can switch off, to measure what each one decides. */
 export const ABLATIONS = ["literal-keys", "escape", "zod-twins", "spelling"] as const;
 export type Ablation = (typeof ABLATIONS)[number];

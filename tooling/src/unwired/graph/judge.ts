@@ -2,8 +2,8 @@
 // with its reason, a row an open board item owns reports apart with that item, and a judged entry whose row is gone or
 // whose item is closed is stale. A row's key is the fields scan's `file:Home.member`, so one judged list serves both.
 import type { DeliberateEntry } from "../deliberate.ts";
+import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
-import { sortRows } from "../scan.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { MEMBER_BUCKETS, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";

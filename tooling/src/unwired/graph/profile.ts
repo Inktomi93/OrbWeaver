@@ -1,6 +1,7 @@
 // What `--profile` measures in one graph session: each phase's wall time, the world's request costs, the rss peak, the
 // compiler's own request totals, every walked file's time, and the compiler's CPU or heap profile when asked. A nested
-// phase is inclusive: `resolve` is all time inside the world's batches, so it overlaps `walk`, `origin` and `fixpoint`.
+// phase is inclusive: `resolve` is all time inside the world's batches, so it overlaps `walk`, `origin` and `fixpoint`, and
+// `apart`, the programs the merge cannot hold, holds their own walk and fixpoint; each one's rss is a peak.
 import process from "node:process";
 import type { TimingAccumulators } from "@typescript/native/sync";
 import type { WorldStats } from "../native.ts";
@@ -8,7 +9,7 @@ import type { ProfileKind } from "./options.ts";
 import type { PprofSummary } from "./pprof.ts";
 
 /** The phases a profile times, each emitted on every run (0 when the run did not enter it). */
-export const PROFILE_PHASES = ["open", "walk", "resolve", "origin", "fixpoint", "analyse", "verify"] as const;
+export const PROFILE_PHASES = ["open", "walk", "resolve", "origin", "fixpoint", "apart", "analyse", "verify"] as const;
 export type ProfilePhase = (typeof PROFILE_PHASES)[number];
 
 export interface FileTime {
@@ -129,6 +130,7 @@ export class GraphProfile {
         resolve: phase("resolve"),
         origin: phase("origin"),
         fixpoint: phase("fixpoint"),
+        apart: phase("apart"),
         analyse: phase("analyse"),
         verify: phase("verify"),
       },
