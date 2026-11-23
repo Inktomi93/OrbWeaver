@@ -98,7 +98,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A destructuring assignment, `({ a } = value)` | the pattern's key reads the member | no read | tooling/src/unwired/graph/roles.ts states the pattern invariant. |
 | A member a library reads: a `declare module` augmentation of a library interface, or a type that fills a library slot | read by the library | `unreferenced` | A library slot names the field in its published declaration (tooling/src/unwired/graph/flows.ts). |
 | A schema key nothing writes | `member-validated` | `never-written` when the key is optional and its home is written | A key only a parse fills validates outside input. |
-| A read by a package-root file such as a token build script | not a use (D357: product code, the dev bridge and snap) | a use: its production pattern takes `packages/<package>/*.ts` | D357 holds until the owner rules otherwise. |
+| A read by a package-root file such as a token build script | a use when every manifest's build, or a published package's prepare, runs the file or imports it through the pnpm-run closure (tooling/src/unwired/graph/roots.ts `shippedScripts`); a private package's prepare ships nothing | a use: its production pattern takes `packages/<package>/*.ts` | D357: a script whose output ships is the product's. |
 | An optional member of a type a production parameter is annotated with | no `member-read-only` row: a caller may leave it unset | the same rule, but some aliased homes are missed | The graph resolves the annotation through import aliases (tooling/src/unwired/graph/build.ts `#parameterHomes`). |
 
 Classes still open:

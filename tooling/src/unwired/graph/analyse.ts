@@ -4,7 +4,8 @@
 // Owner rulings this module holds (roles.ts states the escape and bump rulings; a flow here carries a send on as a send):
 // - The dev bridge: a member of a value published through our own `declare global` global (`window.__orb`) that only
 //   tooling or tests read is used, since that read reaches it through the global door; it counts as a product read.
-// - Snap's reads count as product reads (state.ts holds the ruling).
+// - Snap's reads count as product reads (state.ts holds the ruling), and so do the reads of a file a product root reaches
+//   outside the product's sources, such as a build script's import closure (D357: a script whose output ships).
 // - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
 // - A doc link keeps nothing alive; a `{@link}` to a name declared outside the file's scope is legal and listed as
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
@@ -214,7 +215,7 @@ class Analyser {
     const reached = this.#reached();
     this.#liveness(reached);
     this.#docLinks();
-    const roles = settleRoles(this.#graph);
+    const roles = settleRoles(this.#graph, this.#buildReads(reached.live));
     this.#members(roles, reached.liveTyped);
     this.#bindings(reached);
     for (const { file, line, door } of this.#state.unpairedReceivers) {
@@ -327,6 +328,17 @@ class Analyser {
     for (const [key, why] of keptByRuling(this.#graph)) {
       this.#why.set(key, why);
     }
+  }
+
+  // D357: a script whose output ships is the product's, so a file a product root reaches outside the product's sources,
+  // a build script's import closure, reads as the product does. A read is seen only where the build kept its role sites.
+  #buildReads(live: ReadonlySet<GraphKey>): ReadonlySet<DeclKey> {
+    const state = this.#state;
+    const files = new Set(this.#graph.files.filter((file) => !productReader(file) && live.has(moduleKey(file))));
+    if (files.size === 0) {
+      return NO_KEYS;
+    }
+    return new Set([...state.roleSites].flatMap(([key, sites]) => (sites.some((site) => READS.has(site.role) && files.has(site.file)) ? [key] : [])));
   }
 
   #modules(kinds: readonly RootKind[]): readonly GraphKey[] {
@@ -555,6 +567,8 @@ function stampedValues(axes: readonly VariantAxis[]): ReadonlyMap<string, Readon
   return new Map(STAMPED_VARIANT_AXES.map((axis) => [`${DATA_PREFIX}${axis}`, new Set([...declared(axis), ...extra[axis]])]));
 }
 
+const NO_KEYS: ReadonlySet<DeclKey> = new Set<DeclKey>();
+
 type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any" | "testkit" | "tooling", ReadonlySet<GraphKey>>>;
 
 // The testkit's homes: its world subpaths and the component-test mount harness. A unit only they reach is a helper a
@@ -668,11 +682,13 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
- * with one role set. A Drizzle column hand-off carries a read of the column to the stored member, never a send.
+ * with one role set. A member in `productReads` is read by the product before the carry. A Drizzle column hand-off carries a read of the column to the stored member, never a send.
  */
-export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
+export function settleRoles(graph: Graph, productReads: ReadonlySet<DeclKey> = NO_KEYS): ReadonlyMap<DeclKey, MemberRoles> {
   const { facts: state } = graph;
-  const roles = new Map([...state.roles].map(([key, value]) => [key, { ...value }]));
+  const roles = new Map(
+    [...state.roles].map(([key, value]) => [key, productReads.has(key) ? { ...value, product: withRoles(value.product, ["read"]) } : { ...value }]),
+  );
   const { readTo, columnReadTo, writeTo } = roleLinks(state);
   const queue = [...roles.keys()];
   for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
