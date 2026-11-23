@@ -8,6 +8,7 @@
 import type { MessageView, NarratorRenderPolicy, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { RoomStanding } from "@orb/kit/message-author";
@@ -66,8 +67,8 @@ import {
 export interface MessageRowProps {
   readonly message: MessageView;
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
-  readonly avatarSize?: "sm" | "md" | "lg" | undefined;
-  readonly avatarShape?: "round" | "square" | "rounded" | undefined;
+  readonly avatarSize?: AppearanceSettings["avatarSize"] | undefined;
+  readonly avatarShape?: AppearanceSettings["avatarShape"] | undefined;
   readonly avatarAspect?: "square" | "portrait" | undefined;
   readonly avatarRing?: "none" | "accent" | undefined;
   /** Hides the avatar image only; the speaker name stays. */

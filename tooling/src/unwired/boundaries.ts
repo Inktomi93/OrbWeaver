@@ -38,6 +38,10 @@ export const TRPC_PACKAGE = "/node_modules/@trpc/";
 /** The provider backends make every provider request, so only a value there can reach one. */
 export const PROVIDER_BODIES = "packages/inference/src/backends/";
 
+/** Dotted-path readers by name, `nestedValue(value, "a.b")`: the path is a wide string, so the call may read any nested
+ *  member of its first argument. */
+export const NESTED_READS: ReadonlySet<string> = new Set(["nestedValue"]);
+
 /** What a serialization does with its value: consumed whole in the process, or sent to a destination. */
 export type Serialized = { readonly whole: true } | { readonly whole: false; readonly destination: SendDestination };
 

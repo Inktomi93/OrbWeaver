@@ -53,7 +53,7 @@ import {
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination, StoreWrite } from "./boundaries.ts";
-import { copiedReads, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
+import { copiedReads, NESTED_READS, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import { occurrenceRoles } from "./graph/roles.ts";
@@ -103,8 +103,6 @@ interface Reflection {
 
 // Calls that read every property of their arguments by reflection, by the callee's text.
 const REFLECTIVE_CALLS: ReadonlySet<string> = new Set(["Object.entries", "Object.values", "Object.keys", "Object.assign", "structuredClone"]);
-// A dotted-path read, `nestedValue(value, "a.b")`: its path is a wide string, so it may reach any nested member of its value.
-const NESTED_READS: ReadonlySet<string> = new Set(["nestedValue"]);
 const SERIALIZE = "JSON.stringify";
 // A Hono response: the value goes to whoever made the request, so only that reader's names count.
 const RESPONSE = "c.json";

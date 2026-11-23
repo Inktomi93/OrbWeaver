@@ -10,6 +10,7 @@ import type { OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridg
 import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import type { renderHeatmap } from "./render-stats.ts";
+import type { SafeErrorSource } from "./safe-error-ring.ts";
 
 const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
 type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
@@ -180,7 +181,7 @@ export interface MotionFlagRecord {
 /** One recorded browser-side failure, as `__orb.consoleErrors()` returns it. */
 export interface ConsoleErrorRecord {
   /** Which surface reported it: a `console.error` call, an uncaught error event, or a rejected promise. */
-  readonly source: "console" | "uncaught" | "rejection";
+  readonly source: SafeErrorSource;
   /** Wall-clock epoch ms at the record. */
   readonly at: number;
   /** The formatted message — every argument stringified and joined, capped. */

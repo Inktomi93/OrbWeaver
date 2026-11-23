@@ -216,7 +216,7 @@ function imageClaimHolds(base: string, sniffed: string): boolean {
  *  what the app is prepared to store, serve and re-encode through the variant pipeline; the image guard is a
  *  CAP over bytes the app fetched itself from a URL it did not choose, where AVIF is simply a fact of the web
  *  and the only question is "is this a decompression bomb". Widening the upload set is a product decision with
- *  four coupled sites (this arm, `SniffedMime`'s union, `domain/plugin`'s bundle-asset set, `entry/http/blob`),
+ *  three coupled sites (this arm, `SniffedMime`'s union, `entry/http/blob`; the plugin bundle-asset set derives from it),
  *  so it belongs in a row of its own — never as a side effect of teaching the sniff a new signature. */
 function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string): void {
   const sniffed = sniffMime(bytes);

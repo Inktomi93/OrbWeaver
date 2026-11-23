@@ -18,6 +18,7 @@ import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import type { Tone } from "@orb/ui/tokens";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, StatusChip } from "#components";
@@ -40,7 +41,10 @@ const MODE_UNMET: Record<AuthMode, string> = {
   oidc: "",
 };
 
-const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly tone: "success" | "warning" | "neutral" | "destructive" }> = {
+const VERDICT_BADGE: Record<
+  PreconditionRow["verdict"],
+  { readonly label: string; readonly tone: Extract<Tone, "success" | "warning" | "neutral" | "destructive"> }
+> = {
   met: { label: "Ready", tone: "success" },
   unmet: { label: "Needs a fix", tone: "warning" },
   waiting: { label: "Waiting", tone: "neutral" },

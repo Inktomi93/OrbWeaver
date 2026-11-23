@@ -4,6 +4,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { StackProps } from "@orb/ui/layout";
 import type { RowSkin } from "./message-row-variants.ts";
 
 /** {@link headerShape}'s answer: whether the bar names the speaker, and whether it takes a line. */
@@ -17,10 +18,14 @@ export function rowMirrored(skin: RowSkin, role: MessageRole): boolean {
   return role === "user" && skin.mirrorUser;
 }
 
+const GUTTER_RAILS = ["none", "leading", "trailing"] as const;
+/** The grid rail an identity chip sits in: `none` for a chip that stays in the row's own flex line. */
+export type GutterRail = (typeof GUTTER_RAILS)[number];
+
 /** WHICH GRID RAIL this row's identity chip sits in under `columnPlacement: "gutterCentred"`, or `"none"`
  *  for an `anchored` skin whose body is still a flex line (#1728 arm B). A bare helper, not inlined, so
  *  `MessageRow` and `GhostMessageRow` read the SAME decision and neither pays for it in complexity. */
-export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leading" | "trailing" {
+export function gutterRailFor(skin: RowSkin, role: MessageRole): GutterRail {
   if (skin.columnPlacement === "anchored" || skin.chipPlacement === "header") {
     return "none";
   }
@@ -45,7 +50,7 @@ export function identitySlots<Node>(
 }
 
 /** Where the row body sits across the track: a user row at the trailing edge in a skin that aligns by role. */
-export function rowAlignFor(skin: RowSkin, role: MessageRole): "start" | "center" | "end" {
+export function rowAlignFor(skin: RowSkin, role: MessageRole): Extract<NonNullable<StackProps["align"]>, "start" | "center" | "end"> {
   if (skin.rowAlign === "role") {
     return role === "user" ? "end" : "start";
   }

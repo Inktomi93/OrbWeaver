@@ -19,6 +19,7 @@ import { DOC_FORMAT_EXTENSIONS, DOC_UPLOAD_FORMATS, docFormatForMime } from "@or
 import { formatBytes, groupThousands } from "@orb/kit/strings";
 import type { LucideIcon } from "@orb/ui/icons";
 import { TriangleAlert } from "@orb/ui/icons";
+import type { Tone } from "@orb/ui/tokens";
 
 const ORIGIN_LABELS: Record<DocOrigin, string> = {
   upload: "Upload",
@@ -76,7 +77,7 @@ const IN_FLIGHT_WORD: Record<CountedIngestPhase, string | null> = { empty: null,
 /** What a phase's chip renders: its label, its `@orb/ui/badge` tone, and an optional leading glyph. */
 interface IngestBadge {
   readonly label: string;
-  readonly tone: "success" | "warning" | "neutral" | "destructive";
+  readonly tone: Extract<Tone, "success" | "warning" | "neutral" | "destructive">;
   /** A leading `@orb/ui/icons` glyph, or `null` for a text-only chip — see the THIRD DIFFERENTIATOR note. */
   readonly glyph: LucideIcon | null;
 }
@@ -247,7 +248,7 @@ export interface BankHealth {
   readonly attention: readonly {
     readonly phase: IngestPhase;
     readonly label: string;
-    readonly tone: "success" | "warning" | "neutral" | "destructive";
+    readonly tone: IngestBadge["tone"];
   }[];
 }
 

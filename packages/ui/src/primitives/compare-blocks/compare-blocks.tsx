@@ -56,20 +56,24 @@ export interface CompareBlocksProps {
   readonly review?: CompareReview;
 }
 
-const DECISION_WORD: Record<"kept" | "discarded" | "undecided", string> = {
+const DECISION_STATES = ["kept", "discarded", "undecided"] as const;
+/** Where one block stands in the review: kept, discarded, or not yet decided. */
+type DecisionState = (typeof DECISION_STATES)[number];
+
+const DECISION_WORD: Record<DecisionState, string> = {
   kept: "Kept",
   discarded: "Discarded",
   undecided: "Undecided",
 };
 
 /** The tone each decision's state chip wears, the status pill's own: a discarded rewrite is the safe outcome, so it is neutral. */
-const DECISION_TONE: Record<"kept" | "discarded" | "undecided", Tone> = {
+const DECISION_TONE: Record<DecisionState, Tone> = {
   kept: "success",
   discarded: "neutral",
   undecided: "warning",
 };
 
-function decisionOf(decision: CompareDecision): "kept" | "discarded" | "undecided" {
+function decisionOf(decision: CompareDecision): DecisionState {
   if (decision === true) {
     return "kept";
   }

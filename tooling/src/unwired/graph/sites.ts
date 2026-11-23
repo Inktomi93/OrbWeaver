@@ -7,6 +7,7 @@
 //   gets no role and the stored value is not handed whole, so build.ts flows each member into its column instead. A
 //   property read inside a table definition defines an index or a foreign key and reads no stored value.
 import type {
+  AsExpression,
   BindingElement,
   CallExpression,
   ClassDeclaration,
@@ -38,6 +39,7 @@ import type {
   StringLiteral,
   TemplateExpression,
   TypeAliasDeclaration,
+  TypeAssertion,
   TypeLiteralNode,
   TypeNode,
   TypeReferenceNode,
@@ -126,6 +128,7 @@ import {
   isStringLiteral,
   isTemplateExpression,
   isTypeAliasDeclaration,
+  isTypeAssertion,
   isTypeLiteralNode,
   isTypeOperatorNode,
   isTypeParameterDeclaration,
@@ -550,6 +553,9 @@ export class FileSites {
   readonly pickKeys: { readonly target: TypeNode; readonly keys: readonly string[] }[] = [];
   readonly indexedKeys: IndexedKey[] = [];
   readonly elementKeys: ElementKey[] = [];
+  /** `row["k"]`: a literal key the resolver places like a name; keys.ts also reads it through a string-indexed type a
+   *  typed value was handed into. */
+  readonly literalKeyReads: ElementKey[] = [];
   /** The values a reflective call or a `for…in` loop takes every member of: `Object.entries(x)` and `structuredClone(x)`
    *  read each value, `Object.keys(x)` and a loop list each key; the callee, which keys.ts confirms is the platform's,
    *  or null for a loop. */
@@ -583,6 +589,8 @@ export class FileSites {
   /** `value satisfies T` over a binding or a literal: the value fills `T`, and a read of its members reads `T`'s. A zod
    *  schema, a builder call, twins through build.ts `#zodTwins` instead. */
   readonly checkedValues: { readonly value: Expression; readonly type: TypeNode }[] = [];
+  /** Product `x as T` and `<T>x` assertions: the operand is handed to the asserted type (flows.ts `#assertions`). */
+  readonly assertions: (AsExpression | TypeAssertion)[] = [];
   /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
   readonly computedLoads: CallExpression[] = [];
   /** Calls of a method a Hono app registers routes with; routes.ts confirms each by its declaration. */
@@ -636,6 +644,9 @@ function stringLiteralTypes(node: UnionTypeNode): readonly string[] | null {
 }
 
 const CONST_ASSERTION = "const";
+
+// `x as const` narrows a literal's type; it hands the value to no other type.
+const isConstAssertion = (node: AsExpression | TypeAssertion): boolean => isTypeReferenceNode(node.type) && referenceName(node.type) === CONST_ASSERTION;
 
 // An `as const` array of string literals, its members sorted; null for any other initializer.
 function constStringTuple(initializer: Expression): readonly string[] | null {
@@ -1443,6 +1454,9 @@ class Walker {
     ) {
       this.#sites.elementKeys.push({ receiver: node.expression, keys: keyLiterals(node.argumentExpression), argument: node.argumentExpression });
     }
+    if (isElementAccessExpression(node) && !inType && (isStringLiteral(node.argumentExpression) || isNoSubstitutionTemplateLiteral(node.argumentExpression))) {
+      this.#sites.literalKeyReads.push({ receiver: node.expression, keys: [node.argumentExpression.text], argument: node.argumentExpression });
+    }
     if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.InKeyword && !inType) {
       this.#sites.keyTests.push({ receiver: node.right, keys: keyLiterals(node.left), argument: node.left });
     }
@@ -1497,6 +1511,9 @@ class Walker {
   #flowSite(node: Node): void {
     if (isSatisfiesExpression(node) && isCheckedValue(unwrapExpression(node.expression))) {
       this.#sites.checkedValues.push({ value: node.expression, type: node.type });
+    }
+    if ((isAsExpression(node) || isTypeAssertion(node)) && !isConstAssertion(node)) {
+      this.#sites.assertions.push(node);
     }
     const site = valueFlowSite(node) ?? copyFlowSite(node);
     if (site !== undefined && !this.#frame.stored.has(site.value)) {
