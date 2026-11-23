@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
 // find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
-// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report, the member scan or the columns scan over it. Every result carries what
+// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report, the member scan, the columns scan or the reference census over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { Verdict } from "../field-sort.ts";
@@ -9,6 +9,8 @@ import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import { buildGraph, openGraphWorld } from "./build.ts";
+import type { CensusReport } from "./census.ts";
+import { censusPass } from "./census.ts";
 import type { CodesJudging, CodesReport } from "./codes.ts";
 import { codesPass } from "./codes.ts";
 import type { ColumnsOptions, ColumnsReport } from "./columns.ts";
@@ -342,6 +344,21 @@ export function trialGraph(
   return session(root, log, { options, ...(verdicts.length === 0 ? NO_SITES : MEMBER_SITES) }, (work) => {
     const analysis = work.time("analyse", () => analyse(work.graph));
     return runTrials(work.graph, work.world(), { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null, verdicts }, log);
+  });
+}
+
+/** Build and analyse the graph with every product member's role sites kept, then count the compiler's references to
+ *  each product member, or to an even sample of them, by the context each sits in and the role the graph gave it
+ *  (./census.ts). The role sites come from this session's own build, so it takes no `from`. */
+export function censusGraph(
+  root: string,
+  ask: { readonly sample: number | null },
+  log: GraphLog,
+  options: Omit<GraphOptions, "from"> = FRESH_BUILD,
+): Promise<WithSession<CensusReport>> {
+  return session(root, log, { options: { ...options, from: null }, ...MEMBER_SITES }, (work) => {
+    const analysis = work.time("analyse", () => analyse(work.graph, work.carried));
+    return work.time("verify", () => censusPass(work.graph, work.world(), { analysis, sample: ask.sample }, log));
   });
 }
 
