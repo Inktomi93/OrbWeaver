@@ -23,6 +23,7 @@ import type { NativeWorld } from "./native.ts";
 import { declarationKeys, propertiesNamed } from "./native.ts";
 import type { Construction } from "./optional-contexts.ts";
 import { contextIdentity, contextWrites } from "./optional-contexts.ts";
+import type { PluginSources } from "./optional-population.ts";
 import { isProduction } from "./optional-population.ts";
 
 interface Reader {
@@ -92,12 +93,12 @@ function readGroup(node: Node): ReadGroup | undefined {
   return values.length > 1 ? { kind: "dom", node, values } : undefined;
 }
 
-function* resolves(world: NativeWorld, node: Node, registry: Map<string, number>): APIRequestGenerator<Reader | undefined> {
+function* resolves(world: NativeWorld, node: Node, registry: Map<string, number>, plugins: PluginSources): APIRequestGenerator<Reader | undefined> {
   if (isPropertyAccessExpression(node) && isIdentifier(node.expression)) {
     const receiver = yield* world.checker.getSymbolAtLocation.gen(node.expression);
     const prop = yield* world.checker.getSymbolAtLocation.gen(node.name);
     const key = receiver === undefined ? undefined : declarationKeys(receiver)[0];
-    const context = yield* contextIdentity(world, yield* world.checker.getTypeAtLocation.gen(node.expression), registry);
+    const context = yield* contextIdentity(world, yield* world.checker.getTypeAtLocation.gen(node.expression), registry, plugins);
     return key === undefined || prop === undefined ? undefined : { source: key, context: context?.id, keys: declarationKeys(prop) };
   }
   if (!isIdentifier(node)) {
@@ -114,7 +115,7 @@ function* resolves(world: NativeWorld, node: Node, registry: Map<string, number>
     return;
   }
   const owner = yield* world.checker.getTypeAtLocation.gen(binding.parent);
-  const context = yield* contextIdentity(world, owner, registry);
+  const context = yield* contextIdentity(world, owner, registry, plugins);
   const props = yield* propertiesNamed(world.checker, owner, key.getText());
   return {
     source: siteKey(world.siteOf(binding.parent)),
@@ -127,6 +128,7 @@ export function optionalUsage(
   world: NativeWorld,
   files: readonly SourceFile[],
   registry: Map<string, number>,
+  plugins: PluginSources,
 ): { readers: readonly ReaderEvidence[]; contexts: ReturnType<typeof contextWrites> } {
   const constructions: Construction[] = [];
   let production = false;
@@ -142,11 +144,11 @@ export function optionalUsage(
     node.forEachChild(visit);
   }
   for (const file of files) {
-    production = isProduction(world.siteOf(file).file);
+    production = isProduction(world.siteOf(file).file, plugins);
     file.forEachChild(visit);
   }
   const names = [...new Set(groups.flatMap((group) => group.values))];
-  const resolved = world.batch(names.map((node) => resolves(world, node, registry)));
+  const resolved = world.batch(names.map((node) => resolves(world, node, registry, plugins)));
   const readers = new Map(names.map((name, index) => [name, resolved[index]]));
   const evidence = groups.flatMap(({ kind, node, values }) =>
     values.flatMap((name, at) => {
@@ -162,5 +164,5 @@ export function optionalUsage(
       });
     }),
   );
-  return { readers: evidence, contexts: contextWrites(world, constructions, registry) };
+  return { readers: evidence, contexts: contextWrites(world, constructions, registry, plugins) };
 }

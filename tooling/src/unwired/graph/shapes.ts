@@ -13,14 +13,17 @@ import {
   isExportSpecifier,
   isIndexedAccessTypeNode,
   isInterfaceDeclaration,
+  isModuleDeclaration,
+  isSourceFile,
+  isStringLiteral,
   isTypeAliasDeclaration,
   isTypeLiteralNode,
   isTypeQueryNode,
   isTypeReferenceNode,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
 import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
@@ -70,7 +73,7 @@ export interface ShapesReport {
 /** What the shapes scan cannot see, printed with every run. */
 const SHAPE_LIMITS: readonly string[] = [
   "Only product source (packages/*/src) declares a home: a test or tooling type is never paired. Every product package shares the one merged program, so a client type and a server type of the same shape are paired.",
-  "A generic type, a callable type and a type with fewer than two in-tree members hold no home, so their restatements are not reported.",
+  'A generic type, a callable type and a type with fewer than two in-tree members hold no home, so their restatements are not reported. A member a library or a `declare module "name"` shim declares is not in-tree.',
   "A declaration whose text after its own name names the other type counts as derived from it, so a restatement that also mentions its twin by name is missed.",
   "A computed form (Pick, Omit, an indexed access, a mapped or conditional type) is derived, never a second home, even where it re-spells the same members.",
   "A re-export chain starts at an export specifier: an `export *` declaration names none, so a chain whose outer hop is `export *` is not reported, and a library's own re-exports are not chains.",
@@ -159,6 +162,28 @@ function declared(world: NativeWorld): readonly Declared[] {
   return found;
 }
 
+// Whether a member declaration is the tree's own: in one of the world's files and outside a `declare module "name"`,
+// which types a module the tree does not author, an untyped library's, even where our own .d.ts declares it. A relative
+// name augments one of our own files, so its members stay ours.
+function* authored(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<boolean> {
+  if (world.fileOf(handle) === null) {
+    return false;
+  }
+  const declaration = yield* handle.resolve.gen();
+  for (let at = declaration?.parent; at !== undefined && !isSourceFile(at); at = at.parent) {
+    if (isModuleDeclaration(at) && isStringLiteral(at.name) && !at.name.text.startsWith(".")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// The property itself when one of its declarations is the tree's own.
+function* ownProperty(world: NativeWorld, property: NativeSymbol): APIRequestGenerator<NativeSymbol | null> {
+  const answers = yield* all(...property.declarations.map((handle) => authored(world, handle)));
+  return answers.some(Boolean) ? property : null;
+}
+
 // The declared type of a named object type and its member names, or null for anything that is not a plain object.
 // Members a library declares do not count toward the minimum: two props types that each wrap a different library
 // component with the same props, plus one member of their own, match by the library's shape, not by one concept.
@@ -173,7 +198,7 @@ function* shapeOf(world: NativeWorld, node: Named): APIRequestGenerator<Shape | 
     return null;
   }
   const properties = yield* checker.getPropertiesOfType.gen(type);
-  const own = properties.filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+  const own = (yield* all(...properties.map((property) => ownProperty(world, property)))).filter((property) => property !== null);
   const sorted = properties.toSorted((a, b) => a.name.localeCompare(b.name));
   return own.length < MIN_MEMBERS
     ? null

@@ -4,7 +4,7 @@
 
 import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/tooling";
+import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { z } from "zod";
@@ -12,7 +12,7 @@ import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { openGraphWorld } from "../../../tooling/src/unwired/graph/build.ts";
 import type { HitKind, HitScope } from "../../../tooling/src/unwired/literal-hits.ts";
 import { HIT_KINDS, HIT_SCOPES, hitsReport, literalStage, rowsEvidence, runHits, searchLiterals } from "../../../tooling/src/unwired/literal-hits.ts";
-import { graphTree, ZOD_MODULE } from "./_planted.ts";
+import { graphTree, LIB, ZOD_MODULE } from "./_planted.ts";
 
 const TIMEOUT = 120_000;
 
@@ -169,6 +169,31 @@ test("only a hit in parsed product source or loaded data holds a row, and those 
     [false, [".planted/rule.ts:1 string", "packages/a/src/look.css:1 other", "packages/a/src/schema.sql:1 other"]],
     [true, ["packages/a/src/use.ts:1 string", ".planted/rule.ts:1 string"]],
   ]);
+});
+
+// Plugin author source is product source wherever its tsconfig puts it, the file the author program holds and no other: a
+// read in it holds a row, and the same read in a tool file the author program leaves out does not.
+test("a read in a plugin author file holds a row, wherever the author tsconfig puts it", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree({
+    ...graphTree({
+      "packages/showcase-plugins/plugins/other/main.ts": "export const picked = (o: { readonly zqAuthored: number }): number => o.zqAuthored;\n",
+      "packages/showcase-plugins/tools/stray.ts": "export const picked = (o: { readonly zqStray: number }): number => o.zqStray;\n",
+    }),
+    "packages/showcase-plugins/tsconfig.author-main.json": plantedTsconfig({ lib: LIB, include: ["plugins/*/main.ts"] }),
+  });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const rows = ["zqAuthored", "zqStray"].map((member) => ({ member, known: [], neverWritten: false }));
+  const search = searchLiterals(
+    root,
+    world,
+    rows.map(({ member }) => member),
+  );
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  expect(rowsEvidence(search, world, rows).map(({ productRead }) => productRead)).toEqual([true, false]);
 });
 
 const KEYS_TEXT = [

@@ -83,8 +83,8 @@ const QUERY_PACKAGE = "/node_modules/@tanstack/";
 const SERIALIZE = "JSON.stringify";
 /** The reason a receiver file the merged program does not load is listed unresolved with. */
 export const OUTSIDE_PROGRAM = "outside the merged program";
-// A string with the key's text that sits in no key slot: a plain value, listed for a person.
-const NO_KEY_POSITION = "no key position";
+/** The reason a string with the key's text that sits in no key slot (a plain value) is listed unresolved with. */
+export const NO_KEY_POSITION = "no key position";
 /** The reason an open slot whose value reaches none of our procedures or routes is listed unresolved with: an outside
  *  API's body, or a value never sent. */
 export const NO_DESTINATION = "open slot reaching none of our procedures or routes";
@@ -148,16 +148,20 @@ function homeOf(node: Node): string | null {
   return null;
 }
 
+/** How many times a file declares each key, by home name then key. */
+type KeyCounts = ReadonlyMap<string, ReadonlyMap<string, number>>;
+
 // How many times a file declares each key in each home: an interface or type member, a schema or literal key, a
 // shorthand. The parser sees a key wherever it sits, a one-line `z.object({ a: … })` included.
-function declaredKeys(source: SourceFile): ReadonlyMap<string, number> {
-  const into = new Map<string, number>();
+function declaredKeys(source: SourceFile): KeyCounts {
+  const into = new Map<string, Map<string, number>>();
   const visit = (node: Node): void => {
     const named = isPropertySignatureDeclaration(node) || isPropertyAssignment(node) || isShorthandPropertyAssignment(node) ? node.name : undefined;
     const home = named === undefined ? null : homeOf(node);
     if (named !== undefined && home !== null && (isIdentifier(named) || isStringLiteral(named))) {
-      const pair = JSON.stringify([home, named.text]);
-      into.set(pair, (into.get(pair) ?? 0) + 1);
+      const keys = into.get(home) ?? new Map<string, number>();
+      keys.set(named.text, (keys.get(named.text) ?? 0) + 1);
+      into.set(home, keys);
     }
     node.forEachChild(visit);
   };
@@ -182,7 +186,7 @@ function blobsAt(root: string, rev: string, files: readonly string[]): ReadonlyM
   return new Map([...blobs].map(([at, text]) => [present[at] ?? "", text]));
 }
 
-function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, ReadonlyMap<string, number>> {
+function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, KeyCounts> {
   return NativeWorld.readTexts(root, blobsAt(root, rev, files), declaredKeys);
 }
 
@@ -203,10 +207,11 @@ function removedKeys(root: string, base: string, head: string): ReadonlyMap<stri
   const after = keyCounts(root, head, files);
   const removed = new Map<string, Home[]>();
   for (const [file, before] of keyCounts(root, fork, files)) {
-    for (const [pair, count] of before) {
-      const [name, key] = JSON.parse(pair) as [string, string];
-      if ((after.get(file)?.get(pair) ?? 0) < count) {
-        removed.set(key, [...(removed.get(key) ?? []), { file, name }]);
+    for (const [name, keys] of before) {
+      for (const [key, count] of keys) {
+        if ((after.get(file)?.get(name)?.get(key) ?? 0) < count) {
+          removed.set(key, [...(removed.get(key) ?? []), { file, name }]);
+        }
       }
     }
   }
@@ -236,12 +241,16 @@ function homeSpans(world: NativeWorld, homes: readonly Home[]): readonly { reado
 
 // Whether any of the handles is declared inside one of the spans.
 function* declaredIn(world: NativeWorld, handles: readonly NodeHandle[], spans: ReturnType<typeof homeSpans>): APIRequestGenerator<boolean> {
-  const inTree = handles.filter((handle) => world.fileOf(handle) !== null);
-  const nodes = yield* all(...inTree.map((handle) => handle.resolve.gen()));
-  return nodes.some(
-    (node, at) =>
-      node !== undefined && spans.some((span) => span.file === world.fileOf(inTree[at] as NodeHandle) && node.pos >= span.pos && node.end <= span.end),
+  const inTree = handles.flatMap((handle) => {
+    const file = world.fileOf(handle);
+    return file === null ? [] : [{ handle, file }];
+  });
+  const nodes = yield* all(
+    ...inTree.map(function* ({ handle, file }): APIRequestGenerator<{ readonly file: string; readonly node: Node | undefined }> {
+      return { file, node: yield* handle.resolve.gen() };
+    }),
   );
+  return nodes.some(({ file, node }) => node !== undefined && spans.some((span) => span.file === file && node.pos >= span.pos && node.end <= span.end));
 }
 
 // Whether a holder type is the shape the key was removed from: the type itself, or any of its members, is declared in
@@ -345,7 +354,7 @@ function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): A
 // one whose start the fold cannot read, leaves the repo. The URL folds through ./urls.ts.
 function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
   const request = yield* platformCall(world, call);
-  if (request === null || request.body === null || call.arguments.indexOf(argument as Expression) !== request.body) {
+  if (request === null || request.body === null || call.arguments[request.body] !== argument) {
     return null;
   }
   const own = request.patterns.length > 0 && request.patterns.every((pattern) => callerPath(pattern) !== null);
@@ -424,40 +433,46 @@ function identifiersNamed(source: SourceFile, text: string): readonly Node[] {
 // --- The check ----------------------------------------------------------------------------------------------------
 
 // Each candidate's verdict: placed on the removed home, placed elsewhere, loose into our server, or unplaced.
-function verdicts(world: NativeWorld, candidates: readonly Node[], homesOf: (node: Node) => readonly Home[]): readonly Verdict[] {
+function* placedOn(world: NativeWorld, resolution: KeyResolution | null, span: ReturnType<typeof homeSpans>): APIRequestGenerator<boolean> {
+  if (resolution === null || resolution.outcome === "open") {
+    return false;
+  }
+  if (resolution.outcome === "members") {
+    return yield* declaredIn(
+      world,
+      resolution.members.flatMap((member) => member.declarations),
+      span,
+    );
+  }
+  return (yield* all(...resolution.holders.map((holder) => holdsHome(world, holder, span)))).some(Boolean);
+}
+
+function verdicts<Candidate extends Node>(
+  world: NativeWorld,
+  candidates: readonly Candidate[],
+  homesOf: (node: Candidate) => readonly Home[],
+): readonly Verdict[] {
   const resolutions = resolveKeys(
     world,
     candidates.map((node) => ({ node })),
   );
-  const spans = candidates.map((node) => homeSpans(world, homesOf(node)));
+  const sites = candidates.map((node, at) => ({ node, span: homeSpans(world, homesOf(node)), resolution: resolutions[at] ?? null }));
   const placed = world.batch(
-    resolutions.map(function* (resolution, at): APIRequestGenerator<boolean> {
-      const span = spans[at] ?? [];
-      if (resolution === null || resolution.outcome === "open") {
-        return false;
-      }
-      if (resolution.outcome === "members") {
-        return yield* declaredIn(
-          world,
-          resolution.members.flatMap((member) => member.declarations),
-          span,
-        );
-      }
-      return (yield* all(...resolution.holders.map((holder) => holdsHome(world, holder, span)))).some(Boolean);
+    sites.map(function* (site): APIRequestGenerator<{ readonly site: (typeof sites)[number]; readonly placed: boolean }> {
+      return { site, placed: yield* placedOn(world, site.resolution, site.span) };
     }),
   );
-  const open = resolutions.flatMap((resolution, at) => (resolution?.outcome === "open" ? [at] : []));
-  const values = open.map((at) => looseValue(candidates[at] as Node));
+  const open = sites.flatMap(({ node, resolution }) => (resolution?.outcome === "open" ? [{ node, value: looseValue(node) }] : []));
   const reached = looseDestinations(
     world,
-    values.flatMap((value) => (value === null ? [] : [value])),
+    open.flatMap(({ value }) => (value === null ? [] : [value])),
   );
-  const looseAt = new Map<number, string | null>();
+  const looseAt = new Map<Candidate, string | null>();
   let next = 0;
-  for (const [index, at] of open.entries()) {
-    looseAt.set(at, values[index] === null ? null : (reached[next++] ?? null));
+  for (const { node, value } of open) {
+    looseAt.set(node, value === null ? null : (reached[next++] ?? null));
   }
-  return resolutions.map((resolution, at) => verdictOf(resolution, placed[at] === true, looseAt.get(at) ?? null));
+  return placed.map(({ site, placed: onHome }) => verdictOf(site.resolution, onHome, looseAt.get(site.node) ?? null));
 }
 
 function verdictOf(resolution: KeyResolution | null, placed: boolean, loose: string | null): Verdict {
@@ -484,6 +499,7 @@ function hitOf(world: NativeWorld, node: Node, receiver: Receiver): Hit {
 }
 
 interface Tally {
+  readonly homes: readonly Home[];
   readonly senders: Hit[];
   readonly loose: (Hit & { readonly destination: string })[];
   readonly unresolved: (Hit & { readonly reason: string })[];
@@ -502,7 +518,7 @@ function scanFiles(world: NativeWorld, files: readonly string[], removed: Readon
     };
     world.source(file)?.forEachChild(visit);
   }
-  const found = verdicts(world, candidates, (node) => removed.get((node as PropertyName).text) ?? []);
+  const found = verdicts(world, candidates, (node) => removed.get(node.text) ?? []);
   for (const [at, node] of candidates.entries()) {
     const tally = tallies.get(node.text);
     const receiver = receiverOf(world.siteOf(node).file);
@@ -550,19 +566,16 @@ export function removedKeysPlan({ root, base, head }: RemovedKeysOptions): Remov
   if (execGit(root, ["status", "--porcelain"]).trim() !== "") {
     throw new Error("removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first");
   }
-  const scanned = Object.fromEntries(
-    RECEIVERS.map((receiver) => [
-      receiver,
-      execGit(root, ["ls-tree", "-r", "--name-only", head, "--", ...RECEIVER_PATHS[receiver]])
-        .split("\n")
-        .filter(Boolean).length,
-    ]),
-  ) as Record<Receiver, number>;
+  const filesAt = (receiver: Receiver): number =>
+    execGit(root, ["ls-tree", "-r", "--name-only", head, "--", ...RECEIVER_PATHS[receiver]])
+      .split("\n")
+      .filter(Boolean).length;
+  const scanned: Record<Receiver, number> = { client: filesAt("client"), plugins: filesAt("plugins"), e2e: filesAt("e2e") };
   return { root, base, head, scanned, removed: removedKeys(root, base, head) };
 }
 
 const emptyTallies = (plan: RemovedKeysPlan): ReadonlyMap<string, Tally> =>
-  new Map([...plan.removed.keys()].map((key) => [key, { senders: [], loose: [], unresolved: [], other: 0 }]));
+  new Map([...plan.removed].map(([key, homes]) => [key, { homes, senders: [], loose: [], unresolved: [], other: 0 }]));
 
 // A receiver file the merged program does not load (a JSON fixture, a script outside every world) is searched as text
 // and listed.
@@ -579,9 +592,7 @@ function outsideProgram(plan: RemovedKeysPlan, held: ReadonlySet<string>, tallie
 }
 
 function reportOf(plan: RemovedKeysPlan, tallies: ReadonlyMap<string, Tally>): RemovedKeysReport {
-  const entries = [...plan.removed].map(
-    ([key, from]): RemovedKey => ({ key, homes: from.map(({ file, name }) => `${file}:${name}`), ...(tallies.get(key) as Tally) }),
-  );
+  const entries = [...tallies].map(([key, { homes, ...found }]): RemovedKey => ({ key, homes: homes.map(({ file, name }) => `${file}:${name}`), ...found }));
   return {
     base: plan.base,
     head: plan.head,

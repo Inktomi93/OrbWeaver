@@ -508,12 +508,15 @@ export class NativeWorld implements Disposable {
    *  `read` before its lease ends. */
   static readTexts<T>(root: string, texts: ReadonlyMap<string, string>, read: (source: SourceFile) => T): ReadonlyMap<string, T> {
     using api = new API({ cwd: root });
-    const entries = [...texts];
-    const retained = api.batch(...entries.map(([file, text]) => api.createSourceFile.gen(resolve(root, file), text)));
+    const parsed = api.batch(
+      ...[...texts].map(function* ([file, text]): APIRequestGenerator<readonly [string, RetainedSourceFile]> {
+        return [file, yield* api.createSourceFile.gen(resolve(root, file), text)];
+      }),
+    );
     try {
-      return new Map(entries.map(([file], at) => [file, read((retained[at] as RetainedSourceFile).sourceFile)]));
+      return new Map(parsed.map(([file, lease]) => [file, read(lease.sourceFile)]));
     } finally {
-      for (const lease of retained) {
+      for (const [, lease] of parsed) {
         lease[Symbol.dispose]();
       }
     }

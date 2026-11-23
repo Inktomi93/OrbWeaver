@@ -444,3 +444,41 @@ test("optional alternatives report separate writes and reject a co-set control",
     [rule, 19],
   ]);
 });
+
+// The author tsconfigs' programs say which files are plugin author source and which are the SDK's declarations, so an
+// author file counts wherever its tsconfig puts it. The bundle at the conventional path is the control, and a stray
+// file the author programs do not hold is no author source.
+test("plugin author and SDK sources are the files the author tsconfigs' programs hold, wherever they sit", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const author = "packages/showcase-plugins/tsconfig.author-main.json";
+  const writer = (input: string, first: string, second: string): string =>
+    [
+      `import type { ${input} } from "../../../a/src/choice.ts";`,
+      "declare const fileMode: boolean;",
+      `const input: ${input} = fileMode ? { ${first}: "a" } : { ${second}: "b" };`,
+      `export const selected = input.${first} ?? input.${second};`,
+    ].join("\n");
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: LIB, include: ["src", "tools"] }),
+    [author]: plantedTsconfig({ lib: LIB, include: ["bundles/*/main.ts", "plugins/*/main.ts", "../plugin-sdk/main.d.ts"] }),
+    "packages/plugin-sdk/package.json": JSON.stringify({ name: "@orb/plugin-sdk", files: ["main.d.ts"] }),
+    "packages/plugin-sdk/main.d.ts": "export declare const sdkVersion: string;",
+    "packages/a/src/choice.ts": [
+      "export interface ByFile { readonly file?: string; readonly url?: string }",
+      "export interface ByPath { readonly path?: string; readonly href?: string }",
+    ].join("\n"),
+    // A file of a package's own, outside src and outside every author program: no product or plugin source.
+    "packages/a/tools/stray.ts": "export const stray = 1;",
+    "packages/showcase-plugins/bundles/demo/main.ts": writer("ByFile", "file", "url"),
+    "packages/showcase-plugins/plugins/other/main.ts": writer("ByPath", "path", "href"),
+  });
+  const report = scanBrandFlow({ root, worlds: [WORLD, author], log: () => undefined });
+  const { production, optionalProduction } = report.scanned;
+  // The two author entries and the SDK declaration; the stray tool file is neither.
+  expect(optionalProduction - production).toBe(3);
+  expect(
+    report.optionalAlternatives.filter((row) => row.fallbackReaders !== 0).map(({ group, left, right }) => [report.optionalGroups[group]?.owner, left, right]),
+  ).toEqual([
+    ["ByFile", "file", "url"],
+    ["ByPath", "path", "href"],
+  ]);
+});

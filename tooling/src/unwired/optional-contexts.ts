@@ -19,6 +19,7 @@ import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "./classify.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, hasFlag } from "./native.ts";
+import type { PluginSources } from "./optional-population.ts";
 import { isProduction } from "./optional-population.ts";
 
 export type Construction = ObjectLiteralExpression | JsxAttributes;
@@ -94,7 +95,7 @@ function* nominalKey(world: NativeWorld, type: Type, seen: ReadonlySet<number>):
 
 type Registry = Map<string, number>;
 
-export function* contextIdentity(world: NativeWorld, type: Type, registry: Registry): APIRequestGenerator<ContextIdentity | undefined> {
+export function* contextIdentity(world: NativeWorld, type: Type, registry: Registry, plugins: PluginSources): APIRequestGenerator<ContextIdentity | undefined> {
   const [alias, symbol] = yield* all(type.getAliasSymbol.gen(), type.getSymbol.gen());
   const handle = (alias ?? symbol)?.declarations[0];
   const declaration = handle === undefined ? undefined : yield* handle.resolve.gen();
@@ -107,7 +108,7 @@ export function* contextIdentity(world: NativeWorld, type: Type, registry: Regis
   const nominal = yield* nominalKey(world, type, new Set());
   const properties = yield* world.checker.getPropertiesOfType.gen(type);
   const optionalNames = new Set(properties.filter((prop) => hasFlag(prop.flags, SymbolFlags.Optional)).map((prop) => prop.name));
-  const anchored = properties.some((prop) => prop.declarations.some((origin) => isProduction(world.fileOf(origin) ?? "")));
+  const anchored = properties.some((prop) => prop.declarations.some((origin) => isProduction(world.fileOf(origin) ?? "", plugins)));
   let stable: number | undefined;
   if (nominal !== null && anchored && properties.every((prop) => prop.declarations.length > 0)) {
     const inventory = properties
@@ -120,14 +121,19 @@ export function* contextIdentity(world: NativeWorld, type: Type, registry: Regis
     stable,
     optionalNames,
     owner: yield* world.checker.typeToString.gen(type),
-    site: declaration === undefined || handle === undefined || !isProduction(world.fileOf(handle) ?? "") ? undefined : world.siteOf(declaration),
+    site: declaration === undefined || handle === undefined || !isProduction(world.fileOf(handle) ?? "", plugins) ? undefined : world.siteOf(declaration),
     localIdentity: stable === undefined,
-    specialized: type.isMappedType() || (generic && handle !== undefined && isProduction(world.fileOf(handle) ?? "")),
+    specialized: type.isMappedType() || (generic && handle !== undefined && isProduction(world.fileOf(handle) ?? "", plugins)),
   };
 }
 
-function* write(world: NativeWorld, type: Type, context: ContextIdentity, input: { node: Node; name: string }): APIRequestGenerator<ContextWrite | undefined> {
-  const { node, name: field } = input;
+function* write(
+  world: NativeWorld,
+  type: Type,
+  context: ContextIdentity,
+  input: { node: Node; name: string; plugins: PluginSources },
+): APIRequestGenerator<ContextWrite | undefined> {
+  const { node, name: field, plugins } = input;
   if (!context.optionalNames.has(field)) {
     return;
   }
@@ -139,7 +145,7 @@ function* write(world: NativeWorld, type: Type, context: ContextIdentity, input:
   if (value === undefined || (yield* constituents(value)).every((part) => hasFlag(part.flags, TypeFlags.Undefined) || hasFlag(part.flags, TypeFlags.Never))) {
     return;
   }
-  const handle = prop.declarations.find((origin) => isProduction(world.fileOf(origin) ?? ""));
+  const handle = prop.declarations.find((origin) => isProduction(world.fileOf(origin) ?? "", plugins));
   if (handle === undefined && context.site === undefined && prop.declarations.length > 0) {
     return;
   }
@@ -179,7 +185,7 @@ export interface ContextRecords {
 }
 
 /** Read concrete optional members from the contextual types already loaded for the shared world. */
-export function contextWrites(world: NativeWorld, containers: readonly Construction[], registry: Registry): ContextRecords {
+export function contextWrites(world: NativeWorld, containers: readonly Construction[], registry: Registry, plugins: PluginSources): ContextRecords {
   const contextual = world.contextualTypes(containers);
   const targets = world.batch(
     contextual.map(function* (type): APIRequestGenerator<readonly Type[]> {
@@ -187,7 +193,7 @@ export function contextWrites(world: NativeWorld, containers: readonly Construct
     }),
   );
   const types = new Map(targets.flat().map((type) => [type.id, type]));
-  const descriptors = world.batch([...types.values()].map((type) => contextIdentity(world, type, registry)));
+  const descriptors = world.batch([...types.values()].map((type) => contextIdentity(world, type, registry, plugins)));
   const identities = new Map([...types.keys()].map((id, index) => [id, descriptors[index]]));
   const requests: APIRequestGenerator<ContextWrite | undefined>[] = [];
   const unknown: { id: string; site: Site }[] = [];
@@ -203,7 +209,7 @@ export function contextWrites(world: NativeWorld, containers: readonly Construct
         unknown.push({ id: context.id, site: world.siteOf(literal) });
       }
       if (arms.length === 1) {
-        requests.push(...namesOf(literal).map((input) => write(world, type, context, input)));
+        requests.push(...namesOf(literal).map((input) => write(world, type, context, { ...input, plugins })));
       }
     }
   }
