@@ -141,6 +141,36 @@ test("a known site with a computed, symbol, private, quoted or numeric name reso
   ]);
 });
 
+// A row is held for the product only by a saving hit in product source the parser reads or in data the product loads:
+// a column name in a migration or a class in a stylesheet under a package's src is no read of a member. The hits that
+// hold a row lead its list, so a long list of tooling hits never hides them.
+test("only a hit in parsed product source or loaded data holds a row, and those hits lead its list", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ".planted/rule.ts": 'export const keys = ["zqColumn", "zqHeld"];\n',
+      "packages/a/src/schema.sql": "CREATE TABLE t (zqColumn text);\n",
+      "packages/a/src/look.css": ".zqColumn { color: red; }\n",
+      "packages/a/src/use.ts": 'export const key = "zqHeld";\n',
+    }),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const rows = ["zqColumn", "zqHeld"].map((member) => ({ member, known: [], neverWritten: false }));
+  const search = searchLiterals(
+    root,
+    world,
+    rows.map(({ member }) => member),
+  );
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  expect(rowsEvidence(search, world, rows).map(({ productRead, hits }) => [productRead, hits.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
+    [false, [".planted/rule.ts:1 string", "packages/a/src/look.css:1 other", "packages/a/src/schema.sql:1 other"]],
+    [true, ["packages/a/src/use.ts:1 string", ".planted/rule.ts:1 string"]],
+  ]);
+});
+
 test("every kind of hit is classified where it sits", { timeout: TIMEOUT }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({

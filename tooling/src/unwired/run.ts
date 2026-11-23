@@ -796,7 +796,7 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
   const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
   const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile, reach: args.reach }, log, timed);
   const path = write(args.root, args.out, report);
-  for (const trial of report.trials.filter(({ verdict }) => verdict !== "confirmed")) {
+  for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
     const literal = trial.literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`);
     process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors, ...literal].join(",")}\n`);

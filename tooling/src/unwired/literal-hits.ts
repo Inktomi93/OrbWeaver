@@ -16,10 +16,10 @@
 // - A generated file is the house markers' call alone (tooling/src/floor/paths/generated-file.ts).
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
 //   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays.
-// - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source,
-//   the plugin bundles' included; a JSON file a product module imports; each showcase bundle's manifest, which the
-//   release build packs into the shipped zip. A hit in a test, the tooling or any other config is evidence to list,
-//   never to keep a row by.
+// - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
+//   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
+//   file a product module imports; each showcase bundle's manifest, which the release build packs into the shipped
+//   zip. A hit in a test, the tooling or any other config is evidence to list, never to keep a row by.
 import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, join, relative, resolve } from "node:path";
 import process from "node:process";
@@ -683,7 +683,8 @@ export interface LiteralEvidence {
   readonly own: number;
   /** Code hits left out because the checker resolves them to another declaration of the same name. */
   readonly elsewhere: number;
-  /** Some saving hit sits in product source, so it can stand for a product read; any other hit only annotates. */
+  /** Some saving hit sits in parsed product source or loaded product data, so it can stand for a product read; any
+   *  other hit only annotates. Those hits lead {@link LiteralEvidence.hits}. */
   readonly productRead: boolean;
 }
 
@@ -758,13 +759,16 @@ function evidenceOf(
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
+  const holding = saving.filter((hit) => (hit.offset !== null && isProduction(hit.file)) || productData.has(hit.file));
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
   return {
     note: unwritten ?? empty,
     saved: saving.length > 0,
     counts: countKinds(hits),
-    hits: [...saving, ...hits.filter((hit) => !savesRow(hit))].slice(0, KEPT_HITS).map(({ at, kind, scope }) => ({ at, kind, scope })),
+    hits: [...holding, ...saving.filter((hit) => !holding.includes(hit)), ...hits.filter((hit) => !savesRow(hit))]
+      .slice(0, KEPT_HITS)
+      .map(({ at, kind, scope }) => ({ at, kind, scope })),
     writers: row.neverWritten
       ? hits
           .filter((hit) => hit.kind === "write")
@@ -773,7 +777,7 @@ function evidenceOf(
       : [],
     own,
     elsewhere,
-    productRead: saving.some((hit) => isProduction(hit.file) || productData.has(hit.file)),
+    productRead: holding.length > 0,
   };
 }
 

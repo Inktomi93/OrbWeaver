@@ -271,10 +271,12 @@ test.for([
 });
 
 // A clean compile says only that the compiler needs no site of the name. A member read through a key built from a
-// string in another product file, or named by a JSON key the product holds, is confirmed-literal with the hit. A
-// string in a script only annotates, a product read of another type's member of the same name is no hit, and neither
+// string in another product file is confirmed-literal with the hit. A JSON key in a file under a package's src that no
+// product module loads, and a string in a script, only annotate, a product read of another type's member of the same name is no hit, and neither
 // is a comment or the candidate's own sites (its declaration, a re-export the delete removes): those stay confirmed.
-test("a compile-clean candidate whose name a product string or JSON key spells is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("a compile-clean candidate whose name a product string spells is confirmed-literal, an unloaded JSON key only annotates", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -318,7 +320,7 @@ test("a compile-clean candidate whose name a product string or JSON key spells i
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
   ).toEqual([
     [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:1 string product`]],
-    [`${LIB}:Shape.zqFixture`, "confirmed-literal", [`${FIXTURE}:1 config-key product`]],
+    [`${LIB}:Shape.zqFixture`, "confirmed", [`${FIXTURE}:1 config-key product`]],
     [`${LIB}:Shape.zqQuiet`, "confirmed", []],
     [`${LIB}:Shape.zqScripted`, "confirmed", [`${SCRIPT}:1 string tooling`]],
     [`${LIB}:Shape.zqShared`, "confirmed", []],
@@ -509,16 +511,16 @@ test("--limit trials an even sample of the findings it names", { timeout: 120_00
   expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
 });
 
-test("pnpm unwired graph-trial takes each --bucket, prints each refuting error and tallies every bucket and the control", { timeout: 120_000 }, async ({
-  plantedTree,
-  runCli,
-  scratch,
-}) => {
+test("pnpm unwired graph-trial takes each --bucket, prints every trial with its refuting errors and tallies every bucket and the control", {
+  timeout: 120_000,
+}, async ({ plantedTree, runCli, scratch }) => {
   const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
   const run = await runCli("unwired", ["graph-trial", "--bucket=type-only", "--bucket=dead", `--root=${root}`, `--out=${join(scratch, "trial.json")}`]);
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout.split("\n").filter((line) => !line.startsWith("control-") && line !== "")).toEqual([
     `refuted-references\ttype-only\t${LIB}:DEFAULTS\t${SHAPE}:3`,
+    `confirmed\tdead\t${LIB}:SPARE\t`,
+    `confirmed\tdead\t${OTHER}:alone\t`,
   ]);
   const tallies = run.stderr.split("\n").filter((line) => line.includes(" trials="));
   expect(tallies).toEqual([
@@ -860,4 +862,40 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
       .filter(({ label }) => label === `${LIB}:Shape.zqDash`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
   ).toEqual([{ verdict: "refuted", checked: [LIB, MAIN, RELAY], errors: [`${LIB}:2 write`, `${MAIN}:3 read`] }]);
+});
+
+// A key a library declares has no tree file naming its symbol: the reader is reached through the import graph, the
+// owner fallback, as for a well-known symbol.
+test("a computed member keyed by a library constant a constraint reads through a relay is refuted under either reach", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        "node_modules/zqkeys/package.json": JSON.stringify({ name: "zqkeys", types: "index.d.ts" }),
+        "node_modules/zqkeys/index.d.ts": 'export declare const LIB_KEY: "zqLib";',
+        [LIB]: [
+          'import { LIB_KEY } from "zqkeys";',
+          "export interface Shape { readonly kept: string; readonly [LIB_KEY]: string }",
+          'export const made = (): Shape => ({ kept: "k", [LIB_KEY]: "v" });',
+        ].join("\n"),
+        [RELAY]: 'export { made } from "./lib.ts";',
+        [MAIN]: [
+          'import { made } from "./relay.ts";',
+          "type Needs<T extends { readonly zqLib: string }> = T;",
+          "const needs: Needs<ReturnType<typeof made>> | undefined = undefined;",
+          "const use = (value: unknown): unknown => value;",
+          "use(made().kept);",
+          "use(needs);",
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label === `${LIB}:Shape.[LIB_KEY]`)
+      .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
+  ).toEqual([{ verdict: "refuted", checked: [LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:3 read`] }]);
 });

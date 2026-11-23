@@ -58,7 +58,8 @@ import {
   ModifierFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { Diagnostic, ProjectId } from "@typescript/native/sync";
+import type { APIRequestGenerator, Diagnostic, NodeHandle, ProjectId, ReferencedSymbolEntry } from "@typescript/native/sync";
+import { SymbolFlags } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { LiteralEvidence } from "../literal-hits.ts";
@@ -297,6 +298,17 @@ interface Candidate {
 // A key no tree file declares, a well-known symbol's, or a key that is no name, falls back to every file the import
 // graph says the declaring file reaches.
 type Bracket = { readonly by: "none" } | { readonly by: "key"; readonly name: Node } | { readonly by: "owner" };
+
+// A key's find-references and the declarations of what it names, through an import alias to the declared constant.
+function* keyAnswer(
+  world: NativeWorld,
+  name: Node,
+): APIRequestGenerator<{ readonly groups: readonly ReferencedSymbolEntry[]; readonly declarations: readonly NodeHandle[] }> {
+  const groups = yield* world.referencedSymbolsOf(name);
+  const symbol = yield* world.checker.getSymbolAtLocation.gen(name);
+  const named = symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? yield* world.checker.getAliasedSymbol.gen(symbol) : symbol;
+  return { groups, declarations: named?.declarations ?? [] };
+}
 
 function bracketOf(node: Node): Bracket {
   const name = declarationNameOf(node);
@@ -571,17 +583,17 @@ class Trials {
     return [...new Set([...named, ...near, ...reached])].filter((file) => this.#world.has(file)).sort();
   }
 
-  // The files naming each computed candidate's key symbol, asked once per key. A key whose every definition lies
-  // outside the world's sources is recorded as null: its readers are the owner fallback's.
+  // The files naming each computed candidate's key symbol, asked once per key. A key whose constant, through an import
+  // alias, is declared outside the world's sources is recorded as null: its readers are the owner fallback's.
   #keyFiles(items: readonly Candidate[]): readonly string[] {
     const names = [...new Set(items.flatMap(({ bracket }) => (bracket.by === "key" ? [bracket.name] : [])))];
     const missing = names.filter((name) => !this.#keyReach.has(name));
     const world = this.#world;
-    const groups = world.batch(missing.map((name) => world.referencedSymbolsOf(name)));
+    const answers = world.batch(missing.map((name) => keyAnswer(world, name)));
     for (const [at, name] of missing.entries()) {
-      const found = groups[at] ?? [];
-      const files = found.flatMap(({ references }) => references.flatMap((handle) => world.fileOf(handle) ?? []));
-      const declared = found.some(({ definition }) => world.fileOf(definition) !== null);
+      const { groups, declarations } = answers[at] ?? { groups: [], declarations: [] };
+      const files = groups.flatMap(({ references }) => references.flatMap((handle) => world.fileOf(handle) ?? []));
+      const declared = declarations.some((handle) => world.fileOf(handle) !== null);
       this.#keyReach.set(name, declared ? [...new Set([world.fileOfSource(name.getSourceFile()), ...files])] : null);
     }
     return names.flatMap((name) => this.#keyReach.get(name) ?? []);
