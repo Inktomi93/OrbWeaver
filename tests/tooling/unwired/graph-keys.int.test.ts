@@ -139,6 +139,26 @@ test("a key of an extended schema checked against its own type does not read the
   expect(bare(labelsIn(scan, "member-write-only", FILE)).filter((label) => label.startsWith("Fields."))).toEqual(["Fields.character"]);
 });
 
+// The extension's output carries the base's `applied`, so a read of it through the extension reads `Copy.applied`.
+// `unread` is read by nobody, and the extension's own `character` replaces the base's, so `Fields.character` stays
+// unread too.
+test("a key an extended schema inherits is read on the extension's checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Fields { readonly applied: string; readonly character: string; readonly unread: string }",
+      "export const fieldsSchema = z.object({ applied: z.string(), character: z.string(), unread: z.string() }) satisfies z.ZodType<Fields>;",
+      "export interface Copy { readonly applied: string; readonly character: string; readonly unread: string }",
+      "export const copySchema = fieldsSchema.extend({ character: z.string() }) satisfies z.ZodType<Copy>;",
+      'export const fields: Fields = { applied: "a", character: "c", unread: "u" };',
+      'export const copy: Copy = { applied: "a", character: "c", unread: "u" };',
+      "export const copied = (result: z.infer<typeof copySchema>): string => result.applied + result.character;",
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Fields.character", "Fields.unread", "Copy.unread"]);
+});
+
 // The twin is zod's: a type of the same name declared anywhere else spells a satisfies check and twins nothing.
 test("a satisfies reference twins only through zod's ZodType, never a local type of that name", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
