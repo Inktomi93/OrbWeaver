@@ -159,7 +159,7 @@ const UNION_LIMITS: readonly string[] = [
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, is reported apart as parsed, with the sites that parse the input in.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
   "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
-  "A tuple is judged only when product source (packages/*/src) declares it. A literal or reference credits a member when product source or tooling/src/snap/, which uses the product as its user does, writes it. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
+  "A tuple is judged only when product source (packages/*/src) declares it. A literal or reference credits a member when product source or tooling/src/snap/, which uses the product as its user does, writes it; a snap literal credits only through a slot read to a product tuple, and one in a slot whose tuple cannot be read (a library signature, a type parameter) credits none. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
 ];
 
 /** One member of a tuple: its text, its line and its element. */
@@ -462,10 +462,11 @@ function literalSites(world: NativeWorld, local: readonly UnionTuple[]): FirstWa
   const origins = world.batch(asked.map((literal) => slotOrigins(world, literal.node, literal.role)));
   const originsAt = new Map(asked.map((literal, index) => [nodeKey(literal.node), origins[index] ?? null]));
   // A literal deep in a constant's object reaches its slot only through a read of its own property; when no slot can be
-  // read it is no evidence for any tuple, where a direct constant may be any tuple's.
+  // read it is no evidence for any tuple, where a direct constant may be any tuple's. A snap literal in a slot no tuple
+  // can be read from names none: snap credits the product only where it reaches the product's slot.
   const literals = found.map(({ nested, ...literal }) => {
     const at = originsAt.get(nodeKey(literal.node)) ?? null;
-    return { ...literal, holds: literal.holds && !(nested && at === null), origins: at };
+    return { ...literal, holds: literal.holds && !(nested && at === null), origins: at === null && !isProduction(literal.site.file) ? NOTHING_SPELLED : at };
   });
   return { literals, ...into };
 }

@@ -53,7 +53,8 @@ const TREE = {
 };
 
 // snap uses the product as its user does: a literal it writes into a product tuple's slot builds the member, and its own
-// tuples are never judged. Any other tooling literal builds nothing.
+// tuples are never judged. Any other tooling literal builds nothing. A snap literal in a slot no tuple can be read from (a
+// handler's contextually typed parameter, as the snap flag table is) builds no product member that shares its text.
 const DRIVEN = {
   "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tooling" }] }),
   "tooling/tsconfig.json": plantedTsconfig({ lib: LIB, include: ["src"] }),
@@ -62,20 +63,30 @@ const DRIVEN = {
     "export type View = (typeof VIEWS)[number];",
     "export const show = (view: View): View => view;",
     'export const shown = show("grid");',
+    'export const PALETTES = ["dark", "warm", "cool"] as const;',
+    "export type Palette = (typeof PALETTES)[number];",
+    "export const paint = (palette: Palette): Palette => palette;",
+    'export const painted = paint("warm");',
   ].join("\n"),
   "tooling/src/snap/drive.ts": [
-    'import { show } from "../../../packages/a/src/view.ts";',
+    'import { paint, show } from "../../../packages/a/src/view.ts";',
     'export const driven = show("list");',
     'export const PACES = ["fast", "slow"] as const;',
+    'export const tinted = paint("cool");',
+  ].join("\n"),
+  "tooling/src/snap/flags.ts": [
+    'interface Args { colorScheme: "light" | "dark" | null }',
+    "type FlagHandler = (args: Args, rest: string[]) => void;",
+    'export const HANDLERS: Record<string, FlagHandler> = { "--dark": (a) => { a.colorScheme = "dark"; } };',
   ].join("\n"),
   "tooling/src/other/drive.ts": ['import { show } from "../../../packages/a/src/view.ts";', 'export const other = show("table");'].join("\n"),
 };
 
-test("a snap literal builds a product member, a snap tuple is not judged, and another tooling literal builds nothing", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
+test("a snap literal builds a product member through its slot, a snap tuple is not judged, and another tooling literal or an unreadable snap slot builds nothing", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
   const report = await scanUnions(plantedTree, DRIVEN);
-  expect(report.unwired.map(({ home, member }) => `${home}.${member}`)).toEqual(["VIEWS.table"]);
+  expect(report.unwired.map(({ home, member }) => `${home}.${member}`)).toEqual(["VIEWS.table", "PALETTES.dark"]);
 });
 
 test("the unions scan reports an unbuilt member with its dead branch, check and key, marks a parsed vocabulary apart, and skips an enumerated tuple", {
