@@ -132,7 +132,7 @@ test("a known site with a computed, symbol, private, quoted or numeric name reso
       hits.map(({ at: site, kind }) => `${site} ${kind}`),
     ]),
   ).toEqual([
-    ["zqComputed", 0, true, [`${file}:1 string`, `${file}:10 read`]],
+    ["zqComputed", 0, true, [`${file}:10 read`, `${file}:1 string`]],
     // Both words read SymbolConstructor.iterator, another declaration of the name.
     ["iterator", 2, false, []],
     ["zqPrivate", 0, true, [`${file}:7 read`]],
@@ -150,7 +150,7 @@ test("only a hit in parsed product source or loaded data holds a row, and those 
       ".planted/rule.ts": 'export const keys = ["zqColumn", "zqHeld"];\n',
       "packages/a/src/schema.sql": "CREATE TABLE t (zqColumn text);\n",
       "packages/a/src/look.css": ".zqColumn { color: red; }\n",
-      "packages/a/src/use.ts": 'export const key = "zqHeld";\n',
+      "packages/a/src/use.ts": 'export const has = (o: object): boolean => "zqHeld" in o;\n',
     }),
   );
   execFixtureGit(root, ["init", "-q"]);
@@ -168,6 +168,52 @@ test("only a hit in parsed product source or loaded data holds a row, and those 
   expect(rowsEvidence(search, world, rows).map(({ productRead, hits }) => [productRead, hits.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [false, [".planted/rule.ts:1 string", "packages/a/src/look.css:1 other", "packages/a/src/schema.sql:1 other"]],
     [true, ["packages/a/src/use.ts:1 string", ".planted/rule.ts:1 string"]],
+  ]);
+});
+
+const KEYS_TEXT = [
+  'export const copy = "zqCopy is shown to people";',
+  'export const plain = (say: (text: string) => void): void => say("zqPlain");',
+  'export const elem = (o: Readonly<Record<string, number>>): number | undefined => o["zqElem"];',
+  'export const has = (o: object): boolean => "zqIn" in o;',
+  'export const computed = { ["zqComputedKey"]: 1 };',
+  "interface Form { readonly zqField: string }",
+  "declare function field<T>(name: keyof T & string): void;",
+  'field<Form>("zqField");',
+  'type Path = "params.zqBan" | "params.other";',
+  "declare function setPath(path: Path): void;",
+  'setPath("params.zqBan");',
+  "export const tpl = (o: object): boolean => `zqTpl` in o;",
+  "export const head = (o: object, k: string): boolean => `zqHead.\u0024{k}` in o;",
+].join("\n");
+// A string holds a row only where it acts as a key: in key syntax, or where the checker types it as a string-literal
+// union holding the name, a dotted path by its segment. Copy text and a string the checker types as plain `string`
+// only annotate. An element access's quoted key is a read by the role rules, held as an unresolved read.
+test("a string or template hit holds a row only as a key, by its syntax or its contextual literal type", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/keys.ts";
+  const root = await plantedTree(graphTree({ [file]: KEYS_TEXT }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const members = ["zqCopy", "zqPlain", "zqElem", "zqIn", "zqComputedKey", "zqBan", "zqTpl", "zqHead"];
+  const rows = members.map((member) => ({ member, known: [], neverWritten: false }));
+  const search = searchLiterals(root, world, [...members, "zqField"]);
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  const field = { member: "zqField", known: [`${file}:${String(KEYS_TEXT.indexOf("zqField"))}`], neverWritten: false };
+  expect(
+    rowsEvidence(search, world, [...rows, field]).map(({ productRead, hits }, at) => [members[at] ?? field.member, productRead, hits.map(({ kind }) => kind)]),
+  ).toEqual([
+    ["zqCopy", false, ["string"]],
+    ["zqPlain", false, ["string"]],
+    ["zqElem", true, ["read"]],
+    ["zqIn", true, ["string"]],
+    ["zqComputedKey", true, ["string"]],
+    ["zqBan", true, ["string", "type"]],
+    ["zqTpl", true, ["template"]],
+    ["zqHead", true, ["template"]],
+    ["zqField", true, ["string"]],
   ]);
 });
 

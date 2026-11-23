@@ -270,8 +270,8 @@ test.for([
   expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(MAIN);
 });
 
-// A clean compile says only that the compiler needs no site of the name. A member read through a key built from a
-// string in another product file is confirmed-literal with the hit. A JSON key in a file under a package's src that no
+// A clean compile says only that the compiler needs no site of the name. A member a product string reads as a key
+// (an `in` operand) is confirmed-literal with the hit, the string that only builds a constant listed after it. A JSON key in a file under a package's src that no
 // product module loads, and a string in a script, only annotate, a product read of another type's member of the same name is no hit, and neither
 // is a comment or the candidate's own sites (its declaration, a re-export the delete removes): those stay confirmed.
 test("a compile-clean candidate whose name a product string spells is confirmed-literal, an unloaded JSON key only annotates", { timeout: 120_000 }, async ({
@@ -293,7 +293,7 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
           "export function zqOrphan(): number { return 2; }",
         ].join("\n"),
         [DOOR]: 'export { zqOrphan } from "./lib.ts";',
-        [KEYS]: 'export const KEY = "zqSecret";',
+        [KEYS]: ['export const KEY = "zqSecret";', 'export const has = (o: object): boolean => "zqSecret" in o;'].join("\n"),
         [OTHER]: ["export interface Other { readonly zqShared: string }", "export declare const other: Other;"].join("\n"),
         [MAIN]: [
           'import { KEY } from "./keys.ts";',
@@ -319,7 +319,7 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
       .filter(({ label }) => label.includes(":Shape.zq") || label.endsWith(":zqOrphan"))
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:1 string product`]],
+    [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:2 string product`, `${KEYS}:1 string product`]],
     [`${LIB}:Shape.zqFixture`, "confirmed", [`${FIXTURE}:1 config-key product`]],
     [`${LIB}:Shape.zqQuiet`, "confirmed", []],
     [`${LIB}:Shape.zqScripted`, "confirmed", [`${SCRIPT}:1 string tooling`]],

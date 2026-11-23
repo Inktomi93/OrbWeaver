@@ -16,6 +16,8 @@
 // - A generated file is the house markers' call alone (tooling/src/floor/paths/generated-file.ts).
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
 //   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays.
+// - A string or template hit holds a row only as a key, never as copy text: in key syntax, or where the checker's
+//   contextual type for it is a string-literal union holding the name, a dotted path by its segment (keyedHits).
 // - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
 //   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
 //   file a product module imports; each showcase bundle's manifest, which the release build packs into the shipped
@@ -29,12 +31,18 @@ import type {
   ClassDeclaration,
   ClassExpression,
   EnumDeclaration,
+  Expression,
   FunctionDeclaration,
   FunctionExpression,
   InterfaceDeclaration,
+  MethodDeclaration,
+  MethodSignatureDeclaration,
   ModuleDeclaration,
   Node,
   ParameterDeclaration,
+  PropertyAssignment,
+  PropertyDeclaration,
+  PropertySignatureDeclaration,
   SourceFile,
   TypeAliasDeclaration,
   TypeParameterDeclaration,
@@ -44,9 +52,11 @@ import {
   getLeadingCommentRanges,
   getTokenAtPosition,
   getTrailingCommentRanges,
+  isBinaryExpression,
   isBindingElement,
   isClassDeclaration,
   isClassExpression,
+  isComputedPropertyName,
   isElementAccessExpression,
   isEnumDeclaration,
   isExportDeclaration,
@@ -59,13 +69,21 @@ import {
   isInterfaceDeclaration,
   isJSDocNodeKind,
   isKeywordKind,
+  isMethodDeclaration,
+  isMethodSignatureDeclaration,
   isModuleDeclaration,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
   isParameterDeclaration,
   isPrivateIdentifier,
+  isPropertyAssignment,
+  isPropertyDeclaration,
+  isPropertySignatureDeclaration,
   isSourceFile,
   isStringLiteral,
+  isTemplateExpression,
+  isTemplateHead,
+  isTemplateSpan,
   isTypeAliasDeclaration,
   isTypeNode,
   isTypeParameterDeclaration,
@@ -73,6 +91,7 @@ import {
   SyntaxKind,
   skipTrivia,
 } from "@typescript/native/ast";
+import type { APIRequestGenerator } from "@typescript/native/sync";
 import { isRemoteNode } from "@typescript/native/sync";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
@@ -186,6 +205,8 @@ export interface LiteralSearch {
   readonly productData: ReadonlySet<string>;
   /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
+  /** The string and template hits in held product source that act as a key, the only ones that can hold a row. */
+  readonly keyed: ReadonlySet<LiteralHit>;
 }
 
 const PARSED = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -444,7 +465,7 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
     }
   }
   const all = [...hits.values()].flat();
-  return { files, ignored, hits, productData: loadedData(root, world, all), resolved: resolvedHits(world, all) };
+  return { files, ignored, hits, productData: loadedData(root, world, all), resolved: resolvedHits(world, all), keyed: keyedHits(world, all) };
 }
 
 // The data files among the hits' files that the product loads: a JSON file the program holds that a product module
@@ -465,6 +486,70 @@ function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[
 }
 
 const CODE_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call"]);
+const TEXT_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["string", "template"]);
+
+// A string or template hit in held product source acts as a key when it sits in key syntax, or when the checker's
+// contextual type for it is a string-literal union with a member whose dotted segments hold the name: a keyof
+// parameter, a typed registry, a form path. Judged by the type, never by the callee's name; copy text is neither.
+function keyedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet<LiteralHit> {
+  const asked = hits.flatMap((hit) => {
+    const token = hit.graph && hit.offset !== null && TEXT_KINDS.has(hit.kind) && isProduction(hit.file) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    const text = token === undefined ? undefined : textExpression(token);
+    return text === undefined ? [] : [{ hit, text }];
+  });
+  const syntactic = asked.filter(({ text }) => inKeySyntax(text));
+  const typed = asked.filter(({ text }) => !inKeySyntax(text));
+  sendable(
+    "the literal hits' strings",
+    typed.map(({ hit, text }) => ({ node: text, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the string its token sits in` })),
+  );
+  const literals = world.batch(typed.map(({ text }) => contextualLiterals(world, text)));
+  return new Set([
+    ...syntactic.map(({ hit }) => hit),
+    ...typed.flatMap(({ hit }, at) => ((literals[at] ?? []).some((value) => value.split(PATH_SEPARATOR).includes(hit.name)) ? [hit] : [])),
+  ]);
+}
+
+const PATH_SEPARATOR = ".";
+
+// The string or template expression a text hit's token sits in: the literal itself, or the template a head, middle or
+// tail belongs to.
+function textExpression(token: Node): Expression | undefined {
+  if (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) {
+    return token;
+  }
+  const template = isTemplateHead(token) ? token.parent : token.parent.parent;
+  return (isTemplateHead(token) || isTemplateSpan(token.parent)) && isTemplateExpression(template) ? template : undefined;
+}
+
+// Key syntax: an `in` operand, a computed name, or a quoted member or property name. An element access's quoted key is
+// no string hit: the role rules read it as a read, held unless the checker resolves it elsewhere.
+function inKeySyntax(text: Expression): boolean {
+  const { parent } = text;
+  if (isBinaryExpression(parent)) {
+    return parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, text);
+  }
+  return isComputedPropertyName(parent) || (isNamedMember(parent) && sameNode(parent.name, text));
+}
+
+const isNamedMember = (
+  node: Node,
+): node is PropertyAssignment | PropertySignatureDeclaration | PropertyDeclaration | MethodDeclaration | MethodSignatureDeclaration =>
+  isPropertyAssignment(node) ||
+  isPropertySignatureDeclaration(node) ||
+  isPropertyDeclaration(node) ||
+  isMethodDeclaration(node) ||
+  isMethodSignatureDeclaration(node);
+
+// The string-literal values of the type the checker expects at a text, each member of a union on its own.
+function* contextualLiterals(world: NativeWorld, text: Expression): APIRequestGenerator<readonly string[]> {
+  const type = yield* world.checker.getContextualType.gen(text);
+  if (type === undefined) {
+    return [];
+  }
+  const members = type.isUnionType() ? yield* type.getTypes.gen() : [type];
+  return members.flatMap((member) => (member.isStringLiteralType() ? [member.value] : []));
+}
 
 // The node a held file's hit or known site starts, by its `file:offset`.
 function heldNodeAt(world: NativeWorld, file: string, offset: number): Node | undefined {
@@ -742,7 +827,7 @@ function judged(
   const declarations = rowDeclarations(world, rows);
   return rows.map((row, at) => {
     const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: declarations[at] ?? new Set() });
-    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData }, search.files) };
+    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, keyed: search.keyed }, search.files) };
   });
 }
 
@@ -755,11 +840,18 @@ export const rowsEvidence = (search: LiteralSearch, world: NativeWorld, rows: re
 function evidenceOf(
   row: Omit<StageRow, "verdict">,
   hits: readonly LiteralHit[],
-  { own, elsewhere, productData }: { readonly own: number; readonly elsewhere: number; readonly productData: ReadonlySet<string> },
+  {
+    own,
+    elsewhere,
+    productData,
+    keyed,
+  }: { readonly own: number; readonly elsewhere: number; readonly productData: ReadonlySet<string>; readonly keyed: ReadonlySet<LiteralHit> },
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
-  const holding = saving.filter((hit) => (hit.offset !== null && isProduction(hit.file)) || productData.has(hit.file));
+  const holding = saving.filter(
+    (hit) => (hit.offset !== null && isProduction(hit.file) && (!TEXT_KINDS.has(hit.kind) || keyed.has(hit))) || productData.has(hit.file),
+  );
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
   return {
