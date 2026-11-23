@@ -120,6 +120,7 @@ import {
   isTypeAliasDeclaration,
   isTypeLiteralNode,
   isTypeParameterDeclaration,
+  isTypePredicateNode,
   isTypeQueryNode,
   isTypeReferenceNode,
   isUnionTypeNode,
@@ -411,9 +412,9 @@ export type FlowSite =
   | { readonly slot: "contextual"; readonly value: Expression }
   | { readonly slot: "holder"; readonly value: Expression; readonly holder: Expression };
 
-/** A call or construction with explicit type arguments. */
+/** A call, a construction or a generic type reference with explicit type arguments. */
 export interface TypeArgumentSite {
-  readonly call: CallExpression | NewExpression;
+  readonly call: CallExpression | NewExpression | TypeReferenceNode;
   readonly arguments: readonly TypeNode[];
 }
 
@@ -491,6 +492,8 @@ export class FileSites {
   readonly genericCalls: CallExpression[] = [];
   /** String literal arguments, which name a member where the parameter is `keyof` a type. */
   readonly keyArguments: Expression[] = [];
+  /** A returned key literal, or a conditional of them, with its function's declared return type. */
+  readonly keyReturns: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
   readonly typePairs: { readonly value: Node; readonly slot: Node }[] = [];
   /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
@@ -889,6 +892,13 @@ class Walker {
         pairs.push(...literals.map((pattern) => ({ target, pattern: unparenType(pattern) })));
       }
     }
+    // a type predicate's literal is matched against the parameter it narrows (`decl is { none: string }`): its members
+    // key, while the parameter's own members stay as they are, since a wider parameter still admits the predicate
+    if (isTypePredicateNode(node) && node.type !== undefined) {
+      for (const member of patternMembers(unparenType(node.type))) {
+        this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
+      }
+    }
     for (const { target, pattern } of pairs) {
       if (!isTypeLiteralNode(pattern)) {
         continue;
@@ -1210,11 +1220,21 @@ class Walker {
       this.#sites.globalAssigns.push({ target: node.left, value: node.right });
     }
     this.#libraryShapes(node);
+    this.#keyReturn(node);
     if (product) {
       const site = valueFlowSite(node) ?? copyFlowSite(node);
       if (site !== undefined) {
         this.#sites.flowSites.push(site);
       }
+    }
+  }
+
+  // A returned key literal: the function's declared return type may be a `keyof` that names a member by it.
+  #keyReturn(node: Node): void {
+    const returned = isReturnStatement(node) && node.expression !== undefined && keyLiterals(node.expression) !== null ? node.expression : undefined;
+    const declared = returned === undefined ? undefined : declaredReturnType(node);
+    if (returned !== undefined && declared !== undefined) {
+      this.#sites.keyReturns.push({ value: returned, type: declared });
     }
   }
 
@@ -1263,6 +1283,7 @@ class Walker {
     if (!isTypeReferenceNode(node) || node.typeArguments === undefined || node.typeArguments.length === 0) {
       return;
     }
+    this.#sites.typeArguments.push({ call: node, arguments: node.typeArguments });
     const name = referenceName(node);
     const [target, keys] = node.typeArguments;
     if (ARM_SELECTORS.has(name)) {
@@ -1451,6 +1472,15 @@ function exportedStatement(node: Node): boolean {
 
 const isDocNameHolder = (node: Node): boolean =>
   isJSDocLink(node) || isJSDocLinkCode(node) || isJSDocLinkPlain(node) || isJSDocNameReference(node) || isJSDocTypeExpression(node);
+
+// The return type the function holding a return statement declares.
+function declaredReturnType(node: Node): TypeNode | undefined {
+  let at: Node = node.parent;
+  while (!(isFunctionLikeDeclaration(at) || isSourceFile(at))) {
+    at = at.parent;
+  }
+  return isFunctionLikeDeclaration(at) ? at.type : undefined;
+}
 
 // A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
 // function's return), or a literal property's value.
