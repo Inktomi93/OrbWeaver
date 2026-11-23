@@ -38,6 +38,7 @@
 // chips; once the turn stops streaming it admits no new panel.
 
 import type { CardTrust } from "@orb/contracts/chat";
+import type { AppearanceSettings } from "@orb/contracts/settings";
 import { SMOOTH_STREAM_OFF } from "@orb/contracts/settings";
 import type { GhostContentSegment } from "@orb/kit/content";
 import { modelPanels, scanGhostContent, scanStyledHold, stripStyleElements, stripTags } from "@orb/kit/content";
@@ -373,8 +374,8 @@ export interface GhostMessageRowProps {
   readonly messageKind: MessageKind;
   /** The ghost's display depth (`displayDepthsOf`). */
   readonly displayDepth: number | undefined;
-  readonly avatarSize?: "sm" | "md" | "lg" | undefined;
-  readonly avatarShape?: "round" | "square" | "rounded" | undefined;
+  readonly avatarSize?: AppearanceSettings["avatarSize"] | undefined;
+  readonly avatarShape?: AppearanceSettings["avatarShape"] | undefined;
   readonly avatarAspect?: "square" | "portrait" | undefined;
   readonly avatarRing?: "none" | "accent" | undefined;
   readonly showInChatAvatars?: boolean | undefined;

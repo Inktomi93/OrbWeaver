@@ -3,6 +3,7 @@ import type { PluginBundleHash, PluginManifest } from "@orb/contracts/plugin";
 import { pluginBundleHashSchema, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { SNIFFED_IMAGE_MIMES } from "@orb/kit/image-sniff";
 import { z } from "zod";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
@@ -29,7 +30,7 @@ export const pluginUrlPreviewSchema = z.strictObject({
 /** Bytes served to an isolated frame after current ownership, consent, residency, path and MIME checks. */
 export interface PluginFrameAsset {
   readonly bytes: Uint8Array;
-  readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+  readonly mime: (typeof SNIFFED_IMAGE_MIMES)[number];
 }
 
 /** What ONE user's application of the published set did (`applyDistributedPlugins`). Slugs, not views: the

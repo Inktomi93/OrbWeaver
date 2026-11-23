@@ -29,6 +29,7 @@ import {
   SPEND_ARM_TYPES,
 } from "@orb/contracts/automation";
 import type { RoutableTask } from "@orb/contracts/inference";
+import type { Notify } from "#lib";
 import { ITEM_ENABLED_SETTING, itemSwitchName, timeLib } from "#lib";
 import type { FireOutcomeView } from "./fire-outcome.ts";
 
@@ -387,7 +388,10 @@ export function fireDetailLine(outcome: string, detail: Record<string, unknown> 
  *  outcome — including `action_error` and `authority_refused` — went out as a SUCCESS toast, which is the
  *  notify seam's own header argument made concrete). `warn` is the honest-degrade channel: the rule is
  *  healthy, it simply declined to act; `error` is reserved for the two arms where something BROKE. */
-export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): { readonly channel: "success" | "warn" | "error"; readonly line: string } {
+export function runOutcomeNotice(
+  name: string,
+  outcome: AutomationRunOutcome,
+): { readonly channel: Extract<keyof Notify, "success" | "warn" | "error">; readonly line: string } {
   switch (outcome) {
     case "fired":
       return { channel: "success", line: `Ran "${name}": it fired.` };

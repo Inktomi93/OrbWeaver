@@ -3,6 +3,7 @@
 
 import { blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";
+import type { AppearanceSettings } from "@orb/contracts/settings";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Row, Stack } from "@orb/ui/layout";
@@ -14,13 +15,14 @@ import type { RowAttribution } from "../lib/attribution.ts";
 import { messageNumberLabel } from "../lib/message-readout.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import { avatarSrcProp } from "../lib/message-row-variants.ts";
+import type { GutterRail } from "../lib/row-placement.ts";
 import type { ArtView } from "./art-slot.tsx";
 import { ChipAvatar, PortraitAvatar } from "./art-slot.tsx";
 import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
 import { MessageNumber } from "./message-metadata-row.tsx";
 
 // A chip in a `1fr` rail must hug the centred column's edge or it drifts to the far side of the margin.
-const RAIL_SELF = { none: undefined, leading: "railEnd", trailing: "railStart" } as const;
+const RAIL_SELF = { none: undefined, leading: "railEnd", trailing: "railStart" } as const satisfies Readonly<Record<GutterRail, string | undefined>>;
 
 // "sticky-portrait" (Ripple) swaps the chip for a smart-cropped 2:3 portrait pinned via
 // position:sticky, forcing shape="square" regardless of the avatarShape pref. Its weld rounds only the
@@ -31,8 +33,8 @@ export function renderRowAvatar(args: {
   readonly avatarTreatment: ReturnType<RowSkin["avatarTreatment"]>;
   readonly role: MessageRole;
   readonly showInChatAvatars: boolean;
-  readonly avatarSize: "sm" | "md" | "lg";
-  readonly avatarShape: "round" | "square" | "rounded";
+  readonly avatarSize: AppearanceSettings["avatarSize"];
+  readonly avatarShape: AppearanceSettings["avatarShape"];
   readonly avatarAspect: "square" | "portrait";
   readonly avatarRing: "none" | "accent";
   /** #288 — the gutter chip aligns with the SPEAKER'S NAME, and since the header moved inside the
@@ -49,7 +51,7 @@ export function renderRowAvatar(args: {
    *  the far side of the margin: `justify-self-end` for a leading chip, `justify-self-start` for a
    *  trailing one. Inert below the crossover and inert for every `anchored` skin, where the row body is
    *  still a flex line and `justify-self` has no grid to resolve against. */
-  readonly gutterRail: "none" | "leading" | "trailing";
+  readonly gutterRail: GutterRail;
   /** The transcript's art viewer; null outside one, which leaves the avatar plain paint. */
   readonly viewArt: ArtViewer | null;
   readonly artControl: ArtView["control"];

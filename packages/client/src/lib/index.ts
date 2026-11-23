@@ -255,7 +255,7 @@ export {} from "./log-clock.ts";
 export type { DisplayRowCall, MessageRenderContext } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { NonEmptyLabel } from "./non-empty-label.ts";
-export type { NotifyAction, NotifyNotice } from "./notify.ts";
+export type { Notify, NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
 export { OS_PREFERENCE_LABELS } from "./os-preference-labels.ts";
