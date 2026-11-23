@@ -305,6 +305,9 @@ const MIN_MINUTES = 1 / 60;
 // checked files on a whole-tree run.
 const GROUP_CANDIDATES = 256;
 
+/** What each progress line of a trial group starts with, so a failure can name the group it came on. */
+export const TRIAL_GROUP = "trial group";
+
 const unresolvedTrial = (
   { bucket, finding, tsUnused }: { readonly bucket: TrialBucket; readonly finding: Finding; readonly tsUnused: boolean },
   note: string,
@@ -787,7 +790,7 @@ class Trials {
     const started = performance.now();
     let done = 0;
     for (const [at, items] of groups.entries()) {
-      log(`trial group ${String(at + 1)}/${String(groups.length)} starting: ${String(items.length)} candidates, first ${items[0]?.finding.label ?? ""}`);
+      log(`${TRIAL_GROUP} ${String(at + 1)}/${String(groups.length)} starting: ${String(items.length)} candidates, first ${items[0]?.finding.label ?? ""}`);
       const outcome = this.group(items);
       for (const [x, item] of items.entries()) {
         const trial = outcome[x];
@@ -799,7 +802,7 @@ class Trials {
       done += items.length;
       const minutes = (performance.now() - started) / MS_PER_MINUTE;
       log(
-        `trial groups ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+        `${TRIAL_GROUP}s ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
       );
     }
     return tried;

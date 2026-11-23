@@ -52,7 +52,7 @@ import {
   verifyGraph,
 } from "./graph/scan.ts";
 import type { TrialBucket } from "./graph/trial.ts";
-import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_GROUP, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { FileLedger } from "./graph/trial-ledger.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
@@ -868,12 +868,22 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
   const kinds = [...new Set<ProfileKind>([PROFILES[0], ...args.profile])];
   const timed: GraphOptions = { ...FRESH_BUILD, profile: { kinds, dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
   const ledger = new FileLedger(args.root, resolve(checkoutOf(args.root), `${args.out}${TRIAL_LEDGER_SUFFIX}`));
+  // The last trial-group line the run logged names the step a failure came on; the log lines after it (a disposal that failed too) do not.
+  const seen: string[] = [];
+  const tracked = (line: string): void => {
+    if (line.startsWith(TRIAL_GROUP)) {
+      seen.push(line);
+    }
+    log(line);
+  };
   let report: Awaited<ReturnType<typeof trialGraph>>;
   try {
-    report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, ledger }, log, timed);
+    report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, ledger }, tracked, timed);
   } catch (error) {
     // The trials that landed are the run's result so far: keep them with the failure, and a rerun of this commit skips them.
-    ledger.fail(describeThrown(error, "message"));
+    const note = `the trial failed at ${new Date().toISOString()}; last progress: ${seen.at(-1) ?? "none"}`;
+    log(note);
+    ledger.fail(`${describeThrown(error, "message")} (${note})`);
     const partial = write(args.root, args.out, ledger.kept);
     log(`the trial failed after ${String(ledger.kept.trials.length)} kept trials; they and the failure are in ${partial}`);
     throw error;

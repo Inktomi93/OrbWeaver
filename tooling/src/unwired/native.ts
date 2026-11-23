@@ -1,6 +1,5 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
-import type { ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
@@ -544,14 +543,6 @@ export class NativeWorld implements Disposable {
   siteOf(node: Node): Site {
     const source = node.getSourceFile();
     return { file: this.#fileOfPath.get(source.path) ?? relative(this.#root, source.fileName), position: node.getStart(source) };
-  }
-
-  /** The compiler's child process, or null when the API does not expose it.
-   *  @remarks Read off the API's private channel (`client.channel.child`): the API names a dead child's exit only in an
-   *  error raised before the event loop learns of it, so a caller that wants the code or signal waits on this handle. */
-  compilerProcess(): ChildProcess | null {
-    const { client } = this.#api as unknown as { readonly client?: { readonly channel?: { readonly child?: ChildProcess } } };
-    return client?.channel?.child ?? null;
   }
 
   [Symbol.dispose](): void {

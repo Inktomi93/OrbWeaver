@@ -847,9 +847,10 @@ test("a trial that fails keeps the trials that landed with its failure, and a re
     .object({ trials: z.array(z.object({ label: z.string(), verdict: z.string() })), failure: z.string() })
     .parse(JSON.parse(readFileSync(out, "utf8")));
   expect(partial.trials.map(({ label, verdict }) => [label, verdict])).toEqual([[`${FIRST}:Ax.x`, NAMED_ONLY]]);
-  // the failure names how the compiler died and the group it was on
-  expect(partial.failure).toMatch(/exited with signal SIGKILL at \S+; last progress: trial group 2\/2 starting/u);
-  expect(crashed.stderr).toContain("exited with signal SIGKILL");
+  // the failure keeps the run's own error, the time and the group it was on; the tool prints the run's own error
+  expect(partial.failure).toMatch(/Unexpected EOF.*the trial failed at \S+; last progress: trial group 2\/2 starting/u);
+  expect(crashed.stderr).toContain("Unexpected EOF");
+  expect(crashed.stderr).not.toContain("EPIPE");
   const rerun = await runCli("unwired", argv);
   await expect(rerun).toExitWith(EXIT.clean);
   expect(rerun.stderr).toContain("resumed 1 trials");
