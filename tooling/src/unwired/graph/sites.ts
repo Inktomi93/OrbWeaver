@@ -665,8 +665,9 @@ export interface WalkSink {
 
 const CSS_NAME = /^--[\w-]+$/u;
 const TV = "tv";
-/** The tRPC options-proxy verb for a paged query, and the input member its pages fill. */
-export const PAGED_QUERY = "infiniteQueryOptions";
+// The tRPC options-proxy verb for a paged query.
+const PAGED_QUERY = "infiniteQueryOptions";
+/** The input member a paged query's pages fill. */
 export const PAGE_CURSOR = "cursor";
 const URL_CONSTRUCTOR = "URL";
 const WELL_KNOWN_SYMBOLS = "Symbol";
