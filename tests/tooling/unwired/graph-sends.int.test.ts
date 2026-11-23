@@ -175,6 +175,54 @@ test("a value taken by a library's bare type parameter is sent; our own generic 
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Own.c"]);
 });
 
+// A type parameter an outer declaration binds (a class's, a state setter's `Dispatch<A>`) was fixed where its holder was
+// typed, so a value handed in pairs with that instantiation and is read where the holder hands it back. A callable arm of
+// the slot (`SetStateAction`'s updater) takes no value that is not a function.
+test("a library type parameter its holder binds pairs the value with the holder's instantiation", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export interface Box<T> { put(value: T): void; take(): T }",
+      "export declare function box<T>(): Box<T>;",
+      "export type SetStateAction<S> = S | ((prev: S) => S);",
+      "export type Dispatch<A> = (value: A) => void;",
+      "export declare function useState<S>(initial: S): [S, Dispatch<SetStateAction<S>>];",
+    ]),
+    ...source([
+      'import { box, useState } from "lib";',
+      "export interface Boxed { readonly kept: string; readonly unread: string }",
+      "export interface Shown { readonly kept: string; readonly unread: string }",
+      "export const boxed = (value: Boxed): string => { const held = box<Boxed>(); held.put(value); return held.take().kept; };",
+      'export const useShown = (value: Shown): string => { const [shown, setShown] = useState<Shown | null>(null); setShown(value); return shown?.kept ?? ""; };',
+    ]),
+  });
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual([]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Boxed.unread", "Shown.unread"]);
+});
+
+// A library slot typed `unknown` takes a value by identity (open-sends.ts identitySlot), as React compares a dependency
+// list, so nothing in the value is read or sent; a library slot that takes keys still sends what it is given.
+test("a library slot typed unknown takes a value by identity; a keyed library slot sends it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export type DependencyList = readonly unknown[];",
+      "export declare function useEffect(effect: () => void, deps?: DependencyList): void;",
+      "export declare function same(value: unknown): boolean;",
+      "export declare function record(value: object): void;",
+    ]),
+    ...source([
+      'import { record, same, useEffect } from "lib";',
+      "export interface Watched { readonly unread: string }",
+      "export interface Compared { readonly unread: string }",
+      "export interface Logged { readonly unread: string }",
+      "export const watch = (value: Watched): void => useEffect(() => undefined, [value]);",
+      "export const compare = (value: Compared): boolean => same(value);",
+      "export const log = (value: Logged): void => record(value);",
+    ]),
+  });
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Logged.unread"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Watched.unread", "Compared.unread"]);
+});
+
 test("a union value fills a library slot arm by arm", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...libraryModule([

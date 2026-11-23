@@ -23,7 +23,7 @@ import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sy
 import { TypeFlags } from "@typescript/native/sync";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Destination } from "../open-sends.ts";
-import { sendDestinations } from "../open-sends.ts";
+import { identitySlot, sendDestinations } from "../open-sends.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf } from "./resolve.ts";
@@ -85,7 +85,8 @@ export function* opaqueSlot(state: GraphState, type: Type): APIRequestGenerator<
     if (opaqueFlag(arm)) {
       return true;
     }
-    if (!isPrimitive(arm) && (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0) {
+    // a callable arm names no members, but a value that is not a function never lands in it
+    if (!isPrimitive(arm) && (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0 && (yield* arm.getCallSignatures.gen()).length === 0) {
       return true;
     }
   }
@@ -121,7 +122,10 @@ export class Flows {
    *  message door's send, paired later (message-doors.ts). */
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
-    this.link([...this.#handedWhole(sites, held.node), ...this.#flowSites(sites, held.node), ...this.#typePairs(sites)], sites.file);
+    const handed = this.#handedWhole(sites, held.node);
+    // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
+    const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
+    this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites)], sites.file);
     this.#heldTypes = NO_HELD_TYPES;
   }
 
@@ -240,29 +244,33 @@ export class Flows {
   }
 
   // A value handed on whole: into an opaque slot it escapes; into a slot naming its members it pairs member by member.
-  #handedWhole(sites: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
+  #handedWhole(sites: FileSites, held: (node: Node) => boolean): { readonly pairs: readonly FlowPair[]; readonly taken: readonly Node[] } {
     const { state } = this;
     const handed = [...this.#zodCallsDropped(sites.handedWhole.filter(({ node }) => !held(node))), ...this.#published(sites)];
     if (handed.length === 0) {
-      return [];
+      return { pairs: [], taken: [] };
     }
-    const libraryGeneric = this.#libraryGeneric(handed);
+    const calls = this.#libraryCalls(handed);
     const nodes = handed.map(({ node }) => (isSpreadElement(node) ? node.expression : node));
     const values = state.world.typesAt(nodes);
     const slotAt = handed.flatMap((entry, at) => (entry.spread ? [] : [at]));
     const contextual = state.batch(slotAt.flatMap((at) => (nodes[at] === undefined ? [] : [state.world.checker.getContextualType.gen(nodes[at])])));
     const slots = new Map(slotAt.map((at, y) => [at, contextual[y]]));
     this.#opaqueOf([...slots.values()].flatMap((type) => (type === undefined ? [] : [type])));
+    // a library slot typed `unknown` takes the value by identity (open-sends.ts identitySlot): the value is neither read nor sent
+    const identityAsks = [...slots.entries()].flatMap(([at, slot]) => (slot !== undefined && calls.library.has(at) ? [{ at, slot }] : []));
+    const identity = state.batch(identityAsks.map(({ slot }) => identitySlot(state.world, slot)));
+    const taken = new Set(identityAsks.flatMap(({ at }, y) => (identity[y] === true ? [at] : [])));
     const spreads = this.#spreadPairs(handed, values);
     const pairs: FlowPair[] = [];
     const escaping: { readonly at: number; readonly value: Type; readonly door: boolean }[] = [];
     for (const [at, entry] of handed.entries()) {
       const value = values[at];
       const slot = slots.get(at);
-      if (spreads.paired.has(at) || value === undefined || isPrimitive(value)) {
+      if (spreads.paired.has(at) || taken.has(at) || value === undefined || isPrimitive(value)) {
         continue;
       }
-      if (entry.spread || entry.door || libraryGeneric.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
+      if (entry.spread || entry.door || calls.generic.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
         escaping.push({ at, value, door: entry.door });
       } else if (slot !== undefined) {
         pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos });
@@ -272,7 +280,7 @@ export class Flows {
     for (const [y, { at, value, door }] of escaping.entries()) {
       this.escape(value, door, { file: sites.file, at: nodes[at]?.pos ?? 0 }, sends[y] ?? UNCLASSIFIED);
     }
-    return [...spreads.pairs, ...pairs];
+    return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
   }
 
   // Where each escaping value goes, asked only when the build keeps role sites to carry the answer.
@@ -340,23 +348,28 @@ export class Flows {
     });
   }
 
-  // The arguments a library signature takes as a bare type parameter (`c.json<T>(object: T)`, `Response.json`): the
-  // contextual type is the inferred instantiation, the value's own type, so only the declaration shows the slot is
-  // opaque. Our own generic functions keep flowing, as their bodies are walked.
-  #libraryGeneric(handed: readonly HandedWhole[]): ReadonlySet<number> {
+  // The arguments of a library call: `library` holds each, `generic` those the signature takes as a type parameter it
+  // declares itself (`c.json<T>(object: T)`, `Response.json`). There the contextual type is the inferred
+  // instantiation, the value's own type, so only the declaration shows the slot is opaque. A type parameter an outer
+  // declaration binds (a state setter's `Dispatch<A>`, `Map<K, V>.set`) was fixed where its holder was typed, so the
+  // contextual type is that instantiation and the value pairs with it. Our own generic functions keep flowing, as their
+  // bodies are walked.
+  #libraryCalls(handed: readonly HandedWhole[]): { readonly library: ReadonlySet<number>; readonly generic: ReadonlySet<number> } {
     const state = this.#state;
     const { checker } = state.world;
     const asks = handed.flatMap(({ call }, x) => (call === undefined ? [] : [{ x, call }]));
     const signatures = state.batch(asks.map(({ call }) => checker.getResolvedSignature.gen(call.node)));
-    const declared = state.batch(
-      asks.map(({ call }, y) => {
-        const signature = signatures[y];
-        return signature?.declaration === undefined || state.resolver.ours(signature.declaration)
-          ? answer(undefined)
-          : declaredParameterType(state, signature, call.index);
+    const library = asks.filter((_, y) => {
+      const declaration = signatures[y]?.declaration;
+      return declaration !== undefined && !state.resolver.ours(declaration);
+    });
+    const own = state.batch(
+      library.map(({ x, call }) => {
+        const signature = signatures[asks.findIndex((ask) => ask.x === x)];
+        return signature === undefined ? answer(false) : ownTypeParameter(state, signature, call.index);
       }),
     );
-    return new Set(asks.flatMap(({ x }, y) => (declared[y]?.isTypeParameter() === true ? [x] : [])));
+    return { library: new Set(library.map(({ x }) => x)), generic: new Set(library.flatMap(({ x }, y) => (own[y] === true ? [x] : []))) };
   }
 
   // `globalThis.x = v` on a global our own `declare global` declares: published to readers outside the program (a
@@ -634,6 +647,13 @@ export class Flows {
 }
 
 // The type a signature's declaration gives its parameter at `index`, before instantiation.
+// Whether a signature's parameter at `index` is typed by a type parameter the signature declares itself, so the call infers it.
+function* ownTypeParameter(state: GraphState, signature: Signature, index: number): APIRequestGenerator<boolean> {
+  const target = (yield* signature.getTarget.gen()) ?? signature;
+  const declared = yield* declaredParameterType(state, signature, index);
+  return declared?.isTypeParameter() === true && (target.typeParameters ?? []).includes(declared.id);
+}
+
 function* declaredParameterType(state: GraphState, signature: Signature, index: number): APIRequestGenerator<Type | undefined> {
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const parameter = (yield* target.getParameters.gen())[index];
