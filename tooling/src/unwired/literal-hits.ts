@@ -69,6 +69,7 @@ import {
   SyntaxKind,
   skipTrivia,
 } from "@typescript/native/ast";
+import { isRemoteNode } from "@typescript/native/sync";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { execGit, runGit } from "../floor/git/git.ts";
@@ -81,7 +82,7 @@ import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
-import { declarationKeys } from "./native.ts";
+import { declarationKeys, nodePlace } from "./native.ts";
 import { isProduction } from "./optional-population.ts";
 
 const DEAD: Verdict = "dead";
@@ -464,12 +465,27 @@ function heldNodeAt(world: NativeWorld, file: string, offset: number): Node | un
   return source === undefined ? undefined : getTokenAtPosition(source, offset);
 }
 
+// Every node bound for the checker that did not come from the program's own tree, named with where it came from, so a
+// failing batch lists all its offenders rather than the API's first refusal.
+function sendable(query: string, asked: readonly { readonly node: Node; readonly what: string }[]): void {
+  const foreign = asked.filter(({ node }) => !isRemoteNode(node));
+  if (foreign.length > 0) {
+    throw new Error(
+      `literal hits: ${String(foreign.length)} of ${String(asked.length)} nodes for ${query} are not from the program's tree:\n${foreign.map(({ node, what }) => `  ${what}: ${nodePlace(node)}`).join("\n")}`,
+    );
+  }
+}
+
 // What each code hit in a held file resolves to, in one batched lookup.
 function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlyMap<LiteralHit, readonly string[]> {
   const asked = hits.flatMap((hit) => {
     const node = hit.graph && hit.offset !== null && CODE_KINDS.has(hit.kind) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
     return node === undefined ? [] : [{ hit, node }];
   });
+  sendable(
+    "the literal hits' code reads",
+    asked.map(({ hit, node }) => ({ node, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, node from getTokenAtPosition at ${String(hit.offset)}` })),
+  );
   const symbols = world.symbolsAt(asked.map(({ node }) => node));
   return new Map(
     asked.flatMap(({ hit }, at) => {
@@ -481,14 +497,15 @@ function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): Readonly
 
 // The declaration keys each row's known sites resolve to in the held files: the row's own member, however many
 // declarations it merges. An empty set (no known site the program holds resolves) drops no hit.
-function rowDeclarations(world: NativeWorld, rows: readonly { readonly known: readonly string[] }[]): readonly ReadonlySet<string>[] {
+function rowDeclarations(world: NativeWorld, rows: readonly { readonly member: string; readonly known: readonly string[] }[]): readonly ReadonlySet<string>[] {
   const asked = rows.flatMap((row, at) =>
     row.known.flatMap((key) => {
       const split = key.lastIndexOf(":");
       const node = heldNodeAt(world, key.slice(0, split), Number(key.slice(split + 1)));
-      return node === undefined ? [] : [{ at, node }];
+      return node === undefined ? [] : [{ at, node, what: `known site ${key} of ${row.member}, node from getTokenAtPosition` }];
     }),
   );
+  sendable("the rows' known sites", asked);
   const symbols = world.symbolsAt(asked.map(({ node }) => node));
   const keys = rows.map(() => new Set<string>());
   for (const [index, { at }] of asked.entries()) {

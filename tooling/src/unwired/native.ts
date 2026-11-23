@@ -19,6 +19,7 @@ import {
   isSetAccessorDeclaration,
   isShorthandPropertyAssignment,
   isStringLiteral,
+  SyntaxKind,
 } from "@typescript/native/ast";
 import type {
   APIRequestGenerator,
@@ -36,7 +37,7 @@ import type {
   TimingAccumulators,
   Type,
 } from "@typescript/native/sync";
-import { API, all, SymbolFlags } from "@typescript/native/sync";
+import { API, all, isRemoteNode, SymbolFlags } from "@typescript/native/sync";
 import { z } from "zod";
 import { isLibrarySource } from "../brand-names/index.ts";
 import { workspacePackageRoots } from "../package-effects/index.ts";
@@ -56,6 +57,14 @@ export type TrialStep = (typeof TRIAL_STEPS)[number];
 
 /** The name {@link NativeWorld.libraryOf} gives the compiler's own default library files, which belong to no manifest. */
 export const DEFAULT_LIBRARY = "(default library)";
+
+/** A node's place for an error: its file, span and syntax kind, and whether it came from the program's own tree (a
+ *  token the AST navigator makes for syntax with no node does not). */
+export function nodePlace(node: Node): string {
+  const file = node.getSourceFile().fileName;
+  const origin = isRemoteNode(node) ? "program tree" : "navigator token";
+  return `${file} pos=${String(node.pos)} end=${String(node.end)} ${SyntaxKind[node.kind]} (${origin})`;
+}
 
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
@@ -350,8 +359,19 @@ export class NativeWorld implements Disposable {
   /** The symbol at each node, an import alias followed to the symbol it names. Each chunk of nodes is one wire request
    *  (`getSymbolsAtLocations`), not one request per node. */
   symbolsAt(nodes: readonly Node[]): (NativeSymbol | undefined)[] {
-    const found = this.batch(chunked(nodes).map((chunk) => this.checker.getSymbolAtLocation.gen(chunk))).flat();
-    return this.#unalias(found);
+    const foreign = nodes.filter((node) => !isRemoteNode(node));
+    if (foreign.length > 0) {
+      throw new Error(
+        `getSymbolAtLocation: ${String(foreign.length)} of ${String(nodes.length)} nodes are not from the program's tree:\n${foreign.map((node) => `  ${nodePlace(node)}`).join("\n")}`,
+      );
+    }
+    try {
+      return this.#unalias(this.batch(chunked(nodes).map((chunk) => this.checker.getSymbolAtLocation.gen(chunk))).flat());
+    } catch (error) {
+      throw new Error(`getSymbolAtLocation over ${String(nodes.length)} nodes failed; the first is ${nodes[0] === undefined ? "none" : nodePlace(nodes[0])}`, {
+        cause: error,
+      });
+    }
   }
 
   /** The value symbol each shorthand property assignment's name reads. */
