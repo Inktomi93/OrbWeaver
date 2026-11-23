@@ -6,7 +6,7 @@ import type { Page } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
 import { settle } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { buildNavScript } from "../../floor/instrument/nav.ts";
+import { evaluateNav } from "../../floor/instrument/nav.ts";
 import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
@@ -36,7 +36,7 @@ function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow, chatRoom: str
  *  proves an unreachable surface REFUSES BY NAME instead of surfacing as a bare Playwright timeout. */
 export async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow, chatRoom: string | null): Promise<void> {
   const [kind, target, waitSelector] = appearanceSurfaceNav(row, chatRoom);
-  const result = navResultShape(await page.evaluate(buildNavScript(kind, target)), `nav ${kind} ${target}`);
+  const result = navResultShape(await evaluateNav(page, kind, target), `nav ${kind} ${target}`);
   if (!result.ok) {
     instrumentRefusal(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
   }

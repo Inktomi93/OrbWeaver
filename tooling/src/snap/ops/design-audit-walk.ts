@@ -305,7 +305,7 @@ export async function walkDesignAudit(input: WalkInput): Promise<DesignAuditMeas
   }
 
   const drive = opts.actions.length === 0 ? "rest" : "driven";
-  const shellState = shellStateSnapshot(await page.evaluate("window.__orb ? window.__orb.shell() : null"));
+  const shellState = shellStateSnapshot(await page.evaluate(() => globalThis.__orb?.shell() ?? null));
   const surfaceState = buildSurfaceStateAccounting(shellState, drive);
   const audit = collectAudit(samples);
   const findings: Finding[] = [...audit.findings, ...checkScriptErrors(session.pageErrors.filter((error) => error.kind === "runtime").map(pageErrorText))].map(

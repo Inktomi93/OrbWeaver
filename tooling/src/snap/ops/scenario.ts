@@ -107,9 +107,8 @@ interface ScenarioEvidenceRange {
   readonly diagnosticWindow: number;
 }
 
-// Raw string, not a function: the tooling program is DOM-less and has no __orb ambient (floor/browser/browser.ts).
 async function resetScenarioEvidence(page: Page): Promise<void> {
-  await page.evaluate("window.__orb && window.__orb.resetEvidence()");
+  await page.evaluate(() => globalThis.__orb?.resetEvidence());
 }
 
 async function captureScenarioCheckpoints(

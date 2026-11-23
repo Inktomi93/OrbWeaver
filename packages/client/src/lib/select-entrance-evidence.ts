@@ -5,6 +5,7 @@
 
 import type { SelectOpeningObservation, SelectOpeningRequest } from "@orb/ui/select";
 import { SELECT_OPENING_PHASES, subscribeSelectOpening } from "@orb/ui/select";
+import type { SelectEntranceEvidence } from "./agent-bridge-contract.ts";
 
 const SELECT_TRIGGER_SELECTOR = '[data-slot="select-trigger"]';
 const SELECT_POSITIONER_SELECTOR = '[data-slot="select-positioner"]';
@@ -15,14 +16,6 @@ const SELECT_ENTRANCE_MAX_MS = 300;
 const OBSERVER_DELIVERY_GRACE_MS = 200;
 const POST_TRANSITION_PRESENTED_FRAMES = 2;
 const TRACE_PREFIX = "orb:select-entrance";
-
-export interface SelectEntranceEvidence {
-  readonly id: number;
-  readonly startedAt: number;
-  readonly confirmedAt?: number;
-  readonly endedAt?: number;
-  readonly firstForTrigger: boolean;
-}
 
 // The evidence fields derive from the published `SelectEntranceEvidence`, so the observer writes and the LoAF
 // ring's readers share one declaration; the rest is observer-only state.

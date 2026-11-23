@@ -13,6 +13,8 @@
 //   handed to a wire shape writes the wire's `at`, not the row's. Only a key the slot declares no member for (a generic
 //   call infers the slot from the literal itself, `run<R>({ req: { ...req, accounting } })`) fills the spread source's.
 // - A literal no slot types writes its own keys, so a flow from the slot it is handed into carries the writes.
+// - A literal a zod schema validates (`schema.parse({ … })`) is typed by the schema's input: parse takes the values its
+//   keys hold, so each key writes the schema key of its name, and a key the literal lacks stays unwritten.
 // - A key beside a spread writes its member, but the literal copies the spread value: it builds no home
 //   (state.ts `copyOnlyWrites`).
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
@@ -37,7 +39,7 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescr
 import { CheckFlags, TypeFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer, declKeyParts, unwrapExpression } from "./resolve.ts";
+import { answer, declKeyParts, unwrapExpression, ZOD_PACKAGE } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
 import { declarationNameOf, isZodShapeKey, PAGE_CURSOR } from "./sites.ts";
@@ -57,6 +59,10 @@ interface SlotWrite {
 
 const spanKey = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
 
+// zod's validators, each taking the schema's input, and the member that declares that input's type.
+const ZOD_VALIDATORS: ReadonlySet<string> = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
+const ZOD_INPUT = "_input";
+
 /** The value with its parentheses, non-null and type assertions removed. */
 export function unwrapValue(node: Node | undefined): Node | undefined {
   let at = unwrapExpression(node);
@@ -73,7 +79,7 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   const literals = [...new Map(sites.literalProperties.map(({ literal }) => [spanKey(literal), literal])).values()];
   const contextual = state.contextualTypes(literals);
   const slots = new Map(literals.map((literal, at) => [spanKey(literal), contextual[at]]));
-  for (const [key, type] of coInferredSlots(state, literals)) {
+  for (const [key, type] of [...coInferredSlots(state, literals), ...validatedSlots(state, literals)]) {
     slots.set(key, type);
   }
   // `--ablate=literal-keys` drops every object literal key's write: through its contextual type, through the spreads
@@ -438,6 +444,43 @@ function coInferredSlots(state: GraphState, literals: readonly ObjectLiteralExpr
     }
   }
   return out;
+}
+
+// A literal a zod schema validates (`schema.parse({ … })`), keyed by its span, with the schema's input as its slot:
+// the literal is what parse takes, so its keys fill the input keys even where a transform reshapes the output. The call
+// must resolve to zod's own declaration; a `parse` of another receiver takes the literal as nothing of ours.
+function validatedSlots(state: GraphState, literals: readonly ObjectLiteralExpression[]): ReadonlyMap<string, Type> {
+  const calls = literals.flatMap((literal) => {
+    const call = literal.parent;
+    return isCallExpression(call) &&
+      sameNode(call.arguments[0], literal) &&
+      isPropertyAccessExpression(call.expression) &&
+      ZOD_VALIDATORS.has(call.expression.name.text)
+      ? [{ literal, callee: call.expression }]
+      : [];
+  });
+  const symbols = state.world.symbolsAt(calls.map(({ callee }) => callee.name));
+  const zod = state.world.fromPackage(
+    symbols.map((symbol) => symbol?.declarations ?? []),
+    ZOD_PACKAGE,
+  );
+  const validated = calls.filter((_, at) => zod[at] === true);
+  const schemas = state.world.typesAt(validated.map(({ callee }) => callee.expression));
+  const inputs = state.batch(schemas.map((schema) => schemaInput(state, schema)));
+  const out = new Map<string, Type>();
+  for (const [at, { literal }] of validated.entries()) {
+    const input = inputs[at];
+    if (input !== undefined) {
+      out.set(spanKey(literal), input);
+    }
+  }
+  return out;
+}
+
+// The input type a zod schema declares, the type of its `_input`.
+function* schemaInput(state: GraphState, schema: Type): APIRequestGenerator<Type | undefined> {
+  const input = yield* state.world.checker.getPropertyOfType.gen(schema, ZOD_INPUT);
+  return input === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(input);
 }
 
 function* firstParameterType(state: GraphState, type: Type): APIRequestGenerator<Type | undefined> {

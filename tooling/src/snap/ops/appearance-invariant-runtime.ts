@@ -11,7 +11,7 @@ import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
 import { readBrowserEnvironment } from "../../floor/browser/browser-environment.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budgets } from "../../floor/host/load-budget.ts";
-import { buildNavScript } from "../../floor/instrument/nav.ts";
+import { evaluateNav } from "../../floor/instrument/nav.ts";
 import type { AppearanceCheckContext, AppearanceMutationIsolationEvidence } from "../contract/appearance-check-context.ts";
 import type { AppearanceCascadeExpectation, AppearanceInvariantReceipt, AppearanceMergeExpectation } from "../contract/appearance-invariants.ts";
 import type { ContrastEvidence } from "../contract/contrast.ts";
@@ -40,11 +40,13 @@ async function resetCheckpoint(page: Page): Promise<void> {
   // #1004 — each read below already had an INSTRUMENT ERROR arm for a FALSE answer and none for a
   // wrong SHAPE, which is the arm that reads as success (a non-boolean is truthy).
   const reset = checkpointReset(
-    await page.evaluate(`(() => {
-    if (typeof globalThis.__orb?.resetEvidence !== "function") return false;
-    globalThis.__orb.resetEvidence();
-    return true;
-  })()`),
+    await page.evaluate(() => {
+      if (typeof globalThis.__orb?.resetEvidence !== "function") {
+        return false;
+      }
+      globalThis.__orb.resetEvidence();
+      return true;
+    }),
   );
   if (!reset) {
     instrumentRefusal("Appearance row cannot reset checkpoint evidence");
@@ -53,13 +55,16 @@ async function resetCheckpoint(page: Page): Promise<void> {
 
 async function resetMeasuredEvidence(page: Page): Promise<void> {
   const failures = resetFailures(
-    await page.evaluate(`(() => {
-    if (typeof globalThis.__orb?.resetRing !== "function") return ["resetRing unavailable"];
-    return ["bus-events", "flags", "motion", "renders"]
-      .map((name) => globalThis.__orb.resetRing(name))
-      .filter((result) => result?.ok !== true)
-      .map((result) => String(result?.reason ?? result?.name ?? "unknown reset failure"));
-  })()`),
+    await page.evaluate(() => {
+      const orb = globalThis.__orb;
+      if (typeof orb?.resetRing !== "function") {
+        return ["resetRing unavailable"];
+      }
+      return ["bus-events", "flags", "motion", "renders"].flatMap((name) => {
+        const result = orb.resetRing(name);
+        return result.ok ? [] : [result.reason];
+      });
+    }),
   );
   if (failures.length > 0) {
     instrumentRefusal(`Appearance row cannot reset measured evidence: ${failures.join(", ")}`);
@@ -83,7 +88,7 @@ async function readMessageCarrierEvidence(page: Page): Promise<NonNullable<Appea
 async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {
   // #866 retired the settings overlay. The registered command dialog is the real current popup carrier;
   // R6 closes/reopens it around the real sizing control so popup tokens cannot inherit the draft preview.
-  const result = navResultShape(await page.evaluate(buildNavScript("goto", "modal:command")), "nav goto modal:command");
+  const result = navResultShape(await evaluateNav(page, "goto", "modal:command"), "nav goto modal:command");
   if (!result.ok) {
     instrumentRefusal(`Appearance row ${row.id} dialog navigation refused: ${result.reason ?? "unknown"}`);
   }
@@ -206,11 +211,13 @@ async function pixelEvidence(
 
 async function animationEvidence(page: Page): Promise<{ readonly total: number; readonly dirty: number; readonly properties: readonly string[] }> {
   const evidence = animationEvidenceShape(
-    await page.evaluate(`(() => {
-    if (typeof globalThis.__orb?.animations !== "function") return null;
-    const rows = globalThis.__orb.animations();
-    return { total: rows.length, dirty: rows.filter((row) => !row.compositorClean).length, properties: [...new Set(rows.flatMap((row) => row.properties))] };
-  })()`),
+    await page.evaluate(() => {
+      if (typeof globalThis.__orb?.animations !== "function") {
+        return null;
+      }
+      const rows = globalThis.__orb.animations();
+      return { total: rows.length, dirty: rows.filter((row) => !row.compositorClean).length, properties: [...new Set(rows.flatMap((row) => row.properties))] };
+    }),
   );
   return evidence ?? instrumentRefusal("Appearance row cannot read active-animation evidence");
 }

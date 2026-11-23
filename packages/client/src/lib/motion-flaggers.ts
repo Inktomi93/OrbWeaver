@@ -31,8 +31,8 @@
 
 import type { MotionAllowance } from "@orb/kit/motion-allowance";
 import { COMPOSITOR_SAFE_PROPS, motionAllowanceOf } from "@orb/kit/motion-allowance";
+import type { AnimationRecord, MotionFlagRecord } from "./agent-bridge-contract.ts";
 import { logClock } from "./log-clock.ts";
-import type { AnimationRecord } from "./motion-animation-record.ts";
 import { animatedProperties, animationRecordOf, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
@@ -63,38 +63,6 @@ const MUTED_STYLE = "color:#888";
 
 // A long session must not grow the ring unbounded.
 const FLAG_RING_CAP = 128;
-
-/** One raised flag, as `__orb.flags()` returns it: which channel, what happened, who did it. */
-export interface MotionFlagRecord {
-  /** The channel tag WITHOUT brackets — `anim` · `css` · `drop` · `space`. */
-  readonly tag: string;
-  /** `performance.now()` at the raise. */
-  readonly at: number;
-  /** The stable surface marker (or token) the flag is attributed to — the dedupe identity. */
-  readonly offender: string;
-  /** The human sentence the console line carried. */
-  readonly detail: string;
-  /** true ⇒ a declared budget in `MOTION_BUDGETS` was crossed (vs. an unconditional correctness flag). */
-  readonly overBudget: boolean;
-  /** THE RAW BROWSER FACTS behind an `anim` raise — property set, target lifecycle state, owner/mechanism
-   *  attribution — as `motion-animation-record.ts` builds them, captured at LAUNCH.
-   *
-   *  Why it rides the flag and not just the console line (#1070): `__orb.animations()` samples
-   *  `document.getAnimations()`, so a 130–360ms house transition — the whole band this app animates in —
-   *  is over before any end-of-window read, and Snap's motion-arm dirty-animation budget was in
-   *  practice a continuous-LOOP detector judging a population that could not contain the transitions its
-   *  allowance table exists to sanction. The ring is checkpoint-scoped and cleared by `resetEvidence`, so
-   *  a driven probe reads exactly its own measured window.
-   *
-   *  IT CARRIES NO VERDICT. `overBudget` above is THIS channel's console verdict under guide §3.7 and is
-   *  deliberately not what a consumer reads: a reader re-judges these raw facts under its own policy (for
-   *  motion-audit, the #953 owner-accepted Base UI height allowance in `lib/animations.ts`, unchanged).
-   *  Present only on the `anim` channel; the other three raise no animation.
-   *
-   *  MUST NOT SILENTLY DISAPPEAR — a consumer that receives an `anim` flag without it cannot sanction the
-   *  ratified lifecycles and must treat the raise as unattributed. */
-  readonly animation?: AnimationRecord;
-}
 
 const flagRing: MotionFlagRecord[] = [];
 /** Dedupe identity per raised flag (`tag|offender|shape`). A component that animates `height` on every

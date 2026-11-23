@@ -45,9 +45,9 @@ function resetFailedRequestWindow(state: SessionCallState): void {
 }
 
 /** The scenario's `keepLivePage` shape: a live-page call resets the app's own evidence ring so `__orb`
- *  readers (queries/CLS) scope to this call. Raw string — the tooling program is DOM-less. */
+ *  readers (queries/CLS) scope to this call. */
 async function resetLiveEvidence(session: ProbeSession): Promise<void> {
-  await session.page.evaluate("window.__orb && window.__orb.resetEvidence()");
+  await session.page.evaluate(() => globalThis.__orb?.resetEvidence());
 }
 
 /** The artifact base a call falls back to when `--out` is absent — what `snapDestination` derives for a

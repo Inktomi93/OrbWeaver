@@ -40,6 +40,55 @@ test("a generic type spelled with a type argument keys each member its parameter
   expect(bucketsIn(scan)).toEqual(["member-untouched ReadOnlyDb.q", "member-untouched SeatDeps.spare"]);
 });
 
+// `Needs<Shape>` checks Shape against the conditional's pattern, so a delete of `Shape.b` breaks it; `Shape.c` is the
+// control the pattern does not name.
+test("a generic alias whose conditional checks its parameter keys each member of the argument the pattern names", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "export interface Shape { readonly kept: string; readonly b: string; readonly c: string }",
+      "type Needs<T> = T extends { readonly b: string } ? true : false;",
+      "export const needs: Needs<Shape> = true;",
+      "export const keptOf = (shape: Shape): string => shape.kept;",
+    ].join("\n"),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-untouched Shape.c"]);
+});
+
+// A key list typed `keyof T` asserted to `string[]` needs T's constraint to keep a key, so the constraint's one member is
+// a key use (the fuzzy-search index shape). A plain keyof list, a constraint of two members, and an assertion to a
+// readonly list or to `unknown` keep their bucket: a delete of the member leaves each valid.
+test("a keyof list asserted to a string list keys its constraint's lone member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "interface IndexArgs<T> { readonly fields: readonly (keyof T & string)[] }",
+      "export function build<T extends { id: string }>(args: IndexArgs<T>): string[] {",
+      "  return args.fields as string[];",
+      "}",
+      "export function both<T extends { a: string; b: string }>(fields: readonly (keyof T & string)[]): string[] {",
+      "  return fields as string[];",
+      "}",
+      "export function names<T extends { readonly id: string }>(fields: readonly (keyof T & string)[]): readonly string[] {",
+      "  return fields;",
+      "}",
+      "export function viaReadonly<T extends { id: string }>(fields: readonly (keyof T & string)[]): readonly string[] {",
+      "  return fields as readonly string[];",
+      "}",
+      "export function viaUnknown<T extends { key: string }>(fields: readonly (keyof T & string)[]): unknown {",
+      "  return fields as unknown;",
+      "}",
+    ].join("\n"),
+  });
+  expect(bucketsIn(scan)).toEqual([
+    "member-untouched both.a",
+    "member-untouched both.b",
+    "member-untouched names.id",
+    "member-untouched viaReadonly.id",
+    "member-untouched viaUnknown.key",
+  ]);
+});
+
 // At the call, `Room` infers to the argument's own type, so the body's reads through the constraint reach the value only
 // through a link from that type to the constraint. `Summary.dead` is outside the constraint, and nobody hands `Lonely`
 // to the generic: both stay written and never read.

@@ -37,7 +37,7 @@ const NOT_FOUND_FAILURE_KIND = "not-found";
  *  build without the bridge answers `null` and we make no claim rather than a false one. */
 async function everReadAnything(page: Page): Promise<boolean | null> {
   // probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller "makes no claim rather than a false one" (doc comment above). Ends if a caller starts trusting null as a positive settle.
-  const count = await page.evaluate("window.__orb ? window.__orb.queries().length : null").catch(() => null);
+  const count = await page.evaluate(() => globalThis.__orb?.queries().length ?? null).catch(() => null);
   return typeof count === "number" ? count > 0 : null;
 }
 

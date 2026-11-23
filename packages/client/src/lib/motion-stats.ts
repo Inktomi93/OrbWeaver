@@ -60,8 +60,8 @@
 // The raw LoAF ring stays intact; motion-audit alone decides which confirmed intervals are budget inputs.
 
 import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
+import type { LoafRecord, MotionSnapshot, ShiftRecord } from "./agent-bridge-contract.ts";
 import { logClock } from "./log-clock.ts";
-import type { SelectEntranceEvidence } from "./select-entrance-evidence.ts";
 import { installSelectEntranceObserver, resetSelectEntranceEvidence, selectEntranceForFrame } from "./select-entrance-evidence.ts";
 
 // Ring cap — a long session must not grow this unbounded.
@@ -83,19 +83,6 @@ const SHIFT_STYLE = "color:#c60;font-weight:bold";
 const OVER_BUDGET_STYLE = "color:#c00;font-weight:bold";
 const MUTED_STYLE = "color:#888";
 
-interface LoafScript {
-  readonly sourceURL: string;
-  readonly duration: number;
-  readonly forcedStyleAndLayoutDuration: number;
-  readonly invoker: string;
-  readonly sourceFunctionName: string;
-  readonly sourceCharPosition?: number;
-  readonly executionStart?: number;
-}
-interface LoafRecord extends LongAnimationFrameTiming {
-  readonly scripts: readonly LoafScript[];
-  readonly selectEntrance?: SelectEntranceEvidence;
-}
 const loafRing: LoafRecord[] = [];
 
 /** One long animation frame as the ONE observer publishes it: the raw entry fields, undefaulted only
@@ -133,21 +120,6 @@ function publishLongAnimationFrame(entry: LoafEntry): void {
   }
 }
 
-/** One attributed layout shift — what moved, how far, and whether the spec counts it. NOT exported (the
- *  `LoafRecord` precedent): it is reachable through `MotionSnapshot.shifts`, and a second export would be
- *  an unused public name knip reds (`pnpm knip`). */
-interface ShiftRecord {
-  readonly startTime: number;
-  readonly value: number;
-  /** true ⇒ within 500ms of real input, so the CWV metric excludes it (but the relayout still happened). */
-  readonly hadRecentInput: boolean;
-  /** true ⇒ caused inside the dev bridge's user-equivalent navigation window. Still measured, not warned. */
-  readonly agentNavigation: boolean;
-  /** true ⇒ every attributed source is an absolute row inside a known virtualizer viewport. */
-  readonly virtualized: boolean;
-  /** The elements whose start position moved, described + measured, worst-first as the entry reported them. */
-  readonly sources: readonly string[];
-}
 const shiftRing: ShiftRecord[] = [];
 
 let clsTotal = 0;
@@ -164,27 +136,6 @@ let agentNavigationUntil = 0;
 
 function entriesInCurrentCheckpoint(entries: readonly PerformanceEntry[]): readonly PerformanceEntry[] {
   return entries.filter((entry) => entry.startTime >= evidenceStartTime);
-}
-
-export interface MotionSnapshot {
-  readonly loafs: readonly LoafRecord[];
-  /** The CWV metric: input-adjacent shifts excluded. Unchanged semantics — existing consumers read this. */
-  readonly cls: number;
-  /** EVERY shift, input-adjacent included — the number that catches an interaction-driven relayout storm. */
-  readonly observedCls: number;
-  /** The share of `cls` this instrument classified as virtual-row reconciliation — printed, never gated. */
-  readonly virtualizedCls: number;
-  /** `cls` − `virtualizedCls`: THE BUDGETED TOTAL (issue #109). The only CLS number an app fix can move. */
-  readonly nonVirtualizedCls: number;
-  /** The virtual-row share of `observedCls` — the #109 classification over the input-adjacent shifts too. */
-  readonly observedVirtualizedCls: number;
-  /** `observedCls` − `observedVirtualizedCls`: THE INTERACTION BUDGET TOTAL (#1071). What an app fix can
-   *  move out of a relayout storm the CWV metric excludes because it followed a real input. */
-  readonly observedNonVirtualizedCls: number;
-  readonly worstBlocking: number;
-  readonly worstShift: number;
-  /** The recent attributed shifts — "what moved", which no CLS number carries. */
-  readonly shifts: readonly ShiftRecord[];
 }
 
 // LoAF/layout-shift PerformanceEntry fields aren't all in lib.dom yet; narrow them structurally rather

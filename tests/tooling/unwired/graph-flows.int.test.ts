@@ -1,0 +1,284 @@
+// How the flow walk carries a value through a generic's type arguments, a library's type parameter, a conditional, a
+// zod validator and a reflective platform call. Each case keeps a member nothing writes, reads or sends, so a rule that
+// pairs too much fails it as surely as a rule that pairs too little fails the member it credits.
+import { expect, test } from "@orb/testkit/tooling";
+import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
+import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
+
+const FILE = `${GRAPH_SOURCE}/flows.ts`;
+const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
+const bucketsIn = (scan: GraphScan): readonly string[] =>
+  MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label.split("  ")[0] ?? ""}`));
+
+// A router's mutation options and a client's vars twin of its input, joined through `Options<V>`: the client writes
+// `NominateVars` and the router reads `Input`, so the write reaches the read only when `V` pairs backwards.
+const NOMINATE = [
+  "export interface Input { readonly chatId: string; readonly offer?: string }",
+  'const verb = async (input: Input): Promise<string> => input.chatId + (input.offer ?? "");',
+  "const router = { nominate: { mutationOptions: (): Options<Input> => ({ mutationFn: verb }) } };",
+  "export interface NominateVars { readonly chatId: string; readonly offer?: string; readonly stale?: string }",
+  "const entity = <V>(config: { readonly options: (t: typeof router) => Options<V> }): ((vars: V) => void) => (vars) => {",
+  "  void config.options(router).mutationFn?.(vars);",
+  "};",
+  "export const useNominate = entity<NominateVars>({ options: (t) => t.nominate.mutationOptions() });",
+  'export const fire = (): void => useNominate({ chatId: "c", offer: "o" });',
+];
+
+test("a callback written as a method takes its argument into the generic", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, source(["interface Options<V> { mutationFn?(vars: V): Promise<unknown> }", ...NOMINATE]));
+  expect(bucketsIn(scan)).toEqual(["member-untouched NominateVars.stale"]);
+});
+
+// `set` keeps what it takes, so a map filled through a wider instance fills the map it was set on and the reads of the
+// narrower one read the write. `has` and `echo` compare or hand back what they take, paired straight; `includes`,
+// `has` and `reduce` reached through a generic that holds the collections lend nothing either. So `Stored.label` is
+// read through `Probe` and never written by the probes.
+test("a value a method keeps fills the instance it was set on; a comparing method fills nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Leaf { readonly label: string; readonly note?: string }",
+      "export interface Wide { readonly label: string; readonly note?: string; readonly spare?: string }",
+      'const fill = (x: Map<string, Wide>): void => { x.set("a", { label: "l", note: "n" }); };',
+      "export const shown = (): string => { const leaves = new Map<string, Leaf>(); fill(leaves); return [...leaves.values()].map((leaf) => leaf.label).join(); };",
+      "export interface Stored { readonly label?: string; readonly kept: string }",
+      "export interface Probe { readonly label?: string }",
+      "export interface Bag<T> { readonly items: ReadonlyArray<T>; readonly seen: ReadonlySet<T> }",
+      "export interface Pool<T> { echo(value: T): T; readonly first?: T }",
+      'const look = (bag: Bag<Probe>): boolean => bag.items.includes({ label: "p" }) || bag.seen.has({ label: "q" }) || bag.items.reduce((a) => a, { label: "r" }).label === "";',
+      'const probe = (seen: ReadonlySet<Probe>, pool: Pool<Probe>): boolean => seen.has({ label: "s" }) || pool.echo({ label: "e" }).label === "";',
+      "declare const NONE: ReadonlySet<never>;",
+      "declare const POOL: Pool<Stored>;",
+      "const stored: Bag<Stored> = { items: [], seen: NONE };",
+      'const one: Stored = { kept: "k" };',
+      "export const looked = (): string => String(look(stored)) + String(probe(stored.seen, POOL)) + one.kept;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only Leaf.note",
+    "member-write-only Wide.note",
+    "member-untouched Wide.spare",
+    "member-untouched Pool.first",
+    "member-read-only Stored.label",
+  ]);
+});
+
+// The walk of `Options` runs once for each pair that meets it in one batch; a declared `out` wins in every one of them,
+// so `V` pairs forward only and the client's vars stay written and never read. A declared `in` wins over a value the
+// walk sees coming out, so `Box<Leaf>` handed as `Box<Shown>` reads nothing of `Leaf`.
+test("a declared variance modifier wins in every walk of its generic", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const declaredOut = await graphScan(plantedTree, source(["interface Options<out V> { readonly mutationFn?: (vars: V) => Promise<unknown> }", ...NOMINATE]));
+  expect(bucketsIn(declaredOut)).toEqual([
+    "member-write-only NominateVars.chatId",
+    "member-write-only NominateVars.offer",
+    "member-untouched NominateVars.stale",
+  ]);
+  const declaredIn = await graphScan(
+    plantedTree,
+    source([
+      "export interface Box<in T> { readonly value: T }",
+      "export interface Leaf { readonly label: string }",
+      "export interface Shown { readonly label: string }",
+      'const leaf: Box<Leaf> = { value: { label: "l" } };',
+      "const show = (box: Box<Shown>): string => box.value.label;",
+      "export const shown = show(leaf);",
+    ]),
+  );
+  expect(bucketsIn(declaredIn)).toEqual(["member-write-only Leaf.label"]);
+});
+
+// `Warm` meets `Pong` first, whose walk meets `Ping`, whose walk meets `Pong` again on its own stack: that cycle answers
+// with `Pong`'s declared `in`, so `Ping` takes `T` both ways and `Wrap` after it too. A write of `Shown` through the
+// wrapped `held` then fills `Leaf`, whose read sees the write; `Shown.spare` is written nowhere and read nowhere.
+test("a cycle in the variance walk answers with the declared modifier", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [`${GRAPH_SOURCE}/a-warm.ts`]: [
+      "export interface Ping<T> { readonly pong: Pong<T>; held: T }",
+      "export interface Pong<in T> { readonly ping?: Ping<T> }",
+      "export interface Warm<T> { readonly pong: Pong<T> }",
+      "declare const warm: Warm<string>;",
+      "const take = (value: Warm<number | string>): boolean => value.pong.ping === undefined;",
+      "export const warmed = take(warm);",
+    ].join("\n"),
+    ...source([
+      'import type { Ping } from "./a-warm.ts";',
+      "export interface Leaf { readonly label?: string; readonly kept: string }",
+      "export interface Shown { readonly label?: string; readonly kept: string; readonly spare?: string }",
+      "export interface Wrap<T> { readonly ping: Ping<T> }",
+      'const one: Leaf = { kept: "k" };',
+      "declare const wrapped: Wrap<Leaf>;",
+      'const fill = (wrap: Wrap<Shown>): void => { wrap.ping.held = { label: "s", kept: "k" }; };',
+      'export const shown = (): string => { fill(wrapped); return (wrapped.ping.held.label ?? "") + one.kept; };',
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-untouched Shown.spare"]);
+});
+
+// An interface declared inside a generic function takes the function's type parameter as a leading type argument, so
+// its own `V` sits after it: the router's reads still reach the client's vars.
+test("a generic declared inside a generic function pairs its own type arguments by their variance", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Input { readonly chatId: string; readonly offer?: string }",
+      "export interface NominateVars { readonly chatId: string; readonly offer?: string; readonly stale?: string }",
+      "export function scoped<U>(tag: U): void {",
+      "  interface Options<V> { readonly mutationFn?: (vars: V) => Promise<unknown>; readonly tag: U }",
+      '  const verb = async (input: Input): Promise<string> => input.chatId + (input.offer ?? "");',
+      "  const options = (): Options<Input> => ({ mutationFn: verb, tag });",
+      "  const run = (made: Options<NominateVars>): void => { void made.mutationFn?.({ chatId: 'c', offer: 'o' }); void made.tag; };",
+      "  run(options());",
+      "}",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-untouched NominateVars.stale"]);
+});
+
+// `map<T>` declares a `T` of its own: its parameter takes that type in, not the box's, so `Box<Probe>` handed as
+// `Box<Other>` still pairs forward only. `Other.label` stays written and never read, and `Probe.label` read and never
+// written.
+test("a method's own type parameter of the generic's name is not the generic's", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Probe { readonly label?: string; readonly kept: string }",
+      "export interface Other { readonly label?: string; readonly kept: string }",
+      "export interface Box<T> { readonly value: T; map<T>(fn: (x: T) => T): void }",
+      "declare const box: Box<Probe>;",
+      'const seed: Other = { label: "o", kept: "k" };',
+      'const seedProbe: Probe = { kept: "k" };',
+      "const take = (b: Box<Other>): string => b.value.kept;",
+      'export const shown = (): string => take(box) + (box.value.label ?? "") + seed.kept + seedProbe.kept;',
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Other.label", "member-untouched Box.map", "member-read-only Probe.label"]);
+});
+
+// A library's unconstrained type parameter is a slot that names nothing, under an optional property too, where the
+// checker's non-nullable form of it (`V & {}`) no longer reads as a type parameter.
+test("a value held under a library's unconstrained type parameter is sent", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export declare function stash<V>(entry: { readonly value: V }): void;",
+      "export declare function hold<V>(entry: { readonly value?: V }): void;",
+    ]),
+    ...source([
+      'import { hold, stash } from "lib";',
+      "export interface Stashed { readonly unread: string }",
+      "export interface Held { readonly unread: string }",
+      "export interface Kept { readonly unread: string }",
+      'export const kept: Kept = { unread: "k" };',
+      "export const stashed = (item: Stashed, held: Held): void => { stash({ value: item }); hold({ value: held }); };",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Kept.unread", "member-sent-only Stashed.unread", "member-sent-only Held.unread"]);
+});
+
+// A debug probe labels an unreadable value with a checked literal and returns it as `unknown`: each branch of the
+// conditional fills the return, so the checked view's members are sent where the probe's reply goes. The same literal
+// returned into a typed slot only pairs, and its members stay written and never read. A literal of constant or computed
+// values, under a conditional or returned bare, sends its checked type the same way.
+test("a checked literal returned as unknown from a conditional sends its checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface UnreadableView { readonly storedText: string }",
+      "export interface TypedView { readonly storedText: string }",
+      "export interface ConstView { readonly a: string }",
+      "export interface ComputedView { readonly b: string }",
+      "export interface BareView { readonly c: string }",
+      "class Unreadable { constructor(readonly text: string) {} }",
+      "declare const flag: boolean;",
+      "const view = (value: unknown): unknown => (value instanceof Unreadable ? ({ storedText: value.text } satisfies UnreadableView) : value);",
+      "const typed = (value: unknown): TypedView | undefined => (value instanceof Unreadable ? ({ storedText: value.text } satisfies TypedView) : undefined);",
+      "const constant = (value: unknown): unknown => (value instanceof Unreadable ? ({ a: 'a' } satisfies ConstView) : value);",
+      "const computed = (value: unknown): unknown => (flag ? ({ b: String(value) } satisfies ComputedView) : value);",
+      "const bare = (value: unknown): unknown => { if (flag) { return { c: 'c' } satisfies BareView; } return value; };",
+      "const reply = { json: (value: unknown): unknown => value };",
+      "export const probe = (raw: unknown): unknown =>",
+      "  reply.json({ config: view(raw), typed: typed(raw) !== undefined, a: constant(raw), b: computed(raw), c: bare(raw) });",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only TypedView.storedText",
+    "member-sent-only UnreadableView.storedText",
+    "member-sent-only ConstView.a",
+    "member-sent-only ComputedView.b",
+    "member-sent-only BareView.c",
+  ]);
+});
+
+// `Object.values` and `structuredClone` read every member of the value they take; a value no reflective call takes keeps
+// its member written and never read.
+test("Object.values and structuredClone read every member of their value", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    // the platform global, which a node-only planted tree's libs do not declare, from a declaration package
+    "node_modules/@types/clone/package.json": JSON.stringify({ name: "@types/clone", types: "index.d.ts" }),
+    "node_modules/@types/clone/index.d.ts": "declare function structuredClone<T>(value: T): T;",
+    ...source([
+      '/// <reference types="clone" />',
+      "export interface Valued { readonly a: string }",
+      "export interface Cloned { readonly b: string }",
+      "export interface Left { readonly c: string }",
+      'const valued: Valued = { a: "a" };',
+      'const cloned: Cloned = { b: "b" };',
+      'export const left: Left = { c: "c" };',
+      "export const values = Object.values(valued);",
+      "export const copy = structuredClone(cloned);",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Left.c"]);
+});
+
+// A row view built by parsing a literal through its schema: the literal's keys are the values parse returns, so they
+// write the schema's keys and the checked type behind them, and the row handed to `mayAct` carries the writes into
+// its optional slot. A key the literal lacks (`spare`) stays unwritten, and a `parse` no zod schema declares writes
+// nothing (`Loose.funderUserId`).
+test("a literal parsed by a zod schema writes the keys it holds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface RowBase { readonly ownerId: string | null; readonly funderUserId: string | null; readonly spare?: string }",
+      "const rowBaseSchema = z.strictObject({ ownerId: z.string(), funderUserId: z.string(), spare: z.string().optional() }) satisfies z.ZodType<RowBase>;",
+      "export interface Loose { readonly ownerId: string | null; readonly funderUserId?: string | null }",
+      "declare const other: { parse(value: unknown): Loose };",
+      "declare const stored: { readonly ownerId: string; readonly funderUserId: string };",
+      "export function mayAct(row: { readonly ownerId: string | null; readonly funderUserId?: string | null }): boolean {",
+      "  return row.ownerId === null || (row.funderUserId ?? null) === null;",
+      "}",
+      "const toRowBase = (): RowBase => rowBaseSchema.parse({ ownerId: stored.ownerId, funderUserId: stored.funderUserId });",
+      "const loose = (): Loose => other.parse({ ownerId: stored.ownerId, funderUserId: stored.funderUserId });",
+      'export const retry = (): boolean => mayAct(toRowBase()) && mayAct({ ownerId: "o" }) && (toRowBase().spare ?? "") === "";',
+      'const seed: Loose = { ownerId: "s" };',
+      'export const looseOwner = (): string => (loose().funderUserId ?? "") + String(loose().ownerId) + String(seed.ownerId);',
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-read-only RowBase.spare", "member-read-only Loose.funderUserId"]);
+});
+
+// Every zod validator takes the schema's input: each `Via*` member is written only through the literal one validator is
+// handed, and a transform's literal writes the input keys the output no longer names (`In.b`). `In.c`, which no literal
+// holds, stays read and never written.
+const VALIDATORS = ["parse", "safeParse", "parseAsync", "safeParseAsync"] as const;
+test("each zod validator's literal writes the schema input keys it holds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      ...VALIDATORS.flatMap((name) => [
+        `export interface Via_${name} { readonly kept: string; readonly field?: string }`,
+        `const ${name}Schema = z.strictObject({ kept: z.string(), field: z.string().optional() }) satisfies z.ZodType<Via_${name}>;`,
+        `const ${name}Seed: Via_${name} = { kept: "s" };`,
+        `export const ${name}Run = (): unknown => [${name}Schema.${name}({ kept: "k", field: "f" }), ${name}Seed.field ?? "", ${name}Seed.kept];`,
+      ]),
+      "export interface In { readonly a: string; readonly b?: string; readonly c?: string }",
+      "const inSchema = z.object({ a: z.string(), b: z.string().optional(), c: z.string().optional() }) satisfies z.ZodType<In>;",
+      "const sized = inSchema.transform((value) => ({ size: value.a.length }));",
+      'const seedIn: In = { a: "s" };',
+      'export const size = (): number => sized.parse({ a: "a", b: "b" }).size + (seedIn.b ?? "").length + (seedIn.c ?? "").length;',
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-read-only In.c"]);
+});

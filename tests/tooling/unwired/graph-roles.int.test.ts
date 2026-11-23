@@ -29,6 +29,38 @@ test("a bump whose value is discarded only writes; one whose value is used reads
   expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["C.n", "C.m", "C.w"]);
 });
 
+// A computed key takes the role its position gives, as a named access does: a store and a discarded bump only write,
+// through a key the checker types as literals and through a key a caller passes. `R` is the control a plain read reads.
+test("a computed-key store or discarded bump only writes the members its key names; a computed-key read reads them", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface S { a: number; b: number }",
+      "export interface B { a: number; b: number }",
+      "export interface R { a: number; b: number }",
+      "export interface P { a: number; b: number }",
+      "export const s: S = { a: 0, b: 0 };",
+      "export const b: B = { a: 0, b: 0 };",
+      "export const r: R = { a: 0, b: 0 };",
+      "export const p: P = { a: 0, b: 0 };",
+      'declare function pick(): "a" | "b";',
+      "const key = pick();",
+      "export const store = (): void => {",
+      "  s[key] = 1;",
+      "  b[key] += 1;",
+      "};",
+      "export const read = (): number => r[key];",
+      "const put = (at: keyof P): void => {",
+      "  p[at] = 1;",
+      "};",
+      'put("a");',
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["S.a", "S.b", "B.a", "B.b", "P.a", "P.b"]);
+});
+
 // A destructuring assignment's key reads the source's member; the slot it names is the store. `O.b` is the control the
 // pattern does not name.
 test("a destructuring-assignment pattern's key reads the source member", { timeout: 120_000 }, async ({ plantedTree }) => {
