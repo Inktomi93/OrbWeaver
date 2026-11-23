@@ -24,6 +24,7 @@ const KIND_NAMES: Readonly<Record<HitKind, readonly string[]>> = {
   call: ["zqCall", "zqTag"],
   type: ["zqType", "zqImplemented"],
   declaration: ["zqDeclaration", "zqLocal", "zqRenamed"],
+  keyword: ["satisfies"],
   "import-export": ["zqImport", "zqExport", "zqModule"],
   string: ["zqString", "zqText"],
   template: ["zqTemplate"],
@@ -58,6 +59,7 @@ const CODE = [
   '  return shape.zqRead + bag["zqKeyed"] + typed + zqDestructured + s.length + u.length;',
   "}",
   "export const k = 1 + /** zqLoose inside an expression */ 2;",
+  "export const pinned = 1 satisfies number;",
 ].join("\n");
 
 const VIEW = ["export const View = () => (", '  <div zqAttr="1">', "    {/* zqJsx in a container */}", "    zqText", "  </div>", ");"].join("\n");

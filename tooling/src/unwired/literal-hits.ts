@@ -58,6 +58,7 @@ import {
   isImportEqualsDeclaration,
   isInterfaceDeclaration,
   isJSDocNodeKind,
+  isKeywordKind,
   isModuleDeclaration,
   isParameterDeclaration,
   isSourceFile,
@@ -120,7 +121,8 @@ export function gitGrep(root: string, rev: string | null, args: readonly string[
 }
 
 /** Where a hit sits. `read`, `write`, `call`: a code occurrence by the graph's role rules. `type`: a type position.
- *  `declaration`: a declaration's own name. `import-export`: an import or export declaration, its specifier included.
+ *  `declaration`: a declaration's own name. `keyword`: the word spelled as syntax (`get` in an accessor, `new`, `as`,
+ *  `type` in `import type`), which names nothing. `import-export`: an import or export declaration, its specifier included.
  *  `string`: a string, regular expression or JSX text. `template`: a template literal's text. `jsdoc`, `comment`: a doc
  *  comment or any other comment. `doc`: Markdown, plain text or a file under docs/. `config-key`, `config-value`: a JSON
  *  or YAML key or value. `generated`: any hit in a generated file. `other`: a file of another type, such as a script or a
@@ -131,6 +133,7 @@ export const HIT_KINDS = [
   "call",
   "type",
   "declaration",
+  "keyword",
   "import-export",
   "string",
   "template",
@@ -378,6 +381,10 @@ function parsedKind(source: SourceFile, position: number): HitKind {
   }
   if (position < skipTrivia(source.text, token.pos)) {
     return commentKind(source.text, token, position);
+  }
+  // The tree has no node for a keyword: the token is the navigator's own, with no symbol and nothing it reads.
+  if (isKeywordKind(token.kind)) {
+    return "keyword";
   }
   if (chain.some((node) => isImportDeclaration(node) || isImportEqualsDeclaration(node) || isExportDeclaration(node))) {
     return "import-export";
@@ -795,6 +802,7 @@ function kindCounts(hits: readonly LiteralHit[]): KindCounts {
     call: count("call"),
     type: count("type"),
     declaration: count("declaration"),
+    keyword: count("keyword"),
     "import-export": count("import-export"),
     string: count("string"),
     template: count("template"),

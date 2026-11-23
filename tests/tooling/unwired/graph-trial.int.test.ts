@@ -327,6 +327,39 @@ test("a compile-clean candidate whose name a product string or JSON key spells i
   expect(report.literalFiles).toBeGreaterThan(0);
 });
 
+// A member named like a keyword (`get`, `new`, `default`, `of`, `as`) hits that keyword in code, where the tree
+// has no node and the word names nothing: such a hit is a keyword, never a read to resolve, and the members stay
+// confirmed.
+test("a member named like a keyword is confirmed past its keyword hits", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [LIB]: [
+          "export interface Shape { readonly kept: string; readonly get: string; readonly new: string; readonly default: string; readonly of: string; readonly as: string }",
+          "export declare const made: Shape;",
+          "export class Box { get size(): number { return 1; } }",
+          "export const box = new Box();",
+          "export default box;",
+        ].join("\n"),
+        [MAIN]: [
+          'import box, { made } from "./lib.ts";',
+          "const use = (value: unknown): unknown => value;",
+          "use(made.kept);",
+          "use(box.size);",
+          "for (const item of [1]) { use(item as number); }",
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null });
+  expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:Shape.`)).map(({ label, verdict, literal }) => [label, verdict, literal.length])).toEqual(
+    ["get", "new", "default", "of", "as"].map((member) => [`${LIB}:Shape.${member}`, "confirmed", 0]),
+  );
+});
+
 // What the product loads counts as product too: a JSON file a product module imports, and a showcase bundle's
 // manifest, which the release build packs into the shipped zip. A JSON file only a script imports stays an annotation.
 test("a key in a JSON file a product module imports or in a bundle manifest is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
