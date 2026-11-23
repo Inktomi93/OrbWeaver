@@ -47,6 +47,7 @@ import type {
 } from "@typescript/native/ast";
 import {
   getNameOfDeclaration,
+  isArrayBindingPattern,
   isArrayLiteralExpression,
   isArrayTypeNode,
   isArrowFunction,
@@ -843,17 +844,14 @@ const functionReturnType = (type: TypeNode | undefined): TypeNode | undefined =>
 function* libraryParameterSpellings(world: NativeWorld, found: Argument, at: Climb): APIRequestGenerator<Declared> {
   const { call, index } = found;
   const resolved = yield* world.checker.getResolvedSignature.gen(call);
-  const signature = (yield* resolved.getTarget.gen()) ?? resolved;
+  const destructured = yield* destructuredCallee(world, call);
+  const signature = destructured.signature ?? (yield* resolved.getTarget.gen()) ?? resolved;
   const parameters = yield* signature.getParameters.gen();
   const parameter = parameters[Math.min(index, parameters.length - 1)];
   if (parameter === undefined) {
     return null;
   }
-  const bound = new Map([
-    ...(yield* ownTypeBindings(world, call, signature)),
-    ...(yield* destructuredBindings(world, call)),
-    ...(yield* receiverBindings(world, call)),
-  ]);
+  const bound = new Map([...(yield* ownTypeBindings(world, call, signature)), ...destructured.bound, ...(yield* receiverBindings(world, call))]);
   const declared = yield* world.checker.getTypeOfSymbol.gen(parameter);
   const argument = call.arguments?.[index];
   const rest =
@@ -924,22 +922,48 @@ function* inferredSpellings(world: NativeWorld, own: OwnParameter): APIRequestGe
   return argument === undefined ? null : yield* argumentSpellings(world, argument);
 }
 
-// A callee destructured from a library call's result (`const [d, setD] = useState<Density>(...)`) is spelled with
-// that call's type parameters.
-function* destructuredBindings(world: NativeWorld, call: CallExpression | NewExpression): APIRequestGenerator<TypeBindings> {
+// A callee destructured from a library call's result (`const [d, setD] = useState<Density>(...)`): the made call's
+// type parameters, and the callee's signature as that call declares the destructured element, still spelled with
+// them. The callee's own resolved signature would not do: an alias's (`Dispatch<A>`) leaves its own parameter unbound.
+interface DestructuredCallee {
+  readonly bound: TypeBindings;
+  readonly signature: Signature | undefined;
+}
+
+const NOT_DESTRUCTURED: DestructuredCallee = { bound: NO_TYPE_BINDINGS, signature: undefined };
+
+function* destructuredCallee(world: NativeWorld, call: CallExpression | NewExpression): APIRequestGenerator<DestructuredCallee> {
   if (!isIdentifier(call.expression)) {
-    return NO_TYPE_BINDINGS;
+    return NOT_DESTRUCTURED;
   }
   const declaration = (yield* declaredSites(world, call.expression)).map((site) => declarationAt(world, site)).find((node) => node !== null);
-  const pattern = declaration !== undefined && isBindingElement(declaration) ? declaration.parent.parent : undefined;
+  const element = declaration !== undefined && isBindingElement(declaration) ? declaration : undefined;
+  const pattern = element?.parent.parent;
   const made =
     pattern !== undefined && isVariableDeclaration(pattern) && pattern.initializer !== undefined ? unwrappedExpression(pattern.initializer) : undefined;
-  if (made === undefined || !isCallExpression(made)) {
-    return NO_TYPE_BINDINGS;
+  if (element === undefined || made === undefined || !isCallExpression(made)) {
+    return NOT_DESTRUCTURED;
   }
-  const resolved = yield* world.checker.getResolvedSignature.gen(made);
-  const signature = yield* resolved.getTarget.gen();
-  return signature === undefined ? NO_TYPE_BINDINGS : yield* ownTypeBindings(world, made, signature);
+  const signature = yield* (yield* world.checker.getResolvedSignature.gen(made)).getTarget.gen();
+  if (signature === undefined) {
+    return NOT_DESTRUCTURED;
+  }
+  const bound = yield* ownTypeBindings(world, made, signature);
+  const declared = yield* destructuredType(world, yield* signature.getReturnType.gen(), element);
+  const signatures = declared === undefined ? [] : yield* declared.getCallSignatures.gen();
+  return { bound, signature: signatures.length === 1 ? signatures[0] : undefined };
+}
+
+// The type a binding element takes from a declared value: a tuple's element at its position, or the property it names.
+function* destructuredType(world: NativeWorld, value: Type, element: BindingElement): APIRequestGenerator<Type | undefined> {
+  const pattern = element.parent;
+  if (isArrayBindingPattern(pattern)) {
+    const at = pattern.elements.findIndex((candidate) => sameNode(candidate, element));
+    return value.isTypeReference() && at >= 0 ? (yield* world.checker.getTypeArguments.gen(value))[at] : undefined;
+  }
+  const key = element.propertyName ?? (element.name !== undefined && isIdentifier(element.name) ? element.name : undefined);
+  const name = key === undefined ? null : propertyName(key);
+  return name === null ? undefined : (yield* propertyTypes(world.checker, [value], name))[0];
 }
 
 // A method call's receiver: its declared type's arguments bind the type parameters of the receiver type's target.

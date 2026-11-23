@@ -752,6 +752,39 @@ test("a library parameter is read through the receiver's annotation, an explicit
   ]);
 });
 
+// React's own typings: the setter is `Dispatch<SetStateAction<S>>`, an alias whose call signature is spelled with its
+// own `A`, and `useState` has an overload. `setStage("open")` is a Stage and `setPhase("gone")` a Phase; the two
+// tuples share both texts, so each setter must credit only its own state's tuple.
+const REACT_TYPINGS = [
+  "export type SetStateAction<S> = S | ((prevState: S) => S);",
+  "export type Dispatch<A> = (value: A) => void;",
+  "export declare function useState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>];",
+  "export declare function useState<S = undefined>(): [S | undefined, Dispatch<SetStateAction<S | undefined>>];",
+].join("\n");
+
+const REACT_SETTER_TREE = {
+  "packages/a/lib/react.ts": REACT_TYPINGS,
+  "packages/a/src/stage.ts": [
+    'import { useState } from "../lib/react.ts";',
+    'const STAGES = ["enter", "open", "gone"] as const;',
+    "type Stage = (typeof STAGES)[number];",
+    'const PHASES = ["idle", "open", "gone"] as const;',
+    "type Phase = (typeof PHASES)[number];",
+    "export function View(): void {",
+    '  const [stage, setStage] = useState<Stage>("enter");',
+    '  const [phase, setPhase] = useState<Phase>("idle");',
+    '  setStage("open");',
+    '  setPhase("gone");',
+    "  void stage;",
+    "  void phase;",
+    "}",
+  ].join("\n"),
+};
+
+test("a React state setter is read through the state's type argument, and credits only its own tuple", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, REACT_SETTER_TREE))).toEqual(["PHASES.open", "STAGES.gone"]);
+});
+
 // A destructured name reads the property its annotated holder declares: `level` in `{ level }: Gauge` is a Level, so
 // the case and the comparison on it count for LEVELS. The same name destructured from an inline-typed holder traces
 // to no tuple, so `"high"` counts for none.
