@@ -1,6 +1,5 @@
 {
   "extends": "../tsconfig.world-node.json",
-  "compilerOptions": { "jsx": "react-jsx" },
   "include": ["src", "../reset.d.ts", "../platform.d.ts"],
   "exclude": ["**/node_modules", "src/codemods"]
 }

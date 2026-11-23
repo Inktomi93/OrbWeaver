@@ -4,12 +4,12 @@
 // name may enter this file or any module it imports: a record that holds an Element or an Event stays in its DOM-side home.
 
 import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
+import type { InputBorderFallback } from "../../../ui/src/content/theme-scope/derive-vars.ts";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import type { OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridge.ts";
 import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import type { renderHeatmap } from "./render-stats.ts";
-import type { themeFallbackRing } from "./theme-fallback-ring.ts";
 
 const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
 type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
@@ -198,6 +198,13 @@ export interface ConsoleErrorRing {
   readonly cap: number;
 }
 
+export interface ThemeFallbackRing {
+  readonly inputBorder: readonly InputBorderFallback[];
+  /** Entries evicted at the cap since load, so a full ring never reads as a complete history. */
+  readonly dropped: number;
+  readonly cap: number;
+}
+
 export interface MotionFlaggerDrainReceipt {
   readonly requestedGeneration: number;
   readonly completedGeneration: number;
@@ -244,7 +251,7 @@ export interface OrbDebugHandle {
   readonly consoleErrors: () => ConsoleErrorRing;
   /** Every ThemeScope fallback the app shell's reporter received this session: D159 form-control edge fallbacks,
    *  capped and counting their evictions (`dropped`). */
-  readonly themeFallbacks: () => ReturnType<typeof themeFallbackRing>;
+  readonly themeFallbacks: () => ThemeFallbackRing;
   /** Clear the flag ring + its per-offender dedupe. Call between the STEPS of a driven flow: without
    *  it, step 1's offenders suppress the identical ones in step 2 and the later steps read clean. */
   readonly resetFlags: () => void;

@@ -20,11 +20,12 @@ import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// PerformanceNavigationTiming is a DOM type this program does not carry: the three fields the read takes.
-interface NavigationTimingFields {
-  readonly domContentLoadedEventEnd: number;
-  readonly loadEventEnd: number;
-  readonly responseEnd: number;
+// PerformanceNavigationTiming and the browser's entry types are DOM declarations this program does not carry: the shape
+// the in-page read takes, as the browser's `performance` answers it.
+interface BrowserPerformance {
+  readonly getEntriesByType: (
+    type: "navigation",
+  ) => readonly { readonly domContentLoadedEventEnd: number; readonly loadEventEnd: number; readonly responseEnd: number }[];
 }
 
 export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePosture: SnapRatePosture): Promise<PerfEvidence | null> {
@@ -49,7 +50,7 @@ export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePost
       acceleration: ratePosture.acceleration,
       ...perfEvidence(
         await page.evaluate(() => {
-          const nav = performance.getEntriesByType("navigation")[0] as NavigationTimingFields | undefined;
+          const nav = (performance as unknown as BrowserPerformance).getEntriesByType("navigation")[0];
           return {
             navigation:
               nav === undefined
