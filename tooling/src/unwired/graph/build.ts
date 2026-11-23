@@ -45,6 +45,7 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
+import { declaredNameOf } from "./declared.ts";
 import { Flows, insideGlobalScope, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
@@ -65,7 +66,6 @@ import type { BuildSession, ComputedLoad, GraphFacts, LostCause, LostSlot } from
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
-import { declaredNameOf } from "./verify.ts";
 import type { WhyEntry } from "./why.ts";
 
 const ZOD_TYPE = "ZodType";

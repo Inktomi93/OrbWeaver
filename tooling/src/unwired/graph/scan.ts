@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
 // find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
-// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report or the columns scan over it. Every result carries what
+// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report, the member scan or the columns scan over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
@@ -24,6 +24,8 @@ import type { JudgedMembers, MemberRulings } from "./judge.ts";
 import { judgeMembers, NO_RULINGS } from "./judge.ts";
 import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
+import type { MemberScanReport } from "./members.ts";
+import { memberScanOf } from "./members.ts";
 import type { Ablation, GraphLog, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, tracing } from "./options.ts";
 import type { ParamsLists, ParamsReport } from "./params.ts";
@@ -254,6 +256,13 @@ export function scanGraph(
 /** Build and analyse the graph, then report its judged member rows as the fields report: dead data split by `rulings`. */
 export function fieldsGraph(root: string, rulings: MemberRulings, log: GraphLog): Promise<WithSession<FieldsReport>> {
   return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => fieldsOf(work.graph.facts, scanOf(root, work, rulings).members));
+}
+
+/** Build and analyse the graph, then report its judged rows of callable members as the member scan, split by `rulings`. */
+export function memberScanGraph(root: string, rulings: MemberRulings, log: GraphLog): Promise<WithSession<MemberScanReport>> {
+  return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) =>
+    memberScanOf(work.world(), work.graph.facts, scanOf(root, work, rulings).members),
+  );
 }
 
 /** Build and analyse the graph, then check an even sample of one member bucket against find-references. */

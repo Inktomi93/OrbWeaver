@@ -46,20 +46,17 @@ A deleted tRPC input key strips silently under `z.object`. A sweep of every land
 
 Scan tables are not committed, because `reports/` is gitignored. Each scan writes its report under `reports/unwired/`. `removed-keys` prints its table, and a landing saves it as `reports/unwired/removed-keys.txt`. An item that lands on a table names that path and the file's SHA-256 content hash in its Evidence.
 
-## Engine disagreements
+## A namespace member is a value use
 
-Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. 3838 traced the rows.
-
-- Find-references on a member also returns the sites of every member that shares its base: the base's own and each sibling override's, as `<p className>` beside a props type that redeclares `className`. Engine two tags those sites `relative`. A tagged write builds the base's or the sibling's value, so it is no write of the asked member. A tagged read still counts, since a subtype value can reach a base-typed reader. The member's own sites and those of the members that inherit it stay untagged.
-- A component handed on through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`, escapes: engine one's value index and the params graph query both read a namespace member as a value use of the module's declaration.
+A component handed on through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`, escapes: the graph reads a namespace member as a value use of the module's declaration.
 
 ## One pass for the member scan
 
-`pnpm unwired scan` builds each world's program once and judges every member with engine one. Engine two and the TypeScript 6 flow pass found no use engine one lacks, in the fixtures and on the real tree, so engine two runs only under `--cross-check`, through the TypeScript 6 language service, and a member it finds used is a disagreement to fix in engine one. The fields, unions and params scans are queries over the reference graph (D357) and have no engine two.
+`pnpm unwired scan` is a query over the reference graph (D357): the graph's member rows whose member is callable, a method or a member whose type has a call signature, in tooling/src/unwired/graph/members.ts. A row is test-only when production never reads it and a site outside the product reads or calls it; a site outside the product that only writes it, such as a test fake, makes no row test-only. No scan has an engine two, so every verb refuses `--cross-check`.
 
-Engine one counts two uses no name shows:
+The graph counts two uses no name shows:
 
-- A parameter or variable typed `Owner["m"]` that holds the member's value, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`. The binding holds the member's value only when a call passes it, or its initializer is, an identifier the code also writes into `Owner.m`. The type annotation alone credits nothing. The write must sit in a file the same world homes as the call, so a member wired across worlds this way stays reported; judge it by hand.
+- A parameter or variable typed `Owner["m"]` that holds the member's value, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`. The binding holds the member's value only when a call passes it, or its initializer is, an identifier the code also writes into `Owner.m`. The type annotation alone credits nothing. A call in a program apart from the binding's own stays unjoined, so judge such a member by hand.
 - A value handed to a slot a library declares, as `mutate(input, settle)`: the library reads each member its slot names, so the hand-off reads the value's same-named members.
 
 ## Limits of the fields scan

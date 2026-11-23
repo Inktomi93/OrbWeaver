@@ -1,5 +1,6 @@
-// The `pnpm unwired` verb parser through the real CLI. An empty root holds no world, so the member scan runs in
-// milliseconds and still writes its report where the bare verb writes it.
+// The `pnpm unwired` verb parser through the real CLI. The scans build the graph, which reads its roots from the tree's
+// knip config, so each runs over an empty planted graph tree in a second and still writes its report where its verb
+// writes it.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -15,31 +16,35 @@ const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
 test.for([
   { spelling: "the bare verb", argv: [] },
   { spelling: "scan", argv: ["scan"] },
-])("unwired $spelling runs the member scan and writes its report", SPAWNS_CLI, async ({ argv }, { runCli, scratch }) => {
-  const run = await runCli("unwired", [...argv, `--root=${scratch}`]);
+])("unwired $spelling runs the member scan and writes its report", SPAWNS_CLI, async ({ argv }, { runCli, plantedTree }) => {
+  const root = await plantedTree(graphTree({}));
+  const run = await runCli("unwired", [...argv, `--root=${root}`]);
   await expect(run).toExitWith(0);
-  expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
+  expect(existsSync(join(root, MEMBER_REPORT))).toBe(true);
 });
 
-// The fields, unions, codes, params, shapes, procedures and columns scans have no engine two, so a cross-check request is
-// refused before any world loads; the member scan, which has one, is the control that takes the flag.
+// Every scan runs on the reference graph alone (D357), so a cross-check request is refused before any graph builds;
+// the member scan without the flag is the control that runs.
 test.for([
-  { verb: "fields", exit: EXIT.misuse },
-  { verb: "unions", exit: EXIT.misuse },
-  { verb: "codes", exit: EXIT.misuse },
-  { verb: "params", exit: EXIT.misuse },
-  { verb: "shapes", exit: EXIT.misuse },
-  { verb: "procedures", exit: EXIT.misuse },
-  { verb: "columns", exit: EXIT.misuse },
-  { verb: "scan", exit: EXIT.clean },
-])("unwired $verb --cross-check exits $exit", SPAWNS_CLI, async ({ verb, exit }, { runCli, scratch }) => {
-  const run = await runCli("unwired", [verb, "--cross-check", `--root=${scratch}`]);
+  { verb: "scan", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "fields", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "unions", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "codes", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "params", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "shapes", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "procedures", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "columns", argv: ["--cross-check"], exit: EXIT.misuse },
+  { verb: "scan", argv: [], exit: EXIT.clean },
+])("unwired $verb $argv exits $exit", SPAWNS_CLI, async ({ verb, argv, exit }, { runCli, plantedTree }) => {
+  const root = await plantedTree(graphTree({}));
+  const run = await runCli("unwired", [verb, ...argv, `--root=${root}`]);
   await expect(run).toExitWith(exit);
 });
 
 // `.gitignore` covers only the checkout's own `reports/`, so a scan rooted in a package must not leave a stray there.
 test("a scan rooted inside a checkout files its report under the checkout's reports", SPAWNS_CLI, async ({ runCli, plantedTree }) => {
-  const checkout = await plantedTree({ ".git/HEAD": "ref: refs/heads/main\n", "packages/inference/package.json": "{}" });
+  const tree = Object.entries(graphTree({})).map(([file, text]) => [`packages/inference/${file}`, text] as const);
+  const checkout = await plantedTree({ ".git/HEAD": "ref: refs/heads/main\n", "packages/inference/package.json": "{}", ...Object.fromEntries(tree) });
   const pkg = join(checkout, "packages/inference");
   const run = await runCli("unwired", ["scan", `--root=${pkg}`]);
   await expect(run).toExitWith(0);
@@ -57,15 +62,12 @@ function expectEveryBucket(run: { readonly stderr: string }, out: string): void 
   expect(buckets.filter((bucket) => !summary.split(" ").includes(bucket))).toEqual([]);
 }
 
-// The fields, params, shapes, procedures and columns queries build the graph, which reads its roots from the tree's knip
-// config, so their root is an empty graph tree; the member scan runs over the empty scratch root.
-const GRAPH_VERBS: ReadonlySet<string> = new Set(["fields", "params", "shapes", "procedures", "columns"]);
 test.for(["scan", "fields", "params", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
   SPAWNS_CLI,
   async (verb, { runCli, scratch, plantedTree }) => {
     const out = join(scratch, "report.json");
-    const root = GRAPH_VERBS.has(verb) ? await plantedTree(graphTree({})) : scratch;
+    const root = await plantedTree(graphTree({}));
     const run = await runCli("unwired", [verb, `--root=${root}`, `--out=${out}`]);
     await expect(run).toExitWith(0);
     expectEveryBucket(run, out);
