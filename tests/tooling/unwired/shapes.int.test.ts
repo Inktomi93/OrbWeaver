@@ -113,6 +113,29 @@ test("a type computed from a function's declared return is not a second home of 
   expect((await scanned(root)).unwired).toEqual(["restated InlineWork~Collected"]);
 });
 
+test("a type whose member is indexed out of another is linked to it, not a second home", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/origin.ts": "export interface Origin {\n  id: string;\n  name: string;\n}",
+      "packages/a/src/copy.ts": 'import type { Origin } from "./origin.ts";\nexport interface Copy {\n  id: Origin["id"];\n  name: string;\n}',
+      // The twin: the same members spelled out restate the shape.
+      "packages/a/src/twin.ts": "export interface Twin {\n  id: string;\n  name: string;\n}",
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["restated Copy~Twin", "restated Origin~Twin"].toSorted());
+});
+
+// Two files that re-export a name from each other: the walk ends on the symbol it has seen.
+test("a cyclic re-export ends as a chain", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      "packages/a/src/cyc-a.ts": 'export { Loop } from "./cyc-b.ts";',
+      "packages/a/src/cyc-b.ts": 'export { Loop } from "./cyc-a.ts";',
+    }),
+  );
+  expect((await scanned(root)).unwired).toEqual(["reexport-chain Loop~Loop", "reexport-chain Loop~Loop"]);
+});
+
 test("two types that only pick one base's members are not two homes", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({

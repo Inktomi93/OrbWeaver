@@ -36,14 +36,14 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
-import { execGit } from "../../floor/git/git.ts";
+import { catBlobs, execGit } from "../../floor/git/git.ts";
 import { TRPC_PACKAGE } from "../boundaries.ts";
 import type { KeyResolution } from "../key-resolver.ts";
 import { resolveKeys } from "../key-resolver.ts";
 import { gitGrep } from "../literal-hits.ts";
 import type { PropertyName } from "../native.ts";
 import { constituents, declarationKeys, declaredBy, isPropertyName, NativeWorld } from "../native.ts";
-import { patternText, platformCall } from "./urls.ts";
+import { callerPath, patternText, platformCall } from "./urls.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
 const CONTRACT_PATHS = ["packages/contracts/src", "packages/server/src/transport"] as const;
@@ -60,9 +60,6 @@ const RECEIVER_PATHS: Readonly<Record<Receiver, readonly string[]>> = {
 
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
 const PARSED = /\.[cm]?tsx?$/u;
-// `git cat-file --batch` prints each blob after this mark and its request, so the split needs no byte counts.
-const BLOB_MARK = /^@@B (\S+)$/mu;
-const BLOB_FORMAT = "--batch=@@B %(rest)";
 // Every contract file of a wide deletion fits one batch read.
 const BLOB_BUFFER = 268_435_456;
 
@@ -84,12 +81,13 @@ const MUTATE_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync"]);
 const MUTATION_OPTIONS = "mutationOptions";
 const QUERY_PACKAGE = "/node_modules/@tanstack/";
 const SERIALIZE = "JSON.stringify";
-const OWN_ROUTE = /^\//u;
-const OUTSIDE_PROGRAM = "outside the merged program";
+/** The reason a receiver file the merged program does not load is listed unresolved with. */
+export const OUTSIDE_PROGRAM = "outside the merged program";
 // A string with the key's text that sits in no key slot: a plain value, listed for a person.
 const NO_KEY_POSITION = "no key position";
-// An open slot whose value reaches none of our procedures or routes: an outside API's body, or a value never sent.
-const NO_DESTINATION = "open slot reaching none of our procedures or routes";
+/** The reason an open slot whose value reaches none of our procedures or routes is listed unresolved with: an outside
+ *  API's body, or a value never sent. */
+export const NO_DESTINATION = "open slot reaching none of our procedures or routes";
 
 /** One site in a receiver: the receiver, `file:line` and the line's text. */
 interface Hit {
@@ -176,13 +174,12 @@ function blobsAt(root: string, rev: string, files: readonly string[]): ReadonlyM
   const present = execGit(root, ["ls-tree", "-r", "--name-only", rev, "--", ...files])
     .split("\n")
     .filter(Boolean);
-  const input = present.map((file) => `${rev}:${file} ${file}\n`).join("");
-  const parts = execGit(root, ["cat-file", BLOB_FORMAT], { input, maxBuffer: BLOB_BUFFER }).split(BLOB_MARK);
-  const found = new Map<string, string>();
-  for (let at = 1; at < parts.length; at += 2) {
-    found.set(parts[at] ?? "", parts[at + 1] ?? "");
-  }
-  return found;
+  const blobs = catBlobs(
+    root,
+    present.map((file) => `${rev}:${file}`),
+    { chunk: present.length, maxBuffer: BLOB_BUFFER },
+  );
+  return new Map([...blobs].map(([at, text]) => [present[at] ?? "", text]));
 }
 
 function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, ReadonlyMap<string, number>> {
@@ -351,8 +348,8 @@ function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequest
   if (request === null || request.body === null || call.arguments.indexOf(argument as Expression) !== request.body) {
     return null;
   }
-  const paths = request.patterns.map(patternText);
-  return paths.length > 0 && paths.every((path) => path !== null && OWN_ROUTE.test(path)) ? `http ${paths.join(" | ")}` : null;
+  const own = request.patterns.length > 0 && request.patterns.every((pattern) => callerPath(pattern) !== null);
+  return own ? `http ${request.patterns.map(patternText).join(" | ")}` : null;
 }
 
 // The procedure or own route a call hands its argument to, with the callee resolved.
