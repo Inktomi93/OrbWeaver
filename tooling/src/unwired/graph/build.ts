@@ -45,12 +45,14 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
+import { declaredNameOf } from "./declared.ts";
 import { Flows, insideGlobalScope, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
+import { MemberLinks } from "./member-links.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
-import { addAll, allOf, answer, constituentsOf, keyText } from "./resolve.ts";
+import { addAll, allOf, answer, constituentsOf, declKeyParts, keyText } from "./resolve.ts";
 import { READS, sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
@@ -266,6 +268,7 @@ class Builder {
   readonly #doors: MessageDoors;
   readonly #routes: RouteParams;
   readonly #constraints: Constraints;
+  readonly #links: MemberLinks;
   readonly #staticSideCache = new Map<number, readonly Type[]>();
   // The current file's binding readers, filled by its name and shorthand passes.
   #fileReaders: { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } = { readers: new Map(), written: new Set() };
@@ -283,6 +286,7 @@ class Builder {
     this.#routes = new RouteParams(this.#state);
     this.#constraints = new Constraints(this.#state);
     this.#keys = new Keys(this.#state);
+    this.#links = new MemberLinks(this.#state, this.#flows);
   }
 
   build(files: readonly string[]): WorldGraph {
@@ -295,6 +299,7 @@ class Builder {
       this.#settleClasses();
       this.#keys.finish(this.#flows);
       this.#settleTwins();
+      this.#links.settle();
       return this.#variants.finish();
     };
     if (profile === null) {
@@ -356,6 +361,7 @@ class Builder {
     this.#keys.file(sites, this.#flows);
     this.#zodTwins(sites);
     this.#overrides(sites);
+    this.#links.file(sites.file);
     this.#parses(sites);
     this.#parameterHomes(sites);
     this.#hookTuples(sites);
@@ -1000,8 +1006,9 @@ class Builder {
     return types;
   }
 
-  // A class member that fills a member of these types is used through it; one whose filled member is the platform's
-  // (declared outside the tree), or a generic slot inferred from the class itself, is called by code we do not see.
+  // A class member that fills a member of these types is used through it, and supplies that member as a literal's key
+  // does; one whose filled member is the platform's (declared outside the tree), or a generic slot inferred from the class
+  // itself, is called by code we do not see.
   #dispatch(types: readonly (Type | undefined)[], facts: ClassFacts, side: "instance" | "static"): void {
     const state = this.#state;
     const members = [...(side === "instance" ? facts.members : facts.statics)];
@@ -1013,6 +1020,7 @@ class Builder {
       const ours = others.filter((decl) => state.decls.has(decl));
       for (const other of ours) {
         state.edge("run", other, key);
+        state.role(other, "write", declKeyParts(key).file, declaredNameOf(state.world, key)?.pos ?? declKeyParts(key).pos);
         state.count("dispatch edges");
       }
       if (ours.length < others.length || (others.length === 0 && props[y] !== undefined)) {

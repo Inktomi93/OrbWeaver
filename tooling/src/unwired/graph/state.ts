@@ -225,6 +225,9 @@ export interface GraphFacts {
   /** A value member and the member of the type a `satisfies` holds it to, `[value, checked]`: a read of the value's
    *  member reads the checked type's. */
   readonly checks: readonly (readonly [DeclKey, DeclKey])[];
+  /** A member or binding typed `Owner["m"]` that holds that member's value, and the member, `[holder, member]`: a read of
+   *  the holder reads the member (member-links.ts). */
+  readonly derivations: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
   readonly pins: readonly DeclKey[];
@@ -315,6 +318,7 @@ export class GraphState implements GraphFacts {
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly overrides: (readonly [DeclKey, DeclKey])[] = [];
   readonly checks: (readonly [DeclKey, DeclKey])[] = [];
+  readonly derivations: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];
   readonly cssNames: CssName[] = [];
   readonly pins: DeclKey[] = [];

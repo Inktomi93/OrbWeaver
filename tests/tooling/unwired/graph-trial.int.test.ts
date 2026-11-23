@@ -8,6 +8,8 @@ import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import type { Verdict } from "../../../tooling/src/unwired/field-sort.ts";
+import { VERDICTS } from "../../../tooling/src/unwired/field-sort.ts";
 import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
@@ -17,6 +19,7 @@ import { GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_p
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
 const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
 const [, KEPT_BY_RULING] = BUCKETS;
+const [DEAD_VERDICT, , ASK_VERDICT] = VERDICTS;
 
 const LIB = `${GRAPH_SOURCE}/lib.ts`;
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
@@ -794,6 +797,32 @@ test("--limit trials an even sample of the findings it names", { timeout: 120_00
   expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
 });
 
+// The literal search moves zqMarked, a string another file keys a lookup by, from dead to ask; zqNoteText stays dead.
+test("--verdict trials only the member rows the judge sorted to the named verdicts", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const note = `${GRAPH_SOURCE}/note.ts`;
+  const root = await plantedTree(
+    graphTree({
+      [note]: [
+        "export interface Note { readonly zqNoteText: string; readonly zqMarked: string; readonly seen: string }",
+        'export const note: Note = { zqNoteText: "n", zqMarked: "m", seen: "s" };',
+        "export const seen = (): string => note.seen;",
+      ].join("\n"),
+      [`${GRAPH_SOURCE}/lookup.ts`]: 'export const KEY = "zqMarked";\n',
+    }),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-qm", "planted"]);
+  const labels = async (verdicts: readonly Verdict[]): Promise<readonly string[]> => {
+    const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], verdicts, limit: null }, () => undefined);
+    return report.trials.filter(({ label }) => label.startsWith(note)).map(({ label }) => label);
+  };
+  expect(await labels([])).toEqual([`${note}:Note.zqNoteText`, `${note}:Note.zqMarked`]);
+  expect(await labels([DEAD_VERDICT])).toEqual([`${note}:Note.zqNoteText`]);
+  expect(await labels([ASK_VERDICT])).toEqual([`${note}:Note.zqMarked`]);
+  expect(await labels([DEAD_VERDICT, ASK_VERDICT])).toEqual([`${note}:Note.zqNoteText`, `${note}:Note.zqMarked`]);
+});
+
 test("pnpm unwired graph-trial takes each --bucket, prints every trial with its refuting errors and tallies every bucket and the control", {
   timeout: 120_000,
 }, async ({ plantedTree, runCli, scratch }) => {
@@ -817,9 +846,24 @@ test("pnpm unwired graph-trial takes each --bucket, prints every trial with its 
 test.for([
   { refusal: "no bucket", argv: [] },
   { refusal: "a bucket no delete can trial", argv: [`--bucket=${KEPT_BY_RULING}`] },
+  { refusal: "an unknown verdict", argv: [`--bucket=${MEMBER_WRITE_ONLY}`, "--verdict=maybe"] },
+  { refusal: "a verdict on a bucket whose rows carry none", argv: [`--bucket=${DEAD}`, `--verdict=${DEAD_VERDICT}`] },
 ])("pnpm unwired graph-trial refuses $refusal before any build", async ({ argv }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
+});
+
+test.for([
+  {
+    refusal: "an unknown verdict",
+    argv: [`--bucket=${MEMBER_WRITE_ONLY}`, "--verdict=maybe"],
+    says: `--verdict=maybe: expected one of ${VERDICTS.join(", ")}`,
+  },
+  { refusal: "a verdict on a bucket whose rows carry none", argv: [`--bucket=${DEAD}`, `--verdict=${DEAD_VERDICT}`], says: `${DEAD} carries no verdict` },
+])("pnpm unwired graph-trial says why it refuses $refusal", async ({ argv, says }, { runCli, scratch }) => {
+  const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
+  await expect(run).toExitWith(EXIT.misuse);
+  expect(run.stderr).toContain(says);
 });
 
 // The base error sits after the cut in the edited file, so it moves by the cut's length and must still match.
