@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: blocked
-updated: 2026-11-22
+updated: 2026-11-23
 priority: P3
 area: tooling
 blocked: on 3882
@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-Three small reader gaps from the judged-list review: the debug registrar is found by a path prefix (ROUTE_HOMES in tooling/src/unwired/procedures.ts), so moving registerDebug drops its routes with no signal; OWN_ROUTE in tooling/src/unwired/removed-keys.ts treats a protocol-relative URL such as //evil.example/x as our own origin; REQUEST_CALLS.Request declares a body slot removed-keys never reaches.
+Three small reader gaps from the judged-list review: the debug registrar is found by a path prefix (ROUTE_HOMES in tooling/src/unwired/graph/procedures.ts), so moving registerDebug drops its routes with no signal; OWN_ROUTE in tooling/src/unwired/removed-keys.ts treats a protocol-relative URL such as //evil.example/x as our own origin; REQUEST_CALLS.Request in tooling/src/unwired/graph/urls.ts declares a body slot removed-keys never reaches.
 
 ## Why
 

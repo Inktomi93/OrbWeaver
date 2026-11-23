@@ -31,12 +31,12 @@ import ts from "typescript";
 import { execGit } from "../floor/git/git.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { TRPC_PACKAGE } from "./boundaries.ts";
+import { patternText, platformCall } from "./graph/urls.ts";
 import type { KeyResolution } from "./key-resolver.ts";
 import { resolveKeys } from "./key-resolver.ts";
 import { gitGrep } from "./literal-hits.ts";
 import type { PropertyName } from "./native.ts";
 import { constituents, declarationKeys, declaredBy, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
-import { patternText, platformCall } from "./procedures.ts";
 import { packageWorlds } from "./worlds.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
@@ -333,7 +333,7 @@ function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): A
 }
 
 // A body a platform request sends to a path on our own origin, which our routes receive; a URL of any other origin, or
-// one whose start the fold cannot read, leaves the repo. The URL folds through the procedures scan's reader.
+// one whose start the fold cannot read, leaves the repo. The URL folds through ./graph/urls.ts.
 function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
   const request = yield* platformCall(world, call);
   if (request === null || request.body === null || call.arguments.indexOf(argument as Expression) !== request.body) {
