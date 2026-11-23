@@ -3,6 +3,7 @@
 // pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report, the member scan or the columns scan over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
+import { errorMessage } from "@orb/kit/error-message";
 import type { Verdict } from "../field-sort.ts";
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -209,8 +210,14 @@ class Session implements Disposable {
     }
   }
 
+  // A compiler process that already exited cannot take the releases its leases and snapshots send (EPIPE), so disposing
+  // its world throws; thrown out of `using`, that failure would bury the run's own error as a SuppressedError.
   [Symbol.dispose](): void {
-    this.#world?.[Symbol.dispose]();
+    try {
+      this.#world?.[Symbol.dispose]();
+    } catch (error) {
+      this.#log(`the compiler session did not dispose cleanly: ${errorMessage(error)}`);
+    }
   }
 }
 

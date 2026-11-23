@@ -111,3 +111,26 @@ test("a local fake runTool retains the crash/verdict collision instead of canoni
   expect(res.stderr).toContain("fake runner");
   expect(res.stderr).not.toContain("TOOL ERROR");
 });
+
+// A `using` block whose disposal throws after the body threw keeps both failures in one SuppressedError: the run's own
+// error in `.suppressed`, the disposal's in `.error`.
+test("a run that throws and whose disposal throws too prints both errors, the run's first", async ({ plantedTree }) => {
+  const res = await runScratch(
+    plantedTree,
+    script(
+      [
+        "await runTool(() => {",
+        '  using _held = { [Symbol.dispose]() { throw new Error("the compiler had already exited"); } };',
+        '  throw new Error("the group failed first");',
+        "});",
+      ].join("\n"),
+    ),
+  );
+  expect(res.code).toBe(EXIT.toolError);
+  const run = res.stderr.indexOf("the group failed first");
+  const disposal = res.stderr.indexOf("the compiler had already exited");
+  expect(run).toBeGreaterThan(-1);
+  expect(disposal).toBeGreaterThan(run);
+  // each error keeps its own stack
+  expect(res.stderr.match(/^ {4}at /gmu)?.length).toBeGreaterThanOrEqual(2);
+});

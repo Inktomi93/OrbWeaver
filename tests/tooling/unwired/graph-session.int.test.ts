@@ -3,11 +3,12 @@
 // records name the sites and phases they measure.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { deserialize, serialize } from "node:v8";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
-import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph } from "../../../tooling/src/unwired/index.ts";
+import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree, labelsIn, libraryModule, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/session.ts`;
@@ -283,6 +284,40 @@ test("a compiler profile emits every phase, the world's requests, each walked fi
   // a sampled cpu profile of a planted tree can hold no sample, so only the heap's allocators are asserted
   expect(compilers.get("heap")?.length).toBeGreaterThan(0);
   expect((await scanGraph(root, quiet)).session.profile).toBeNull();
+});
+
+// The compiler's process dies after the trial's first group: the run's own error is a dead channel, and disposing the
+// world then fails on the same channel. That second failure is logged, never the thrown error.
+test("a compiler that dies mid-run leaves the run's own error thrown and the failed disposal logged", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface Row { readonly a: string; readonly b: string }",
+        'export const row: Row = { a: "1", b: "2" };',
+        "export const a = (): string => row.a;",
+      ].join("\n"),
+    }),
+  );
+  const lines: string[] = [];
+  let killed = false;
+  const failed = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => {
+    lines.push(line);
+    if (!killed && line.startsWith("trial groups ")) {
+      killed = true;
+      for (const pid of readFileSync(`/proc/${String(process.pid)}/task/${String(process.pid)}/children`, "utf8")
+        .split(" ")
+        .filter(Boolean)) {
+        process.kill(Number(pid), "SIGKILL");
+      }
+    }
+  }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(killed).toBe(true);
+  expect(failed).toBeInstanceOf(Error);
+  expect(failed).not.toBeInstanceOf(SuppressedError);
+  expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
 });
 
 test("the graph verbs refuse a build's options and a compiler profile on a dump before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {

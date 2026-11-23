@@ -36,6 +36,7 @@ import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
 import { MOBILE_DEVICE } from "../../../floor/browser/browser-environment.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../../floor/cli/exit-contract.ts";
+import { describeThrown } from "../../../floor/cli/run-tool.ts";
 import type { EvidenceGap } from "../../../floor/verdict/evidence.ts";
 import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunInstance } from "../../contract/arms.ts";
@@ -121,9 +122,7 @@ async function targetIdAndDetach(readTargetId: () => Promise<string>, detach: ()
     return await readTargetId();
   } catch (error) {
     if (error instanceof SuppressedError) {
-      throw new Error(`${errorMessage(error.suppressed)}; CDP detach failed: ${errorMessage(error.error)}`, {
-        cause: error,
-      });
+      throw new Error(describeThrown(error, "message"), { cause: error });
     }
     throw error;
   }
