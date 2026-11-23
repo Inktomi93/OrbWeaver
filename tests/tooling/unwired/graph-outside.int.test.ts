@@ -3,7 +3,7 @@
 // app, so what it reaches is product-used (D357).
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, LIB, plantedKnip } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, LIB, labelsIn, plantedKnip } from "./_planted.ts";
 
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
 const UNITS = `${GRAPH_SOURCE}/units.ts`;
@@ -54,6 +54,31 @@ test("a unit the testkit, tooling or a test file alone reaches is split by its r
     effect: [`${UNITS}:started`],
     dead: [`${UNITS}:start`, `${UNITS}:plain`],
   });
+});
+
+// A member the product never reads, writes or reaches is untouched though a test reads it: a testkit read is no edge the
+// product runs. The member the product reads off the same value is the control.
+const REPORT = `${GRAPH_SOURCE}/report.ts`;
+
+test("a member only the testkit reads is untouched; a test's read is no product edge into it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tsconfig.outside.json" }] }),
+    "tsconfig.outside.json": plantedTsconfig({ lib: LIB, include: ["tests", "tooling"] }),
+    "knip.ts": KNIP,
+    [MAIN]: 'import { sweep } from "./report.ts";\nconsole.log(sweep().held);',
+    [REPORT]: [
+      "export interface Report { readonly restored: number; readonly held: number; readonly failed: number }",
+      "type Disposition = keyof Report;",
+      'const one = (ok: boolean): Disposition => (ok ? "restored" : "failed");',
+      "export function sweep(): Report {",
+      "  const report = { restored: 0, held: 0, failed: 0 } satisfies Record<Disposition, number>;",
+      "  report[one(true)] += 1;",
+      "  return report;",
+      "}",
+    ].join("\n"),
+    [KIT]: 'import { sweep } from "../../packages/a/src/report.ts";\nexport const seen = sweep().failed;',
+  });
+  expect(labelsIn(scan, "member-untouched", REPORT)).toEqual(["Report.restored", "Report.failed"]);
 });
 
 // A leading underscore pins a top-level binding unread on purpose (noUnusedLocals' convention), so what it reaches is

@@ -23,6 +23,21 @@ test("a lookup keyed by a parameter reads the keys its callers pass, through a c
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Labels.c"]);
 });
 
+// A key typed as a symbol names the one member declared under it, so the table's other members stay unread.
+test("a symbol-typed key reads the member declared under that symbol, never the table whole", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'const dispose: unique symbol = Symbol("dispose");',
+      "export interface Built { readonly kept: number; readonly spare: number; [dispose](): void }",
+      "declare const built: Built;",
+      "export const end = (): void => { built[dispose](); };",
+      "export const seen = built.kept;",
+    ]),
+  );
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Built.spare"]);
+});
+
 test("a zod schema's keys are the members of the type it satisfies", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,

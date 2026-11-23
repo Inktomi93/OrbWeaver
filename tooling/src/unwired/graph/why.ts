@@ -36,7 +36,7 @@ interface WhyEvent {
   readonly key: DeclKey;
   readonly role: Role;
   readonly file: string;
-  readonly at: number;
+  readonly line: number;
   readonly via: string;
 }
 
@@ -59,6 +59,9 @@ export class WhyTracker {
   readonly #targets: readonly WhyTarget[];
   readonly #candidates = new Map<DeclKey, boolean>();
   readonly #events: WhyEvent[] = [];
+  // One event per member, role, site line and recorder: a member several values carry through one site is given its
+  // role there once per value, and the record names each such role once.
+  readonly #seen = new Set<string>();
 
   constructor(world: NativeWorld, targets: readonly WhyTarget[]) {
     this.#world = world;
@@ -71,8 +74,14 @@ export class WhyTracker {
       candidate = this.#candidate(key);
       this.#candidates.set(key, candidate);
     }
-    if (candidate) {
-      this.#events.push({ key, role, file, at, via: recorder() });
+    if (!candidate) {
+      return;
+    }
+    const event = { key, role, file, line: siteLine(this.#world, file, at), via: recorder() };
+    const id = `${key}\t${role}\t${file}:${String(event.line)}\t${event.via}`;
+    if (!this.#seen.has(id)) {
+      this.#seen.add(id);
+      this.#events.push(event);
     }
   }
 
@@ -104,13 +113,12 @@ export class WhyTracker {
           ? info.name === target.name && (target.owner === null || owner === target.owner)
           : info.file === target.file && info.line === target.line,
       );
-      const line = siteLine(this.#world, event.file, event.at);
       return matched.map((target) => ({
         target: targetText(target),
         member: owner === null ? info.name : `${owner}.${info.name}`,
         declared: `${info.file}:${String(info.line)}`,
         role: event.role,
-        site: `${event.file}:${String(line)}`,
+        site: `${event.file}:${String(event.line)}`,
         via: event.via,
       }));
     });

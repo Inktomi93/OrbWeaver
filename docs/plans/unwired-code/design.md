@@ -90,6 +90,11 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A member typed `?: never`, or a schema option key typed `z.never()` | judged by nothing | judged as a field | A union exclusion marker holds no data (tooling/src/unwired/graph/sites.ts `shapeOnlyOf`). |
 | A member keyed by a `declare const` unique symbol | judged by nothing | not in its population | A brand key exists only in the type (tooling/src/unwired/graph/sites.ts `isPhantomKey`). A member keyed by a real symbol is judged. |
 | A schema key with a `satisfies` twin, union options included | judged at the twin type's member | judged at the schema key when it finds no mirror for a union option | The type member is the home (tooling/src/unwired/graph/build.ts `zodTwins`). |
+| A member only a test or the testkit reads, such as `ReactivatePluginsReport.failed` in packages/server/src/entry/boot/reactivate-plugins.ts | `member-untouched` | a test-only read | A run edge reaches a member otherwise only from the product (tooling/src/unwired/graph/analyse.ts `dispatchedMembers`). A test's read is no such edge. |
+| A read through a symbol-typed key, such as `built[Symbol.asyncDispose]()` | reads the member declared under that symbol | not in its population | The key names one member, never the table whole (tooling/src/unwired/graph/keys.ts `symbolKey`). The members of `ServicesResult` in packages/server/src/entry/compose/services.ts that only tests read are test-only. |
+| A member that fills a typed slot of ours, such as an out-param sink (`SendRegexSink` in packages/server/src/domain/chat/contract/gather.ts) or a generic constraint (`Carrier` in packages/client/src/features/chat/lib/chat-track.tsx) | no row | `unreferenced` | The slot requires the member, so it is judged at the slot (tooling/src/unwired/graph/analyse.ts `fills`). |
+| A schema key a TanStack form path writes, such as `form.setFieldValue("params.banEos", value)` | no row when the product reads the key and the schema's own literal writes it | reports the key | The form path credits no write. The key's other product roles decide the row. |
+| A schema key a later `.extend` overrides, such as `redeemInviteResultSchema.participant` in packages/contracts/src/chat/detail.ts | `member-validated` | a fields-to-lists row | Nothing in the product writes the key. A `T[K]` type names it without a data read. |
 | A type registry entry reached only through `Registry[K]` | a key use, so no row | `unreferenced` | A key use names the member when `K` can be that entry's key, as a mapped type over the whole key tuple is; see "Limits of the fields scan". |
 | A read of a discriminant through the union | reads the member of every option | can report an option's member `never-read` | Every option's member is read. |
 | A member stored into a Drizzle column, copied by a key or carried by a whole value | flows into the column: read only where the product reads the column back; a read in a table definition reads nothing | the same | One rule (tooling/src/unwired/boundaries.ts `storeWritesAt`, tooling/src/unwired/graph/build.ts `#stores`). A send of the column hands the library its definition and sends no stored value. |
@@ -103,10 +108,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 
 Classes still open:
 
-- A schema key a form field path writes, such as `form.setFieldValue("params.banEos", value)`, is not ruled until a `--why` record shows which graph code credits the write.
-- A member read only from `tests/support`, such as the members of `ServicesResult` in packages/server/src/entry/compose/services.ts, is a test-only read. A `--why` record must show a product read, or the row is a graph miss.
-- A member counted through `report[key] += 1` and logged whole, and a contract member snap reads beside siblings the graph reports, are not ruled until a `--why` record shows their roles.
-- A schema key a later `.extend` overrides is not ruled until a `--why` record shows the key has no write.
+- A member published through our own global door and read only by a test that imports its module, such as `AppearanceMatrixContract.executable` in packages/client/src/lib/appearance-carrier-manifest.ts, counts as a door read today. A read through the door and a direct import read are not yet told apart.
 - A member of a `declare class`, such as a mint class that brands a type, has no run-time presence either. It reports `member-sent-only` or `member-untouched` today.
 - A member of a type that exists only to name a type error, such as the members of `NamesEvery` in packages/kit/src/guards/index.ts, reports `member-untouched`.
 - A computed key built from a runtime symbol (`{ [token]: true }`) writes nothing, as in the fields scan.

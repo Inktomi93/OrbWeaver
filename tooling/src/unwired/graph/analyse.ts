@@ -32,7 +32,7 @@ import type { Role } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
-import { isDeclKey, MEMBER_KINDS, moduleKey, UNNAMED } from "./sites.ts";
+import { isDeclKey, MEMBER_KINDS, moduleFile, moduleKey, UNNAMED } from "./sites.ts";
 import { SERVER_SOURCE } from "./spellings.ts";
 import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
 import { productReader, testSource } from "./state.ts";
@@ -662,10 +662,15 @@ function memberBucket({ name, schemaKey, defaulted, reachedOtherwise }: MemberSh
 }
 
 // A member another declaration fills or calls through (heritage, a typed slot, a platform call) has a run edge in from
-// something other than its own holder.
+// something other than its own holder. Only the product's edges count: a test's or a tool's use reaches nothing the
+// product runs.
 function dispatchedMembers(run: ReadonlyEdges, decls: ReadonlyMap<DeclKey, DeclInfo>): ReadonlySet<GraphKey> {
   const out = new Set<GraphKey>();
   for (const [from, targets] of run) {
+    const source = isDeclKey(from) ? decls.get(from)?.file : moduleFile(from);
+    if (source === undefined || !productReader(source)) {
+      continue;
+    }
     for (const target of targets) {
       const info = isDeclKey(target) ? decls.get(target) : undefined;
       if (info !== undefined && isMember(info) && info.holder !== from) {

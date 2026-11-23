@@ -166,6 +166,7 @@ interface Receive {
   readonly names: readonly string[];
   readonly file: string;
   readonly line: number;
+  readonly at: number;
 }
 
 // One door name site: the member it resolved to and the node it sits on.
@@ -277,6 +278,7 @@ export class MessageDoors {
         names: readNames([node]),
         file: sites.file,
         line: sites.lineOf(node),
+        at: node.pos,
       });
       return;
     }
@@ -370,7 +372,7 @@ export class MessageDoors {
       const parameter = parameters[index];
       const views = parameter === undefined || fn === undefined ? [] : yield* this.#parameterView(parameter, fn, member.origin === DOM, new Set());
       const names = parameter === undefined || fn === undefined ? [] : yield* this.#parameterNames(parameter, fn, member.origin === DOM);
-      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call) });
+      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call), at: call.pos });
     }
   }
 
@@ -572,9 +574,9 @@ export class MessageDoors {
       for (const receive of receivers) {
         paired.add(receive);
         const into = pairs.get(receive.file) ?? [];
-        into.push(...receive.views.map((slot) => ({ slot, value: send.value })));
+        into.push(...receive.views.map((slot) => ({ slot, value: send.value, site: receive.at })));
         pairs.set(receive.file, into);
-        state.roleAll(state.slotMembers(receive.names.map((name) => ({ type: send.value, name }))).flat(), "read", receive.file, 0);
+        state.roleAll(state.slotMembers(receive.names.map((name) => ({ type: send.value, name }))).flat(), "read", receive.file, receive.at);
       }
       // a send no receiver types goes on as an opaque hand-off does; a by-name read above still reads its member
       if (!receivers.some((receive) => receive.views.length > 0)) {

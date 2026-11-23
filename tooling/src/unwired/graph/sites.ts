@@ -191,6 +191,9 @@ const MODULE_PREFIX = "M:";
 
 export const moduleKey = (file: string): ModuleKey => `${MODULE_PREFIX}${file}`;
 
+/** The file a module node names. */
+export const moduleFile = (key: ModuleKey): string => key.slice(MODULE_PREFIX.length);
+
 /** Whether a graph node is a declaration, not a module. */
 export const isDeclKey = (key: GraphKey): key is DeclKey => !key.startsWith(MODULE_PREFIX);
 
@@ -515,6 +518,8 @@ export interface ScriptGlobalRead {
   readonly global: string;
   readonly chain: readonly string[];
   readonly dynamic: boolean;
+  /** The position of the string that holds the script. */
+  readonly at: number;
 }
 
 /** Everything one file's walk collected. */
@@ -543,7 +548,7 @@ export class FileSites {
   /** `"k" in x`: a key test touches the member it names without reading its value. */
   readonly keyTests: ElementKey[] = [];
   /** Members a lib arm selector's pattern names: `Extract<T, { k: … }>`. */
-  readonly armSelectorMembers: DeclKey[] = [];
+  readonly armSelectorMembers: { readonly key: DeclKey; readonly at: number }[] = [];
   readonly tvCalls: CallExpression[] = [];
   readonly jsxAttributes: { readonly attributes: JsxAttributes; readonly name: string; readonly value: Node | undefined }[] = [];
   readonly specifiers: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly from: GraphKey; readonly inType: boolean }[] = [];
@@ -829,7 +834,7 @@ const chainOf = (text: string | undefined): readonly string[] => (text ?? "").sp
 const escapeName = (name: string): string => name.replaceAll("$", "\\$");
 
 // The published globals a script's text reads by name, with each read's member chain.
-function scriptGlobalReads(text: string): readonly ScriptGlobalRead[] {
+function scriptGlobalReads(text: string, at: number): readonly ScriptGlobalRead[] {
   if (!text.includes(".")) {
     return [];
   }
@@ -837,13 +842,14 @@ function scriptGlobalReads(text: string): readonly ScriptGlobalRead[] {
     global: match[1] ?? "",
     chain: chainOf(match[2]),
     dynamic: match[3] !== undefined,
+    at,
   }));
   for (const alias of text.matchAll(GLOBAL_ALIAS)) {
     const name = escapeName(alias[1] ?? "");
-    const base = { global: alias[2] ?? "", chain: chainOf(alias[3]) };
+    const base = { global: alias[2] ?? "", chain: chainOf(alias[3]), at };
     const via = new RegExp(`\\b${name}((?:\\??\\.[A-Za-z_$][\\w$]*)+)(\\??\\.\\$\\{|\\[)?`, "gu");
     for (const read of text.slice(alias.index + alias[0].length).matchAll(via)) {
-      out.push({ global: base.global, chain: [...base.chain, ...chainOf(read[1])], dynamic: read[2] !== undefined });
+      out.push({ ...base, chain: [...base.chain, ...chainOf(read[1])], dynamic: read[2] !== undefined });
     }
     // `nav.${method}(…)` straight after the alias: a computed member of the alias itself
     if (new RegExp(`\\b${name}\\??\\.\\$\\{`, "u").test(text)) {
@@ -1468,7 +1474,7 @@ class Walker {
         ...node.typeArguments
           .slice(1)
           .flatMap(patternMembers)
-          .map((member) => this.#sink.keyOf(member)),
+          .map((member) => ({ key: this.#sink.keyOf(member), at: node.pos })),
       );
     }
     if (MEMBER_SELECTORS.has(name) && target !== undefined && keys !== undefined && stringKeysIn(keys).length > 0) {
@@ -1494,9 +1500,9 @@ class Walker {
     if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
       this.#specifier(node, inType);
       this.#customProperty(node);
-      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(node.text));
+      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(node.text, node.pos));
     } else if (isTemplateExpression(node)) {
-      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(templateText(node)));
+      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(templateText(node), node.pos));
     }
   }
 

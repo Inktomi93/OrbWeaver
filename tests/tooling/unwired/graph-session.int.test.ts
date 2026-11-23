@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, labelsIn, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, labelsIn, libraryModule, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
@@ -108,6 +108,37 @@ test("why names the site that gave each role to the asked member and to no other
   expect(scan.session.why.map(({ member, declared, role, site }) => [member, declared, role, site])).toEqual([
     ["Tag.name", `${FILE}:1`, "write", `${FILE}:3`],
     ["Tag.name", `${FILE}:1`, "escape", `${FILE}:4`],
+  ]);
+});
+
+// A value landing in an opaque member slot escapes there: the site is that line, not the file's first token past its
+// header, and the two slots one literal fills with the same value give the member one escape at that site. A library
+// slot naming the member reads it at the hand-off's own line, and a keyed read and an indexed type name it at theirs.
+const OPAQUE = `${GRAPH_SOURCE}/opaque.ts`;
+const OPAQUE_SOURCE = [
+  "// The header a position-zero site would skip to the import below.",
+  'import type { Tag } from "./session.ts";',
+  "export interface Box { readonly inner: unknown; readonly other: unknown; readonly tag?: Tag }",
+  "export interface Item { readonly kept: string }",
+  "declare const item: Item;",
+  "export const box: Box = { inner: item, other: item };",
+  'import { take } from "lib";',
+  "export const sunk = (): void => take(item);",
+  'declare const which: "kept";',
+  "export const got = item[which];",
+  'export type Kept = Item["kept"];',
+].join("\n");
+const SINK = libraryModule(["export interface Sink { readonly kept: string }", "export declare function take(sink: Sink): void;"]);
+
+test("why names an opaque slot's escape at its own line, once per member, role, site and recorder", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [FILE]: SESSION, [OPAQUE]: OPAQUE_SOURCE, ...SINK }));
+  const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: "Item", name: "kept" }] }));
+  const rows = scan.session.why.map(({ member, role, site, via }) => [member, role, site, via.split(" ")[0]]);
+  expect(rows).toEqual([
+    ["Item.kept", "escape", `${OPAQUE}:6`, "escape"],
+    ["Item.kept", "read", `${OPAQUE}:8`, "#memberFlow"],
+    ["Item.kept", "read", `${OPAQUE}:10`, "#elementKeys"],
+    ["Item.kept", "key", `${OPAQUE}:11`, "#typeKeys"],
   ]);
 });
 

@@ -401,6 +401,22 @@ export class GraphState implements GraphFacts {
     }
   }
 
+  /** Each ask's slot members take `role` at the ask's own site. */
+  roleNamed(asks: readonly { readonly type: Type; readonly name: string; readonly at: number }[], role: Role, file: string): void {
+    const members = this.slotMembers(asks);
+    for (const [y, { at }] of asks.entries()) {
+      this.roleAll(members[y] ?? [], role, file, at);
+    }
+  }
+
+  /** Every member of each type takes `role` at that type's own site. */
+  roleWhole(wholes: readonly { readonly type: Type; readonly at: number }[], role: Role, file: string): void {
+    const members = this.memberDeclarations(wholes.map(({ type }) => type));
+    for (const [y, { at }] of wholes.entries()) {
+      this.roleAll(members[y] ?? [], role, file, at);
+    }
+  }
+
   /** Whether the build keeps every role site of `key`: a declaration under a site prefix, or a production member when
    *  the session keeps member sites. */
   keepsSites(key: DeclKey): boolean {
