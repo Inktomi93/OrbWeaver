@@ -4,10 +4,10 @@
 // `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
 // restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
-// verbs run both engines except `unions`, `shapes`, `procedures` and `columns`, which run one engine (`unions`,
-// `shapes` and `procedures` query the graph) and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows
-// apart; `removed-keys` resolves every receiver site of a removed contract key over the graph session's merged program
-// and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
+// verbs run both engines except `unions`, `params`, `shapes`, `procedures` and `columns`, which run one engine (`unions`,
+// `params`, `shapes` and `procedures` query the graph) and refuse `--cross-check`, and each writes one report under
+// reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver site of a removed contract key
+// over the graph session's merged program and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
 // (./literal-hits.ts); `graph-trial` deletes each finding of the named buckets in a throwaway snapshot
 // (./graph/trial.ts).
@@ -37,6 +37,7 @@ import {
   codesGraph,
   cssGraph,
   domGraph,
+  paramsGraph,
   proceduresGraph,
   queryGraph,
   removedKeysGraph,
@@ -55,7 +56,6 @@ import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
 import { HITS_USAGE, runHits } from "./literal-hits.ts";
-import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
@@ -162,7 +162,7 @@ function literalLine(stage: LiteralStage | null): string {
 }
 
 /** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["unions", "shapes", "procedures", "columns"]);
+const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["unions", "params", "shapes", "procedures", "columns"]);
 
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
@@ -194,7 +194,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
         .map(([destination, count]) => `${destination}:${count}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
-  params: scan("reports/unwired/params.json", scanParams),
+  params: scan("reports/unwired/params.json", ({ root, deliberate, judged, log: report }) => paramsGraph({ root, deliberate, judged }, report)),
   unions: scan("reports/unwired/unions.json", ({ root, deliberate, judged, log: report }) => unionsGraph(root, { deliberate, judged }, report)),
   shapes: scan("reports/unwired/shapes.json", ({ root, deliberate, judged, log: report }) => shapesGraph({ root, deliberate, judged }, report)),
   procedures: scan("reports/unwired/procedures.json", (options) => proceduresGraph(options, options.log), outsideTable),

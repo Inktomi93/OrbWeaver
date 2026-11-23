@@ -7,7 +7,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { literalKeys } from "../eslint/index.ts";
 
 /** One reference: a repository-relative file and the 0-based offset where the name starts. */
 export interface Site {
@@ -144,104 +143,4 @@ export function classifyReference(source: ts.SourceFile, position: number, relat
   }
   const kind = KIND_OF_ROLE[roleAt(source, position)];
   return kind === "use" && !isProductionFile(relativePath) ? "test" : kind;
-}
-
-/** One argument a call passes: its literal text when it is a literal, and the keys it supplies when it is an object
- *  literal or a JSX element's attributes. `keys` is null when a spread or a non-literal may supply any key. */
-interface ArgumentShape {
-  readonly literal: string | null;
-  readonly keys: readonly string[] | null;
-}
-
-/** A call, `new` or JSX element that invokes the referenced callable. `arguments` is null when a spread hides them. */
-export interface CallShape {
-  readonly arguments: readonly ArgumentShape[] | null;
-}
-
-const LITERAL_KEYWORDS: ReadonlySet<ts.SyntaxKind> = new Set([ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword]);
-
-function literalText(node: ts.Expression): string | null {
-  if (ts.isStringLiteralLike(node) || ts.isNumericLiteral(node) || ts.isBigIntLiteral(node) || LITERAL_KEYWORDS.has(node.kind)) {
-    return node.getText();
-  }
-  if (ts.isIdentifier(node) && node.text === "undefined") {
-    return "undefined";
-  }
-  return ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(node.operand) ? node.getText() : null;
-}
-
-function argumentShape(node: ts.Expression): ArgumentShape {
-  return { literal: literalText(node), keys: literalKeys(node) };
-}
-
-function jsxShape(element: ts.JsxOpeningLikeElement): CallShape {
-  const keys: string[] = [];
-  for (const attribute of element.attributes.properties) {
-    if (ts.isJsxSpreadAttribute(attribute)) {
-      return { arguments: [{ literal: null, keys: null }] };
-    }
-    keys.push(attribute.name.getText());
-  }
-  // Children between an opening and a closing tag supply the `children` prop.
-  if (ts.isJsxOpeningElement(element) && element.parent.children.length > 0) {
-    keys.push("children");
-  }
-  return { arguments: [{ literal: null, keys }] };
-}
-
-/** The call the reference at `position` is the callee of, or null when the reference is not invoked there. */
-export function callAt(source: ts.SourceFile, position: number): CallShape | null {
-  const node = nameAt(source, position);
-  const parent = node?.parent;
-  if (node === undefined || parent === undefined) {
-    return null;
-  }
-  const callee = ts.isPropertyAccessExpression(parent) && parent.name === node ? parent : node;
-  const site = callee.parent;
-  if ((ts.isJsxOpeningElement(site) || ts.isJsxSelfClosingElement(site)) && site.tagName === callee) {
-    return jsxShape(site);
-  }
-  if (!((ts.isCallExpression(site) || ts.isNewExpression(site)) && site.expression === callee)) {
-    return null;
-  }
-  const args = site.arguments ?? [];
-  return { arguments: args.some(ts.isSpreadElement) ? null : args.map(argumentShape) };
-}
-
-const MEMBERSHIP_METHODS: ReadonlySet<string> = new Set(["includes", "has", "indexOf", "lastIndexOf"]);
-const VALUE_USES = ["call", "define", "type", "test", "parse", "escape"] as const;
-/** What a reference to a function, a callable member or a tuple does with the value. `define`: an implementation
- *  supplies the member. `test`: a membership method reads it. `parse`: `z.enum` reads it. `escape`: the value
- *  leaves for code the scan cannot follow, so any argument or member may be reached there. */
-export type ValueUse = (typeof VALUE_USES)[number];
-
-/** What the reference at `position` does with the value it names. */
-export function valueUseAt(source: ts.SourceFile, position: number): ValueUse {
-  if (callAt(source, position) !== null) {
-    return "call";
-  }
-  const node = nameAt(source, position);
-  const role = roleOf(node);
-  if (role !== "read") {
-    return role === "write" ? "define" : "type";
-  }
-  if (node === undefined) {
-    return "escape";
-  }
-  // `(TUPLE as readonly string[]).includes(x)` still only tests membership: look through parentheses and assertions.
-  let value = node;
-  while (
-    ts.isParenthesizedExpression(value.parent) ||
-    ts.isAsExpression(value.parent) ||
-    ts.isSatisfiesExpression(value.parent) ||
-    ts.isNonNullExpression(value.parent)
-  ) {
-    value = value.parent;
-  }
-  const { parent } = value;
-  if (ts.isPropertyAccessExpression(parent) && parent.expression === value && MEMBERSHIP_METHODS.has(parent.name.text) && ts.isCallExpression(parent.parent)) {
-    return "test";
-  }
-  const parsed = ts.isCallExpression(parent) && ts.isPropertyAccessExpression(parent.expression) && parent.expression.name.text === "enum";
-  return parsed ? "parse" : "escape";
 }

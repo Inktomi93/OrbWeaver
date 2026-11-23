@@ -106,6 +106,44 @@ test("a mapped type that transforms its members fills a table keyed by them: a k
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual([]);
 });
 
+// A key written beside a spread overrides the member the spread source's type declares, even where the literal's own
+// slot is a generic parameter that names no member; the twin nothing writes stays untouched.
+test("a key written beside a spread writes the member its source declares, through a generic slot", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Req { readonly signal: string; readonly stamp?: number; readonly spare?: number }",
+      "function run<R extends { readonly signal: string }>(args: { readonly req: R }): string {",
+      "  return args.req.signal;",
+      "}",
+      "export const sent = (req: Req): string => req.signal + run({ req: { ...req, stamp: 1 } });",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE).map((label) => label.split("  ")[0])).toEqual(["Req.stamp"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Req.spare"]);
+});
+
+// A key beside a spread fills the member of the literal's own slot: a row spread into a wire shape writes the wire's
+// member, never the row's. The row's member fills the wire's through the spread, so it is judged at that slot and
+// reports nowhere; a false write would report it write-only.
+test("a key beside a spread into another type's slot writes that slot's member, not the spread source's", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Row { readonly id: string; readonly createdAt?: Date }",
+      "export interface Wire { readonly id: string; readonly createdAt?: string }",
+      "declare function send(wire: Wire): void;",
+      "export const publish = (row: Row): void => send({ ...row, createdAt: row.id });",
+    ]),
+  );
+  const createdAt = (bucket: "member-untouched" | "member-write-only"): readonly (string | undefined)[] =>
+    labelsIn(scan, bucket, FILE)
+      .map((label) => label.split("  ")[0])
+      .filter((label) => label?.endsWith(".createdAt") === true);
+  expect(createdAt("member-untouched")).toEqual([]);
+  expect(createdAt("member-write-only")).toEqual(["Wire.createdAt"]);
+});
+
 // A method is judged once its class is live: one nothing calls is untouched. A member code we do not see calls stays
 // live: an override its base is called through, an interface implementation, a lib override, a React lifecycle method
 // and a runtime protocol member.

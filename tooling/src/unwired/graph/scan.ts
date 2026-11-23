@@ -22,6 +22,8 @@ import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
 import type { Ablation, GraphLog, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, tracing } from "./options.ts";
+import type { ParamsLists, ParamsReport } from "./params.ts";
+import { PARAMS_HOMES, paramsPass } from "./params.ts";
 import { readPprof } from "./pprof.ts";
 import type { ProceduresOptions, ProceduresReport } from "./procedures.ts";
 import { PROCEDURE_HOMES, proceduresOf } from "./procedures.ts";
@@ -343,4 +345,12 @@ export async function removedKeysGraph(
 /** Build the graph, then report the second homes, synonyms and re-export chains of the session's program. */
 export function shapesGraph(options: ShapesOptions, log: GraphLog): Promise<WithSession<ShapesReport>> {
   return session(options.root, log, { options: FRESH_BUILD, ...NO_SITES }, ({ world, time }) => time("analyse", () => shapesPass(world(), options)));
+}
+
+/** Build the graph, then judge every product callable's parameters against its calls. The calls come from the merged
+ *  program, which a dump does not carry, so it takes no `from`. */
+export function paramsGraph(rows: ParamsLists, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<ParamsReport>> {
+  return session(rows.root, log, { options: { ...options, from: null }, siteFiles: PARAMS_HOMES, memberSites: false }, ({ graph, world, time }) =>
+    time("analyse", () => paramsPass(graph, world(), rows)),
+  );
 }

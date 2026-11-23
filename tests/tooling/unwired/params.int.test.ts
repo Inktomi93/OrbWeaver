@@ -1,11 +1,14 @@
 // `pnpm unwired params` reports optional parameters and props no production call supplies, and parameters every call
 // passes the same literal. A callable whose value escapes, a single caller and a spread argument are controls.
-import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanParams } from "../../../tooling/src/unwired/index.ts";
-import { JSX_NAMESPACE, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+import { expect, test } from "@orb/testkit/tooling";
+import type { JudgedEntry } from "../../../tooling/src/unwired/index.ts";
+import { paramsGraph } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, JSX_NAMESPACE, JUDGED_WORK, judgedExpected, judgedOutcome, plantJudged } from "./_planted.ts";
+
+const scanParams = (root: string, judged: readonly JudgedEntry[] = []): ReturnType<typeof paramsGraph> =>
+  paramsGraph({ root, deliberate: [], judged }, () => undefined);
 
 const TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
   "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
   "packages/a/src/calls.ts": [
     'export function greet(name: string, loud?: boolean, prefix = "hi"): string {',
@@ -38,6 +41,38 @@ const TREE = {
     'port.send("second");',
     'export const lines = [greet("a"), greet("b", true), tag("x", 1), tag("x", 2), once("y"), paint({ color: "red" }), relay({})];',
     "export const handlers = [escaped];",
+    "export type Greeter = typeof greet;",
+    "/** Built from {@link greet}. */",
+    'export const greeting = greet("c");',
+    "export function pair(head: string, tail?: number): string {",
+    "  return head + String(tail);",
+    "}",
+    'const both: [string, number] = ["x", 1];',
+    "export const paired = [pair(...both), pair(...both)];",
+    "export function listed(limit?: number): number {",
+    "  return limit ?? 0;",
+    "}",
+    "export const table = { listed };",
+    "listed();",
+  ].join("\n"),
+  // A re-export forwards a callable and a type query names it: neither hands its value on.
+  "packages/a/src/door.ts": 'export { greet } from "./calls.ts";',
+  // A call through the interface is the interface member's; the class method's own calls never pass `flush`.
+  "packages/a/src/sinks.ts": [
+    "export interface Sink {",
+    "  put(line: string, flush?: boolean): void;",
+    "}",
+    "export class FileSink implements Sink {",
+    "  put(line: string, flush?: boolean): void {",
+    "    void line;",
+    "    void flush;",
+    "  }",
+    "}",
+    "const sink: Sink = new FileSink();",
+    'sink.put("a", true);',
+    'sink.put("b", true);',
+    'new FileSink().put("c");',
+    'new FileSink().put("d");',
   ].join("\n"),
   "packages/a/src/badge.tsx": [
     "export function Badge(props: { label: string; tone?: string; size?: number }): JSX.Element {",
@@ -48,23 +83,22 @@ const TREE = {
 };
 
 test("the params scan reports unsupplied parameters, constant literals and unset props", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree(TREE);
-  const report = scanParams({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanParams(await plantedTree(graphTree(TREE, { jsx: true })));
   const found = report.unwired.map(({ home, member, kind, literal, calls }) => ({ at: `${home}(${member})`, kind, literal, calls }));
   expect(found.toSorted((a, b) => a.at.localeCompare(b.at))).toEqual([
     { at: "Badge(props.size)", kind: "unsupplied-prop", literal: null, calls: 1 },
-    { at: "greet(prefix)", kind: "unsupplied", literal: null, calls: 2 },
+    { at: "FileSink.put(flush)", kind: "unsupplied", literal: null, calls: 2 },
+    { at: "greet(prefix)", kind: "unsupplied", literal: null, calls: 3 },
     { at: "Port.send(retries)", kind: "unsupplied", literal: null, calls: 2 },
     { at: "relay(options.size)", kind: "unsupplied-prop", literal: null, calls: 1 },
+    { at: "Sink.put(flush)", kind: "same-literal", literal: "true", calls: 2 },
     { at: "tag(kind)", kind: "same-literal", literal: '"x"', calls: 2 },
   ]);
-  expect(report.disagreements).toEqual([]);
 });
 
 // One file per false-positive class of the params review, each beside a twin the scan must still report. A finding is
 // `home(member)`, so a fix that hides the twin fails as surely as one that leaves the false positive.
 const SUPPLY_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
   // A spread of a conditional literal supplies every prop it may carry. The restated inline options type is a separate
   // home, so its instruction, supplied only through the other declaration, still reports.
   "packages/a/src/conditional-spread.ts": [
@@ -264,12 +298,40 @@ const SUPPLY_TREE = {
     '  return logger.capability({ model: "m" }) + String(usage.tokens);',
     "}",
     'export const receipts = emitTurnReceipts({ servedModel: "served", tokens: 1 });',
+    "export interface BaseOpts {",
+    "  readonly label?: string;",
+    "}",
+    "export interface WideOpts extends BaseOpts {",
+    "  readonly label?: string;",
+    "  readonly size: number;",
+    "}",
+    "export function base(opts: BaseOpts): string {",
+    '  return opts.label ?? "";',
+    "}",
+    "export function wide(opts: WideOpts): string {",
+    '  return (opts.label ?? "") + String(opts.size);',
+    "}",
+    'export const labels = [base({}), wide({ label: "w", size: 1 })];',
+    "export interface Internal {",
+    "  readonly id: string;",
+    "  readonly stamp?: number;",
+    "}",
+    "export interface Wire {",
+    "  readonly id: string;",
+    "  readonly stamp?: string;",
+    "}",
+    "function send(wire: Wire): string {",
+    '  return wire.id + (wire.stamp ?? "");',
+    "}",
+    "export function take(internal: Internal): string {",
+    '  return internal.id + String(internal.stamp ?? 0) + send({ ...internal, stamp: "x" });',
+    "}",
+    'export const taken = [take({ id: "a" }), take({ id: "b" })];',
   ].join("\n"),
 };
 
 test("the params scan credits spread, shared-type and callee-body supplies and keeps each unsupplied twin", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree(SUPPLY_TREE);
-  const report = scanParams({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const report = await scanParams(await plantedTree(graphTree(SUPPLY_TREE)));
   const inFile = (file: string): readonly string[] =>
     report.unwired
       .filter((finding) => finding.file === `packages/a/src/${file}.ts`)
@@ -286,23 +348,26 @@ test("the params scan credits spread, shared-type and callee-body supplies and k
   expect.soft(inFile("platform-view")).toEqual(["same-literal Bus.emit(event)"]);
   expect
     .soft(inFile("true-findings"))
-    .toEqual(["unsupplied-prop Credentials.markRevokedByUser(params.reason)", "unsupplied-prop ProviderLogger.capability(entry.servedModel)"]);
-  expect(report.disagreements).toEqual([]);
+    .toEqual([
+      "unsupplied-prop Credentials.markRevokedByUser(params.reason)",
+      "unsupplied-prop ProviderLogger.capability(entry.servedModel)",
+      "unsupplied-prop base(opts.label)",
+      "unsupplied-prop take(internal.stamp)",
+    ]);
 });
 
 // A row whose fix an open item owns reports apart, with its item; an entry whose item is done or whose row no longer
 // reports is stale, and the done item's row reports as unwired again.
 test("a judged row reports apart with its open item, and an entry for a done item or a gone row is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const options = { root: await plantedTree({ ...TREE, ...JUDGED_WORK }), worlds: [WORLD], testWorlds: [], deliberate: [], log: (): undefined => undefined };
-  const judged = plantJudged(scanParams(options), "greet.prefix", "tag.kind");
-  expect(judgedOutcome(scanParams({ ...options, judged }), "greet.prefix", "tag.kind")).toEqual(judgedExpected("greet.prefix", "tag.kind"));
+  const root = await plantedTree({ ...graphTree(TREE, { jsx: true }), ...JUDGED_WORK });
+  const judged = plantJudged(await scanParams(root), "greet.prefix", "tag.kind");
+  expect(judgedOutcome(await scanParams(root, judged), "greet.prefix", "tag.kind")).toEqual(judgedExpected("greet.prefix", "tag.kind"));
 });
 
 // A component reached only through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`,
 // escapes into the loader, so its props are never judged, whatever its other callers pass. `Shown`, rendered by name
 // only, is the judged twin.
 const LAZY_TREE = {
-  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
   "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
   "packages/a/src/editor.tsx": [
     "export interface EditorProps { readonly value: string; readonly readOnly?: boolean }",
@@ -317,11 +382,23 @@ const LAZY_TREE = {
   "packages/a/src/page.tsx": ['import { Editor, Shown } from "./editor.tsx";', 'export const page = [<Shown value="s" />, <Editor value="e" />];'].join("\n"),
 };
 
-test("a component a dynamic import's namespace hands on escapes in both engines", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree(LAZY_TREE);
-  for (const crossCheck of [false, true]) {
-    const report = scanParams({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined, crossCheck });
-    expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Shown(props.muted)"]);
-    expect(report.disagreements).toEqual([]);
-  }
+test("a component a dynamic import's namespace hands on escapes, and its rendered twin is judged", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scanParams(await plantedTree(graphTree(LAZY_TREE, { jsx: true })));
+  expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Shown(props.muted)"]);
 });
+
+// Every product write of a prop is judged, so the order the walk meets them in decides nothing: a local store of the
+// request (no supply) before or after the executor's generic-slot construction (a supply) gives one verdict.
+const STASH =
+  "export function stash(req: EmbedRequest, accounting: Accounting): EmbedRequest {\n  const copy: EmbedRequest = { ...req, accounting };\n  return copy;\n}";
+test.for(["before", "after"])(
+  "a store of the prop %s the supplying construction leaves the verdict alone",
+  { timeout: 120_000 },
+  async (order, { plantedTree }) => {
+    const pipeline = SUPPLY_TREE["packages/a/src/pipeline-spread.ts"];
+    const at = pipeline.indexOf("export function executor");
+    const planted = order === "before" ? `${pipeline.slice(0, at)}${STASH}\n${pipeline.slice(at)}` : `${pipeline}\n${STASH}`;
+    const report = await scanParams(await plantedTree(graphTree({ "packages/a/src/pipeline-spread.ts": planted })));
+    expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Executor.embed(req.dimensions)"]);
+  },
+);

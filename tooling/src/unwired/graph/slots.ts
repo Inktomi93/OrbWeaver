@@ -9,6 +9,9 @@
 //   shape key is that field itself: a literal typed by `z.infer` or `z.input` writes the key, as a read through it reads.
 // - A literal handed to a generic parameter `T` has only itself as its slot; when a sibling argument is a function
 //   taking that `T` (`variantProps(recipe, selection)`), the sibling's first parameter is the real slot.
+// - A key fills the member of its literal's own slot, never the member a spread beside it copies from: `{ ...row, at: iso }`
+//   handed to a wire shape writes the wire's `at`, not the row's. Only a key the slot declares no member for (a generic
+//   call infers the slot from the literal itself, `run<R>({ req: { ...req, accounting } })`) fills the spread source's.
 // - A literal no slot types writes its own keys, so a flow from the slot it is handed into carries the writes.
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
 //   type selects the axis values instead.
@@ -25,13 +28,14 @@ import {
   isPropertyAccessExpression,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
+  isSpreadAssignment,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { CheckFlags, TypeFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer, unwrapExpression } from "./resolve.ts";
+import { answer, declKeyParts, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
 import { declarationNameOf, isZodShapeKey } from "./sites.ts";
@@ -51,8 +55,8 @@ interface SlotWrite {
 
 const spanKey = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
 
-// The value with its parentheses, non-null and type assertions removed.
-function unwrapValue(node: Node | undefined): Node | undefined {
+/** The value with its parentheses, non-null and type assertions removed. */
+export function unwrapValue(node: Node | undefined): Node | undefined {
   let at = unwrapExpression(node);
   while (at !== undefined && (isAsExpression(at) || isSatisfiesExpression(at))) {
     at = unwrapExpression(at.expression);
@@ -70,15 +74,14 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   for (const [key, type] of coInferredSlots(state, literals)) {
     slots.set(key, type);
   }
-  // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
-  const writes = state.session.options.ablate.has("literal-keys")
-    ? []
-    : sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
-        const type = schema ? undefined : slots.get(spanKey(literal));
-        return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
-      });
-  slotWrites(state, variants, sites, writes);
+  // `--ablate=literal-keys` drops every object literal key's write: through its contextual type, through the spreads
+  // beside it and into its own key.
   if (!state.session.options.ablate.has("literal-keys")) {
+    const writes = sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
+      const type = schema ? undefined : slots.get(spanKey(literal));
+      return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
+    });
+    slotWrites(state, variants, sites, [...writes, ...spreadWrites(state, sites, slots)]);
     ownKeyWrites(state, sites, slots);
   }
   bagSelections(state, variants, sites);
@@ -94,6 +97,41 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
       return type === undefined ? [] : [{ type, name, value, at: attributes.pos, jsx: true }];
     }),
   );
+}
+
+// The writes a key makes through the spreads beside it: a key its literal's own object slot does not declare (a generic
+// call's slot is its parameter's constraint, `{ readonly signal: string }`) fills the member each spread source's type
+// declares, since the literal is that source's value with the key overridden. A key the slot declares is the slot's. A
+// zod shape key is schema input, never a write, here as through the slot.
+function spreadWrites(
+  state: GraphState,
+  { file, literalProperties: properties }: Pick<FileSites, "file" | "literalProperties">,
+  slots: ReadonlyMap<string, Type | undefined>,
+): readonly SlotWrite[] {
+  const candidates = properties.flatMap(({ literal, name, at, value, schema }) => {
+    const type = schema ? undefined : slots.get(spanKey(literal));
+    const spreads = literal.properties.filter(isSpreadAssignment);
+    return type !== undefined && spreads.length > 0 && hasFlag(type.flags, TypeFlags.Object) ? [{ type, name, at, value, literal, spreads }] : [];
+  });
+  const own = state.batch(candidates.map(({ type, name }) => state.propsOnSlot(type, name)));
+  // A slot the checker inferred from the literal itself names the literal's own key, which declares no member.
+  const declared = own.map((symbols) => state.declarations(symbols).flat());
+  const sources = candidates.flatMap((candidate, at) =>
+    (declared[at] ?? []).every((key) => insideLiteral(key, file, candidate.literal))
+      ? candidate.spreads.map((spread) => ({ candidate, source: spread.expression }))
+      : [],
+  );
+  const types = state.slotTypes(state.world.typesAt(sources.map(({ source }) => source)));
+  return sources.flatMap(({ candidate: { name, at, value } }, x) => {
+    const type = types[x];
+    return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
+  });
+}
+
+// Whether a declaration key names a node inside the literal: one of its own keys.
+function insideLiteral(key: DeclKey, file: string, literal: ObjectLiteralExpression): boolean {
+  const parts = declKeyParts(key);
+  return parts.file === file && parts.pos >= literal.pos && parts.end <= literal.end;
 }
 
 // A literal no slot types, such as a local `as const` table handed on later, writes its own keys; the flow from the slot

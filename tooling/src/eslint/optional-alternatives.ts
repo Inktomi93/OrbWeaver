@@ -10,7 +10,7 @@ import { lexicalVariable } from "./general.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 /** The explicit fields of a construction. A spread or computed property leaves the writer unknown. */
-export function literalKeys(node: ts.Expression): readonly string[] | null {
+function literalKeys(node: ts.Expression): readonly string[] | null {
   if (!ts.isObjectLiteralExpression(node)) {
     return null;
   }
