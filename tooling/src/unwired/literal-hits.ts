@@ -17,7 +17,8 @@
 //   destructuring key reads, a type member's own name declares.
 // - A generated file is the house markers' call alone (tooling/src/floor/paths/generated-file.ts).
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
-//   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays.
+//   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays. An
+//   object literal key, a shorthand's included, also resolves to the member its contextual type names, which it writes.
 // - A string or template hit holds a row only as a key, never as copy text: in key syntax, or where the checker's
 //   contextual type for it is a string-literal union holding the name, a dotted path by its segment (keyedHits).
 // - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
@@ -66,6 +67,7 @@ import {
   isFunctionDeclaration,
   isFunctionExpression,
   isHeritageClause,
+  isIdentifier,
   isImportDeclaration,
   isImportEqualsDeclaration,
   isInterfaceDeclaration,
@@ -76,11 +78,13 @@ import {
   isModuleDeclaration,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
+  isObjectLiteralExpression,
   isParameterDeclaration,
   isPrivateIdentifier,
   isPropertyAssignment,
   isPropertyDeclaration,
   isPropertySignatureDeclaration,
+  isShorthandPropertyAssignment,
   isSourceFile,
   isStringLiteral,
   isTemplateExpression,
@@ -93,7 +97,7 @@ import {
   SyntaxKind,
   skipTrivia,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator } from "@typescript/native/sync";
+import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import { isRemoteNode } from "@typescript/native/sync";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
@@ -107,7 +111,7 @@ import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
-import { declarationKeys, deepestAt, nameAt, nodePlace } from "./native.ts";
+import { declarationKeys, deepestAt, nameAt, nodePlace, propertiesNamed } from "./native.ts";
 import { isProduction } from "./optional-population.ts";
 
 const DEAD: Verdict = "dead";
@@ -590,12 +594,31 @@ function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): Readonly
     asked.map(({ hit, node }) => ({ node, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, node from getTokenAtPosition at ${String(hit.offset)}` })),
   );
   const symbols = world.symbolsAt(asked.map(({ node }) => node));
+  const slots = world.batch(asked.map(({ hit, node }) => slotMembers(world, node, hit.name)));
   return new Map(
     asked.flatMap(({ hit }, at) => {
-      const symbol = symbols[at];
-      return symbol === undefined ? [] : [[hit, declarationKeys(symbol)] as const];
+      const keys = [symbols[at], ...(slots[at] ?? [])].flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol)));
+      return keys.length === 0 ? [] : [[hit, keys] as const];
     }),
   );
+}
+
+// An object literal key, a shorthand's included, writes the member its contextual type names, while the checker's
+// symbol for the key is the literal's own property (and a shorthand's value the local it reads): the key also goes to
+// each member of that name the slot's arms declare.
+function* slotMembers(world: NativeWorld, node: Node, name: string): APIRequestGenerator<readonly (NativeSymbol | undefined)[]> {
+  const key = node.parent;
+  if (
+    !(
+      (isPropertyAssignment(key) || isShorthandPropertyAssignment(key) || isMethodDeclaration(key)) &&
+      sameNode(key.name, node) &&
+      isObjectLiteralExpression(key.parent)
+    )
+  ) {
+    return [];
+  }
+  const slot = yield* world.checker.getContextualType.gen(key.parent);
+  return slot === undefined ? [] : yield* propertiesNamed(world.checker, slot, name);
 }
 
 // The declaration keys each row's known sites resolve to in the held files: the row's own member, however many
@@ -766,6 +789,22 @@ const offsetKey = (hit: LiteralHit): string | null => (hit.site === null ? null 
 /** The key a row's own site is known by, the one a hit there carries: the name starting at `pos` past its trivia, a
  *  private name at its `#` and a quoted name at its quote. `pos` may be a node's full start. */
 export const ownSiteKey = (source: SourceFile, file: string, pos: number): string => siteKey(file, nameStart(source, skipTrivia(source.text, pos)));
+
+/** The word a string, a JSON key or a plugin reads a declaration by, the one to search its name as: an identifier's
+ *  text, a quoted or numeric name's value, and for a computed name the member symbol's name, which is the key's value
+ *  (`[KEY]` with `KEY = "a"` is `a`). Null for a private name: no string reaches `#x`, so the compile is the whole answer. */
+export function* searchedWord(world: NativeWorld, name: Node): APIRequestGenerator<string | null> {
+  if (isPrivateIdentifier(name)) {
+    return null;
+  }
+  if (isComputedPropertyName(name)) {
+    const member = yield* world.checker.getSymbolAtLocation.gen(name);
+    return member?.name ?? name.getText(name.getSourceFile());
+  }
+  return isIdentifier(name) || isStringLiteral(name) || isNoSubstitutionTemplateLiteral(name) || isNumericLiteral(name)
+    ? name.text
+    : name.getText(name.getSourceFile());
+}
 
 // A common name hits thousands of lines; the row keeps every count and this many hits, the saving ones first.
 const KEPT_HITS = 25;

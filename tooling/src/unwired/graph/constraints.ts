@@ -44,6 +44,10 @@ interface Named {
   readonly name: string;
 }
 
+// Each site's named members, at that site's position.
+const sited = (lists: readonly (readonly Named[])[], at: (y: number) => number): readonly (Named & { readonly at: number })[] =>
+  lists.flatMap((list, y) => list.map((ask) => ({ ...ask, at: at(y) })));
+
 // The operand of the `keyof` a parameter's type parameter is constrained by, as the declaration spells it:
 // `get<K extends keyof V>(key: K)` gives `V`. The checker hands back the constraint already evaluated to its keys, so
 // only the declaration still names the type they are keys of.
@@ -76,12 +80,12 @@ export class Constraints {
   ): void {
     const state = this.#state;
     const named = [
-      ...state.batch(sites.typeArguments.map((site) => this.#explicit(site))).flat(),
-      ...state.batch(sites.genericCalls.map((call) => this.#handOff(call))).flat(),
-      ...state.batch(sites.keyArguments.map((argument) => this.#keyArgument(argument))).flat(),
-      ...state.batch(sites.keyReturns.map((returned) => this.#keyReturn(returned))).flat(),
+      ...sited(state.batch(sites.typeArguments.map((site) => this.#explicit(site))), (y) => sites.typeArguments[y]?.call.pos ?? 0),
+      ...sited(state.batch(sites.genericCalls.map((call) => this.#handOff(call))), (y) => sites.genericCalls[y]?.pos ?? 0),
+      ...sited(state.batch(sites.keyArguments.map((argument) => this.#keyArgument(argument))), (y) => sites.keyArguments[y]?.pos ?? 0),
+      ...sited(state.batch(sites.keyReturns.map((returned) => this.#keyReturn(returned))), (y) => sites.keyReturns[y]?.value.pos ?? 0),
     ];
-    state.roleAll(state.slotMembers(named).flat(), "key", file, 0);
+    state.roleNamed(named, "key", file);
   }
 
   *#explicit(site: TypeArgumentSite): APIRequestGenerator<readonly Named[]> {

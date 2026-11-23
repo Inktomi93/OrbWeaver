@@ -57,6 +57,7 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
+import type { Destination } from "../open-sends.ts";
 import type { FlowPair, Flows, HeldSends } from "./flows.ts";
 import { opaqueSlot } from "./flows.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -64,6 +65,9 @@ import { allOf } from "./resolve.ts";
 import type { FileSites } from "./sites.ts";
 import type { GraphState, MessageDoor, MessageReceiver } from "./state.ts";
 import { isPrimitive } from "./state.ts";
+
+// A message crosses into another realm, the wire destination's own case (boundaries.ts).
+const MESSAGE_SEND: Destination = { destination: "wire", receiver: null };
 
 // Where a door member is declared: an ambient module of `@types/node`, or the compiler's DOM library.
 const NODE_TYPES = "@types/node";
@@ -162,6 +166,7 @@ interface Receive {
   readonly names: readonly string[];
   readonly file: string;
   readonly line: number;
+  readonly at: number;
 }
 
 // One door name site: the member it resolved to and the node it sits on.
@@ -273,6 +278,7 @@ export class MessageDoors {
         names: readNames([node]),
         file: sites.file,
         line: sites.lineOf(node),
+        at: node.pos,
       });
       return;
     }
@@ -366,7 +372,7 @@ export class MessageDoors {
       const parameter = parameters[index];
       const views = parameter === undefined || fn === undefined ? [] : yield* this.#parameterView(parameter, fn, member.origin === DOM, new Set());
       const names = parameter === undefined || fn === undefined ? [] : yield* this.#parameterNames(parameter, fn, member.origin === DOM);
-      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call) });
+      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call), at: call.pos });
     }
   }
 
@@ -568,13 +574,13 @@ export class MessageDoors {
       for (const receive of receivers) {
         paired.add(receive);
         const into = pairs.get(receive.file) ?? [];
-        into.push(...receive.views.map((slot) => ({ slot, value: send.value })));
+        into.push(...receive.views.map((slot) => ({ slot, value: send.value, site: receive.at })));
         pairs.set(receive.file, into);
-        state.roleAll(state.slotMembers(receive.names.map((name) => ({ type: send.value, name }))).flat(), "read", receive.file, 0);
+        state.roleAll(state.slotMembers(receive.names.map((name) => ({ type: send.value, name }))).flat(), "read", receive.file, receive.at);
       }
       // a send no receiver types goes on as an opaque hand-off does; a by-name read above still reads its member
       if (!receivers.some((receive) => receive.views.length > 0)) {
-        flows.escape(send.value, false, send.file, send.at);
+        flows.escape(send.value, false, { file: send.file, at: send.at }, MESSAGE_SEND);
       }
     }
     for (const [file, filePairs] of pairs) {

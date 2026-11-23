@@ -50,7 +50,7 @@ export interface FindingReferences {
 /** Find-references for each finding, every handle resolved in one batch. */
 export function referencesOf(world: NativeWorld, findings: readonly Finding[]): readonly FindingReferences[] {
   const resolver = new Resolver(world);
-  const names = findings.map(({ key }) => (key !== null && isDeclKey(key) ? nameOf(world, key) : undefined));
+  const names = findings.map(({ key }) => (key !== null && isDeclKey(key) ? declaredNameOf(world, key) : undefined));
   const groups = world.batch(names.map((name) => (name === undefined ? noReferences() : world.referencedSymbolsOf(name))));
   const handles = groups.map((entries) => entries.flatMap(({ references }) => references));
   const nodes = world.batch(handles.flat().map((handle) => handle.resolve.gen()));
@@ -113,8 +113,8 @@ function* noReferences(): ReturnType<NativeWorld["referencedSymbolsOf"]> {
   return [];
 }
 
-// The name node of the declaration a key names, found by its span in its file.
-function nameOf(world: NativeWorld, key: DeclKey): Node | undefined {
+/** The name node of the declaration a key names, found by its span in its file. */
+export function declaredNameOf(world: NativeWorld, key: DeclKey): Node | undefined {
   const { file, pos, end, kind } = declKeyParts(key);
   const source = world.source(file);
   const node = source === undefined ? undefined : nodeAt(source, { pos, end, kind });

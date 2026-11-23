@@ -1,6 +1,10 @@
 // The syntactic half of the graph's walk: one pass over a file collects every site a later checker pass resolves (names,
 // literal keys, hand-offs, flow sites, keyed reads, variant tables, JSX attributes, module specifiers, classes, doc
 // names), the declarations it meets and the edges syntax alone decides. No checker call happens here.
+//
+// - A Drizzle write hands each stored value to its column (../boundaries.ts storeWritesAt): a read it copies into a key
+//   gets no role and the stored value is not handed whole, so build.ts flows each member into its column instead. A
+//   property read inside a table definition defines an index or a foreign key and reads no stored value.
 import type {
   BindingElement,
   CallExpression,
@@ -24,6 +28,7 @@ import type {
   ObjectLiteralExpression,
   ParameterDeclaration,
   PropertyAccessExpression,
+  PropertyAssignment,
   PropertyDeclaration,
   PropertySignatureDeclaration,
   SetAccessorDeclaration,
@@ -99,6 +104,7 @@ import {
   isNumericLiteral,
   isObjectBindingPattern,
   isObjectLiteralExpression,
+  isOmittedExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
   isParenthesizedTypeNode,
@@ -119,6 +125,7 @@ import {
   isTemplateExpression,
   isTypeAliasDeclaration,
   isTypeLiteralNode,
+  isTypeOperatorNode,
   isTypeParameterDeclaration,
   isTypePredicateNode,
   isTypeQueryNode,
@@ -131,6 +138,8 @@ import {
   NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
+import type { StoreWrite } from "../boundaries.ts";
+import { copiedReads, storeWritesAt, tableDefinition } from "../boundaries.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
@@ -183,12 +192,16 @@ const MODULE_PREFIX = "M:";
 
 export const moduleKey = (file: string): ModuleKey => `${MODULE_PREFIX}${file}`;
 
+/** The file a module node names. */
+export const moduleFile = (key: ModuleKey): string => key.slice(MODULE_PREFIX.length);
+
 /** Whether a graph node is a declaration, not a module. */
 export const isDeclKey = (key: GraphKey): key is DeclKey => !key.startsWith(MODULE_PREFIX);
 
-// Why a member is judged by nothing: `x?: never` closes a union arm against a sibling's field, and a member of a type
-// literal that only types a `satisfies` clause checks a value's shape. Neither holds data.
-const SHAPE_ONLY = ["exclusion-marker", "satisfies-check"] as const;
+// Why a member is judged by nothing: `x?: never` closes a union arm against a sibling's field, a member of a type
+// literal that only types a `satisfies` clause checks a value's shape, and a member keyed by a `declare const` unique
+// symbol brands a type with a key no value has at run time. None holds data.
+const SHAPE_ONLY = ["exclusion-marker", "satisfies-check", "brand-marker"] as const;
 type ShapeOnly = (typeof SHAPE_ONLY)[number];
 
 /** One declaration the walk met. */
@@ -206,6 +219,14 @@ export interface DeclInfo {
   /** A variable whose initializer runs a call, a construction or an await when its module loads. */
   readonly effect: boolean;
   readonly shapeOnly: ShapeOnly | null;
+  /** A `?` member, or a schema key whose builder chain makes it optional or defaulted: a reader may see its default. */
+  readonly optional: boolean;
+  /** A key of a zod object schema's shape literal: it declares a member of the parsed value, and the literal writes none. */
+  readonly schemaKey: boolean;
+  /** A schema key's path between its holder and its shape literal, through object keys that declare nothing: the
+   *  `applyAsCopy` of `router({ applyAsCopy: procedure.input(z.object({ name })) })`, so its home reads as the fields
+   *  scan's `router.applyAsCopy`. */
+  readonly via: readonly string[];
   docTags: readonly string[];
 }
 
@@ -247,6 +268,18 @@ const unitName = (node: Node): Node | undefined => (isUnitDeclaration(node) ? no
 
 /** The name a declaration-like node declares: a unit's, a binding's, a parameter's or a literal key's. */
 export const declarationNameOf = (node: Node): Node | undefined => unitName(node) ?? namingName(node);
+
+/** The declaration kinds of a member: what a type, a class or an enum holds. A zod shape key is a member too, marked
+ *  {@link DeclInfo.schemaKey}, since its kind is every literal key's. */
+export const MEMBER_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.PropertySignature,
+  SyntaxKind.PropertyDeclaration,
+  SyntaxKind.MethodSignature,
+  SyntaxKind.MethodDeclaration,
+  SyntaxKind.GetAccessor,
+  SyntaxKind.SetAccessor,
+  SyntaxKind.EnumMember,
+]);
 
 /** The name a declaration without one is labelled with. */
 export const UNNAMED = "{…}";
@@ -319,7 +352,34 @@ function shapeOnlyOf(node: Node): ShapeOnly | null {
   if (signatureType(node)?.kind === SyntaxKind.NeverKeyword) {
     return "exclusion-marker";
   }
+  if (isPhantomKey(node)) {
+    return "brand-marker";
+  }
   return typesOnlyASatisfies(node) ? "satisfies-check" : null;
+}
+
+// `readonly [brand]: B` beside `declare const brand: unique symbol` in the same file: the key exists only in the type.
+function isPhantomKey(node: PropertySignatureDeclaration): boolean {
+  const { name } = node;
+  if (!(isComputedPropertyName(name) && isIdentifier(name.expression))) {
+    return false;
+  }
+  const key = name.expression.text;
+  return node
+    .getSourceFile()
+    .statements.some(
+      (statement) =>
+        isVariableStatement(statement) &&
+        (statement.modifiers ?? []).some(({ kind }) => kind === SyntaxKind.DeclareKeyword) &&
+        statement.declarationList.declarations.some(
+          (declaration) =>
+            isIdentifier(declaration.name) &&
+            declaration.name.text === key &&
+            declaration.type !== undefined &&
+            isTypeOperatorNode(declaration.type) &&
+            declaration.type.operator === SyntaxKind.UniqueKeyword,
+        ),
+    );
 }
 
 const isTypePosition = (node: Node): boolean =>
@@ -388,11 +448,15 @@ export interface LocalBinding {
   readonly line: number;
 }
 
-/** A property an object literal writes: the literal, the key's text and the value written, if any. */
+/** A property an object literal writes: the literal, the key's text, where the key sits and the value written, if any. A
+ *  zod shape literal's keys, a twinned `extend` literal's too, name the parsed value's members and write nothing. */
 export interface LiteralProperty {
   readonly literal: ObjectLiteralExpression;
+  readonly property: PropertyAssignment | ShorthandPropertyAssignment | MethodDeclaration;
   readonly name: string;
+  readonly at: number;
   readonly value: Node | undefined;
+  readonly schema: boolean;
 }
 
 /** A value handed on whole: a call argument, a spread, or a value published to a global our own declarations name. */
@@ -455,6 +519,8 @@ export interface ScriptGlobalRead {
   readonly global: string;
   readonly chain: readonly string[];
   readonly dynamic: boolean;
+  /** The position of the string that holds the script. */
+  readonly at: number;
 }
 
 /** Everything one file's walk collected. */
@@ -467,6 +533,10 @@ export class FileSites {
   /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
   readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
+  /** The Drizzle writes: each stored value and the table it lands in. */
+  readonly stores: StoreWrite[] = [];
+  /** The type names a production parameter is annotated with: a home whose optional members a caller may leave unset. */
+  readonly parameterTypes: Node[] = [];
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
   /** Each `satisfies X<T>` over a schema expression: the build keeps those whose `type` names zod's `ZodType`. */
   readonly zodTwins: { readonly type: Node; readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
@@ -479,7 +549,7 @@ export class FileSites {
   /** `"k" in x`: a key test touches the member it names without reading its value. */
   readonly keyTests: ElementKey[] = [];
   /** Members a lib arm selector's pattern names: `Extract<T, { k: … }>`. */
-  readonly armSelectorMembers: DeclKey[] = [];
+  readonly armSelectorMembers: { readonly key: DeclKey; readonly at: number }[] = [];
   readonly tvCalls: CallExpression[] = [];
   readonly jsxAttributes: { readonly attributes: JsxAttributes; readonly name: string; readonly value: Node | undefined }[] = [];
   readonly specifiers: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly from: GraphKey; readonly inType: boolean }[] = [];
@@ -600,6 +670,9 @@ const ZOD_OBJECT_BUILDERS: ReadonlySet<string> = new Set(["object", "strictObjec
 // An inline `z.union` or `z.discriminatedUnion` spells each arm; an arm held in a constant twins at its own `satisfies`.
 const ZOD_UNION_BUILDERS: ReadonlySet<string> = new Set(["union", "discriminatedUnion"]);
 const ZOD_EXTENDERS: ReadonlySet<string> = new Set(["extend", "safeExtend"]);
+const ZOD_NAMESPACE = "z";
+// A builder method anywhere on a key's chain (`z.string().optional()`) makes the key optional or gives it a default.
+const ZOD_OPTIONAL: ReadonlySet<string> = new Set(["optional", "nullish", "default", "prefault", "catch"]);
 // A variable's JSDoc sits on its statement (`/** @public */ export const x = …`), two levels up from the declaration.
 const hasJsDoc = (node: UnitDeclaration): boolean => {
   const holder = isVariableDeclaration(node) ? node.parent.parent : node;
@@ -698,6 +771,49 @@ function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
   return shapes;
 }
 
+// `z.object({ … })`: the literal a zod object builder takes as its shape. An `extend` literal is left out: its callee is
+// any value's method, and the base's own keys are declared at the base.
+const spanOf = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
+
+/** Whether a declaration is a key of a zod shape literal: the declaration of a field the schema parses. */
+export const isZodShapeKey = (node: Node): node is PropertyAssignment | ShorthandPropertyAssignment =>
+  (isPropertyAssignment(node) || isShorthandPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isZodShape(node.parent);
+
+// The names of the object keys a shape literal sits under, outermost first, up to its binding or to the schema key that
+// holds it: each declares nothing, so the holder chain alone leaves it out of the home.
+function schemaKeyPath(literal: Node): readonly string[] {
+  const path: string[] = [];
+  for (let at: Node = literal.parent; !(isSourceFile(at) || isVariableDeclaration(at) || isZodShapeKey(at)); at = at.parent) {
+    if (isPropertyAssignment(at) && isIdentifier(at.name)) {
+      path.unshift(at.name.text);
+    }
+  }
+  return path;
+}
+
+function isZodShape(literal: ObjectLiteralExpression): boolean {
+  const call = literal.parent;
+  return (
+    isCallExpression(call) &&
+    sameNode(call.arguments[0], literal) &&
+    isPropertyAccessExpression(call.expression) &&
+    ZOD_OBJECT_BUILDERS.has(call.expression.name.text) &&
+    isIdentifier(call.expression.expression) &&
+    call.expression.expression.text === ZOD_NAMESPACE
+  );
+}
+
+// `z.string().optional()`: a builder method that makes a key optional or defaulted, anywhere on its initializer's chain.
+function isOptionalSchema(node: Node): boolean {
+  for (let at: Node | undefined = unwrapExpression(node); at !== undefined && isCallExpression(at) && isPropertyAccessExpression(at.expression); ) {
+    if (ZOD_OPTIONAL.has(at.expression.name.text)) {
+      return true;
+    }
+    at = unwrapExpression(at.expression.expression);
+  }
+  return false;
+}
+
 function zodShapeOf(expression: Node): ObjectLiteralExpression | undefined {
   for (let at: Node | undefined = unwrapExpression(expression); at !== undefined && isCallExpression(at); ) {
     const callee = at.expression;
@@ -711,7 +827,9 @@ function zodShapeOf(expression: Node): ObjectLiteralExpression | undefined {
 }
 
 // `window.X.a.b` / `globalThis.X.a` in a string: the global, the member chain, and whether a computed key follows it.
-const GLOBAL_READ = /\b(?:window|globalThis|self)\.([A-Za-z_$][\w$]*)((?:\??\.[A-Za-z_$][\w$]*)*)(\??\.\$\{|\[)?/gu;
+/** The global objects a published global is read off: `window.__orb`, `globalThis.__orb`, `self.__orb`. */
+export const GLOBAL_OBJECTS = ["window", "globalThis", "self"] as const;
+const GLOBAL_READ = new RegExp(`\\b(?:${GLOBAL_OBJECTS.join("|")})\\.([A-Za-z_$][\\w$]*)((?:\\??\\.[A-Za-z_$][\\w$]*)*)(\\??\\.\\$\\{|\\[)?`, "gu");
 // `const nav = window.__orb && window.__orb.nav;` names an alias the rest of the script reads through.
 const GLOBAL_ALIAS =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:[^;\n]*?(?:&&|\?\?|\|\|)\s*)?(?:window|globalThis|self)\.([A-Za-z_$][\w$]*)((?:\??\.[A-Za-z_$][\w$]*)*)/gu;
@@ -721,7 +839,7 @@ const chainOf = (text: string | undefined): readonly string[] => (text ?? "").sp
 const escapeName = (name: string): string => name.replaceAll("$", "\\$");
 
 // The published globals a script's text reads by name, with each read's member chain.
-function scriptGlobalReads(text: string): readonly ScriptGlobalRead[] {
+function scriptGlobalReads(text: string, at: number): readonly ScriptGlobalRead[] {
   if (!text.includes(".")) {
     return [];
   }
@@ -729,13 +847,14 @@ function scriptGlobalReads(text: string): readonly ScriptGlobalRead[] {
     global: match[1] ?? "",
     chain: chainOf(match[2]),
     dynamic: match[3] !== undefined,
+    at,
   }));
   for (const alias of text.matchAll(GLOBAL_ALIAS)) {
     const name = escapeName(alias[1] ?? "");
-    const base = { global: alias[2] ?? "", chain: chainOf(alias[3]) };
+    const base = { global: alias[2] ?? "", chain: chainOf(alias[3]), at };
     const via = new RegExp(`\\b${name}((?:\\??\\.[A-Za-z_$][\\w$]*)+)(\\??\\.\\$\\{|\\[)?`, "gu");
     for (const read of text.slice(alias.index + alias[0].length).matchAll(via)) {
-      out.push({ global: base.global, chain: [...base.chain, ...chainOf(read[1])], dynamic: read[2] !== undefined });
+      out.push({ ...base, chain: [...base.chain, ...chainOf(read[1])], dynamic: read[2] !== undefined });
     }
     // `nav.${method}(…)` straight after the alias: a computed member of the alias itself
     if (new RegExp(`\\b${name}\\??\\.\\$\\{`, "u").test(text)) {
@@ -760,8 +879,15 @@ interface Frame {
   readonly moduleNamespaces: Set<string>;
   /** The file's bindings that hold a require function createRequire made. */
   readonly requires: Set<string>;
+  /** The spans of the shape literals a `satisfies z.ZodType<T>` chain spells, its `extend` literals among them. */
+  readonly twinShapes: Set<string>;
   /** How many generic functions enclose the walk. */
   generic: number;
+  /** The property names a Drizzle write copies into a column, and the arguments a Drizzle write stores. */
+  readonly copied: Set<Node>;
+  readonly stored: Set<Node>;
+  /** How many Drizzle table definitions enclose the walk. */
+  tables: number;
 }
 
 /** Walk one file: every site its checker passes need, with the declarations and syntax-decided edges told to `sink`. */
@@ -774,7 +900,11 @@ export function collectSites(source: SourceFile, file: string, product: boolean,
     createRequire: new Set(),
     moduleNamespaces: new Set(),
     requires: new Set(),
+    twinShapes: new Set(),
     generic: 0,
+    copied: new Set(),
+    stored: new Set(),
+    tables: 0,
   };
   const walker = new Walker(source, sites, sink, frame);
   walker.visit(source, false);
@@ -800,7 +930,8 @@ class Walker {
 
   visit(node: Node, typePosition: boolean): void {
     this.#binding(node);
-    const pushed = this.#declaration(node);
+    const pushed = this.#declaration(node) || this.#schemaKey(node);
+    this.#parameterType(node);
     this.#docs(node);
     if (isConstructorDeclaration(node)) {
       this.#sink.edge("run", this.#holder, this.#sink.keyOf(node));
@@ -823,10 +954,7 @@ class Walker {
     this.#types(node);
     this.#strings(node, inType);
     this.#spellings(node);
-    const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0;
-    this.#frame.generic += generic ? 1 : 0;
-    node.forEachChild((child) => this.visit(child, inType));
-    this.#frame.generic -= generic ? 1 : 0;
+    this.#children(node, inType);
     if (pushed) {
       this.#frame.stack.pop();
       if (isClassDeclaration(node)) {
@@ -836,6 +964,17 @@ class Walker {
     if (literal !== undefined) {
       this.#frame.literals.pop();
     }
+  }
+
+  // The children, counting the generic functions and the Drizzle table definitions that enclose them.
+  #children(node: Node, inType: boolean): void {
+    const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0 ? 1 : 0;
+    const table = isCallExpression(node) && tableDefinition(node) !== null ? 1 : 0;
+    this.#frame.generic += generic;
+    this.#frame.tables += table;
+    node.forEachChild((child) => this.visit(child, inType));
+    this.#frame.generic -= generic;
+    this.#frame.tables -= table;
   }
 
   // Sites a call or a callee decides: an implementation's overloads, type arguments and literal keys, a generic
@@ -855,6 +994,7 @@ class Walker {
       this.#sites.genericCalls.push(node);
     }
     this.#moduleLoad(node);
+    this.#stores(node);
     if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
       this.#sites.routeCalls.push(node);
     }
@@ -993,6 +1133,9 @@ class Walker {
       line,
       effect: isVariableDeclaration(node) && runsOnLoad(node.initializer),
       shapeOnly: shapeOnlyOf(node),
+      via: [],
+      optional: (isPropertySignatureDeclaration(node) || isPropertyDeclaration(node)) && node.postfixToken?.kind === SyntaxKind.QuestionToken,
+      schemaKey: false,
       docTags: [],
     });
     if (hasJsDoc(node) && (top || isClassDeclaration(node.parent))) {
@@ -1009,6 +1152,46 @@ class Walker {
     }
     this.#frame.stack.push(key);
     return true;
+  }
+
+  // A key of a zod shape literal declares a member of its schema, held by the schema's binding or by the key whose
+  // nested schema it sits in, so its home reads `userSchema.inner` as the fields scan spells it.
+  #schemaKey(node: Node): boolean {
+    if (!isZodShapeKey(node)) {
+      return false;
+    }
+    const name = keyText(node.name);
+    if (name === undefined) {
+      return false;
+    }
+    const key = this.#sink.keyOf(node);
+    const holder = this.#holder;
+    this.#sink.declare(key, {
+      file: this.#sites.file,
+      kind: node.kind,
+      name,
+      holder,
+      surfacePath: "",
+      top: false,
+      line: this.#source.getLineAndCharacterOfPosition(node.name.getStart(this.#source)).line + 1,
+      effect: false,
+      shapeOnly: null,
+      optional: isPropertyAssignment(node) && isOptionalSchema(node.initializer),
+      schemaKey: true,
+      via: schemaKeyPath(node.parent),
+      docTags: [],
+    });
+    // a literal key lives with its schema, which runs the key's builder chain; a read of the key keeps the schema too
+    this.#sink.edge("run", holder, key);
+    this.#sink.edge("run", key, holder);
+    this.#frame.stack.push(key);
+    return true;
+  }
+
+  #parameterType(node: Node): void {
+    if (this.#sites.product && isParameterDeclaration(node) && node.type !== undefined && isTypeReferenceNode(node.type)) {
+      this.#sites.parameterTypes.push(node.type.typeName);
+    }
   }
 
   // The edges that keep a declaration and its holder alive together, a pin on a binding unread on purpose, and a field
@@ -1111,17 +1294,18 @@ class Walker {
     }
     this.#sites.literals.push(literal);
     this.#frame.literals.push(literal);
+    const schema = isZodShape(node) || this.#frame.twinShapes.has(spanOf(node));
     for (const property of node.properties) {
       const name = isSpreadAssignment(property) ? undefined : keyText(property.name);
       if (name === undefined) {
         continue;
       }
       if (isPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, name, value: property.initializer });
+        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.initializer, schema });
       } else if (isShorthandPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, name, value: property.name });
+        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.name, schema });
       } else if (isMethodDeclaration(property)) {
-        this.#sites.literalProperties.push({ literal: node, name, value: undefined });
+        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: undefined, schema });
       }
     }
     return literal;
@@ -1150,7 +1334,7 @@ class Walker {
   #name(node: Node, inType: boolean): void {
     if ((isIdentifier(node) || isPrivateIdentifier(node)) && !forwards(node.parent)) {
       const declares = declaresName(node);
-      const silent = inType || declares;
+      const silent = inType || declares || this.#handedToColumn(node);
       this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node), declares });
       if (isShorthandPropertyAssignment(node.parent)) {
         this.#sites.shorthands.push({ node: node.parent, from: this.#holder });
@@ -1223,17 +1407,21 @@ class Walker {
     this.#keyReturn(node);
     if (product) {
       const site = valueFlowSite(node) ?? copyFlowSite(node);
-      if (site !== undefined) {
+      if (site !== undefined && !this.#frame.stored.has(site.value)) {
         this.#sites.flowSites.push(site);
       }
     }
   }
 
-  // A returned key literal: the function's declared return type may be a `keyof` that names a member by it.
+  // A key literal a function returns, by a `return` or as a concise arrow body: the function's declared return type may
+  // be a `keyof` that names a member by it.
   #keyReturn(node: Node): void {
-    const returned = isReturnStatement(node) && node.expression !== undefined && keyLiterals(node.expression) !== null ? node.expression : undefined;
-    const declared = returned === undefined ? undefined : declaredReturnType(node);
-    if (returned !== undefined && declared !== undefined) {
+    const returned = returnedValue(node);
+    if (returned === undefined || keyLiterals(returned) === null) {
+      return;
+    }
+    const declared = isArrowFunction(node) ? node.type : declaredReturnType(node);
+    if (declared !== undefined) {
       this.#sites.keyReturns.push({ value: returned, type: declared });
     }
   }
@@ -1253,6 +1441,7 @@ class Walker {
       const { typeName } = node.type;
       const type = isQualifiedName(typeName) ? typeName.right : typeName;
       for (const literal of zodShapesOf(node.expression)) {
+        this.#frame.twinShapes.add(spanOf(literal));
         this.#sites.zodTwins.push({ type, shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });
       }
     }
@@ -1265,13 +1454,34 @@ class Walker {
     return [{ name: property.name.text, decl: this.#sink.keyOf(property) }];
   }
 
+  // A name whose read a Drizzle write or a table definition takes over (the header's ruling).
+  #handedToColumn(node: Node): boolean {
+    return this.#frame.copied.has(node) || (this.#frame.tables > 0 && isPropertyAccessExpression(node.parent) && node.parent.name === node);
+  }
+
+  // A Drizzle write's stored values, the reads its literal keys copy, and the argument it stores (the header's ruling).
+  #stores(node: CallExpression): void {
+    const stores = storeWritesAt(node);
+    if (stores.length === 0) {
+      return;
+    }
+    this.#sites.stores.push(...stores);
+    const [argument] = node.arguments;
+    for (const stored of [...(argument === undefined ? [] : [argument]), ...stores.map(({ value }) => value)]) {
+      this.#frame.stored.add(stored);
+    }
+    for (const read of stores.flatMap(({ value }) => (isObjectLiteralExpression(value) ? value.properties.flatMap(keyCopiedReads) : []))) {
+      this.#frame.copied.add(read);
+    }
+  }
+
   // Each argument: a function value flows into its parameter's slot; any other non-primitive value is handed on whole,
   // an object literal too, so its values escape into an opaque slot (its keys are written by the literal-key pass).
   #arguments(node: CallExpression | NewExpression): void {
     for (const [index, argument] of (node.arguments ?? []).entries()) {
       if (isArrowFunction(argument) || isFunctionExpression(argument)) {
         this.#sites.flowSites.push({ value: argument, slot: "contextual" });
-      } else if (!(isStringLiteral(argument) || isNumericLiteral(argument))) {
+      } else if (!(isStringLiteral(argument) || isNumericLiteral(argument) || this.#frame.stored.has(argument))) {
         this.#sites.handedWhole.push({ node: argument, spread: isSpreadElement(argument), door: false, call: { node, index } });
       }
     }
@@ -1291,7 +1501,7 @@ class Walker {
         ...node.typeArguments
           .slice(1)
           .flatMap(patternMembers)
-          .map((member) => this.#sink.keyOf(member)),
+          .map((member) => ({ key: this.#sink.keyOf(member), at: node.pos })),
       );
     }
     if (MEMBER_SELECTORS.has(name) && target !== undefined && keys !== undefined && stringKeysIn(keys).length > 0) {
@@ -1317,9 +1527,9 @@ class Walker {
     if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
       this.#specifier(node, inType);
       this.#customProperty(node);
-      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(node.text));
+      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(node.text, node.pos));
     } else if (isTemplateExpression(node)) {
-      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(templateText(node)));
+      this.#sites.scriptGlobalReads.push(...scriptGlobalReads(templateText(node), node.pos));
     }
   }
 
@@ -1473,6 +1683,14 @@ function exportedStatement(node: Node): boolean {
 const isDocNameHolder = (node: Node): boolean =>
   isJSDocLink(node) || isJSDocLinkCode(node) || isJSDocLinkPlain(node) || isJSDocNameReference(node) || isJSDocTypeExpression(node);
 
+// The value a function hands back at `node`: a `return`'s expression or a concise arrow body.
+function returnedValue(node: Node): Expression | undefined {
+  if (isReturnStatement(node)) {
+    return node.expression;
+  }
+  return isArrowFunction(node) && !isBlock(node.body) ? node.body : undefined;
+}
+
 // The return type the function holding a return statement declares.
 function declaredReturnType(node: Node): TypeNode | undefined {
   let at: Node = node.parent;
@@ -1483,7 +1701,10 @@ function declaredReturnType(node: Node): TypeNode | undefined {
 }
 
 // A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
-// function's return), or a literal property's value.
+// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
+// The reads a stored literal's key copies into its column.
+const keyCopiedReads = (property: Node): readonly Node[] => (isPropertyAssignment(property) ? copiedReads(property.initializer) : []);
+
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {
     return { value: node.initializer, slot: "declared", holder: node.name };
@@ -1493,6 +1714,11 @@ function valueFlowSite(node: Node): FlowSite | undefined {
   }
   if (isReturnStatement(node) && node.expression !== undefined && !isLiteralValue(node.expression)) {
     return { value: node.expression, slot: "contextual" };
+  }
+  // a source file is the one node with no parent
+  const element = !isSourceFile(node) && isArrayLiteralExpression(node.parent) ? node.parent.elements.find((item) => sameNode(item, node)) : undefined;
+  if (element !== undefined && !isSpreadElement(element) && !isOmittedExpression(element) && !isLiteralValue(element)) {
+    return { value: element, slot: "contextual" };
   }
   return isPropertyAssignment(node) && isObjectLiteralExpression(node.parent) && !isLiteralValue(node.initializer)
     ? { value: node.initializer, slot: "contextual" }

@@ -23,6 +23,21 @@ test("a lookup keyed by a parameter reads the keys its callers pass, through a c
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Labels.c"]);
 });
 
+// A key typed as a symbol names the one member declared under it, so the table's other members stay unread.
+test("a symbol-typed key reads the member declared under that symbol, never the table whole", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'const dispose: unique symbol = Symbol("dispose");',
+      "export interface Built { readonly kept: number; readonly spare: number; [dispose](): void }",
+      "declare const built: Built;",
+      "export const end = (): void => { built[dispose](); };",
+      "export const seen = built.kept;",
+    ]),
+  );
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Built.spare"]);
+});
+
 test("a zod schema's keys are the members of the type it satisfies", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,
@@ -33,7 +48,9 @@ test("a zod schema's keys are the members of the type it satisfies", { timeout: 
       "export const nameOf = (user: z.infer<typeof userSchema>): string => user.name;",
     ]),
   });
-  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["User.age"]);
+  // a schema key names a member of the parsed value and writes none, so the twin's unread member is untouched
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["User.age"]);
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual([]);
 });
 
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -47,7 +64,7 @@ test("an inline union schema twins each arm's keys with the union's members", { 
       'export const leftOf = (value: z.infer<typeof eitherSchema>): string => ("left" in value ? value.left : value.kind);',
     ]),
   });
-  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["B.right"]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["B.right"]);
 });
 
 test("an extended schema twins its extend literal's keys with the type it satisfies", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -62,7 +79,7 @@ test("an extended schema twins its extend literal's keys with the type it satisf
       "export const countOf = (view: z.infer<typeof viewSchema>): number => view.count;",
     ]),
   });
-  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Base.id", "View.hidden"]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Base.id", "View.hidden"]);
 });
 
 // The twin is zod's: a type of the same name declared anywhere else spells a satisfies check and twins nothing.
@@ -82,9 +99,11 @@ test("a satisfies reference twins only through zod's ZodType, never a local type
       "export const counts = (a: z.infer<typeof twinnedSchema>, b: z.infer<typeof aliasedSchema>, c: z.infer<typeof localSchema>): number => a.count + b.count + c.count;",
     ]),
   });
-  expect({ written: bare(labelsIn(scan, "member-write-only", FILE)), untouched: bare(labelsIn(scan, "member-untouched", FILE)) }).toEqual({
-    written: ["Twinned.hidden", "Aliased.hidden"],
-    untouched: ["ZodType._output", "Local.count", "Local.hidden"],
+  // a twinned key is judged at its type, so the twin's read of `count` reaches it; the local check twins nothing, so its
+  // read lands on the schema key and the type's members stay untouched
+  expect({ untouched: bare(labelsIn(scan, "member-untouched", FILE)), validated: bare(labelsIn(scan, "member-validated", FILE)) }).toEqual({
+    untouched: ["ZodType._output", "Twinned.hidden", "Aliased.hidden", "Local.count", "Local.hidden"],
+    validated: ["localSchema.hidden"],
   });
 });
 

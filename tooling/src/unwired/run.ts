@@ -21,7 +21,7 @@ import { scanColumns } from "./columns.ts";
 import { runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
-import type { MemberBucket } from "./graph/analyse.ts";
+import type { Bucket, MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
 import { DOM_BUCKETS } from "./graph/dom.ts";
@@ -652,17 +652,40 @@ async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<nu
   return EXIT.clean;
 }
 
+const MEMBER_BUCKET_SET: ReadonlySet<Bucket> = new Set(MEMBER_BUCKETS);
+const isMemberBucket = (bucket: Bucket): bucket is MemberBucket => MEMBER_BUCKET_SET.has(bucket);
+
 async function runGraphScan(args: GraphArgs): Promise<number> {
-  const graph = await scanGraph(args.root, log, args.options);
+  const graph = await scanGraph(args.root, log, args.options, { deliberate: DELIBERATE, judged: JUDGED_FIELDS });
   const path = write(args.root, args.out, graph);
+  const { members } = graph;
+  // A member bucket lists only the rows no ruling names; the deliberate and judged rows follow it apart.
+  const shown = (bucket: Bucket): readonly { readonly label: string; readonly note: string | null }[] => {
+    if (!isMemberBucket(bucket)) {
+      return graph.analysis[bucket];
+    }
+    const rows = bucket === "member-validated" ? members.validated : members.unwired.filter((row) => row.bucket === bucket);
+    return rows.map(({ key, verdict, note }) => ({ label: `${key}\t${verdict}`, note }));
+  };
   for (const bucket of BUCKETS) {
-    for (const finding of graph.analysis[bucket]) {
+    for (const finding of shown(bucket)) {
       process.stdout.write(`${bucket}\t${finding.label}${finding.note === null ? "" : `\t${finding.note}`}\n`);
     }
   }
+  for (const row of members.deliberate) {
+    process.stdout.write(`deliberate\t${row.bucket}\t${row.key}\t${row.reason}\n`);
+  }
+  for (const row of members.judged) {
+    process.stdout.write(`judged\t${row.bucket}\t${row.key}\t${String(row.item)}\n`);
+  }
+  for (const entry of members.staleJudged) {
+    process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
+  }
   logSession(graph.session);
+  log(literalLine(members.literalStage));
+  const ruled = `deliberate=${String(members.deliberate.length)} judged=${String(members.judged.length)} stale-judged=${String(members.staleJudged.length)}`;
   log(
-    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(graph.analysis[bucket].length)}`).join(" ")} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
+    `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(shown(bucket).length)}`).join(" ")} ${ruled} lost-reads=${String(graph.lostReads.length)} written to ${path}`,
   );
   return EXIT.clean;
 }

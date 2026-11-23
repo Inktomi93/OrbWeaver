@@ -2,7 +2,7 @@
 // rules, split by the side of the tree that holds it, and the literal stage that moves a dead field row to ask only on a
 // hit that can be a read.
 
-import { symlinkSync } from "node:fs";
+import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
@@ -12,7 +12,7 @@ import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { openGraphWorld } from "../../../tooling/src/unwired/graph/build.ts";
 import type { HitKind, HitScope } from "../../../tooling/src/unwired/literal-hits.ts";
 import { HIT_KINDS, HIT_SCOPES, hitsReport, literalStage, rowsEvidence, runHits, searchLiterals } from "../../../tooling/src/unwired/literal-hits.ts";
-import { graphTree } from "./_planted.ts";
+import { graphTree, ZOD_MODULE } from "./_planted.ts";
 
 const TIMEOUT = 120_000;
 
@@ -445,4 +445,62 @@ test("a name that is not one word is refused by the search and moves its dead ro
     ["zqQuietRow", "dead", false],
   ]);
   expect([stage?.unsearchable, stage?.deadBefore, stage?.deadAfter]).toEqual([1, 2, 1]);
+});
+
+// The program reads each file once; a file edited before the search greps it gives lines the program never held, so
+// the search refuses rather than reading another line's text.
+test("a held file that changed on disk after the program read it is refused, naming the file", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/edited.ts";
+  const root = await plantedTree(graphTree({ [file]: "export const read = (o: { n: number }): number => o.zqEdited;\n" }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const path = join(root, file);
+  writeFileSync(path, `// a line the program never read\n${readFileSync(path, "utf8")}`);
+  expect(() => searchLiterals(root, world, ["zqEdited"])).toThrow(`${file}:2`);
+});
+
+const INPUT = "packages/a/src/input.ts";
+const INPUT_TEXT = [
+  'import { z } from "zod";',
+  "export interface Input { readonly chatId: string; readonly zqAssetIds?: readonly string[] }",
+  "export const take = (input: Input): string => input.chatId;",
+  "export const inputSchema = z.strictObject({ chatId: z.string(), zqSchemaIds: z.string().optional() });",
+  "export const parse = (input: z.infer<typeof inputSchema>): string => input.chatId;",
+].join("\n");
+const SEND = "packages/a/src/send.ts";
+
+// An object literal key writes the member its contextual type names, a shorthand's too: the hit is the row's evidence,
+// though the checker's own symbol for it is the literal's property. The local a shorthand reads, and a read of it, are
+// another declaration of the name.
+test("a shorthand key in an object literal argument is a write of the interface or schema member its slot names", { timeout: TIMEOUT }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [INPUT]: INPUT_TEXT,
+      [SEND]: [
+        'import { parse, take } from "./input.ts";',
+        'export const send = (zqAssetIds: readonly string[]): string => take({ chatId: "c", ...(zqAssetIds.length > 0 ? { zqAssetIds } : {}) });',
+        'export const sendSchema = (zqSchemaIds: string): string => parse({ chatId: "c", zqSchemaIds });',
+      ].join("\n"),
+    }),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const rows = ["zqAssetIds", "zqSchemaIds"].map((member) => ({ member, known: [`${INPUT}:${String(INPUT_TEXT.indexOf(member))}`], neverWritten: true }));
+  const search = searchLiterals(
+    root,
+    world,
+    rows.map(({ member }) => member),
+  );
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  expect(rowsEvidence(search, world, rows).map(({ own, elsewhere, saved, writers }) => [own, elsewhere, saved, writers])).toEqual([
+    [1, 1, true, [`${SEND}:2`]],
+    [1, 0, true, [`${SEND}:3`]],
+  ]);
 });

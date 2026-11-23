@@ -1,11 +1,11 @@
 // Members the type system names without a read: a type predicate's pattern, a constraint a type argument fills, a
-// literal checked against a `keyof`, and slots the flow walk pairs through a library's symbol keys, a callback's
-// parameters, a library value behind our interface and a library's inferred type parameter. Each case keeps one member
-// nothing names, which stays untouched.
+// literal checked against a `keyof` (a key use only, so a member the product writes and never reads stays write-only),
+// and slots the flow walk pairs through a library's symbol keys, a callback's parameters, a library value behind our
+// interface and a library's inferred type parameter. Each case keeps one member nothing names, which no type use reaches.
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
-import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, tailwindVariants } from "./_planted.ts";
+import { FRESH_BUILD, MEMBER_BUCKETS, scanGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, labelsIn, libraryModule, tailwindVariants } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/type-uses.ts`;
 
@@ -53,21 +53,33 @@ test("a list handed to a generic's list parameter fills that parameter's element
   expect(bucketsIn(scan)).toEqual(["member-untouched rerankOrKeep.spare"]);
 });
 
-test("a literal returned where the declared return is an alias of keyof names that member", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const scan = await graphScan(plantedTree, {
-    [FILE]: [
-      "export interface Report { readonly restored: number; readonly failed: number; readonly held: number }",
-      "type Disposition = keyof Report;",
-      "declare function attempt(): boolean;",
-      'async function one(): Promise<Disposition> { return attempt() ? "restored" : "failed"; }',
-      "export async function sweep(): Promise<Report> { const report = { restored: 0, failed: 0, held: 0 }; report[await one()] += 1; return report; }",
-    ].join("\n"),
+test("a literal returned where the declared return is an alias of keyof keys that member, which a discarded bump only writes", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface Report { readonly restored: number; readonly failed: number; readonly held: number }",
+        "type Disposition = keyof Report;",
+        "declare function attempt(): boolean;",
+        'async function one(): Promise<Disposition> { return attempt() ? "restored" : "failed"; }',
+        "export async function sweep(): Promise<Report> { const report = { restored: 0, failed: 0, held: 0 }; report[await one()] += 1; return report; }",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, () => undefined, {
+    ...FRESH_BUILD,
+    why: ["restored", "failed", "held"].map((name) => ({ kind: "member", owner: "Report", name }) as const),
   });
-  expect(bucketsIn(scan)).toEqual(["member-untouched Report.held"]);
+  expect(bucketsIn(scan)).toEqual(["member-write-only Report.restored", "member-write-only Report.failed", "member-write-only Report.held"]);
+  expect(scan.session.why.filter(({ role }) => role === "key").map(({ member, site }) => [member, site])).toEqual([
+    ["Report.restored", `${FILE}:4`],
+    ["Report.failed", `${FILE}:4`],
+  ]);
 });
 
-// `pairs.values()` fills an `Iterable` slot through `[Symbol.iterator]`, a member only its escaped name carries. Pair.b
-// reaches the read through the library Map, which takes the pair whole.
+// `pairs.values()` fills an `Iterable` slot through `[Symbol.iterator]`, a member only its escaped name carries. The
+// library Map's value type is bound where the map was typed, so `set` pairs the pair with it and `firsts` reads Pair.b.
 test("a library iterable filling a library iterable slot pairs their symbol-keyed members", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     [FILE]: [
@@ -82,7 +94,7 @@ test("a library iterable filling a library iterable slot pairs their symbol-keye
       "export const firsts = [...candidatePairs()].map((pair) => pair.a + pair.b);",
     ].join("\n"),
   });
-  expect(bucketsIn(scan)).toEqual(["member-sent-only Pair.b", "member-untouched candidatePairs.spare"]);
+  expect(bucketsIn(scan)).toEqual(["member-untouched candidatePairs.spare"]);
 });
 
 test("a callback handed to a function-typed parameter pairs its parameter with the slot's", { timeout: 120_000 }, async ({ plantedTree }) => {

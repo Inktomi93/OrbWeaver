@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, labelsIn, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, labelsIn, libraryModule, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
@@ -88,7 +88,7 @@ test("a dumped graph read back analyses to the fresh build's buckets; a dump in 
   // each fact decides a bucket in the fresh build, so a dump that drops one analyses to other buckets
   expect(labelsIn(fresh, "member-write-only", OTHER)).toEqual(["Note.text"]);
   expect(labelsIn(fresh, "member-untouched", FLOW)).toEqual(["Event.extra", "Mine.other"]);
-  expect(bare(labelsIn(fresh, "member-write-only", TWIN))).toEqual(["User.age"]);
+  expect(bare(labelsIn(fresh, "member-untouched", TWIN))).toEqual(["User.age"]);
   expect(labelsIn(fresh, "state-never-set", STATE)).toEqual(["3 setter"]);
   expect(labelsIn(fresh, "member-sent-only", DOOR)).toEqual(["Bridge.bar"]);
   expect(labelsIn(fresh, "member-untouched", UNSEEN)).toEqual(["Doc.spare"]);
@@ -111,6 +111,73 @@ test("why names the site that gave each role to the asked member and to no other
   ]);
 });
 
+// A role no site gives a member, here a read through its zod twin, still shows in the record, with the link and the
+// member it came along, at the read itself; a member the record shows no read for would be kept with nothing to show why.
+test("why names a role the carry gives, so a member no bucket holds shows the read that keeps it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [FILE]: SESSION, ...FACTS }));
+  const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: "User", name: "name" }] }));
+  const held = Object.values(scan.analysis).some((findings) => findings.some(({ label }) => label.startsWith(`${TWIN}:User.name`)));
+  expect(held).toBe(false);
+  expect(scan.session.why.map(({ member, role, site, via }) => [member, role, site, via])).toEqual([
+    ["User.name", "read", `${TWIN}:${String(FACTS[TWIN].split("\n").findIndex((line) => line.includes("user.name")) + 1)}`, "carry twin from userSchema.name"],
+  ]);
+});
+
+// A zod twin pair nothing reads: both halves stay unread, so the type member reports, and a carried role names the
+// occurrence that gave it, never a half's own declaration.
+const PAIR = `${GRAPH_SOURCE}/pair.ts`;
+const PAIR_SOURCE = [
+  'import { z } from "zod";',
+  "export interface View { readonly chatId: string; readonly spare: string }",
+  "export const viewSchema = z.strictObject({",
+  "  chatId: z.string(),",
+  "  spare: z.string(),",
+  "}) satisfies z.ZodType<View>;",
+  'export const toView = (): View => ({ chatId: "c", spare: "s" });',
+];
+
+test("a zod twin pair nothing reads reports, and a carried role names where it was given", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [PAIR]: PAIR_SOURCE.join("\n"), ...ZOD_MODULE }));
+  const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: null, name: "chatId" }] }));
+  expect(labelsIn(scan, "member-write-only", PAIR)).toEqual(["View.chatId", "View.spare"]);
+  const written = PAIR_SOURCE.findIndex((line) => line.startsWith("export const toView")) + 1;
+  expect(scan.session.why.map(({ member, role, site, via }) => [member, role, site, via])).toEqual([
+    ["View.chatId", "write", `${PAIR}:${String(written)}`, expect.stringContaining("recordWrites")],
+    ["viewSchema.chatId", "write", `${PAIR}:${String(written)}`, "carry twin from View.chatId"],
+  ]);
+});
+
+// A value landing in an opaque member slot escapes there: the site is that line, not the file's first token past its
+// header, and the two slots one literal fills with the same value give the member one escape at that site. A library
+// slot naming the member reads it at the hand-off's own line, and a keyed read and an indexed type name it at theirs.
+const OPAQUE = `${GRAPH_SOURCE}/opaque.ts`;
+const OPAQUE_SOURCE = [
+  "// The header a position-zero site would skip to the import below.",
+  'import type { Tag } from "./session.ts";',
+  "export interface Box { readonly inner: unknown; readonly other: unknown; readonly tag?: Tag }",
+  "export interface Item { readonly kept: string }",
+  "declare const item: Item;",
+  "export const box: Box = { inner: item, other: item };",
+  'import { take } from "lib";',
+  "export const sunk = (): void => take(item);",
+  'declare const which: "kept";',
+  "export const got = item[which];",
+  'export type Kept = Item["kept"];',
+].join("\n");
+const SINK = libraryModule(["export interface Sink { readonly kept: string }", "export declare function take(sink: Sink): void;"]);
+
+test("why names an opaque slot's escape at its own line, once per member, role, site and recorder", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [FILE]: SESSION, [OPAQUE]: OPAQUE_SOURCE, ...SINK }));
+  const scan = await scanGraph(root, quiet, options({ why: [{ kind: "member", owner: "Item", name: "kept" }] }));
+  const rows = scan.session.why.map(({ member, role, site, via }) => [member, role, site, via.split(" ")[0]]);
+  expect(rows).toEqual([
+    ["Item.kept", "escape", `${OPAQUE}:6`, "escape"],
+    ["Item.kept", "read", `${OPAQUE}:8`, "#memberFlow"],
+    ["Item.kept", "read", `${OPAQUE}:10`, "#elementKeys"],
+    ["Item.kept", "key", `${OPAQUE}:11`, "#typeKeys"],
+  ]);
+});
+
 // A read whose key set only the receiver's spelling names: `Record<(typeof HOSTS)[number], …>` keys on the tuple.
 const SPELL = `${GRAPH_SOURCE}/spell.ts`;
 const SPELL_SOURCE = [
@@ -129,7 +196,7 @@ interface AblatedReading {
 const ABLATED: Readonly<Record<Ablation, AblatedReading>> = {
   escape: { reading: (scan) => labelsIn(scan, "member-write-only", FILE), fresh: [], ablated: ["Tag.name", "Tag.color"] },
   "literal-keys": { reading: (scan) => labelsIn(scan, "member-untouched", OTHER), fresh: [], ablated: ["Note.text"] },
-  "zod-twins": { reading: (scan) => labelsIn(scan, "member-untouched", TWIN), fresh: [], ablated: ["User.name", "User.age"] },
+  "zod-twins": { reading: (scan) => labelsIn(scan, "member-untouched", TWIN), fresh: ["User.age"], ablated: ["User.name", "User.age"] },
   spelling: {
     reading: (scan) => (scan.session.lost?.bySlot ?? []).map(({ slot, sample }) => `${slot} ${sample}`),
     fresh: [],

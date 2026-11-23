@@ -47,15 +47,12 @@ import {
   isMethodDeclaration,
   isNamedExports,
   isNamespaceImport,
-  isNoSubstitutionTemplateLiteral,
-  isNumericLiteral,
   isObjectLiteralExpression,
   isPrivateIdentifier,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isShorthandPropertyAssignment,
   isSourceFile,
-  isStringLiteral,
   isTypeLiteralNode,
   isVariableDeclaration,
   isVariableDeclarationList,
@@ -68,7 +65,7 @@ import { SymbolFlags } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { LiteralEvidence } from "../literal-hits.ts";
-import { isLiteralName, ownSiteKey, rowsEvidence, searchLiterals } from "../literal-hits.ts";
+import { isLiteralName, ownSiteKey, rowsEvidence, searchedWord, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
@@ -964,22 +961,6 @@ function holdersOf(node: Node): readonly Node[] {
     }
   }
   return names;
-}
-
-// The word a string, a JSON key or a plugin reads a declaration by: an identifier's text, a quoted or numeric name's
-// value, and for a computed name the member symbol's name, which is the key's value (`[KEY]` with `KEY = "a"` is `a`).
-// Null for a private name: no string reaches `#x`, so the compile is the whole answer.
-function* searchedWord(world: NativeWorld, name: Node): APIRequestGenerator<string | null> {
-  if (isPrivateIdentifier(name)) {
-    return null;
-  }
-  if (isComputedPropertyName(name)) {
-    const member = yield* world.checker.getSymbolAtLocation.gen(name);
-    return member?.name ?? name.getText(name.getSourceFile());
-  }
-  return isIdentifier(name) || isStringLiteral(name) || isNoSubstitutionTemplateLiteral(name) || isNumericLiteral(name)
-    ? name.text
-    : name.getText(name.getSourceFile());
 }
 
 // A compile clean only says the compiler needs no site of the name: a string key, a JSON or fixture key or a plugin

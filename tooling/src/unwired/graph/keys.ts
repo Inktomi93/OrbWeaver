@@ -7,7 +7,7 @@
 //   that passes a wide value, or a reference that is not a call, reads the table whole, as any other computed key does.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
-//   a computed key after the chain reads the last type whole.
+//   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
 import type { Node } from "@typescript/native/ast";
 import {
   isArrowFunction,
@@ -20,8 +20,8 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { SymbolFlags } from "@typescript/native/sync";
-import { isFunctionLike } from "../native.ts";
+import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { tracing } from "./options.ts";
 import { answer } from "./resolve.ts";
@@ -37,7 +37,15 @@ interface ParameterKeyed {
   readonly fn: Node;
   readonly index: number;
   readonly file: string;
+  /** The position of the keyed read. */
+  readonly at: number;
 }
+
+// A key typed as a symbol (`built[Symbol.asyncDispose]`) names the one member declared under that symbol, never every
+// member of the table.
+const symbolKey = (type: Type | undefined): boolean => type !== undefined && hasFlag(type.flags, TypeFlags.ESSymbolLike);
+// The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id.
+const symbolMemberName = (symbol: NativeSymbol): string => `__@${symbol.name}@${String(symbol.id)}`;
 
 export class Keys {
   readonly #state: GraphState;
@@ -53,7 +61,9 @@ export class Keys {
     this.#elementKeys(sites);
     this.#keyTests(sites);
     this.#typeKeys(sites);
-    this.#state.roleAll(sites.armSelectorMembers, "key", sites.file, 0);
+    for (const { key, at } of sites.armSelectorMembers) {
+      this.#state.role(key, "key", sites.file, at);
+    }
     this.#scriptReads.push(...sites.scriptGlobalReads.map((read) => ({ ...read, file: sites.file })));
   }
 
@@ -64,32 +74,45 @@ export class Keys {
     const computed = receivers.filter(({ item }) => item.keys === null);
     const typedKeys = state.batch(state.world.typesAt(computed.map(({ item }) => item.argument)).map((type) => literalValues(type)));
     const named = [
-      ...receivers.flatMap(({ item: { keys }, type }) => (keys ?? []).map((name) => ({ type, name }))),
-      ...computed.flatMap(({ type }, at) => (typedKeys[at] ?? []).map((name) => ({ type, name }))),
+      ...receivers.flatMap(({ item: { keys, argument }, type }) => (keys ?? []).map((name) => ({ type, name, at: argument.pos }))),
+      ...computed.flatMap(({ item: { argument }, type }, y) => (typedKeys[y] ?? []).map((name) => ({ type, name, at: argument.pos }))),
     ];
-    state.roleAll(state.slotMembers(named).flat(), "key", sites.file, 0);
+    state.roleNamed(named, "key", sites.file);
   }
 
   #elementKeys(sites: FileSites): void {
     const state = this.#state;
     const receivers = state.world.typedAt(sites.elementKeys, ({ receiver }) => receiver);
-    const named = receivers.flatMap(({ item: { keys }, type }) => (keys === null ? [] : keys.map((name) => ({ type, name }))));
-    state.roleAll(state.slotMembers(named).flat(), "read", sites.file, 0);
+    const named = receivers.flatMap(({ item: { keys, receiver }, type }) => (keys === null ? [] : keys.map((name) => ({ type, name, at: receiver.pos }))));
+    state.roleNamed(named, "read", sites.file);
     const computed = receivers.flatMap(({ item: site, type }) => (site.keys === null ? [{ ...site, type }] : []));
     const parameters = this.#parameterKeys(computed.map(({ argument }) => argument));
     const rest = computed.filter((site, y) => {
       const parameter = parameters[y];
       if (parameter !== undefined) {
-        this.#parameterKeyed.push({ table: site.type, ...parameter, file: sites.file });
+        this.#parameterKeyed.push({ table: site.type, ...parameter, file: sites.file, at: site.receiver.pos });
       }
       return parameter === undefined;
     });
     const keyTypes = state.world.typesAt(rest.map(({ argument }) => argument));
     const typedKeys = state.batch(keyTypes.map((type) => literalValues(type)));
-    const typedNamed = rest.flatMap(({ type }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name })));
-    state.roleAll(state.slotMembers(typedNamed).flat(), "read", sites.file, 0);
-    const whole = rest.filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type)).map(({ type }) => type);
-    state.roleAll(state.memberDeclarations(whole).flat(), "read", sites.file, 0);
+    const typedNamed = rest.flatMap(({ type, receiver }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name, at: receiver.pos })));
+    state.roleNamed(typedNamed, "read", sites.file);
+    const whole = rest
+      .filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type) && !symbolKey(keyTypes[z]))
+      .map(({ type, receiver }) => ({ type, at: receiver.pos }));
+    state.roleWhole(whole, "read", sites.file);
+    const symbolic = rest.flatMap(({ type, receiver }, z) => {
+      const key = keyTypes[z];
+      return key !== undefined && symbolKey(key) ? [{ type, key, at: receiver.pos }] : [];
+    });
+    const keySymbols = state.batch(symbolic.map(({ key }) => key.getSymbol.gen()));
+    const tableMembers = state.batch(symbolic.map(({ type }) => state.membersOf(type)));
+    for (const [y, { at }] of symbolic.entries()) {
+      const symbol = keySymbols[y];
+      const keyed = symbol === undefined ? [] : (tableMembers[y] ?? []).filter((member) => member.name === symbolMemberName(symbol));
+      state.roleAll(state.declarations(keyed).flat(), "read", sites.file, at);
+    }
   }
 
   // For each key expression that is the enclosing function's own parameter, that function and the parameter's index.
@@ -112,15 +135,19 @@ export class Keys {
   #typeKeys(sites: FileSites): void {
     const state = this.#state;
     const objects = state.world.typedAt(sites.indexedKeys, ({ object }) => object);
-    const named = objects.flatMap(({ item: { keys }, type }) => keys.map((name) => ({ type, name })));
-    state.roleAll(state.slotMembers(named).flat(), "key", sites.file, 0);
+    const named = objects.flatMap(({ item: { keys, object }, type }) => keys.map((name) => ({ type, name, at: object.pos })));
+    state.roleNamed(named, "key", sites.file);
     // a generic or union key reads T as a dispatch table, every member keyed
-    const whole = objects.flatMap(({ item: { keys, index }, type }) =>
-      keys.length === 0 && index.kind !== SyntaxKind.NumberKeyword && index.kind !== SyntaxKind.LiteralType && !isPrimitive(type) ? [type] : [],
+    const whole = objects.flatMap(({ item: { keys, index, object }, type }) =>
+      keys.length === 0 && index.kind !== SyntaxKind.NumberKeyword && index.kind !== SyntaxKind.LiteralType && !isPrimitive(type)
+        ? [{ type, at: object.pos }]
+        : [],
     );
-    state.roleAll(state.memberDeclarations(whole).flat(), "key", sites.file, 0);
-    const picked = state.world.typedAt(sites.pickKeys, ({ target }) => target).flatMap(({ item: { keys }, type }) => keys.map((name) => ({ type, name })));
-    state.roleAll(state.slotMembers(picked).flat(), "key", sites.file, 0);
+    state.roleWhole(whole, "key", sites.file);
+    const picked = state.world
+      .typedAt(sites.pickKeys, ({ target }) => target)
+      .flatMap(({ item: { keys, target }, type }) => keys.map((name) => ({ type, name, at: target.pos })));
+    state.roleNamed(picked, "key", sites.file);
   }
 
   /** Settle the parameter-keyed lookups and the script reads, once every file is walked. */
@@ -131,10 +158,14 @@ export class Keys {
       if (keys === "whole") {
         this.#traceWhole(keyed);
         state.count("parameter-keyed lookups read whole");
-        state.roleAll(state.memberDeclarations([keyed.table]).flat(), "read", keyed.file, 0);
+        state.roleWhole([{ type: keyed.table, at: keyed.at }], "read", keyed.file);
       } else {
         state.count("parameter-keyed lookups narrowed");
-        state.roleAll(state.slotMembers([...keys].map((name) => ({ type: keyed.table, name }))).flat(), "read", keyed.file, 0);
+        state.roleNamed(
+          [...keys].map((name) => ({ type: keyed.table, name, at: keyed.at })),
+          "read",
+          keyed.file,
+        );
       }
     }
     this.#scriptGlobals(flows);
@@ -228,7 +259,8 @@ export class Keys {
       const end = this.#readChain(typeOf.get(read.global), read);
       if (end !== undefined && read.dynamic) {
         flows.deepMembers(end, true);
-        state.roleAll(state.memberDeclarations([end]).flat(), "read", read.file, 0);
+        state.roleWhole([{ type: end, at: read.at }], "read", read.file);
+        state.doorRead(state.memberDeclarations([end]).flat(), read.file);
       }
     }
   }
@@ -242,7 +274,9 @@ export class Keys {
         return undefined;
       }
       const [members = []] = state.batch([state.propsOnSlot(at, step)]);
-      state.roleAll(state.declarations(members).flat(), "read", read.file, 0);
+      const stepped = state.declarations(members).flat();
+      state.roleAll(stepped, "read", read.file, read.at);
+      state.doorRead(stepped, read.file);
       at = this.#stepType(members[0]);
     }
     return at;

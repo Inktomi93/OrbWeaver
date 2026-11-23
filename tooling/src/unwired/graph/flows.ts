@@ -29,18 +29,26 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
+import { signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
+import type { Destination } from "../open-sends.ts";
+import { identitySlot, sendDestinations } from "../open-sends.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
-import { isPrimitive } from "./state.ts";
+import { isPrimitive, UNCLASSIFIED } from "./state.ts";
 
-/** A slot type and the value type that fills it. */
-export interface FlowPair {
+// A slot type and the value type that fills it.
+interface TypePair {
   readonly slot: Type;
   readonly value: Type;
+}
+
+/** A slot and value pair, with the position of the code that made it: the roles the pair gives are recorded there. */
+export interface FlowPair extends TypePair {
+  readonly site: number;
 }
 
 // The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
@@ -50,7 +58,7 @@ type StepKind = (typeof STEP_KINDS)[number];
 const SUBTERM_STEPS: ReadonlySet<StepKind> = new Set<StepKind>(["root", "argument", "element", "arm"]);
 
 // A pair on the flow walk's worklist and the step that reached it, named by its index or member name.
-interface Step extends FlowPair {
+interface Step extends TypePair {
   readonly at: { readonly kind: StepKind; readonly name: string };
 }
 
@@ -123,7 +131,10 @@ export class Flows {
    *  message door's send, paired later (message-doors.ts). */
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
-    this.link([...this.#handedWhole(sites, held.node), ...this.#flowSites(sites, held.node), ...this.#typePairs(sites)], sites.file);
+    const handed = this.#handedWhole(sites, held.node);
+    // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
+    const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
+    this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites)], sites.file);
     this.#heldTypes = NO_HELD_TYPES;
   }
 
@@ -131,10 +142,10 @@ export class Flows {
     const { world } = this.state;
     const values = world.typesAt(sites.typePairs.map(({ value }) => value));
     const slots = world.typesAt(sites.typePairs.map(({ slot }) => slot));
-    return sites.typePairs.flatMap((_, at) => {
+    return sites.typePairs.flatMap((pair, at) => {
       const value = values[at];
       const slot = slots[at];
-      return value === undefined || slot === undefined ? [] : [{ slot, value }];
+      return value === undefined || slot === undefined ? [] : [{ slot, value, site: pair.value.pos }];
     });
   }
 
@@ -235,55 +246,64 @@ export class Flows {
     return out;
   }
 
-  /** Record every member a value holds as escaping, from a product file; a value published through our own global
-   *  door also marks its members as the door's. */
-  escape(value: Type, door: boolean, file: string, at: number): void {
+  /** Record every member a value holds as escaping at `site`, each sent where `send` names; a value published through
+   *  our own global door escapes through its calls' returns too, as the door's reader calls what it finds. */
+  escape(value: Type, door: boolean, site: { readonly file: string; readonly at: number }, send: Destination): void {
     if (this.#state.session.options.ablate.has("escape")) {
       return;
     }
-    const members = this.deepMembers(value, door);
-    this.#state.roleAll(members, "escape", file, at);
-    if (door) {
-      for (const member of members) {
-        this.#state.door.add(member);
-      }
-    }
+    this.#state.escapeAll(this.deepMembers(value, door), site, send);
     this.#state.count("values escaped whole");
   }
 
   // A value handed on whole: into an opaque slot it escapes; into a slot naming its members it pairs member by member.
-  #handedWhole(sites: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
+  #handedWhole(sites: FileSites, held: (node: Node) => boolean): { readonly pairs: readonly FlowPair[]; readonly taken: readonly Node[] } {
     const { state } = this;
     const handed = [...this.#zodCallsDropped(sites.handedWhole.filter(({ node }) => !held(node))), ...this.#published(sites)];
     if (handed.length === 0) {
-      return [];
+      return { pairs: [], taken: [] };
     }
-    const libraryGeneric = this.#libraryGeneric(handed);
+    const calls = this.#libraryCalls(handed);
     const nodes = handed.map(({ node }) => (isSpreadElement(node) ? node.expression : node));
     const values = state.world.typesAt(nodes);
     const slotAt = handed.flatMap((entry, at) => (entry.spread ? [] : [at]));
     const contextual = state.batch(slotAt.flatMap((at) => (nodes[at] === undefined ? [] : [state.world.checker.getContextualType.gen(nodes[at])])));
     const slots = new Map(slotAt.map((at, y) => [at, contextual[y]]));
     this.#opaqueOf([...slots.values()].flatMap((type) => (type === undefined ? [] : [type])));
+    // a library slot typed `unknown` takes the value by identity (open-sends.ts identitySlot): the value is neither read nor sent
+    const identityAsks = [...slots.entries()].flatMap(([at, slot]) => (slot !== undefined && calls.library.has(at) ? [{ at, slot }] : []));
+    const identity = state.batch(identityAsks.map(({ slot }) => identitySlot(state.world, slot)));
+    const taken = new Set(identityAsks.flatMap(({ at }, y) => (identity[y] === true ? [at] : [])));
     const spreads = this.#spreadPairs(handed, values);
-    const pairs: FlowPair[] = [...spreads.pairs];
+    const pairs: FlowPair[] = [];
+    const escaping: { readonly at: number; readonly value: Type; readonly door: boolean }[] = [];
     for (const [at, entry] of handed.entries()) {
       const value = values[at];
       const slot = slots.get(at);
-      if (spreads.paired.has(at)) {
+      if (spreads.paired.has(at) || taken.has(at) || value === undefined || isPrimitive(value)) {
         continue;
       }
-      const opaque = entry.spread || entry.door || libraryGeneric.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true);
-      if (value === undefined || isPrimitive(value)) {
-        continue;
-      }
-      if (opaque) {
-        this.escape(value, entry.door, sites.file, nodes[at]?.pos ?? 0);
+      if (entry.spread || entry.door || calls.generic.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
+        escaping.push({ at, value, door: entry.door });
       } else if (slot !== undefined) {
-        pairs.push({ slot, value });
+        pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos });
       }
     }
-    return pairs;
+    const sends = this.#destinations(escaping.map(({ at }) => nodes[at]));
+    for (const [y, { at, value, door }] of escaping.entries()) {
+      this.escape(value, door, { file: sites.file, at: nodes[at]?.pos ?? 0 }, sends[y] ?? UNCLASSIFIED);
+    }
+    return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
+  }
+
+  // Where each escaping value goes, asked only when the build keeps role sites to carry the answer.
+  #destinations(nodes: readonly (Node | undefined)[]): readonly Destination[] {
+    const { state } = this;
+    if (!(state.session.memberSites || state.session.siteFiles.length > 0)) {
+      return [];
+    }
+    const found = state.batch(nodes.map((node) => (node === undefined ? answer<readonly Destination[]>([]) : sendDestinations(state.world, node))));
+    return found.map((list) => list[0] ?? UNCLASSIFIED);
   }
 
   // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
@@ -296,7 +316,7 @@ export class Flows {
     const { checker } = state.world;
     const asks = handed.flatMap((entry, x) => {
       const value = values[x];
-      return entry.spread && entry.call !== undefined && value?.isTupleType() === true ? [{ x, call: entry.call, value }] : [];
+      return entry.spread && entry.call !== undefined && value?.isTupleType() === true ? [{ x, call: entry.call, value, site: entry.node.pos }] : [];
     });
     const signatures = state.batch(asks.map(({ call }) => checker.getResolvedSignature.gen(call.node)));
     const elements = state.batch(asks.map(({ value }) => checker.getTypeArguments.gen(value)));
@@ -310,11 +330,11 @@ export class Flows {
       }),
     );
     const pairs: FlowPair[] = [];
-    for (const y of asks.keys()) {
+    for (const [y, { site }] of asks.entries()) {
       for (const [k, value] of (elements[y] ?? []).entries()) {
         const slot = slots[y]?.[k];
         if (slot !== undefined) {
-          pairs.push({ slot, value });
+          pairs.push({ slot, value, site });
         }
       }
     }
@@ -341,26 +361,32 @@ export class Flows {
     });
   }
 
-  // The arguments a library signature takes as a bare type parameter (`c.json<T>(object: T)`, `Response.json`): the
-  // contextual type is the inferred instantiation, the value's own type, so only the declaration shows the slot is
-  // opaque. Our own generic functions keep flowing, as their bodies are walked.
-  #libraryGeneric(handed: readonly HandedWhole[]): ReadonlySet<number> {
+  // The arguments of a library call: `library` holds each, `generic` those the signature takes as a type parameter it
+  // declares itself (`c.json<T>(object: T)`, `Response.json`). There the contextual type is the inferred
+  // instantiation, the value's own type, so only the declaration shows the slot is opaque. A type parameter an outer
+  // declaration binds (a state setter's `Dispatch<A>`, `Map<K, V>.set`) was fixed where its holder was typed, so the
+  // contextual type is that instantiation and the value pairs with it. Our own generic functions keep flowing, as their
+  // bodies are walked.
+  #libraryCalls(handed: readonly HandedWhole[]): { readonly library: ReadonlySet<number>; readonly generic: ReadonlySet<number> } {
     const state = this.#state;
     const { checker } = state.world;
     const asks = handed.flatMap(({ call }, x) => (call === undefined ? [] : [{ x, call }]));
     const signatures = state.batch(asks.map(({ call }) => checker.getResolvedSignature.gen(call.node)));
-    const declared = state.batch(
-      asks.map(({ call }, y) => {
-        const signature = signatures[y];
-        return signature?.declaration === undefined || state.resolver.ours(signature.declaration)
-          ? answer(undefined)
-          : declaredParameterType(state, signature, call.index);
+    const library = asks.filter((_, y) => {
+      const declaration = signatures[y]?.declaration;
+      return declaration !== undefined && !state.resolver.ours(declaration);
+    });
+    const own = state.batch(
+      library.map(({ x, call }) => {
+        const signature = signatures[asks.findIndex((ask) => ask.x === x)];
+        return signature === undefined ? answer(false) : ownTypeParameter(state, signature, call.index);
       }),
     );
-    return new Set(asks.flatMap(({ x }, y) => (declared[y]?.isTypeParameter() === true ? [x] : [])));
+    return { library: new Set(library.map(({ x }) => x)), generic: new Set(library.flatMap(({ x }, y) => (own[y] === true ? [x] : []))) };
   }
 
-  // The held values whose property a library signature declares as a bare type parameter, before instantiation.
+  // The held values whose property a library signature declares as a bare type parameter of its own, before
+  // instantiation (`ownTypeParameter` holds why an outer one pairs instead).
   #libraryInferred(held: readonly (HeldInArgument | undefined)[]): ReadonlySet<number> {
     const state = this.#state;
     const asks = held.flatMap((entry, x) => (entry === undefined ? [] : [{ x, entry }]));
@@ -370,10 +396,10 @@ export class Flows {
         const signature = signatures[y];
         return signature?.declaration === undefined || state.resolver.ours(signature.declaration)
           ? answer(undefined)
-          : declaredPropertyType(state, signature, entry);
+          : ownedTypeParameter(signature, declaredPropertyType(state, signature, entry));
       }),
     );
-    return new Set(asks.flatMap(({ x }, y) => (declared[y]?.isTypeParameter() === true ? [x] : [])));
+    return new Set(asks.flatMap(({ x }, y) => (declared[y] === true ? [x] : [])));
   }
 
   // `globalThis.x = v` on a global our own `declare global` declares: published to readers outside the program (a
@@ -414,10 +440,10 @@ export class Flows {
       const slot = slots.get(at);
       const value = values[at];
       if (value !== undefined && inferred.has(at) && !isPrimitive(value)) {
-        this.escape(value, false, all.file, site.value.pos);
+        this.escape(value, false, { file: all.file, at: site.value.pos }, UNCLASSIFIED);
         return [];
       }
-      return slot === undefined || value === undefined ? [] : [{ slot, value }];
+      return slot === undefined || value === undefined ? [] : [{ slot, value, site: site.value.pos }];
     });
   }
 
@@ -427,7 +453,7 @@ export class Flows {
   // The walk is a worklist that ends on its seen-set, keyed by the declarations of the slot and the value and the step
   // that reached them, never by type: a recursive generic instantiates a new type at every level (`Deep<Box<T>>`), so a
   // type key never repeats, while its declarations do.
-  *#operands(slot: Type, value: Type, file: string): APIRequestGenerator<readonly FlowPair[]> {
+  *#operands({ slot, value, site }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
     const seen = new Set<string>();
     const visits = new Map<string, number>();
@@ -454,7 +480,7 @@ export class Flows {
       visits.set(slotDeclaration, (visits.get(slotDeclaration) ?? 0) + 1);
       const inner = yield* this.#innerOperands(a, b);
       if (inner === null) {
-        out.push({ slot: a, value: b });
+        out.push({ slot: a, value: b, site });
       } else {
         work.push(...inner);
       }
@@ -582,7 +608,7 @@ export class Flows {
   // pair too (a port's op filled by another service's op), so the next level is returned until no pair is new.
   #linkLevel(raw: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
-    const unwrapped = state.batch(raw.map(({ slot, value }) => this.#operands(slot, value, file))).flat();
+    const unwrapped = state.batch(raw.map((pair) => this.#operands(pair, file))).flat();
     // a value landing, after unwrapping, in a slot that names none of its members escapes whole, as an opaque argument does
     this.#opaqueOf(unwrapped.map(({ slot }) => slot));
     const pairs: FlowPair[] = [];
@@ -590,7 +616,7 @@ export class Flows {
       if (this.#opaque.get(pair.slot.id) !== true) {
         pairs.push(pair);
       } else if (!(isPrimitive(pair.value) || this.#heldTypes.has(pair.value.id))) {
-        this.escape(pair.value, false, file, 0);
+        this.escape(pair.value, false, { file, at: pair.site }, UNCLASSIFIED);
       }
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's
@@ -598,7 +624,7 @@ export class Flows {
     const arms = state.batch(unions.map(({ value }) => constituentsOf(value)));
     const expanded = [
       ...pairs.filter(({ value }) => !value.isUnionType()),
-      ...unions.flatMap(({ slot }, y) => (arms[y] ?? []).filter((arm) => !isPrimitive(arm)).map((value) => ({ slot, value }))),
+      ...unions.flatMap(({ slot, site }, y) => (arms[y] ?? []).filter((arm) => !isPrimitive(arm)).map((value) => ({ slot, value, site }))),
     ];
     const fresh = [
       ...new Map(expanded.filter((pair) => this.#isFresh(pair)).map((pair) => [`${String(pair.slot.id)}>${String(pair.value.id)}`, pair])).values(),
@@ -610,7 +636,7 @@ export class Flows {
   }
 
   // One matched member pair: the slot's declarations flow from the value's; a slot with none leaves the value member read.
-  #memberFlow(slots: readonly DeclKey[], values: readonly DeclKey[], file: string): void {
+  #memberFlow(slots: readonly DeclKey[], values: readonly DeclKey[], file: string, site: number): void {
     for (const slot of slots) {
       for (const value of values) {
         if (slot !== value) {
@@ -619,7 +645,7 @@ export class Flows {
       }
     }
     if (slots.length === 0) {
-      this.#state.roleAll(values, "read", file, 0);
+      this.#state.roleAll(values, "read", file, site);
     }
   }
 
@@ -631,16 +657,23 @@ export class Flows {
     const { state } = this;
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
-    const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member })));
+    const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
-    const matched = asks.flatMap(({ member }, y) => {
+    const matched = asks.flatMap(({ pair, member, x }, y) => {
       const valueMember = valueMembers[y];
-      return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember }];
+      return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember, site: pair.site, x }];
     });
-    const slotDecls = state.declarations(matched.map(({ slot }) => slot));
+    // a Drizzle row slot's members declare nothing, as the row type remaps its table's columns: each stands for its
+    // column, so a row handed to a row slot hands each column on and reads none (resolve.ts `rows`)
+    const tables = state.resolver.rows();
+    const rowSlots = slotMembers.map((members) => (tables.size === 0 ? undefined : tables.get(signatureOf(members.map(({ name }) => name)))));
+    const slotDecls = state.declarations(matched.map(({ slot }) => slot)).map((decls, y) => {
+      const entry = matched[y];
+      return decls.length > 0 || entry === undefined ? decls : [...(rowSlots[entry.x]?.get(entry.slot.name) ?? [])];
+    });
     const valueDecls = state.declarations(matched.map(({ value }) => value));
     for (const y of matched.keys()) {
-      this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file);
+      this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file, matched[y]?.site ?? 0);
     }
     // a pair goes deeper when either member is declared in the tree: the walk follows the value's own members, a library
     // slot names its nested fields as it names its top ones (an SDK block's `source.data`), and a library value filling
@@ -654,12 +687,24 @@ export class Flows {
       return true;
     });
     const types = state.batch(deeper.flatMap(({ slot, value }) => [checker.getTypeOfSymbol.gen(slot), checker.getTypeOfSymbol.gen(value)]));
-    return deeper.flatMap((_, y) => {
+    return deeper.flatMap(({ site }, y) => {
       const slot = types[2 * y];
       const value = types[2 * y + 1];
-      return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value }] : [];
+      return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value, site }] : [];
     });
   }
+}
+
+// Whether a signature's parameter at `index` is typed by a type parameter the signature declares itself, so the call infers it.
+function* ownTypeParameter(state: GraphState, signature: Signature, index: number): APIRequestGenerator<boolean> {
+  return yield* ownedTypeParameter(signature, declaredParameterType(state, signature, index));
+}
+
+// Whether a declared type is a type parameter the signature declares itself.
+function* ownedTypeParameter(signature: Signature, declaredType: APIRequestGenerator<Type | undefined>): APIRequestGenerator<boolean> {
+  const target = (yield* signature.getTarget.gen()) ?? signature;
+  const declared = yield* declaredType;
+  return declared?.isTypeParameter() === true && (target.typeParameters ?? []).includes(declared.id);
 }
 
 /** A value a literal argument holds: the call, the argument's index and the property names down to the value. */
@@ -718,7 +763,8 @@ const calleeName = (call: Node | undefined): Node | undefined => {
   return isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression;
 };
 
-function insideGlobalScope(node: Node | undefined): boolean {
+/** Whether a declaration sits inside our own `declare global` block. */
+export function insideGlobalScope(node: Node | undefined): boolean {
   for (let up = node?.parent; up !== undefined; up = up.parent) {
     if (isModuleDeclaration(up) && "text" in up.name && up.name.text === GLOBAL_SCOPE) {
       return true;
