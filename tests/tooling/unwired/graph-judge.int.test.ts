@@ -358,6 +358,60 @@ test("a never-read one-member mutation output reports as an acknowledgement, apa
   }).toEqual({ acknowledged: ["Done.ok"], unwired: ["Pair.left", "Pair.right"] });
 });
 
+// Inside the provider backends a value no destination takes is a provider send only where it reaches a request: through
+// a helper's return and a parameter's callers here. A value a Response reader returns never does, even inside a literal
+// that reaches one, and a nested value keeps the destination of the call its literal goes to. A provider field a README names is received, never judged.
+test("a backend value that reaches a provider request is sent to the provider, and received where a doc names it", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const backend = "packages/inference/src/backends/chat.ts";
+  const root = await plantedTree(
+    graphTree({
+      "node_modules/fetchlib/package.json": JSON.stringify({ name: "fetchlib", types: "index.d.ts" }),
+      "node_modules/fetchlib/index.d.ts": "export interface Response { readonly ok: boolean }",
+      "node_modules/@ai-sdk/provider/package.json": JSON.stringify({ name: "@ai-sdk/provider", types: "index.d.ts" }),
+      "node_modules/@ai-sdk/provider/index.d.ts": [
+        "export type JSONObject = { [key: string]: unknown };",
+        "export interface Model { doStream(options: { readonly providerOptions?: Record<string, JSONObject> }): Promise<void> }",
+      ].join("\n"),
+      "README.md": "The router reads `Knobs.topK` from the request.",
+      [backend]: [
+        'import type { JSONObject, Model } from "@ai-sdk/provider";',
+        'import type { Response } from "fetchlib";',
+        "type Json = Record<string, unknown>;",
+        "interface Knobs { readonly topK: number; readonly minP: number }",
+        "interface Routing { readonly order: string }",
+        "interface Answer { readonly code: string }",
+        "declare const knobs: Knobs;",
+        "declare const routing: Routing;",
+        "declare const answer: Answer;",
+        "const knobsOf = (): JSONObject => knobs;",
+        "const decode = (res: Response): Answer => (res.ok ? answer : answer);",
+        "interface Call { readonly options: { readonly providerOptions?: Record<string, JSONObject> }; readonly translate: (res: Response) => Json }",
+        "const stream = (model: Model, args: Call): Promise<void> => model.doStream({ ...args.options });",
+        "export const run = async (model: Model): Promise<void> => {",
+        "  await model.doStream({ providerOptions: { router: { routing } } });",
+        "  const providerOptions = { router: knobsOf() };",
+        "  await stream(model, { options: { providerOptions }, translate: decode });",
+        "};",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect({
+    received: scan.members.received.map(({ key, receiver, cite }) => [key.slice(backend.length + 1), receiver, cite]),
+    unwired: scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(backend.length + 1), bucket, sent]),
+  }).toEqual({
+    received: [["Knobs.topK", "provider", "README.md:1"]],
+    unwired: [
+      ["Call.translate", "member-write-only", []],
+      ["Knobs.minP", "member-sent-only", [`provider ${backend}:10`]],
+      ["Routing.order", "member-sent-only", [`provider ${backend}:15 @ai-sdk/provider`]],
+      ["Answer.code", "member-sent-only", [`unclassified ${backend}:17`]],
+    ],
+  });
+});
+
 // The SDK's declarations are read by guests outside the tree: a member they publish is received, with the SDK line that
 // declares it, and never judged; a member they leave out stays a row.
 test("a plugin contract member the SDK publishes is received with its cite, never judged", { timeout: 120_000 }, async ({ plantedTree }) => {

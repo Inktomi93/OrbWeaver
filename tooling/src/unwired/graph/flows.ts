@@ -16,6 +16,9 @@
 //   (a phantom `Token<A>`) pairs forward.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
 //   whole, its function members' returns walked too.
+// - An escape names where the value goes, chased from the value at the site that handed it on, at any depth of the walk
+//   (open-sends.ts sendDestinations). Inside the provider backends a value no destination takes is a provider send only
+//   when it reaches a request the backends make (open-sends.ts providerReach); elsewhere it is unclassified.
 //
 // A call zod declares takes schema input, not a send: a builder's arguments are shapes (the schema itself, whose keys
 // are the members of the type it satisfies, build.ts zodTwins), and a validator hands its input to no receiver but the
@@ -35,8 +38,9 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } fro
 import { TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
-import type { Destination } from "../open-sends.ts";
-import { identitySlot, sendDestinations } from "../open-sends.ts";
+import type { Destination, ProviderReach } from "../open-sends.ts";
+import { identitySlot, providerReach, sendDestinations } from "../open-sends.ts";
+import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
@@ -116,6 +120,29 @@ export interface HeldSends {
 
 const NO_HELD_TYPES: ReadonlySet<number> = new Set();
 const NO_CHECK_SITES: ReadonlySet<number> = new Set();
+const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
+const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
+
+// The value node behind each site position a file's pairs carry: a hand-off, a flow site, a type pair, a checked value.
+function siteNodesOf(sites: FileSites): ReadonlyMap<number, Node> {
+  const out = new Map<number, Node>();
+  const add = (at: number, node: Node): void => {
+    if (!out.has(at)) {
+      out.set(at, node);
+    }
+  };
+  for (const { node } of sites.handedWhole) {
+    const value = isSpreadElement(node) ? node.expression : node;
+    add(value.pos, value);
+  }
+  for (const { value } of [...sites.flowSites, ...sites.typePairs]) {
+    add(value.pos, value);
+  }
+  for (const { value, type } of sites.checkedValues) {
+    add(type.pos, value);
+  }
+  return out;
+}
 const CHECKED_MARK = "!checked";
 
 export class Flows {
@@ -131,6 +158,10 @@ export class Flows {
   #heldTypes: ReadonlySet<number> = NO_HELD_TYPES;
   // The sites of the file's `satisfies` checks, each at its type node: a pair made there also carries reads to the slot.
   #checkSites: ReadonlySet<number> = NO_CHECK_SITES;
+  // The value each of the file's flow sites hands on, by the site's position: an escape found deeper in the walk is
+  // chased from there.
+  #siteNodes: ReadonlyMap<number, Node> = NO_SITE_NODES;
+  #reach: ProviderReach | undefined;
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -142,6 +173,7 @@ export class Flows {
    *  message door's send, paired later (message-doors.ts). */
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
+    this.#siteNodes = siteNodesOf(sites);
     const handed = this.#handedWhole(sites, held.node);
     // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
     const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
@@ -150,6 +182,7 @@ export class Flows {
     this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites), ...checked], sites.file);
     this.#heldTypes = NO_HELD_TYPES;
     this.#checkSites = NO_CHECK_SITES;
+    this.#siteNodes = NO_SITE_NODES;
   }
 
   // `defs satisfies Record<Task, TaskFields>`: the checked type is the value's slot, made at the type node.
@@ -333,14 +366,26 @@ export class Flows {
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
   }
 
-  // Where each escaping value goes, asked only when the build keeps role sites to carry the answer.
-  #destinations(nodes: readonly (Node | undefined)[]): readonly Destination[] {
+  // Where each escaping value goes, asked only when the build keeps role sites to carry the answer. The call a site's
+  // value is handed to takes everything inside it, but the request reach marks expressions one by one, so only a value
+  // that is the site's own (`whole`) can be a provider send.
+  #destinations(nodes: readonly (Node | undefined)[], whole: (at: number) => boolean = () => true): readonly Destination[] {
     const { state } = this;
     if (!(state.session.memberSites || state.session.siteFiles.length > 0)) {
       return [];
     }
     const found = state.batch(nodes.map((node) => (node === undefined ? answer<readonly Destination[]>([]) : sendDestinations(state.world, node))));
-    return found.map((list) => list[0] ?? UNCLASSIFIED);
+    return found.map((list, at) => {
+      const node = nodes[at];
+      return list[0] ?? (node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED);
+    });
+  }
+
+  // The backends' request reach over the program's production files, made once.
+  #providerReach(): ProviderReach {
+    const { world } = this.#state;
+    this.#reach ??= providerReach(world, new Set(world.files.map((source) => world.fileOfSource(source)).filter(isProduction)));
+    return this.#reach;
   }
 
   // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
@@ -667,12 +712,23 @@ export class Flows {
     // a value landing, after unwrapping, in a slot that names none of its members escapes whole, as an opaque argument does
     this.#opaqueOf(unwrapped.map(({ slot }) => slot));
     const pairs: FlowPair[] = [];
+    const escaping: FlowPair[] = [];
     for (const pair of unwrapped) {
       if (this.#opaque.get(pair.slot.id) !== true) {
         pairs.push(pair);
       } else if (!(isPrimitive(pair.value) || this.#heldTypes.has(pair.value.id))) {
-        this.escape(pair.value, false, { file, at: pair.site }, UNCLASSIFIED);
+        escaping.push(pair);
       }
+    }
+    const siteValues = escaping.map(({ site }) => this.#siteNodes.get(site));
+    const siteTypes = state.world.typesAt(siteValues.flatMap((node) => (node === undefined ? [] : [node])));
+    const typeOf = new Map(siteValues.flatMap((node) => (node === undefined ? [] : [node])).map((node, y) => [node, siteTypes[y]] as const));
+    const sends = this.#destinations(siteValues, (y) => {
+      const node = siteValues[y];
+      return node !== undefined && typeOf.get(node)?.id === escaping[y]?.value.id;
+    });
+    for (const [y, pair] of escaping.entries()) {
+      this.escape(pair.value, false, { file, at: pair.site }, sends[y] ?? UNCLASSIFIED);
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's
     const unions = pairs.filter(({ value }) => value.isUnionType());

@@ -561,6 +561,18 @@ function requestReach(world: NativeWorld, home: ReadonlySet<string>): ReadonlySe
   return reached;
 }
 
+/** The values that reach a provider request the backends make: only such a value is a provider send when no other
+ *  destination takes it. */
+export interface ProviderReach {
+  readonly has: (node: Node) => boolean;
+}
+
+/** The provider request reach of a world's `home` files: empty unless some of them sit under {@link PROVIDER_BODIES}. */
+export function providerReach(world: NativeWorld, home: ReadonlySet<string>): ProviderReach {
+  const reached = requestReach(world, home);
+  return { has: (node) => world.siteOf(node).file.startsWith(PROVIDER_BODIES) && reached.has(nodeKey(world, node)) };
+}
+
 interface Marking {
   readonly world: NativeWorld;
   readonly readers: ReadonlySet<string>;
@@ -823,7 +835,7 @@ export function openFacts(world: NativeWorld, home: ReadonlySet<string>, open: r
   const files = new Set([...home].filter(isProduction));
   const { values, assertions, logged } = handedValues(world, files);
   const handed = [...open, ...values];
-  const reach = requestReach(world, files);
+  const reach = providerReach(world, files);
   const openSet = new Set(open.map((node) => nodeKey(world, node)));
   const answers = world.batch(
     handed.map(function* (value): APIRequestGenerator<{ readonly into: Handed; readonly to: readonly Destination[] }> {
@@ -836,7 +848,7 @@ export function openFacts(world: NativeWorld, home: ReadonlySet<string>, open: r
   for (const [at, value] of handed.entries()) {
     const { into, to } = answers[at] ?? { into: NOTHING, to: [] };
     const site = world.siteOf(value);
-    const requested = to.length === 0 && site.file.startsWith(PROVIDER_BODIES) && reach.has(nodeKey(world, value));
+    const requested = to.length === 0 && reach.has(value);
     for (const { destination, receiver } of requested ? [{ destination: "provider" as const, receiver: null }] : to) {
       sends.push({ site, destination, receiver, keys: into.keys });
     }
