@@ -8,13 +8,15 @@
 //   (getSignatureUsage), through callers that hand their own parameter on; a caller that passes a wide value, or a
 //   reference that is not a call, names every literal the parameter's own type allows, or the table whole for a wide
 //   parameter, as any other computed key does.
-// - A `keyof T` list asserted to another type (`fields as string[]`) needs T's constraint to keep a key, so the member of
-//   a one-member constraint is a key use. A plain keyof use, or a constraint with more members, names none.
+// - A `keyof T` list asserted to a mutable string list (`fields as string[]`) needs T's constraint to keep a key, so the
+//   member of a one-member constraint is a key use. A plain keyof use, another target, or a constraint with more
+//   members, names none.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
 //   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
-import type { Node } from "@typescript/native/ast";
+import type { Node, TypeNode } from "@typescript/native/ast";
 import {
+  isArrayTypeNode,
   isArrowFunction,
   isCallExpression,
   isFunctionExpression,
@@ -267,13 +269,15 @@ export class Keys {
     }
   }
 
-  // `fields as string[]` over `readonly (keyof T & string)[]`: the assertion compares T's key set with its target, and an
-  // empty key set compares with no string list, so a constraint's lone member is a key use there.
+  // `fields as string[]` over `readonly (keyof T & string)[]`: a readonly list asserts to a mutable one only when the two
+  // compare, and an empty key set compares with no string list, so a constraint's lone member is a key use there. A
+  // readonly or wider target compares with an empty key set too, and keys nothing.
   #keyofAssertions(sites: FileSites): void {
     const state = this.#state;
-    const operands = state.world.typesAt(sites.assertions.map(({ expression }) => expression));
+    const lists = sites.assertions.filter(({ type }) => isMutableStringList(type));
+    const operands = state.world.typesAt(lists.map(({ expression }) => expression));
     const lone = state.batch(operands.map((type) => this.#loneKeyofMembers(type)));
-    for (const [y, assertion] of sites.assertions.entries()) {
+    for (const [y, assertion] of lists.entries()) {
       state.roleAll(state.declarations(lone[y] ?? []).flat(), "key", sites.file, assertion.pos);
     }
   }
@@ -475,6 +479,9 @@ export class Keys {
     return resolved === undefined ? undefined : state.slotTypes([resolved])[0];
   }
 }
+
+// `string[]`: the mutable string list an assertion of a readonly key list must compare with.
+const isMutableStringList = (type: TypeNode): boolean => isArrayTypeNode(type) && type.elementType.kind === SyntaxKind.StringKeyword;
 
 const argumentAt = (call: Node | undefined, index: number): Node | undefined =>
   call !== undefined && (isCallExpression(call) || isNewExpression(call)) ? call.arguments?.[index] : undefined;

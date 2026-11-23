@@ -57,8 +57,8 @@ test("a generic alias whose conditional checks its parameter keys each member of
 });
 
 // A key list typed `keyof T` asserted to `string[]` needs T's constraint to keep a key, so the constraint's one member is
-// a key use (the fuzzy-search index shape). A plain keyof list, and a constraint of two members, keep their bucket: a
-// delete of either member leaves the list valid.
+// a key use (the fuzzy-search index shape). A plain keyof list, a constraint of two members, and an assertion to a
+// readonly list or to `unknown` keep their bucket: a delete of the member leaves each valid.
 test("a keyof list asserted to a string list keys its constraint's lone member", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     [FILE]: [
@@ -72,9 +72,21 @@ test("a keyof list asserted to a string list keys its constraint's lone member",
       "export function names<T extends { readonly id: string }>(fields: readonly (keyof T & string)[]): readonly string[] {",
       "  return fields;",
       "}",
+      "export function viaReadonly<T extends { id: string }>(fields: readonly (keyof T & string)[]): readonly string[] {",
+      "  return fields as readonly string[];",
+      "}",
+      "export function viaUnknown<T extends { key: string }>(fields: readonly (keyof T & string)[]): unknown {",
+      "  return fields as unknown;",
+      "}",
     ].join("\n"),
   });
-  expect(bucketsIn(scan)).toEqual(["member-untouched both.a", "member-untouched both.b", "member-untouched names.id"]);
+  expect(bucketsIn(scan)).toEqual([
+    "member-untouched both.a",
+    "member-untouched both.b",
+    "member-untouched names.id",
+    "member-untouched viaReadonly.id",
+    "member-untouched viaUnknown.key",
+  ]);
 });
 
 // At the call, `Room` infers to the argument's own type, so the body's reads through the constraint reach the value only
