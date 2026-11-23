@@ -33,10 +33,12 @@ import {
   getCombinedModifierFlags,
   isClassDeclaration,
   isClassExpression,
+  isComputedPropertyName,
   isEnumDeclaration,
   isExportAssignment,
   isExportDeclaration,
   isExportSpecifier,
+  isIdentifier,
   isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
@@ -45,6 +47,7 @@ import {
   isNamespaceImport,
   isObjectLiteralExpression,
   isPrivateIdentifier,
+  isPropertyAccessExpression,
   isPropertyAssignment,
   isShorthandPropertyAssignment,
   isSourceFile,
@@ -285,7 +288,26 @@ interface Candidate {
   readonly edits: Edits;
   readonly occurrences: readonly Node[];
   readonly holders: readonly Node[];
+  readonly bracket: Bracket;
   readonly tsUnused: boolean;
+}
+
+// What a candidate's computed name adds to the files that can break. A read through the key (`shape[KEY]`, a mapped or
+// constrained `[KEY]`) names the key's symbol, never the member, so a key the tree declares adds every file naming it.
+// A key no tree file declares, a well-known symbol's, or a key that is no name, falls back to every file the import
+// graph says the declaring file reaches.
+type Bracket = { readonly by: "none" } | { readonly by: "key"; readonly name: Node } | { readonly by: "owner" };
+
+function bracketOf(node: Node): Bracket {
+  const name = declarationNameOf(node);
+  if (name === undefined || !isComputedPropertyName(name)) {
+    return { by: "none" };
+  }
+  const { expression } = name;
+  if (isIdentifier(expression)) {
+    return { by: "key", name: expression };
+  }
+  return isPropertyAccessExpression(expression) ? { by: "key", name: expression.name } : { by: "owner" };
 }
 
 // An added error no single candidate of its group owns.
@@ -365,6 +387,7 @@ class Trials {
   readonly #phases: Phases;
   readonly #reach: TrialReach;
   readonly #holderFiles = new Map<Node, readonly string[]>();
+  readonly #keyReach = new Map<Node, readonly string[] | null>();
   #seen: { readonly checked: number; readonly projects: readonly ProjectId[] }[] = [];
   #resolver: Resolver | null = null;
 
@@ -526,7 +549,8 @@ class Trials {
   // The files a snapshot of these candidates checks. Under `references`: the edited files, each file that names a
   // candidate or a declaration holding it (its home type and the declarations up to its file's top level), the direct
   // importers of those (a re-export, a derived type) and what an augmentation among them reaches. A delete breaks a site
-  // that names the member, or one that builds, assigns or constrains a holder, and both name the holder.
+  // that names the member, or one that builds, assigns or constrains a holder, and both name the holder. A computed
+  // member adds what its {@link Bracket} reaches.
   #checkedFor(items: readonly Candidate[], edited: readonly string[]): readonly string[] {
     if (this.#reach === "imports") {
       return [
@@ -537,9 +561,30 @@ class Trials {
       ...edited,
       ...items.flatMap(({ occurrences }) => occurrences.map((node) => this.#world.fileOfSource(node.getSourceFile()))),
       ...this.#filesNaming(items.flatMap(({ holders }) => holders)),
+      ...this.#keyFiles(items),
     ];
     const near = this.#imports.around([...new Set(named)].map((file) => this.#absolute(file))).map((at) => relative(this.#root, at));
-    return [...new Set([...named, ...near])].filter((file) => this.#world.has(file)).sort();
+    const owners = items.flatMap(({ key, bracket }) =>
+      bracket.by === "owner" || (bracket.by === "key" && this.#keyReach.get(bracket.name) === null) ? [declKeyParts(key).file] : [],
+    );
+    const reached = [...new Set(owners)].flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)));
+    return [...new Set([...named, ...near, ...reached])].filter((file) => this.#world.has(file)).sort();
+  }
+
+  // The files naming each computed candidate's key symbol, asked once per key. A key whose every definition lies
+  // outside the world's sources is recorded as null: its readers are the owner fallback's.
+  #keyFiles(items: readonly Candidate[]): readonly string[] {
+    const names = [...new Set(items.flatMap(({ bracket }) => (bracket.by === "key" ? [bracket.name] : [])))];
+    const missing = names.filter((name) => !this.#keyReach.has(name));
+    const world = this.#world;
+    const groups = world.batch(missing.map((name) => world.referencedSymbolsOf(name)));
+    for (const [at, name] of missing.entries()) {
+      const found = groups[at] ?? [];
+      const files = found.flatMap(({ references }) => references.flatMap((handle) => world.fileOf(handle) ?? []));
+      const declared = found.some(({ definition }) => world.fileOf(definition) !== null);
+      this.#keyReach.set(name, declared ? [...new Set([world.fileOfSource(name.getSourceFile()), ...files])] : null);
+    }
+    return names.flatMap((name) => this.#keyReach.get(name) ?? []);
   }
 
   // The files find-references names each declaration in, asked once per declaration name.
@@ -766,7 +811,7 @@ class Trials {
       };
     }
     const edits = this.edits(key, node, isTopLevel(node) ? exportSitesOf(occurrences) : []);
-    return { candidate: { bucket, finding, key, edits, occurrences, holders: holdersOf(node), tsUnused } };
+    return { candidate: { bucket, finding, key, edits, occurrences, holders: holdersOf(node), bracket: bracketOf(node), tsUnused } };
   }
 
   /** The per-file groups packed into shared snapshots, first fit in order, each holding at most GROUP_CANDIDATES. Two

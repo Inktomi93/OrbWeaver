@@ -761,9 +761,10 @@ test("a computed member whose constant is read elsewhere is confirmed by its own
     ),
   );
   const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
-  // The constant's own files are no reader of the member: only the member's file and the file importing it are checked.
-  expect(report.trials.map(({ label, verdict, checked, errors }) => ({ label, verdict, checked, errors }))).toEqual([
-    { label: `${LIB}:Shape.[KEY]`, verdict: "confirmed", checked: [LIB, MAIN], errors: [] },
+  // The constant's reads are not the member's: the delete breaks none of them. Its files are checked all the same,
+  // since a read through the key names only the key.
+  expect(report.trials.map(({ label, verdict, references, checked, errors }) => ({ label, verdict, references, checked, errors }))).toEqual([
+    { label: `${LIB}:Shape.[KEY]`, verdict: "confirmed", references: [], checked: [KEYS, LIB, MAIN], errors: [] },
   ]);
 });
 
@@ -792,5 +793,71 @@ test("a computed member a test reads through a relay is refuted test-only under 
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: "refuted-test-only", checked: [LIB, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
+  ).toEqual([{ verdict: "refuted-test-only", checked: [KEYS, LIB, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
+});
+
+// A constraint through the key constant (`{ readonly [KEY]: string }`) names neither the member nor its holder, and its file imports
+// neither the member's file nor a file that names the holder: the files that reference the key's own symbol are what
+// put it in the checked set.
+test("a computed member a constraint reads only through its key constant is refuted under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [KEYS]: 'export const KEY = "zqComputed";',
+        [LIB]: [
+          'import { KEY } from "./keys.ts";',
+          "export interface Shape { readonly kept: string; readonly [KEY]: string }",
+          'export const made = (): Shape => ({ kept: "k", [KEY]: "v" });',
+        ].join("\n"),
+        [RELAY]: 'export { made } from "./lib.ts";',
+        [MAIN]: [
+          'import { KEY } from "./keys.ts";',
+          'import { made } from "./relay.ts";',
+          "type Needs<T extends { readonly [KEY]: string }> = T;",
+          "const needs: Needs<ReturnType<typeof made>> | undefined = undefined;",
+          "const use = (value: unknown): unknown => value;",
+          "use(made().kept);",
+          "use(needs);",
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
+      .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
+  ).toEqual([{ verdict: "refuted", checked: [KEYS, LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
+});
+
+// A key that is no name, a string literal in brackets, has no symbol a reader names: a constraint that never names the
+// holder or imports its file is reached through the import graph, the owner fallback.
+test("a literal-keyed computed member a constraint reads through a relay is refuted under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [LIB]: [
+          'export interface Shape { readonly kept: string; readonly ["zqDash"]: string }',
+          'export const made = (): Shape => ({ kept: "k", zqDash: "d" });',
+        ].join("\n"),
+        [RELAY]: 'export { made } from "./lib.ts";',
+        [MAIN]: [
+          'import { made } from "./relay.ts";',
+          "type Needs<T extends { readonly zqDash: string }> = T;",
+          "const needs: Needs<ReturnType<typeof made>> | undefined = undefined;",
+          "const use = (value: unknown): unknown => value;",
+          "use(made().kept);",
+          "use(needs);",
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label === `${LIB}:Shape.zqDash`)
+      .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
+  ).toEqual([{ verdict: "refuted", checked: [LIB, MAIN, RELAY], errors: [`${LIB}:2 write`, `${MAIN}:3 read`] }]);
 });
