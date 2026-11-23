@@ -1,6 +1,7 @@
 // graph-trial deletes each finding of the named buckets in a throwaway snapshot: the delete removes the whole member,
 // property or declaration, an error the removal adds in a file that imports it names its reader, only the declaring
 // file and its importers are checked, and TypeScript's unused-code diagnostics are diffed against the graph.
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
@@ -787,6 +788,83 @@ test("an error no single candidate owns splits the group, and each half finds it
     [`${LIB}:two`, NAMED_ONLY, [`${MAIN}:1 TS2305 binding`]],
   ]);
   expect(progress(lines)).toMatch(/ snapshots 3 /u);
+});
+
+// The second file imports the first, so the two cannot share a snapshot: two groups, the first with one candidate. A
+// --cpu-profile that names a file fails when the second group starts, after the first landed.
+const FIRST = `${GRAPH_SOURCE}/first.ts`;
+const SECOND = `${GRAPH_SOURCE}/second.ts`;
+const TWO_GROUPS = {
+  [FIRST]: [
+    "export interface Ax { readonly x: string; readonly keep: string }",
+    'export const ax: Ax = { x: "1", keep: "k" };',
+    "export const keepOf = (): string => ax.keep;",
+  ].join("\n"),
+  [SECOND]: [
+    'import { keepOf } from "./first.ts";',
+    "export interface By { readonly y1: string; readonly y2: string; readonly keep: string }",
+    'export const by: By = { y1: "1", y2: "2", keep: keepOf() };',
+    "export const byKeep = (): string => by.keep;",
+  ].join("\n"),
+  [MAIN]: ['import { byKeep } from "./second.ts";', "byKeep();"].join("\n"),
+};
+const commitAll = (root: string): void => {
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-qm", "planted"]);
+};
+
+test("a trial that fails keeps the trials that landed with its failure, and a rerun of the same commit skips them", { timeout: 240_000 }, async ({
+  plantedTree,
+  runCli,
+  scratch,
+}) => {
+  const root = await plantedTree(graphTree(TWO_GROUPS, { entries: [MAIN] }));
+  commitAll(root);
+  const out = join(scratch, "trial.json");
+  const argv = ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${out}`];
+  const crashed = await runCli("unwired", [...argv, `--cpu-profile=${join(root, FIRST)}`]);
+  await expect(crashed).toExitWith(EXIT.toolError);
+  const partial = z
+    .object({ trials: z.array(z.object({ label: z.string(), verdict: z.string() })), failure: z.string() })
+    .parse(JSON.parse(readFileSync(out, "utf8")));
+  expect(partial.trials.map(({ label, verdict }) => [label, verdict])).toEqual([[`${FIRST}:Ax.x`, NAMED_ONLY]]);
+  expect(partial.failure).toContain("EEXIST");
+  const rerun = await runCli("unwired", argv);
+  await expect(rerun).toExitWith(EXIT.clean);
+  expect(rerun.stderr).toContain("resumed 1 trials");
+  const printed = rerun.stdout
+    .split("\n")
+    .filter((line) => line.startsWith(`${NAMED_ONLY}\t`))
+    .map((line) => line.split("\t").slice(0, 3).join("\t"));
+  expect(printed).toEqual([
+    `${NAMED_ONLY}\t${MEMBER_WRITE_ONLY}\t${FIRST}:Ax.x`,
+    `${NAMED_ONLY}\t${MEMBER_WRITE_ONLY}\t${SECOND}:By.y1`,
+    `${NAMED_ONLY}\t${MEMBER_WRITE_ONLY}\t${SECOND}:By.y2`,
+  ]);
+});
+
+test("a rerun refuses a trial record from another commit, and a tree with uncommitted changes keeps none", { timeout: 240_000 }, async ({
+  plantedTree,
+  runCli,
+  scratch,
+}) => {
+  const root = await plantedTree(graphTree(TWO_GROUPS, { entries: [MAIN] }));
+  commitAll(root);
+  const out = join(scratch, "trial.json");
+  const argv = ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${out}`];
+  await expect(await runCli("unwired", argv)).toExitWith(EXIT.clean);
+  const ledger = `${out}.trials.jsonl`;
+  expect(readFileSync(ledger, "utf8").split("\n").filter(Boolean)).toHaveLength(3);
+  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-q", "--allow-empty", "-m", "next"]);
+  const refused = await runCli("unwired", argv);
+  await expect(refused).toExitWith(EXIT.toolError);
+  expect(refused.stderr).toContain("holds trials from commit");
+  // a tracked file that differs from HEAD describes no commit: nothing is read from the ledger or written to a new one
+  writeFileSync(join(root, FIRST), `${TWO_GROUPS[FIRST]}\n`);
+  const fresh = join(scratch, "dirty.json");
+  await expect(await runCli("unwired", ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${fresh}`])).toExitWith(EXIT.clean);
+  expect(existsSync(`${fresh}.trials.jsonl`)).toBe(false);
 });
 
 test("--limit trials an even sample of the findings it names", { timeout: 120_000 }, async ({ plantedTree }) => {

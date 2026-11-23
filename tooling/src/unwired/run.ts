@@ -16,7 +16,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
-import { UsageError } from "../floor/cli/run-tool.ts";
+import { describeThrown, UsageError } from "../floor/cli/run-tool.ts";
 import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
 import type { DeliberateEntry } from "./deliberate.ts";
 import { DELIBERATE } from "./deliberate.ts";
@@ -53,6 +53,7 @@ import {
 } from "./graph/scan.ts";
 import type { TrialBucket } from "./graph/trial.ts";
 import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import { FileLedger } from "./graph/trial-ledger.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -771,6 +772,8 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
+// Beside the out file: each trial as its group lands, which a rerun of the same commit skips.
+const TRIAL_LEDGER_SUFFIX = ".trials.jsonl";
 const TRIAL_FLAG = /^--(root|out|bucket|verdict|limit|cpu-profile)=(.+)$/u;
 
 interface TrialArgs {
@@ -841,7 +844,22 @@ function parseTrialArgs(argv: readonly string[]): TrialArgs {
 async function runGraphTrial(args: TrialArgs): Promise<number> {
   // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
   const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
-  const report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, cpuProfile: args.cpuProfile }, log, timed);
+  const ledger = new FileLedger(args.root, resolve(checkoutOf(args.root), `${args.out}${TRIAL_LEDGER_SUFFIX}`));
+  let report: Awaited<ReturnType<typeof trialGraph>>;
+  try {
+    report = await trialGraph(
+      args.root,
+      { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, cpuProfile: args.cpuProfile, ledger },
+      log,
+      timed,
+    );
+  } catch (error) {
+    // The trials that landed are the run's result so far: keep them with the failure, and a rerun of this commit skips them.
+    ledger.fail(describeThrown(error, "message"));
+    const partial = write(args.root, args.out, ledger.kept);
+    log(`the trial failed after ${String(ledger.kept.trials.length)} kept trials; they and the failure are in ${partial}`);
+    throw error;
+  }
   const path = write(args.root, args.out, report);
   for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);

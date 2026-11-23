@@ -2,7 +2,10 @@
 // find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
 // pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report, the member scan or the columns scan over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
+
+import { once } from "node:events";
 import { mkdirSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Verdict } from "../field-sort.ts";
 import type { NativeWorld } from "../native.ts";
@@ -47,7 +50,7 @@ import type { ShapesOptions, ShapesReport } from "./shapes.ts";
 import { shapesPass } from "./shapes.ts";
 import type { BuildSession } from "./state.ts";
 import { productReader } from "./state.ts";
-import type { TrialBucket, TrialReport } from "./trial.ts";
+import type { TrialBucket, TrialLedger, TrialReport } from "./trial.ts";
 import { runTrials } from "./trial.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
@@ -100,6 +103,8 @@ interface SessionWork {
   readonly carried: CarrySink;
   readonly world: () => NativeWorld;
   readonly time: <R>(phase: ProfilePhase, work: () => R) => R;
+  /** The session's log, which also keeps the last line for a run that dies. */
+  readonly log: GraphLog;
 }
 
 // Where a session's graph came from: a build (with its why roles and the dump it wrote) or a dump.
@@ -110,6 +115,8 @@ interface GraphSource {
   readonly from: DumpStamp | null;
 }
 
+// How long a failed run waits for the compiler process to report its exit before it calls the process alive.
+const COMPILER_EXIT_WAIT_MS = 500;
 const HEAP_SAMPLES = "inuse_space";
 const CPU_SAMPLES = "cpu";
 
@@ -121,11 +128,16 @@ class Session implements Disposable {
   readonly #sites: SitePlan;
   #world: NativeWorld | null = null;
   #compiler: CompilerProfile | null = null;
+  // The last line the run logged: when the compiler dies, it names the step the run was on.
+  #progress: string | null = null;
 
   constructor(root: string, log: GraphLog, { options, ...sites }: SessionPlan) {
     this.#root = root;
     this.#options = options;
-    this.#log = log;
+    this.#log = (line): void => {
+      this.#progress = line;
+      log(line);
+    };
     this.#sites = sites;
     this.#profile = options.profile === null ? null : new GraphProfile();
   }
@@ -149,6 +161,38 @@ class Session implements Disposable {
   }
 
   async run<T>(use: (work: SessionWork) => T | Promise<T>): Promise<WithSession<T>> {
+    try {
+      return await this.#run(use);
+    } catch (error) {
+      throw await this.#namingCompilerExit(error);
+    }
+  }
+
+  // A run that failed because the compiler process died: the API itself can only say "unknown reason", since the exit
+  // event reaches it after its synchronous read has failed. Wait for it here, and name the status, the time and the step.
+  async #namingCompilerExit(error: unknown): Promise<unknown> {
+    const compiler = this.#world?.compilerProcess() ?? null;
+    if (compiler === null) {
+      return error;
+    }
+    if (compiler.exitCode === null && compiler.signalCode === null) {
+      // A referenced timer, so a failed run that has nothing else pending still waits out the budget; AbortSignal.timeout's is not.
+      const waiting = new AbortController();
+      await Promise.race([once(compiler, "exit", { signal: waiting.signal }), sleep(COMPILER_EXIT_WAIT_MS, undefined, { signal: waiting.signal })]).catch(
+        () => undefined,
+      );
+      waiting.abort();
+    }
+    if (compiler.exitCode === null && compiler.signalCode === null) {
+      return error;
+    }
+    const status = compiler.signalCode === null ? `code ${String(compiler.exitCode)}` : `signal ${compiler.signalCode}`;
+    const note = `the compiler process exited with ${status} at ${new Date().toISOString()}; last progress: ${this.#progress ?? "none"}`;
+    this.#log(note);
+    return new Error(`${errorMessage(error)} (${note})`, { cause: error });
+  }
+
+  async #run<T>(use: (work: SessionWork) => T | Promise<T>): Promise<WithSession<T>> {
     const options = this.#options;
     const source = options.from === null ? await this.#build() : this.#read(options.from);
     const { graph } = source;
@@ -160,7 +204,7 @@ class Session implements Disposable {
         : (step): void => {
             steps.push(step);
           };
-    const value = await use({ graph, carried, world: () => this.world(), time: (phase, work) => this.time(phase, work) });
+    const value = await use({ graph, carried, world: () => this.world(), time: (phase, work) => this.time(phase, work), log: this.#log });
     this.#stopCpu();
     const measures = {
       counts: graph.facts.counts,
@@ -338,17 +382,37 @@ export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions
 /** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
  *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them,
  *  `verdicts` keeps only the member findings the judge sorted to one of them (the build then keeps member sites, which the
- *  sort reads), and `cpuProfile` names where the compiler CPU profile of one group is written. */
+ *  sort reads), `ledger` keeps each trial as it lands and skips the ones an earlier run kept, and `cpuProfile` names where
+ *  the compiler CPU profile of one group is written. */
 export function trialGraph(
   root: string,
-  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null; readonly cpuProfile?: string | null; readonly verdicts?: readonly Verdict[] },
+  ask: {
+    readonly buckets: readonly TrialBucket[];
+    readonly limit: number | null;
+    readonly cpuProfile?: string | null;
+    readonly verdicts?: readonly Verdict[];
+    readonly ledger?: TrialLedger;
+  },
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<TrialReport>> {
   const verdicts = ask.verdicts ?? [];
   return session(root, log, { options, ...(verdicts.length === 0 ? NO_SITES : MEMBER_SITES) }, (work) => {
     const analysis = work.time("analyse", () => analyse(work.graph));
-    return runTrials(work.graph, work.world(), { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null, verdicts }, log);
+    return runTrials(
+      work.graph,
+      work.world(),
+      {
+        root,
+        analysis,
+        buckets: ask.buckets,
+        limit: ask.limit,
+        cpuProfile: ask.cpuProfile ?? null,
+        verdicts,
+        ...(ask.ledger === undefined ? {} : { ledger: ask.ledger }),
+      },
+      work.log,
+    );
   });
 }
 

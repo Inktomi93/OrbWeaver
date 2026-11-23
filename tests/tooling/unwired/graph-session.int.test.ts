@@ -318,6 +318,10 @@ test("a compiler that dies mid-run leaves the run's own error thrown and the fai
   expect(failed).toBeInstanceOf(Error);
   expect(failed).not.toBeInstanceOf(SuppressedError);
   expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
+  // the exit status, the time and the step the run was on name the crash, in the log and in the thrown error
+  const exit = lines.find((line) => line.startsWith("the compiler process exited with signal SIGKILL at "));
+  expect(exit).toMatch(/ at \d{4}-\d\d-\d\dT[\d:.]+Z; last progress: trial group(s)? /u);
+  expect((failed as Error).message).toContain(exit);
 });
 
 test("the graph verbs refuse a build's options and a compiler profile on a dump before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {

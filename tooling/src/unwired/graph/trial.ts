@@ -126,7 +126,7 @@ interface Removal {
 
 // One candidate's trial: the product reads find-references named (`file:line`), what the delete removed, the files it
 // checked, the errors it added, how many snapshots held it and whether tsc reports it unused.
-interface Trial {
+export interface Trial {
   readonly bucket: TrialBucket;
   readonly label: string;
   readonly verdict: TrialVerdict;
@@ -140,6 +140,12 @@ interface Trial {
   /** For a compile-clean candidate, the hits of its name outside its own sites and off other declarations of the name,
    *  the ones that can be a read first: the reason for confirmed-literal, else an annotation on confirmed. */
   readonly literal: LiteralEvidence["hits"];
+}
+
+/** Where a run keeps each trial as it lands, and the trials an earlier run of the same tree already kept. */
+export interface TrialLedger {
+  readonly recorded: (bucket: TrialBucket, key: DeclKey) => Trial | undefined;
+  readonly record: (bucket: TrialBucket, key: DeclKey, trial: Trial) => void;
 }
 
 /** The trial's phases, in run order. */
@@ -778,7 +784,7 @@ class Trials {
    *  one candidate when `cpuProfile` names a directory. */
   tryGroups(
     groups: readonly (readonly Candidate[])[],
-    run: { readonly total: number; readonly cpuProfile: string | null },
+    run: { readonly total: number; readonly cpuProfile: string | null; readonly ledger: TrialLedger | undefined },
     log: (line: string) => void,
   ): { readonly tried: ReadonlyMap<Finding, Trial>; readonly profiled: string | null } {
     const tried = new Map<Finding, Trial>();
@@ -791,6 +797,7 @@ class Trials {
         mkdirSync(dir, { recursive: true });
         this.#world.debug.startCPUProfile(dir);
       }
+      log(`trial group ${String(at + 1)}/${String(groups.length)} starting: ${String(items.length)} candidates, first ${items[0]?.finding.label ?? ""}`);
       const outcome = this.group(items);
       if (dir !== null) {
         profiled = String(this.#world.debug.stopCPUProfile());
@@ -799,6 +806,7 @@ class Trials {
         const trial = outcome[x];
         if (trial !== undefined) {
           tried.set(item.finding, trial);
+          run.ledger?.record(item.bucket, item.key, trial);
         }
       }
       done += items.length;
@@ -984,6 +992,8 @@ export function runTrials(
     readonly cpuProfile: string | null;
     /** Only the member findings the judge sorted to one of these; every finding when empty. */
     readonly verdicts?: readonly Verdict[];
+    /** Keeps each trial as its group lands, and supplies the ones an earlier run of the same tree kept, which are not tried again. */
+    readonly ledger?: TrialLedger;
   },
   log: (line: string) => void,
 ): TrialReport {
@@ -1006,16 +1016,30 @@ export function runTrials(
   const tsUnused = phases.time("unused", () => trials.tsUnused(found.map(({ name }) => name)));
   const decided = new Map<Finding, Trial>();
   const groups = new Map<string, Candidate[]>();
+  let resumed = 0;
   for (const [at, pick] of picked.entries()) {
     const outcome = trials.decide(pick, found[at] ?? { occurrences: [], reads: [] }, tsUnused[at] ?? false);
     if ("trial" in outcome) {
       decided.set(pick.finding, outcome.trial);
     } else {
-      const { file } = declKeyParts(outcome.candidate.key);
-      groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
+      const kept = run.ledger?.recorded(pick.bucket, outcome.candidate.key);
+      if (kept === undefined) {
+        const { file } = declKeyParts(outcome.candidate.key);
+        groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
+      } else {
+        decided.set(pick.finding, kept);
+        resumed += 1;
+      }
     }
   }
-  const { tried, profiled } = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, cpuProfile: run.cpuProfile }, log);
+  if (resumed > 0) {
+    log(`resumed ${String(resumed)} trials an earlier run of this tree kept`);
+  }
+  const { tried, profiled } = trials.tryGroups(
+    trials.pack([...groups.values()]),
+    { total: picked.length, cpuProfile: run.cpuProfile, ledger: run.ledger },
+    log,
+  );
   const compiled = picked.flatMap(({ finding }, at) => {
     const trial = decided.get(finding) ?? tried.get(finding);
     return trial === undefined ? [] : [{ trial, references: found[at] }];
