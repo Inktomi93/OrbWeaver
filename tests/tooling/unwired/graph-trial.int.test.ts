@@ -183,7 +183,7 @@ test("a group with an unowned error bisects to the one member it reads, counting
         [LIB]: "export interface Shape { readonly kept: string; readonly a: string; readonly b: string; readonly c: string }",
         [MAIN]: [
           'import type { Shape } from "./lib.ts";',
-          "type Needs<T> = T extends { readonly b: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
           "const shape: Needs<Shape> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(shape);",
@@ -229,7 +229,7 @@ test.for([
       [DOOR]: 'export type { Shape } from "./lib.ts";',
       [MAIN]: [
         'import type { Shape } from "./door.ts";',
-        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
         "const shape: Needs<Shape> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(shape);",
@@ -248,7 +248,7 @@ test.for([
       ].join("\n"),
       [MAIN]: [
         'import { keptOf, made } from "./door.ts";',
-        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
         "const view: Needs<typeof made> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(view ? keptOf(made) : undefined);",
@@ -282,7 +282,7 @@ test.for([
       [MID]: ['import { keptOf, made } from "./door.ts";', "export type Made = typeof made;", "export const kept = keptOf(made);"].join("\n"),
       [MAIN]: [
         'import { kept, type Made } from "./mid.ts";',
-        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
         "const view: Needs<Made> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(view ? kept : undefined);",
@@ -296,7 +296,7 @@ test.for([
       ...RELAYED_SHAPE,
       [MAIN]: [
         'import { relayed } from "./mid.ts";',
-        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
         "const checked = true satisfies Needs<typeof relayed>;",
         "const use = (value: unknown): unknown => value;",
         "use(checked);",
@@ -310,7 +310,7 @@ test.for([
       ...RELAYED_SHAPE,
       [MAIN]: [
         'import { relayed } from "./mid.ts";',
-        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
         "const held: Needs<typeof relayed> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(held);",
@@ -715,7 +715,7 @@ const sharedTree = (constrained: number | null): Readonly<Record<string, string>
         reader,
         [
           `import type { S${String(at)} } from "./lib${String(at)}.ts";`,
-          "type Needs<T> = T extends { readonly spare: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly spare: string }] ? true : false;",
           at === constrained ? `const value: Needs<S${String(at)}> = true;` : `const value: S${String(at)} | undefined = undefined;`,
           "const use = (seen: unknown): unknown => seen;",
           at === constrained ? "use(value);" : "use(value?.kept);",
@@ -1062,7 +1062,7 @@ const WITH_TESTS = { [WORLD]: plantedTsconfig({ lib: LIBS, include: ["../*/src",
 const TEST_FILE = "tests/a/shape.test.ts";
 const TYPE_TEST_FILE = "tests/a/shape.test-d.ts";
 // A constraint the member must meet: a structural read the graph does not see and the checker does.
-const NEEDS = "type Needs<T> = T extends { readonly tested: string; readonly used: string } ? true : false;";
+const NEEDS = "type Needs<T> = [T] extends [{ readonly tested: string; readonly used: string }] ? true : false;";
 
 test("a reader only outside the product refutes test-only; a product reader keeps the verdict refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
@@ -1072,7 +1072,7 @@ test("a reader only outside the product refutes test-only; a product reader keep
         [LIB]: "export interface Shape { readonly kept: string; readonly tested: string; readonly used: string }",
         [MAIN]: [
           'import type { Shape } from "./lib.ts";',
-          "type Needs<T> = T extends { readonly used: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly used: string }] ? true : false;",
           "const product: Needs<Shape> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(product);",
@@ -1106,7 +1106,7 @@ test("a reader under snap refutes the finding as a product read, and the control
         [MAIN]: ['import type { Shape } from "./lib.ts";', "const use = (value: unknown): unknown => value;", "use((shape: Shape) => shape.kept);"].join("\n"),
         [SNAP_READER]: [
           'import type { Shape } from "../../../packages/a/src/lib.ts";',
-          "type Needs<T> = T extends { readonly snapped: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly snapped: string }] ? true : false;",
           "export const snapped: Needs<Shape> = true;",
           "function zqSnapUnused(): number { return 1; }",
         ].join("\n"),
@@ -1163,7 +1163,7 @@ const REACH_LIB = [
   "export interface Shape { readonly kept: string; readonly gone: string }",
   "export const keptOf = (shape: Shape): string => shape.kept;",
 ].join("\n");
-const REACH_NEEDS = "type Needs<T> = T extends { readonly gone: string } ? true : false;";
+const REACH_NEEDS = "type Needs<T> = [T] extends [{ readonly gone: string }] ? true : false;";
 
 // The augmenting file imports the candidate's file; the reader imports neither, and reads it through what the
 // augmentation declares. A file that neither imports nor spells it is not checked.
@@ -1293,7 +1293,7 @@ test("a computed member a constraint reads only through its key constant is refu
         [MAIN]: [
           'import { KEY } from "./keys.ts";',
           'import { made } from "./relay.ts";',
-          "type Needs<T> = T extends { readonly [KEY]: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly [KEY]: string }] ? true : false;",
           "const needs: Needs<ReturnType<typeof made>> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(made().kept);",
@@ -1324,7 +1324,7 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
         [RELAY]: 'export { made } from "./lib.ts";',
         [MAIN]: [
           'import { made } from "./relay.ts";',
-          "type Needs<T> = T extends { readonly zqDash: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly zqDash: string }] ? true : false;",
           "const needs: Needs<ReturnType<typeof made>> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(made().kept);",
@@ -1358,7 +1358,7 @@ test("a computed member keyed by a library constant a constraint reads through a
         [RELAY]: 'export { made } from "./lib.ts";',
         [MAIN]: [
           'import { made } from "./relay.ts";',
-          "type Needs<T> = T extends { readonly zqLib: string } ? true : false;",
+          "type Needs<T> = [T] extends [{ readonly zqLib: string }] ? true : false;",
           "const needs: Needs<ReturnType<typeof made>> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(made().kept);",

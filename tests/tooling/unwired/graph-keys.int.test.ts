@@ -3,7 +3,11 @@
 // a `z.lazy` arrow's too), a reflective platform call reads every member, a redeclared member shares its reads, a
 // function filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
 import { expect, test } from "@orb/testkit/tooling";
-import { GRAPH_SOURCE, graphScan, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
+import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
+import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
+
+const [CONFIRMED] = TRIAL_VERDICTS;
 
 const FILE = `${GRAPH_SOURCE}/keys.ts`;
 const JSX_FILE = `${GRAPH_SOURCE}/select.tsx`;
@@ -54,6 +58,120 @@ test("a zod schema's keys are the members of the type it satisfies", { timeout: 
   expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual([]);
 });
 
+// A schema checked against `z.ZodType<T>` by `satisfies`, by an annotated binding or by a declared return holds its
+// output to T at every depth: the transform's `text` is T's `item.text`, which the product reads, and a delete of it
+// breaks the check. Each `spare` is the control T does not name, so the trial confirms it and refutes nothing.
+test("a schema checked against a declared ZodType reads that type's members at depth", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const item = (name: string): string =>
+    `z.object({ ${name}: z.object({ text: z.string(), spare: z.string() }).transform((value): { readonly text: string; readonly spare: string } => value) })`;
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      ...source([
+        'import { z } from "zod";',
+        "export interface Payload { readonly checked: { readonly text: string }; }",
+        "export interface Bound { readonly bound: { readonly text: string }; }",
+        "export interface Returned { readonly returned: { readonly text: string }; }",
+        `export const checkedSchema = ${item("checked")} satisfies z.ZodType<Payload>;`,
+        `export const boundSchema: z.ZodType<Bound> = ${item("bound")};`,
+        `export const returnedSchema = (): z.ZodType<Returned> => ${item("returned")};`,
+        "export const texts = (payload: Payload, bound: Bound, returned: Returned): string => payload.checked.text + bound.bound.text + returned.returned.text;",
+      ]),
+    }),
+  );
+  const scan = await scanGraph(root, () => undefined);
+  const untouched = bare(labelsIn(scan, "member-untouched", FILE));
+  expect(untouched.filter((label) => label.endsWith(".text"))).toEqual([]);
+  expect(untouched.filter((label) => label.endsWith(".spare"))).toHaveLength(3);
+  const trial = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  expect(trial.trials.filter(({ label }) => label.startsWith(`${FILE}:`)).map(({ label, verdict }) => [label.slice(FILE.length + 1), verdict])).toEqual(
+    untouched.map((label) => [label, CONFIRMED]),
+  );
+});
+
+// One schema declaration a check holds to two members of T passes its own reads to each, but never one member's read to
+// the other: a delete of `B.name` or `Y.name` still compiles. `A.name` and `X.name`, read directly, are the controls.
+test.for([
+  {
+    shape: "a sub-schema reused under two keys",
+    lines: [
+      "export interface A { readonly name: string }",
+      "export interface B { readonly name: string }",
+      "export interface Pair { readonly a: A; readonly b: B }",
+      "const inner = z.object({ name: z.string() });",
+      "export const pairSchema = z.object({ a: inner, b: inner }) satisfies z.ZodType<Pair>;",
+      "export const nameOf = (pair: Pair): string => pair.a.name;",
+    ],
+    read: "A.name",
+    dead: "B.name",
+  },
+  {
+    shape: "a union whose options share a key",
+    lines: [
+      "export interface X { readonly name: string; readonly x: string }",
+      "export interface Y { readonly name: string; readonly y: string }",
+      "export interface Holder { readonly item: X | Y }",
+      "export const holderSchema = z.object({ item: z.union([z.object({ name: z.string(), x: z.string() }), z.object({ name: z.string(), y: z.string() })]) }) satisfies z.ZodType<Holder>;",
+      "export const nameOf = (x: X): string => x.name + x.x;",
+    ],
+    read: "X.name",
+    dead: "Y.name",
+  },
+  {
+    shape: "a top-level union whose options share a key",
+    lines: [
+      "export interface X { readonly name: string; readonly x: string }",
+      "export interface Y { readonly name: string; readonly y: string }",
+      "export const eitherSchema = z.union([z.object({ name: z.string(), x: z.string() }), z.object({ name: z.string(), y: z.string() })]) satisfies z.ZodType<X | Y>;",
+      "export const nameOf = (x: X): string => x.name + x.x;",
+    ],
+    read: "X.name",
+    dead: "Y.name",
+  },
+])("a read of one checked member never reaches another through $shape", { timeout: 120_000 }, async ({ lines, read, dead }, { plantedTree }) => {
+  const scan = await graphScan(plantedTree, { ...ZOD_MODULE, ...source(['import { z } from "zod";', ...lines]) });
+  const untouched = bare(labelsIn(scan, "member-untouched", FILE));
+  expect(untouched).toContain(dead);
+  expect(untouched).not.toContain(read);
+});
+
+// A key both options spell has two members of the checked type as partners, so it takes a check, not a twin; it is still
+// its type's member, judged there, never a schema key of its own.
+test("a key a discriminated union's options share is judged at the checked type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      'export interface Ok { readonly status: "ok"; readonly at: string }',
+      'export interface Down { readonly status: "down"; readonly at: string; readonly reason: string }',
+      'export const healthSchema = z.discriminatedUnion("status", [z.object({ status: z.string(), at: z.string() }), z.object({ status: z.string(), at: z.string(), reason: z.string() })]) satisfies z.ZodType<Ok | Down>;',
+      "export const atOf = (health: Ok | Down): string => health.at + health.status;",
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-validated", FILE))).toEqual([]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Down.reason"]);
+});
+
+// A type inferred from a schema is that schema's output: a check that reaches it pairs nothing there, so each option's
+// key stays judged as itself instead of checked against its sibling option's same-named key.
+test("a check whose type reaches an inferred schema's own options pairs nothing there", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      'export const sourceSchema = z.discriminatedUnion("kind", [z.object({ kind: z.string(), rule: z.string() }), z.object({ kind: z.string(), plugin: z.string() })]);',
+      "export type Source = z.infer<typeof sourceSchema>;",
+      "export interface Notice { readonly source: Source }",
+      "export const noticeSchema = z.object({ source: sourceSchema }) satisfies z.ZodType<Notice>;",
+      'export const notice: Notice = { source: { kind: "rule", rule: "r" } };',
+      "export const shown = notice.source;",
+    ]),
+  });
+  // the literal writes `kind` on both options and `rule` on its own; `plugin` is a schema key nothing writes
+  expect(bare(labelsIn(scan, "member-write-only", FILE)).toSorted()).toEqual(["sourceSchema.kind", "sourceSchema.kind", "sourceSchema.rule"]);
+  expect(bare(labelsIn(scan, "member-validated", FILE))).toEqual(["sourceSchema.plugin"]);
+});
+
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,
@@ -102,6 +220,26 @@ test("a key of an extended schema checked against its own type does not read the
     ]),
   });
   expect(bare(labelsIn(scan, "member-write-only", FILE)).filter((label) => label.startsWith("Fields."))).toEqual(["Fields.character"]);
+});
+
+// The extension's output carries the base's `applied`, so a read of it through the extension reads `Copy.applied`.
+// `unread` is read by nobody, and the extension's own `character` replaces the base's, so `Fields.character` stays
+// unread too.
+test("a key an extended schema inherits is read on the extension's checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Fields { readonly applied: string; readonly character: string; readonly unread: string }",
+      "export const fieldsSchema = z.object({ applied: z.string(), character: z.string(), unread: z.string() }) satisfies z.ZodType<Fields>;",
+      "export interface Copy { readonly applied: string; readonly character: string; readonly unread: string }",
+      "export const copySchema = fieldsSchema.extend({ character: z.string() }) satisfies z.ZodType<Copy>;",
+      'export const fields: Fields = { applied: "a", character: "c", unread: "u" };',
+      'export const copy: Copy = { applied: "a", character: "c", unread: "u" };',
+      "export const copied = (result: z.infer<typeof copySchema>): string => result.applied + result.character;",
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Fields.character", "Fields.unread", "Copy.unread"]);
 });
 
 // The twin is zod's: a type of the same name declared anywhere else spells a satisfies check and twins nothing.

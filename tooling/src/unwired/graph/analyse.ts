@@ -445,8 +445,8 @@ class Analyser {
   #members(roles: ReadonlyMap<DeclKey, MemberRoles>, liveTyped: ReadonlySet<GraphKey>): void {
     const state = this.#state;
     const dispatched = dispatchedMembers(state.run, state.decls);
-    // a schema key with a `satisfies` twin is its type's member, judged there
-    const twinned = new Set(state.twins.flat());
+    // a schema key with a `satisfies` twin, or a check where several members share it, is its type's member, judged there
+    const twinned = new Set([...state.twins.flat(), ...state.checks.map(([value]) => value)]);
     const written = writtenHomes(state, roles);
     // a member filling a typed slot of ours is judged at that slot: the slot requires it, so the two delete together
     const fills = new Set([...state.flows].flatMap(([slot, values]) => (isProduction(state.decls.get(slot)?.file ?? "") ? [...values] : [])));

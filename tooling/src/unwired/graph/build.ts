@@ -63,12 +63,16 @@ import { collectSites, GLOBAL_OBJECTS, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
 import type { BuildSession, ComputedLoad, GraphFacts, LostCause, LostSlot } from "./state.ts";
-import { GraphState } from "./state.ts";
+import { GraphState, isPrimitive } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
 
 const ZOD_TYPE = "ZodType";
+// The member a zod schema's type carries its parsed value's type in.
+const ZOD_OUTPUT = "_output";
+// A recursive generic can instantiate a fresh type at every level, which a seen-set of type ids never stops.
+const OUTPUT_DEPTH = 16;
 const ANY_RECEIVER: LostSlot = "any-receiver";
 // The receiver a read off `any` names: the type has no alias, symbol or declaring file.
 const ANY_TYPE = "any";
@@ -271,6 +275,8 @@ class Builder {
   readonly #pendingSlots: PendingClass[] = [];
   readonly #pendingValues: PendingClass[] = [];
   readonly #urlSpawns: UrlSpawn[] = [];
+  // Each schema-side declaration with the checked types' members it pairs with, settled once every file is walked.
+  readonly #twinPartners = new Map<DeclKey, Set<DeclKey>>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -292,6 +298,7 @@ class Builder {
       state.unpairedReceivers.push(...this.#doors.unpaired);
       this.#settleClasses();
       this.#keys.finish(this.#flows);
+      this.#settleTwins();
       this.#links.settle();
       return this.#variants.finish();
     };
@@ -674,13 +681,52 @@ class Builder {
 
   // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each. The twin holds
   // where the reference means zod's own ZodType, imports and renames followed; a local type of that name twins nothing.
+  // A schema checked so (by `satisfies`, an annotated binding or a declared return) holds its output to T at every
+  // depth: each member its output declares pairs with the same-named member of T at the same path, so a member a
+  // transform's annotation spells is T's member, and the check breaks when either is deleted (`#settleTwins`).
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
-    if (state.session.options.ablate.has("zod-twins") || sites.zodTwins.length === 0) {
+    if (state.session.options.ablate.has("zod-twins") || sites.zodChecks.length === 0) {
       return;
     }
+    const twins = this.#zodTypes(sites.zodTwins);
+    const shapes = state.world.typedAt(twins, ({ shape }) => shape);
+    const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
+    const members = state.slotMembers(asks);
+    for (const [y, ask] of asks.entries()) {
+      for (const member of members[y] ?? []) {
+        this.#pair(ask.decl, member);
+      }
+    }
+    const checks = this.#zodTypes(sites.zodChecks);
+    const declared = state.world.typesAt(checks.map(({ shape }) => shape));
+    const schemas = state.world.typesAt(checks.map(({ schema }) => schema));
+    const pairs = state.batch(
+      checks.map((_, at) => {
+        const [schema, type] = [schemas[at], declared[at]];
+        return schema === undefined || type === undefined ? answer([]) : this.#outputPairs(schema, type);
+      }),
+    );
+    const flat = pairs.flat();
+    const outputs = state.declarations(flat.map(([output]) => output));
+    const targets = state.declarations(flat.map(([, target]) => target));
+    // A declaration the walk pairs with itself sits where the declared type is the schema's own output (`z.infer` of
+    // it): nothing there is checked, and the union cross product would pair one option's key with a sibling's.
+    const own = new Set(outputs.flatMap((output, y) => output.filter((decl) => targets[y]?.includes(decl) === true)));
+    for (const [y, output] of outputs.entries()) {
+      for (const from of output.filter((decl) => state.decls.has(decl) && !own.has(decl))) {
+        for (const to of (targets[y] ?? []).filter((decl) => decl !== from && state.decls.has(decl))) {
+          this.#pair(from, to);
+        }
+      }
+    }
+  }
+
+  // The sites whose checked reference means zod's own ZodType, imports and renames followed.
+  #zodTypes<T extends { readonly type: Node }>(sites: readonly T[]): readonly T[] {
+    const state = this.#state;
     const { world } = state;
-    const named = world.symbolsAt(sites.zodTwins.map(({ type }) => type));
+    const named = world.symbolsAt(sites.map(({ type }) => type));
     const meant = state.batch(
       named.map((symbol) => (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? world.checker.getAliasedSymbol.gen(symbol) : answer(symbol))),
     );
@@ -688,17 +734,67 @@ class Builder {
       meant.map((symbol) => (symbol?.name === ZOD_TYPE ? symbol.declarations : [])),
       ZOD_PACKAGE,
     );
-    const shapes = world.typedAt(
-      sites.zodTwins.filter((_, at) => zod[at] === true),
-      ({ shape }) => shape,
-    );
-    const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
-    const members = state.slotMembers(asks);
-    for (const [y, ask] of asks.entries()) {
-      for (const member of members[y] ?? []) {
-        state.twins.push([ask.decl, member]);
+    return sites.filter((_, at) => zod[at] === true);
+  }
+
+  #pair(schema: DeclKey, member: DeclKey): void {
+    const partners = this.#twinPartners.get(schema) ?? new Set<DeclKey>();
+    partners.add(member);
+    this.#twinPartners.set(schema, partners);
+  }
+
+  // A schema declaration with one partner is that member: a twin, carrying reads both ways. One a check holds to several
+  // members (a sub-schema reused under two keys, a union output's key under each arm of T) only passes its own reads to
+  // each, as a `satisfies` check does: a twin there would carry one member's read through it to another, and a delete of
+  // that other member still compiles.
+  #settleTwins(): void {
+    const state = this.#state;
+    for (const [schema, partners] of this.#twinPartners) {
+      for (const member of partners) {
+        if (partners.size === 1) {
+          state.twins.push([schema, member]);
+        } else {
+          state.checks.push([schema, member]);
+        }
       }
     }
+    this.#twinPartners.clear();
+  }
+
+  // A checked schema's output members beside the declared type's same-named members, at every depth: through null and
+  // undefined, a list's elements and each union arm of the declared type.
+  *#outputPairs(schema: Type, declared: Type): APIRequestGenerator<readonly (readonly [NativeSymbol, NativeSymbol])[]> {
+    const state = this.#state;
+    const { checker } = state.world;
+    const output = yield* checker.getPropertyOfType.gen(schema, ZOD_OUTPUT);
+    if (output === undefined) {
+      return [];
+    }
+    const out: (readonly [NativeSymbol, NativeSymbol])[] = [];
+    const seen = new Set<string>();
+    const walk = function* (value: Type, target: Type, depth: number): APIRequestGenerator<void> {
+      const [from, to] = [yield* checker.getNonNullableType.gen(value), yield* checker.getNonNullableType.gen(target)];
+      const pair = `${String(from.id)}>${String(to.id)}`;
+      if (depth > OUTPUT_DEPTH || seen.has(pair) || isPrimitive(to)) {
+        return;
+      }
+      seen.add(pair);
+      if ((yield* checker.isArrayLikeType.gen(from)) && (yield* checker.isArrayLikeType.gen(to))) {
+        const [fromElement, toElement] = [yield* from.getNumberIndexType.gen(), yield* to.getNumberIndexType.gen()];
+        if (fromElement !== undefined && toElement !== undefined) {
+          yield* walk(fromElement, toElement, depth + 1);
+        }
+        return;
+      }
+      for (const member of yield* state.membersOf(to)) {
+        for (const filled of yield* state.propsOnSlot(from, member.name)) {
+          out.push([filled, member]);
+          yield* walk(yield* checker.getTypeOfSymbol.gen(filled), yield* checker.getTypeOfSymbol.gen(member), depth + 1);
+        }
+      }
+    };
+    yield* walk(yield* checker.getTypeOfSymbol.gen(output), declared, 0);
+    return out;
   }
 
   // `interface Leaf extends Base { readonly title: string }`: a member that redeclares a member of an extended type

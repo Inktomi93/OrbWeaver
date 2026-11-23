@@ -50,6 +50,7 @@ import {
   getCombinedModifierFlags,
   isArrayBindingPattern,
   isArrayLiteralExpression,
+  isArrayTypeNode,
   isArrowFunction,
   isAsExpression,
   isAwaitExpression,
@@ -127,6 +128,7 @@ import {
   isSpreadElement,
   isStringLiteral,
   isTemplateExpression,
+  isTupleTypeNode,
   isTypeAliasDeclaration,
   isTypeAssertion,
   isTypeLiteralNode,
@@ -150,7 +152,7 @@ import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
 import type { Role } from "./roles.ts";
-import { inAssignmentPattern, referenceRoles, sameNode } from "./roles.ts";
+import { accessRoles, inAssignmentPattern, referenceRoles, sameNode } from "./roles.ts";
 
 /** A module's node in the graph: a use of it runs the module. */
 export type ModuleKey = `M:${string}`;
@@ -495,6 +497,11 @@ export interface ElementKey {
   readonly argument: Node;
 }
 
+/** An `x[k]` access with the roles its position gives (roles.ts accessRoles): a store, a bump, a delete or a read. */
+export interface KeyedAccess extends ElementKey {
+  readonly roles: readonly Role[];
+}
+
 /** `T[K]`: the object type, the literal keys `K` spells and the index type node. */
 export interface IndexedKey {
   readonly object: TypeNode;
@@ -547,15 +554,18 @@ export class FileSites {
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
   /** Each `satisfies X<T>` over a schema expression: the build keeps those whose `type` names zod's `ZodType`. */
   readonly zodTwins: { readonly type: Node; readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
+  /** Each schema expression checked against `X<T>` (a `satisfies`, an annotated binding, a declared return): the build
+   *  keeps those whose `type` names zod's `ZodType` and twins the schema's output with T at every depth. */
+  readonly zodChecks: { readonly type: Node; readonly shape: TypeNode; readonly schema: Node }[] = [];
   readonly handedWhole: HandedWhole[] = [];
   readonly globalAssigns: { readonly target: Node; readonly value: Expression }[] = [];
   readonly flowSites: FlowSite[] = [];
   readonly pickKeys: { readonly target: TypeNode; readonly keys: readonly string[] }[] = [];
   readonly indexedKeys: IndexedKey[] = [];
-  readonly elementKeys: ElementKey[] = [];
+  readonly elementKeys: KeyedAccess[] = [];
   /** `row["k"]`: a literal key the resolver places like a name; keys.ts also reads it through a string-indexed type a
    *  typed value was handed into. */
-  readonly literalKeyReads: ElementKey[] = [];
+  readonly literalKeyReads: KeyedAccess[] = [];
   /** The values a reflective call or a `for…in` loop takes every member of: `Object.entries(x)` and `structuredClone(x)`
    *  read each value, `Object.keys(x)` and a loop list each key; the callee, which keys.ts confirms is the platform's,
    *  or null for a loop. */
@@ -707,6 +717,8 @@ const ZOD_OBJECT_BUILDERS: ReadonlySet<string> = new Set(["object", "strictObjec
 const ZOD_UNION_BUILDERS: ReadonlySet<string> = new Set(["union", "discriminatedUnion"]);
 const ZOD_EXTENDERS: ReadonlySet<string> = new Set(["extend", "safeExtend"]);
 const ZOD_LAZY = "lazy";
+// The zod type a schema is checked against.
+const ZOD_TYPE = "ZodType";
 /** How a reflective use takes each member: `read` takes its value, `key` only its name, as an `in` test does. */
 type ReflectiveRole = Extract<Role, "read" | "key">;
 // The platform calls that take every member of their arguments: the `Object` statics that list or copy them, and a deep
@@ -774,13 +786,19 @@ function patternMembers(node: TypeNode): readonly PropertySignatureDeclaration[]
   );
 }
 
-// The type literals a type argument spells, through unions, intersections and parentheses.
+// The type literals a type argument spells, through unions, intersections, tuples, lists and parentheses.
 function typeLiteralsIn(node: TypeNode): readonly TypeLiteralNode[] {
   if (isTypeLiteralNode(node)) {
     return [node];
   }
   if (isUnionTypeNode(node) || isIntersectionTypeNode(node)) {
     return node.types.flatMap(typeLiteralsIn);
+  }
+  if (isTupleTypeNode(node)) {
+    return node.elements.flatMap(typeLiteralsIn);
+  }
+  if (isArrayTypeNode(node)) {
+    return typeLiteralsIn(node.elementType);
   }
   return isParenthesizedTypeNode(node) ? typeLiteralsIn(node.type) : [];
 }
@@ -798,7 +816,8 @@ function stringKeysIn(node: TypeNode): readonly string[] {
 
 const referenceName = (node: TypeReferenceNode): string => (isQualifiedName(node.typeName) ? node.typeName.right.text : node.typeName.text);
 
-// A schema expression checked against a type: `schema satisfies z.ZodType<T>`, or `const schema: z.ZodType<T> = …`.
+// A schema expression checked against a type: `schema satisfies z.ZodType<T>`, `const schema: z.ZodType<T> = …`, or a
+// value returned where the function declares `z.ZodType<T>`.
 function checkedSchema(node: Node): { readonly schema: Node; readonly type: TypeReferenceNode } | undefined {
   if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type)) {
     return { schema: node.expression, type: node.type };
@@ -806,7 +825,13 @@ function checkedSchema(node: Node): { readonly schema: Node; readonly type: Type
   if (isVariableDeclaration(node) && node.type !== undefined && isTypeReferenceNode(node.type) && node.initializer !== undefined) {
     return { schema: node.initializer, type: node.type };
   }
-  return undefined;
+  const returned = returnedValue(node);
+  if (returned === undefined) {
+    return undefined;
+  }
+  const declared = isArrowFunction(node) ? node.type : declaredReturnType(node);
+  // a return is checked against every declared return type, so only one spelled `ZodType` is asked of the checker
+  return declared !== undefined && isTypeReferenceNode(declared) && referenceName(declared) === ZOD_TYPE ? { schema: returned, type: declared } : undefined;
 }
 
 // The schemas a zod builder wraps whole: each arm of `z.union([…])`, or the schema `z.lazy(() => schema)` returns;
@@ -1120,12 +1145,12 @@ class Walker {
     // a type predicate's literal is matched against the parameter it narrows (`decl is { none: string }`): its members
     // key, while the parameter's own members stay as they are, since a wider parameter still admits the predicate
     if (isTypePredicateNode(node) && node.type !== undefined) {
-      for (const member of patternMembers(unparenType(node.type))) {
-        this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
-      }
+      this.#keyMembers(patternMembers(unparenType(node.type)));
     }
     for (const { target, pattern } of pairs) {
+      // a wrapped pattern (`[T] extends [{ b: string }]`) still matches by the keys its literals spell
       if (!isTypeLiteralNode(pattern)) {
+        this.#keyMembers(patternMembers(pattern));
         continue;
       }
       const keys = pattern.members.flatMap((member) => {
@@ -1134,9 +1159,14 @@ class Walker {
       });
       this.#sites.pickKeys.push({ target, keys });
       // a nested literal matches by its own keys: `{ _: { name: infer N } }` keys `name` as well as `_`
-      for (const member of [...pattern.members.filter((element) => !isPropertySignatureDeclaration(element)), ...patternMembers(pattern)]) {
-        this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
-      }
+      this.#keyMembers([...pattern.members.filter((element) => !isPropertySignatureDeclaration(element)), ...patternMembers(pattern)]);
+    }
+  }
+
+  // Each pattern member is a key use where it is declared.
+  #keyMembers(members: readonly Node[]): void {
+    for (const member of members) {
+      this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
     }
   }
 
@@ -1452,10 +1482,20 @@ class Walker {
       !isNoSubstitutionTemplateLiteral(node.argumentExpression) &&
       !isNumericLiteral(node.argumentExpression)
     ) {
-      this.#sites.elementKeys.push({ receiver: node.expression, keys: keyLiterals(node.argumentExpression), argument: node.argumentExpression });
+      this.#sites.elementKeys.push({
+        receiver: node.expression,
+        keys: keyLiterals(node.argumentExpression),
+        argument: node.argumentExpression,
+        roles: accessRoles(node),
+      });
     }
     if (isElementAccessExpression(node) && !inType && (isStringLiteral(node.argumentExpression) || isNoSubstitutionTemplateLiteral(node.argumentExpression))) {
-      this.#sites.literalKeyReads.push({ receiver: node.expression, keys: [node.argumentExpression.text], argument: node.argumentExpression });
+      this.#sites.literalKeyReads.push({
+        receiver: node.expression,
+        keys: [node.argumentExpression.text],
+        argument: node.argumentExpression,
+        roles: accessRoles(node),
+      });
     }
     if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.InKeyword && !inType) {
       this.#sites.keyTests.push({ receiver: node.right, keys: keyLiterals(node.left), argument: node.left });
@@ -1557,6 +1597,7 @@ class Walker {
       const [shape] = checked.type.typeArguments;
       const { typeName } = checked.type;
       const type = isQualifiedName(typeName) ? typeName.right : typeName;
+      this.#sites.zodChecks.push({ type, shape, schema: checked.schema });
       for (const literal of zodShapesOf(checked.schema)) {
         this.#frame.twinShapes.add(spanOf(literal));
         this.#sites.zodTwins.push({ type, shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });

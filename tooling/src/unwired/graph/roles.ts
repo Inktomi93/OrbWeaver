@@ -234,7 +234,13 @@ export function referenceRoles(name: Node): readonly Role[] {
   if (isJsxAttribute(parent) && sameNode(parent.name, name)) {
     return WRITE;
   }
-  const target = outermost(accessOf(name));
+  return accessRoles(accessOf(name));
+}
+
+/** The roles of an access expression by its position: stored into, bumped, deleted, called, or else read. A computed
+ *  `x[k]` takes these for each member its key names, as `x.m` does for its one member. */
+export function accessRoles(access: Node): readonly Role[] {
+  const target = outermost(access);
   const stored = storeRoles(target);
   if (stored !== null) {
     return stored;

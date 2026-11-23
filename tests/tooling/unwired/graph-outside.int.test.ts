@@ -73,7 +73,7 @@ test("a member only the testkit reads is untouched; a test's read is no product 
       'const one = (): Disposition => "restored";',
       "export function sweep(): Report {",
       "  const report = { restored: 0, held: 0, failed: 0 } satisfies Record<Disposition, number>;",
-      "  report[one()] += 1;",
+      "  console.log(report[one()]);",
       "  return report;",
       "}",
     ].join("\n"),

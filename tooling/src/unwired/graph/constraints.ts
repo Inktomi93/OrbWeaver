@@ -13,15 +13,18 @@
 // - A string literal argument whose contextual type is `keyof T` (`context.get("session")`) names T's member, and so
 //   does a literal returned where the function's return type is an alias of `keyof T`.
 // - A generic type spelled with type arguments fills its declaration's constraints as a call's type arguments do, and
-//   a list handed to a generic's list parameter fills that parameter's element constraint with its own.
+//   a list handed to a generic's list parameter fills that parameter's element constraint with its own. An alias whose
+//   body is a conditional that checks one of its parameters bare against a type literal (`Needs<T> = T extends { b } ?
+//   …`) keys the argument's members that literal names, as a constraint does.
 // - A value a call's type argument is inferred from (`split(rows)` for `split<Room extends Candidate>(items: Room[])`)
 //   fills the constraint as a flow too: the body reads the value through the constraint's members, so those reads
 //   carry to the value's (inferredPairs). A generic hand-off flows our constraint into the callee's the same way. Only a
 //   generic the tree declares takes the flow.
-import type { CallExpression, Expression, Node, TypeNode, TypeParameterDeclaration, TypeReferenceNode } from "@typescript/native/ast";
+import type { CallExpression, Expression, InterfaceDeclaration, Node, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "@typescript/native/ast";
 import {
   isCallExpression,
   isCallSignatureDeclaration,
+  isConditionalTypeNode,
   isFunctionLikeDeclaration,
   isIdentifier,
   isInterfaceDeclaration,
@@ -29,6 +32,7 @@ import {
   isPropertyAccessExpression,
   isQualifiedName,
   isTypeAliasDeclaration,
+  isTypeLiteralNode,
   isTypeOperatorNode,
   isTypeReferenceNode,
   SyntaxKind,
@@ -37,6 +41,7 @@ import type { APIRequestGenerator, NodeHandle, Signature, Type, TypeParameter } 
 import { SymbolFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
 import type { FlowPair } from "./flows.ts";
+import { unparenType } from "./resolve.ts";
 import type { TypeArgumentSite } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
@@ -64,6 +69,20 @@ function keyofOperand(declaration: Node, index: number): TypeNode | undefined {
   const name = type !== undefined && isTypeReferenceNode(type) && isIdentifier(type.typeName) ? type.typeName.text : undefined;
   const constraint = declaration.typeParameters?.find((parameter) => parameter.name.text === name)?.constraint;
   return constraint !== undefined && isTypeOperatorNode(constraint) && constraint.operator === SyntaxKind.KeyOfKeyword ? constraint.type : undefined;
+}
+
+// `type Needs<T> = T extends { readonly b: string } ? A : B`: the parameter a conditional alias checks bare and the type
+// literal it checks it against. A wrapped check (`[T] extends [{ … }]`) is not read.
+function checkedPattern(declaration: TypeAliasDeclaration | InterfaceDeclaration): { readonly parameter: string; readonly pattern: TypeNode } | undefined {
+  const body = isTypeAliasDeclaration(declaration) ? unparenType(declaration.type) : undefined;
+  if (body === undefined || !isConditionalTypeNode(body)) {
+    return undefined;
+  }
+  const { checkType } = body;
+  const pattern = unparenType(body.extendsType);
+  return isTypeReferenceNode(checkType) && isIdentifier(checkType.typeName) && checkType.typeArguments === undefined && isTypeLiteralNode(pattern)
+    ? { parameter: checkType.typeName.text, pattern }
+    : undefined;
 }
 
 export class Constraints {
@@ -179,12 +198,18 @@ export class Constraints {
   // is keyof.
   *#referenced(reference: TypeReferenceNode, argumentNodes: readonly TypeNode[]): APIRequestGenerator<readonly Named[]> {
     const { checker } = this.#state.world;
-    const parameters = yield* this.#declaredParameters(reference);
+    const declaration = yield* this.#declarationOf(reference);
+    const parameters = declaration === undefined ? [] : (declaration.typeParameters ?? []);
     const argumentTypes: Type[] = [];
     for (const node of argumentNodes) {
       argumentTypes.push(yield* checker.getTypeFromTypeNode.gen(node));
     }
     const out: Named[] = [];
+    const checked = declaration === undefined ? undefined : checkedPattern(declaration);
+    const checkedArgument = checked === undefined ? undefined : argumentTypes[parameters.findIndex((parameter) => parameter.name.text === checked.parameter)];
+    if (checked !== undefined && checkedArgument !== undefined) {
+      out.push(...(yield* this.#filled(yield* checker.getTypeFromTypeNode.gen(checked.pattern), checkedArgument)));
+    }
     for (const [at, parameter] of parameters.entries()) {
       const argument = argumentTypes[at];
       if (argument !== undefined && parameter.constraint !== undefined) {
@@ -208,11 +233,11 @@ export class Constraints {
     return symbol?.declarations[0];
   }
 
-  // The type parameters the declaration a reference names spells.
-  *#declaredParameters(reference: TypeReferenceNode): APIRequestGenerator<readonly TypeParameterDeclaration[]> {
+  // The type alias or interface a reference names.
+  *#declarationOf(reference: TypeReferenceNode): APIRequestGenerator<TypeAliasDeclaration | InterfaceDeclaration | undefined> {
     const handle = yield* this.#referencedDeclaration(reference);
     const declaration = handle === undefined ? undefined : yield* handle.resolve.gen();
-    return declaration !== undefined && (isTypeAliasDeclaration(declaration) || isInterfaceDeclaration(declaration)) ? (declaration.typeParameters ?? []) : [];
+    return declaration !== undefined && (isTypeAliasDeclaration(declaration) || isInterfaceDeclaration(declaration)) ? declaration : undefined;
   }
 
   *#referencedArgument(constraint: TypeNode, argument: Type, argumentOf: (parameter: string) => Type | undefined): APIRequestGenerator<readonly Named[]> {
