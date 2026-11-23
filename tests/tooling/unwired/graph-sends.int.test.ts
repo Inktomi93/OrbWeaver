@@ -372,6 +372,23 @@ test("an assertion of a library's parameter sends the asserted type to that libr
   ]);
 });
 
+// A typed value handed into a string-indexed type is read back by a literal key through that type in the same file:
+// the key reads the value's member of its name, at any depth. A member no key names stays sent.
+test("a literal key read through a string-indexed type reads the handed value's member of that name", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "type Json = Record<string, unknown>;",
+      "export interface Reply { readonly done: boolean; readonly unread: string; readonly meta: { readonly calls: number } }",
+      "declare const reply: Reply;",
+      "const parseLine = (): Json => reply;",
+      'const finish = (line: Json): boolean => line["done"] === true && line["calls"] !== undefined;',
+      "export const run = (): boolean => finish(parseLine());",
+    ]),
+  );
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Reply.unread", "Reply.meta"]);
+});
+
 // A slot with a string index signature names some members and takes the rest as open entries: the members it does not
 // name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
 // it names pairs, so a read of the slot's member reads it.

@@ -26,7 +26,7 @@ import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { tracing } from "./options.ts";
-import { answer } from "./resolve.ts";
+import { answer, constituentsOf } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
@@ -61,8 +61,9 @@ export class Keys {
     this.#state = state;
   }
 
-  file(sites: FileSites): void {
+  file(sites: FileSites, flows: Flows): void {
     this.#elementKeys(sites);
+    this.#sinkReads(sites, flows);
     this.#keyTests(sites);
     this.#typeKeys(sites);
     this.#reflectiveReads(sites);
@@ -122,6 +123,49 @@ export class Keys {
       const keyed = symbol === undefined ? [] : (tableMembers[y] ?? []).filter((member) => member.name === symbolMemberName(symbol));
       state.roleAll(state.declarations(keyed).flat(), "read", sites.file, at);
     }
+  }
+
+  // `line["done"]` through a string-indexed type a typed value was handed into in this file: the read reaches that
+  // value's members of the key's name, at any depth (flows.ts holds the ruling).
+  #sinkReads(sites: FileSites, flows: Flows): void {
+    const state = this.#state;
+    const literal = [...sites.literalKeyReads, ...sites.elementKeys.filter(({ keys }) => keys !== null && keys.length > 0)];
+    if (literal.length === 0) {
+      return;
+    }
+    const receivers = state.world.typedAt(literal, ({ receiver }) => receiver);
+    const arms = state.batch(receivers.map(({ type }) => constituentsOf(type)));
+    const asks = receivers.flatMap(({ item: { keys, receiver } }, y) => {
+      const values = flows.sunkInto(
+        sites.file,
+        (arms[y] ?? []).map(({ id }) => id),
+      );
+      return values.flatMap((value) => (keys ?? []).map((name) => ({ value, name, at: receiver.pos })));
+    });
+    const found = state.batch(asks.map(({ value, name }) => this.#namedAtAnyDepth(value, name)));
+    for (const [y, { at }] of asks.entries()) {
+      state.roleAll(state.declarations(found[y] ?? []).flat(), "read", sites.file, at);
+    }
+  }
+
+  // The members named `name` a value holds, at any depth of the members the tree declares.
+  *#namedAtAnyDepth(start: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
+    const state = this.#state;
+    const found: NativeSymbol[] = [];
+    const seen = new Set<number>();
+    for (let level: readonly Type[] = [start]; level.length > 0; ) {
+      const next: Type[] = [];
+      for (const type of level.filter((candidate) => !(isPrimitive(candidate) || seen.has(candidate.id)))) {
+        seen.add(type.id);
+        const members = (yield* state.membersOf(type)).filter((member) => member.declarations.some((handle) => state.resolver.ours(handle)));
+        found.push(...members.filter((member) => member.name === name));
+        for (const member of members) {
+          next.push(yield* state.world.checker.getTypeOfSymbol.gen(member));
+        }
+      }
+      level = next;
+    }
+    return found;
   }
 
   // For each key expression that is the enclosing function's own parameter, that function and the parameter's index.

@@ -553,6 +553,9 @@ export class FileSites {
   readonly pickKeys: { readonly target: TypeNode; readonly keys: readonly string[] }[] = [];
   readonly indexedKeys: IndexedKey[] = [];
   readonly elementKeys: ElementKey[] = [];
+  /** `row["k"]`: a literal key the resolver places like a name; keys.ts also reads it through a string-indexed type a
+   *  typed value was handed into. */
+  readonly literalKeyReads: ElementKey[] = [];
   /** The values a reflective call or a `for…in` loop takes every member of: `Object.entries(x)` and `structuredClone(x)`
    *  read each value, `Object.keys(x)` and a loop list each key; the callee, which keys.ts confirms is the platform's,
    *  or null for a loop. */
@@ -1450,6 +1453,9 @@ class Walker {
       !isNumericLiteral(node.argumentExpression)
     ) {
       this.#sites.elementKeys.push({ receiver: node.expression, keys: keyLiterals(node.argumentExpression), argument: node.argumentExpression });
+    }
+    if (isElementAccessExpression(node) && !inType && (isStringLiteral(node.argumentExpression) || isNoSubstitutionTemplateLiteral(node.argumentExpression))) {
+      this.#sites.literalKeyReads.push({ receiver: node.expression, keys: [node.argumentExpression.text], argument: node.argumentExpression });
     }
     if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.InKeyword && !inType) {
       this.#sites.keyTests.push({ receiver: node.right, keys: keyLiterals(node.left), argument: node.left });

@@ -10,7 +10,9 @@
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
 // - A spread into an object literal copies; it never escapes.
-// - A slot with a string index signature pairs the members it names; the value's other members escape with it.
+// - A slot with a string index signature pairs the members it names; the value's other members escape with it. A
+//   literal key read through such a slot's type in the same file (`line["done"]`) reads the handed values' members of
+//   that name, at any depth: it cannot tell two values handed into one type apart.
 // - Two instances of one generic pair their type arguments by each type parameter's variance (variance.ts): a parameter
 //   used only where a value comes out (`Box<T>`'s `value: T`) pairs forward, one used only where a value goes in
 //   (`Options<V>`'s `mutationFn: (vars: V) => …`) pairs backward, one used both ways pairs both ways, and one never used
@@ -37,7 +39,7 @@ import {
   isSatisfiesExpression,
   isSpreadElement,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
@@ -127,6 +129,17 @@ const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
 const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
 const UNFOLLOWED: Chase = { to: [], dropped: false };
 
+// The ids of a slot's arms that carry a string index signature.
+function* stringIndexedArms(checker: Checker, slot: Type): APIRequestGenerator<readonly number[]> {
+  const out: number[] = [];
+  for (const arm of yield* constituentsOf(slot)) {
+    if (!isPrimitive(arm) && (yield* checker.getIndexInfoOfType.gen(arm, IndexKind.String)) !== undefined) {
+      out.push(arm.id);
+    }
+  }
+  return out;
+}
+
 // The value node behind each site position a file's pairs carry: a hand-off, a flow site, a type pair, a checked value.
 function siteNodesOf(sites: FileSites): ReadonlyMap<number, Node> {
   const out = new Map<number, Node>();
@@ -166,6 +179,9 @@ export class Flows {
   // chased from there.
   #siteNodes: ReadonlyMap<number, Node> = NO_SITE_NODES;
   #reach: ProviderReach | undefined;
+  // The value types handed into each string-indexed slot type, by `file|type id`: a literal key read through that type in
+  // the same file reads the values' members of the key's name (keys.ts).
+  readonly #sinks = new Map<string, Type[]>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -408,6 +424,13 @@ export class Flows {
       escaping.map(({ at, value, door }) => ({ node: nodes[at], value, door })),
       sites.file,
     );
+    this.#recordSinks(
+      sites.file,
+      escaping.flatMap(({ at, value }) => {
+        const slot = slots.get(at);
+        return slot === undefined ? [] : [{ slot, value }];
+      }),
+    );
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
   }
 
@@ -469,6 +492,23 @@ export class Flows {
       const node = nodes[at];
       return node !== undefined && types.get(node)?.id === pairs[at]?.value.id;
     });
+  }
+
+  // Note each value handed into a slot type that carries a string index signature, by the file it was handed in.
+  #recordSinks(file: string, handed: readonly TypePair[]): void {
+    const { state } = this;
+    const arms = state.batch(handed.map(({ slot }) => stringIndexedArms(state.world.checker, slot)));
+    for (const [at, { value }] of handed.entries()) {
+      for (const id of arms[at] ?? []) {
+        const key = `${file}|${String(id)}`;
+        this.#sinks.set(key, [...(this.#sinks.get(key) ?? []), value]);
+      }
+    }
+  }
+
+  /** The value types handed in `file` into any of the string-indexed slot types `ids`. */
+  sunkInto(file: string, ids: readonly number[]): readonly Type[] {
+    return ids.flatMap((id) => this.#sinks.get(`${file}|${String(id)}`) ?? []);
   }
 
   // The backends' request reach over the program's production files, made once.
@@ -811,6 +851,7 @@ export class Flows {
       }
     }
     const sends = this.#pairDestinations(escaping);
+    this.#recordSinks(file, escaping);
     for (const [y, pair] of escaping.entries()) {
       const send = sends[y];
       if (send !== null) {
@@ -877,23 +918,18 @@ export class Flows {
   #indexedEscapes(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[], file: string): void {
     const { state } = this;
     const { checker } = state.world;
-    const indexed = state.batch(
-      fresh.map(function* ({ slot }): APIRequestGenerator<boolean> {
-        for (const arm of yield* constituentsOf(slot)) {
-          if (!isPrimitive(arm) && (yield* checker.getIndexInfoOfType.gen(arm, IndexKind.String)) !== undefined) {
-            return true;
-          }
-        }
-        return false;
-      }),
-    );
-    const open = fresh.flatMap((pair, x) => (indexed[x] === true ? [{ pair, named: new Set((slotMembers[x] ?? []).map(({ name }) => name)) }] : []));
+    const indexed = state.batch(fresh.map(({ slot }) => stringIndexedArms(checker, slot)));
+    const open = fresh.flatMap((pair, x) => ((indexed[x]?.length ?? 0) > 0 ? [{ pair, named: new Set((slotMembers[x] ?? []).map(({ name }) => name)) }] : []));
     const values = state.batch(open.map(({ pair }) => state.membersOf(pair.value)));
     const unnamed = open.map(({ named }, y) => (values[y] ?? []).filter(({ name }) => !named.has(name)));
     const types = state.batch(unnamed.map((members) => allOf(members.map((member) => checker.getTypeOfSymbol.gen(member)))));
     const decls = unnamed.map((members) => state.declarations(members).flat());
     const escaping = open.flatMap(({ pair }, y) => ((decls[y]?.length ?? 0) === 0 ? [] : [{ pair, y }]));
     const sends = this.#pairDestinations(escaping.map(({ pair }) => pair));
+    this.#recordSinks(
+      file,
+      open.map(({ pair }) => pair),
+    );
     for (const [z, { pair, y }] of escaping.entries()) {
       if (sends[z] === null) {
         continue;

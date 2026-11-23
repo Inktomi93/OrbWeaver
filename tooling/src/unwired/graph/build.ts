@@ -343,7 +343,7 @@ class Builder {
     fileSlotWrites(state, this.#variants, sites);
     this.#flows.file(sites, this.#doors.held(sites.file));
     this.#variants.readTables(state, sites.tvCalls, sites.file);
-    this.#keys.file(sites);
+    this.#keys.file(sites, this.#flows);
     this.#zodTwins(sites);
     this.#overrides(sites);
     this.#parses(sites);
