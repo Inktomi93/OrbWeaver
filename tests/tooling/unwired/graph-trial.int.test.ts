@@ -9,7 +9,7 @@ import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
-import { TRIAL_BUCKETS, TRIAL_REACHES, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
+import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree, LIB as LIBS, WORLD } from "./_planted.ts";
@@ -26,24 +26,14 @@ const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
 const RELAY = `${GRAPH_SOURCE}/relay.ts`;
 const KEYS = `${GRAPH_SOURCE}/keys.ts`;
+const AUGMENT = `${GRAPH_SOURCE}/augment.ts`;
 const FIXTURE = `${GRAPH_SOURCE}/shape.json`;
 const SCRIPT = "scripts/names.ts";
 
 const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
 
-const [NARROWED, WIDE] = TRIAL_REACHES;
-
-// What a trial decided for each candidate, without the file sets the reach picks.
-const decided = (report: TrialReport): readonly unknown[] =>
-  report.trials.map(({ label, verdict, errors, removed, compiles }) => ({ label, verdict, errors, removed, compiles }));
-
-// Every planted trial runs under both reaches: the find-references set must reach every error the import graph's does.
-async function trial(root: string, ask: Omit<Parameters<typeof trialGraph>[1], "reach">, log: (line: string) => void = () => undefined): Promise<TrialReport> {
-  const narrowed = await trialGraph(root, { ...ask, reach: NARROWED }, log);
-  const wide = await trialGraph(root, { ...ask, reach: WIDE }, () => undefined);
-  expect(decided(narrowed)).toEqual(decided(wide));
-  return narrowed;
-}
+const trial = (root: string, ask: Parameters<typeof trialGraph>[1], log: (line: string) => void = () => undefined): Promise<TrialReport> =>
+  trialGraph(root, ask, log);
 
 const outcomes = (report: TrialReport): readonly (readonly string[])[] =>
   report.trials.map(({ label, verdict, removed }) => [label, verdict, ...removed.map(({ file, text }) => `${file}: ${text.trim()}`)]);
@@ -212,10 +202,19 @@ test("a group with an unowned error bisects to the one member it reads, counting
   expect(progress(lines)).toMatch(/ snapshots 5 /u);
 });
 
-// A delete breaks a site that names neither the member nor its file: one that constrains the home type through a
-// re-export, found by the references to the home type, and one that constrains a home-type value, found as an
-// importer of a file that names the home type; an assignment that names the member two re-exports away from any file
-// naming the home type; and a constraint on an alias another file infers, two imports from any file naming the home type.
+// A home-type value two imports from the declaring file, through an alias the middle file infers.
+const RELAYED_SHAPE = {
+  [LIB]: "export interface Shape { readonly kept: string; readonly b: string }",
+  [DOOR]: ['import type { Shape } from "./lib.ts";', "export declare const made: Shape;", "export const keptOf = (shape: Shape): string => shape.kept;"].join(
+    "\n",
+  ),
+  [MID]: ['import { keptOf, made } from "./door.ts";', "export const relayed = made;", "export const kept = keptOf(made);"].join("\n"),
+};
+
+// A delete breaks a site that names neither the member nor its file: a constraint on the home type through a
+// re-export, a constraint on a home-type value, an assignment two re-exports away, and a constraint, a satisfies check,
+// a typeof and a structural assignment on an alias another file infers. Every such site sits in a file the import graph
+// says an edit of the declaring file reaches, and an augmenting file reaches the module it augments.
 test.for([
   {
     site: "a constraint on the home type through a re-export",
@@ -285,16 +284,81 @@ test.for([
     },
     error: `${MAIN}:3 read`,
   },
+  {
+    site: "a satisfies check on an inferred alias of a home-type value",
+    files: {
+      ...RELAYED_SHAPE,
+      [MAIN]: [
+        'import { relayed } from "./mid.ts";',
+        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "const checked = true satisfies Needs<typeof relayed>;",
+        "const use = (value: unknown): unknown => value;",
+        "use(checked);",
+      ].join("\n"),
+    },
+    error: `${MAIN}:3 read`,
+  },
+  {
+    site: "a constraint on the typeof of an inferred alias",
+    files: {
+      ...RELAYED_SHAPE,
+      [MAIN]: [
+        'import { relayed } from "./mid.ts";',
+        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "const held: Needs<typeof relayed> = true;",
+        "const use = (value: unknown): unknown => value;",
+        "use(held);",
+      ].join("\n"),
+    },
+    error: `${MAIN}:3 read`,
+  },
+  {
+    // A value assignment is a flow the graph follows, so its member is no finding; a type-level assignability check
+    // (a non-distributive `extends`) is one the graph does not.
+    site: "a structural assignability check on an inferred alias's type",
+    files: {
+      ...RELAYED_SHAPE,
+      [MAIN]: [
+        'import { relayed } from "./mid.ts";',
+        "type Fits = [typeof relayed] extends [{ readonly b: string }] ? true : false;",
+        "const fits: Fits = true;",
+        "const use = (value: unknown): unknown => value;",
+        "use(fits);",
+      ].join("\n"),
+    },
+    error: `${MAIN}:3 read`,
+  },
+  {
+    // Inside an augmentation the augmented module's names are in scope with no import, so the augmenting file reads
+    // the home type without importing the file that declares it.
+    site: "a read inside an augmentation of the declaring module",
+    files: {
+      [LIB]: ["export interface Shape { readonly kept: string; readonly b: string }", "export const keptOf = (shape: Shape): string => shape.kept;"].join("\n"),
+      [AUGMENT]: ["export {};", 'declare module "./lib.ts" {', '  interface Shape { readonly echo?: Shape["b"] }', "}"].join("\n"),
+      [MAIN]: [
+        'import { keptOf } from "./lib.ts";',
+        'import "./augment.ts";',
+        "const use = (value: unknown): unknown => value;",
+        'use(keptOf({ kept: "k", b: "v" }));',
+      ].join("\n"),
+    },
+    error: `${AUGMENT}:3 read`,
+  },
 ])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, error }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
   const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null });
+  const [breaking] = error.split(":");
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.b`)
-      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+      .map(({ label, verdict, errors }) => [
+        label,
+        verdict,
+        errors.filter(({ at }) => at.startsWith(`${breaking ?? ""}:`)).map(({ at, kind }) => `${at} ${kind}`),
+      ]),
   ).toEqual([[`${LIB}:Shape.b`, REFUTED, [error]]]);
-  // The narrowed set checks the breaking file even though it names neither the member nor the file that declares it.
-  expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(MAIN);
+  // The checked set holds the breaking file even though it names neither the member nor the file that declares it.
+  expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(breaking);
 });
 
 // A clean compile says only that the compiler needs no site of the name. A member a product string reads as a key
@@ -419,6 +483,60 @@ test("a member named like a keyword is confirmed past its keyword hits", { timeo
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:Shape.`)).map(({ label, verdict, literal }) => [label, verdict, literal.length])).toEqual(
     ["get", "new", "default", "of", "as"].map((member) => [`${LIB}:Shape.${member}`, CONFIRMED, 0]),
   );
+});
+
+// A common word hits code that names something else. A product hit holds a row only as a key use, as a read the
+// checker leaves unresolved on a value typed by the member's own owner (a cast to `any`), or as an import or export of
+// the candidate's own declaration. A read of an untyped value, a read of another type's member through a cast, and an
+// import of another declaration of the word stay listed and keep the row confirmed.
+test("a literal hit holds a row only as a key use, an unresolved read of its own owner or an import of its own name", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [LIB]: [
+          "export interface Shape {",
+          "  readonly kept: string;",
+          "  readonly zqKeyed: string;",
+          "  readonly zqCast: string;",
+          "  readonly zqLoose: string;",
+          "  readonly zqForeign: string;",
+          "  readonly zqImported: string;",
+          "}",
+          "export declare const made: Shape;",
+        ].join("\n"),
+        [OTHER]: ["export const zqImported = 1;", "export interface Other { readonly zqForeign: string }", "export declare const other: Other;"].join("\n"),
+        [MAIN]: [
+          'import { made } from "./lib.ts";',
+          'import { other, zqImported } from "./other.ts";',
+          "const use = (value: unknown): unknown => value;",
+          'const loose = JSON.parse("{}");',
+          "use(made.kept);",
+          "use(zqImported);",
+          "use(loose.zqLoose);",
+          "use((made as any).zqCast);",
+          "use((other as any).zqForeign);",
+          'use((o: object): boolean => "zqKeyed" in o);',
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  expect(
+    report.trials
+      .filter(({ label }) => label.includes(":Shape.zq"))
+      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zqKeyed`, CONFIRMED_LITERAL, [`${MAIN}:10 string`]],
+    [`${LIB}:Shape.zqCast`, CONFIRMED_LITERAL, [`${MAIN}:8 read`]],
+    [`${LIB}:Shape.zqLoose`, CONFIRMED, [`${MAIN}:7 read`]],
+    [`${LIB}:Shape.zqForeign`, CONFIRMED, [`${MAIN}:9 read`, `${OTHER}:2 declaration`]],
+    [`${LIB}:Shape.zqImported`, CONFIRMED, [`${MAIN}:2 import-export`, `${OTHER}:1 declaration`]],
+  ]);
 });
 
 // What the product loads counts as product too: a JSON file a product module imports, and a showcase bundle's
@@ -768,7 +886,6 @@ test("a declaration the delete leaves unused is not a reader: the candidate stay
 });
 
 const HOST = `${GRAPH_SOURCE}/host.ts`;
-const AUGMENT = `${GRAPH_SOURCE}/augment.ts`;
 const READER = `${GRAPH_SOURCE}/reader.ts`;
 const REACH_LIB = [
   "export interface Shape { readonly kept: string; readonly gone: string }",
@@ -853,16 +970,16 @@ test("a computed member whose constant is read elsewhere is confirmed by its own
     ),
   );
   const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
-  // The constant's reads are not the member's: the delete breaks none of them. Its files are checked all the same,
-  // since a read through the key names only the key.
+  // The constant's reads are not the member's: the delete breaks none of them. The constant's own file imports nothing
+  // the delete edits, so it is not checked.
   expect(report.trials.map(({ label, verdict, references, checked, errors }) => ({ label, verdict, references, checked, errors }))).toEqual([
-    { label: `${LIB}:Shape.[KEY]`, verdict: CONFIRMED, references: [], checked: [KEYS, LIB, MAIN], errors: [] },
+    { label: `${LIB}:Shape.[KEY]`, verdict: CONFIRMED, references: [], checked: [LIB, MAIN], errors: [] },
   ]);
 });
 
 // The member is read only by a test that reaches it through a relay, naming neither its holder nor its file: the
-// member's own references and the relay's importers both put that test in the checked set.
-test("a computed member a test reads through a relay is refuted test-only under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+// test imports the declaring file through the relay, so it is checked.
+test("a computed member a test reads through a relay is refuted test-only", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -885,13 +1002,12 @@ test("a computed member a test reads through a relay is refuted test-only under 
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: REFUTED_TEST_ONLY, checked: [KEYS, LIB, MAIN, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
+  ).toEqual([{ verdict: REFUTED_TEST_ONLY, checked: [LIB, MAIN, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
 });
 
-// A constraint through the key constant (`{ readonly [KEY]: string }`) names neither the member nor its holder, and its file imports
-// neither the member's file nor a file that names the holder: the files that reference the key's own symbol are what
-// put it in the checked set.
-test("a computed member a constraint reads only through its key constant is refuted under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+// A constraint through the key constant (`{ readonly [KEY]: string }`) names neither the member nor its holder: its
+// file is checked because it imports the declaring file through a relay, and the key constant's own file is not.
+test("a computed member a constraint reads only through its key constant is refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -920,12 +1036,12 @@ test("a computed member a constraint reads only through its key constant is refu
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: REFUTED, checked: [KEYS, LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
+  ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
 });
 
 // A key that is no name, a string literal in brackets, has no symbol a reader names: a constraint that never names the
-// holder or imports its file is reached through the import graph, the owner fallback.
-test("a literal-keyed computed member a constraint reads through a relay is refuted under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+// holder is checked as an importer of the declaring file through a relay.
+test("a literal-keyed computed member a constraint reads through a relay is refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -954,11 +1070,9 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
   ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:2 write`, `${MAIN}:3 read`] }]);
 });
 
-// A key a library declares has no tree file naming its symbol: the reader is reached through the import graph, the
-// owner fallback, as for a well-known symbol.
-test("a computed member keyed by a library constant a constraint reads through a relay is refuted under either reach", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
+// A key a library declares has no tree file naming its symbol: the reader is checked as an importer of the declaring
+// file through a relay, as for a well-known symbol.
+test("a computed member keyed by a library constant a constraint reads through a relay is refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {

@@ -1,8 +1,9 @@
 // One TypeScript 7.1 program's import graph and its error diff, for every tool that edits files in a throwaway snapshot
 // and checks what the edit breaks. Every file name is absolute, as the program spells it.
 //
-// - A file that augments another module reaches the files that import that module, directly or through a chain: they
-//   read the augmented name through it. A `declare global` block reaches the files that spell a name it declares, and
+// - A file that augments another module imports it: the augmentation reads that module's names with no import
+//   declaration. It also reaches the files that import that module, directly or through a chain: they read the
+//   augmented name through it. A `declare global` block reaches the files that spell a name it declares, and
 //   their importers. A script file's declarations are global too, and its readers are the whole program.
 // - Two programs report the same error when its file, code and start agree. A start after an edit moves back to the
 //   base text first.
@@ -102,6 +103,17 @@ const REGEX_SPECIAL = /[$()*+.?[\\\]^{|}]/gu;
 const spells = (text: string, name: string): boolean =>
   new RegExp(`(?<![\\w$])${name.replaceAll(REGEX_SPECIAL, (special) => `\\${special}`)}(?![\\w$])`, "u").test(text);
 
+// Each resolved file's importers; an unresolved edge and a file's import of itself add none.
+function importerSets(edges: readonly { readonly from: string; readonly target: string | undefined }[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const importers = new Map<string, Set<string>>();
+  for (const { from, target } of edges) {
+    if (target !== undefined && target !== from) {
+      importers.set(target, (importers.get(target) ?? new Set()).add(from));
+    }
+  }
+  return importers;
+}
+
 /** Which source files import which, in one program. */
 export class ImportGraph {
   readonly #importers: ReadonlyMap<string, ReadonlySet<string>>;
@@ -118,19 +130,16 @@ export class ImportGraph {
   static build(program: Program, batch: Batch, sources: readonly SourceFile[]): ImportGraph {
     const edges = sources.flatMap((source) => moduleSpecifiers(source).map((specifier) => ({ from: source.fileName, specifier })));
     const resolved = batch(edges.map(({ from, specifier }) => program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
-    const importers = new Map<string, Set<string>>();
-    for (const [at, { from }] of edges.entries()) {
-      const target = resolved[at]?.resolvedFileName;
-      if (target !== undefined && target !== from) {
-        importers.set(target, (importers.get(target) ?? new Set()).add(from));
-      }
-    }
     // A `declare global` block's name is an identifier; a module augmentation's is the module's specifier.
     const augmenting = sources.filter((source) => source.statements.some(exports) && source.moduleAugmentations.length > 0);
     const named = augmenting.flatMap((source) =>
       source.moduleAugmentations.filter(isModuleSpecifier).map((specifier) => ({ from: source.fileName, specifier })),
     );
     const targets = batch(named.map(({ from, specifier }) => program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
+    const importers = importerSets([
+      ...edges.map(({ from }, at) => ({ from, target: resolved[at]?.resolvedFileName })),
+      ...named.map(({ from }, at) => ({ from, target: targets[at]?.resolvedFileName })),
+    ]);
     const reach = new Map<string, Reach>(sources.filter((source) => !source.statements.some(exports)).map((source) => [source.fileName, "everywhere"]));
     for (const source of augmenting) {
       const modules = named.flatMap(({ from }, at) => (from === source.fileName ? [targets[at]?.resolvedFileName] : []));
@@ -170,26 +179,11 @@ export class ImportGraph {
     return [...seen];
   }
 
-  /** The importers of each of `files`, directly or through a chain, and what each of them and of `files` reaches
-   *  without an import: the importers of a module it augments and the files that spell a global it declares, with
-   *  their importers. Every source when one of them is a script or reaches every file.
+  /** The files besides `file` an edit of it can break: its importers, directly or through a chain, and the reach of
+   *  each of them and of `file` that augments a module or the global scope; every other source when the edit itself
+   *  augments (`augmenting`).
    *  @remarks Transitive, never direct only: a file can read a type through an inferred value or alias another file
-   *  exports, so a reader two imports from every file in `files` names none of them and still breaks. */
-  around(files: readonly string[]): readonly string[] {
-    const chained = [...new Set(files.flatMap((at) => this.importers(at)))];
-    const reaches = [...files, ...chained].flatMap((at) => {
-      const reach = this.#reach.get(at);
-      return reach === undefined ? [] : [reach];
-    });
-    if (reaches.includes("everywhere")) {
-      return this.#files;
-    }
-    const reached = reaches.flatMap((reach) => (reach === "everywhere" ? [] : reach));
-    return [...new Set([...chained, ...reached, ...reached.flatMap((at) => this.importers(at))])];
-  }
-
-  /** The files besides `file` an edit of it can break: its importers, and the reach of each of them and of `file`
-   *  that augments a module or the global scope; every other source when the edit itself augments (`augmenting`). */
+   *  exports, so a reader two imports away names nothing `file` declares and still breaks. */
   readers(file: string, augmenting: boolean): readonly string[] {
     const importers = this.importers(file);
     const reaches = [file, ...importers].flatMap((at) => {

@@ -41,7 +41,7 @@ import type { ShapesOptions, ShapesReport } from "./shapes.ts";
 import { shapesPass } from "./shapes.ts";
 import type { BuildSession } from "./state.ts";
 import { productReader } from "./state.ts";
-import type { TrialBucket, TrialReach, TrialReport } from "./trial.ts";
+import type { TrialBucket, TrialReport } from "./trial.ts";
 import { runTrials } from "./trial.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
@@ -313,21 +313,16 @@ export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions
 
 /** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
  *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them, and
- *  `cpuProfile` names where the compiler CPU profile of one group is written; `reach` picks which files a snapshot checks. */
+ *  `cpuProfile` names where the compiler CPU profile of one group is written. */
 export function trialGraph(
   root: string,
-  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null; readonly cpuProfile?: string | null; readonly reach: TrialReach },
+  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null; readonly cpuProfile?: string | null },
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<TrialReport>> {
   return session(root, log, { options, ...NO_SITES }, (work) => {
     const analysis = work.time("analyse", () => analyse(work.graph));
-    return runTrials(
-      work.graph,
-      work.world(),
-      { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null, reach: ask.reach },
-      log,
-    );
+    return runTrials(work.graph, work.world(), { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null }, log);
   });
 }
 

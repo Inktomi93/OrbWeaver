@@ -188,7 +188,8 @@ const KEYS_TEXT = [
 ].join("\n");
 // A string holds a row only where it acts as a key: in key syntax, or where the checker types it as a string-literal
 // union holding the name, a dotted path by its segment. Copy text and a string the checker types as plain `string`
-// only annotate. An element access's quoted key is a read by the role rules, held as an unresolved read.
+// only annotate. An element access's quoted key is a read by the role rules; off a `Record` it names no member of the
+// row's owner, so it only annotates too.
 test("a string or template hit holds a row only as a key, by its syntax or its contextual literal type", { timeout: TIMEOUT }, async ({ plantedTree }) => {
   const file = "packages/a/src/keys.ts";
   const root = await plantedTree(graphTree({ [file]: KEYS_TEXT }));
@@ -207,7 +208,7 @@ test("a string or template hit holds a row only as a key, by its syntax or its c
   ).toEqual([
     ["zqCopy", false, ["string"]],
     ["zqPlain", false, ["string"]],
-    ["zqElem", true, ["read"]],
+    ["zqElem", false, ["read"]],
     ["zqIn", true, ["string"]],
     ["zqComputedKey", true, ["string"]],
     ["zqBan", true, ["string", "type"]],
