@@ -296,10 +296,14 @@ export interface ImageryWarning {
   readonly detail: string;
 }
 
+/** Which lane produced a generated picture's prompt: the text extraction, an avatar caption, or the user's own words. */
+const PROMPT_SOURCES = ["extracted", "captioned", "user"] as const;
+export type PromptSource = (typeof PROMPT_SOURCES)[number];
+
 export interface GeneratedPicture {
   readonly images: readonly GeneratedPictureImage[];
   readonly prompt: string;
-  readonly promptSource: "extracted" | "captioned" | "user";
+  readonly promptSource: PromptSource;
   readonly mode: PromptTemplateMode;
   readonly model: ModelId;
   readonly costUsd: number | null;
@@ -347,7 +351,7 @@ const imageryWarningSchema = z.strictObject({
 export const generatedPictureSchema = z.strictObject({
   images: z.array(generatedPictureImageSchema).readonly(),
   prompt: z.string(),
-  promptSource: z.literal(["extracted", "captioned", "user"]),
+  promptSource: z.literal(PROMPT_SOURCES),
   mode: promptTemplateModeSchema,
   model: brandedId("ModelId"),
   costUsd: z.number().nullable(),

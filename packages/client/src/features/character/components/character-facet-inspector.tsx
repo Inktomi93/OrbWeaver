@@ -250,7 +250,10 @@ function CountDetail({
   tokens,
 }: {
   readonly form: CardForm;
-  readonly name: "description" | "personality" | "scenario" | "exampleMessages" | "creatorNotes" | "systemPrompt" | "postHistoryInstructions";
+  readonly name: Extract<
+    CharacterFacetId,
+    "description" | "personality" | "scenario" | "exampleMessages" | "creatorNotes" | "systemPrompt" | "postHistoryInstructions"
+  >;
   readonly tokens: boolean;
 }): ReactElement {
   return (

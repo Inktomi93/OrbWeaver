@@ -17,10 +17,14 @@ export function rowMirrored(skin: RowSkin, role: MessageRole): boolean {
   return role === "user" && skin.mirrorUser;
 }
 
+const GUTTER_RAILS = ["none", "leading", "trailing"] as const;
+/** The grid rail an identity chip sits in: `none` for a chip that stays in the row's own flex line. */
+export type GutterRail = (typeof GUTTER_RAILS)[number];
+
 /** WHICH GRID RAIL this row's identity chip sits in under `columnPlacement: "gutterCentred"`, or `"none"`
  *  for an `anchored` skin whose body is still a flex line (#1728 arm B). A bare helper, not inlined, so
  *  `MessageRow` and `GhostMessageRow` read the SAME decision and neither pays for it in complexity. */
-export function gutterRailFor(skin: RowSkin, role: MessageRole): "none" | "leading" | "trailing" {
+export function gutterRailFor(skin: RowSkin, role: MessageRole): GutterRail {
   if (skin.columnPlacement === "anchored" || skin.chipPlacement === "header") {
     return "none";
   }

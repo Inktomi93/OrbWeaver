@@ -57,6 +57,7 @@ import { editActionName, moreActionsName, recentActivityName } from "@orb/ui/lib
 import { ListRow } from "@orb/ui/list-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import type { Tone } from "@orb/ui/tokens";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -94,7 +95,7 @@ type TestRunResult = inferOutput<Trpc["automation"]["testRule"]>;
 function predicateVerdict(predicate: TestRunResult["predicate"]): {
   readonly line: string;
   readonly label: string;
-  readonly tone: "success" | "neutral" | "destructive";
+  readonly tone: Extract<Tone, "success" | "neutral" | "destructive">;
 } {
   if (typeof predicate !== "boolean") {
     return { line: `Condition errored: ${predicate.error}`, label: "Errored", tone: "destructive" };

@@ -22,6 +22,7 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, StatusChip } from "#components";
 import { SkeletonRows } from "#data";
+import type { StatusTone } from "#lib";
 import type { PreconditionRow, ShareStartFailure } from "../lib/share-model.ts";
 import { canStartSharing, MODE_NAME, refusalRow, sharePreconditions } from "../lib/share-model.ts";
 import { ShareCode, ShareProse } from "./share-prose.tsx";
@@ -40,7 +41,7 @@ const MODE_UNMET: Record<AuthMode, string> = {
   oidc: "",
 };
 
-const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly tone: "success" | "warning" | "neutral" | "destructive" }> = {
+const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly tone: StatusTone }> = {
   met: { label: "Ready", tone: "success" },
   unmet: { label: "Needs a fix", tone: "warning" },
   waiting: { label: "Waiting", tone: "neutral" },

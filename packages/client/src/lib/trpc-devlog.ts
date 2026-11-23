@@ -7,6 +7,9 @@ import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
 import { requestRefusalOf } from "./request-refused.ts";
 
+const TRPC_OP_TYPES = ["query", "mutation", "subscription"] as const;
+type TrpcOpType = (typeof TRPC_OP_TYPES)[number];
+
 /**
  * The structural slice of tRPC's `LoggerLinkFnOptions` this formatter reads — declared locally
  * (tRPC does not export the fn-options type cleanly) and SUPERTYPE-compatible with the real arg,
@@ -15,13 +18,13 @@ import { requestRefusalOf } from "./request-refused.ts";
 export type TrpcOpLogEntry =
   | {
       readonly direction: "up";
-      readonly type: "query" | "mutation" | "subscription";
+      readonly type: TrpcOpType;
       readonly path: string;
       readonly input: unknown;
     }
   | {
       readonly direction: "down";
-      readonly type: "query" | "mutation" | "subscription";
+      readonly type: TrpcOpType;
       readonly path: string;
       readonly input: unknown;
       readonly elapsedMs: number;

@@ -39,6 +39,10 @@ export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
 const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"] as const;
 type WaystoneOverlayKind = (typeof WAYSTONE_OVERLAY_KINDS)[number];
 
+/** How fast a layer's motion runs: one tier set for the cloud drift and the particle fall alike. */
+const WAYSTONE_PACES = ["slow", "mid", "fast"] as const;
+type WaystonePace = (typeof WAYSTONE_PACES)[number];
+
 // The sky disc's radial-gradient recipe — `cy` puts the light source low (a dawn/dusk glow at the horizon) or
 //  high (a midday/midnight dome). Interpolated per hour; a phase change crossfades between two of these.
 interface WaystoneSky {
@@ -63,17 +67,17 @@ export interface WaystoneCelestial {
 export interface WaystoneCloudLayer {
   readonly count: number;
   readonly opacity: number;
-  readonly drift: "slow" | "mid" | "fast";
+  readonly drift: WaystonePace;
   readonly tone: "light" | "dark";
 }
 
 /** The falling-particle field. `pitch` is the lattice spacing the fall animation translates by (exactly one
  *  pitch per cycle ⇒ a seamless loop); `slant` angles the streak; `sway` adds the lateral drift snow needs. */
 export interface WaystoneParticleLayer {
-  readonly kind: "rain" | "snow" | "ash";
+  readonly kind: Extract<WeatherType, "rain" | "snow" | "ash">;
   readonly columns: number;
   readonly pitch: number;
-  readonly speed: "fast" | "mid" | "slow";
+  readonly speed: WaystonePace;
   readonly slant: number;
   readonly length: number;
   readonly sway: boolean;

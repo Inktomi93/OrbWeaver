@@ -8,7 +8,7 @@ import { timeLib } from "./time.ts";
 
 /** The browser surfaces a record can come from. */
 const SAFE_ERROR_SOURCES = ["console", "uncaught", "rejection"] as const;
-type SafeErrorSource = (typeof SAFE_ERROR_SOURCES)[number];
+export type SafeErrorSource = (typeof SAFE_ERROR_SOURCES)[number];
 
 /** One recorded failure. `frames` are `function@/same-origin/path.js:line:col`; `section` is the app section
  *  the page was on (the first path segment), or `null`. */
