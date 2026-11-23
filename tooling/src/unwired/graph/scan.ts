@@ -1,6 +1,6 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
 // find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
-// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan or the columns scan over it. Every result carries what
+// pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report or the columns scan over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
@@ -18,6 +18,8 @@ import type { DomReport } from "./dom.ts";
 import { domPass } from "./dom.ts";
 import type { DumpStamp } from "./dump.ts";
 import { readDump, writeDump } from "./dump.ts";
+import type { FieldsReport } from "./fields.ts";
+import { fieldsOf } from "./fields.ts";
 import type { JudgedMembers, MemberRulings } from "./judge.ts";
 import { judgeMembers, NO_RULINGS } from "./judge.ts";
 import type { LostBreakdown } from "./lost.ts";
@@ -247,6 +249,11 @@ export function scanGraph(
   rulings: MemberRulings = NO_RULINGS,
 ): Promise<WithSession<GraphScan>> {
   return session(root, log, { options, ...MEMBER_SITES }, (work) => scanOf(root, work, rulings));
+}
+
+/** Build and analyse the graph, then report its judged member rows as the fields report: dead data split by `rulings`. */
+export function fieldsGraph(root: string, rulings: MemberRulings, log: GraphLog): Promise<WithSession<FieldsReport>> {
+  return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => fieldsOf(work.graph.facts, scanOf(root, work, rulings).members));
 }
 
 /** Build and analyse the graph, then check an even sample of one member bucket against find-references. */

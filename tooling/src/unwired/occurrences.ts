@@ -530,8 +530,8 @@ function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): A
   );
 }
 
-/** A serialization that sends a declaration's value out of the process, and where. */
-export interface Send {
+// A serialization that sends a declaration's value out of the process, and where.
+interface Send {
   readonly site: Site;
   readonly destination: SendDestination;
   /** The library, logger or call that receives it, when the scan can name one. */
