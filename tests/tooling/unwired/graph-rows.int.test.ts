@@ -49,8 +49,10 @@ const STORES = libraryModule([
   "export declare const index: (column: Column) => unknown;",
   "export interface TableConfig<C> { readonly columns: C }",
   "export type Simplify<T> = { [K in keyof T]: T[K] } & {};",
-  'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: Simplify<{ [K in keyof T["columns"] & string]: string }> }',
+  'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: Simplify<{ [K in keyof T["columns"] & string]: string }>; readonly $selected: { [K in keyof T["columns"]]: string } }',
   "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
+  // a whole-row query's rows keep the columns' declarations, as drizzle's select result does; `$inferSelect` remaps them away
+  'export declare function findMany<T extends { readonly $selected: unknown }>(table: T): Promise<T["$selected"][]>;',
   'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
   "export interface Conflict<T> { readonly target: unknown; readonly set: Insert<T> }",
   "export interface Stored<T> { onConflictDoUpdate(config: Conflict<T>): Promise<void> }",
@@ -110,4 +112,25 @@ test("why names a column-carried read at the read back of the column", { timeout
   expect(scan.session.why.filter(({ role }) => role === "read").map(({ site, via }) => [site, via])).toEqual([
     [`${FILE}:${String(readBack)}`, `carry column from ${SCHEMA}:${String(column)}`],
   ]);
+});
+
+// A whole-row query reads no column: each column goes to the row's same-named member, and a row handed to a slot typed
+// by the table's row type hands each member on, so a column is read only where product code reads that member.
+test("a whole row handed to a row-typed slot reads only the columns the slot's holder reads", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...STORES,
+    [SCHEMA]: STORED_TABLES,
+    [FILE]: [
+      'import { db, findMany } from "lib";',
+      'import { notes } from "../../db/src/schema/tables.ts";',
+      "export interface NoteWrite { readonly id: string; readonly title: string; readonly body: string }",
+      "export const store = (write: NoteWrite): Promise<void> => db.insert(notes).values(write).onConflictDoUpdate({ target: notes.id, set: write });",
+      'export const saved = store({ id: "i", title: "t", body: "b" });',
+      "type Note = typeof notes.$inferSelect;",
+      "const titleOf = (note: Note): string => note.title;",
+      "export const titles = async (): Promise<string[]> => (await findMany(notes)).map(titleOf);",
+      "export const ids = async (): Promise<string[]> => (await findMany(notes)).map((note) => note.id);",
+    ].join("\n"),
+  });
+  expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(FILE.length + 1), bucket])).toEqual([["NoteWrite.body", "member-write-only"]]);
 });

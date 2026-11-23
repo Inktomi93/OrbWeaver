@@ -21,6 +21,7 @@ import type { Node } from "@typescript/native/ast";
 import { isCallExpression, isModuleDeclaration, isPropertyAccessExpression, isSpreadElement } from "@typescript/native/ast";
 import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
+import { signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Destination } from "../open-sends.ts";
 import { identitySlot, sendDestinations } from "../open-sends.ts";
@@ -616,13 +617,20 @@ export class Flows {
     const { state } = this;
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
-    const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member })));
+    const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
-    const matched = asks.flatMap(({ pair, member }, y) => {
+    const matched = asks.flatMap(({ pair, member, x }, y) => {
       const valueMember = valueMembers[y];
-      return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember, site: pair.site }];
+      return valueMember === undefined || valueMember.id === member.id ? [] : [{ slot: member, value: valueMember, site: pair.site, x }];
     });
-    const slotDecls = state.declarations(matched.map(({ slot }) => slot));
+    // a Drizzle row slot's members declare nothing, as the row type remaps its table's columns: each stands for its
+    // column, so a row handed to a row slot hands each column on and reads none (resolve.ts `rows`)
+    const tables = state.resolver.rows();
+    const rowSlots = slotMembers.map((members) => (tables.size === 0 ? undefined : tables.get(signatureOf(members.map(({ name }) => name)))));
+    const slotDecls = state.declarations(matched.map(({ slot }) => slot)).map((decls, y) => {
+      const entry = matched[y];
+      return decls.length > 0 || entry === undefined ? decls : [...(rowSlots[entry.x]?.get(entry.slot.name) ?? [])];
+    });
     const valueDecls = state.declarations(matched.map(({ value }) => value));
     for (const y of matched.keys()) {
       this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file, matched[y]?.site ?? 0);
@@ -646,7 +654,6 @@ export class Flows {
   }
 }
 
-// The type a signature's declaration gives its parameter at `index`, before instantiation.
 // Whether a signature's parameter at `index` is typed by a type parameter the signature declares itself, so the call infers it.
 function* ownTypeParameter(state: GraphState, signature: Signature, index: number): APIRequestGenerator<boolean> {
   const target = (yield* signature.getTarget.gen()) ?? signature;
@@ -654,6 +661,7 @@ function* ownTypeParameter(state: GraphState, signature: Signature, index: numbe
   return declared?.isTypeParameter() === true && (target.typeParameters ?? []).includes(declared.id);
 }
 
+// The type a signature's declaration gives its parameter at `index`, before instantiation.
 function* declaredParameterType(state: GraphState, signature: Signature, index: number): APIRequestGenerator<Type | undefined> {
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const parameter = (yield* target.getParameters.gen())[index];
