@@ -4,6 +4,8 @@ import { expect, test } from "@orb/testkit/tooling";
 import { GRAPH_SOURCE, graphScan, labelsIn } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/walks.ts`;
+// Past the default stack's depth for a walk that takes a frame per level.
+const SIGNATURE_DEPTH = 4000;
 
 test("a lookup keyed by a parameter reads only the key a caller six hops away passes", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
@@ -34,4 +36,22 @@ test("a value nested eight lists deep fills the slot nested as deep, member by m
     ].join("\n"),
   });
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Value.spare"]);
+});
+
+// A slot and its value nested past any stack's depth: the walk is a worklist, so the leaves still pair.
+test("a value nested thousands of signatures deep still fills its slot's members", { timeout: 300_000 }, async ({ plantedTree }) => {
+  const chain = (name: string, leaf: string): readonly string[] =>
+    Array.from({ length: SIGNATURE_DEPTH }, (_, at) => `type ${name}${String(at)} = () => ${at === SIGNATURE_DEPTH - 1 ? leaf : `${name}${String(at + 1)}`};`);
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "export interface SlotLeaf { readonly a: string; readonly b: string }",
+      "interface ValueLeaf { readonly a: string; readonly b: string }",
+      ...chain("Slot", "SlotLeaf"),
+      ...chain("Value", "ValueLeaf"),
+      "declare const value: Value0;",
+      "export const slot: Slot0 = value;",
+    ].join("\n"),
+  });
+  // the value's leaf members fill the slot's, so each pair is judged once, at the slot
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["SlotLeaf.a", "SlotLeaf.b"]);
 });

@@ -188,12 +188,17 @@ const PRODUCTION_TRUSTED = {
   "packages/server": ["src/entry/compose/portability.ts", "src/entry/contract/portability.ts"],
 } as const;
 
-// PRODUCTION CONSUMERS. The testkit doors, tooling, the operator scripts and the CT story modules drive production,
+// PRODUCTION OPERATORS. The files an operator runs by hand drive production as a consumer does, so the production
+// view ignores them with the consumers below; the unwired graph classes their roots operator rather than consumer
+// (tooling/src/unwired/graph/roots.ts), the one fact knip's own view cannot hold.
+const PRODUCTION_OPERATORS = { ".": ["scripts/**"] } as const;
+
+// PRODUCTION CONSUMERS. The testkit doors, tooling and the CT story modules drive production,
 // so the production view follows their imports into the shipped packages. A story mounts the shipped component
 // through its feature door (Spine-Testing §7), so a mounting door stays only while a story mounts it. A spec or test
 // file is never a consumer. These consumers' own exports, files and dependencies are judged by the default view,
 // where tests are consumers too; the production view leaves them out of its report.
-const PRODUCTION_CONSUMERS = { ".": ["scripts/**", "tests/**"], "tests/support": ["**", "package.json"], tooling: ["**", "package.json"] } as const;
+const PRODUCTION_CONSUMERS = { ".": ["tests/**"], "tests/support": ["**", "package.json"], tooling: ["**", "package.json"] } as const;
 
 /** The CLI flags knip hands a function config (`--production`, and `--strict`, which implies it). */
 interface KnipModeArgs {
@@ -221,7 +226,7 @@ function configFor({ production = false, strict = false }: KnipModeArgs): KnipCo
     const workspace = workspaces[name] ?? {};
     workspaces[name] = { ...workspace, entry: [...patternList(workspace.entry), ...entries] };
   }
-  for (const [name, ignored] of Object.entries(PRODUCTION_CONSUMERS)) {
+  for (const [name, ignored] of [...Object.entries(PRODUCTION_OPERATORS), ...Object.entries(PRODUCTION_CONSUMERS)]) {
     const workspace = workspaces[name] ?? {};
     workspaces[name] = { ...workspace, ignore: [...patternList(workspace.ignore), ...ignored] };
   }
@@ -243,3 +248,5 @@ function configFor({ production = false, strict = false }: KnipModeArgs): KnipCo
 
 // knip's config loader requires the default export; biome.json's config-file block admits it for this file.
 export default configFor;
+
+export { PRODUCTION_OPERATORS as operators };

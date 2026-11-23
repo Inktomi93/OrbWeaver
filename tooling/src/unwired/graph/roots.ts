@@ -49,6 +49,8 @@ type Workspace = z.infer<typeof workspaceSchema>;
 const knipModuleSchema = z.object({
   default: z.custom<(flags: { readonly production: boolean }) => unknown>((value) => typeof value === "function"),
   config: knipSchema,
+  /** Per workspace, the globs of the files an operator runs: knip ignores them as consumers, the graph roots them operator. */
+  operators: z.record(z.string(), z.array(z.string())),
 });
 // A package.json exports target: a path, a null exclusion, a fallback list, or a conditions map nesting any of them.
 type ExportTarget = string | null | readonly ExportTarget[] | { readonly [condition: string]: ExportTarget };
@@ -125,7 +127,7 @@ export async function loadRoots(root: string): Promise<Roots> {
   const production = knipSchema.parse(knip.default({ production: true }));
   const table = new RootTable(root);
   for (const [name, workspace] of Object.entries(production.workspaces)) {
-    workspaceRoots(root, table, name, workspace);
+    workspaceRoots(root, table, { name, workspace, operators: knip.operators[name] ?? [] });
   }
   const all = knipSchema.parse(knip.default({ production: false }));
   return {
@@ -136,9 +138,15 @@ export async function loadRoots(root: string): Promise<Roots> {
   };
 }
 
-function workspaceRoots(root: string, table: RootTable, name: string, workspace: Workspace): void {
+function workspaceRoots(
+  root: string,
+  table: RootTable,
+  { name, workspace, operators }: { readonly name: string; readonly workspace: Workspace; readonly operators: readonly string[] },
+): void {
   const dir = resolve(root, name);
   const consumers = list(workspace.ignore);
+  const operatorFiles = new Set(operators.flatMap((pattern) => table.glob(dir, pattern)));
+  const isOperator = (file: string): boolean => operatorFiles.has(file);
   // a workspace the production view ignores wholesale only consumes production (testkit, tooling)
   const consumerWorkspace = consumers.includes(WHOLE_WORKSPACE);
   const consumerFiles = new Set(consumers.flatMap((pattern) => table.glob(dir, pattern)));
@@ -146,7 +154,10 @@ function workspaceRoots(root: string, table: RootTable, name: string, workspace:
   for (const pattern of list(workspace.entry).filter((entry) => !entry.startsWith(PRODUCTION_MARK))) {
     const visible = pattern.endsWith(PRODUCTION_MARK);
     for (const file of table.glob(dir, visible ? pattern.slice(0, -PRODUCTION_MARK.length) : pattern)) {
-      table.add(table.modules, file, { kind: entryKind(file, isConsumer(file), visible && name !== ROOT_WORKSPACE), why: `knip ${name} entry ${pattern}` });
+      table.add(table.modules, file, {
+        kind: entryKind({ operator: isOperator(file), consumer: isConsumer(file), shipped: visible && name !== ROOT_WORKSPACE }),
+        why: `knip ${name} entry ${pattern}`,
+      });
     }
   }
   for (const [pattern] of Object.entries(workspace.ignoreIssues ?? {}).filter(([, issues]) => issues.includes("exports"))) {
@@ -162,6 +173,7 @@ function workspaceRoots(root: string, table: RootTable, name: string, workspace:
       workspace,
       consumerWorkspace,
       isConsumer,
+      isOperator,
       manifest: manifestSchema.parse(JSON.parse(readFileSync(manifestPath, "utf8"))),
     });
   }
@@ -182,11 +194,14 @@ function htmlRoots(root: string, table: RootTable, name: string, dir: string): v
   }
 }
 
-// An operator script runs from scripts/; a consumer file elsewhere drives production; a production-visible entry of a
-// package workspace ships; any other entry an operator runs.
-function entryKind(file: string, consumer: boolean, shipped: boolean): RootKind {
+// A file knip names an operator's runs by hand; another file the production view ignores drives production as a
+// consumer; a production-visible entry of a package workspace ships; any other entry an operator runs.
+function entryKind({ operator, consumer, shipped }: { readonly operator: boolean; readonly consumer: boolean; readonly shipped: boolean }): RootKind {
+  if (operator) {
+    return "operator";
+  }
   if (consumer) {
-    return file.startsWith("scripts/") ? "operator" : "consumer";
+    return "consumer";
   }
   return shipped ? "product" : "operator";
 }
@@ -197,6 +212,7 @@ interface ManifestContext {
   readonly workspace: Workspace;
   readonly consumerWorkspace: boolean;
   readonly isConsumer: (file: string) => boolean;
+  readonly isOperator: (file: string) => boolean;
   readonly manifest: z.infer<typeof manifestSchema>;
 }
 
@@ -234,10 +250,7 @@ function doorRoots(root: string, table: RootTable, { name, dir, workspace, manif
 }
 
 function scriptKind(context: ManifestContext, file: string, shipped: boolean): RootKind {
-  if (context.consumerWorkspace || context.isConsumer(file)) {
-    return "consumer";
-  }
-  return shipped ? "product" : "operator";
+  return entryKind({ operator: context.isOperator(file), consumer: context.consumerWorkspace || context.isConsumer(file), shipped });
 }
 
 // The scripts an installed application runs: its lifecycle scripts and every script they call through pnpm. The

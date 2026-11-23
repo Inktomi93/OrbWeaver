@@ -4,7 +4,7 @@
 // dead, operator-only or consumer-only.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, LIB } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, LIB, plantedKnip } from "./_planted.ts";
 
 const UNITS = `${GRAPH_SOURCE}/units.ts`;
 const TRUSTED = `${GRAPH_SOURCE}/trusted.ts`;
@@ -14,7 +14,19 @@ const SDK = "packages/sdk";
 const KIT = "tests/support";
 const labels = (scan: GraphScan, bucket: Bucket): readonly string[] => scan.analysis[bucket].map(({ label }) => label);
 const use = (name: string, from: string): string => `import { ${name} } from "${from}";\n${name}();`;
-const UNIT_NAMES = ["binOnly", "setupOnly", "devOnly", "htmlOnly", "operatorOnly", "consumerOnly", "kitScriptOnly", "sdkOnly", "unrooted"] as const;
+const UNIT_NAMES = [
+  "binOnly",
+  "setupOnly",
+  "devOnly",
+  "htmlOnly",
+  "operatorOnly",
+  "opsOnly",
+  "consumerOnly",
+  "driveOnly",
+  "kitScriptOnly",
+  "sdkOnly",
+  "unrooted",
+] as const;
 
 const KNIP = {
   workspaces: {
@@ -23,16 +35,22 @@ const KNIP = {
     [CLIENT]: { project: ["src/**/*.ts!"] },
     [SDK]: { project: ["src/**/*.ts!"], includeEntryExports: false },
     [KIT]: { entry: ["index.ts"], ignore: ["**"] },
-    ".": { entry: ["scripts/run.ts"], ignore: ["scripts/**"], project: ["scripts/**/*.ts", "tests/**/*.ts"] },
+    ".": {
+      entry: ["scripts/run.ts", "ops/seed.ts", "tests/drive.ts"],
+      ignore: ["scripts/**", "ops/**", "tests/**"],
+      project: ["scripts/**/*.ts", "ops/**/*.ts", "tests/**/*.ts"],
+    },
   },
 };
+// knip's view ignores every root-workspace file alike; only the operator table tells an operator's run from a consumer
+const OPERATORS = { ".": ["scripts/**", "ops/**"] };
 
 const tree = (overrides: Readonly<Record<string, string>> = {}): Record<string, string> => ({
   "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tsconfig.outside.json" }] }),
-  "tsconfig.outside.json": plantedTsconfig({ lib: LIB, include: ["scripts", "tests"] }),
-  "knip.ts": [`const config = ${JSON.stringify(KNIP)};`, "export default (_flags: { readonly production: boolean }) => config;", "export { config };"].join(
-    "\n",
-  ),
+  "tsconfig.outside.json": plantedTsconfig({ lib: LIB, include: ["scripts", "ops", "tests"] }),
+  "knip.ts": plantedKnip(KNIP, OPERATORS),
+  "ops/seed.ts": use("opsOnly", "../packages/a/src/units.ts"),
+  "tests/drive.ts": use("driveOnly", "../packages/a/src/units.ts"),
   [UNITS]: UNIT_NAMES.map((name) => `export const ${name} = (): number => 1;`).join("\n"),
   [TRUSTED]: "export const trustedOnly = (): number => 1;",
   [`${GRAPH_SOURCE}/untrusted.ts`]: "export const untrustedOnly = (): number => 1;",
@@ -71,7 +89,7 @@ test("each manifest, knip and index.html root reaches its unit, and only a shipp
   // its exports, an untrusted one does not
   expect(verdicts(scan)).toEqual({
     dead: [`${UNITS}:unrooted`, `${GRAPH_SOURCE}/untrusted.ts:untrustedOnly`],
-    operator: [`${UNITS}:devOnly`, `${UNITS}:operatorOnly`],
-    consumer: [`${UNITS}:consumerOnly`, `${UNITS}:kitScriptOnly`],
+    operator: [`${UNITS}:devOnly`, `${UNITS}:operatorOnly`, `${UNITS}:opsOnly`],
+    consumer: [`${UNITS}:consumerOnly`, `${UNITS}:driveOnly`, `${UNITS}:kitScriptOnly`],
   });
 });

@@ -120,9 +120,15 @@ function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOpti
     return { entry: own, project: [`${SOURCE_GLOB}!`] };
   };
   const workspaces = Object.fromEntries(packages.map((name) => [name, workspace(name)]));
+  return plantedKnip({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces });
+}
+
+/** A planted `knip.ts`: one config for both views, and the operator globs per workspace the graph's roots read. */
+export function plantedKnip(config: object, operators: Readonly<Record<string, readonly string[]>> = {}): string {
   return [
-    `const config = ${JSON.stringify({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces })};`,
+    `const config = ${JSON.stringify(config)};`,
     "export default (_flags: { readonly production: boolean }) => config;",
+    `export const operators = ${JSON.stringify(operators)};`,
     "export { config };",
   ].join("\n");
 }

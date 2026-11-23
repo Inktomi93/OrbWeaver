@@ -3,7 +3,7 @@
 // app, so what it reaches is product-used (D357).
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, LIB } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, LIB, plantedKnip } from "./_planted.ts";
 
 const MAIN = `${GRAPH_SOURCE}/main.ts`;
 const UNITS = `${GRAPH_SOURCE}/units.ts`;
@@ -14,11 +14,9 @@ const SNAP = "tooling/src/snap/drive.ts";
 const labels = (scan: GraphScan, bucket: Bucket): readonly string[] => scan.analysis[bucket].map(({ label }) => label);
 
 // A knip config that adds the tree's own tests and tooling to the population, beside the package's entry.
-const KNIP = [
-  `const config = ${JSON.stringify({ workspaces: { "packages/a": { entry: ["src/main.ts!"], project: ["src/**/*.ts!"] }, ".": { project: ["tests/**/*.ts", "tooling/**/*.ts"] } } })};`,
-  "export default (_flags: { readonly production: boolean }) => config;",
-  "export { config };",
-].join("\n");
+const KNIP = plantedKnip({
+  workspaces: { "packages/a": { entry: ["src/main.ts!"], project: ["src/**/*.ts!"] }, ".": { project: ["tests/**/*.ts", "tooling/**/*.ts"] } },
+});
 
 test("a unit the testkit, tooling or a test file alone reaches is split by its reacher; a dead call is an unused effect", { timeout: 120_000 }, async ({
   plantedTree,
