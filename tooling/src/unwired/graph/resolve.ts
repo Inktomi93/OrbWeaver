@@ -13,12 +13,17 @@
 //   type parameter the return keys by, the holder's type argument for a generic container's parameter, the member a
 //   destructured name stands for, and a spread source's member. `T["k"]` keys land on T's member k, `z.infer<typeof S>`
 //   keys on the tuple `S = z.enum(T)` is built from. A member only a library declares is the library's.
+// - A `typeof X` key is X's own literal; an interface's key set is its heritage clause's; a generic holder spelled as a
+//   union with null binds through its reference arm; a member none of ours declares has the value its holder's
+//   spelling gives it (`names.held` over `Readonly<Record<…, Names>>` keys by Names).
 // - A Drizzle row member is placed on its column by the row's whole column-name set (./../drizzle-rows.ts).
 import type {
   CallExpression,
+  ExpressionWithTypeArguments,
   IndexedAccessTypeNode,
   LiteralTypeNode,
   MappedTypeNode,
+  MemberName,
   Node,
   ObjectLiteralExpression,
   TypeNode,
@@ -31,6 +36,7 @@ import {
   isBindingElement,
   isCallExpression,
   isComputedPropertyName,
+  isExpressionWithTypeArguments,
   isFunctionDeclaration,
   isFunctionExpression,
   isFunctionTypeNode,
@@ -131,7 +137,7 @@ interface SpellingRoot {
 // One piece of type syntax to read for keys, the declaration it belongs to, and whether it sits in a key position.
 interface SpellingItem {
   readonly owner: DeclKey;
-  readonly type: TypeNode;
+  readonly type: Node;
   readonly key: boolean;
 }
 
@@ -148,8 +154,9 @@ const NO_VALUE_SPELLING: ValueSpelling = { roots: [], tuples: [] };
 // Lib type names whose arguments are key sets, by the argument that is: `Record<K, V>`, `Pick<T, K>`, `Omit<T, K>`,
 // `Exclude<K, X>`, `Extract<K, X>`; and the ones that pass a key set through whole. By name, as
 // tooling/src/unwired/graph/union-slots.ts reads them, since lib declares each once.
+const RECORD = "Record";
 const KEY_ARGUMENT: ReadonlyMap<string, number> = new Map([
-  ["Record", 0],
+  [RECORD, 0],
   ["Pick", 1],
   ["Omit", 1],
   ["Exclude", 0],
@@ -167,7 +174,8 @@ const ZOD_ENUM = "enum";
 // `all` takes its requests as arguments; a walk over many names and types can ask more than a call's argument limit.
 const CHUNK = 8192;
 
-function* allOf<T>(gens: readonly APIRequestGenerator<T>[]): APIRequestGenerator<T[]> {
+/** Every request generator's answer, in order, chunked under the batch's argument limit. */
+export function* allOf<T>(gens: readonly APIRequestGenerator<T>[]): APIRequestGenerator<T[]> {
   const out: T[] = [];
   for (let at = 0; at < gens.length; at += CHUNK) {
     out.push(...(yield* all(...gens.slice(at, at + CHUNK))));
@@ -256,12 +264,13 @@ interface LevelHomes {
   spelled: readonly Spelled[];
 }
 
-function addAll<T>(into: Map<string, Set<T>>, name: string, values: Iterable<T>): void {
-  const set = into.get(name) ?? new Set<T>();
+/** Add each value to the set a map keeps under `key`. */
+export function addAll<K, T>(into: Map<K, Set<T>>, key: K, values: Iterable<T>): void {
+  const set = into.get(key) ?? new Set<T>();
   for (const value of values) {
     set.add(value);
   }
-  into.set(name, set);
+  into.set(key, set);
 }
 
 // What one walk has settled so far, and the library declarations each name's branches stopped at.
@@ -608,6 +617,10 @@ export class Resolver {
         items.push({ owner, type: declaration, key: false });
         continue;
       }
+      if (declaration !== undefined && isInterfaceDeclaration(declaration)) {
+        items.push(...(declaration.heritageClauses ?? []).flatMap((clause) => clause.types.map((type) => ({ owner, type, key: true }))));
+        continue;
+      }
       const annotation = declaration === undefined ? undefined : annotationOf(declaration);
       if (annotation !== undefined) {
         items.push({ owner, type: annotation, key: true });
@@ -616,14 +629,18 @@ export class Resolver {
     return items;
   }
 
-  // The type alias declarations of ours that the references name, imports followed.
+  // The type alias and interface declarations of ours that the references name, imports followed.
   *#aliasDeclarations(refs: readonly Node[]): APIRequestGenerator<readonly NodeHandle[]> {
     const { checker } = this.#world;
     const symbols = yield* checker.getSymbolAtLocation.gen(refs);
     const targets = yield* allOf(
       symbols.map((symbol) => (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? checker.getAliasedSymbol.gen(symbol) : answer(symbol))),
     );
-    return targets.flatMap((symbol) => (symbol?.declarations ?? []).filter((handle) => handle.kind === SyntaxKind.TypeAliasDeclaration && this.ours(handle)));
+    return targets.flatMap((symbol) =>
+      (symbol?.declarations ?? []).filter(
+        (handle) => (handle.kind === SyntaxKind.TypeAliasDeclaration || handle.kind === SyntaxKind.InterfaceDeclaration) && this.ours(handle),
+      ),
+    );
   }
 
   // Each tuple a key position yields from: its string keys and the declarations of the value it is read from.
@@ -889,10 +906,11 @@ export class Resolver {
         name,
       );
     }
-    // a member only a library declares spells its keys there: the read is the library's
-    const declared = symbol?.declarations ?? [];
-    if (declared.length > 0 && declarations.length === 0) {
-      return { decls: [], depth: 0, end: "library", stops: declared };
+    if (declarations.length === 0) {
+      const undeclared = yield* this.#undeclaredHome(unwrapped, name, symbol?.declarations ?? []);
+      if (undeclared.end !== "exhausted") {
+        return undeclared;
+      }
     }
     const spelled: ValueSpelling[] = [];
     for (const { owner, declaration } of declarations) {
@@ -904,6 +922,50 @@ export class Resolver {
       spelled.flatMap(({ tuples }) => tuples),
     );
     return home.end === "exhausted" ? yield* this.#spreadHome(declarations, name) : home;
+  }
+
+  // A receiver member no declaration of ours spells (`names.held` over a mapped holder) has the value its holder
+  // spells; failing that, a member only a library declares spells its keys there, and the read is the library's.
+  *#undeclaredHome(receiver: Node | undefined, name: string, declared: readonly NodeHandle[]): APIRequestGenerator<OriginWalk> {
+    const held = receiver !== undefined && isPropertyAccessExpression(receiver) ? yield* this.#expressionSpelling(receiver, new Set()) : NO_VALUE_SPELLING;
+    const home = held.roots.length === 0 ? EXHAUSTED : yield* this.#spelledHome(held.roots, name, held.tuples);
+    if (home.end !== "exhausted" || declared.length === 0) {
+      return home;
+    }
+    return { decls: [], depth: 0, end: "library", stops: declared };
+  }
+
+  // What an expression's value is spelled with: its declarations' spelling, or for a member none of ours declares the
+  // value its holder's spelling gives that member.
+  *#expressionSpelling(expression: Node | undefined, seen: Set<Node>): APIRequestGenerator<ValueSpelling> {
+    const value = unwrapExpression(expression);
+    if (value === undefined || seen.has(value)) {
+      return NO_VALUE_SPELLING;
+    }
+    seen.add(value);
+    const nameNode = receiverName(value);
+    if (nameNode === undefined) {
+      return yield* this.#valueSpelling(this.keyOf(value), value, new Set());
+    }
+    const symbol = yield* this.#unaliased(yield* this.#world.checker.getSymbolAtLocation.gen(nameNode));
+    const declarations = yield* this.#bindingSources(yield* this.#ownDeclarations(symbol));
+    if (declarations.length > 0) {
+      const roots: SpellingRoot[] = [];
+      const tuples: SpelledTuple[] = [];
+      for (const { owner, declaration } of declarations) {
+        for (const spelled of [yield* this.#spellingRoot(owner, declaration, new Set()), yield* this.#holderBinding(declaration, value)]) {
+          roots.push(...spelled.roots);
+          tuples.push(...spelled.tuples);
+        }
+      }
+      return { roots, tuples };
+    }
+    if (!isPropertyAccessExpression(value)) {
+      return NO_VALUE_SPELLING;
+    }
+    const holder = yield* this.#expressionSpelling(value.expression, seen);
+    const member = value.name.text;
+    return { roots: holder.roots.flatMap(({ owner, node }) => memberValues(node, member).map((type) => ({ owner, node: type }))), tuples: [] };
   }
 
   *#unaliased(symbol: NativeSymbol | undefined): APIRequestGenerator<NativeSymbol | undefined> {
@@ -1033,8 +1095,10 @@ export class Resolver {
     const roots: SpellingRoot[] = [];
     for (const { owner, declaration: held } of yield* this.#ownDeclarations(holder)) {
       for (const root of (yield* this.#spellingRoot(owner, held, new Set())).roots) {
-        const args = isTypeReferenceNode(root.node) ? (root.node.typeArguments ?? []) : [];
-        roots.push(...bound.flatMap((at) => (args[at] === undefined ? [] : [{ owner: root.owner, node: args[at] }])));
+        for (const reference of referenceArms(root.node)) {
+          const args = reference.typeArguments ?? [];
+          roots.push(...bound.flatMap((at) => (args[at] === undefined ? [] : [{ owner: root.owner, node: args[at] }])));
+        }
       }
     }
     return { roots, tuples: [] };
@@ -1162,7 +1226,6 @@ export class Resolver {
   }
 }
 
-const RECORD = "Record";
 const TUPLE_LENGTH = "length";
 
 // A type's string-literal members, or null when it holds none.
@@ -1211,7 +1274,9 @@ function spellKeys(node: Node, key: boolean, sink: SpellingSink): void {
   }
   if (isTypeQueryNode(node)) {
     if (key) {
+      // `typeof X` keys by X's value: a literal const is the home of its key, any other value is queried
       sink.queries.push(node);
+      sink.tuples.push(node);
     }
     return;
   }
@@ -1221,6 +1286,10 @@ function spellKeys(node: Node, key: boolean, sink: SpellingSink): void {
   }
   if (isTypeReferenceNode(node)) {
     spellReference(node, key, sink);
+    return;
+  }
+  if (isExpressionWithTypeArguments(node)) {
+    spellHeritage(node, sink);
     return;
   }
   node.forEachChild((child) => spellKeys(child, false, sink));
@@ -1253,6 +1322,42 @@ function spellMapped(node: MappedTypeNode, sink: SpellingSink): void {
   }
 }
 
+// The type syntax a spelled type gives one member's value: a type literal's property, a record's value argument, through
+// unions, intersections and the key-transparent wrappers. A named alias is not followed here: its own spelling is read
+// where it is a root.
+function memberValues(node: TypeNode, member: string): readonly TypeNode[] {
+  if (isUnionTypeNode(node) || isIntersectionTypeNode(node)) {
+    return node.types.flatMap((arm) => memberValues(arm, member));
+  }
+  if (isParenthesizedTypeNode(node)) {
+    return memberValues(node.type, member);
+  }
+  if (isTypeLiteralNode(node)) {
+    return node.members.flatMap((signature) => (isPropertySignatureDeclaration(signature) && keyText(signature.name) === member ? [signature.type] : []));
+  }
+  if (!isTypeReferenceNode(node)) {
+    return [];
+  }
+  const name = isQualifiedName(node.typeName) ? node.typeName.right.text : node.typeName.text;
+  const [first, second] = node.typeArguments ?? [];
+  if (KEY_TRANSPARENT.has(name) && first !== undefined) {
+    return memberValues(first, member);
+  }
+  return name === RECORD && second !== undefined ? [second] : [];
+}
+
+// The references a type names through its union arms: `Tones<H> | null` names `Tones<H>`.
+function referenceArms(node: Node): readonly TypeReferenceNode[] {
+  if (isUnionTypeNode(node) || isParenthesizedTypeNode(node)) {
+    const arms: TypeReferenceNode[] = [];
+    node.forEachChild((child) => {
+      arms.push(...referenceArms(child));
+    });
+    return arms;
+  }
+  return isTypeReferenceNode(node) ? [node] : [];
+}
+
 function spellReference(node: TypeReferenceNode, key: boolean, sink: SpellingSink): void {
   const id = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
   const args = node.typeArguments ?? [];
@@ -1261,6 +1366,19 @@ function spellReference(node: TypeReferenceNode, key: boolean, sink: SpellingSin
     sink.evaluated.push(node);
     return;
   }
+  spellNamed(id, args, key, sink);
+}
+
+// An interface's heritage clause spells its keys the way a reference does: `extends Readonly<Record<K, V>>` keys by K.
+function spellHeritage(node: ExpressionWithTypeArguments, sink: SpellingSink): void {
+  const { expression } = node;
+  const id = isPropertyAccessExpression(expression) ? expression.name : expression;
+  if (isIdentifier(id)) {
+    spellNamed(id, node.typeArguments ?? [], true, sink);
+  }
+}
+
+function spellNamed(id: MemberName, args: readonly TypeNode[], key: boolean, sink: SpellingSink): void {
   const keyAt = KEY_ARGUMENT.get(id.text);
   if (keyAt !== undefined) {
     for (const [at, argument] of args.entries()) {

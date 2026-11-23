@@ -3,7 +3,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { plantedTsconfig } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
@@ -163,10 +163,58 @@ export async function graphScan(
 export const labelsIn = (scan: GraphScan, bucket: Bucket, file: string): readonly string[] =>
   scan.analysis[bucket].filter(({ label }) => label.startsWith(`${file}:`)).map(({ label }) => label.slice(file.length + 1));
 
-/** A minimal React: the state hooks the graph reads a `[value, setter]` tuple from, at React's own types path. */
+/** A minimal React at React's own types path: the state hook the graph reads a `[value, setter]` tuple from, and the class
+ *  component whose lifecycle methods React calls. */
 export const REACT_TYPES = {
   "node_modules/@types/react/package.json": JSON.stringify({ name: "@types/react", types: "index.d.ts" }),
-  "node_modules/@types/react/index.d.ts": "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+  "node_modules/@types/react/index.d.ts": [
+    "export declare function useState<S>(initial: S): [S, (next: S) => void];",
+    "export declare class Component<P = object> { readonly props: P; render(): unknown; componentDidMount?(): void }",
+    // React's own shape: the statics React calls sit on the interfaces that build a Component, not on the class
+    "export interface StaticLifecycle<P, S> { getDerivedStateFromProps?: (props: P, state: S) => Partial<S> | null; getDerivedStateFromError?: (error: unknown) => Partial<S> | null }",
+    "export interface ComponentClass<P = object, S = object> extends StaticLifecycle<P, S> { new (props: P): Component<P>; displayName?: string; defaultProps?: Partial<P> }",
+  ].join("\n"),
+};
+
+/** A minimal `@types/node` at its own path: the message doors' declarations in the ambient modules Node's types
+ *  declare them in. A planted source reaches it through `/// <reference types="node" />`. */
+export const NODE_TYPES = {
+  "node_modules/@types/node/package.json": JSON.stringify({ name: "@types/node", types: "index.d.ts" }),
+  "node_modules/@types/node/index.d.ts": [
+    'declare module "worker_threads" {',
+    '  export class MessagePort { postMessage(value: any): void; on(event: "message", listener: (value: any) => void): this; }',
+    "  export class Worker {",
+    "    constructor(url: URL | string, options?: { workerData?: any });",
+    "    postMessage(value: any): void;",
+    '    on(event: "message", listener: (value: any) => void): this;',
+    "  }",
+    "  export const parentPort: MessagePort | null;",
+    "  export const workerData: any;",
+    "}",
+    'declare module "child_process" {',
+    '  export interface ChildProcess { send(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
+    "  export function spawn(command: string, args: readonly string[]): ChildProcess;",
+    "}",
+    'declare module "process" {',
+    "  global {",
+    "    var process: NodeJS.Process;",
+    "    namespace NodeJS {",
+    '      interface Process { send?(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
+    "    }",
+    "  }",
+    "}",
+    'declare module "events" {',
+    "  export class EventEmitter { emit(event: string, ...args: any[]): boolean; on(event: string, listener: (...args: any[]) => void): this; }",
+    "}",
+    'declare module "diagnostics_channel" {',
+    "  export class Channel { publish(message: unknown): void; subscribe(listener: (message: unknown) => void): void; }",
+    "  export function channel(name: string): Channel;",
+    "  export function subscribe(name: string, listener: (message: unknown) => void): void;",
+    "}",
+    'declare module "async_hooks" {',
+    "  export class AsyncLocalStorage<T> { run<R>(store: T, callback: () => R): R; getStore(): T | undefined; }",
+    "}",
+  ].join("\n"),
 };
 
 /** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
@@ -219,6 +267,25 @@ export function tailwindVariants(): Record<string, string> {
   return {
     [`${at}/package.json`]: JSON.stringify({ name: TV_PACKAGE, types: `${TV_DIST}/index.d.ts` }),
     ...Object.fromEntries(declarations.map((name) => [`${at}/${TV_DIST}/${name}`, readFileSync(join(dist, name), "utf8")])),
+  };
+}
+
+// The server package owns hono; the route pass recognises a route and a parameter read by hono's own declarations.
+const SERVER_MANIFEST = join(import.meta.dirname, "../../../packages/server/package.json");
+const HONO_PACKAGE = "hono";
+const HONO_TYPES = "dist/types";
+
+/** The installed hono declarations at `node_modules/hono`. */
+export function hono(): Record<string, string> {
+  // hono's exports map hides its package.json, so its folder is read off the module it resolves to
+  const entry = createRequire(SERVER_MANIFEST).resolve(HONO_PACKAGE);
+  const folder = `${sep}node_modules${sep}${HONO_PACKAGE}${sep}`;
+  const types = join(entry.slice(0, entry.lastIndexOf(folder) + folder.length), HONO_TYPES);
+  const at = `node_modules/${HONO_PACKAGE}`;
+  const declarations = readdirSync(types, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(DECLARATION));
+  return {
+    [`${at}/package.json`]: JSON.stringify({ name: HONO_PACKAGE, types: `${HONO_TYPES}/index.d.ts` }),
+    ...Object.fromEntries(declarations.map((name) => [`${at}/${HONO_TYPES}/${name}`, readFileSync(join(types, name), "utf8")])),
   };
 }
 
