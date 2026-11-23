@@ -75,7 +75,7 @@ paths:
 
 ## Dev instrumentation
 
-- Every new dev observer, flagger, ring or debug surface registers an accessor on `window.__orb` (`packages/client/src/lib/agent-bridge.ts`) in the same change that creates it, or it is invisible to snap and agent probes.
+- Every new dev observer, flagger, ring or debug surface registers an accessor on `window.__orb` (`packages/client/src/lib/agent-bridge.ts`) in the same change that creates it, or it is invisible to snap and agent probes. Declare its type on `OrbDebugHandle` in `packages/client/src/lib/agent-bridge-contract.ts`, which no DOM name may enter: snap's closures read `globalThis.__orb` through it in a program with no DOM lib.
 - `window.__orb` does not exist in a prod bundle. Measure prod layout shift with a buffered `PerformanceObserver`, not `getEntriesByType`.
 - A session-deduped evidence ring's timestamp is its first raise, not an occurrence. Never time-window filter it.
 - Gate a new `EventSource` on the feature being active; the browser's per-origin connection budget is shared and small.

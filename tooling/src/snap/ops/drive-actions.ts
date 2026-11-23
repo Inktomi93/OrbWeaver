@@ -12,7 +12,7 @@ import { touchGesture } from "../../floor/browser/touch-gesture.ts";
 import type { FileActionReceipt } from "../../floor/browser/upload.ts";
 import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../floor/browser/upload.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { buildNavScript } from "../../floor/instrument/nav.ts";
+import { evaluateNav } from "../../floor/instrument/nav.ts";
 import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../contract/arms.ts";
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, SNAP_CEILINGS_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
@@ -215,10 +215,10 @@ async function driveNav(page: Page, action: NavAction, index: number): Promise<D
   // the caught nav failure is printed as NAV FAILED and returned as a DriveFailure; dispatchOrdinaryAction counts it into navFailures and verdict.ts outcomeTotals sums navFailures. Ends if navFailures stops being summed there.
   try {
     // the readiness ping's result is discarded; the nav evaluate on the next statement runs on the same page inside this try, and its failure is caught by the catch below and returned as a DriveFailure. Ends if the nav evaluate moves out of this try.
-    await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
+    await page.evaluate(() => globalThis.__orb?.ready).catch(() => undefined);
     // #1004 — ONE nav-result predicate for all four call sites (floor/browser/page-validate.ts); this file
     // used to declare its own copy of the shape and assert it.
-    result = navResultShape(await page.evaluate(buildNavScript(action.kind, action.target)), `nav ${action.kind} ${action.target}`);
+    result = navResultShape(await evaluateNav(page, action.kind, action.target), `nav ${action.kind} ${action.target}`);
   } catch (e) {
     const msg = scrubPlaywrightText(errorMessage(e));
     print(`NAV FAILED  ${action.kind} ${action.target}: ${msg}`);

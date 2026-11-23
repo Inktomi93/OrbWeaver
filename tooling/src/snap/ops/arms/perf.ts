@@ -20,6 +20,13 @@ import { writeArmEvidenceFile } from "./evidence-file.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
+// PerformanceNavigationTiming is a DOM type this program does not carry: the three fields the read takes.
+interface NavigationTimingFields {
+  readonly domContentLoadedEventEnd: number;
+  readonly loadEventEnd: number;
+  readonly responseEnd: number;
+}
+
 export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePosture: SnapRatePosture): Promise<PerfEvidence | null> {
   const disposition = ratePostureDisposition(ratePosture, "Snap's navigation timing rate");
   if (disposition.disposition === "withheld") {
@@ -41,17 +48,20 @@ export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePost
       rate: { status, reason: disposition.reason },
       acceleration: ratePosture.acceleration,
       ...perfEvidence(
-        await page.evaluate(`(() => {
-      const nav = performance.getEntriesByType("navigation")[0];
-      return {
-        navigation: nav ? {
-          domContentLoadedMs: Math.round(nav.domContentLoadedEventEnd),
-          loadMs: Math.round(nav.loadEventEnd),
-          responseMs: Math.round(nav.responseEnd),
-        } : null,
-        orb: window.__orb ? window.__orb.snap() : null,
-      };
-    })()`),
+        await page.evaluate(() => {
+          const nav = performance.getEntriesByType("navigation")[0] as NavigationTimingFields | undefined;
+          return {
+            navigation:
+              nav === undefined
+                ? null
+                : {
+                    domContentLoadedMs: Math.round(nav.domContentLoadedEventEnd),
+                    loadMs: Math.round(nav.loadEventEnd),
+                    responseMs: Math.round(nav.responseEnd),
+                  },
+            orb: globalThis.__orb?.snap() ?? null,
+          };
+        }),
       ),
     };
   } catch {

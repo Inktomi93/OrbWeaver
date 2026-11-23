@@ -2,22 +2,10 @@
 // message-prop carriers: agent-bridge.ts retains the only global install and exhaustive registries, while
 // this module joins mounted DOM owners to the existing carrier/registry authorities.
 
-import type { AppearanceCarrierObservable, AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
+import type { AppearanceMatrixBridgeContract } from "./agent-bridge-contract.ts";
+import type { AppearanceCarrierObservable } from "./appearance-carrier-manifest.ts";
 import { appearanceMatrixContract } from "./appearance-carrier-manifest.ts";
 import { readAppearanceMessageSnapshots } from "./appearance-message-registry.ts";
-
-interface AppearanceMessageRegistryReceipt {
-  readonly mounted: number;
-  readonly registered: number;
-  readonly matched: number;
-  readonly missingIds: readonly string[];
-  readonly staleIds: readonly string[];
-}
-
-export interface AppearanceMatrixBridgeContract extends Omit<AppearanceMatrixContract, "rows"> {
-  readonly rows: readonly (AppearanceMatrixContractRow & { readonly reached: number; readonly samples: readonly unknown[] })[];
-  readonly messageRegistry: AppearanceMessageRegistryReceipt;
-}
 
 function nestedValue(value: unknown, path: string): unknown {
   return path

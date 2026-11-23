@@ -5,54 +5,8 @@
 // drawer, or toast property. Keep the raw browser facts here; tooling owns the narrow verdict policy.
 
 import { COMPOSITOR_SAFE_PROPS } from "@orb/kit/motion-allowance";
+import type { AnimationAttribution, AnimationLifecycleState, AnimationRecord, AnimationTimelineKind } from "./agent-bridge-contract.ts";
 import { surfaceLabelOf } from "./motion-stats.ts";
-
-const ANIMATION_OWNERS = ["base-ui", "application", "unattributed"] as const;
-type AnimationOwner = (typeof ANIMATION_OWNERS)[number];
-const ANIMATION_MECHANISMS = ["css-transition", "css-animation", "web-animation", "unknown"] as const;
-type AnimationMechanism = (typeof ANIMATION_MECHANISMS)[number];
-const ANIMATION_PHASES = ["starting-style", "ending-style"] as const;
-type AnimationPhase = (typeof ANIMATION_PHASES)[number];
-const LIFECYCLE_OBSERVATION_SOURCES = ["transition-run"] as const;
-type LifecycleObservationSource = (typeof LIFECYCLE_OBSERVATION_SOURCES)[number];
-const ANIMATION_TIMELINES = ["document", "scroll", "view", "none"] as const;
-type AnimationTimelineKind = (typeof ANIMATION_TIMELINES)[number];
-
-interface AnimationLifecycleState {
-  readonly startingStyle: boolean;
-  readonly endingStyle: boolean;
-  readonly observedAt: LifecycleObservationSource;
-}
-
-interface AnimationAttribution {
-  readonly owner: AnimationOwner;
-  readonly mechanism: AnimationMechanism;
-  readonly phase?: AnimationPhase;
-}
-
-export interface AnimationRecord {
-  readonly id?: string;
-  /** Best-effort surface/component label of the animated target. */
-  readonly target: string;
-  /** The animated property set (from the keyframes). */
-  readonly properties: readonly string[];
-  /** true when every animated property stays on the compositor. */
-  readonly compositorClean: boolean;
-  /** The live Base UI lifecycle state on the target at the exact animation sample. */
-  readonly targetState: {
-    readonly startingStyle: boolean;
-    readonly endingStyle: boolean;
-  };
-  /** State bound to this exact animation at launch; null means no Base UI lifecycle was observed. */
-  readonly lifecycleState: AnimationLifecycleState | null;
-  /** Owner and mechanism derived from browser constructors plus exact launch provenance. */
-  readonly attribution: AnimationAttribution;
-  /** The CSS animation's `animation-name` or the transition's property: the one name a record with no readable
-   *  property set still carries. Absent for a script animation that set no `id`. */
-  readonly name?: string;
-  /** What drives the animation's time: the document clock, a scroll or view progress timeline, or nothing. */
-  readonly timeline: AnimationTimelineKind;
-}
 
 // getKeyframes() injects computedOffset on every frame in addition to the authoring fields, so it must
 // be dropped too or every animation reads as dirty.

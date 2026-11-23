@@ -21,34 +21,12 @@
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never re-export
 // from the lib barrel (that would drag it into the prod bundle).
 
+import type { ConsoleErrorRecord, ConsoleErrorRing } from "./agent-bridge-contract.ts";
 import { timeLib } from "./time.ts";
 
 const RING_CAP = 128;
 const TEXT_MAX = 2000;
 const ARG_MAX = 12;
-
-/** One recorded browser-side failure, as `__orb.consoleErrors()` returns it. Module-local by design: the
- *  ring and its `__orb` projection are the only readers, so the interface is not exported — a name nothing
- *  outside this file spells is not part of the client's surface (#1847). */
-interface ConsoleErrorRecord {
-  /** Which surface reported it: a `console.error` call, an uncaught error event, or a rejected promise. */
-  readonly source: "console" | "uncaught" | "rejection";
-  /** Wall-clock epoch ms at the record ({@link timeLib.now}). */
-  readonly at: number;
-  /** The formatted message — every argument stringified and joined, capped. */
-  readonly text: string;
-  /** The stack, where the reported value carried one. */
-  readonly stack?: string;
-  /** `globalThis.location.pathname` at the record — which surface was mounted. */
-  readonly route: string;
-}
-
-interface ConsoleErrorRing {
-  readonly records: readonly ConsoleErrorRecord[];
-  /** Records evicted by the cap since the last reset. `0` ⇒ `records` is every error of this session. */
-  readonly dropped: number;
-  readonly cap: number;
-}
 
 const ring: ConsoleErrorRecord[] = [];
 let dropped = 0;

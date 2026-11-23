@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
 import { splitPseudoSelector } from "../../floor/browser/css-pseudo-selector.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { OrbBridge } from "../../floor/instrument/orb-bridge.ts";
 import type { AppearancePopulationAccounting, AppearanceSubjectReceipt } from "../contract/appearance-invariants.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
@@ -87,7 +88,7 @@ interface BrowserGlobals {
     readonly elementFromPoint: (x: number, y: number) => BrowserElement | null;
   };
   readonly getComputedStyle: (element: BrowserElement, pseudo?: string | null) => BrowserStyle;
-  readonly __orb?: { readonly motion: () => { readonly nonVirtualizedCls?: unknown } };
+  readonly __orb?: Pick<OrbBridge, "motion">;
 }
 
 interface BrowserSubjectPolicy {
@@ -330,8 +331,7 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
     occluded: subjects.reduce((sum, subject) => sum + subject.accounting.occluded, 0),
     offViewport: subjects.reduce((sum, subject) => sum + subject.accounting.offViewport, 0),
   };
-  const rawCls = browser.__orb?.motion().nonVirtualizedCls;
-  return { subjects, accounting, cls: typeof rawCls === "number" ? rawCls : null };
+  return { subjects, accounting, cls: browser.__orb?.motion().nonVirtualizedCls ?? null };
 }
 
 export async function probeAppearanceDom(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<AppearanceDomSnapshot> {

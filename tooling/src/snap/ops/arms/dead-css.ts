@@ -32,16 +32,19 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 // `null` (a --file fixture with no bridge) distinguishable from an unreadable answer.
 async function settleDeadCssDrain(page: Page): Promise<DeadCssEvidence["drain"]> {
   return deadCssDrain(
-    await page.evaluate(`(async () => {
-    const drain = globalThis.__orb?.motionFlaggersDrain;
-    if (typeof drain !== "function") return null;
-    const receipt = await drain();
-    if (!receipt || !Number.isInteger(receipt.requestedGeneration) || !Number.isInteger(receipt.completedGeneration) ||
-        receipt.requestedGeneration <= 0 || receipt.completedGeneration < receipt.requestedGeneration) {
-      throw new Error("INSTRUMENT ERROR: motionFlaggersDrain returned an invalid generation receipt");
-    }
-    return receipt;
-  })()`),
+    await page.evaluate(async () => {
+      if (globalThis.__orb === undefined) {
+        return null;
+      }
+      const receipt = await globalThis.__orb.motionFlaggersDrain();
+      const { requestedGeneration, completedGeneration } = receipt;
+      const valid =
+        Number.isInteger(requestedGeneration) && Number.isInteger(completedGeneration) && requestedGeneration > 0 && completedGeneration >= requestedGeneration;
+      if (!valid) {
+        throw new Error("INSTRUMENT ERROR: motionFlaggersDrain returned an invalid generation receipt");
+      }
+      return receipt;
+    }),
   );
 }
 

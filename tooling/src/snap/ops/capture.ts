@@ -97,8 +97,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     await runArms?.afterNavigation({ page, opts, pageIndex, url: plan.url, navError: outcome.navError, evidenceWindow: armEvidenceWindow });
     if (opts.checkpoint) {
       markCallPhase("checkpoint");
-      // Raw string, not a function — the tooling program is DOM-less and carries no __orb ambient.
-      await page.evaluate("window.__orb && window.__orb.resetEvidence()");
+      await page.evaluate(() => globalThis.__orb?.resetEvidence());
       if (evidence.diagnosticWindow.value === 0) {
         evidence.diagnosticWindow.value = 1;
       }

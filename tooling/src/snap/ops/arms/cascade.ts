@@ -136,11 +136,12 @@ async function readMergeReceipt(session: ProbeSession, pageIndex: number): Promi
   if (page === undefined) {
     throw new Error(`cascade page @${pageIndex} does not exist`);
   }
-  const receipt = await page.evaluate(`(() => {
-    const handle = globalThis.__orb?.css;
-    if (!handle || typeof handle.read !== "function") throw new Error("window.__orb.css.read is unavailable");
-    return handle.read();
-  })()`);
+  const receipt = await page.evaluate(() => {
+    if (globalThis.__orb === undefined) {
+      throw new Error("window.__orb.css.read is unavailable");
+    }
+    return globalThis.__orb.css.read();
+  });
   return cssMergeTraceSnapshot(receipt);
 }
 
