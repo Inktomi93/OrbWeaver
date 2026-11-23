@@ -112,7 +112,8 @@ import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
 import { declarationKeys, deepestAt, nameAt, nodePlace, propertiesNamed } from "./native.ts";
-import { isProduction } from "./optional-population.ts";
+import type { PluginSources } from "./optional-population.ts";
+import { isProduction, readPluginSources } from "./optional-population.ts";
 
 const DEAD: Verdict = "dead";
 const ASK: Verdict = "ask";
@@ -213,6 +214,8 @@ export interface LiteralSearch {
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
   /** The string and template hits in held product source that act as a key, the only ones that can hold a row. */
   readonly keyed: ReadonlySet<LiteralHit>;
+  /** The plugin author and SDK sources, which count as product source beside the packages' own. */
+  readonly plugins: PluginSources;
 }
 
 const PARSED = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -480,20 +483,29 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
     }
   }
   const all = [...hits.values()].flat();
-  return { files, ignored, hits, productData: loadedData(root, world, all), resolved: resolvedHits(world, all), keyed: keyedHits(world, all) };
+  const plugins = readPluginSources(root);
+  return {
+    files,
+    ignored,
+    hits,
+    productData: loadedData(root, world, all, plugins),
+    resolved: resolvedHits(world, all),
+    keyed: keyedHits(world, all, plugins),
+    plugins,
+  };
 }
 
 // The data files among the hits' files that the product loads: a JSON file the program holds that a product module
 // imports (its import resolved by the program, so a JSON a test or a script imports stays out), and every showcase
 // bundle's manifest under the source directory the release build packs from.
-function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet<string> {
+function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[], plugins: PluginSources): ReadonlySet<string> {
   const manifests = SHOWCASE_PLUGIN_SLUGS.map((slug) => relative(root, join(showcaseSourceDirectory(root), slug, PLUGIN_MANIFEST_ENTRY)));
   const held = new Set(hits.flatMap(({ file }) => (fileType(file) === "config" && world.has(file) ? [file] : [])));
   if (held.size === 0) {
     return new Set(manifests);
   }
   const specifiers = world.files
-    .filter((source) => isProduction(world.fileOfSource(source)))
+    .filter((source) => isProduction(world.fileOfSource(source), plugins))
     .flatMap((source) => moduleSpecifiers(source).map((specifier) => ({ specifier, from: source.fileName })));
   const resolved = world.batch(specifiers.map(({ specifier, from }) => world.program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
   const imported = resolved.flatMap((module) => (module?.resolvedFileName === undefined ? [] : [relative(root, module.resolvedFileName)]));
@@ -506,9 +518,10 @@ const TEXT_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["string", "template"]
 // A string or template hit in held product source acts as a key when it sits in key syntax, or when the checker's
 // contextual type for it is a string-literal union with a member whose dotted segments hold the name: a keyof
 // parameter, a typed registry, a form path. Judged by the type, never by the callee's name; copy text is neither.
-function keyedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet<LiteralHit> {
+function keyedHits(world: NativeWorld, hits: readonly LiteralHit[], plugins: PluginSources): ReadonlySet<LiteralHit> {
   const asked = hits.flatMap((hit) => {
-    const token = hit.graph && hit.offset !== null && TEXT_KINDS.has(hit.kind) && isProduction(hit.file) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    const token =
+      hit.graph && hit.offset !== null && TEXT_KINDS.has(hit.kind) && isProduction(hit.file, plugins) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
     const text = token === undefined ? undefined : textExpression(token);
     return text === undefined ? [] : [{ hit, text }];
   });
@@ -884,7 +897,10 @@ function judged(
   const declarations = rowDeclarations(world, rows);
   return rows.map((row, at) => {
     const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: declarations[at] ?? new Set() });
-    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, keyed: search.keyed }, search.files) };
+    return {
+      hits,
+      literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, keyed: search.keyed, plugins: search.plugins }, search.files),
+    };
   });
 }
 
@@ -902,12 +918,19 @@ function evidenceOf(
     elsewhere,
     productData,
     keyed,
-  }: { readonly own: number; readonly elsewhere: number; readonly productData: ReadonlySet<string>; readonly keyed: ReadonlySet<LiteralHit> },
+    plugins,
+  }: {
+    readonly own: number;
+    readonly elsewhere: number;
+    readonly productData: ReadonlySet<string>;
+    readonly keyed: ReadonlySet<LiteralHit>;
+    readonly plugins: PluginSources;
+  },
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
   const holding = saving.filter(
-    (hit) => (hit.offset !== null && isProduction(hit.file) && (!TEXT_KINDS.has(hit.kind) || keyed.has(hit))) || productData.has(hit.file),
+    (hit) => (hit.offset !== null && isProduction(hit.file, plugins) && (!TEXT_KINDS.has(hit.kind) || keyed.has(hit))) || productData.has(hit.file),
   );
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
