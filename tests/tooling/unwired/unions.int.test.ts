@@ -719,6 +719,13 @@ const LIBRARY_PARAMETER_TREE = {
     "export const glyph = (value: (typeof GLYPHS)[number]): string => value;",
     'export const [mark, setMark] = useState("x1");',
     'setMark("x2");',
+    'const TONES = ["warm", "cold", "dim"] as const;',
+    "interface ToneProps { readonly value: (typeof TONES)[number] }",
+    "export function ToneGroup({ value }: ToneProps): void {",
+    "  const [anchor, setAnchor] = useState(value);",
+    '  setAnchor("cold");',
+    "  void anchor;",
+    "}",
   ].join("\n"),
   "packages/a/src/twin.ts": [
     'const SPACINGS = ["dense", "roomy", "tight"] as const;',
@@ -740,8 +747,75 @@ test("a library parameter is read through the receiver's annotation, an explicit
     "SPACINGS.tight",
     "SPARES.slow",
     "SPARES.top",
+    "TONES.dim",
+    "TONES.warm",
   ]);
 });
+
+// A destructured name reads the property its annotated holder declares: `level` in `{ level }: Gauge` is a Level, so
+// the case and the comparison on it count for LEVELS. The same name destructured from an inline-typed holder traces
+// to no tuple, so `"high"` counts for none.
+const DESTRUCTURED_TREE = {
+  "packages/a/src/gauge.ts": [
+    'const LEVELS = ["low", "high", "max"] as const;',
+    "type Level = (typeof LEVELS)[number];",
+    "interface Gauge { readonly level: Level }",
+    "export function rank({ level }: Gauge): number {",
+    "  switch (level) {",
+    '    case "low":',
+    "      return 1;",
+    "    default:",
+    "      return 0;",
+    "  }",
+    "}",
+    'export const isMax = ({ level }: Gauge): boolean => level === "max";',
+    'export const isHigh = ({ level }: { readonly level: "low" | "high" | "max" }): boolean => level === "high";',
+  ].join("\n"),
+};
+
+test("a destructured case or comparison subject reads its holder's annotated property, and an inline-typed one reads none", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const report = await scanUnions(plantedTree, DESTRUCTURED_TREE);
+  expect(report.unwired.map(({ home, member, cases, checks }) => ({ home, member, cases, checks }))).toEqual([
+    { home: "LEVELS", member: "low", cases: ["packages/a/src/gauge.ts:6"], checks: [] },
+    { home: "LEVELS", member: "high", cases: [], checks: [] },
+    { home: "LEVELS", member: "max", cases: [], checks: ["packages/a/src/gauge.ts:12"] },
+  ]);
+});
+
+// A product generic's type parameter is bound by the node that instantiates it, never by type identity: `Step`
+// holds the same members as `Pace`, the default or constraint, so the two are one type, yet `Shelf<Step>` is a Step.
+// Each tree writes `"a"` once through a `Step`-instantiated generic; `"b"` is built for both tuples directly.
+const twinTree = (generic: string, use: string): Readonly<Record<string, string>> => ({
+  "packages/a/src/twin.ts": [
+    'const PACES = ["a", "b"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    'const STEPS = ["a", "b"] as const;',
+    "type Step = (typeof STEPS)[number];",
+    "export const useP = (v: Pace): string => v;",
+    'export const p = useP("b");',
+    "export const useS = (v: Step): string => v;",
+    'export const s = useS("b");',
+    generic,
+    use,
+  ].join("\n"),
+});
+
+const TWIN_INSTANCES = {
+  default: twinTree("interface Shelf<P extends string = Pace> { readonly pick: P }", 'export const shelf: Shelf<Step> = { pick: "a" };'),
+  constraint: twinTree("interface Shelf<P extends Pace> { readonly pick: P }", 'export const shelf: Shelf<Step> = { pick: "a" };'),
+  receiver: twinTree(
+    "interface Rack<P extends string = Pace> { readonly take: (value: P) => void }",
+    'export const stock = (rack: Rack<Step>): void => rack.take("a");',
+  ),
+};
+
+for (const [shape, tree] of Object.entries(TWIN_INSTANCES)) {
+  test(`a generic instantiated with its ${shape}'s twin credits the twin`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    expect(sortedRows(await scanUnions(plantedTree, tree))).toEqual(["PACES.a"]);
+  });
+}
 
 // Slots read through the declaration they land in: an arrow body and a `return` under a typed variable, a library
 // property through the call's explicit type argument, and a property assignment.
