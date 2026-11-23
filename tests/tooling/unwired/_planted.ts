@@ -245,6 +245,7 @@ export const ZOD_MODULE = {
     "  extend<S>(shape: S): Schema<{ [K in keyof T as K extends keyof S ? never : K]: T[K] } & Shape<S>>;",
     "  default(value: Exclude<this['_output'], undefined>): Schema<T>;",
     "  optional(): Schema<T | undefined>;",
+    "  transform<U>(make: (value: T) => U): Schema<U>;",
     "}",
     "export type ZodType<T = unknown> = Schema<T>;",
     "export declare namespace z {",

@@ -2,11 +2,14 @@
 // parameter, a platform call or a `for…in` loop that reads every key of a value, and a published global's members read
 // by name in script text.
 //
-// - `x[k]` reads each literal `k` can be: a literal, a conditional of literals, or a key the checker types as literals
-//   (a template over a tuple's members, a loop variable over one). A key that is the enclosing function's parameter
-//   reads the keys its callers pass (getSignatureUsage), through callers that hand their own parameter on; a caller
-//   that passes a wide value, or a reference that is not a call, reads every literal the parameter's own type allows,
-//   or the table whole for a wide parameter, as any other computed key does.
+// - `x[k]` takes the roles its position gives (roles.ts accessRoles: a store, a bump, a delete or a read) on each literal
+//   `k` can be: a literal, a conditional of literals, or a key the checker types as literals (a template over a tuple's
+//   members, a loop variable over one). A key that is the enclosing function's parameter names the keys its callers pass
+//   (getSignatureUsage), through callers that hand their own parameter on; a caller that passes a wide value, or a
+//   reference that is not a call, names every literal the parameter's own type allows, or the table whole for a wide
+//   parameter, as any other computed key does.
+// - A `keyof T` list asserted to another type (`fields as string[]`) needs T's constraint to keep a key, so the member of
+//   a one-member constraint is a key use. A plain keyof use, or a constraint with more members, names none.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
 //   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
@@ -30,6 +33,7 @@ import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { tracing } from "./options.ts";
 import { answer, constituentsOf } from "./resolve.ts";
+import type { Role } from "./roles.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
@@ -46,7 +50,18 @@ interface ParameterKeyed {
   readonly at: number;
   /** The literals the key's own type allows, or null for a wide key: a lookup the callers cannot narrow reads only these. */
   readonly allowed: readonly string[] | null;
+  /** What the access does to each member its key names: its position's roles. */
+  readonly roles: readonly Role[];
 }
+
+// Each ask once per role of the access it came from.
+const byRole = <T extends { readonly roles: readonly Role[] }>(asks: readonly T[]): readonly (readonly [Role, readonly T[]])[] =>
+  [
+    ...Map.groupBy(
+      asks.flatMap((ask) => ask.roles.map((role) => ({ role, ask }))),
+      ({ role }) => role,
+    ),
+  ].map(([role, entries]) => [role, entries.map(({ ask }) => ask)]);
 
 // A key typed as a symbol (`built[Symbol.asyncDispose]`) names the one member declared under that symbol, never every
 // member of the table.
@@ -74,6 +89,7 @@ export class Keys {
     this.#keyTests(sites);
     this.#typeKeys(sites);
     this.#reflectiveReads(sites);
+    this.#keyofAssertions(sites);
     for (const { key, at } of sites.armSelectorMembers) {
       this.#state.role(key, "key", sites.file, at);
     }
@@ -93,11 +109,14 @@ export class Keys {
     state.roleNamed(named, "key", sites.file);
   }
 
+  // `x[k]` takes its position's roles (roles.ts accessRoles) for each member its key names: a literal it can be, a literal
+  // the checker types it as, the table whole for a wide key, or the one member a symbol key names.
   #elementKeys(sites: FileSites): void {
     const state = this.#state;
     const receivers = state.world.typedAt(sites.elementKeys, ({ receiver }) => receiver);
-    const named = receivers.flatMap(({ item: { keys, receiver }, type }) => (keys === null ? [] : keys.map((name) => ({ type, name, at: receiver.pos }))));
-    state.roleNamed(named, "read", sites.file);
+    const named = receivers.flatMap(({ item: { keys, receiver, roles }, type }) =>
+      keys === null ? [] : keys.map((name) => ({ type, name, at: receiver.pos, roles })),
+    );
     const computed = receivers.flatMap(({ item: site, type }) => (site.keys === null ? [{ ...site, type }] : []));
     const parameters = this.#parameterKeys(computed.map(({ argument }) => argument));
     const allKeyTypes = state.world.typesAt(computed.map(({ argument }) => argument));
@@ -106,34 +125,47 @@ export class Keys {
       const parameter = parameters[y];
       const keys = allTypedKeys[y] ?? null;
       if (parameter !== undefined) {
-        this.#parameterKeyed.push({ table: site.type, ...parameter, file: sites.file, at: site.receiver.pos, allowed: keys?.length === 0 ? null : keys });
+        this.#parameterKeyed.push({
+          table: site.type,
+          ...parameter,
+          file: sites.file,
+          at: site.receiver.pos,
+          allowed: keys?.length === 0 ? null : keys,
+          roles: site.roles,
+        });
       }
       return parameter === undefined ? [{ site, keyType: allKeyTypes[y], keys }] : [];
     });
     const rest = kept.map(({ site }) => site);
     const keyTypes = kept.map(({ keyType }) => keyType);
     const typedKeys = kept.map(({ keys }) => keys);
-    const typedNamed = rest.flatMap(({ type, receiver }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name, at: receiver.pos })));
-    state.roleNamed(typedNamed, "read", sites.file);
+    const typedNamed = rest.flatMap(({ type, receiver, roles }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name, at: receiver.pos, roles })));
+    for (const [role, asks] of byRole([...named, ...typedNamed])) {
+      state.roleNamed(asks, role, sites.file);
+    }
     const whole = rest
       .filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type) && !symbolKey(keyTypes[z]))
-      .map(({ type, receiver }) => ({ type, at: receiver.pos }));
-    state.roleWhole(whole, "read", sites.file);
-    const symbolic = rest.flatMap(({ type, receiver }, z) => {
+      .map(({ type, receiver, roles }) => ({ type, at: receiver.pos, roles }));
+    for (const [role, wholes] of byRole(whole)) {
+      state.roleWhole(wholes, role, sites.file);
+    }
+    const symbolic = rest.flatMap(({ type, receiver, roles }, z) => {
       const key = keyTypes[z];
-      return key !== undefined && symbolKey(key) ? [{ type, key, at: receiver.pos }] : [];
+      return key !== undefined && symbolKey(key) ? [{ type, key, at: receiver.pos, roles }] : [];
     });
     const keySymbols = state.batch(symbolic.map(({ key }) => key.getSymbol.gen()));
     const tableMembers = state.batch(symbolic.map(({ type }) => state.membersOf(type)));
-    for (const [y, { at }] of symbolic.entries()) {
+    for (const [y, { at, roles }] of symbolic.entries()) {
       const symbol = keySymbols[y];
       const keyed = symbol === undefined ? [] : (tableMembers[y] ?? []).filter((member) => member.name === symbolMemberName(symbol));
-      state.roleAll(state.declarations(keyed).flat(), "read", sites.file, at);
+      for (const role of roles) {
+        state.roleAll(state.declarations(keyed).flat(), role, sites.file, at);
+      }
     }
   }
 
-  // `line["done"]` through a string-indexed type a typed value was handed into in this file: the read reaches that
-  // value's members of the key's name, at any depth (flows.ts holds the ruling).
+  // `line["done"]` through a string-indexed type a typed value was handed into in this file: the access reaches that
+  // value's members of the key's name, at any depth, with its position's roles (flows.ts holds the ruling).
   #sinkReads(sites: FileSites, flows: Flows): void {
     const state = this.#state;
     const literal = [...sites.literalKeyReads, ...sites.elementKeys.filter(({ keys }) => keys !== null && keys.length > 0)];
@@ -142,16 +174,18 @@ export class Keys {
     }
     const receivers = state.world.typedAt(literal, ({ receiver }) => receiver);
     const arms = state.batch(receivers.map(({ type }) => constituentsOf(type)));
-    const asks = receivers.flatMap(({ item: { keys, receiver } }, y) => {
+    const asks = receivers.flatMap(({ item: { keys, receiver, roles } }, y) => {
       const values = flows.sunkInto(
         sites.file,
         (arms[y] ?? []).map(({ id }) => id),
       );
-      return values.flatMap((value) => (keys ?? []).map((name) => ({ value, name, at: receiver.pos })));
+      return values.flatMap((value) => (keys ?? []).map((name) => ({ value, name, at: receiver.pos, roles })));
     });
     const found = state.batch(asks.map(({ value, name }) => this.#namedAtAnyDepth(value, name)));
-    for (const [y, { at }] of asks.entries()) {
-      state.roleAll(state.declarations(found[y] ?? []).flat(), "read", sites.file, at);
+    for (const [y, { at, roles }] of asks.entries()) {
+      for (const role of roles) {
+        state.roleAll(state.declarations(found[y] ?? []).flat(), role, sites.file, at);
+      }
     }
   }
 
@@ -233,6 +267,34 @@ export class Keys {
     }
   }
 
+  // `fields as string[]` over `readonly (keyof T & string)[]`: the assertion compares T's key set with its target, and an
+  // empty key set compares with no string list, so a constraint's lone member is a key use there.
+  #keyofAssertions(sites: FileSites): void {
+    const state = this.#state;
+    const operands = state.world.typesAt(sites.assertions.map(({ expression }) => expression));
+    const lone = state.batch(operands.map((type) => this.#loneKeyofMembers(type)));
+    for (const [y, assertion] of sites.assertions.entries()) {
+      state.roleAll(state.declarations(lone[y] ?? []).flat(), "key", sites.file, assertion.pos);
+    }
+  }
+
+  // The lone constraint member of each type parameter T a `keyof T` in the type (or its list's element) spells.
+  *#loneKeyofMembers(type: Type): APIRequestGenerator<readonly NativeSymbol[]> {
+    const { checker } = this.#state.world;
+    const element = (yield* checker.isArrayLikeType.gen(type)) ? ((yield* type.getNumberIndexType.gen()) ?? type) : type;
+    const parts = element.isUnionType() || element.isIntersectionType() ? yield* element.getTypes.gen() : [element];
+    const out: NativeSymbol[] = [];
+    for (const part of parts.filter((candidate) => candidate.isIndexType())) {
+      const target = yield* part.getTarget.gen();
+      const constraint = target.isTypeParameter() ? yield* target.getConstraint.gen() : undefined;
+      const members = constraint === undefined ? [] : yield* this.#state.membersOf(constraint);
+      if (members.length === 1) {
+        out.push(...members);
+      }
+    }
+    return out;
+  }
+
   #typeKeys(sites: FileSites): void {
     const state = this.#state;
     const objects = state.world.typedAt(sites.indexedKeys, ({ object }) => object);
@@ -261,16 +323,17 @@ export class Keys {
       if (keys === "whole") {
         this.#traceUnnarrowed(keyed);
       }
-      if (names === null) {
-        state.count("parameter-keyed lookups read whole");
-        state.roleWhole([{ type: keyed.table, at: keyed.at }], "read", keyed.file);
-      } else {
-        state.count("parameter-keyed lookups narrowed");
-        state.roleNamed(
-          names.map((name) => ({ type: keyed.table, name, at: keyed.at })),
-          "read",
-          keyed.file,
-        );
+      state.count(names === null ? "parameter-keyed lookups read whole" : "parameter-keyed lookups narrowed");
+      for (const role of keyed.roles) {
+        if (names === null) {
+          state.roleWhole([{ type: keyed.table, at: keyed.at }], role, keyed.file);
+        } else {
+          state.roleNamed(
+            names.map((name) => ({ type: keyed.table, name, at: keyed.at })),
+            role,
+            keyed.file,
+          );
+        }
       }
     }
     this.#scriptGlobals(flows);

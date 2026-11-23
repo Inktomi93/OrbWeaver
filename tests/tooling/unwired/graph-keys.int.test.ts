@@ -3,7 +3,11 @@
 // a `z.lazy` arrow's too), a reflective platform call reads every member, a redeclared member shares its reads, a
 // function filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
 import { expect, test } from "@orb/testkit/tooling";
-import { GRAPH_SOURCE, graphScan, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
+import { TRIAL_REACHES, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
+import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
+
+const [CONFIRMED] = TRIAL_VERDICTS;
 
 const FILE = `${GRAPH_SOURCE}/keys.ts`;
 const JSX_FILE = `${GRAPH_SOURCE}/select.tsx`;
@@ -52,6 +56,37 @@ test("a zod schema's keys are the members of the type it satisfies", { timeout: 
   // a schema key names a member of the parsed value and writes none, so the twin's unread member is untouched
   expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["User.age"]);
   expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual([]);
+});
+
+// A schema checked against `z.ZodType<T>` by `satisfies`, by an annotated binding or by a declared return holds its
+// output to T at every depth: the transform's `text` is T's `item.text`, which the product reads, and a delete of it
+// breaks the check. Each `spare` is the control T does not name, so the trial confirms it and refutes nothing.
+test("a schema checked against a declared ZodType reads that type's members at depth", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const item = (name: string): string =>
+    `z.object({ ${name}: z.object({ text: z.string(), spare: z.string() }).transform((value): { readonly text: string; readonly spare: string } => value) })`;
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      ...source([
+        'import { z } from "zod";',
+        "export interface Payload { readonly checked: { readonly text: string }; }",
+        "export interface Bound { readonly bound: { readonly text: string }; }",
+        "export interface Returned { readonly returned: { readonly text: string }; }",
+        `export const checkedSchema = ${item("checked")} satisfies z.ZodType<Payload>;`,
+        `export const boundSchema: z.ZodType<Bound> = ${item("bound")};`,
+        `export const returnedSchema = (): z.ZodType<Returned> => ${item("returned")};`,
+        "export const texts = (payload: Payload, bound: Bound, returned: Returned): string => payload.checked.text + bound.bound.text + returned.returned.text;",
+      ]),
+    }),
+  );
+  const scan = await scanGraph(root, () => undefined);
+  const untouched = bare(labelsIn(scan, "member-untouched", FILE));
+  expect(untouched.filter((label) => label.endsWith(".text"))).toEqual([]);
+  expect(untouched.filter((label) => label.endsWith(".spare"))).toHaveLength(3);
+  const trial = await trialGraph(root, { buckets: ["member-untouched"], limit: null, reach: TRIAL_REACHES[0] }, () => undefined);
+  expect(trial.trials.filter(({ label }) => label.startsWith(`${FILE}:`)).map(({ label, verdict }) => [label.slice(FILE.length + 1), verdict])).toEqual(
+    untouched.map((label) => [label, CONFIRMED]),
+  );
 });
 
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
