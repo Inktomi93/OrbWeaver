@@ -1,8 +1,9 @@
 // `pnpm unwired procedures` reports each tRPC procedure and HTTP route no production code calls, as a query over the
 // graph session. Every planted case has a twin the query must keep reporting: a same-named method, a name in a string
 // table and a type read reach no procedure; a cache key built by tRPC's own verb calls nothing while a same-named local
-// method does; a route's other method, a lookalike path and an uncalled URL builder reach no route. Snap drives the
-// product, so its call is a product call (D357).
+// method does; a route's other method, a lookalike path, an uncalled URL builder, a builder value that ends in text, a
+// lookalike response and a non-Hono `get` reach or register no route. Snap drives the product, so its call is a product
+// call (D357); a tool's call is a test call though its world, as in the real tree, loads no DOM.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { JudgedEntry, ProceduresReport } from "../../../tooling/src/unwired/index.ts";
 import { OUTSIDE_CALLERS, proceduresGraph } from "../../../tooling/src/unwired/index.ts";
@@ -10,9 +11,9 @@ import { graphTree, LIB, WORLD } from "./_planted.ts";
 
 // Planted source spells its own template literals; the placeholder sign is interpolated so this file has none in a string.
 const DOLLAR = "$";
-// The callers outside the product: tooling the knip population walks, in a world that loads the DOM as a browser test's
-// does, and snap, whose calls are the product's though its world, as in the real tree, loads no DOM.
-const TOOLING = "tooling/src/browser";
+// The callers outside the product: tooling the knip population walks, and snap, whose calls are the product's. Neither
+// world loads the DOM, as in the real tree.
+const TOOLING = "tooling/src/probe";
 const SNAP = "tooling/src/snap";
 
 // The tRPC packages, typed the way the real ones are: a router record and both proxies are homomorphic mapped types,
@@ -45,6 +46,13 @@ const ROUTE_ROWS = OUTSIDE_CALLERS.flatMap((row) => (row.surface === "route" ? [
 const [UNPLANTED_ROUTE_ROW, ...PLANTED_ROUTE_ROWS] = ROUTE_ROWS;
 const ROOT_PROCEDURES = PROCEDURE_ROWS.map((row) => `${row.procedure}: procedure.query(() => true), `).join("");
 
+// The routers between the deep router's root and its leaf, innermost first.
+const DEEP_LEVELS = [7, 6, 5, 4, 3, 2];
+const DEEP_HOME = `appRouter.deep.${[...DEEP_LEVELS, 1]
+  .toReversed()
+  .map((level) => `l${String(level + 1)}`)
+  .join(".")}`;
+
 const PROCEDURE_TREE = {
   ...TRPC,
   "packages/server/src/transport/trpc/routers/tag.ts": [
@@ -65,8 +73,9 @@ const PROCEDURE_TREE = {
   ].join("\n"),
   "packages/server/src/transport/trpc/router.ts": [
     'import { procedure, router } from "@trpc/server";',
+    'import { level1 } from "./routers/deep.ts";',
     'import { tagRouter } from "./routers/tag.ts";',
-    `export const appRouter = router({ ${ROOT_PROCEDURES}ping: procedure.query(() => true), tag: tagRouter });`,
+    `export const appRouter = router({ ${ROOT_PROCEDURES}ping: procedure.query(() => true), tag: tagRouter, deep: level1 });`,
     "export type AppRouter = typeof appRouter;",
   ].join("\n"),
   // The server calling its own procedure through the caller factory.
@@ -106,10 +115,17 @@ const PROCEDURE_TREE = {
     "export const pruned = (): Promise<unknown> => trpc.tag.prune.mutate();",
   ].join("\n"),
   [`${SNAP}/drive.ts`]: ['import { trpc } from "../../../packages/client/src/trpc.ts";', "export const snapped = trpc.tag.snapped.queryOptions();"].join("\n"),
+  // Routers mounted deeper than any fixed walk limit: the mount path is followed to the root however long it is.
+  "packages/server/src/transport/trpc/routers/deep.ts": [
+    'import { procedure, router } from "@trpc/server";',
+    "const level8 = router({ deepest: procedure.query(() => []) });",
+    ...DEEP_LEVELS.map((level) => `const level${String(level)} = router({ l${String(level + 1)}: level${String(level + 1)} });`),
+    "export const level1 = router({ l2: level2 });",
+  ].join("\n"),
 };
 
-// A graph tree with the real tree's split: the client's world and the tooling callers' world load the DOM library, and the
-// server's and snap's worlds do not. The merged program loads the DOM library for every file.
+// A graph tree with the real tree's split: the client's world loads the DOM library, and the server's, the tooling
+// callers' and snap's worlds do not. The merged program loads the DOM library for every file.
 const SERVER_WORLD = "packages/server/tsconfig.json";
 const TOOLING_WORLD = "tsconfig.tooling.json";
 const SNAP_WORLD = "tsconfig.snap.json";
@@ -122,7 +138,7 @@ function surfaceTree(files: Readonly<Record<string, string>>): Record<string, st
     "tsconfig.world-browser.json": plantedTsconfig({ lib: dom, include: [], ...jsx }),
     [WORLD]: plantedTsconfig({ lib: dom, include: ["../a/src", "../client/src", "../contracts/src"], ...jsx }),
     [SERVER_WORLD]: plantedTsconfig({ lib: LIB, include: ["src"] }),
-    [TOOLING_WORLD]: plantedTsconfig({ lib: dom, include: [TOOLING] }),
+    [TOOLING_WORLD]: plantedTsconfig({ lib: LIB, include: [TOOLING] }),
     [SNAP_WORLD]: plantedTsconfig({ lib: LIB, include: [SNAP] }),
   };
 }
@@ -139,11 +155,12 @@ test("a procedure is called through the client proxy, the server's caller, a typ
   plantedTree,
 }) => {
   const report = await scan(await plantedTree(surfaceTree(PROCEDURE_TREE)));
-  expect(report.procedures).toBe(13);
+  expect(report.procedures).toBe(14);
   expect(found(report)).toEqual([
     "test-only-procedure appRouter.tag probed tests=1 keys=0",
     "test-only-procedure appRouter.tag prune tests=1 keys=0",
     "uncalled-procedure appRouter ping tests=0 keys=0",
+    `uncalled-procedure ${DEEP_HOME} deepest tests=0 keys=0`,
     "uncalled-procedure appRouter.tag named tests=0 keys=0",
     "uncalled-procedure appRouter.tag rename tests=0 keys=0",
     "uncalled-procedure appRouter.tag stale tests=0 keys=1",
@@ -151,7 +168,7 @@ test("a procedure is called through the client proxy, the server's caller, a typ
   ]);
   // A procedure row is excused by its outside-caller row, never by a caller; its twin `ping` stays reported.
   expect(report.outside.map(({ row, at, calls }) => ({ row, at, calls }))).toEqual(
-    PROCEDURE_ROWS.map((row) => ({ row, at: ["packages/server/src/transport/trpc/router.ts:3"], calls: 0 })),
+    PROCEDURE_ROWS.map((row) => ({ row, at: ["packages/server/src/transport/trpc/router.ts:4"], calls: 0 })),
   );
   expect(report.stale).toEqual(ROUTE_ROWS);
 });
@@ -159,9 +176,11 @@ test("a procedure is called through the client proxy, the server's caller, a typ
 const HONO = {
   "node_modules/hono/package.json": '{ "name": "hono", "types": "index.d.ts" }',
   "node_modules/hono/index.d.ts": [
+    "export interface Context { json(value: unknown): Response; redirect(url: string): Response }",
     "export declare class Hono {",
     "  get(path: string, ...handlers: unknown[]): Hono;",
     "  post(path: string, ...handlers: unknown[]): Hono;",
+    "  delete(path: string, ...handlers: unknown[]): Hono;",
     "  on(method: string, path: string, ...handlers: unknown[]): Hono;",
     "  use(...handlers: unknown[]): Hono;",
     "}",
@@ -180,12 +199,15 @@ const HONO = {
     "declare global {",
     "  namespace JSX {",
     "    interface Element {}",
-    "    interface IntrinsicElements { img: { src?: string }; a: { href?: string } }",
+    "    interface IntrinsicElements { img: { src?: string; alt?: string }; a: { href?: string } }",
     "  }",
     "}",
     "export {};",
   ].join("\n"),
 };
+
+// The functions a fold follows from `fetch` to its constant, past the old fixed depth of six.
+const FOLD_CHAIN = [1, 2, 3, 4, 5, 6, 7, 8];
 
 const ROUTE_TREE = {
   ...HONO,
@@ -227,6 +249,15 @@ const ROUTE_TREE = {
     "export function versioned(url: string): string {",
     `  return \`/v1${DOLLAR}{url}\`;`,
     "}",
+    // Builders whose values travel before they reach a slot, and one whose value only labels an image.
+    ...["templated", "param", "picked", "stored", "prop", "labelled"].map((name) => `export function ${name}Url(): string {\n  return "/api/${name}";\n}`),
+    // The server mints these into a response, or into a lookalike object.
+    "export function mintedUrl(id: string): string {",
+    `  return \`/api/minted/${DOLLAR}{id}\`;`,
+    "}",
+    "export function unmintedUrl(id: string): string {",
+    `  return \`/api/unminted/${DOLLAR}{id}\`;`,
+    "}",
   ].join("\n"),
   "packages/server/src/entry/http/routes.ts": [
     'import type { Hono } from "hono";',
@@ -246,6 +277,12 @@ const ROUTE_TREE = {
     '  app.get("/api/routed", () => null);',
     '  app.get("/api/constructed", () => null);',
     '  app.get("/api/built/:id", () => null);',
+    ...["templated", "param", "picked", "stored", "prop", "labelled", "deep", "many/babab", "many/zzzzz"].map(
+      (path) => `  app.get("/api/${path}", () => null);`,
+    ),
+    // A Map's get shares Hono's verb name and registers nothing.
+    "  const cache = new Map<string, string>();",
+    '  cache.get("/api/cached");',
     `  app.get(\`${DOLLAR}{pattern.prefix}:id${DOLLAR}{pattern.suffix}\`, () => null);`,
     ...PLANTED_ROUTE_ROWS.map((row) => `  app.on(${JSON.stringify(row.method)}, ${JSON.stringify(row.path)}, () => null);`),
     "  app.use(() => null);",
@@ -291,6 +328,69 @@ const ROUTE_TREE = {
     'export const constructed = (): URL => new URL(constructedUrl(), "https://app.example");',
     'export const sized = (): Promise<Response> => fetch(versioned(builtUrl("x")));',
   ].join("\n"),
+  // The server answers a mint with a URL the browser then loads; a local object's json method sends nothing.
+  "packages/server/src/entry/http/mint.ts": [
+    'import type { Context, Hono } from "hono";',
+    'import { mintedUrl, unmintedUrl } from "../../../../contracts/src/routes.ts";',
+    "const reply = { json: (value: unknown): unknown => value };",
+    "export function registerMint(app: Hono): void {",
+    '  app.post("/api/mint", (c: Context) => c.json({ url: mintedUrl("m1") }));',
+    '  app.get("/api/minted/:id", () => null);',
+    '  app.delete("/api/minted/:id", () => null);',
+    '  app.get("/api/unminted/:id", () => reply.json({ url: unmintedUrl("u1") }));',
+    "}",
+  ].join("\n"),
+  // Builder values that reach a URL slot through a template, a parameter, a return, a variable or a component prop, and
+  // one whose prop only labels an image.
+  "packages/client/src/flows.tsx": [
+    'import type {} from "planted-jsx";',
+    'import { labelledUrl, paramUrl, pickedUrl, propUrl, storedUrl, templatedUrl } from "../../contracts/src/routes.ts";',
+    "function MenuLink(props: { readonly href: string }): JSX.Element {",
+    "  return <a href={props.href} />;",
+    "}",
+    "export function downloadUrl(url: string): void {",
+    '  const anchor = document.createElement("a");',
+    "  anchor.href = url;",
+    "}",
+    `export const templated = <MenuLink href={\`${DOLLAR}{templatedUrl()}?format=orb\`} />;`,
+    "export const passed = (): void => downloadUrl(paramUrl());",
+    "function picked(): string {",
+    "  return pickedUrl();",
+    "}",
+    "export const returned = (): void => downloadUrl(picked());",
+    "export const viaVariable = (): void => {",
+    "  const stored = storedUrl();",
+    "  downloadUrl(stored);",
+    "};",
+    "function Thumb(props: { readonly thumbUrl: string }): JSX.Element {",
+    "  return <img src={props.thumbUrl} />;",
+    "}",
+    "export const thumb = <Thumb thumbUrl={propUrl()} />;",
+    "function Label(props: { readonly hint: string }): JSX.Element {",
+    "  return <img alt={props.hint} />;",
+    "}",
+    "export const label = <Label hint={labelledUrl()} />;",
+    'export const mint = (): Promise<Response> => fetch("/api/mint", { method: "POST" });',
+  ].join("\n"),
+  // Folds past any fixed limit: a chain of functions longer than a depth cap, a cross of more alternatives than a
+  // pattern cap, and a cycle, which ends in a wildcard.
+  "packages/client/src/folds.ts": [
+    'const DEEP = "/api/deep";',
+    "function d0(): string {",
+    "  return DEEP;",
+    "}",
+    ...FOLD_CHAIN.map((at) => `function d${String(at)}(): string {\n  return d${String(at - 1)}();\n}`),
+    `export const deep = (): Promise<Response> => fetch(d${String(FOLD_CHAIN.length)}());`,
+    'type Part = "a" | "b";',
+    `export const many = (p1: Part, p2: Part, p3: Part, p4: Part, p5: Part): Promise<Response> => fetch(\`/api/many/${DOLLAR}{p1}${DOLLAR}{p2}${DOLLAR}{p3}${DOLLAR}{p4}${DOLLAR}{p5}\`);`,
+    "function loopA(): string {",
+    "  return loopB();",
+    "}",
+    "function loopB(): string {",
+    "  return loopA();",
+    "}",
+    "export const looped = (): Promise<Response> => fetch(loopA());",
+  ].join("\n"),
   // A server's outbound fetch runs in a world with no DOM library, so it is no browser's request to our routes.
   "packages/server/src/infra/egress.ts": 'export const egress = (): Promise<Response> => fetch("/api/orphan");\n',
   "packages/client/src/serve.ts": [
@@ -309,17 +409,26 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
 }) => {
   const report = await scan(await plantedTree(surfaceTree(ROUTE_TREE)));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(16 + PLANTED_ROUTE_ROWS.length);
+  expect(report.routes).toBe(29 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
     "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
     "uncalled-route GET /api/_debug/unread tests=0 keys=0",
+    "uncalled-route GET /api/labelled tests=0 keys=0",
+    "uncalled-route GET /api/many/zzzzz tests=0 keys=0",
     "uncalled-route GET /api/orphan tests=0 keys=0",
+    "uncalled-route GET /api/unminted/:id tests=0 keys=0",
     "uncalled-route GET /api/upload tests=0 keys=0",
     "uncalled-route GET /api/widget/:id/asset tests=0 keys=0",
   ]);
+  // A value read through a parameter or a prop, and a cycle, fold to a wildcard: the builder call is what credits those
+  // routes, and the write itself is listed.
   expect(report.unplaced).toEqual([
+    { file: "packages/client/src/flows.tsx", line: 4, sink: "href" },
+    { file: "packages/client/src/flows.tsx", line: 8, sink: "href" },
+    { file: "packages/client/src/flows.tsx", line: 21, sink: "src" },
+    { file: "packages/client/src/folds.ts", line: 38, sink: "fetch" },
     { file: "packages/client/src/requests.tsx", line: 4, sink: "src" },
     { file: "packages/client/src/requests.tsx", line: 12, sink: "fetch" },
     { file: "packages/client/src/requests.tsx", line: 15, sink: "fetch" },
@@ -355,6 +464,9 @@ test("a judged row reports apart with its open item, and an entry for a gone row
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
     "uncalled-route GET /api/_debug/unread tests=0 keys=0",
+    "uncalled-route GET /api/labelled tests=0 keys=0",
+    "uncalled-route GET /api/many/zzzzz tests=0 keys=0",
+    "uncalled-route GET /api/unminted/:id tests=0 keys=0",
     "uncalled-route GET /api/upload tests=0 keys=0",
     "uncalled-route GET /api/widget/:id/asset tests=0 keys=0",
   ]);

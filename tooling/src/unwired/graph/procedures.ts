@@ -11,8 +11,11 @@
 //   a key and sends no request: it is counted in `keys` and calls nothing. A same-named method declared anywhere else
 //   is a call.
 // - A route is a Hono verb registration under {@link ROUTE_HOMES}. Its path and each request's URL fold through ./urls.ts.
-// - A request to our origin is sent from a file whose own world loads the DOM library (worlds.ts `browserFiles`), or from
-//   snap, which drives the real app over HTTP (owner ruling). A server's outbound fetch is not one.
+// - A request to our origin is sent from any file but a server's: product code outside snap whose own world loads no DOM
+//   library (worlds.ts `browserFiles`) fetches outward. Snap drives the real app over HTTP (owner ruling), so its request
+//   is a product call; a Node test's or a tool's request is a test call.
+// - A URL the server mints into its response (`c.json({ url: frameUrl(id) })`) is requested by the browser that reads it,
+//   so the builder's call there is the request; the client's own fetch of that opaque string folds to nothing.
 // - A route or procedure called from outside the repository sits in {@link OUTSIDE_CALLERS}, one reason per row, and is
 //   printed so the owner can rule on each row.
 import type { CallExpression, Expression, Node, PropertyAssignment, ShorthandPropertyAssignment, SourceFile } from "@typescript/native/ast";
@@ -41,7 +44,7 @@ import { READS, sameNode } from "./roles.ts";
 import type { RoleSite } from "./state.ts";
 import { productReader, SNAP_SOURCE } from "./state.ts";
 import type { CallerPath, Pattern, Request, RouteMethod } from "./urls.ts";
-import { ANY_METHOD, asMethod, callerPath, FOLD_DEPTH, fold, literalsOf, merged, requestsOf, unwrap, walkFiles } from "./urls.ts";
+import { ANY_METHOD, asMethod, callerPath, fold, HONO_PACKAGE, literalsOf, merged, requestsOf, unwrap, walkFiles } from "./urls.ts";
 
 // --- What the query reads -------------------------------------------------------------------------------------------
 
@@ -66,7 +69,6 @@ const TRPC_SCOPE = "@trpc/";
 // declares on a procedure sends one.
 const KEY_VERBS: ReadonlySet<string> = new Set(["queryKey", "queryFilter", "infiniteQueryKey", "infiniteQueryFilter", "mutationKey", "pathKey", "pathFilter"]);
 
-const HONO_PACKAGE = "hono";
 // Hono's route verbs and the method each registers; `on` takes its method as the first argument and its path second.
 const HONO_VERBS: Readonly<Record<string, RouteMethod | null>> = {
   get: "GET",
@@ -112,6 +114,14 @@ export const OUTSIDE_CALLERS: readonly OutsideCaller[] = [
     reason: "a person opens the invite link the app shares; the link carries the public origin, so no request in the tree names it",
   },
   { surface: "route", method: "GET", path: "*", reason: "the browser loads the app shell and its static files by navigation" },
+  // The frame document's bootstrap defines orbPluginAssetUrl (packages/server/src/entry/http/plugin-frame.ts).
+  {
+    surface: "route",
+    method: "GET",
+    path: "/api/plugin-frame/:id/asset",
+    reason:
+      "a guest plugin's frame script loads its bundled images through orbPluginAssetUrl, which the frame document's bootstrap defines; guest scripts are outside the tree",
+  },
 ];
 
 /** What this query cannot see, printed with every run. */
@@ -119,8 +129,8 @@ const PROCEDURE_LIMITS: readonly string[] = [
   "A procedure reached through a computed key (trpc[name]) is not placed; a key the resolver cannot place reaches no procedure.",
   "A procedure value read whole (stored, passed on, destructured) counts as called; a queryKey, queryFilter or mutationKey alone does not.",
   "A proxy read the graph's origin walk cannot place is a lost read of the graph (pnpm unwired graph --explain-lost) and reaches no procedure.",
-  "A URL counts only where a platform request takes it, or where an in-tree URL builder's call sits in a URL slot (a request's URL, the URL constructor, an href, src or action write, a router's to, or another such builder's argument); a builder's value stored in a variable first is followed only by a platform request's fold.",
-  "Only a file whose own world loads the DOM library, or snap, sends requests to our routes; a server's or a Node tool's fetch is outbound.",
+  "A URL counts where a platform request takes it, or where an in-tree URL builder's value reaches a URL slot (a request's URL, the URL constructor, an href, src or action write, a router's to) or a response the server sends. The value is followed through templates, concatenations and branches, builders, variables, in-tree parameters, returns and in-tree members or props; a URL in a Map or an array, or built by a function passed as a value, is not followed.",
+  "A product file outside snap whose own world loads no DOM library sends no request to our routes: its fetch is outbound. A URL builder's call in that file counts only in a response it sends (c.json, c.redirect).",
   "A URL part the checker gives no literal type is one wildcard segment; a caller whose URL starts with a wildcard is unplaced and listed, never matched.",
   "A URL builder's method is unknown, so its call matches every method of the routes its URL fits.",
   "A request the e2e suite sends through Playwright's request API, and any request a script or the browser sends unprompted, is not seen.",
@@ -255,17 +265,25 @@ function* fromPackage(world: NativeWorld, symbol: NativeSymbol | undefined, owns
   return packages.every((name) => name !== null && owns(name));
 }
 
-// The value a record property gives: a property assignment's initializer, or a shorthand's name.
-function valueOfMember(member: RecordMember): Expression | null {
-  if (isPropertyAssignment(member)) {
-    return member.initializer;
-  }
-  return isIdentifier(member.name) ? member.name : null;
+// A router record's property with the value it gives: an assignment's initializer, or the name a shorthand reads.
+interface RecordMember {
+  readonly member: PropertyAssignment | ShorthandPropertyAssignment;
+  readonly value: Expression;
 }
 
-type RecordMember = PropertyAssignment | ShorthandPropertyAssignment;
+function recordMember(node: Node): RecordMember | null {
+  if (!isObjectLiteralExpression(node.parent)) {
+    return null;
+  }
+  if (isPropertyAssignment(node) && isPropertyName(node.name)) {
+    return { member: node, value: node.initializer };
+  }
+  return isShorthandPropertyAssignment(node) && isIdentifier(node.name) ? { member: node, value: node.name } : null;
+}
 
-const isMountMember = (member: RecordMember): member is PropertyAssignment => isPropertyAssignment(member) && isIdentifier(unwrap(member.initializer));
+// A record property whose value names a router variable: the router it mounts.
+const mountOf = ({ member }: RecordMember): PropertyAssignment | null =>
+  isPropertyAssignment(member) && isIdentifier(unwrap(member.initializer)) ? member : null;
 
 function* procedureType(world: NativeWorld, value: Expression): APIRequestGenerator<ProcedureType | null> {
   const { checker } = world;
@@ -280,19 +298,26 @@ function* procedureType(world: NativeWorld, value: Expression): APIRequestGenera
 function procedureInventory(world: NativeWorld, files: readonly SourceFile[]): readonly ProcedureRecord[] {
   const members: RecordMember[] = [];
   walkFiles(files, (node) => {
-    if ((isPropertyAssignment(node) || isShorthandPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isPropertyName(node.name)) {
-      members.push(node);
+    const member = recordMember(node);
+    if (member !== null) {
+      members.push(member);
     }
   });
-  const types = world.batch(members.map((member) => procedureType(world, valueOfMember(member) as Expression)));
-  const procedures = members.filter((_, at) => types[at] !== null);
-  const routerNames = members.filter((member, at): member is PropertyAssignment => types[at] === null && isMountMember(member));
+  const types = world.batch(members.map(({ value }) => procedureType(world, value)));
+  const procedures = members.flatMap(({ member }, at) => {
+    const type = types[at];
+    return type === null || type === undefined ? [] : [{ member, type }];
+  });
+  const routerNames = members.flatMap((member, at) => {
+    const mount = types[at] === null ? mountOf(member) : null;
+    return mount === null ? [] : [mount];
+  });
   const mountedSymbols = world.symbolsAt(routerNames.map((member) => unwrap(member.initializer)));
   // A router variable's declaration key to the record property that mounts it.
   const mounts = new Map<string, PropertyAssignment>();
-  for (const [at, symbol] of mountedSymbols.entries()) {
+  for (const [mount, symbol] of routerNames.map((member, at) => [member, mountedSymbols[at]] as const)) {
     for (const key of symbol === undefined ? [] : declarationKeys(symbol)) {
-      mounts.set(key, routerNames[at] as PropertyAssignment);
+      mounts.set(key, mount);
     }
   }
   const variables: Node[] = [];
@@ -304,30 +329,33 @@ function procedureInventory(world: NativeWorld, files: readonly SourceFile[]): r
   const variableKeys = new Map(
     world.symbolsAt(variables).map((symbol, at) => [variables[at]?.parent, symbol === undefined ? [] : declarationKeys(symbol)] as const),
   );
-  const pathOf = (record: Node, seen: number): string => {
+  // A record's mount path; `seen` holds the records already on it, so a mount cycle ends the path there.
+  const pathOf = (record: Node, seen: ReadonlySet<string>): string => {
     const call = record.parent;
     const holder = isCallExpression(call) ? call.parent : undefined;
-    if (holder === undefined || seen > FOLD_DEPTH) {
+    const key = `${world.siteOf(record).file}#${String(record.pos)}-${String(record.end)}`;
+    if (holder === undefined || seen.has(key)) {
       return "";
     }
+    const onPath = new Set([...seen, key]);
     if (isPropertyAssignment(holder) && isObjectLiteralExpression(holder.parent)) {
-      return joined(pathOf(holder.parent, seen + 1), holder.name.getText());
+      return joined(pathOf(holder.parent, onPath), holder.name.getText());
     }
     if (!(isVariableDeclaration(holder) && isIdentifier(holder.name))) {
       return "";
     }
-    const mount = (variableKeys.get(holder) ?? []).map((key) => mounts.get(key)).find((found) => found !== undefined);
-    return mount === undefined || !isPropertyAssignment(mount) ? holder.name.text : joined(pathOf(mount.parent, seen + 1), mount.name.getText());
+    const mount = (variableKeys.get(holder) ?? []).map((found) => mounts.get(found)).find((found) => found !== undefined);
+    return mount === undefined ? holder.name.text : joined(pathOf(mount.parent, onPath), mount.name.getText());
   };
-  return procedures.map((member) => {
+  return procedures.map(({ member, type }) => {
     const { name } = member;
     return {
       declaration: member,
       name: isPropertyName(name) ? name.text : name.getText(),
-      home: pathOf(member.parent, 0),
+      home: pathOf(member.parent, new Set()),
       file: world.siteOf(name).file,
       line: lineOf(name),
-      type: types[members.indexOf(member)] as ProcedureType,
+      type,
     };
   });
 }
@@ -341,6 +369,14 @@ function routeSegments(pattern: Pattern): readonly string[] | null {
     return [REST];
   }
   return text.startsWith("/") ? text.split("/").slice(1) : null;
+}
+
+// The methods a registration takes: a verb member's own, or each one `app.on`'s first argument folds to.
+function* methodsOf(world: NativeWorld, fixed: RouteMethod | null, first: Expression): APIRequestGenerator<readonly RouteMethod[]> {
+  if (fixed !== null) {
+    return [fixed];
+  }
+  return (yield* fold(world, first)).map((pattern) => (pattern.includes(null) ? ANY_METHOD : asMethod(pattern.join(""))));
 }
 
 // Every Hono route the registrar files declare, one per path its registration can take.
@@ -365,14 +401,11 @@ function routeInventory(world: NativeWorld, files: readonly SourceFile[]): reado
       const fixed = HONO_VERBS[callee.name.text] ?? null;
       const [first, second] = call.arguments;
       const pathArgument = fixed === null ? second : first;
-      if (pathArgument === undefined || (fixed === null && first === undefined)) {
+      if (first === undefined || pathArgument === undefined) {
         return [];
       }
-      const methods =
-        fixed === null
-          ? (yield* fold(world, first as Expression, 0)).map((pattern) => (pattern.includes(null) ? ANY_METHOD : asMethod(pattern.join(""))))
-          : [fixed];
-      const paths = yield* fold(world, pathArgument, 0);
+      const methods = yield* methodsOf(world, fixed, first);
+      const paths = yield* fold(world, pathArgument);
       const { file, position } = world.siteOf(call);
       const line = lineOf(call);
       return methods.flatMap((routeMethod) =>
@@ -605,7 +638,7 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
   const routes = routeInventory(world, homed(ROUTE_HOMES));
   const outside = new Map(OUTSIDE_CALLERS.map((row) => [outsideKey(row), { row, at: [] as string[], calls: 0 }] as const));
   const browser = browserFiles(options.root);
-  const requests = requestsOf(world, sources, (file) => browser.has(file) || file.startsWith(SNAP_SOURCE));
+  const requests = requestsOf(world, sources, (file) => browser.has(file) || file.startsWith(SNAP_SOURCE) || !productReader(file));
   const { credits, unplaced } = routeCredits(routes, requests);
   const findings = [...judgeProcedures(tallyProcedures(world, graph.facts.roleSites, procedures), outside), ...judgeRoutes(routes, credits, outside)];
   const sorted = findings.toSorted((x, y) => x.file.localeCompare(y.file) || x.line - y.line || x.member.localeCompare(y.member));
