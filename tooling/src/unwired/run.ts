@@ -6,7 +6,7 @@
 // restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
 // verbs run both engines except `unions`, `procedures` and `columns`, which run one engine and refuse `--cross-check`,
 // and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves every receiver
-// site of a removed contract key and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage
+// site of a removed contract key over the graph session's merged program and exits 1 while one still sends it; `coverage` runs the test suites with V8 coverage
 // and writes what no run executed (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree,
 // classified by where it sits (./literal-hits.ts).
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -30,7 +30,7 @@ import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
-import { codesGraph, cssGraph, domGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
+import { codesGraph, cssGraph, domGraph, queryGraph, removedKeysGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -43,7 +43,6 @@ import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
 import { outsideTable, scanProcedures } from "./procedures.ts";
-import { checkRemovedKeys } from "./removed-keys.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
@@ -233,8 +232,8 @@ function parseArgs(argv: readonly string[]): Args {
   };
 }
 
-function runRemovedKeys(args: Args): number {
-  const report = checkRemovedKeys({ root: args.root, base: args.base, head: args.head });
+async function runRemovedKeys(args: Args): Promise<number> {
+  const report = await removedKeysGraph({ root: args.root, base: args.base, head: args.head }, log);
   for (const { key, senders, loose, unresolved, other } of report.removed) {
     for (const hit of senders) {
       process.stdout.write(`sender\t${key}\t${hit.receiver}\t${hit.at}\t${hit.text}\n`);
@@ -253,6 +252,10 @@ function runRemovedKeys(args: Args): number {
   log(
     `${report.base}...${report.head}: removed=${report.removed.length} scanned=${scanned} ${report.failed ? "FAILED: a removed key still has a sender" : "no sender"}`,
   );
+  if (report.session !== null) {
+    logSession(report.session);
+  }
+  logLimits(report.limits);
   return report.failed ? EXIT.violations : EXIT.clean;
 }
 

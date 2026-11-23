@@ -1,9 +1,15 @@
-// `pnpm unwired removed-keys`: a deletion branch's removed contract keys that a sender outside the server still writes.
-// `z.object` strips an unknown key silently and an `as const` writer passes the compiler, so the check reads every
-// sender the resolver places. A sender is a write the resolver places on the shape the key was removed from, or a key
-// of a loose object (`Record<string, unknown>`) that flows into one of our tRPC procedures or our own HTTP routes. A
-// key on another declared member is someone else's field; a key the resolver cannot place is listed, never failed on.
-// The worlds load from the working tree, so `head` must be the checked-out commit and the tracked files clean.
+// `pnpm unwired removed-keys` as a query over the graph session: a deletion branch's removed contract keys that a sender
+// outside the server still writes. `z.object` strips an unknown key silently and an `as const` writer passes the compiler,
+// so the check reads every sender the key resolver places on the session's one merged program.
+//
+// - A sender is a write the resolver (../key-resolver.ts) places on the shape the key was removed from, or a key of a loose
+//   object (`Record<string, unknown>`) that flows into one of our tRPC procedures or our own HTTP routes. A key on another
+//   declared member is someone else's field; a key the resolver cannot place is listed, never failed on.
+// - The senders are the receivers in {@link RECEIVER_PATHS}, where a stripped key fails silently: the client, the plugins
+//   and the e2e suites alike. It is no product population, so the product and credit split of D357 has nothing to judge.
+// - The removed keys come from the merge base's and head's blobs, each parsed on its own by the native parser. The merged
+//   program loads the working tree, so `head` must be the checked-out commit and the tracked files clean.
+// - A branch that removes no key builds no session.
 
 import type { CallExpression, Expression, Identifier, Node, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
 import {
@@ -19,25 +25,25 @@ import {
   isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isPropertySignatureDeclaration,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
+  isSourceFile,
   isSpreadAssignment,
+  isStringLiteral,
   isTypeAliasDeclaration,
   isVariableDeclaration,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
-import ts from "typescript";
-import { execGit } from "../floor/git/git.ts";
-import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import { TRPC_PACKAGE } from "./boundaries.ts";
-import type { KeyResolution } from "./key-resolver.ts";
-import { resolveKeys } from "./key-resolver.ts";
-import { gitGrep } from "./literal-hits.ts";
-import type { PropertyName } from "./native.ts";
-import { constituents, declarationKeys, declaredBy, homeFiles, isPropertyName, NativeWorld } from "./native.ts";
-import { patternText, platformCall } from "./procedures.ts";
-import { packageWorlds } from "./worlds.ts";
+import { execGit } from "../../floor/git/git.ts";
+import { TRPC_PACKAGE } from "../boundaries.ts";
+import type { KeyResolution } from "../key-resolver.ts";
+import { resolveKeys } from "../key-resolver.ts";
+import { gitGrep } from "../literal-hits.ts";
+import type { PropertyName } from "../native.ts";
+import { constituents, declarationKeys, declaredBy, isPropertyName, NativeWorld } from "../native.ts";
+import { patternText, platformCall } from "../procedures.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
 const CONTRACT_PATHS = ["packages/contracts/src", "packages/server/src/transport"] as const;
@@ -79,7 +85,7 @@ const MUTATION_OPTIONS = "mutationOptions";
 const QUERY_PACKAGE = "/node_modules/@tanstack/";
 const SERIALIZE = "JSON.stringify";
 const OWN_ROUTE = /^\//u;
-const OUTSIDE_WORLDS = "outside every world";
+const OUTSIDE_PROGRAM = "outside the merged program";
 // A string with the key's text that sits in no key slot: a plain value, listed for a person.
 const NO_KEY_POSITION = "no key position";
 // An open slot whose value reaches none of our procedures or routes: an outside API's body, or a value never sent.
@@ -116,21 +122,28 @@ export interface RemovedKeysReport {
   readonly removed: readonly RemovedKey[];
   /** True when a removed key has a sender or a loose sender. */
   readonly failed: boolean;
+  readonly limits: readonly string[];
 }
 
-/** The repository, the revisions to compare, and the worlds that hold the senders (every package and test world by
- *  default). */
+/** The repository and the revisions to compare: `head` against its merge base with `base`. */
 export interface RemovedKeysOptions {
   readonly root: string;
   readonly base: string;
   readonly head: string;
-  readonly worlds?: readonly string[];
 }
 
+/** What the check cannot see, printed with every run. */
+const REMOVED_KEY_LIMITS: readonly string[] = [
+  "A key is removed only from a declaration under packages/contracts/src or packages/server/src/transport: an interface or type member, a schema or literal key, a shorthand. A key a branch drops elsewhere is not checked.",
+  "A receiver file the merged program does not load (a JSON fixture, a script outside every world) is searched as text, and each line that names a removed key is listed unresolved; it never passes silently.",
+  "A key site the key resolver cannot place is listed unresolved with its reason and never fails the branch.",
+  "An open object's key fails the branch only where the value reaches one of our tRPC procedures or a platform request whose URL folds to a path on our own origin; a body sent elsewhere, or a URL whose start does not fold, is listed unresolved.",
+];
+
 // The declaration a key sits in, by its name: an interface, a type alias or a schema's variable.
-function homeOf(node: ts.Node): string | null {
-  for (let at: ts.Node = node.parent; !ts.isSourceFile(at); at = at.parent) {
-    if ((ts.isInterfaceDeclaration(at) || ts.isTypeAliasDeclaration(at) || ts.isVariableDeclaration(at)) && ts.isIdentifier(at.name)) {
+function homeOf(node: Node): string | null {
+  for (let at = node.parent; !isSourceFile(at); at = at.parent) {
+    if ((isInterfaceDeclaration(at) || isTypeAliasDeclaration(at) || isVariableDeclaration(at)) && isIdentifier(at.name)) {
       return at.name.text;
     }
   }
@@ -139,19 +152,18 @@ function homeOf(node: ts.Node): string | null {
 
 // How many times a file declares each key in each home: an interface or type member, a schema or literal key, a
 // shorthand. The parser sees a key wherever it sits, a one-line `z.object({ a: … })` included.
-function declaredKeys(file: string, text: string): ReadonlyMap<string, number> {
-  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+function declaredKeys(source: SourceFile): ReadonlyMap<string, number> {
   const into = new Map<string, number>();
-  const visit = (node: ts.Node): void => {
-    const named = ts.isPropertySignature(node) || ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node) ? node.name : undefined;
+  const visit = (node: Node): void => {
+    const named = isPropertySignatureDeclaration(node) || isPropertyAssignment(node) || isShorthandPropertyAssignment(node) ? node.name : undefined;
     const home = named === undefined ? null : homeOf(node);
-    if (named !== undefined && home !== null && (ts.isIdentifier(named) || ts.isStringLiteral(named))) {
+    if (named !== undefined && home !== null && (isIdentifier(named) || isStringLiteral(named))) {
       const pair = JSON.stringify([home, named.text]);
       into.set(pair, (into.get(pair) ?? 0) + 1);
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   };
-  visit(source);
+  source.forEachChild(visit);
   return into;
 }
 
@@ -174,7 +186,7 @@ function blobsAt(root: string, rev: string, files: readonly string[]): ReadonlyM
 }
 
 function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, ReadonlyMap<string, number>> {
-  return new Map([...blobsAt(root, rev, files)].map(([file, text]) => [file, declaredKeys(file, text)]));
+  return NativeWorld.readTexts(root, blobsAt(root, rev, files), declaredKeys);
 }
 
 /** A removed key's home at `head`: the file and the declaration name that dropped it. */
@@ -481,8 +493,8 @@ interface Tally {
   other: number;
 }
 
-// Every name or string key in a world's receiver files that spells a removed key, with its verdict.
-function scanWorld(world: NativeWorld, files: readonly string[], removed: ReadonlyMap<string, readonly Home[]>, tallies: ReadonlyMap<string, Tally>): void {
+// Every name or string key in the receiver files that spells a removed key, with its verdict.
+function scanFiles(world: NativeWorld, files: readonly string[], removed: ReadonlyMap<string, readonly Home[]>, tallies: ReadonlyMap<string, Tally>): void {
   const candidates: PropertyName[] = [];
   for (const file of files) {
     const visit = (node: Node): void => {
@@ -520,69 +532,78 @@ function record(tally: Tally, hit: Hit, verdict: Verdict): void {
   }
 }
 
-// Resolve every receiver site in each world that homes it; the receiver files the worlds hold.
-function scanWorlds(
-  root: string,
-  configs: readonly string[],
-  removed: ReadonlyMap<string, readonly Home[]>,
-  tallies: ReadonlyMap<string, Tally>,
-): ReadonlySet<string> {
-  const homes = homeFiles(configs, NativeWorld.fileLists(root, configs));
-  const held = new Set<string>();
-  for (const config of configs) {
-    const files = [...(homes.get(config) ?? [])].filter((file) => receiverOf(file) !== null);
-    for (const file of files) {
-      held.add(file);
-    }
-    if (files.length > 0) {
-      using world = NativeWorld.open(root, config);
-      scanWorld(world, files, removed, tallies);
-    }
-  }
-  return held;
+// --- The run ------------------------------------------------------------------------------------------------------
+
+/** A checked deletion branch: its revisions, the receiver files at `head`, and the keys it removes by home. */
+export interface RemovedKeysPlan {
+  readonly root: string;
+  readonly base: string;
+  readonly head: string;
+  readonly scanned: Readonly<Record<Receiver, number>>;
+  readonly removed: ReadonlyMap<string, readonly Home[]>;
 }
 
-// A receiver file no world holds (a JSON fixture, a script outside every program) is searched as text and listed.
-function outsideWorlds(
-  { root, head, held }: { readonly root: string; readonly head: string; readonly held: ReadonlySet<string> },
-  tallies: ReadonlyMap<string, Tally>,
-): void {
-  for (const [key, tally] of tallies) {
-    for (const receiver of RECEIVERS) {
-      for (const { file, line, text } of gitGrep(root, head, ["-w", "-F", key], RECEIVER_PATHS[receiver])) {
-        if (!(held.has(file) || COMMENT_LINE.test(text))) {
-          tally.unresolved.push({ receiver, at: `${file}:${String(line)}`, text: text.trim(), reason: OUTSIDE_WORLDS });
-        }
-      }
-    }
-  }
-}
-
-/** Compare `head` with its merge base against `base`, and resolve every receiver site at `head` that names a removed key. */
-export function checkRemovedKeys(options: RemovedKeysOptions): RemovedKeysReport {
-  const { root, base, head } = options;
+/** Check that `head` is the clean checkout, then read the receiver files and the keys the branch removes.
+ *  @throws When `head` is not the checked-out commit or the tracked files differ from it: the merged program loads the
+ *  working tree. */
+export function removedKeysPlan({ root, base, head }: RemovedKeysOptions): RemovedKeysPlan {
   if (execGit(root, ["rev-parse", head]).trim() !== execGit(root, ["rev-parse", "HEAD"]).trim()) {
     throw new Error(`removed-keys resolves senders in the checked-out tree: check out ${head} first`);
   }
   if (execGit(root, ["status", "--porcelain"]).trim() !== "") {
     throw new Error("removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first");
   }
-  const receiverFiles = RECEIVERS.map(
-    (receiver) =>
-      [
-        receiver,
-        execGit(root, ["ls-tree", "-r", "--name-only", head, "--", ...RECEIVER_PATHS[receiver]])
-          .split("\n")
-          .filter(Boolean),
-      ] as const,
-  );
-  const scanned = Object.fromEntries(receiverFiles.map(([receiver, files]) => [receiver, files.length])) as Record<Receiver, number>;
-  const removed = removedKeys(root, base, head);
-  const tallies = new Map<string, Tally>([...removed.keys()].map((key) => [key, { senders: [], loose: [], unresolved: [], other: 0 }]));
-  const held = removed.size === 0 ? new Set<string>() : scanWorlds(root, options.worlds ?? [...packageWorlds(root), ...TEST_WORLDS], removed, tallies);
-  outsideWorlds({ root, head, held }, tallies);
-  const entries = [...removed].map(
+  const scanned = Object.fromEntries(
+    RECEIVERS.map((receiver) => [
+      receiver,
+      execGit(root, ["ls-tree", "-r", "--name-only", head, "--", ...RECEIVER_PATHS[receiver]])
+        .split("\n")
+        .filter(Boolean).length,
+    ]),
+  ) as Record<Receiver, number>;
+  return { root, base, head, scanned, removed: removedKeys(root, base, head) };
+}
+
+const emptyTallies = (plan: RemovedKeysPlan): ReadonlyMap<string, Tally> =>
+  new Map([...plan.removed.keys()].map((key) => [key, { senders: [], loose: [], unresolved: [], other: 0 }]));
+
+// A receiver file the merged program does not load (a JSON fixture, a script outside every world) is searched as text
+// and listed.
+function outsideProgram(plan: RemovedKeysPlan, held: ReadonlySet<string>, tallies: ReadonlyMap<string, Tally>): void {
+  for (const [key, tally] of tallies) {
+    for (const receiver of RECEIVERS) {
+      for (const { file, line, text } of gitGrep(plan.root, plan.head, ["-w", "-F", key], RECEIVER_PATHS[receiver])) {
+        if (!(held.has(file) || COMMENT_LINE.test(text))) {
+          tally.unresolved.push({ receiver, at: `${file}:${String(line)}`, text: text.trim(), reason: OUTSIDE_PROGRAM });
+        }
+      }
+    }
+  }
+}
+
+function reportOf(plan: RemovedKeysPlan, tallies: ReadonlyMap<string, Tally>): RemovedKeysReport {
+  const entries = [...plan.removed].map(
     ([key, from]): RemovedKey => ({ key, homes: from.map(({ file, name }) => `${file}:${name}`), ...(tallies.get(key) as Tally) }),
   );
-  return { base, head, scanned, removed: entries, failed: entries.some((entry) => entry.senders.length > 0 || entry.loose.length > 0) };
+  return {
+    base: plan.base,
+    head: plan.head,
+    scanned: plan.scanned,
+    removed: entries,
+    failed: entries.some((entry) => entry.senders.length > 0 || entry.loose.length > 0),
+    limits: REMOVED_KEY_LIMITS,
+  };
+}
+
+/** The report of a branch that removes no key: no receiver site can name one, so no session is built. */
+export const nothingRemoved = (plan: RemovedKeysPlan): RemovedKeysReport => reportOf(plan, emptyTallies(plan));
+
+/** Resolve every receiver site the session's merged program holds that names a removed key, then search the receiver
+ *  files it does not hold as text. */
+export function removedKeysPass(world: NativeWorld, plan: RemovedKeysPlan): RemovedKeysReport {
+  const tallies = emptyTallies(plan);
+  const files = world.files.map((source) => world.fileOfSource(source)).filter((file) => receiverOf(file) !== null);
+  scanFiles(world, files, plan.removed, tallies);
+  outsideProgram(plan, new Set(files), tallies);
+  return reportOf(plan, tallies);
 }
