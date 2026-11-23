@@ -140,3 +140,46 @@ test("a whole row handed to a row-typed slot reads only the columns the slot's h
   });
   expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(FILE.length + 1), bucket])).toEqual([["NoteWrite.body", "member-write-only"]]);
 });
+
+// drizzle-orm's JSON column in miniature: the select row types the column by the value type it was declared with.
+const JSON_COLUMNS = libraryModule(
+  [
+    "export interface Column { readonly name: string }",
+    "export interface Json<T> extends Column { readonly json: T }",
+    "export declare const text: () => Column;",
+    "export declare const json: <T>() => Json<T>;",
+    "export interface TableConfig<C> { readonly columns: C }",
+    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"] & string]: T["columns"][K] extends Json<infer V> ? V : string } }',
+    "export declare function sqliteTable<C>(name: string, columns: C): Table<TableConfig<C>> & C;",
+    "export declare const db: {",
+    '  select(): { from<T extends { readonly $inferSelect: unknown }>(table: T): T["$inferSelect"][] };',
+    "  insert<T>(table: T): { values(value: unknown): void };",
+    "};",
+  ],
+  STORE_PACKAGE,
+);
+
+// A whole row serialized out of the process sends each column it carries, and a JSON column's value all the way down,
+// so the trace members stored there are sent, not only written.
+test("a whole row sent out sends its columns and a JSON column's declared members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...JSON_COLUMNS,
+    [SCHEMA]: [
+      `import { json, sqliteTable, text } from "${STORE_PACKAGE}";`,
+      'import type { Trace } from "../../../a/src/trace.ts";',
+      'export const snaps = sqliteTable("snaps", { id: text(), snapshot: json<Trace>() });',
+    ].join("\n"),
+    [`${GRAPH_SOURCE}/trace.ts`]: "export interface Trace { readonly dropped: readonly { readonly id: string }[] }",
+    [FILE]: [
+      `import { db } from "${STORE_PACKAGE}";`,
+      'import { snaps } from "../../db/src/schema/tables.ts";',
+      'import type { Trace } from "./trace.ts";',
+      'export const store = (): void => { const snapshot: Trace = { dropped: [{ id: "x" }] }; db.insert(snaps).values({ id: "i", snapshot }); };',
+      "export const dump = (): string => JSON.stringify(db.select().from(snaps));",
+    ].join("\n"),
+  });
+  expect(scan.members.unwired.map(({ key, bucket }) => `${key} ${bucket}`)).toEqual([
+    `${GRAPH_SOURCE}/trace.ts:Trace.dropped member-sent-only`,
+    `${GRAPH_SOURCE}/trace.ts:Trace.dropped.id member-sent-only`,
+  ]);
+});

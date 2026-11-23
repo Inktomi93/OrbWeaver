@@ -3,8 +3,10 @@
 import type { CallExpression, Expression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
+  isArrowFunction,
   isAsExpression,
   isBinaryExpression,
+  isBlock,
   isCallExpression,
   isConditionalExpression,
   isIdentifier,
@@ -181,6 +183,8 @@ export interface StoreWrite {
 
 const STORE_METHODS: ReadonlySet<string> = new Set(["values", "set"]);
 const CONFLICT_METHODS: ReadonlySet<string> = new Set(["onConflictDoUpdate"]);
+const INSERT_METHOD = "insert";
+const SELECT_METHOD = "select";
 
 // `db.insert(T)` or `db.update(T)` somewhere down the call chain a builder method is called on.
 function tableOf(call: CallExpression): { readonly table: Expression; readonly opener: Node } | null {
@@ -189,7 +193,7 @@ function tableOf(call: CallExpression): { readonly table: Expression; readonly o
     if (isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
       const method = at.expression.name.text;
       const [table] = at.arguments;
-      if ((method === "insert" || method === "update") && table !== undefined && at.arguments.length === 1) {
+      if ((method === INSERT_METHOD || method === "update") && table !== undefined && at.arguments.length === 1) {
         return { table, opener: at.expression.name };
       }
     }
@@ -241,6 +245,37 @@ export function storeWritesAt(node: Node): readonly StoreWrite[] {
   const values = isArrayLiteralExpression(value) ? value.elements.map(storedValue) : [value];
   const at = node.expression.name;
   return values.map((stored) => ({ ...opened, value: stored, at }));
+}
+
+// The field object of a select chain, `db.select({ ... }).from(t).where(c)`, or of the chain a builder callback returns.
+function selectedFields(query: Expression): ObjectLiteralExpression | null {
+  let at: Node = unwrapValue(query);
+  if (isArrowFunction(at) && !isBlock(at.body)) {
+    at = unwrapValue(at.body);
+  }
+  while (isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
+    const [fields] = at.arguments;
+    if (at.expression.name.text === SELECT_METHOD && fields !== undefined && isObjectLiteralExpression(fields)) {
+      return fields;
+    }
+    at = at.expression.expression;
+  }
+  return null;
+}
+
+/** The fields an insert-select stores: `.insert(T).select(q)`, whose select chain, or the chain a builder callback
+ *  returns, names in `select({ ... })` the column each selected value fills. */
+export function insertSelectWritesAt(node: Node): readonly StoreWrite[] {
+  if (!(isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === SELECT_METHOD)) {
+    return [];
+  }
+  const [query] = node.arguments;
+  const opened = tableOf(node);
+  if (query === undefined || opened === null || !(isIdentifier(opened.opener) && opened.opener.text === INSERT_METHOD)) {
+    return [];
+  }
+  const fields = selectedFields(query);
+  return fields === null ? [] : [{ ...opened, value: fields, at: node.expression.name }];
 }
 
 /** The property read a stored key's value copies, through `??`, `||`, a conditional's branches and assertions: the

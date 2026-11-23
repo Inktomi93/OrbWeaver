@@ -26,10 +26,16 @@ const DRIZZLE = [
   "export declare function index(name: string): { on(column: unknown): unknown };",
   "export declare function primaryKey(options: { readonly columns: readonly unknown[] }): unknown;",
   "export declare function eq(left: unknown, right: unknown): unknown;",
+  "export interface SelectQuery { where(condition: unknown): SelectQuery }",
+  "export interface QueryBuilder { select(fields: Record<string, unknown>): { from(table: unknown): SelectQuery } }",
   "export declare const db: {",
-  "  insert(table: unknown): { values(value: unknown): void };",
+  "  insert(table: unknown): {",
+  "    values(value: unknown): void;",
+  "    select(query: SelectQuery | ((qb: QueryBuilder) => SelectQuery)): { onConflictDoNothing(): void };",
+  "  };",
   "  update(table: unknown): { set(value: unknown): { where(condition: unknown): void } };",
   '  select(): { from<T extends { readonly $inferSelect: unknown }>(table: T): T["$inferSelect"][] };',
+  "  select(fields: Record<string, unknown>): { from(table: unknown): SelectQuery };",
   "};",
   "export declare const rawDb: { run(statement: unknown): void };",
   "export declare function sql(text: TemplateStringsArray, ...values: unknown[]): unknown;",
@@ -183,6 +189,35 @@ test("a store writes a literal's keys, a whole value's required members, and an 
 }) => {
   const report = await scan(await plantedTree(STORES));
   expect(named(report)).toEqual(["drafts.body never-written", "ghosts.body never-written", "ghosts.title never-written", "posts.body never-written"]);
+});
+
+// An insert-select writes the columns its select names, as a built query or as the query a builder callback returns:
+// `skips.assetId`, `reason` and `marks.tag`. `skips.spare` and `marks.note` are selected by nobody, so they stay
+// never written.
+const INSERT_SELECT = tree(
+  [
+    'export const assets = sqliteTable("assets", { id: required(), kind: text() });',
+    'export const skips = sqliteTable("skips", { assetId: required(), reason: text(), spare: text() });',
+    'export const marks = sqliteTable("marks", { tag: text(), note: text() });',
+  ],
+  [
+    'import { sql } from "drizzle-orm";',
+    'export const add = (): void => { db.insert(schema.assets).values({ id: "a", kind: "k" }); };',
+    "export const skip = (reason: string): void => {",
+    "  db.insert(schema.skips)",
+    "    .select(db.select({ assetId: schema.assets.id, reason: sql`r` }).from(schema.assets).where(eq(schema.assets.id, reason)))",
+    "    .onConflictDoNothing();",
+    "};",
+    "export const mark = (): void => { db.insert(schema.marks).select((qb) => qb.select({ tag: sql`t` }).from(schema.assets)); };",
+    "export const kinds = db.select().from(schema.assets).map((row) => row.kind);",
+    "export const skipped = db.select().from(schema.skips).map((row) => [row.assetId, row.reason, row.spare]);",
+    "export const marked = db.select().from(schema.marks).map((row) => [row.tag, row.note]);",
+  ],
+);
+
+test("an insert-select writes the columns its select names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scan(await plantedTree(INSERT_SELECT));
+  expect(named(report)).toEqual(["marks.note never-written", "skips.spare never-written"]);
 });
 
 // A store whose value is typed by a mapped subset of the row, `Omit<>`, `Pick<>` or `Partial<>`, writes each column the

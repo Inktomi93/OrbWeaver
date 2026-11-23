@@ -2,7 +2,8 @@
 // literal keys, hand-offs, flow sites, keyed reads, variant tables, JSX attributes, module specifiers, classes, doc
 // names), the declarations it meets and the edges syntax alone decides. No checker call happens here.
 //
-// - A Drizzle write hands each stored value to its column (../boundaries.ts storeWritesAt): a read it copies into a key
+// - A Drizzle write hands each stored value to its column (../boundaries.ts storeWritesAt, and insertSelectWritesAt for
+//   an insert-select's field object): a read it copies into a key
 //   gets no role and the stored value is not handed whole, so build.ts flows each member into its column instead. A
 //   property read inside a table definition defines an index or a foreign key and reads no stored value.
 import type {
@@ -139,7 +140,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { StoreWrite } from "../boundaries.ts";
-import { copiedReads, storeWritesAt, tableDefinition } from "../boundaries.ts";
+import { copiedReads, insertSelectWritesAt, storeWritesAt, tableDefinition } from "../boundaries.ts";
 import { isParseCall } from "../handoffs.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -1468,7 +1469,7 @@ class Walker {
 
   // A Drizzle write's stored values, the reads its literal keys copy, and the argument it stores (the header's ruling).
   #stores(node: CallExpression): void {
-    const stores = storeWritesAt(node);
+    const stores = [...storeWritesAt(node), ...insertSelectWritesAt(node)];
     if (stores.length === 0) {
       return;
     }
