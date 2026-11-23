@@ -29,7 +29,7 @@ import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
-import { isPrimitive } from "./state.ts";
+import { isPrimitive, literalValues } from "./state.ts";
 
 // A caller that hands its own parameter on is asked in turn, this many callers deep; deeper reads the table whole.
 const PARAMETER_KEY_DEPTH = 4;
@@ -74,7 +74,7 @@ export class Keys {
       return parameter === undefined;
     });
     const keyTypes = state.world.typesAt(rest.map(({ argument }) => argument));
-    const typedKeys = state.batch(keyTypes.map((type) => state.literalValues(type)));
+    const typedKeys = state.batch(keyTypes.map((type) => literalValues(type)));
     const typedNamed = rest.flatMap(({ type }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name })));
     state.roleAll(state.slotMembers(typedNamed).flat(), "read", sites.file, 0);
     const whole = rest.filter(({ type }, z) => (typedKeys[z]?.length ?? 0) === 0 && !isPrimitive(type)).map(({ type }) => type);
@@ -195,7 +195,7 @@ export class Keys {
         return this.#keysOf(parameter.fn, parameter.index, depth + 1);
       }
     }
-    const [typed] = state.batch([state.literalValues(state.world.typesAt([argument])[0])]);
+    const [typed] = state.batch([literalValues(state.world.typesAt([argument])[0])]);
     return typed === null || typed === undefined ? "whole" : new Set(typed);
   }
 

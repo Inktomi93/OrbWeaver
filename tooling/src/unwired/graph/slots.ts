@@ -32,6 +32,7 @@ import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
 import { declarationNameOf } from "./sites.ts";
 import type { GraphState } from "./state.ts";
+import { literalValues } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
 import { variantsDeclarations, writtenLiterals } from "./variants.ts";
 
@@ -105,7 +106,7 @@ function bagSelections(state: GraphState, variants: Variants, sites: FileSites):
   const walks = state.origins(asks);
   const fills = asks.flatMap(({ member }, y) => (walks[y]?.decls ?? []).filter((decl) => variants.mayBeAxis(decl)).map((decl) => ({ decl, member })));
   const types = state.batch(fills.map(({ member }) => checker.getTypeOfSymbol.gen(member)));
-  const literals = state.batch(types.map((type) => state.literalValues(type)));
+  const literals = state.batch(types.map((type) => literalValues(type)));
   for (const [y, { decl }] of fills.entries()) {
     variants.defer(decl, { typed: literals[y] ?? null });
   }
@@ -175,7 +176,7 @@ function recordWrites(
     return !(forwards.has(x) || inTable(writes[x]?.at ?? 0)) && value !== undefined && !isLiteralWrite(value);
   });
   const types = state.world.typesAt(typed.flatMap((x) => (writes[x]?.value === undefined ? [] : [writes[x].value])));
-  const literals = state.batch(types.map((type) => state.literalValues(type)));
+  const literals = state.batch(types.map((type) => literalValues(type)));
   const typedAt = new Map(typed.map((x, y) => [x, literals[y] ?? null]));
   for (const [x, write] of writes.entries()) {
     for (const key of resolved[x] ?? []) {

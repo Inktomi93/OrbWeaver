@@ -803,17 +803,20 @@ function receiverOf(
   return provider === null ? null : { receiver: "provider", cite: provider };
 }
 
-// The literal stage over the reported rows, with its search inputs dropped from the report.
+// The literal stage over the reported rows, with its search inputs dropped from the report. Until fields runs on the
+// graph program, the first world's program reads the files it holds and parses the rest alone.
 function staging(
   root: string,
-  sources: Sources,
+  configs: readonly string[],
   findings: readonly Finding[],
   control: FieldDeclaration | undefined,
 ): { readonly rows: readonly UnwiredField[]; readonly stage: LiteralStage | null } {
-  const staged =
-    control === undefined
-      ? { rows: findings.map((finding) => ({ ...finding, literal: null })), stage: null }
-      : literalStage(root, sources, findings, { key: control.key, member: control.member, known: namesOf(control).map(offsetOf) });
+  const [config] = configs;
+  if (control === undefined || config === undefined) {
+    return { rows: findings.map(({ known: _known, neverWritten: _neverWritten, ...row }) => ({ ...row, literal: null })), stage: null };
+  }
+  using world = NativeWorld.open(root, config);
+  const staged = literalStage(root, world, findings, { key: control.key, member: control.member, known: namesOf(control).map(offsetOf) });
   return { rows: staged.rows.map(({ known: _known, neverWritten: _neverWritten, ...row }) => row), stage: staged.stage };
 }
 
@@ -916,7 +919,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     .filter(({ field }) => !reported.has(field.key) && isProduction(field.site.file))
     .sort((a, b) => a.field.key.localeCompare(b.field.key))[0]?.field;
   const stagedAt = performance.now();
-  const staged = staging(options.root, sources, findings, control);
+  const staged = staging(options.root, configs, findings, control);
   options.log(`literal stage: ${seconds(stagedAt)}`);
   const acknowledged = new Set(rolled.filter(({ keys }) => [...keys].some((key) => acknowledgements.has(key))).map(({ field }) => field.key));
   const ruling = (row: UnwiredField): "validated" | "acknowledged" | null => {

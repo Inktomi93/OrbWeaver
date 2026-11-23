@@ -8,7 +8,14 @@ import { calledMember, effectiveArguments } from "./ui-dom.ts";
 // The attributes and classes a sealed library stamps on its own DOM: cmdk's `cmdk-*` attributes, Base UI's
 // `data-base-ui-*` hooks and `base-ui-*` ids, Radix's `data-radix-*`, CodeMirror's `.cm-*` classes. A selector that
 // names one reaches past the @orb/ui seal and breaks on a library upgrade.
-const SEALED_INTERNAL = /(?:^|[\s.[,>+~=:("'])(?:cmdk-[a-z]|data-base-ui-|base-ui-[a-z]|data-radix-)|\.cm-[a-z]/u;
+const SEALED_ATTRIBUTE = String.raw`cmdk-[a-z]|data-base-ui-|base-ui-[a-z]|data-radix-`;
+const SEALED_CLASS = "cm-[a-z]";
+// A class list names a sealed class as one of its whitespace-separated tokens.
+const SEALED_CLASS_TOKEN = new RegExp(String.raw`(?:^|\s)${SEALED_CLASS}`, "u");
+const SEALED_INTERNAL = new RegExp(String.raw`(?:^|[\s.[,>+~=:("'])(?:${SEALED_ATTRIBUTE})|\.${SEALED_CLASS}`, "u");
+
+/** A bare attribute or class name a sealed library stamps: the library's own hook, never ours to write or read. */
+export const SEALED_NAME = new RegExp(`^(?:${SEALED_ATTRIBUTE}|${SEALED_CLASS})`, "u");
 
 const SEALED_INTERNAL_MESSAGE =
   "A string names a sealed library's internal attribute or class (cmdk-*, data-base-ui-*, .cm-*). Expose what you need from the @orb/ui seal (a prop, a ref, a part) instead of reaching into its DOM.";
@@ -35,7 +42,7 @@ export const noSealedInternalsRule: OrbRule = {
         return;
       }
       const selector = SELECTOR_LOOKUPS.has(method ?? "") || /^(?:[.#[:]|[a-z][\w-]*[.#[:])/u.test(text.trim());
-      if ((selector && SEALED_INTERNAL.test(text)) || (method === CLASS_LOOKUP && /(?:^|\s)cm-[a-z]/u.test(text))) {
+      if ((selector && SEALED_INTERNAL.test(text)) || (method === CLASS_LOOKUP && SEALED_CLASS_TOKEN.test(text))) {
         context.report({ node, message: SEALED_INTERNAL_MESSAGE });
       }
     };

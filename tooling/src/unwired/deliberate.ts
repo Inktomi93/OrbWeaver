@@ -1,7 +1,6 @@
-// Members with no production caller on purpose: an external caller reaches them. The scan reports these apart
-// from the unwired members, each with its reason. `member: null` covers every member of the home, and a
+// Members with no production caller on purpose: an external caller reaches them. Every scan reports these apart
+// from the unwired members, each with its reason, through sortDeliberate. `member: null` covers every member of the home, and a
 // `directory` entry covers every home of every file under it.
-
 import type { JudgedEntry, JudgedSplit } from "./judged.ts";
 import { sortJudged } from "./judged.ts";
 

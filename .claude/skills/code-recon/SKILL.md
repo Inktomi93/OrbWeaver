@@ -21,6 +21,7 @@ disagree, the CLI wins.
 | Where is a code shape (call, signature, JSX, import) | `ast-grep run -p` |
 | X inside Y, X without Z, one item in a list | `ast-grep scan --inline-rules` |
 | Where is a literal (config key, message, CSS `@import`) | Grep tool / `rg` |
+| Where a name appears and as what: code read, write or call, type, string, comment, doc, config | orbweaver: `pnpm unwired hits <name...>`, with `--json` for a script; it prints the scanned-file count |
 | What does it do | `Read` the whole file |
 
 Invoke `ast-grep`, never `sg` (often `newgrp`). Check `command -v ast-grep` up front; if it is

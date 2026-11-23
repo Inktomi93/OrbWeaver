@@ -79,7 +79,7 @@ A key an `.extend({ key })` call re-declares is the base schema's key, so its re
 
 ## Limits of the unions scan
 
-`UNION_LIMITS` in `tooling/src/unwired/unions.ts` is the one list. These classes stay reported, so judge them by hand:
+`UNION_LIMITS` in `tooling/src/unwired/graph/unions.ts` is the one list. These classes stay reported, so judge them by hand:
 
 - A tuple only a file outside every package world enumerates, such as `packages/ui/tokens.build.ts`. Adding those files to a world raises the run past the memory bar.
 - A value typed by one tuple that production hands into another tuple's slot. The tuples are separate vocabularies.
@@ -135,7 +135,7 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 
 ## Error codes nothing throws or handles
 
-`pnpm unwired codes` lists each error and refusal code from the closed code vocabularies in `packages/contracts` with its throw sites, its wire crossing and its client handlers. `CODE_LIMITS` in `tooling/src/unwired/codes.ts` is the one list of what it cannot see.
+`pnpm unwired codes` lists each error and refusal code from the closed code vocabularies in `packages/contracts` with its throw sites, its wire crossing and its client handlers. `CODE_LIMITS` in `tooling/src/unwired/graph/codes.ts` is the one list of what it cannot see.
 
 - A vocabulary holds codes when production hands a member to the code parameter that `domainReason` in `packages/server/src/transport/trpc/error-mapping.ts` reads, or when a refusal field of a tRPC answer or an HTTP route's JSON body is typed by it.
 - A member is thrown when the code parameter's value comes from it. A helper argument counts only when it names one parameter, so `tag(code, level)` makes neither a code.
