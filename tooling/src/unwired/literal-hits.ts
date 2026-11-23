@@ -16,11 +16,15 @@
 // - A generated file is the house markers' call alone (tooling/src/floor/paths/generated-file.ts).
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
 //   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays.
-// - Only a saving hit in product source, the plugin bundles' included, can stand for a product read; a hit in a test,
-//   the tooling or a config is evidence to list, never to keep a row by (productRead).
+// - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source,
+//   the plugin bundles' included; a JSON file a product module imports; each showcase bundle's manifest, which the
+//   release build packs into the shipped zip. A hit in a test, the tooling or any other config is evidence to list,
+//   never to keep a row by.
 import { existsSync, readFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join, relative, resolve } from "node:path";
 import process from "node:process";
+import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type {
   ClassDeclaration,
   ClassExpression,
@@ -69,6 +73,8 @@ import { UsageError } from "../floor/cli/run-tool.ts";
 import { execGit, runGit } from "../floor/git/git.ts";
 import { isGeneratedFile } from "../floor/paths/generated-file.ts";
 import { looksLikeTestFilename } from "../floor/testing/test-kinds.ts";
+import { moduleSpecifiers } from "../floor/typescript/import-graph.ts";
+import { showcaseSourceDirectory } from "../plugin-author-showcase/index.ts";
 import type { Verdict } from "./field-sort.ts";
 import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
@@ -165,6 +171,8 @@ export interface LiteralSearch {
   readonly ignored: number;
   /** Each name's hits in `git grep` order, every occurrence on a line classified on its own. */
   readonly hits: ReadonlyMap<string, readonly LiteralHit[]>;
+  /** The data files the product loads: each JSON file a product module imports and each showcase bundle's manifest. */
+  readonly productData: ReadonlySet<string>;
   /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
 }
@@ -420,7 +428,25 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
       hits.get(hit.name)?.push(hit);
     }
   }
-  return { files, ignored, hits, resolved: resolvedHits(world, [...hits.values()].flat()) };
+  const all = [...hits.values()].flat();
+  return { files, ignored, hits, productData: loadedData(root, world, all), resolved: resolvedHits(world, all) };
+}
+
+// The data files among the hits' files that the product loads: a JSON file the program holds that a product module
+// imports (its import resolved by the program, so a JSON a test or a script imports stays out), and every showcase
+// bundle's manifest under the source directory the release build packs from.
+function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet<string> {
+  const manifests = SHOWCASE_PLUGIN_SLUGS.map((slug) => relative(root, join(showcaseSourceDirectory(root), slug, PLUGIN_MANIFEST_ENTRY)));
+  const held = new Set(hits.flatMap(({ file }) => (fileType(file) === "config" && world.has(file) ? [file] : [])));
+  if (held.size === 0) {
+    return new Set(manifests);
+  }
+  const specifiers = world.files
+    .filter((source) => isProduction(world.fileOfSource(source)))
+    .flatMap((source) => moduleSpecifiers(source).map((specifier) => ({ specifier, from: source.fileName })));
+  const resolved = world.batch(specifiers.map(({ specifier, from }) => world.program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
+  const imported = resolved.flatMap((module) => (module?.resolvedFileName === undefined ? [] : [relative(root, module.resolvedFileName)]));
+  return new Set([...manifests, ...imported.filter((file) => held.has(file))]);
 }
 
 const CODE_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call"]);
@@ -637,7 +663,7 @@ function judged(
   const declarations = rowDeclarations(world, rows);
   return rows.map((row, at) => {
     const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: declarations[at] ?? new Set() });
-    return { hits, literal: evidenceOf(row, hits, { own, elsewhere }, search.files) };
+    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData }, search.files) };
   });
 }
 
@@ -650,7 +676,7 @@ export const rowsEvidence = (search: LiteralSearch, world: NativeWorld, rows: re
 function evidenceOf(
   row: Omit<StageRow, "verdict">,
   hits: readonly LiteralHit[],
-  { own, elsewhere }: { readonly own: number; readonly elsewhere: number },
+  { own, elsewhere, productData }: { readonly own: number; readonly elsewhere: number; readonly productData: ReadonlySet<string> },
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
@@ -669,7 +695,7 @@ function evidenceOf(
       : [],
     own,
     elsewhere,
-    productRead: saving.some((hit) => isProduction(hit.file)),
+    productRead: saving.some((hit) => isProduction(hit.file) || productData.has(hit.file)),
   };
 }
 

@@ -2,8 +2,11 @@
 // property or declaration, an error the removal adds in a file that imports it names its reader, only the declaring
 // file and its importers are checked, and TypeScript's unused-code diagnostics are diffed against the graph.
 import { join } from "node:path";
+import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { TRIAL_REACHES } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
@@ -322,6 +325,55 @@ test("a compile-clean candidate whose name a product string or JSON key spells i
     [`${LIB}:zqOrphan`, "confirmed", []],
   ]);
   expect(report.literalFiles).toBeGreaterThan(0);
+});
+
+// What the product loads counts as product too: a JSON file a product module imports, and a showcase bundle's
+// manifest, which the release build packs into the shipped zip. A JSON file only a script imports stays an annotation.
+test("a key in a JSON file a product module imports or in a bundle manifest is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const [slug] = SHOWCASE_PLUGIN_SLUGS;
+  const manifest = `packages/showcase-plugins/bundles/${slug}/${PLUGIN_MANIFEST_ENTRY}`;
+  const withJson = (include: readonly string[]): string => {
+    const config = z
+      .looseObject({ compilerOptions: z.record(z.string(), z.unknown()) })
+      .parse(JSON.parse(plantedTsconfig({ lib: LIBS, include: [...include] })));
+    return JSON.stringify({ ...config, compilerOptions: { ...config.compilerOptions, resolveJsonModule: true } });
+  };
+  const root = await plantedTree(
+    graphTree(
+      {
+        "tsconfig.world-browser.json": withJson([]),
+        [WORLD]: withJson(["../*/src", "../a/scripts"]),
+        [LIB]: [
+          "export interface Shape { readonly kept: string; readonly zqImported: string; readonly zqScriptOnly: string; readonly zqManifest: string }",
+          "export declare const made: Shape;",
+        ].join("\n"),
+        [MAIN]: [
+          'import table from "../data/table.json" with { type: "json" };',
+          'import { made } from "./lib.ts";',
+          "const use = (value: unknown): unknown => value;",
+          "use(made.kept);",
+          "use(table);",
+        ].join("\n"),
+        "packages/a/data/table.json": '{ "zqImported": 1 }\n',
+        "packages/a/scripts/load.ts": ['import data from "../data/script.json" with { type: "json" };', "export const loaded = data;"].join("\n"),
+        "packages/a/data/script.json": '{ "zqScriptOnly": 1 }\n',
+        [manifest]: '{ "zqManifest": "x" }\n',
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null });
+  expect(
+    report.trials
+      .filter(({ label }) => label.includes(":Shape.zq"))
+      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zqImported`, "confirmed-literal", ["packages/a/data/table.json:1 config-key"]],
+    [`${LIB}:Shape.zqScriptOnly`, "confirmed", ["packages/a/data/script.json:1 config-key"]],
+    [`${LIB}:Shape.zqManifest`, "confirmed-literal", [`${manifest}:1 config-key`]],
+  ]);
 });
 
 // Candidates of many declaring files share a snapshot when no file group edits a file another checks, so a clean
