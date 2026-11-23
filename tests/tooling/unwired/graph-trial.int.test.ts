@@ -1,7 +1,9 @@
 // graph-trial deletes each finding of the named buckets in a throwaway snapshot: the delete removes the whole member,
 // property or declaration, an error the removal adds in a file that imports it names its reader, only the declaring
 // file and its importers are checked, and TypeScript's unused-code diagnostics are diffed against the graph.
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
@@ -10,6 +12,7 @@ import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Verdict } from "../../../tooling/src/unwired/field-sort.ts";
 import { VERDICTS } from "../../../tooling/src/unwired/field-sort.ts";
+import { PROFILES } from "../../../tooling/src/unwired/graph/options.ts";
 import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
@@ -789,6 +792,102 @@ test("an error no single candidate owns splits the group, and each half finds it
   expect(progress(lines)).toMatch(/ snapshots 3 /u);
 });
 
+// The second file imports the first, so the two cannot share a snapshot: two groups, the first with one candidate. A
+// preloaded module ends the compiler process as the first group's progress line is written, so the second group
+// fails on a dead compiler after the first landed.
+const NODE_OPTIONS = "NODE_OPTIONS";
+const END_COMPILER = [
+  'import { readFileSync } from "node:fs";',
+  "const write = process.stderr.write.bind(process.stderr);",
+  "process.stderr.write = (chunk, ...rest) => {",
+  '  if (String(chunk).startsWith("trial groups 1/")) {',
+  '    const children = "/proc/" + process.pid + "/task/" + process.pid + "/children";',
+  '    for (const pid of readFileSync(children, "utf8").split(" ").filter(Boolean)) {',
+  '      process.kill(Number(pid), "SIGKILL");',
+  "    }",
+  "  }",
+  "  return write(chunk, ...rest);",
+  "};",
+].join("\n");
+const FIRST = `${GRAPH_SOURCE}/first.ts`;
+const SECOND = `${GRAPH_SOURCE}/second.ts`;
+const TWO_GROUPS = {
+  [FIRST]: [
+    "export interface Ax { readonly x: string; readonly keep: string }",
+    'export const ax: Ax = { x: "1", keep: "k" };',
+    "export const keepOf = (): string => ax.keep;",
+  ].join("\n"),
+  [SECOND]: [
+    'import { keepOf } from "./first.ts";',
+    "export interface By { readonly y1: string; readonly y2: string; readonly keep: string }",
+    'export const by: By = { y1: "1", y2: "2", keep: keepOf() };',
+    "export const byKeep = (): string => by.keep;",
+  ].join("\n"),
+  [MAIN]: ['import { byKeep } from "./second.ts";', "byKeep();"].join("\n"),
+};
+const commitAll = (root: string): void => {
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-qm", "planted"]);
+};
+
+test("a trial that fails keeps the trials that landed with its failure, and a rerun of the same commit skips them", { timeout: 240_000 }, async ({
+  plantedTree,
+  runCli,
+  scratch,
+}) => {
+  const root = await plantedTree(graphTree(TWO_GROUPS, { entries: [MAIN] }));
+  commitAll(root);
+  const out = join(scratch, "trial.json");
+  const argv = ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${out}`];
+  const hooks = await plantedTree({ "end-compiler.mjs": END_COMPILER });
+  const crashed = await runCli("unwired", argv, { env: { [NODE_OPTIONS]: `--import=${pathToFileURL(join(hooks, "end-compiler.mjs")).href}` } });
+  await expect(crashed).toExitWith(EXIT.toolError);
+  const partial = z
+    .object({ trials: z.array(z.object({ label: z.string(), verdict: z.string() })), failure: z.string() })
+    .parse(JSON.parse(readFileSync(out, "utf8")));
+  expect(partial.trials.map(({ label, verdict }) => [label, verdict])).toEqual([[`${FIRST}:Ax.x`, NAMED_ONLY]]);
+  // the failure keeps the run's own error, the time and the group it was on; the tool prints the run's own error
+  expect(partial.failure).toMatch(/Unexpected EOF.*the trial failed at \S+; last progress: trial group 2\/2 starting/u);
+  expect(crashed.stderr).toContain("TOOL ERROR (thrown): Error: Unexpected EOF");
+  expect(crashed.stderr).not.toContain("SuppressedError");
+  const rerun = await runCli("unwired", argv);
+  await expect(rerun).toExitWith(EXIT.clean);
+  expect(rerun.stderr).toContain("resumed 1 trials");
+  const printed = rerun.stdout
+    .split("\n")
+    .filter((line) => line.startsWith(`${NAMED_ONLY}\t`))
+    .map((line) => line.split("\t").slice(0, 3).join("\t"));
+  expect(printed).toEqual([
+    `${NAMED_ONLY}\t${MEMBER_WRITE_ONLY}\t${FIRST}:Ax.x`,
+    `${NAMED_ONLY}\t${MEMBER_WRITE_ONLY}\t${SECOND}:By.y1`,
+    `${NAMED_ONLY}\t${MEMBER_WRITE_ONLY}\t${SECOND}:By.y2`,
+  ]);
+});
+
+test("a rerun refuses a trial record from another commit, and a tree with uncommitted changes keeps none", { timeout: 240_000 }, async ({
+  plantedTree,
+  runCli,
+  scratch,
+}) => {
+  const root = await plantedTree(graphTree(TWO_GROUPS, { entries: [MAIN] }));
+  commitAll(root);
+  const out = join(scratch, "trial.json");
+  const argv = ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${out}`];
+  await expect(await runCli("unwired", argv)).toExitWith(EXIT.clean);
+  const ledger = `${out}.trials.jsonl`;
+  expect(readFileSync(ledger, "utf8").split("\n").filter(Boolean)).toHaveLength(3);
+  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-q", "--allow-empty", "-m", "next"]);
+  const refused = await runCli("unwired", argv);
+  await expect(refused).toExitWith(EXIT.toolError);
+  expect(refused.stderr).toContain("holds trials from commit");
+  // a tracked file that differs from HEAD describes no commit: nothing is read from the ledger or written to a new one
+  writeFileSync(join(root, FIRST), `${TWO_GROUPS[FIRST]}\n`);
+  const fresh = join(scratch, "dirty.json");
+  await expect(await runCli("unwired", ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${fresh}`])).toExitWith(EXIT.clean);
+  expect(existsSync(`${fresh}.trials.jsonl`)).toBe(false);
+});
+
 test("--limit trials an even sample of the findings it names", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({ [MAIN]: "export {};", [LIB]: ["const one = 1;", "const two = 2;", "const three = 3;", "const four = 4;"].join("\n") }, { entries: [MAIN] }),
@@ -860,10 +959,29 @@ test.for([
     says: `--verdict=maybe: expected one of ${VERDICTS.join(", ")}`,
   },
   { refusal: "a verdict on a bucket whose rows carry none", argv: [`--bucket=${DEAD}`, `--verdict=${DEAD_VERDICT}`], says: `${DEAD} carries no verdict` },
+  {
+    refusal: "an unknown profile kind in a list",
+    argv: [`--bucket=${DEAD}`, "--profile=wall,trace"],
+    says: `--profile=trace: expected one of ${PROFILES.join(", ")}`,
+  },
+  { refusal: "the retired --cpu-profile", argv: [`--bucket=${DEAD}`, "--cpu-profile=out"], says: "--cpu-profile=out: unknown argument" },
 ])("pnpm unwired graph-trial says why it refuses $refusal", async ({ argv, says }, { runCli, scratch }) => {
   const run = await runCli("unwired", ["graph-trial", ...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(EXIT.misuse);
   expect(run.stderr).toContain(says);
+});
+
+test("pnpm unwired graph-trial --profile takes several kinds and writes each beside its report", { timeout: 240_000 }, async ({
+  plantedTree,
+  runCli,
+  scratch,
+}) => {
+  const root = await plantedTree(graphTree(TWO_GROUPS, { entries: [MAIN] }));
+  const out = join(scratch, "trial.json");
+  const run = await runCli("unwired", ["graph-trial", `--bucket=${MEMBER_WRITE_ONLY}`, `--root=${root}`, `--out=${out}`, "--profile=wall,heap"]);
+  await expect(run).toExitWith(EXIT.clean);
+  expect(readdirSync(`${out}.profile`).length).toBeGreaterThan(0);
+  expect(run.stderr).toMatch(/^profile heap \S+: inuse_space/mu);
 });
 
 // The base error sits after the cut in the edited file, so it moves by the cut's length and must still match.

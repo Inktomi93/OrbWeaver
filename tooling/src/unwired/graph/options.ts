@@ -9,7 +9,7 @@ export type GraphLog = (line: string) => void;
 export const ABLATIONS = ["literal-keys", "escape", "zod-twins", "spelling"] as const;
 export type Ablation = (typeof ABLATIONS)[number];
 
-/** What `--profile` collects: phase wall times and counts, plus the compiler's CPU or heap profile. */
+/** What `--profile` collects, any of them in one run: phase wall times and counts, the compiler's CPU profile, its heap profile. */
 export const PROFILES = ["wall", "cpu", "heap"] as const;
 export type ProfileKind = (typeof PROFILES)[number];
 
@@ -31,7 +31,7 @@ export type WhyTarget =
   | { readonly kind: "site"; readonly file: string; readonly line: number };
 
 interface GraphProfileOption {
-  readonly kind: ProfileKind;
+  readonly kinds: readonly ProfileKind[];
   /** Where a CPU or heap profile is written. */
   readonly dir: string;
 }
@@ -50,6 +50,9 @@ export interface GraphOptions {
   /** Report the lost reads by where their key came from. */
   readonly explainLost: boolean;
 }
+
+/** Whether the run collects `kind`. */
+export const profiling = (options: GraphOptions, kind: ProfileKind): boolean => options.profile?.kinds.includes(kind) === true;
 
 /** A fresh build of the whole tree with nothing traced, profiled or ablated. */
 export const FRESH_BUILD: GraphOptions = {
