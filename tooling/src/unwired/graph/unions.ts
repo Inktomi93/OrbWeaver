@@ -54,10 +54,11 @@ import type { LiteralRole, ValueUse } from "./roles.ts";
 import { literalRole, sameNode, valueUse } from "./roles.ts";
 import { declarationNameOf } from "./sites.ts";
 import { productReader } from "./state.ts";
-import type { Origins, Spelled } from "./union-slots.ts";
+import type { IndexedTuple, Origins, Spelled } from "./union-slots.ts";
 import {
   constantDepth,
   declaredSites,
+  indexTuples,
   isConstAssertion,
   isKeyTypeName,
   keyListTuples,
@@ -156,10 +157,11 @@ const UNION_LIMITS: readonly string[] = [
   "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's, and a value typed by one that production hands into the other's slot builds nothing there.",
   "A call that infers its own type parameter from a literal types the slot by the literal alone, so the slot is read from the declared parameter with that type parameter at its constraint: an object literal's property through the constraint's property, and a callback's returned value through the call's own slot when the callee returns the type parameter or a list of it. A constraint with no literal type (`<N extends string>(name: N)`) builds nothing.",
   'A literal whose declared slot is still a type parameter (`Object.freeze({ source: "checkout" })`, a generic row helper) holds nothing, so it builds nothing.',
+  "A type parameter in a slot's spelling reads what instantiates it: a call's explicit type argument or, inferred, its constraint; a type reference's argument or default (`Floor<R, H>` inside `Recipes<Role, Host>`); the contextual or receiver type's type arguments. A slot no product declaration spells (a library parameter such as `bag.push`, a library property, an unannotated return, a property assignment) is read from the checker's type for the slot, through a product alias, a union holding exactly one tuple's members, and the arguments of a library alias or type reference. A slot neither reading reaches (a type parameter nothing instantiates, a union of literals no tuple or two tuples hold exactly) names no tuple, so a literal there builds nothing.",
   "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into, with `z.enum`, a membership test or a type guard on a `string` or `unknown` parameter, is reported apart as parsed, with the sites that parse the input in.",
   "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged. An enumerated subset builds each of its members in the tuples it is a subset of.",
   "A tuple a lib key selection names (`Pick<T, K>`, `Omit<T, K>`, `Exclude<keyof T, K>`, `Extract<keyof T, K>`) is a key list: listed, never judged, so a stale key the type no longer has is not reported.",
-  "A tuple is judged only when product source (packages/*/src) declares it. A literal or reference credits a member when product source or tooling/src/snap/, which uses the product as its user does, writes it; a snap literal credits only through a slot read to a product tuple, and one in a slot whose tuple cannot be read (a library signature, a type parameter) credits none. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
+  "A tuple is judged only when product source (packages/*/src) declares it. A literal or reference credits a member when product source or tooling/src/snap/, which uses the product as its user does, writes it into a slot read to the tuple. A test or other tooling literal never builds a member, and a package-root file outside src (a build script such as `packages/ui/tokens.build.ts`) is tooling, so a tuple only such a file enumerates reports its members.",
 ];
 
 /** One member of a tuple: its text, its line and its element. */
@@ -215,9 +217,10 @@ interface Vocabulary {
   readonly respelled: ReadonlySet<string>;
 }
 
-// A slot whose declaration cannot be read may be any tuple's, so it rules none out.
+// A slot whose tuple cannot be read names none: crediting every tuple there would let one literal build a same-text
+// member of any vocabulary.
 const belongsTo = (origins: Origins, vocabulary: Vocabulary): boolean =>
-  origins === null || vocabulary.lineage.some((key) => origins.tuples.has(key)) || [...origins.literals.keys()].some((key) => vocabulary.respelled.has(key));
+  origins !== null && (vocabulary.lineage.some((key) => origins.tuples.has(key)) || [...origins.literals.keys()].some((key) => vocabulary.respelled.has(key)));
 
 const buildsMember = (built: Built, vocabulary: Vocabulary, text: string): boolean => (built.get(text) ?? []).some((origins) => belongsTo(origins, vocabulary));
 
@@ -462,11 +465,10 @@ function literalSites(world: NativeWorld, local: readonly UnionTuple[]): FirstWa
   const origins = world.batch(asked.map((literal) => slotOrigins(world, literal.node, literal.role)));
   const originsAt = new Map(asked.map((literal, index) => [nodeKey(literal.node), origins[index] ?? null]));
   // A literal deep in a constant's object reaches its slot only through a read of its own property; when no slot can be
-  // read it is no evidence for any tuple, where a direct constant may be any tuple's. A snap literal in a slot no tuple
-  // can be read from names none: snap credits the product only where it reaches the product's slot.
+  // read it holds nothing there.
   const literals = found.map(({ nested, ...literal }) => {
     const at = originsAt.get(nodeKey(literal.node)) ?? null;
-    return { ...literal, holds: literal.holds && !(nested && at === null), origins: at === null && !isProduction(literal.site.file) ? NOTHING_SPELLED : at };
+    return { ...literal, holds: literal.holds && !(nested && at === null), origins: at };
   });
   return { literals, ...into };
 }
@@ -656,6 +658,8 @@ function enumeratedSubsets(
   });
 }
 
+const indexed = (tuple: UnionTuple): IndexedTuple => ({ texts: tuple.members.map((member) => member.text), name: tuple.nameNode });
+
 // The reading of the product files, and each member's vocabulary: its tuple's lineage and linked literal types.
 interface Reading {
   readonly facts: Facts;
@@ -669,6 +673,7 @@ interface Reading {
 
 function readTuples(world: NativeWorld, log: GraphLog): Reading {
   const local = tuples(world, new Resolver(world));
+  indexTuples(world, local.map(indexed));
   const facts = readFacts(world, local);
   const satisfied = world.batch(local.map((tuple) => satisfiedOrigins(world, tuple.nameNode)));
   const entries = new Map(local.map((tuple, at) => [tuple.key, { tuple, satisfied: satisfied[at] ?? NOTHING_SPELLED }]));

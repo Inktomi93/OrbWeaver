@@ -2,8 +2,13 @@
 // the graph session's merged program: a type annotation, or the schema value a type is inferred from. Types cannot
 // say: a one-member union, an `Exclude` and a re-spelled subset all hold the same literals as the tuple.
 //
-// - A declaration is read only in a product file; one outside them (a library, a test) leaves its slot unreadable,
-//   and an unreadable slot rules no tuple out.
+// - A declaration is read only in a product file. A slot no product declaration spells (a library's parameter or
+//   property, an unannotated return, an assignment) is read from the literal's contextual type through the names the
+//   checker keeps: an alias, a union holding exactly one scanned tuple's members, and the arguments of a library alias
+//   or type reference. A slot neither can spell names no tuple.
+// - A type parameter is read through what instantiates it: a call's explicit type argument or, inferred, its
+//   constraint; a type reference's argument or default; a contextual or receiver type's type arguments. One no
+//   instantiation reaches leaves the slot unreadable.
 // - Remote nodes are materialised per request, so a declaration a symbol names is read back as its site and found
 //   again in the world's own parse of its file, and a walk keys what it has seen by span and kind, never by identity.
 import type {
@@ -28,7 +33,9 @@ import type {
   PropertyName,
   SetAccessorDeclaration,
   Statement,
+  TypeAliasDeclaration,
   TypeNode,
+  TypeParameterDeclaration,
   VariableDeclaration,
 } from "@typescript/native/ast";
 import {
@@ -40,6 +47,7 @@ import {
   isBindingElement,
   isCallExpression,
   isCaseClause,
+  isComputedPropertyName,
   isConditionalExpression,
   isConstructorDeclaration,
   isDefaultClause,
@@ -92,11 +100,11 @@ import {
   isVariableStatement,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeReference } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
-import { constituents, hasFlag, propertiesNamed } from "../native.ts";
+import { constituents, hasFlag } from "../native.ts";
 import type { LiteralRole } from "./roles.ts";
 import { sameNode } from "./roles.ts";
 import { productReader } from "./state.ts";
@@ -109,9 +117,26 @@ export interface Spelled {
   readonly literals: ReadonlyMap<string, string>;
 }
 
-/** A slot's {@link Spelled} vocabulary; null when the slot's declaration cannot be read to the end, which no tuple may
- *  rule out. */
+/** A slot's {@link Spelled} vocabulary; null when neither the slot's declaration nor its contextual type can be read to
+ *  the end, so the slot names no tuple. */
 export type Origins = Spelled | null;
+
+// A type parameter's instantiation: the spellings it stands for, keyed by the site of the parameter's name.
+type Bindings = ReadonlyMap<string, readonly Spelling[]>;
+
+// A node a slot is spelled by, with the instantiations of the type parameters it is read under.
+interface Spelling {
+  readonly node: Node;
+  readonly bindings: Bindings;
+}
+
+const NO_BINDINGS: Bindings = new Map();
+
+const unbound = (node: Node): Spelling => ({ node, bindings: NO_BINDINGS });
+
+const siteKey = (site: Site): string => `${site.file}:${String(site.position)}`;
+
+const merged = (...parts: readonly Bindings[]): Bindings => new Map(parts.flatMap((bindings) => [...bindings]));
 
 /** No tuple and no literal type. */
 export const NOTHING_SPELLED: Spelled = { tuples: new Set(), literals: new Map() };
@@ -225,11 +250,152 @@ export function* boundParameter(world: NativeWorld, argument: Node): APIRequestG
   return parent !== undefined && isParameterDeclaration(parent) ? parent : undefined;
 }
 
+// The declarations of a property, by their name sites, and the types it was found on, whose instantiations bind the
+// type parameters its declarations are spelled with.
+interface FoundProperty {
+  readonly sites: readonly Site[];
+  readonly owners: readonly Type[];
+}
+
+function* propertyOn(world: NativeWorld, types: readonly Type[], name: string): APIRequestGenerator<FoundProperty> {
+  const properties = yield* all(...types.map((type) => world.checker.getPropertyOfType.gen(type, name)));
+  const owners = types.filter((_, at) => properties[at] !== undefined);
+  return { sites: (yield* all(...properties.map((property) => symbolSites(world, property)))).flat(), owners };
+}
+
 // The declarations of property `name` in the contextual type of an object literal.
-function* propertiesOf(world: NativeWorld, object: ObjectLiteralExpression, name: string): APIRequestGenerator<readonly Site[]> {
+function* propertiesOf(world: NativeWorld, object: ObjectLiteralExpression, name: string): APIRequestGenerator<FoundProperty> {
   const type = yield* world.checker.getContextualType.gen(object);
-  const properties = type === undefined ? [] : yield* propertiesNamed(world.checker, type, name);
-  return (yield* all(...properties.map((property) => symbolSites(world, property)))).flat();
+  return yield* propertyOn(world, type === undefined ? [] : yield* constituents(type), name);
+}
+
+// The spellings a type is written from, read off the names the checker keeps: a product alias is its declaration, with
+// its type parameters bound to the alias's type arguments; a library alias, a union and a library type reference are
+// read through their parts; a literal, a primitive or another object type spells no tuple. Null for a type parameter,
+// whose instantiation the type does not say.
+function* typeSpellings(world: NativeWorld, type: Type): APIRequestGenerator<Declared> {
+  if (type.isTypeParameter()) {
+    return type.isThisType === true ? [] : null;
+  }
+  const alias = yield* type.getAliasSymbol.gen();
+  if (alias !== undefined) {
+    const parts = yield* type.getAliasTypeArguments.gen();
+    const declaration = yield* aliasDeclaration(world, alias);
+    return declaration === undefined
+      ? yield* partSpellings(world, parts)
+      : [{ node: declaration.type, bindings: yield* parameterBindings(world, declaration.typeParameters ?? [], parts) }];
+  }
+  if (type.isUnionType()) {
+    return yield* unionSpellings(world, yield* type.getTypes.gen());
+  }
+  if (type.isIntersectionType()) {
+    return yield* partSpellings(world, yield* type.getTypes.gen());
+  }
+  if (!type.isTypeReference()) {
+    return [];
+  }
+  const target = yield* (yield* type.getTarget.gen()).getSymbol.gen();
+  const owned = (yield* symbolSites(world, target)).some((site) => productReader(site.file));
+  return owned ? [] : yield* partSpellings(world, yield* world.checker.getTypeArguments.gen(type));
+}
+
+/** A tuple a scan reads: its member texts, and its declaration's name. */
+export interface IndexedTuple {
+  readonly texts: readonly string[];
+  readonly name: Identifier;
+}
+
+// Each world's scanned tuples by member set: the checker keeps no alias for `(typeof T)[number]`, so a union of string
+// literals is read as the one tuple whose members it holds exactly.
+const TUPLE_INDEXES = new WeakMap<NativeWorld, ReadonlyMap<string, readonly Identifier[]>>();
+
+const textsKey = (texts: Iterable<string>): string => JSON.stringify([...new Set(texts)].sort());
+
+/** Record the tuples a scan of `world` reads, so a union type holding exactly one tuple's members reads as that tuple. */
+export function indexTuples(world: NativeWorld, tuples: readonly IndexedTuple[]): void {
+  const index = new Map<string, Identifier[]>();
+  for (const { texts, name } of tuples) {
+    const key = textsKey(texts);
+    index.set(key, [...(index.get(key) ?? []), name]);
+  }
+  TUPLE_INDEXES.set(world, index);
+}
+
+const isNullish = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Undefined) || hasFlag(type.flags, TypeFlags.Null);
+
+// A union's string literals are one tuple's when they are exactly its members and no other tuple has the same; a
+// single literal or a set two tuples share names none, since types cannot tell those vocabularies apart. The other
+// members, `undefined` and `null` aside, are read as parts.
+function* unionSpellings(world: NativeWorld, members: readonly Type[]): APIRequestGenerator<Declared> {
+  const texts = members.flatMap((member) => (member.isStringLiteralType() ? [member.value] : []));
+  const named = texts.length > 1 ? TUPLE_INDEXES.get(world)?.get(textsKey(texts)) : undefined;
+  const reference = named?.length === 1 ? named[0] : undefined;
+  const rest = yield* partSpellings(
+    world,
+    members.filter((member) => !(member.isStringLiteralType() || isNullish(member))),
+  );
+  return reference === undefined || rest === null ? rest : [unbound(reference), ...rest];
+}
+
+function* partSpellings(world: NativeWorld, parts: readonly Type[]): APIRequestGenerator<Declared> {
+  const spelled: Spelling[] = [];
+  for (const part of parts) {
+    const spellings = yield* typeSpellings(world, part);
+    if (spellings === null) {
+      return null;
+    }
+    spelled.push(...spellings);
+  }
+  return spelled;
+}
+
+// Type parameter declarations bound to the types an instantiation gives them; a part that cannot be spelled is left
+// unbound.
+function* parameterBindings(world: NativeWorld, parameters: readonly TypeParameterDeclaration[], parts: readonly Type[]): APIRequestGenerator<Bindings> {
+  const bindings = new Map<string, readonly Spelling[]>();
+  for (const [at, parameter] of parameters.entries()) {
+    const part = parts[at];
+    const spelled = part === undefined ? null : yield* typeSpellings(world, part);
+    if (spelled !== null) {
+      bindings.set(siteKey(world.siteOf(parameter.name)), spelled);
+    }
+  }
+  return bindings;
+}
+
+// The type parameters a type instantiates: a type reference's target's, bound to its type arguments, and a product
+// alias's, bound to the alias's type arguments.
+function* instanceBindings(world: NativeWorld, type: Type): APIRequestGenerator<Bindings> {
+  const alias = yield* type.getAliasSymbol.gen();
+  const declaration = alias === undefined ? undefined : yield* aliasDeclaration(world, alias);
+  const aliased =
+    declaration === undefined ? NO_BINDINGS : yield* parameterBindings(world, declaration.typeParameters ?? [], yield* type.getAliasTypeArguments.gen());
+  return type.isTypeReference() ? merged(yield* referenceBindings(world, type), aliased) : aliased;
+}
+
+function* referenceBindings(world: NativeWorld, type: TypeReference): APIRequestGenerator<Bindings> {
+  const bindings = new Map<string, readonly Spelling[]>();
+  const parameters = yield* (yield* type.getTarget.gen()).getTypeParameters.gen();
+  const parts = yield* world.checker.getTypeArguments.gen(type);
+  for (const [at, parameter] of parameters.entries()) {
+    const part = parts[at];
+    const spelled = part === undefined ? null : yield* typeSpellings(world, part);
+    for (const site of spelled === null ? [] : yield* symbolSites(world, yield* parameter.getSymbol.gen())) {
+      bindings.set(siteKey(site), spelled ?? []);
+    }
+  }
+  return bindings;
+}
+
+// The product declaration of a type alias; undefined for a library's.
+function* aliasDeclaration(world: NativeWorld, alias: NativeSymbol): APIRequestGenerator<TypeAliasDeclaration | undefined> {
+  const declaration = (yield* symbolSites(world, alias)).map((site) => declarationAt(world, site)).find((node) => node !== null);
+  return declaration !== undefined && isTypeAliasDeclaration(declaration) ? declaration : undefined;
+}
+
+// The instantiations of the types a property was found on.
+function* ownerBindings(world: NativeWorld, owners: readonly Type[]): APIRequestGenerator<Bindings> {
+  return merged(...(yield* all(...owners.map((owner) => instanceBindings(world, owner)))));
 }
 
 // Types no string literal belongs to. A type parameter constrained to them takes a literal argument's own type, so the
@@ -389,22 +555,21 @@ function* propertyTypes(checker: Checker, types: readonly Type[], name: string):
 // The declarations of property `name` in the slot an object literal fills inside a call argument, read from the
 // callee's declared parameter type with its own type parameters at their constraints: what {@link propertiesOf} answers
 // when the call did not infer the type from the object itself.
-function* uninferredPropertiesOf(world: NativeWorld, object: ObjectLiteralExpression, name: string): APIRequestGenerator<readonly Site[]> {
+function* uninferredPropertiesOf(world: NativeWorld, object: ObjectLiteralExpression, name: string): APIRequestGenerator<FoundProperty> {
   const slot = yield* declaredSlot(world, object, []);
   if (slot === undefined) {
-    return [];
+    return { sites: [], owners: [] };
   }
   let { types } = slot;
   for (const step of slot.path) {
     types = yield* propertyTypes(world.checker, types, step);
   }
-  const settled = yield* settledTypes(world.checker, types);
-  const properties = (yield* all(...settled.map((type) => world.checker.getPropertyOfType.gen(type, name)))).filter((property) => property !== undefined);
-  return (yield* all(...properties.map((property) => symbolSites(world, property)))).flat();
+  return yield* propertyOn(world, yield* settledTypes(world.checker, types), name);
 }
 
-// What a slot's declaration spells: type annotations, or the value expression a schema-inferred property is written from.
-type Declared = readonly Node[] | null;
+// What a slot's declaration spells: type annotations, or the value expression a schema-inferred property is written
+// from, each with the type parameters it is read under.
+type Declared = readonly Spelling[] | null;
 
 /** The spellings read for one slot before it is called unreadable: a slot that reaches this many is a generated table or
  *  a whole schema, and ruling a tuple out of it would be a guess. */
@@ -490,11 +655,12 @@ const declaresWithin = (world: NativeWorld, sites: readonly Site[], node: Node):
 // read, so the object's own slot decides. A property the object itself declares is a type a generic call inferred from
 // the object, so the callee's declared parameter is the slot when it has the property.
 function* propertySpellings(world: NativeWorld, name: string | null, object: ObjectLiteralExpression): APIRequestGenerator<Declared | undefined> {
-  const contextual = name === null ? [] : yield* propertiesOf(world, object, name);
-  const uninferred = name !== null && declaresWithin(world, contextual, object) ? yield* uninferredPropertiesOf(world, object, name) : [];
-  const sites = uninferred.length > 0 ? uninferred : contextual;
+  const none: FoundProperty = { sites: [], owners: [] };
+  const contextual = name === null ? none : yield* propertiesOf(world, object, name);
+  const uninferred = name !== null && declaresWithin(world, contextual.sites, object) ? yield* uninferredPropertiesOf(world, object, name) : none;
+  const found = uninferred.sites.length > 0 ? uninferred : contextual;
   const spellings: Node[] = [];
-  for (const site of sites) {
+  for (const site of found.sites) {
     const declaration = declarationAt(world, site);
     if (declaration === null) {
       return null;
@@ -504,17 +670,41 @@ function* propertySpellings(world: NativeWorld, name: string | null, object: Obj
       spellings.push(spelling);
     }
   }
-  return spellings.length === 0 ? undefined : spellings;
+  if (spellings.length === 0) {
+    return undefined;
+  }
+  const bindings = yield* ownerBindings(world, found.owners);
+  return spellings.map((node) => ({ node, bindings }));
 }
 
 // A parameter the call types by the argument itself spells no vocabulary: the argument builds nothing there.
 function* parameterSpellings(world: NativeWorld, argument: Node): APIRequestGenerator<Declared> {
-  if (yield* infersFromArgument(world, argument)) {
-    return [];
+  const found = argumentOf(argument);
+  if (found === undefined || (yield* infersFromArgument(world, argument))) {
+    return found === undefined ? null : [];
   }
   const site = yield* parameterOf(world, argument);
   const type = annotationOf(site === null ? null : declarationAt(world, site));
-  return type === undefined ? null : [type];
+  return type === undefined ? null : [{ node: type, bindings: yield* callBindings(world, found) }];
+}
+
+// The type parameters a call instantiates: the callee's own, at the call's explicit type arguments or, inferred, at
+// their constraints, and the receiver's, at its type arguments.
+function* callBindings(world: NativeWorld, { call }: Argument): APIRequestGenerator<Bindings> {
+  const bindings = new Map<string, readonly Spelling[]>();
+  const signature = yield* (yield* world.checker.getResolvedSignature.gen(call)).getTarget.gen();
+  const own = signature === undefined ? [] : yield* signature.getTypeParameters.gen();
+  for (const [at, parameter] of own.entries()) {
+    for (const site of yield* symbolSites(world, yield* parameter.getSymbol.gen())) {
+      const declaration = declarationAt(world, site);
+      const node = call.typeArguments?.[at] ?? (declaration !== null && isTypeParameterDeclaration(declaration) ? declaration.constraint : undefined);
+      if (node !== undefined) {
+        bindings.set(siteKey(site), [{ node, bindings }]);
+      }
+    }
+  }
+  const receiver = isPropertyAccessExpression(call.expression) ? yield* world.checker.getTypeAtLocation.gen(call.expression.expression) : undefined;
+  return receiver === undefined ? bindings : merged(yield* instanceBindings(world, receiver), bindings);
 }
 
 const isArgument = (parent: Node, node: Node): boolean =>
@@ -585,7 +775,7 @@ function* constantSpellings(world: NativeWorld, declaration: VariableDeclaration
     return null;
   }
   const home = world.siteOf(declaration.name);
-  const spellings: Node[] = [];
+  const spellings: Spelling[] = [];
   for (const use of referencedNames(declaration.getSourceFile()).filter(
     (name) => name.text === declaration.name.getText() && !sameNode(name, declaration.name),
   )) {
@@ -615,7 +805,7 @@ function* receivingStep(world: NativeWorld, node: Node, path: readonly string[])
   }
   const spelled = spelledFor(parent, node);
   if (spelled !== undefined) {
-    return { done: [spelled] };
+    return { done: [unbound(spelled)] };
   }
   if (isArgument(parent, node)) {
     return { done: yield* parameterSpellings(world, node) };
@@ -662,7 +852,7 @@ function* operandSpellings(world: NativeWorld, operand: Node): APIRequestGenerat
     node = node.expression;
   }
   if (isAsExpression(node) || isSatisfiesExpression(node)) {
-    return [node.type];
+    return [unbound(node.type)];
   }
   const name = isPropertyAccessExpression(node) ? node.name : node;
   if (!isIdentifier(name)) {
@@ -676,7 +866,9 @@ function* operandSpellings(world: NativeWorld, operand: Node): APIRequestGenerat
     }
     types.push(type);
   }
-  return types.length === 0 ? null : types;
+  // A member's annotation is spelled with its owner's type parameters, which the receiver's type instantiates.
+  const bindings = isPropertyAccessExpression(node) ? yield* instanceBindings(world, yield* world.checker.getTypeAtLocation.gen(node.expression)) : NO_BINDINGS;
+  return types.length === 0 ? null : types.map((type) => ({ node: type, bindings }));
 }
 
 // A name a declaration or a member access introduces, not one that refers to something.
@@ -703,7 +895,11 @@ function introducesName(parent: Node, name: Identifier): boolean {
 const namesType = (parent: Node): boolean =>
   isTypeReferenceNode(parent) || isTypeQueryNode(parent) || isQualifiedName(parent) || isExpressionWithTypeArguments(parent);
 
+// A spelling that is a bare name, a tuple's own declaration name among them, refers to what it names.
 function referencedNames(root: Node): readonly Identifier[] {
+  if (isIdentifier(root)) {
+    return [root];
+  }
   const found: Identifier[] = [];
   const visit = (node: Node): void => {
     if (isIdentifier(node) && !introducesName(node.parent, node)) {
@@ -725,11 +921,13 @@ interface Expansion {
   readonly tuple: string | null;
   /** What else the declaration spells that a slot can take its vocabulary from. */
   readonly into: readonly (Node | undefined)[];
-  /** The declaration is a type parameter, which a caller instantiates with a vocabulary this slot does not spell. */
-  readonly opaque: boolean;
+  /** For a type parameter a caller instantiates, the key its binding is held under: the slot reads its instantiation. */
+  readonly parameter: string | null;
+  /** The type parameters a generic declaration's `into` is spelled with, which a reference's type arguments bind. */
+  readonly typeParameters: readonly TypeParameterDeclaration[];
 }
 
-const NOTHING: Expansion = { tuple: null, into: [], opaque: false };
+const NOTHING: Expansion = { tuple: null, into: [], parameter: null, typeParameters: [] };
 
 // What one declaration of a referenced name adds: a variable is a tuple and spells its annotation and value, an alias its
 // type, a function its body, a property or parameter its annotation or value, an interface what it extends and holds.
@@ -739,24 +937,53 @@ function expansion(site: Site, declaration: Node | null): Expansion {
   }
   if (isVariableDeclaration(declaration)) {
     const tuple = isIdentifier(declaration.name) ? `${site.file}:${declaration.name.text}` : null;
-    return { tuple, into: [declaration.type, declaration.initializer], opaque: false };
+    return { ...NOTHING, tuple, into: [declaration.type, declaration.initializer] };
   }
+  if (isFunctionDeclaration(declaration) || isMethodDeclaration(declaration)) {
+    return { ...NOTHING, into: [declaration] };
+  }
+  const typed = typeExpansion(site, declaration);
+  if (typed !== undefined) {
+    return typed;
+  }
+  const written = isPropertyAssignment(declaration) || isPropertyDeclaration(declaration) ? declaration.initializer : undefined;
+  return { ...NOTHING, into: [annotationOf(declaration), written] };
+}
+
+// What a type declaration adds: an alias its type, a type parameter its constraint, an interface what it extends and
+// holds, each generic one with the type parameters a reference binds.
+function typeExpansion(site: Site, declaration: Node): Expansion | undefined {
   if (isTypeAliasDeclaration(declaration)) {
-    return { tuple: null, into: [declaration.type], opaque: false };
+    return { ...NOTHING, into: [declaration.type], typeParameters: declaration.typeParameters ?? [] };
   }
   if (isTypeParameterDeclaration(declaration)) {
     // A mapped type's key ranges over its constraint and no caller instantiates it, so the constraint is the vocabulary.
-    return { tuple: null, into: [declaration.constraint], opaque: !isMappedTypeNode(declaration.parent) };
-  }
-  if (isFunctionDeclaration(declaration) || isMethodDeclaration(declaration)) {
-    return { tuple: null, into: [declaration], opaque: false };
+    return { ...NOTHING, into: [declaration.constraint], parameter: isMappedTypeNode(declaration.parent) ? null : siteKey(site) };
   }
   if (isInterfaceDeclaration(declaration)) {
     // A member's type is what an indexed access (`Interface["member"]`) reads.
-    return { tuple: null, into: [...(declaration.heritageClauses ?? []), ...declaration.members.map(annotationOf)], opaque: false };
+    const into = [...(declaration.heritageClauses ?? []), ...declaration.members.map(annotationOf)];
+    return { ...NOTHING, into, typeParameters: declaration.typeParameters ?? [] };
   }
-  const written = isPropertyAssignment(declaration) || isPropertyDeclaration(declaration) ? declaration.initializer : undefined;
-  return { tuple: null, into: [annotationOf(declaration), written], opaque: false };
+  return undefined;
+}
+
+// The bindings a reference to a generic declaration gives its type parameters: each type argument, else the
+// parameter's default, read under the reference's own bindings.
+function typeArgumentBindings(world: NativeWorld, name: Identifier, parameters: readonly TypeParameterDeclaration[], current: Bindings): Bindings {
+  if (parameters.length === 0) {
+    return current;
+  }
+  const { parent } = name;
+  const written = isTypeReferenceNode(parent) || isExpressionWithTypeArguments(parent) ? parent.typeArguments : undefined;
+  const bindings = new Map(current);
+  for (const [at, parameter] of parameters.entries()) {
+    const node = written?.[at] ?? parameter.defaultType;
+    if (node !== undefined) {
+      bindings.set(siteKey(world.siteOf(parameter.name)), [{ node, bindings: current }]);
+    }
+  }
+  return bindings;
 }
 
 // Every declaration a name resolves to, expanded; null when a type name resolves to none.
@@ -770,17 +997,16 @@ function* expansionsOf(world: NativeWorld, name: Identifier): APIRequestGenerato
 
 // A spelling still to read: `property` scopes a type to one of its properties, as `T["p"]` does, and `collect` says
 // whether its literal types re-spell the slot. A property that cannot be found is read whole for its tuples only.
-interface Reach {
-  readonly node: Node;
+interface Reach extends Spelling {
   readonly property: string | null;
   readonly collect: boolean;
 }
 
 interface Read {
   readonly tuples: readonly string[];
-  readonly next: readonly Node[];
+  readonly next: readonly Spelling[];
   /** The `T["p"]` accesses in the spelling, each read as `T` scoped to `p`. */
-  readonly scoped: readonly { readonly node: Node; readonly property: string }[];
+  readonly scoped: readonly Scoped[];
 }
 
 // How a reading treats a name it cannot settle: `slot` gives up, since the slot may then be any tuple's; `links` reads
@@ -817,35 +1043,58 @@ const isUnder = (node: Node, ancestors: ReadonlySet<string>): boolean => {
 };
 
 // The tuples one spelling names and the further spellings it leads to; null when it cannot be read to the end.
-function* readSpelling(world: NativeWorld, root: Node, reading: Reading): APIRequestGenerator<Read | null> {
+function* readSpelling(world: NativeWorld, { node: root, bindings }: Spelling, reading: Reading): APIRequestGenerator<Read | null> {
   const tuples: string[] = [];
-  const next: Node[] = [];
-  const scoped = scopedAccesses(root);
+  const next: Spelling[] = [];
+  const scoped = scopedAccesses(root).map((access) => ({ ...access, bindings }));
   const objects = new Set(scoped.map(({ node }) => nodeKey(node)));
   for (const name of referencedNames(root).filter((candidate) => !isUnder(candidate, objects))) {
     const reached = yield* expansionsOf(world, name);
-    if (reading === "slot" && (reached === null || reached.some(({ opaque }) => opaque))) {
+    if (reading === "slot" && reached === null) {
       return null;
     }
     for (const expanded of reached ?? []) {
-      if (expanded.tuple !== null) {
-        tuples.push(expanded.tuple);
+      const read = expandedRead(world, { name, expanded, bindings }, reading);
+      if (read === null) {
+        return null;
       }
-      next.push(...expanded.into.filter((spelling): spelling is Node => spelling !== undefined));
+      tuples.push(...read.tuples);
+      next.push(...read.next);
     }
   }
   return { tuples, next, scoped };
 }
 
+// What one expansion of a name adds to a reading: a bound type parameter's instantiation, or the declaration's tuple
+// and spellings under the bindings its reference gives; null when a slot reading meets a type parameter with no
+// binding.
+function expandedRead(
+  world: NativeWorld,
+  { name, expanded, bindings }: { readonly name: Identifier; readonly expanded: Expansion; readonly bindings: Bindings },
+  reading: Reading,
+): Omit<Read, "scoped"> | null {
+  const bound = expanded.parameter === null ? undefined : bindings.get(expanded.parameter);
+  if (bound !== undefined) {
+    return { tuples: [], next: bound };
+  }
+  if (reading === "slot" && expanded.parameter !== null) {
+    return null;
+  }
+  const inner = typeArgumentBindings(world, name, expanded.typeParameters, bindings);
+  return {
+    tuples: expanded.tuple === null ? [] : [expanded.tuple],
+    next: expanded.into.flatMap((spelling) => (spelling === undefined ? [] : [{ node: spelling, bindings: inner }])),
+  };
+}
+
 // The members named `property` in an interface or a type literal, and what an interface extends, still scoped to it.
-function memberSteps(members: readonly Node[], property: string): readonly Scoped[] {
+function memberSteps(members: readonly Node[], property: string, bindings: Bindings): readonly Scoped[] {
   return members.flatMap((member) =>
-    isPropertySignatureDeclaration(member) && propertyName(member.name) === property ? [{ node: member.type, property: null }] : [],
+    isPropertySignatureDeclaration(member) && propertyName(member.name) === property ? [{ node: member.type, property: null, bindings }] : [],
   );
 }
 
-interface Scoped {
-  readonly node: Node;
+interface Scoped extends Spelling {
   readonly property: string | null;
 }
 
@@ -858,15 +1107,16 @@ function referredName(node: Node): Identifier | null {
 }
 
 // A named type scoped to one property: each interface's member of that name and what it extends, each alias's type.
-function* declaredPropertySteps(world: NativeWorld, name: Identifier, property: string): APIRequestGenerator<readonly Scoped[] | null> {
+function* declaredPropertySteps(world: NativeWorld, name: Identifier, { property, bindings }: ScopedTo): APIRequestGenerator<readonly Scoped[] | null> {
   const sites = yield* declaredSites(world, name);
   const steps: Scoped[] = [];
   for (const declaration of sites.map((site) => declarationAt(world, site))) {
     if (declaration !== null && isInterfaceDeclaration(declaration)) {
-      const bases = (declaration.heritageClauses ?? []).flatMap((clause) => clause.types.map((type) => ({ node: type, property })));
-      steps.push(...memberSteps(declaration.members, property), ...bases);
+      const inner = typeArgumentBindings(world, name, declaration.typeParameters ?? [], bindings);
+      const bases = (declaration.heritageClauses ?? []).flatMap((clause) => clause.types.map((type) => ({ node: type, property, bindings: inner })));
+      steps.push(...memberSteps(declaration.members, property, inner), ...bases);
     } else if (declaration !== null && isTypeAliasDeclaration(declaration)) {
-      steps.push({ node: declaration.type, property });
+      steps.push({ node: declaration.type, property, bindings: typeArgumentBindings(world, name, declaration.typeParameters ?? [], bindings) });
     } else {
       return null;
     }
@@ -875,18 +1125,24 @@ function* declaredPropertySteps(world: NativeWorld, name: Identifier, property: 
 }
 
 // One step of reading a type scoped to one property; null when the type is not one a property can be found in.
-function* propertyStep(world: NativeWorld, node: Node, property: string): APIRequestGenerator<readonly Scoped[] | null> {
+// A spelling scoped to one of its properties.
+interface ScopedTo extends Spelling {
+  readonly property: string;
+}
+
+function* propertyStep(world: NativeWorld, scoped: ScopedTo): APIRequestGenerator<readonly Scoped[] | null> {
+  const { node, property, bindings } = scoped;
   if (isParenthesizedTypeNode(node)) {
-    return [{ node: node.type, property }];
+    return [{ node: node.type, property, bindings }];
   }
   if (isUnionTypeNode(node) || isIntersectionTypeNode(node)) {
-    return node.types.map((type) => ({ node: type, property }));
+    return node.types.map((type) => ({ node: type, property, bindings }));
   }
   if (isTypeLiteralNode(node)) {
-    return memberSteps(node.members, property);
+    return memberSteps(node.members, property, bindings);
   }
   const name = referredName(node);
-  return name === null ? null : yield* declaredPropertySteps(world, name, property);
+  return name === null ? null : yield* declaredPropertySteps(world, name, scoped);
 }
 
 // Every string literal type a spelling writes, by site key; a `T["p"]` access is read scoped, so its literals are not
@@ -906,13 +1162,20 @@ function collectLiteralTypes(root: Node, into: Map<string, string>): void {
 
 // What a reach scoped to `property` leads to; a type the property cannot be found in is read whole, for its tuples only.
 function* scopedReaches(world: NativeWorld, reach: Reach, property: string): APIRequestGenerator<readonly Reach[]> {
-  const steps = yield* propertyStep(world, reach.node, property);
-  return steps === null ? [{ node: reach.node, property: null, collect: false }] : steps.map((step) => ({ ...step, collect: reach.collect }));
+  const steps = yield* propertyStep(world, { ...reach, property });
+  return steps === null ? [{ ...reach, property: null, collect: false }] : steps.map((step) => ({ ...step, collect: reach.collect }));
 }
+
+// A reach's bindings, by what each binds: a node read under other instantiations is another reach.
+const bindingsKey = (bindings: Bindings): string =>
+  [...bindings]
+    .map(([key, spellings]) => `${key}=${spellings.map(({ node }) => nodeKey(node)).join("|")}`)
+    .sort()
+    .join(";");
 
 // Whether `reach` is new, recording it.
 function firstVisit(seen: Map<string, Set<string>>, reach: Reach): boolean {
-  const key = `${reach.property ?? ""}:${String(reach.collect)}`;
+  const key = `${reach.property ?? ""}:${String(reach.collect)}:${bindingsKey(reach.bindings)}`;
   const at = nodeKey(reach.node);
   const held = seen.get(at) ?? new Set<string>();
   if (held.has(key)) {
@@ -925,13 +1188,12 @@ function firstVisit(seen: Map<string, Set<string>>, reach: Reach): boolean {
 
 // The tuples a slot's spellings reach, and the literal types written on the way: a variable reached through `typeof` or
 // by name is a tuple, and aliases, schema values, constraints and function bodies are read through. `T["p"]` reads only
-// `T`'s property `p`, so a sibling property's literals never re-spell the slot. Null when a type name has no
-// declaration, a type parameter stands in for the vocabulary, or the reading outgrows the limit: in each the slot may be
-// any tuple's.
-function* originsOf(world: NativeWorld, spellings: readonly Node[], reading: Reading = "slot"): APIRequestGenerator<Origins> {
+// `T`'s property `p`, so a sibling property's literals never re-spell the slot. A type parameter reads its binding. Null
+// when a type name has no declaration, a type parameter has no binding, or the reading outgrows the limit.
+function* originsOf(world: NativeWorld, spellings: readonly Spelling[], reading: Reading = "slot"): APIRequestGenerator<Origins> {
   const into: Spelled & { readonly tuples: Set<string>; readonly literals: Map<string, string> } = { tuples: new Set(), literals: new Map() };
   const seen = new Map<string, Set<string>>();
-  const pending: Reach[] = spellings.map((node) => ({ node, property: null, collect: true }));
+  const pending: Reach[] = spellings.map((spelling) => ({ ...spelling, property: null, collect: true }));
   let visits = 0;
   for (let reach = pending.pop(); reach !== undefined; reach = pending.pop()) {
     if (!firstVisit(seen, reach)) {
@@ -957,7 +1219,7 @@ function* readReach(
   if (property !== null) {
     return yield* scopedReaches(world, reach, property);
   }
-  const read = yield* readSpelling(world, node, reading);
+  const read = yield* readSpelling(world, reach, reading);
   if (read === null) {
     return null;
   }
@@ -967,7 +1229,7 @@ function* readReach(
   if (collect) {
     collectLiteralTypes(node, into.literals);
   }
-  return [...read.next.map((next) => ({ node: next, property: null, collect })), ...read.scoped.map((scoped) => ({ ...scoped, collect }))];
+  return [...read.next.map((next) => ({ ...next, property: null, collect })), ...read.scoped.map((scoped) => ({ ...scoped, collect }))];
 }
 
 function* declaredAt(world: NativeWorld, node: Node, role: LiteralRole | "record-key"): APIRequestGenerator<Declared> {
@@ -975,8 +1237,10 @@ function* declaredAt(world: NativeWorld, node: Node, role: LiteralRole | "record
   switch (role) {
     case "construct":
       return yield* receivingSpellings(world, node);
-    case "record-key":
-      return isObjectLiteralExpression(parent.parent) ? yield* receivingSpellings(world, parent.parent) : null;
+    case "record-key": {
+      const object = keyedObject(node);
+      return object === undefined ? null : yield* receivingSpellings(world, object);
+    }
     case "case":
       return isCaseClause(parent) && isSwitchStatement(parent.parent.parent) ? yield* operandSpellings(world, parent.parent.parent.expression) : null;
     case "compare":
@@ -1002,14 +1266,52 @@ export function* satisfiedOrigins(world: NativeWorld, name: Identifier): APIRequ
     }
     node = node.expression;
   }
-  const origins = spellings.length === 0 ? null : yield* originsOf(world, spellings, "links");
+  const origins = spellings.length === 0 ? null : yield* originsOf(world, spellings.map(unbound), "links");
   return origins ?? NOTHING_SPELLED;
 }
 
-/** The tuples the slot of the literal or key at `site` derives from. */
+// The object literal a key names a property of: a plain key's, or a computed key's (`["a"]: …`).
+function keyedObject(key: Node): ObjectLiteralExpression | undefined {
+  const name = isComputedPropertyName(key.parent) ? key.parent : key;
+  const object = name.parent.parent;
+  return isObjectLiteralExpression(object) ? object : undefined;
+}
+
+// The type the checker gives a literal's slot: its contextual type, a key's object's contextual type, or the type of
+// what a `case` or an equality compares it with.
+function* slotType(world: NativeWorld, node: Node, role: LiteralRole | "record-key"): APIRequestGenerator<Type | undefined> {
+  const { parent } = node;
+  switch (role) {
+    case "construct":
+      return isStringLiteral(node) ? yield* world.checker.getContextualType.gen(node) : undefined;
+    case "record-key": {
+      const object = keyedObject(node);
+      return object === undefined ? undefined : yield* world.checker.getContextualType.gen(object);
+    }
+    case "case":
+      return isCaseClause(parent) && isSwitchStatement(parent.parent.parent)
+        ? yield* world.checker.getTypeAtLocation.gen(parent.parent.parent.expression)
+        : undefined;
+    case "compare":
+      return isBinaryExpression(parent) ? yield* world.checker.getTypeAtLocation.gen(sameNode(parent.left, node) ? parent.right : parent.left) : undefined;
+    case "key":
+    case "type":
+    case "module":
+      return undefined;
+  }
+}
+
+/** The tuples the slot of the literal or key at `site` derives from: what its declaration spells, else what the type
+ *  the checker gives the slot is written from. */
 export function* slotOrigins(world: NativeWorld, node: Node, role: LiteralRole | "record-key"): APIRequestGenerator<Origins> {
   const spellings = yield* declaredAt(world, node, role);
-  return spellings === null ? null : yield* originsOf(world, spellings);
+  const declared = spellings === null ? null : yield* originsOf(world, spellings);
+  if (declared !== null) {
+    return declared;
+  }
+  const type = yield* slotType(world, node, role);
+  const typed = type === undefined ? null : yield* typeSpellings(world, type);
+  return typed === null ? null : yield* originsOf(world, typed);
 }
 
 /** The slot a non-literal value at `site` flows into: a name, or the property a member access at `site` names, read
@@ -1249,6 +1551,6 @@ export function* predicateTuples(world: NativeWorld, predicate: Node): APIReques
   if (!isRawInput(parameter?.type)) {
     return NOTHING_SPELLED.tuples;
   }
-  const origins = yield* originsOf(world, [predicate.type]);
+  const origins = yield* originsOf(world, [unbound(predicate.type)]);
   return origins?.tuples ?? NOTHING_SPELLED.tuples;
 }

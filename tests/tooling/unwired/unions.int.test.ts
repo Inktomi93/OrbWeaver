@@ -619,6 +619,130 @@ test("the unions scan reads a slot a generic call infers from the literal throug
   expect(found).toEqual(["unbuilt ENTITY_KINDS.card", "unbuilt MODES.iteration"]);
 });
 
+// A slot read through what instantiates it names its own tuple and no other. Each tree keeps a twin tuple whose texts
+// only such a slot writes, so a slot read as any tuple's would build the twin's members.
+const sortedRows = (report: Report): readonly string[] => report.unwired.map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+
+// A call's own type parameter, inferred from the literal, is read at its constraint.
+const TYPE_PARAMETER_TREE = {
+  "packages/a/src/modes.ts": [
+    'const MODES = ["full", "quick"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    "export const pick = <const M extends Mode>(mode: M): M => mode;",
+    'export const picked = pick("quick");',
+    'const PACES = ["quick", "slow"] as const;',
+    "export const pace = (value: (typeof PACES)[number]): string => value;",
+    'export const paced = pace("slow");',
+  ].join("\n"),
+};
+
+test("a type-parameter slot is read through its constraint and builds no same-text member of another tuple", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, TYPE_PARAMETER_TREE))).toEqual(["MODES.full", "PACES.quick"]);
+});
+
+// A generic table's row type takes its tuples from the table's instantiation: `Floor<R, H>` inside `Recipes<Role, Host>`.
+const GENERIC_TABLE_TREE = {
+  "packages/a/src/tones.ts": [
+    'const ROLES = ["solid", "tint"] as const;',
+    "type Role = (typeof ROLES)[number];",
+    'const HOSTS = ["card", "page"] as const;',
+    "type Host = (typeof HOSTS)[number];",
+    "interface Floor<R extends string, H extends string> { readonly role?: R; readonly host?: H }",
+    "type Recipes<R extends string, H extends string> = Readonly<Record<R, { readonly floor: readonly Floor<R, H>[] }>>;",
+    "export const RECIPES = {",
+    "  solid: { floor: [] },",
+    '  tint: { floor: [{ role: "solid", host: "card" }] },',
+    "} as const satisfies Recipes<Role, Host>;",
+    'const SURFACES = ["solid", "card"] as const;',
+    "export const surface = (value: (typeof SURFACES)[number]): string => value;",
+  ].join("\n"),
+};
+
+test("a generic table's row slot is read through the table's instantiation", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, GENERIC_TABLE_TREE))).toEqual(["HOSTS.page", "ROLES.tint", "SURFACES.card", "SURFACES.solid"]);
+});
+
+// A library declares the parameter: `push` takes the receiver's element type, `useState<Density>` its explicit type
+// argument, and the setter a library alias over the product's.
+const LIBRARY_PARAMETER_TREE = {
+  "packages/a/lib/ui.ts": [
+    "export type SetStateAction<S> = S | ((prev: S) => S);",
+    "export declare function useState<S>(initial: S | (() => S)): [S, (next: SetStateAction<S>) => void];",
+  ].join("\n"),
+  "packages/a/src/shelf.ts": [
+    'import { useState } from "../lib/ui.ts";',
+    'const SHELVES = ["top", "low"] as const;',
+    "type Shelf = (typeof SHELVES)[number];",
+    "export const bag: Shelf[] = [];",
+    'bag.push("top");',
+    'const DENSITIES = ["dense", "roomy", "tight"] as const;',
+    "type Density = (typeof DENSITIES)[number];",
+    'export const [density, setDensity] = useState<Density>("dense");',
+    'setDensity("roomy");',
+    'const SPARES = ["top", "dense", "roomy"] as const;',
+    "export const spare = (value: (typeof SPARES)[number]): string => value;",
+  ].join("\n"),
+};
+
+test("a library parameter is read through the receiver's instantiation, an explicit type argument or a library alias", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, LIBRARY_PARAMETER_TREE))).toEqual([
+    "DENSITIES.tight",
+    "SHELVES.low",
+    "SPARES.dense",
+    "SPARES.roomy",
+    "SPARES.top",
+  ]);
+});
+
+// No declaration spells these slots, so the literal's contextual type is read instead: an arrow body and a `return`
+// under a typed variable, a library-declared property, and a property assignment.
+const CONTEXTUAL_TREE = {
+  "packages/a/lib/config.ts": ["export interface Options<T> { readonly initial: T }", "export declare function configure<T>(options: Options<T>): T;"].join(
+    "\n",
+  ),
+  "packages/a/src/paces.ts": [
+    'import { configure } from "../lib/config.ts";',
+    'const PACES = ["slow", "fast", "even", "idle", "never"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    'export const choose: () => Pace = () => "slow";',
+    'export const later: () => Pace = function () { return "fast"; };',
+    'export const configured = configure<Pace>({ initial: "even" });',
+    "interface Panel { pace: Pace }",
+    'export const idle = (panel: Panel): void => { panel.pace = "idle"; };',
+    'const ECHOES = ["slow", "fast", "even", "idle"] as const;',
+    "export const echo = (value: (typeof ECHOES)[number]): string => value;",
+  ].join("\n"),
+};
+
+test("a slot no declaration spells is read from the literal's contextual type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, CONTEXTUAL_TREE))).toEqual(["ECHOES.even", "ECHOES.fast", "ECHOES.idle", "ECHOES.slow", "PACES.never"]);
+});
+
+// A slot neither its declaration nor its contextual type can spell names no tuple: `ghost` lands in a type parameter no
+// call instantiates, and `x1` in a library slot whose type holds the members of two tuples alike, which the type
+// cannot tell apart. `lit` beside them is built through a readable slot.
+const UNREADABLE_TREE = {
+  "packages/a/src/glows.ts": [
+    'const GLOWS = ["ghost", "lit"] as const;',
+    "type Glow = (typeof GLOWS)[number];",
+    "export const glow = (value: Glow): Glow => value;",
+    'export const lit = glow("lit");',
+    'export function hold<T extends string>(take: (value: T | "ghost") => void): void {',
+    '  take("ghost");',
+    "}",
+    'const ECHO_A = ["x1", "x2"] as const;',
+    "export const echoes: (typeof ECHO_A)[number][] = [];",
+    'echoes.push("x1");',
+  ].join("\n"),
+  "packages/a/src/twin.ts": ['const ECHO_B = ["x1", "x2"] as const;', "export const echo = (value: (typeof ECHO_B)[number]): string => value;"].join("\n"),
+};
+
+test("a literal in a slot whose tuple cannot be read builds nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, UNREADABLE_TREE))).toEqual(["ECHO_A.x1", "ECHO_A.x2", "ECHO_B.x1", "ECHO_B.x2", "GLOWS.ghost"]);
+});
+
 // A module-private constant spread into rows a `.map` callback returns, and the whole array `satisfies` the row type
 // written from a schema: `breakpoint` reaches `turns.format` there. `control` is the twin: only a callback whose callee
 // returns a count carries it, so nothing builds it.
