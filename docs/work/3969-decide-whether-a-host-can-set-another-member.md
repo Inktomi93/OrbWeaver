@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-The setActivePersona router input in packages/server/src/transport/trpc/routers/persona.ts accepts targetUserId as the host-targets-someone seam, but the client types its input without it and no test or spec sends it over tRPC; the verb parameter is live through server calls.
+The setActivePersona router input in packages/server/src/transport/trpc/routers/persona.ts accepts targetUserId so a host can choose another participant's active persona in one chat. The verb writes chat_participants.activePersonaId for that participant and requires the persona to be one the target owns. The client types its input without targetUserId and no test or spec sends it over tRPC; the verb parameter is live through server calls. Open question from the owner: whether this per-room active persona is the same thing as the room pin, or a separate slot.
 
 ## Why
 
