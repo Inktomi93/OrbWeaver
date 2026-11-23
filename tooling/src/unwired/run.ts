@@ -60,7 +60,8 @@ type Verb = (typeof VERBS)[number];
 const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
-const TRIAL_VERB = "graph-trial";
+/** The verb that deletes each finding in a throwaway snapshot. */
+export const TRIAL_VERB = "graph-trial";
 const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
