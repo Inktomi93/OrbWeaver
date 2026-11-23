@@ -54,12 +54,15 @@ function expectEveryBucket(run: { readonly stderr: string }, out: string): void 
   expect(buckets.filter((bucket) => !summary.split(" ").includes(bucket))).toEqual([]);
 }
 
+// The procedures query builds the graph, which reads its roots from the tree's knip config, so its root is an empty graph
+// tree; every other scan here runs over the empty scratch root.
 test.for(["scan", "fields", "params", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
   SPAWNS_CLI,
-  async (verb, { runCli, scratch }) => {
+  async (verb, { runCli, scratch, plantedTree }) => {
     const out = join(scratch, "report.json");
-    const run = await runCli("unwired", [verb, `--root=${scratch}`, `--out=${out}`]);
+    const root = verb === "procedures" ? await plantedTree(graphTree({})) : scratch;
+    const run = await runCli("unwired", [verb, `--root=${root}`, `--out=${out}`]);
     await expect(run).toExitWith(0);
     expectEveryBucket(run, out);
   },

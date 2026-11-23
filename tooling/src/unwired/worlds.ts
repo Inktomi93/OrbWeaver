@@ -165,6 +165,24 @@ export function mergedOptionsConfigText(root: string, config: string): string {
   return mergedText(root, loadMergedWorlds(root), own.fileNames, bridgedPaths(root, config, own));
 }
 
+// A world loads the DOM library when its `lib` names one, or names none and so takes the target's default set, which holds it.
+const DOM_LIB = /^lib\.dom\./u;
+
+/** The repository-relative files the merged program's worlds name whose own world loads the DOM library. The merged
+ *  program loads every library for every file, so whether a call is a browser's request is read from here. */
+export function browserFiles(root: string): ReadonlySet<string> {
+  const files = new Set<string>();
+  for (const config of mergedWorlds(root)) {
+    const parsed = loadWorld(root, config);
+    if (parsed.options.lib?.some((name) => DOM_LIB.test(name)) ?? true) {
+      for (const file of parsed.fileNames) {
+        files.add(relative(root, file));
+      }
+    }
+  }
+  return files;
+}
+
 /** The host's realpath; every scan host sets it, so a workspace package keeps its source path. */
 export const realpath = (path: string): string => ts.sys.realpath?.(path) ?? path;
 

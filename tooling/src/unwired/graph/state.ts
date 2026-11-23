@@ -28,7 +28,15 @@ export interface MemberRoles {
   write: string | null;
 }
 
-const SNAP_SOURCE = "tooling/src/snap/";
+/** One role a declaration was given and the site that gave it. */
+export interface RoleSite {
+  readonly role: Role;
+  readonly file: string;
+  readonly at: number;
+}
+
+/** Where snap lives: it drives the product as its user does, so its reads and its requests are the product's. */
+export const SNAP_SOURCE = "tooling/src/snap/";
 const TEST_SOURCE = "tests/";
 
 /** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
@@ -184,6 +192,8 @@ export interface GraphFacts {
   readonly typ: ReadonlyEdges;
   readonly doc: ReadonlyEdges;
   readonly roles: ReadonlyMap<DeclKey, MemberRoles>;
+  /** Every role site of a declaration whose file starts with one of the build's {@link BuildSession.siteFiles}, for a verb that counts and inspects sites. */
+  readonly roleSites: ReadonlyMap<DeclKey, readonly RoleSite[]>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
   readonly door: ReadonlySet<DeclKey>;
   /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
@@ -220,6 +230,8 @@ export interface BuildSession {
   readonly options: GraphOptions;
   readonly log: (line: string) => void;
   readonly profile: GraphProfile | null;
+  /** The file prefixes whose declarations keep every role site. */
+  readonly siteFiles: readonly string[];
 }
 
 /** The value types whose apparent type is a lib wrapper interface: they carry no member of ours. */
@@ -259,6 +271,7 @@ export class GraphState implements GraphFacts {
   readonly typ: Edges = new Map();
   readonly doc: Edges = new Map();
   readonly roles = new Map<DeclKey, MemberRoles>();
+  readonly roleSites = new Map<DeclKey, RoleSite[]>();
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
   /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
@@ -334,6 +347,11 @@ export class GraphState implements GraphFacts {
 
   role(key: DeclKey, role: Role, file: string, at: number): void {
     this.why?.note(key, role, file, at);
+    if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
+      const sites = this.roleSites.get(key) ?? [];
+      sites.push({ role, file, at });
+      this.roleSites.set(key, sites);
+    }
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
     if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);
