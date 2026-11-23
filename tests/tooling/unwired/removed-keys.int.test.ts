@@ -7,15 +7,22 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git-fixture";
-import { checkRemovedKeys } from "../../../tooling/src/unwired/removed-keys.ts";
-import { LIB, ZOD_STUB } from "./_planted.ts";
+import { NO_DESTINATION, OUTSIDE_PROGRAM } from "../../../tooling/src/unwired/graph/removed-keys.ts";
+import type { RemovedKeysReport } from "../../../tooling/src/unwired/index.ts";
+import { removedKeysGraph } from "../../../tooling/src/unwired/index.ts";
+import { graphTree, LIB, WORLD, ZOD_STUB } from "./_planted.ts";
 
-const WORLD = "tsconfig.json";
+// The e2e suites are a world of their own, as in the real solution; the DOM lib declares `fetch`, so a route call
+// resolves to the platform's as the client's does.
+const E2E_WORLD = "tests/tsconfig.json";
 const CONTRACT = "packages/contracts/src/chat/send.ts";
 const BEFORE = [
   'import { z } from "../z.ts";',
   "export interface SendInput {",
   "  readonly chatId: string;",
+  "  readonly guidedPick?: string;",
+  "}",
+  "export interface EditInput {",
   "  readonly guidedPick?: string;",
   "}",
   "export const listInputSchema = z.object({ limit: z.string(), pageLimit: z.string().optional() });",
@@ -24,6 +31,9 @@ const AFTER = [
   'import { z } from "../z.ts";',
   "export interface SendInput {",
   "  readonly chatId: string;",
+  "}",
+  "export interface EditInput {",
+  "  readonly guidedPick?: string;",
   "}",
   "export const listInputSchema = z.object({ limit: z.string() });",
 ].join("\n");
@@ -54,8 +64,6 @@ const TRPC = [
   "  };",
   "};",
 ].join("\n");
-// The reason an open slot that reaches none of our procedures or routes is listed with.
-const NO_DESTINATION = "open slot reaching none of our procedures or routes";
 
 const commit = (repo: string, files: Readonly<Record<string, string>>, message: string): void => {
   for (const [file, text] of Object.entries(files)) {
@@ -67,8 +75,12 @@ const commit = (repo: string, files: Readonly<Record<string, string>>, message: 
 
 async function deletionBranch(plantedTree: (tree: Record<string, string>) => Promise<string>, senders: Readonly<Record<string, string>>): Promise<string> {
   const repo = await plantedTree({
-    // The DOM lib declares `fetch`, so a route call resolves to the platform's as the client's does.
-    [WORLD]: plantedTsconfig({ lib: [...LIB, "DOM"], include: ["packages", "tests"] }),
+    ...graphTree({}),
+    "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: E2E_WORLD }] }),
+    [WORLD]: plantedTsconfig({ lib: [...LIB, "DOM"], include: ["../*/src"] }),
+    // The merged program takes its options from the browser world's config, as the real tree's does.
+    "tsconfig.world-browser.json": plantedTsconfig({ lib: [...LIB, "DOM"], include: [] }),
+    [E2E_WORLD]: plantedTsconfig({ lib: [...LIB, "DOM"], include: ["e2e"] }),
     ...PACKAGES,
     "packages/contracts/src/z.ts": ZOD_STUB,
     [CONTRACT]: BEFORE,
@@ -92,8 +104,8 @@ async function deletionBranch(plantedTree: (tree: Record<string, string>) => Pro
   return repo;
 }
 
-const check = (repo: string): ReturnType<typeof checkRemovedKeys> => checkRemovedKeys({ root: repo, base: "main", head: "HEAD", worlds: [WORLD] });
-const entry = (report: ReturnType<typeof checkRemovedKeys>, key: string): ReturnType<typeof checkRemovedKeys>["removed"][number] | undefined =>
+const check = async (repo: string): Promise<RemovedKeysReport> => await removedKeysGraph({ root: repo, base: "main", head: "HEAD" }, () => undefined);
+const entry = (report: RemovedKeysReport, key: string): RemovedKeysReport["removed"][number] | undefined =>
   report.removed.find((removed) => removed.key === key);
 
 test("a write the resolver places on the shape that dropped the key fails the branch, in an interface and a schema", { timeout: 120_000 }, async ({
@@ -110,7 +122,7 @@ test("a write the resolver places on the shape that dropped the key fails the br
       "export const list = { limit: '1', pageLimit: '3' } as Infer<typeof listInputSchema>;",
     ].join("\n"),
   });
-  const report = check(repo);
+  const report = await check(repo);
   expect(report.failed).toBe(true);
   expect(entry(report, "guidedPick")?.homes).toEqual([`${CONTRACT}:SendInput`]);
   expect(entry(report, "guidedPick")?.senders.map(({ receiver, at }) => `${receiver} ${at}`)).toEqual(["client packages/client/src/send.ts:2"]);
@@ -128,11 +140,26 @@ test("a same-named field of another shape is another member, and passes", { time
       "export const list: ListInput = { guidedPick: 'g' };",
     ].join("\n"),
   });
-  const report = check(repo);
+  const report = await check(repo);
   expect(report.removed.map(({ key, senders, loose, other }) => `${key} ${senders.length} ${loose.length} ${other}`)).toEqual([
     "guidedPick 0 0 1",
     "pageLimit 0 0 3",
   ]);
+  expect(report.failed).toBe(false);
+});
+
+// The kept twin sits in the same contract file as the shape that dropped the key, so only the home's span tells them apart.
+test("a write of the key on a same-file shape that kept it is another member, and passes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {
+    "packages/client/src/send.ts": [
+      'import type { EditInput } from "../../contracts/src/chat/send.ts";',
+      "export const edit: EditInput = { guidedPick: 'g' };",
+    ].join("\n"),
+  });
+  const report = await check(repo);
+  const guidedPick = entry(report, "guidedPick");
+  expect(guidedPick?.homes).toEqual([`${CONTRACT}:SendInput`]);
+  expect([guidedPick?.senders.length, guidedPick?.other]).toEqual([0, 1]);
   expect(report.failed).toBe(false);
 });
 
@@ -145,7 +172,7 @@ test("a key moved to another declaration fails a sender of its old home only", {
       "export const stale = { chatId: 'c', guidedPick: 'g' } as SendInput;",
     ].join("\n"),
   });
-  const guidedPick = entry(check(repo), "guidedPick");
+  const guidedPick = entry(await check(repo), "guidedPick");
   expect(guidedPick?.senders.map(({ at }) => at)).toEqual(["packages/client/src/send.ts:4"]);
   expect(guidedPick?.other).toBe(1);
 });
@@ -157,7 +184,7 @@ test("a body sent to an outside API is unresolved and passes", { timeout: 120_00
       "export const sent = postJson('https://api.example.com/v1', { guidedPick: 'g' });",
     ].join("\n"),
   });
-  const report = check(repo);
+  const report = await check(repo);
   expect(entry(report, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([
     `packages/showcase-plugins/src/main.ts:2 ${NO_DESTINATION}`,
   ]);
@@ -178,14 +205,21 @@ test("a loose object handed to one of our procedures is a loose sender and fails
     "  const intent: Record<string, unknown> = {};",
     '  intent["guidedPick"] = "g";',
     "  await fetch('https://elsewhere.example/report', { method: 'POST', body: JSON.stringify(intent) });",
+    // A protocol-relative URL names another origin, never our own route.
+    "  const relative: Record<string, unknown> = {};",
+    '  relative["guidedPick"] = "g";',
+    "  await fetch('//evil.example/x', { method: 'POST', body: JSON.stringify(relative) });",
     "}",
   ].join("\n");
-  const failing = check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": sender }));
+  const failing = await check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": sender }));
   expect(entry(failing, "guidedPick")?.loose.map(({ at, destination }) => `${at} ${destination}`)).toEqual(["tests/e2e/send.spec.ts:4 trpc chat.send"]);
   expect(failing.failed).toBe(true);
-  const passing = check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": outside }));
+  const passing = await check(await deletionBranch(plantedTree, { "tests/e2e/send.spec.ts": outside }));
   expect(entry(passing, "guidedPick")?.loose).toEqual([]);
-  expect(entry(passing, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([`tests/e2e/send.spec.ts:3 ${NO_DESTINATION}`]);
+  expect(entry(passing, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([
+    `tests/e2e/send.spec.ts:3 ${NO_DESTINATION}`,
+    `tests/e2e/send.spec.ts:6 ${NO_DESTINATION}`,
+  ]);
   expect(passing.failed).toBe(false);
 });
 
@@ -253,7 +287,7 @@ const SENDS = {
 test("a loose body reaches our server through a route constant, a query's options and a procedure's mutation; a store's same-named method sends nowhere", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
-  const guidedPick = entry(check(await deletionBranch(plantedTree, SENDS)), "guidedPick");
+  const guidedPick = entry(await check(await deletionBranch(plantedTree, SENDS)), "guidedPick");
   expect(guidedPick?.loose.map(({ at, destination }) => `${at} ${destination}`).toSorted()).toEqual([
     "packages/client/src/mutation.ts:6 trpc chat.edit",
     "packages/client/src/query.ts:4 trpc chat.list",
@@ -270,8 +304,21 @@ test("a loose body reaches our server through a route constant, a query's option
 
 test("the check refuses a head other than the checked-out commit, and a working tree that differs from it", { timeout: 120_000 }, async ({ plantedTree }) => {
   const repo = await deletionBranch(plantedTree, {});
-  expect(() => checkRemovedKeys({ root: repo, base: "main", head: "main", worlds: [WORLD] })).toThrow("check out main first");
-  expect(check(repo).failed).toBe(false);
+  await expect(removedKeysGraph({ root: repo, base: "main", head: "main" }, () => undefined)).rejects.toThrow("check out main first");
+  expect((await check(repo)).failed).toBe(false);
   writeFileSync(join(repo, "packages/client/src/send.ts"), "export const send = { guidedPick: 'g' };\n");
-  expect(() => check(repo)).toThrow("differs from HEAD");
+  await expect(check(repo)).rejects.toThrow("differs from HEAD");
+});
+
+test("a receiver file the merged program does not load is searched as text and listed unresolved, never passed", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await check(
+    await deletionBranch(plantedTree, {
+      "tests/e2e/fixture.json": '{ "guidedPick": "g" }\n',
+      "tests/e2e/notes.md": "// guidedPick is gone\n",
+    }),
+  );
+  expect(entry(report, "guidedPick")?.unresolved.map(({ at, reason }) => `${at} ${reason}`)).toEqual([`tests/e2e/fixture.json:1 ${OUTSIDE_PROGRAM}`]);
+  expect(report.failed).toBe(false);
 });
