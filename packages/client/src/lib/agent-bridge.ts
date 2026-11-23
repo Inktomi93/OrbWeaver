@@ -3,133 +3,27 @@
 // `import.meta.env.DEV` dynamic door in main.tsx; production readiness lives in app-ready-signal.ts (#995).
 
 import type { QueryClient } from "@tanstack/react-query";
-import type { AppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import { readAppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
-import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
+import type { OrbDebugHandle, OrbRingMetadata, OrbRingName, OrbRingResetResult } from "./agent-bridge-contract.ts";
+import { ORB_RING_NAMES } from "./agent-bridge-contract.ts";
+import type { OrbAgentHandles, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
-import type { OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { busEventRing, busLiveCount, resetBusDupBursts, resetBusEventRing } from "./bus-devlog.ts";
 import { consoleErrorRing, installConsoleErrorRing, resetConsoleErrors } from "./console-error-ring.ts";
 import { resetLongTaskEvidence } from "./long-task-tracer.ts";
-import type { AnimationRecord } from "./motion-animation-record.ts";
 import { activeAnimations, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { setFrameDropTrackingPaused } from "./motion-animation-state.ts";
 import { motionFlaggersDrain, motionFlaggersSettled } from "./motion-dead-class-flagger.ts";
-import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { installMotionFlaggers, motionFlags, resetMotionFlags } from "./motion-flaggers.ts";
-import type { MotionSnapshot } from "./motion-stats.ts";
 import { installMotionObservers, motionSnapshot, resetMotionStats } from "./motion-stats.ts";
 import { recentMeasures } from "./perf-marks.ts";
 import { renderHeatmap, resetRenderStats } from "./render-stats.ts";
 import { themeFallbackRing } from "./theme-fallback-ring.ts";
 
 export type { NavResult, OrbAgentHandles, OrbNavCapabilities, OrbNavHandle, OrbRpgReader, OrbSeedHandle, SeedProfile } from "./agent-bridge-handles.ts";
-
-const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
-type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
-const ORB_RING_NAMES = [
-  "bus-events",
-  "flags",
-  "motion",
-  "renders",
-  "css-merges",
-  "animations",
-  "perf",
-  "plugin-log",
-  "plugin-ui",
-  "automation-fires",
-  "console-errors",
-  "theme-fallbacks",
-] as const;
-type OrbRingName = (typeof ORB_RING_NAMES)[number];
-
-interface OrbRingMetadata {
-  readonly name: OrbRingName;
-  readonly read: string;
-  readonly lifetime: OrbRingLifetime;
-  readonly resettable: boolean;
-  readonly description: string;
-}
-
-type OrbRingResetResult = { readonly ok: true; readonly name: OrbRingName } | { readonly ok: false; readonly name: string; readonly reason: string };
-
-interface OrbDebugHandle {
-  /** Resolves when `data-app-ready` is set (initial reads settled). */
-  readonly ready: Promise<void>;
-  readonly isReady: () => boolean;
-  /** The full query cache as plain rows (key · status · fetchStatus · stale · updatedAt). */
-  readonly queries: () => readonly QuerySummary[];
-  /** The chat-bus: live subscription count + the recent canon-event ring (bus-devlog). */
-  readonly bus: () => { readonly live: number; readonly events: readonly BusEventRecord[] };
-  /** DOM-derived shell state (active section · panel modes · whether a chat room is open). */
-  readonly shell: () => ShellSnapshot;
-  /** The recorded `orb:*` User Timing measures (name → ms): app-ready, turn latency/TTFT, etc. */
-  readonly perf: () => ReadonlyArray<{ name: string; ms: number }>;
-  /** The render heatmap: which <Profiler>-wrapped surfaces re-render, how often, how expensive. */
-  readonly renders: () => ReturnType<typeof renderHeatmap>;
-  /** LoAF ring + CLS/worst-blocking/worst-shift — the "what blocks the frame / instability" signals. */
-  readonly motion: () => MotionSnapshot;
-  /** Active animations, each classified compositor-clean (transform/opacity/filter) or a jank risk. */
-  readonly animations: () => readonly AnimationRecord[];
-  /** The motion FLAGGER ring — every [anim]/[css]/[drop]/[space] defect raised this session, deduped
-   *  per offender. The pull half of the push channels in `motion-flaggers.ts`: a harness that cannot
-   *  read the console still gets the offender list. */
-  readonly flags: () => readonly MotionFlagRecord[];
-  /** Every browser-side FAILURE this session: `console.error` calls, uncaught errors, unhandled rejections —
-   *  wall-clock stamped, capped, and counting its own evictions (`dropped`). The one signal this client held
-   *  nowhere before #1095: a caught RENDER error reaches the server's log ring, a bare console.error did not. */
-  readonly consoleErrors: () => ReturnType<typeof consoleErrorRing>;
-  /** Every ThemeScope fallback the app shell's reporter received this session: D159 form-control edge fallbacks,
-   *  capped and counting their evictions (`dropped`). */
-  readonly themeFallbacks: () => ReturnType<typeof themeFallbackRing>;
-  /** Clear the flag ring + its per-offender dedupe. Call between the STEPS of a driven flow: without
-   *  it, step 1's offenders suppress the identical ones in step 2 and the later steps read clean. */
-  readonly resetFlags: () => void;
-  /** Clear checkpoint-scoped flags, motion, and render evidence without disturbing app/query state. */
-  readonly resetEvidence: () => void;
-  /** Wait for the one initial full dev-instrument census before opening a measured interaction window. */
-  readonly motionFlaggersSettled: () => Promise<void>;
-  /** Wait for late class/style mutations and return the caller's monotonic drain generation. */
-  readonly motionFlaggersDrain: typeof motionFlaggersDrain;
-  /** The live Appearance carrier roster, its two-arm values, and reached DOM populations. */
-  readonly appearanceMatrixContract: () => AppearanceMatrixBridgeContract;
-  /** Suspend only duplicate in-page [drop] tracking while motion-audit's CDP trace owns that verdict. */
-  readonly setMotionAuditDropTrackingPaused: (paused: boolean) => void;
-  /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
-  readonly snap: () => Record<string, unknown>;
-  /** Dev-only SPA-navigation actions (see OrbNavHandle) — reach any surface without a click chain. */
-  readonly nav: OrbNavHandle;
-  /** Dev-only rpg game seeder (see OrbSeedHandle) — spin up a fully-populated game in one call. */
-  readonly seed: OrbSeedHandle;
-  /** Active-game state, journal, and recorded folded calls through the production read APIs. */
-  readonly rpg: OrbRpgReader;
-  /** The installed-plugin roster (no ref) or one plugin's RUNTIME host.log ring (ref = slug or id) through
-   *  the production `plugin.list` / `plugin.getLog` reads — the lines a floated hub-search continuation
-   *  logs included (#806). Loud refusal on no match / ambiguity. */
-  readonly pluginLog: OrbPluginLogReader;
-  /** Runtime-listed plugin UI registrations and current publication/host observations. */
-  readonly pluginUi: OrbPluginUiReader;
-  /** Ordered configured-merge conflicts since the last checkpoint (#949). */
-  readonly css: OrbCssHandle;
-  /** The durable AUTOMATION FIRE LOG (`automation_fires`: every dispatch terminal with its per-arm `detail`),
-   *  newest-first across the deployment, via a same-origin read of `/api/_debug/automation/fires` —
-   *  `{chatId?, ruleId?, limit?}` narrow. The debug gate admits the dev admin session (or `x-debug-token`);
-   *  a refused read answers `{ok:false, reason}` with the HTTP status, never a throw. */
-  readonly automationFires: OrbAgentHandles["automationFires"];
-  /** The durable-local namespace's bound identity (`state/durable-local.ts`) — `null` before the viewer
-   *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
-   *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
-  readonly durableLocalUserId: OrbAgentHandles["durableLocalUserId"];
-  /** Exhaustive, typed inventory of this top-level handle. */
-  readonly capabilities: () => Readonly<Record<keyof OrbDebugHandle, string>>;
-  /** Evidence-source index: read surface, lifetime, and whether this client owns a safe reset. */
-  readonly rings: () => readonly OrbRingMetadata[];
-  /** Reset one checkpoint-safe client ring; unsafe or unknown names refuse loudly. */
-  readonly resetRing: (name: string) => OrbRingResetResult;
-}
 
 const ORB_DEBUG_CAPABILITIES = {
   ready: "promise that settles when initial app reads finish",
@@ -193,11 +87,6 @@ const ORB_RING_REGISTRY = {
     description: "ThemeScope tone and form-control edge fallbacks reported by the app shell",
   },
 } as const satisfies Record<OrbRingName, Omit<OrbRingMetadata, "name">>;
-
-declare global {
-  // `var` is required: ambient global augmentation must use var to attach to globalThis.
-  var __orb: OrbDebugHandle | undefined;
-}
 
 /** `data-panel-available` → the tri-state a reader needs: the declaration, or `null` for "the shell did
  *  not publish one". Never defaults to `true`: a missing declare that read as "available" would be the

@@ -1560,6 +1560,9 @@ importers:
       '@jssg/utils':
         specifier: 'catalog:'
         version: 0.0.11
+      '@orb/client':
+        specifier: workspace:*
+        version: link:../packages/client
       '@orb/db':
         specifier: workspace:*
         version: link:../packages/db

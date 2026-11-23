@@ -70,6 +70,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEFAULT_MOTION_WINDOW_MS = 2500;
 const CPU_THROTTLE_METHOD = "Emulation.setCPUThrottlingRate";
+// A string: requestAnimationFrame is a DOM name this program does not carry, and the reset must run inside the second frame.
 const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => requestAnimationFrame(() => requestAnimationFrame(() => {
   try {
     if (typeof globalThis.__orb?.resetEvidence !== "function") throw new Error("__orb.resetEvidence is unavailable");
@@ -109,10 +110,12 @@ async function applicationMotionEvidence(session: ProbeSession, opts: Args): Pro
 
 async function settleAndReset(page: ArmActionContext["page"], selector: string | null, actionIndex: number): Promise<void> {
   try {
-    await page.evaluate(`(() => {
-      if (typeof globalThis.__orb?.motionFlaggersSettled !== "function") throw new Error("__orb.motionFlaggersSettled is unavailable");
+    await page.evaluate(() => {
+      if (typeof globalThis.__orb?.motionFlaggersSettled !== "function") {
+        throw new Error("__orb.motionFlaggersSettled is unavailable");
+      }
       return globalThis.__orb.motionFlaggersSettled();
-    })()`);
+    });
   } catch (error) {
     throw new Error(`motion flagger settle barrier: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }

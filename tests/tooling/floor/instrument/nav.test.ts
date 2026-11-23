@@ -7,43 +7,44 @@
 // probe that arrives differently is a probe measuring something else.
 
 import { expect, test } from "@orb/testkit/tooling";
-import { buildNavScript, NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/floor/instrument/nav";
+import { callNavInPage, decodeNavCall, NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/floor/instrument/nav";
 
 test("each verb calls its own bridge method with the raw target", () => {
-  expect(buildNavScript("open-chat", "latest")).toContain('nav.openChat("latest")');
-  expect(buildNavScript("open-character", "Aria")).toContain('nav.openCharacter("Aria")');
-  expect(buildNavScript("context-tab", "rpg.game")).toContain('nav.contextTab("rpg.game")');
+  expect(decodeNavCall("open-chat", "latest")).toEqual({ method: "openChat", args: ["latest"] });
+  expect(decodeNavCall("open-character", "Aria")).toEqual({ method: "openCharacter", args: ["Aria"] });
+  expect(decodeNavCall("context-tab", "rpg.game")).toEqual({ method: "contextTab", args: ["rpg.game"] });
 });
 
 test("--panel decodes name=mode into TWO bridge arguments", () => {
-  expect(buildNavScript("panel", "context=collapsed")).toContain('nav.panel("context", "collapsed")');
-  expect(buildNavScript("panel", "list=docked")).toContain('nav.panel("list", "docked")');
+  expect(decodeNavCall("panel", "context=collapsed")).toEqual({ method: "panel", args: ["context", "collapsed"] });
+  expect(decodeNavCall("panel", "list=docked")).toEqual({ method: "panel", args: ["list", "docked"] });
 });
 
-test("--goto is DECODED in Node, so the emitted script names one concrete method", () => {
+test("--goto is DECODED in Node, so the page receives one concrete method", () => {
   // The bridge does not understand the namespaced spelling; parseGotoTarget (_kit/flags.ts) picks the arm.
-  expect(buildNavScript("goto", "config:appearance")).toContain('nav.openConfig("appearance")');
-  expect(buildNavScript("goto", "config:appearance.sizing")).toContain('nav.openConfig("appearance", "sizing")');
+  expect(decodeNavCall("goto", "config:appearance")).toEqual({ method: "openConfig", args: ["appearance"] });
+  expect(decodeNavCall("goto", "config:appearance.sizing")).toEqual({ method: "openConfig", args: ["appearance", "sizing"] });
   // The THIRD leg (#1176 widened the bridge to `openConfig(group, sub?, setting?)`; #1639 made it
   // reachable from the CLI): without it no probe could ever drive to one setting LEAF.
-  expect(buildNavScript("goto", "config:appearance.sizing.density")).toContain('nav.openConfig("appearance", "sizing", "density")');
-  expect(buildNavScript("goto", "modal:you")).toContain('nav.openModal("you")');
-  expect(buildNavScript("goto", "presets")).toContain('nav.section("presets")');
+  expect(decodeNavCall("goto", "config:appearance.sizing.density")).toEqual({ method: "openConfig", args: ["appearance", "sizing", "density"] });
+  expect(decodeNavCall("goto", "modal:you")).toEqual({ method: "openModal", args: ["you"] });
+  expect(decodeNavCall("goto", "presets")).toEqual({ method: "section", args: ["presets"] });
 });
 
 test("--goto REFUSES a config address with a fourth part rather than emitting a call that lands elsewhere", () => {
   // A nav that did not land means the probe is measuring some OTHER surface — the module's own contract.
   // The refusal reaches the caller as a NAV FAILED line + a reddened exit (snap/ops/drive.ts's driveNav).
-  expect(() => buildNavScript("goto", "config:appearance.sizing.density.extra")).toThrow("config:<group>[.<sub>[.<setting>]]");
+  expect(() => decodeNavCall("goto", "config:appearance.sizing.density.extra")).toThrow("config:<group>[.<sub>[.<setting>]]");
 });
 
-test("a target with quotes cannot break out of the emitted call", () => {
-  expect(buildNavScript("open-chat", 'a"); alert(1); ("')).toContain(String.raw`nav.openChat("a\"); alert(1); (\"")`);
+test("a target with quotes reaches the bridge as one argument, never as script text", () => {
+  expect(decodeNavCall("open-chat", 'a"); alert(1); ("')).toEqual({ method: "openChat", args: ['a"); alert(1); ("'] });
 });
 
-test("a missing bridge answers with a stated reason instead of throwing in-page", () => {
-  // __orb is dev-only; against a prod build the action must FAIL loudly, never silently no-op.
-  expect(buildNavScript("goto", "presets")).toContain("__orb.nav unavailable");
+test("a missing bridge answers with a stated reason instead of throwing in-page", async () => {
+  // __orb is dev-only; against a prod build the action must FAIL loudly, never silently no-op. This process has no `__orb`.
+  const answer = await callNavInPage(decodeNavCall("goto", "presets"));
+  expect(answer).toEqual({ ok: false, reason: expect.stringContaining("__orb.nav unavailable") });
 });
 
 test("the flag table and the verb union are the same list — a probe cannot offer half of it", () => {

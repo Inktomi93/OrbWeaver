@@ -144,6 +144,7 @@
   },
   "devDependencies": {
     "@jssg/utils": "catalog:",
+    "@orb/client": "workspace:*",
     "@orb/db": "workspace:*",
     "@orb/ui": "workspace:*",
     "@trpc/client": "catalog:",

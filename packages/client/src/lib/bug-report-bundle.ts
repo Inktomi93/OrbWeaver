@@ -25,7 +25,7 @@
 
 import type { EvidenceSlice, EvidenceSourceMeta, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
-import type { MotionSnapshot } from "./motion-stats.ts";
+import type { MotionSnapshot } from "./agent-bridge-contract.ts";
 
 /** Why `flags()` cannot answer a time question — quoted into the bundle so a cold reader needs no source dive. */
 export const FLAGS_UNFILTERABLE_REASON =
