@@ -28,6 +28,10 @@ const FORMS = [
   "in-test",
   "typed-in-test",
   "object-keys",
+  "pick-key",
+  "omit-key",
+  "extract-arm",
+  "exclude-arm",
 ] as const;
 type Form = (typeof FORMS)[number];
 
@@ -52,6 +56,11 @@ const ROWS: { readonly [F in Form]: { readonly use: string; readonly bucket: Mem
   "in-test": { use: 'if ("m" in o) {}', bucket: null },
   "typed-in-test": { use: 'const key: "m" | "n" = "m"; if (key in o) {}', bucket: null },
   "object-keys": { use: "console.log(Object.keys(o));", bucket: "member-sent-only" },
+  // a lib selection names members by key or selects arms by a pattern: a touch, never a read
+  "pick-key": { use: 'o.m = 1; type Picked = Pick<typeof o, "m">;', bucket: "member-write-only" },
+  "omit-key": { use: 'o.m = 1; type Rest = Omit<typeof o, "m">;', bucket: "member-write-only" },
+  "extract-arm": { use: "o.m = 1; type Arm = Extract<typeof o | { readonly n: 1 }, { readonly m: number }>;", bucket: "member-write-only" },
+  "exclude-arm": { use: "o.m = 1; type Others = Exclude<typeof o | { readonly n: 1 }, { readonly m: number }>;", bucket: "member-write-only" },
 };
 
 const holder = (form: Form): string => `Box_${form.replaceAll("-", "_")}`;
@@ -72,4 +81,30 @@ test("each member form leaves its member in the bucket its row names", { timeout
   const bucketOf = new Map(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => [label.split("  ")[0] ?? label, bucket] as const)));
   const found = Object.fromEntries(FORMS.map((form) => [form, bucketOf.get(`${holder(form)}.m`) ?? null]));
   expect(found).toEqual(Object.fromEntries(FORMS.map((form) => [form, ROWS[form].bucket])));
+});
+
+test("a lib selection's pattern literal is no data: its members are never reported", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      'export type Event = { readonly kind: "a"; readonly at: number } | { readonly kind: "b" };',
+      'export type OnlyA = Extract<Event, { readonly kind: "a" }>;',
+      'export type NotA = Exclude<Event, { readonly kind: "a" }>;',
+      "declare const event: OnlyA | NotA;",
+      "console.log(event.kind);",
+    ].join("\n"),
+  });
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE))).toEqual(["Event.at"]);
+});
+
+// A conditional type's extends literal is a pattern the check type is matched against: its members, nested ones too,
+// key the check type's members and are never reported themselves.
+test("a conditional type's pattern members are a match, never data", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "export interface Table { readonly _: { readonly name: string; readonly spare: number }; readonly unread: number }",
+      "export type SqlName<T> = T extends { readonly _: { readonly name: infer Sql } } ? Sql : never;",
+      'export const sql: SqlName<Table> = "t";',
+    ].join("\n"),
+  });
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE))).toEqual(["Table._.name", "Table._.spare", "Table.unread"]);
 });

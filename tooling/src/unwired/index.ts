@@ -26,8 +26,21 @@ export type { GraphProfileReport } from "./graph/profile.ts";
 export { PROFILE_PHASES } from "./graph/profile.ts";
 export type { Query, QueryAnswer } from "./graph/query.ts";
 export { QUERIES } from "./graph/query.ts";
+export type { RemovedKeysReport } from "./graph/removed-keys.ts";
 export type { GraphScan, GraphSessionReport, GraphVerification, WithSession } from "./graph/scan.ts";
-export { codesGraph, cssGraph, domGraph, proceduresGraph, queryGraph, scanGraph, unionsGraph, verifyGraph } from "./graph/scan.ts";
+export {
+  codesGraph,
+  cssGraph,
+  domGraph,
+  proceduresGraph,
+  queryGraph,
+  removedKeysGraph,
+  scanGraph,
+  shapesGraph,
+  unionsGraph,
+  verifyGraph,
+} from "./graph/scan.ts";
+export type { ShapesReport } from "./graph/shapes.ts";
 export type { UnionsReport } from "./graph/unions.ts";
 export type { Verdict, Verified } from "./graph/verify.ts";
 export { VERDICTS } from "./graph/verify.ts";
@@ -44,5 +57,4 @@ export { portCensus } from "./port-census.ts";
 export type { PortTarget, TargetKind } from "./port-targets.ts";
 export { runUnwired } from "./run.ts";
 export { scanUnwired, scanWorld } from "./scan.ts";
-export { scanShapes } from "./shapes.ts";
 export { isProduction, packageWorlds } from "./worlds.ts";

@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-Three small reader gaps from the judged-list review: the debug registrar is found by a path prefix (ROUTE_HOMES in tooling/src/unwired/graph/procedures.ts), so moving registerDebug drops its routes with no signal; OWN_ROUTE in tooling/src/unwired/removed-keys.ts treats a protocol-relative URL such as //evil.example/x as our own origin; REQUEST_CALLS.Request in tooling/src/unwired/graph/urls.ts declares a body slot removed-keys never reaches.
+Three small reader gaps from the judged-list review: the debug registrar is found by a path prefix (ROUTE_HOMES in tooling/src/unwired/graph/procedures.ts), so moving registerDebug drops its routes with no signal; OWN_ROUTE in tooling/src/unwired/graph/removed-keys.ts treats a protocol-relative URL such as //evil.example/x as our own origin; REQUEST_CALLS.Request in tooling/src/unwired/graph/urls.ts declares a body slot removed-keys never reaches.
 
 ## Why
 

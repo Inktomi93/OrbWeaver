@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-22
+updated: 2026-11-23
 priority: P3
 area: tooling
 plan: unwired-code
@@ -19,7 +19,7 @@ D357: reference only until parity closes; a second copy of the engine invites ed
 
 ## Done when
 
-Every parity item is landed and reports/api-play/ is removed.
+The parity audit of the prototype against tooling/src/unwired/graph/ lists no missing rule (each gap is ported with a planted case or dropped by a cited ruling), the prototype is archived outside the repository with its path in Evidence, and reports/api-play/ is removed.
 
 ## Evidence
 

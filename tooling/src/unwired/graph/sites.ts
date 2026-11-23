@@ -532,7 +532,8 @@ export class FileSites {
   /** The type names a production parameter is annotated with: a home whose optional members a caller may leave unset. */
   readonly parameterTypes: Node[] = [];
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
-  readonly zodTwins: { readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
+  /** Each `satisfies X<T>` over a schema expression: the build keeps those whose `type` names zod's `ZodType`. */
+  readonly zodTwins: { readonly type: Node; readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
   readonly handedWhole: HandedWhole[] = [];
   readonly globalAssigns: { readonly target: Node; readonly value: Expression }[] = [];
   readonly flowSites: FlowSite[] = [];
@@ -634,7 +635,6 @@ export interface WalkSink {
 }
 
 const CSS_NAME = /^--[\w-]+$/u;
-const ZOD_TYPE = "ZodType";
 const TV = "tv";
 const URL_CONSTRUCTOR = "URL";
 const WELL_KNOWN_SYMBOLS = "Symbol";
@@ -700,6 +700,13 @@ export function keyLiterals(node: Node | undefined): readonly string[] | null {
     return whenTrue !== null && whenFalse !== null ? [...whenTrue, ...whenFalse] : null;
   }
   return null;
+}
+
+// A pattern literal's members, a nested literal's too: `{ _: { name: infer N } }` matches by every key it spells.
+function patternMembers(node: TypeNode): readonly PropertySignatureDeclaration[] {
+  return typeLiteralsIn(node).flatMap(({ members }) =>
+    members.filter(isPropertySignatureDeclaration).flatMap((member) => [member, ...patternMembers(member.type)]),
+  );
 }
 
 // The type literals a type argument spells, through unions, intersections and parentheses.
@@ -1023,7 +1030,8 @@ class Walker {
         return name === undefined ? [] : [name];
       });
       this.#sites.pickKeys.push({ target, keys });
-      for (const member of pattern.members) {
+      // a nested literal matches by its own keys: `{ _: { name: infer N } }` keys `name` as well as `_`
+      for (const member of [...pattern.members.filter((element) => !isPropertySignatureDeclaration(element)), ...patternMembers(pattern)]) {
         this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
       }
     }
@@ -1174,8 +1182,8 @@ class Walker {
     const holder = this.#holder;
     // a used declaration keeps what holds it alive
     this.#sink.edge("run", key, holder);
-    if (isVariableDeclaration(node) && !top) {
-      // a local's initializer runs with its holder
+    if (isVariableDeclaration(node) && !top && node.initializer !== undefined) {
+      // a local's initializer runs with its holder; an ambient `declare` variable has none to run
       this.#sink.edge("run", holder, key);
     }
     if ((isPropertySignatureDeclaration(node) || isMethodSignatureDeclaration(node)) && !top) {
@@ -1396,11 +1404,13 @@ class Walker {
       const value = node.initializer !== undefined && isJsxExpression(node.initializer) ? node.initializer.expression : node.initializer;
       this.#sites.jsxAttributes.push({ attributes: node.parent, name: node.name.text, value });
     }
-    if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type) && referenceName(node.type) === ZOD_TYPE && node.type.typeArguments?.[0] !== undefined) {
+    if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type) && node.type.typeArguments?.[0] !== undefined) {
       const [shape] = node.type.typeArguments;
+      const { typeName } = node.type;
+      const type = isQualifiedName(typeName) ? typeName.right : typeName;
       for (const literal of zodShapesOf(node.expression)) {
         this.#frame.twinShapes.add(spanOf(literal));
-        this.#sites.zodTwins.push({ shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });
+        this.#sites.zodTwins.push({ type, shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });
       }
     }
   }
@@ -1454,11 +1464,12 @@ class Walker {
     const name = referenceName(node);
     const [target, keys] = node.typeArguments;
     if (ARM_SELECTORS.has(name)) {
-      for (const literal of node.typeArguments.slice(1).flatMap(typeLiteralsIn)) {
-        for (const member of literal.members.filter(isPropertySignatureDeclaration)) {
-          this.#sites.armSelectorMembers.push(this.#sink.keyOf(member));
-        }
-      }
+      this.#sites.armSelectorMembers.push(
+        ...node.typeArguments
+          .slice(1)
+          .flatMap(patternMembers)
+          .map((member) => this.#sink.keyOf(member)),
+      );
     }
     if (MEMBER_SELECTORS.has(name) && target !== undefined && keys !== undefined && stringKeysIn(keys).length > 0) {
       this.#sites.pickKeys.push({ target, keys: stringKeysIn(keys) });

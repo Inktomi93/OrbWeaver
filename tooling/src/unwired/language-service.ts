@@ -13,8 +13,8 @@ import { loadScanWorld, realpath } from "./worlds.ts";
 const isServiceMember = (symbol: ts.Symbol): boolean =>
   hasFlag(symbol.flags, ts.SymbolFlags.PropertyOrAccessor) || hasFlag(symbol.flags, ts.SymbolFlags.Method);
 
-/** One world's program behind a TypeScript 6 language service. */
-export class ServiceWorld {
+// One world's program behind a TypeScript 6 language service.
+class ServiceWorld {
   readonly config: string;
   readonly program: ts.Program;
   readonly checker: ts.TypeChecker;

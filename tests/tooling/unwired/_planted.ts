@@ -120,9 +120,15 @@ function graphKnip(packages: readonly string[], { entries, tags }: GraphTreeOpti
     return { entry: own, project: [`${SOURCE_GLOB}!`] };
   };
   const workspaces = Object.fromEntries(packages.map((name) => [name, workspace(name)]));
+  return plantedKnip({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces });
+}
+
+/** A planted `knip.ts`: one config for both views, and the operator globs per workspace the graph's roots read. */
+export function plantedKnip(config: object, operators: Readonly<Record<string, readonly string[]>> = {}): string {
   return [
-    `const config = ${JSON.stringify({ tags: (tags ?? []).map((tag) => `-@${tag}`), workspaces })};`,
+    `const config = ${JSON.stringify(config)};`,
     "export default (_flags: { readonly production: boolean }) => config;",
+    `export const operators = ${JSON.stringify(operators)};`,
     "export { config };",
   ].join("\n");
 }
@@ -226,19 +232,23 @@ export const ZOD_MODULE = {
   "node_modules/zod/v4/classic/package.json": JSON.stringify({ type: "module" }),
   "node_modules/zod/v4/classic/index.d.ts": [
     "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    "export interface Params { readonly error?: string }",
     "export interface Schema<T = unknown> {",
     "  readonly _output: T;",
     "  parse(value: unknown): T;",
+    "  safeParse(value: unknown): { readonly success: boolean; readonly data?: T };",
+    "  refine(check: (value: T) => boolean, params?: Params): Schema<T>;",
     "  extend<S>(shape: S): Schema<T & Shape<S>>;",
     "  default(value: Exclude<T, undefined>): Schema<T>;",
     "  optional(): Schema<T | undefined>;",
     "}",
+    "export type ZodType<T = unknown> = Schema<T>;",
     "export declare namespace z {",
     "  type ZodType<T = unknown> = Schema<T>;",
     "  type infer<S> = S extends Schema<infer T> ? T : never;",
     "}",
     "export declare const z: {",
-    "  strictObject<S>(shape: S): Schema<Shape<S>>;",
+    "  strictObject<S>(shape: S, params?: Params): Schema<Shape<S>>;",
     "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
     "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
     "  string(): Schema<string>;",

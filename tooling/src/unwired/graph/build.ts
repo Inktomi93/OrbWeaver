@@ -40,7 +40,7 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
-import { Flows } from "./flows.ts";
+import { Flows, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MessageDoors } from "./message-doors.ts";
@@ -49,6 +49,8 @@ import { addAll, allOf, answer, constituentsOf } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
+import type { ValueSelector } from "./selectors.ts";
+import { valueSelectors } from "./selectors.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
@@ -58,6 +60,8 @@ import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
+
+const ZOD_TYPE = "ZodType";
 
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
@@ -82,11 +86,16 @@ interface UrlSpawn {
 export interface Graph {
   readonly facts: GraphFacts;
   readonly variants: readonly VariantAxis[];
+  /** Every exact data-* value selector the sheets and the product strings spell, which a variant value's row names. */
+  readonly variantSelectors: readonly ValueSelector[];
   readonly kept: readonly KeptExport[];
   readonly sdk: SdkSurface;
   readonly urlSpawns: readonly UrlSpawn[];
   readonly files: readonly string[];
 }
+
+// What one program's build yields; the tree's sheets are read once, beside the programs.
+type WorldGraph = Omit<Graph, "variantSelectors">;
 
 // The type a destructuring pattern's keys read: its source's, the element type for a for-of target, then down each step
 // (a tuple's element by its index, else the list's element type).
@@ -131,12 +140,13 @@ export interface BuiltGraph {
 export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
   const state = new GraphState(root, world, roots, session);
   const merged = new Builder(state).build(judgedFiles(state));
-  const apart = (): readonly Graph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
+  const apart = (): readonly WorldGraph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
   const parts = session.profile === null ? apart() : session.profile.time("apart", apart);
   state.enter(world);
   const all = [merged, ...parts];
   const graph: Graph = {
     ...merged,
+    variantSelectors: valueSelectors(root, world),
     variants: all.flatMap(({ variants }) => variants),
     kept: all.flatMap(({ kept }) => kept),
     urlSpawns: all.flatMap(({ urlSpawns }) => urlSpawns),
@@ -156,7 +166,7 @@ function judgedFiles(state: GraphState): readonly string[] {
 
 // A world the merge cannot hold (worlds.ts WORLDS_APART), walked as its own program into the same facts: only the files
 // the merged program does not hold, so a file both hold is walked once, in the merged program.
-function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): Graph {
+function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): WorldGraph {
   using world = NativeWorld.open(state.root, config);
   state.enter(world);
   const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
@@ -227,7 +237,7 @@ class Builder {
     this.#keys = new Keys(this.#state);
   }
 
-  build(files: readonly string[]): Graph {
+  build(files: readonly string[]): WorldGraph {
     const state = this.#state;
     const { profile } = state.session;
     const walk = (): void => this.#walk(files);
@@ -540,13 +550,26 @@ class Builder {
     state.count("whole-module uses", uses.length);
   }
 
-  // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each.
+  // `z.strictObject({ … }) satisfies z.ZodType<T>`: the schema's keys are T's members, one member each. The twin holds
+  // where the reference means zod's own ZodType, imports and renames followed; a local type of that name twins nothing.
   #zodTwins(sites: FileSites): void {
     const state = this.#state;
-    if (state.session.options.ablate.has("zod-twins")) {
+    if (state.session.options.ablate.has("zod-twins") || sites.zodTwins.length === 0) {
       return;
     }
-    const shapes = state.world.typedAt(sites.zodTwins, ({ shape }) => shape);
+    const { world } = state;
+    const named = world.symbolsAt(sites.zodTwins.map(({ type }) => type));
+    const meant = state.batch(
+      named.map((symbol) => (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? world.checker.getAliasedSymbol.gen(symbol) : answer(symbol))),
+    );
+    const zod = world.fromPackage(
+      meant.map((symbol) => (symbol?.name === ZOD_TYPE ? symbol.declarations : [])),
+      ZOD_PACKAGE,
+    );
+    const shapes = world.typedAt(
+      sites.zodTwins.filter((_, at) => zod[at] === true),
+      ({ shape }) => shape,
+    );
     const asks = shapes.flatMap(({ item: { keys }, type }) => keys.map((key) => ({ type, name: key.name, decl: key.decl })));
     const members = state.slotMembers(asks);
     for (const [y, ask] of asks.entries()) {

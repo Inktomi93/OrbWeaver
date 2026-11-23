@@ -67,6 +67,31 @@ test("an extended schema twins its extend literal's keys with the type it satisf
   expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Base.id", "View.hidden"]);
 });
 
+// The twin is zod's: a type of the same name declared anywhere else spells a satisfies check and twins nothing.
+test("a satisfies reference twins only through zod's ZodType, never a local type of that name", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      'import type { ZodType as Imported } from "zod";',
+      "type ZodType<T> = { readonly _output: T };",
+      "export interface Twinned { readonly count: number; readonly hidden: number }",
+      "export interface Aliased { readonly count: number; readonly hidden: number }",
+      "export interface Local { readonly count: number; readonly hidden: number }",
+      "export const twinnedSchema = z.strictObject({ count: z.number(), hidden: z.number() }) satisfies z.ZodType<Twinned>;",
+      "export const aliasedSchema = z.strictObject({ count: z.number(), hidden: z.number() }) satisfies Imported<Aliased>;",
+      "export const localSchema = z.strictObject({ count: z.number(), hidden: z.number() }) satisfies ZodType<Local>;",
+      "export const counts = (a: z.infer<typeof twinnedSchema>, b: z.infer<typeof aliasedSchema>, c: z.infer<typeof localSchema>): number => a.count + b.count + c.count;",
+    ]),
+  });
+  // a twinned key is judged at its type, so the twin's read of `count` reaches it; the local check twins nothing, so its
+  // read lands on the schema key and the type's members stay untouched
+  expect({ untouched: bare(labelsIn(scan, "member-untouched", FILE)), validated: bare(labelsIn(scan, "member-validated", FILE)) }).toEqual({
+    untouched: ["ZodType._output", "Twinned.hidden", "Aliased.hidden", "Local.count", "Local.hidden"],
+    validated: ["localSchema.hidden"],
+  });
+});
+
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,
@@ -83,6 +108,55 @@ test("a value a schema validates is sent to no receiver; a default the schema re
   expect(bare(labelsIn(scan, "member-sent-only", FILE))).toEqual([]);
   expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Row.name", "Row.spare"]);
   expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Fallback.unused"]);
+});
+
+// The flows ruling: every call zod declares takes its arguments as schema input, so no argument is sent to a receiver,
+// whether a validator takes it, a builder takes its options or a refinement takes its check and options.
+test("no argument of any zod call is a send", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Row { readonly name: string; readonly spare: string }",
+      "export interface BuildOptions { readonly error: string; readonly spare: number }",
+      "export interface RefineOptions { readonly error: string; readonly spare: number }",
+      'const BUILD: BuildOptions = { error: "bad", spare: 1 };',
+      'const REFINE: RefineOptions = { error: "short", spare: 2 };',
+      "export const rowSchema = z.strictObject({ name: z.string() }, BUILD).refine((row) => row.name.length > 0, REFINE);",
+      "export const valid = (row: Row): boolean => rowSchema.safeParse(row).success;",
+    ]),
+  });
+  expect({
+    sent: bare(labelsIn(scan, "member-sent-only", FILE)),
+    untouched: bare(labelsIn(scan, "member-untouched", FILE)),
+    written: bare(labelsIn(scan, "member-write-only", FILE)),
+  }).toEqual({
+    sent: [],
+    untouched: ["Row.name", "Row.spare"],
+    written: ["BuildOptions.error", "BuildOptions.spare", "RefineOptions.error", "RefineOptions.spare"],
+  });
+});
+
+// A row spread into a fresh literal and carried through a library generic still fills the typed slot it lands in.
+test("a spread row a generic carries into a typed slot fills that slot's members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Plan { readonly seats: ReadonlyMap<string, readonly { readonly chatId: string; readonly forked: boolean }[]> }",
+      "declare function all<T>(): T[];",
+      "export function plan(): Plan {",
+      "  const rows = all<{ cid: string; chatId: string; forked: number; spare: number }>();",
+      "  const seats = Map.groupBy(rows.map((row) => ({ ...row, forked: row.forked === 1 })), (row) => row.cid);",
+      "  return { seats };",
+      "}",
+    ]),
+  );
+  // the seat's chatId has no reader, and the row's chatId deletes with it, so the slot holds the one row; the row's spare
+  // fills no slot, and the spread literal's own forked writes the seat's (the plan itself is returned to no reader)
+  expect({ untouched: labelsIn(scan, "member-untouched", FILE), written: labelsIn(scan, "member-write-only", FILE) }).toEqual({
+    untouched: ["Plan.seats.chatId", "plan.rows.spare"],
+    written: ["Plan.seats", "Plan.seats.forked"],
+  });
 });
 
 test("a function filling a function slot pairs its parameter with the slot's", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -115,5 +189,6 @@ test("a JSX attribute's value fills the prop it is handed to", { timeout: 120_00
     },
     { jsx: true },
   );
-  expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Option.value", "Entry.value", "Entry.note"]);
+  // Entry.value fills Option.value, which requires it: the one row is the prop's, and the two delete together
+  expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Option.value", "Entry.note"]);
 });
