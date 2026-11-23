@@ -369,3 +369,58 @@ test("a JSX attribute's value fills the prop it is handed to", { timeout: 120_00
   // Entry.value fills Option.value, which requires it: the one row is the prop's, and the two delete together
   expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Option.value", "Entry.note"]);
 });
+
+// A TanStack Form field path walks the form data type segment by segment: a write method writes each member on the
+// path, and any other path argument or a field component's `name` reads each. A member no path or code names stays
+// untouched, and an optional member only a path reads reports read-only.
+test("a form field path reads or writes each member along its segments", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const form = `${GRAPH_SOURCE}/form.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
+      [`${GRAPH_SOURCE}/form-api.ts`]: [
+        "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
+        "export type ReactFormExtendedApi<TFormData> = {",
+        "  setFieldValue(name: string, value: unknown): void;",
+        "  getFieldValue(name: string): unknown;",
+        "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
+        "};",
+        "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
+      ].join("\n"),
+      [form]: [
+        'import { useForm } from "./form-api.ts";',
+        "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly gone?: string }",
+        "export function Editor(): JSX.Element {",
+        "  const form = useForm<Values>({ defaultValues: { params: { fixed: 1 } } });",
+        "  form.setFieldValue('params.seed', 3);",
+        "  const seed = [form.getFieldValue('params.seed'), form.getFieldValue('params.fixed')];",
+        "  return <form.Field name='title'>{seed}</form.Field>;",
+        "}",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect({
+    readOnly: labelsIn(scan, "member-read-only", form),
+    untouched: labelsIn(scan, "member-untouched", form),
+    writeOnly: labelsIn(scan, "member-write-only", form),
+  }).toEqual({ readOnly: ["Values.title"], untouched: ["Values.params.dead", "Values.gone"], writeOnly: [] });
+});
+
+// A read off a receiver typed `any` names no member, so it credits none: it is a lost read by its name alone, which the
+// member rows can list beside a row of that name. A write through `any` and a typed read are not lost reads.
+test("a read off an any receiver is a lost read by its name and credits no member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Shape { readonly kept: string; readonly stray?: string }",
+      "export const shape: Shape = { kept: 'k' };",
+      "declare const untyped: any;",
+      "untyped.written = 1;",
+      "export const read = shape.kept + (untyped.stray as string);",
+    ]),
+  );
+  expect(scan.lostReads.filter((read) => read.startsWith(`${FILE}:`)).map((read) => read.slice(read.indexOf(" ") + 1))).toEqual([".stray"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Shape.stray"]);
+});
