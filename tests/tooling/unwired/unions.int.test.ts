@@ -5,7 +5,7 @@
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { JudgedEntry, UnionsReport } from "../../../tooling/src/unwired/index.ts";
 import { unionsGraph } from "../../../tooling/src/unwired/index.ts";
-import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged } from "./_planted.ts";
+import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, ZOD_MODULE } from "./_planted.ts";
 
 type Report = UnionsReport;
 
@@ -824,6 +824,30 @@ test("a destructured default is read through the property it destructures, and c
   plantedTree,
 }) => {
   expect(sortedRows(await scanUnions(plantedTree, DESTRUCTURED_DEFAULT_TREE))).toEqual(["GAPS.section", "GAPS.wide", "INSETS.block", "INSETS.none"]);
+});
+
+// A tuple spells only itself: `SIZES`' `satisfies` names the keys of a schema built by a generic helper, whose body a
+// slot reading cannot settle, and that link is the tuple's lineage, never its slot's. TWINS holds the same texts and
+// stays unbuilt but for its own `tall`.
+const SATISFIES_TUPLE_TREE = {
+  ...ZOD_MODULE,
+  "packages/a/src/sizes.ts": [
+    'import { z } from "zod";',
+    "function strictObject<S>(shape: S) { return z.object(shape); }",
+    "const settingsSchema = strictObject({ square: z.number(), wide: z.number(), tall: z.number() });",
+    "type Settings = z.infer<typeof settingsSchema>;",
+    'const SIZES = ["square", "wide", "tall"] as const satisfies readonly (keyof Settings)[];',
+    "type Size = (typeof SIZES)[number];",
+    'const TWINS = ["square", "wide", "tall"] as const;',
+    "type Twin = (typeof TWINS)[number];",
+    "export const size = (value: Size): string => value;",
+    "export const twin = (value: Twin): string => value;",
+    'export const built = [size("wide"), twin("tall")];',
+  ].join("\n"),
+};
+
+test("a tuple declared with a `satisfies` its slot cannot read is still the slot's tuple", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, SATISFIES_TUPLE_TREE))).toEqual(["SIZES.square", "SIZES.tall", "TWINS.square", "TWINS.wide"]);
 });
 
 // A destructured name reads the property its annotated holder declares: `level` in `{ level }: Gauge` is a Level, so

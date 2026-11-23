@@ -1362,7 +1362,9 @@ function expansion(site: Site, declaration: Node | null): Expansion {
   }
   if (isVariableDeclaration(declaration)) {
     const tuple = isIdentifier(declaration.name) ? `${site.file}:${declaration.name.text}` : null;
-    return { ...NOTHING, tuple, into: [declaration.type, declaration.initializer] };
+    // A tuple spells only itself: what it `satisfies` is its lineage, which `satisfiedOrigins` reads, never its slot's.
+    const value = isTupleValue(declaration.initializer) ? undefined : declaration.initializer;
+    return { ...NOTHING, tuple, into: [declaration.type, value] };
   }
   if (isFunctionDeclaration(declaration) || isMethodDeclaration(declaration)) {
     return { ...NOTHING, into: [declaration] };
@@ -1373,6 +1375,15 @@ function expansion(site: Site, declaration: Node | null): Expansion {
   }
   const written = isPropertyAssignment(declaration) || isPropertyDeclaration(declaration) ? declaration.initializer : undefined;
   return { ...NOTHING, into: [annotationOf(declaration), written] };
+}
+
+// An `as const` array literal, through parentheses and `satisfies`.
+function isTupleValue(node: Expression | undefined): boolean {
+  let at = node;
+  while (at !== undefined && (isParenthesizedExpression(at) || isSatisfiesExpression(at))) {
+    at = at.expression;
+  }
+  return at !== undefined && isConstAssertion(at) && isArrayLiteralExpression(at.expression);
 }
 
 // What a type declaration adds: an alias its type, a type parameter its constraint, an interface what it extends and
