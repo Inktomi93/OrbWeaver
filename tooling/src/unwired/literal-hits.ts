@@ -19,15 +19,18 @@
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
 //   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays. An
 //   object literal key, a shorthand's included, also resolves to the member its contextual type names, which it writes.
-// - A string holds a row only as a key use, never as copy or data: its whole text is the name, as an `in` operand, an
-//   element access's argument (`raw["id"]`) or a property name, quoted or computed from a literal, whatever the
-//   receiver is typed (keyedHits). A returned value, a call argument, a JSX attribute value or a `z.literal` only
-//   annotates, even in a slot typed as a literal union holding the name; so does a key that only contains the word.
-// - Any other code hit holds only when it names the row's own declaration: the checker resolves it there (a key its
-//   slot names), or it resolves to nothing and the value it is read off, casts taken off, has the row's member of that
-//   name (`(row as any).id`, ownedHits).
-// - An unquoted read off a value typed `any` from the start (`raw.id`) names no owner, so it only annotates: a holder
-//   is a key use or a read of the row's own owner, never a word match on an untyped value.
+// - A hit holds a row only when it names the row's own declaration. A code hit names it when the checker resolves it
+//   there (an object literal key its slot names). A quoted property name in the row's own slot is a graph write, so
+//   one of its own sites; anywhere else it names its own literal or type and only annotates. A read names it when
+//   the receiver, with casts, `satisfies`, `!` and parentheses taken off, has a type with a property of that name
+//   that resolves to the declaration, a union's or intersection's constituent included (ownedHits): an unresolved read
+//   `(row as any).id`, and a string whose whole text is the name as an element access's argument `(row as any)["id"]`
+//   or an `in` operand `"id" in (row as object)`.
+// - A receiver typed `any`, `unknown`, `object`, `Record<string, …>` or an index signature names no owner, so its reads
+//   only annotate, quoted or not. A string in a value position (a returned value, a call argument, a JSX attribute
+//   value, a `z.literal`) and a key that only contains the word annotate too.
+// - The cost: a member read by name at runtime off data untyped from the start can look deletable. The graph counts a
+//   flow from a typed value into `any` as a read, so such a member never reaches the trial from typed code.
 // - An import or export only annotates: one that binds the row's own declaration is always one of its own sites.
 // - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
 //   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
@@ -224,10 +227,10 @@ export interface LiteralSearch {
   /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
   /** The hits in held product source whose whole quoted text is the name, as an `in` operand, an element access's
-   *  argument or a property name: the hits that hold a row as a key use. */
+   *  argument or a property name: the key uses that hold a row the program holds no declaration for. */
   readonly keyed: ReadonlySet<LiteralHit>;
-  /** For each code hit in a held file the checker resolves to nothing, the declaration keys of that name's members on
-   *  the type of the value it is read off. */
+  /** For each read-shaped hit in a held file (an unresolved property or element read, a whole-key `in` operand), the
+   *  declaration keys of that name's members on the type of the value it is read off. */
   readonly owned: ReadonlyMap<LiteralHit, readonly string[]>;
   /** The plugin author and SDK sources, which count as product source beside the packages' own. */
   readonly plugins: PluginSources;
@@ -537,7 +540,8 @@ const KEY_KINDS: ReadonlySet<HitKind> = new Set<HitKind>([...TEXT_KINDS, ...CODE
 // The hits in held product source that are a key use: a string whose whole text is the name, as an `in` operand, an
 // element access's argument or a property name (quoted, or a computed name from a literal). A string in a value
 // position, such as a returned value, a call argument or a JSX attribute value, is copy or data, never a key use, even
-// where the checker types its slot as a literal union that holds the name; so is a key that only contains the word.
+// where the checker types its slot as a literal union that holds the name; so is a key that only contains the word. A
+// row with a declaration needs more: the receiver test in ownedHits.
 function keyedHits(world: NativeWorld, hits: readonly LiteralHit[], plugins: PluginSources): ReadonlySet<LiteralHit> {
   return new Set(
     hits.filter((hit) => {
@@ -612,15 +616,17 @@ function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): Readonly
   );
 }
 
-// What each unresolved code hit in a held file names through the value it is read off, in one batched lookup.
+// What each read-shaped hit in a held file names through the value it is read off, in one batched lookup: an
+// unresolved property or element read, and a whole-key string as an `in` operand.
 function ownedHits(
   world: NativeWorld,
   hits: readonly LiteralHit[],
   resolved: ReadonlyMap<LiteralHit, readonly string[]>,
 ): ReadonlyMap<LiteralHit, readonly string[]> {
   const reads = hits.flatMap((hit) => {
-    const token = CODE_KINDS.has(hit.kind) && !resolved.has(hit) && hit.graph && hit.offset !== null ? heldNodeAt(world, hit.file, hit.offset) : undefined;
-    const receiver = token === undefined ? undefined : receiverOf(token);
+    const asked = (CODE_KINDS.has(hit.kind) && !resolved.has(hit)) || TEXT_KINDS.has(hit.kind);
+    const token = asked && hit.graph && hit.offset !== null ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    const receiver = token === undefined ? undefined : receiverOf(token, hit.name);
     return receiver === undefined ? [] : [{ hit, receiver }];
   });
   sendable(
@@ -636,13 +642,20 @@ function ownedHits(
   return new Map(reads.map(({ hit }, at) => [hit, (members[at] ?? []).flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol)))] as const));
 }
 
-// The value a property or element access reads a name off, with parentheses, casts, `satisfies` and non-null
-// assertions taken off: `(row as any).id` reads `id` off `row`.
-function receiverOf(token: Node): Expression | undefined {
+// The value a read names a member off, with parentheses, casts, `satisfies` and non-null assertions taken off: a
+// property access's object, and for a string whose whole text is the name, an element access's object or an `in`
+// operand's right side. `(row as any).id`, `(row as any)["id"]` and `"id" in (row as object)` all read `row`.
+function receiverOf(token: Node, name: string): Expression | undefined {
   const { parent } = token;
-  const read =
-    (isPropertyAccessExpression(parent) && sameNode(parent.name, token)) || (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, token));
-  let value = read ? parent.expression : undefined;
+  const whole = (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) && token.text === name;
+  let value: Expression | undefined;
+  if (isPropertyAccessExpression(parent) && sameNode(parent.name, token)) {
+    value = parent.expression;
+  } else if (whole && isElementAccessExpression(parent) && sameNode(parent.argumentExpression, token)) {
+    value = parent.expression;
+  } else if (whole && isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, token)) {
+    value = parent.right;
+  }
   while (
     value !== undefined &&
     (isParenthesizedExpression(value) || isAsExpression(value) || isSatisfiesExpression(value) || isNonNullExpression(value) || isTypeAssertion(value))
@@ -935,14 +948,13 @@ function judged(
   return rows.map((row, at) => {
     const mine = declarations[at] ?? new Set<string>();
     const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: mine });
-    // A row with no declaration the program holds cannot be told from another member of its name, so any code hit can
-    // be its read, as `searched` keeps every hit for it.
+    // A row with no declaration the program holds cannot be told from another member of its name, so any code hit or
+    // whole key can be its read, as `searched` keeps every hit for it.
     const names = (hit: LiteralHit): boolean =>
-      mine.size === 0 ? CODE_KINDS.has(hit.kind) : [...(search.resolved.get(hit) ?? []), ...(search.owned.get(hit) ?? [])].some((key) => mine.has(key));
-    return {
-      hits,
-      literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, keyed: search.keyed, names, plugins: search.plugins }, search.files),
-    };
+      mine.size === 0
+        ? CODE_KINDS.has(hit.kind) || search.keyed.has(hit)
+        : [...(search.resolved.get(hit) ?? []), ...(search.owned.get(hit) ?? [])].some((key) => mine.has(key));
+    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, names, plugins: search.plugins }, search.files) };
   });
 }
 
@@ -959,25 +971,21 @@ function evidenceOf(
     own,
     elsewhere,
     productData,
-    keyed,
     names,
     plugins,
   }: {
     readonly own: number;
     readonly elsewhere: number;
     readonly productData: ReadonlySet<string>;
-    readonly keyed: ReadonlySet<LiteralHit>;
-    /** Whether a code hit names the row's own declaration, directly or through the value it is read off. */
+    /** Whether a hit names the row's own declaration: the checker resolves it there, or it is a read whose receiver's
+     *  type has the row's member of that name. */
     readonly names: (hit: LiteralHit) => boolean;
     readonly plugins: PluginSources;
   },
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
-  const holding = saving.filter(
-    (hit) =>
-      (hit.offset !== null && isProduction(hit.file, plugins) && (keyed.has(hit) || (!TEXT_KINDS.has(hit.kind) && names(hit)))) || productData.has(hit.file),
-  );
+  const holding = saving.filter((hit) => (hit.offset !== null && isProduction(hit.file, plugins) && names(hit)) || productData.has(hit.file));
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
   return {

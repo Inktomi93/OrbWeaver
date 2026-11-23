@@ -356,7 +356,7 @@ test.for([
 });
 
 // A clean compile says only that the compiler needs no site of the name. A member a product string reads as a key
-// (an `in` operand) is confirmed-literal with the hit, the string that only builds a constant listed after it. A JSON key in a file under a package's src that no
+// (an `in` operand off its owner, cast to `object` so the graph sees no read) is confirmed-literal with the hit, the string that only builds a constant listed after it. A JSON key in a file under a package's src that no
 // product module loads, and a string in a script, only annotate, a product read of another type's member of the same name is no hit, and neither
 // is a comment or the candidate's own sites (its declaration, a re-export the delete removes): those stay confirmed.
 test("a compile-clean candidate whose name a product string spells is confirmed-literal, an unloaded JSON key only annotates", { timeout: 120_000 }, async ({
@@ -378,7 +378,7 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
           "export function zqOrphan(): number { return 2; }",
         ].join("\n"),
         [DOOR]: 'export { zqOrphan } from "./lib.ts";',
-        [KEYS]: ['export const KEY = "zqSecret";', 'export const has = (o: object): boolean => "zqSecret" in o;'].join("\n"),
+        [KEYS]: ['export const KEY = "zqSecret";', 'export const has = (o: import("./lib.ts").Shape): boolean => "zqSecret" in (o as object);'].join("\n"),
         [OTHER]: ["export interface Other { readonly zqShared: string }", "export declare const other: Other;"].join("\n"),
         [MAIN]: [
           'import { KEY } from "./keys.ts";',
@@ -415,14 +415,17 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
 });
 
 // A computed member is searched by the name its key resolves to, never by its bracket text: the same `in` operand reads
-// the plain member and the computed one, so both are confirmed-literal.
+// the plain member and the computed one off their owner cast to `object`, so both are confirmed-literal.
 test("a computed member a product string spells through its key's value is confirmed-literal like a plain one", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
   const root = await plantedTree(
     graphTree(
       {
-        [KEYS]: ['export const LIT = "zqLit";', 'export const has = (o: object): boolean => "zqPlain" in o || "zqLit" in o;'].join("\n"),
+        [KEYS]: [
+          'export const LIT = "zqLit";',
+          'export const has = (o: import("./lib.ts").Shape): boolean => "zqPlain" in (o as object) || "zqLit" in (o as object);',
+        ].join("\n"),
         [LIB]: [
           'import { LIT } from "./keys.ts";',
           "export interface Shape { readonly kept: string; readonly zqPlain?: string; readonly [LIT]?: string }",
@@ -479,11 +482,11 @@ test("a member named like a keyword is confirmed past its keyword hits", { timeo
   );
 });
 
-// A common word hits code that names something else. A product hit holds a row only as a key use (an `in` operand or
-// an element access's quoted key, whatever the receiver is typed) or as a read the checker leaves unresolved on a value
-// typed by the member's own owner (a cast to `any`). An unquoted read of an untyped value, a read of another type's
-// member through a cast, and an import of another declaration of the word stay listed and keep the row confirmed.
-test("a literal hit holds a row only as a key use or an unresolved read of its own owner", { timeout: 120_000 }, async ({ plantedTree }) => {
+// A common word hits code that names something else. A product read holds a row only off a value typed by the
+// member's own owner, a cast stripped: an unresolved property read, an element access's quoted key, an `in` operand. The
+// same reads off an untyped value or an `object`, a read of another type's member through a cast, and an import of another
+// declaration of the word stay listed and keep the row confirmed.
+test("a literal read holds a row only off a value its own owner types, quoted or not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -497,6 +500,9 @@ test("a literal hit holds a row only as a key use or an unresolved read of its o
           "  readonly zqImported: string;",
           "  readonly zqQuoted: string;",
           "  readonly zqInLoose: string;",
+          "  readonly zqQuotedOwn: string;",
+          "  readonly zqInOwn: string;",
+          "  readonly zqBoth: string;",
           "}",
           "export declare const made: Shape;",
         ].join("\n"),
@@ -514,6 +520,10 @@ test("a literal hit holds a row only as a key use or an unresolved read of its o
           'use((o: object): boolean => "zqKeyed" in o);',
           'use(loose["zqQuoted"]);',
           'use("zqInLoose" in loose);',
+          'use((made as any)["zqQuotedOwn"]);',
+          'use("zqInOwn" in (made as object));',
+          'declare const both: import("./lib.ts").Shape & { readonly extra: number };',
+          'use("zqBoth" in (both as object));',
         ].join("\n"),
       },
       { entries: [MAIN] },
@@ -527,22 +537,26 @@ test("a literal hit holds a row only as a key use or an unresolved read of its o
       .filter(({ label }) => label.includes(":Shape.zq"))
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqKeyed`, CONFIRMED_LITERAL, [`${MAIN}:10 string`]],
+    [`${LIB}:Shape.zqKeyed`, CONFIRMED, [`${MAIN}:10 string`]],
     [`${LIB}:Shape.zqCast`, CONFIRMED_LITERAL, [`${MAIN}:8 read`]],
     [`${LIB}:Shape.zqLoose`, CONFIRMED, [`${MAIN}:7 read`]],
     [`${LIB}:Shape.zqForeign`, CONFIRMED, [`${MAIN}:9 read`, `${OTHER}:2 declaration`]],
     [`${LIB}:Shape.zqImported`, CONFIRMED, [`${MAIN}:2 import-export`, `${OTHER}:1 declaration`]],
-    [`${LIB}:Shape.zqQuoted`, CONFIRMED_LITERAL, [`${MAIN}:11 read`]],
-    [`${LIB}:Shape.zqInLoose`, CONFIRMED_LITERAL, [`${MAIN}:12 string`]],
+    [`${LIB}:Shape.zqQuoted`, CONFIRMED, [`${MAIN}:11 read`]],
+    [`${LIB}:Shape.zqInLoose`, CONFIRMED, [`${MAIN}:12 string`]],
+    [`${LIB}:Shape.zqQuotedOwn`, CONFIRMED_LITERAL, [`${MAIN}:13 read`]],
+    [`${LIB}:Shape.zqInOwn`, CONFIRMED_LITERAL, [`${MAIN}:14 string`]],
+    [`${LIB}:Shape.zqBoth`, CONFIRMED_LITERAL, [`${MAIN}:16 string`]],
   ]);
 });
 
 const VIEW = `${GRAPH_SOURCE}/view.tsx`;
 
 // A string is a key use only as an `in` operand, an element access's argument or a property name, and only when the
-// whole string is the member's name. A quoted key that merely contains the word, and a string in a value position (a
-// returned value, a literal call argument, a JSX attribute value), only annotate, even where the checker types the
-// slot as a literal union that holds the name. A whole quoted key is the control that still holds.
+// whole string is the member's name. A quoted key off the owner that merely contains the word, a whole key off a
+// `Record`, and a string in a value position (a returned value, a literal call argument, a JSX attribute value) only
+// annotate, even where the checker types the slot as a literal union that holds the name. A whole quoted key off the
+// owner, through a cast, is the control that still holds.
 test("a string holds a row only as a whole key, never as a value or a key that contains the word", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
@@ -552,6 +566,7 @@ test("a string holds a row only as a whole key, never as a value or a key that c
           "export interface Shape {",
           "  readonly kept: string;",
           "  readonly zqWhole: string;",
+          "  readonly zqRecord: string;",
           "  readonly zqSub: string;",
           "  readonly zqReturned: string;",
           "  readonly zqLit: string;",
@@ -567,8 +582,9 @@ test("a string holds a row only as a whole key, never as a value or a key that c
           "declare function literal<const T extends string>(value: T): { readonly value: T };",
           'const kindOf = (flag: boolean): "zqReturned" | "other" => (flag ? "other" : "zqReturned");',
           "use(made.kept);",
-          'use(headers["zqWhole"]);',
-          'headers["last-zqSub-id"] = "x";',
+          'use((made as Record<string, string>)["zqWhole"]);',
+          'use(headers["zqRecord"]);',
+          '(made as any)["last-zqSub-id"] = "x";',
           "use(kindOf(true));",
           'use(literal("zqLit"));',
           "use(view);",
@@ -586,6 +602,7 @@ test("a string holds a row only as a whole key, never as a value or a key that c
   const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.includes(":Shape.zq")).map(({ label, verdict }) => [label, verdict])).toEqual([
     [`${LIB}:Shape.zqWhole`, CONFIRMED_LITERAL],
+    [`${LIB}:Shape.zqRecord`, CONFIRMED],
     [`${LIB}:Shape.zqSub`, CONFIRMED],
     [`${LIB}:Shape.zqReturned`, CONFIRMED],
     [`${LIB}:Shape.zqLit`, CONFIRMED],
