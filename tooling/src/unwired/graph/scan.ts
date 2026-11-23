@@ -13,6 +13,8 @@ import type { DomReport } from "./dom.ts";
 import { domPass } from "./dom.ts";
 import type { DumpStamp } from "./dump.ts";
 import { readDump, writeDump } from "./dump.ts";
+import type { JudgedMembers, MemberRulings } from "./judge.ts";
+import { judgeMembers, NO_RULINGS } from "./judge.ts";
 import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
 import type { Ablation, GraphOptions } from "./options.ts";
@@ -31,6 +33,8 @@ import type { WhyEntry } from "./why.ts";
 export interface GraphScan {
   readonly files: number;
   readonly analysis: Analysis;
+  /** The member buckets split by the deliberate and judged lists. */
+  readonly members: JudgedMembers;
   readonly counts: readonly { readonly name: string; readonly count: number }[];
   /** Property reads no origin walk, declaration or by-design reason placed, as `file:pos .name`. */
   readonly lostReads: readonly string[];
@@ -172,16 +176,25 @@ async function session<T>(root: string, log: GraphLog, options: GraphOptions, us
   return await running.run(use);
 }
 
-const scanOf = ({ graph, time }: SessionWork): GraphScan => ({
-  files: graph.files.length,
-  analysis: time("analyse", () => analyse(graph)),
-  counts: [...graph.facts.counts].sort(([a], [b]) => a.localeCompare(b)).map(([name, count]) => ({ name, count })),
-  lostReads: graph.facts.lostReads,
-});
+const scanOf = (root: string, { graph, time }: SessionWork, rulings: MemberRulings): GraphScan => {
+  const analysis = time("analyse", () => analyse(graph));
+  return {
+    files: graph.files.length,
+    analysis,
+    members: judgeMembers(root, graph, analysis, rulings),
+    counts: [...graph.facts.counts].sort(([a], [b]) => a.localeCompare(b)).map(([name, count]) => ({ name, count })),
+    lostReads: graph.facts.lostReads,
+  };
+};
 
-/** Build and analyse the graph of the tree at `root`. */
-export function scanGraph(root: string, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<GraphScan>> {
-  return session(root, log, options, scanOf);
+/** Build and analyse the graph of the tree at `root`, its member rows split by `rulings`. */
+export function scanGraph(
+  root: string,
+  log: GraphLog,
+  options: GraphOptions = FRESH_BUILD,
+  rulings: MemberRulings = NO_RULINGS,
+): Promise<WithSession<GraphScan>> {
+  return session(root, log, options, (work) => scanOf(root, work, rulings));
 }
 
 /** Build and analyse the graph, then check an even sample of one member bucket against find-references. */
@@ -193,7 +206,7 @@ export function verifyGraph(
 ): Promise<WithSession<{ readonly scan: GraphScan; readonly verification: GraphVerification }>> {
   const { bucket, sample } = check;
   return session(root, log, options, (work) => {
-    const scan = scanOf(work);
+    const scan = scanOf(root, work, NO_RULINGS);
     const findings = scan.analysis[bucket];
     const chains = tracing(options, "verify-chain") !== undefined;
     const entries = work.time("verify", () => verifyFindings(work.world(), evenSample(findings, sample), chains));

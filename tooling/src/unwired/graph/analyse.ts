@@ -371,18 +371,8 @@ class Analyser {
     return publishedAt(this.#graph.sdk, { file: info.file, home: info.surfacePath, member: info.name }) !== null;
   }
 
-  // The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal.
-  #home(holder: GraphKey): string {
-    const names: string[] = [];
-    const declOf = (key: GraphKey): DeclInfo | undefined => (isDeclKey(key) ? this.#state.decls.get(key) : undefined);
-    for (let at = declOf(holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
-      names.unshift(at.name);
-    }
-    return names.join(".");
-  }
-
   #memberLabel(info: DeclInfo): string {
-    const home = this.#home(info.holder);
+    const home = memberHome(this.#state.decls, info.holder);
     return `${info.file}:${home === "" ? "" : `${home}.`}${info.name}`;
   }
 
@@ -433,6 +423,16 @@ class Analyser {
       }
     }
   }
+}
+
+/** The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal. */
+export function memberHome(decls: ReadonlyMap<DeclKey, DeclInfo>, holder: GraphKey): string {
+  const names: string[] = [];
+  const declOf = (key: GraphKey): DeclInfo | undefined => (isDeclKey(key) ? decls.get(key) : undefined);
+  for (let at = declOf(holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
+    names.unshift(at.name);
+  }
+  return names.join(".");
 }
 
 type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any", ReadonlySet<GraphKey>>>;
