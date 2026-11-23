@@ -807,6 +807,25 @@ test("a JSX attribute is read through the props property it sets, and credits on
   expect(sortedRows(await scanUnions(plantedTree, JSX_ATTRIBUTE_TREE))).toEqual(["GAPS.block", "GAPS.none"]);
 });
 
+// A destructured default lands in the property the name destructures: `inset = "section"` is an Inset and
+// `gap = "none"` a Gap, though the two tuples share both texts.
+const DESTRUCTURED_DEFAULT_TREE = {
+  "packages/a/src/pane.ts": [
+    'const INSETS = ["section", "none", "block"] as const;',
+    "type Inset = (typeof INSETS)[number];",
+    'const GAPS = ["section", "none", "wide"] as const;',
+    "type Gap = (typeof GAPS)[number];",
+    "interface PaneProps { readonly inset?: Inset; readonly gap?: Gap }",
+    'export function pane({ inset = "section", gap = "none" }: PaneProps): string { return inset + gap; }',
+  ].join("\n"),
+};
+
+test("a destructured default is read through the property it destructures, and credits only that property's tuple", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  expect(sortedRows(await scanUnions(plantedTree, DESTRUCTURED_DEFAULT_TREE))).toEqual(["GAPS.section", "GAPS.wide", "INSETS.block", "INSETS.none"]);
+});
+
 // A destructured name reads the property its annotated holder declares: `level` in `{ level }: Gauge` is a Level, so
 // the case and the comparison on it count for LEVELS. The same name destructured from an inline-typed holder traces
 // to no tuple, so `"high"` counts for none.

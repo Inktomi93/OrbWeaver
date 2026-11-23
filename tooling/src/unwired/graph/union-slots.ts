@@ -1152,6 +1152,10 @@ function* receivingStep(world: NativeWorld, { node, path, element }: Climb & { r
   if (isJsxAttribute(parent) && parent.initializer !== undefined && sameNode(parent.initializer, node)) {
     return { done: marked(yield* jsxAttributeSpellings(world, parent), element) };
   }
+  // `({ inset = "section" }: Props)`: a default lands in the property the name destructures.
+  if (isBindingElement(parent) && parent.initializer !== undefined && sameNode(parent.initializer, node)) {
+    return { done: marked(yield* destructuredSpellings(world, parent), element) };
+  }
   return yield* objectStep(world, node, { path, element });
 }
 
