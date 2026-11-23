@@ -291,3 +291,164 @@ test("a written data attribute is sent, a written aria attribute is read, and an
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Props.aria-unused"]);
   expect(labelsIn(scan, "member-write-only", FILE)).toEqual([]);
 });
+
+// A literal checked by `satisfies` and handed into an opaque slot leaves as the checked shape: the type's members are
+// sent where the value goes, a library or a file through an in-tree helper.
+test("a value checked by satisfies and handed into an opaque slot sends the checked type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export declare function render(value: Readonly<Record<string, unknown>>): string;"], "render"),
+    ...source([
+      'import { render } from "render";',
+      "declare function writeFileSync(path: string, data: string): void;",
+      "export interface View { readonly shown: string }",
+      "export interface Bundle { readonly saved: number }",
+      'export const shown = (): string => render({ shown: "s" } satisfies View);',
+      'const download = (payload: unknown): void => writeFileSync("out.json", JSON.stringify(payload));',
+      "export const saved = (): void => download({ saved: 1 } satisfies Bundle);",
+    ]),
+  });
+  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+    ["View.shown", "member-sent-only", [`dependency ${FILE}:5 render`]],
+    ["Bundle.saved", "member-sent-only", [`file ${FILE}:7`]],
+  ]);
+});
+
+// An in-tree body that only consumes a value it takes (tests it, voids it), itself or through a helper it calls, drops
+// it: nothing receives the value, so it does not escape. A body that returns, stores or passes the value on along any
+// path keeps the escape, even beside a drop on another path.
+test("a value an in-tree body drops on every path is not sent; one it passes on along any path is", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export declare function json(value: object): string;"]),
+    ...source([
+      'import { json } from "lib";',
+      "export interface Ignored { readonly a: string }",
+      "export interface Helped { readonly b: string }",
+      "export interface Returned { readonly c: string }",
+      "export interface Stored { readonly d: string }",
+      "export interface Passed { readonly e: string }",
+      "const ignore = (value: unknown): void => { void value; };",
+      "const quiet = (value: unknown): void => { if (value === null) { return; } ignore(value); };",
+      "const keep = (value: unknown): unknown => { if (value === null) { return undefined; } return value; };",
+      "const cache: { held: unknown } = { held: undefined };",
+      "const stash = (value: unknown): void => { void value; cache.held = value; };",
+      "const forward = (value: unknown): string => (typeof value === 'object' && value !== null ? json(value) : '');",
+      'export const run = (): void => { ignore({ a: "a" } satisfies Ignored); quiet({ b: "b" } satisfies Helped); };',
+      'export const kept = (): unknown => keep({ c: "c" } satisfies Returned);',
+      'export const stashed = (): void => stash({ d: "d" } satisfies Stored);',
+      'export const forwarded = (): string => forward({ e: "e" } satisfies Passed);',
+    ]),
+  });
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["Ignored.a", "Helped.b", "cache.held"]);
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Returned.c", "Stored.d", "Passed.e"]);
+});
+
+// An assertion of a parameter a library typed hands the object to that library, which reads it back as the asserted
+// type; on a returned closure's `unknown` parameter the reader is the closure's unseen caller. A cast nothing follows
+// further, into a binding, sends nothing.
+test("an assertion of a library's parameter sends the asserted type to that library; a bare cast sends nothing", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export interface Root { type: string; children: unknown[] }"], "mdast"),
+    ...source([
+      'import type { Root } from "mdast";',
+      "export interface Chip { type: string; data?: { tag: string } }",
+      "export interface Dice { data?: { face: string } }",
+      "export interface Cast { readonly kept: string }",
+      'const walk = (node: Chip): void => { node.data = { tag: "span" }; };',
+      "export const plugin = () => (tree: Root): void => walk(tree as Chip);",
+      'const roll = (node: Dice): void => { node.data = { face: "d" }; };',
+      "export function dicePlugin() { return (tree: unknown): void => roll(tree as Dice); }",
+      'export const loose = (): unknown => { const cast: Cast = { kept: "k" }; const held = cast as unknown; return [held]; };',
+    ]),
+  });
+  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+    ["Cast.kept", "member-write-only", []],
+    ["Chip.type", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
+    ["Chip.data", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
+    ["Chip.data.tag", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
+    ["Dice.data", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
+    ["Dice.data.face", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
+  ]);
+});
+
+// A serialization whose string is compared reads every member in the process, as a dotted-path reader does with its
+// value; a response or a thrown serialization only sends the members, and an in-tree logger that drops the value sends
+// nothing.
+test("a dotted-path read and a compared serialization read a value's members; a response or a throw only sends them", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Snapshot { readonly mode: string; readonly deep: { readonly leaf: string } }",
+      "export interface Detail { readonly note: string }",
+      "export interface View { readonly status: string; readonly details: readonly Detail[] }",
+      "export interface Passed { readonly unread: string }",
+      "export interface Pair { readonly left: string; readonly inner: { readonly right: string } }",
+      "export interface Failed { readonly code: string }",
+      "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
+      "const log = (value: unknown): void => { void value; };",
+      "const c = { json: (value: unknown): unknown => value };",
+      'const snapshot: Snapshot = { mode: "m", deep: { leaf: "l" } };',
+      'const view: View = { status: "ok", details: [{ note: "n" }] };',
+      'const passed: Passed = { unread: "u" };',
+      'const pair: Pair = { left: "l", inner: { right: "r" } };',
+      'const failed: Failed = { code: "c" };',
+      'export const sample = nestedValue(snapshot, "mode");',
+      "export const sent = c.json(view);",
+      "export const same = JSON.stringify(pair) === JSON.stringify(pair);",
+      'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
+      "log(passed);",
+    ]),
+  );
+  expect({
+    sent: labelsIn(scan, "member-sent-only", FILE),
+    written: labelsIn(scan, "member-write-only", FILE),
+  }).toEqual({ sent: ["Detail.note", "View.status", "View.details", "Failed.code"], written: ["Passed.unread"] });
+  expect(scan.members.unwired.filter(({ member }) => member === "status" || member === "code").map(({ sent }) => sent[0]?.split(" ")[0])).toEqual([
+    "http",
+    "error",
+  ]);
+});
+
+// A typed value handed into a string-indexed type is read back by a literal key through that type in the same file:
+// the key reads the value's member of its name, at any depth. A member no key names stays sent.
+test("a literal key read through a string-indexed type reads the handed value's member of that name", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "type Json = Record<string, unknown>;",
+      "export interface Reply { readonly done: boolean; readonly unread: string; readonly meta: { readonly calls: number } }",
+      "declare const reply: Reply;",
+      "const parseLine = (): Json => reply;",
+      'const finish = (line: Json): boolean => line["done"] === true && line["calls"] !== undefined;',
+      "export const run = (): boolean => finish(parseLine());",
+    ]),
+  );
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Reply.unread", "Reply.meta"]);
+});
+
+// A slot with a string index signature names some members and takes the rest as open entries: the members it does not
+// name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
+// it names pairs, so a read of the slot's member reads it.
+test("a value's members a string-index slot does not name are sent where the slot's value goes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export interface Logger { debug<T extends object>(obj: T, msg?: string): void }"], "pino"),
+    ...source([
+      'import type { Logger } from "pino";',
+      "export interface Trace { readonly built: number }",
+      "export interface Entry { readonly event: string; readonly trace: Trace }",
+      "export interface LogRecord { readonly event: string; readonly [field: string]: unknown }",
+      "const record = (entry: LogRecord, base: Logger): void => base.debug({ memory: true, ...entry }, entry.event);",
+      "export const build = (base: Logger): void => {",
+      "  const sink = { log: (entry: Entry): void => record(entry, base) };",
+      '  sink.log({ event: "e", trace: { built: 1 } });',
+      "};",
+    ]),
+  });
+  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+    ["Trace.built", "member-sent-only", [`log ${FILE}:7 pino`]],
+    ["Entry.trace", "member-sent-only", [`log ${FILE}:7 pino`]],
+  ]);
+});

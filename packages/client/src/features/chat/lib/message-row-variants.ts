@@ -12,7 +12,7 @@ import type { RowAttribution } from "./attribution.ts";
 import type { TrackName } from "./chat-track.tsx";
 import type { SwipeFoot } from "./pager-chrome.ts";
 import { SWIPE_FOOT_ECHO, SWIPE_FOOT_INSIDE, SWIPE_FOOT_TRAIN } from "./pager-chrome.ts";
-import type { ActionsRow, PinnedHeader } from "./row-edges.ts";
+import type { ActionsRow, PinnedHeader, PinnedReach } from "./row-edges.ts";
 import { ACTIONS_ONLY, ACTIONS_WITH_IDENTITY, PINNED_BAND, PINNED_CARD, PINNED_PAGE, PINNED_TRAIN } from "./row-edges.ts";
 
 /** How a row renders its identity art. `sticky-portrait` (Ripple) replaces the sibling avatar chip;
@@ -112,11 +112,11 @@ export type HeaderEdges =
       /** {@link HeaderPlacement} — where this skin's speaker/timestamp/actions row lives. */
       readonly headerPlacement: Extract<HeaderPlacement, "inside">;
       /** The header bar's paint while pinned: the row's own surface, reaching its edges (row-edges.ts). */
-      readonly pinnedHeader: PinnedHeader<"card" | "column" | "page" | "none">;
+      readonly pinnedHeader: PinnedHeader<Extract<PinnedReach, "card" | "column" | "page" | "none">>;
     }
   | {
       readonly headerPlacement: Extract<HeaderPlacement, "outside">;
-      readonly pinnedHeader: PinnedHeader<"train" | "none">;
+      readonly pinnedHeader: PinnedHeader<Extract<PinnedReach, "train" | "none">>;
     };
 
 /** The exhaustive chatStyle → skin table's row: the skin's fields and the header's placement with its reach. */

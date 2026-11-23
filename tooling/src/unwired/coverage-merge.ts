@@ -245,14 +245,20 @@ function atOrdinal<T>(list: readonly T[] | undefined, ordinal: LineOrdinal | und
   return list !== undefined && ordinal !== undefined && list.length === ordinal.size ? list[ordinal.index] : undefined;
 }
 
+// The bundler renames a module-level function that another module of its chunk also declares by appending `$<n>`.
+const BUNDLER_RENAME = /\$\d+$/u;
+
 // The React Compiler re-emits a component, so a browser copy of a named function can start at the `function` keyword
-// and carry the body's line in its `loc`; a name on its declared line or its `loc` line is still one function.
+// and carry the body's line in its `loc`; a name on its declared line or its `loc` line is still one function. A
+// bundler-renamed copy keeps its declared point through the source map, so the name less its `$<n>` matches only
+// there: a source may declare a name with a `$<n>` of its own, which its own name matches first.
 function movedNamed(into: MergedFile, fn: IstanbulFile["fnMap"][string]): MergedFunction | undefined {
   const exact = into.functions.get(at(fn.decl));
   return (
     (exact?.name === fn.name ? exact : undefined) ??
     into.named.get(namedKey(fn.name, fn.decl.start.line)) ??
-    into.named.get(namedKey(fn.name, fn.loc.start.line))
+    into.named.get(namedKey(fn.name, fn.loc.start.line)) ??
+    (exact?.name === fn.name.replace(BUNDLER_RENAME, "") ? exact : undefined)
   );
 }
 

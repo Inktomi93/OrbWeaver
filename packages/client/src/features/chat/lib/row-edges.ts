@@ -13,7 +13,7 @@ export interface ActionsRow {
 
 const PINNED_REACHES = ["card", "column", "page", "train", "none"] as const;
 /** How far the pinned bar's backing reaches. */
-type PinnedReach = (typeof PINNED_REACHES)[number];
+export type PinnedReach = (typeof PINNED_REACHES)[number];
 
 /** The bar's paint while pinned. */
 export interface PinnedHeader<Reach extends PinnedReach = PinnedReach> {

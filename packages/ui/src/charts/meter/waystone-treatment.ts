@@ -39,6 +39,18 @@ export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
 const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"] as const;
 type WaystoneOverlayKind = (typeof WAYSTONE_OVERLAY_KINDS)[number];
 
+/** The cloud deck's drift tiers; `CLOUD_DRIFT_CLASS` keys its CSS on them. Its own axis, apart from the fall speed, so a new tier on one does not force the other's class. */
+const WAYSTONE_CLOUD_DRIFTS = ["slow", "mid", "fast"] as const;
+type WaystoneCloudDrift = (typeof WAYSTONE_CLOUD_DRIFTS)[number];
+
+/** The particle field's fall-speed tiers; `FALL_SPEED_CLASS` keys its CSS on them. */
+const WAYSTONE_FALL_SPEEDS = ["slow", "mid", "fast"] as const;
+type WaystoneFallSpeed = (typeof WAYSTONE_FALL_SPEEDS)[number];
+
+/** What a particle layer draws: a mote style, not a weather. A storm recipe falls `rain` motes too. */
+const WAYSTONE_PARTICLE_KINDS = ["rain", "snow", "ash"] as const;
+type WaystoneParticleKind = (typeof WAYSTONE_PARTICLE_KINDS)[number];
+
 // The sky disc's radial-gradient recipe — `cy` puts the light source low (a dawn/dusk glow at the horizon) or
 //  high (a midday/midnight dome). Interpolated per hour; a phase change crossfades between two of these.
 interface WaystoneSky {
@@ -63,17 +75,17 @@ export interface WaystoneCelestial {
 export interface WaystoneCloudLayer {
   readonly count: number;
   readonly opacity: number;
-  readonly drift: "slow" | "mid" | "fast";
+  readonly drift: WaystoneCloudDrift;
   readonly tone: "light" | "dark";
 }
 
 /** The falling-particle field. `pitch` is the lattice spacing the fall animation translates by (exactly one
  *  pitch per cycle ⇒ a seamless loop); `slant` angles the streak; `sway` adds the lateral drift snow needs. */
 export interface WaystoneParticleLayer {
-  readonly kind: "rain" | "snow" | "ash";
+  readonly kind: WaystoneParticleKind;
   readonly columns: number;
   readonly pitch: number;
-  readonly speed: "fast" | "mid" | "slow";
+  readonly speed: WaystoneFallSpeed;
   readonly slant: number;
   readonly length: number;
   readonly sway: boolean;

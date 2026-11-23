@@ -5,6 +5,7 @@
 // GC ordering + materialization live in `generate-core` (one home, shared with `editImage`).
 
 import type { Principal } from "@orb/contracts/identity";
+import type { PromptSource } from "@orb/contracts/imagery";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { CharacterId } from "@orb/kit/ids";
@@ -94,7 +95,7 @@ async function orchestratorPrompt(
   p: GeneratePictureParams,
   runAs: Principal,
   signal: AbortSignal,
-): Promise<{ readonly prompt: string; readonly source: "user" | "extracted" | "captioned"; readonly costUsd: number | null }> {
+): Promise<{ readonly prompt: string; readonly source: PromptSource; readonly costUsd: number | null }> {
   const userPrompt = p.prompt?.trim() ?? "";
   if (p.mode === "free") {
     if (userPrompt.length === 0) {

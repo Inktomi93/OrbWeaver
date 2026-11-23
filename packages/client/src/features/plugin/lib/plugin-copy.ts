@@ -39,6 +39,7 @@
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
 import { PLUGIN_KV_MAX_KEYS } from "@orb/contracts/plugin";
+import type { Tone } from "@orb/ui/tokens";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
 /** One capability as the consent screen speaks it. */
@@ -317,7 +318,7 @@ export const HOSTS_COLLAPSE_AT = 5;
  */
 export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginStatus; readonly reconsentPending: boolean }): {
   readonly label: string;
-  readonly tone: "success" | "neutral" | "warning" | "destructive";
+  readonly tone: Extract<Tone, "success" | "warning" | "neutral" | "destructive">;
 } {
   if (plugin.status === "enabled") {
     return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };

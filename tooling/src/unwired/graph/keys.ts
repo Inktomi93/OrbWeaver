@@ -17,16 +17,19 @@ import {
   isFunctionExpression,
   isIdentifier,
   isNewExpression,
+  isNoSubstitutionTemplateLiteral,
   isParameterDeclaration,
+  isStringLiteral,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import { formPath } from "../key-resolver.ts";
 import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { tracing } from "./options.ts";
-import { answer } from "./resolve.ts";
+import { answer, constituentsOf } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
 import { keyLiterals } from "./sites.ts";
@@ -51,6 +54,9 @@ const symbolKey = (type: Type | undefined): boolean => type !== undefined && has
 // The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id.
 const symbolMemberName = (symbol: NativeSymbol): string => `__@${symbol.name}@${String(symbol.id)}`;
 
+// The attribute a form's field component takes its path in.
+const FORM_NAME = "name";
+
 export class Keys {
   readonly #state: GraphState;
   readonly #parameterKeyed: ParameterKeyed[] = [];
@@ -61,8 +67,10 @@ export class Keys {
     this.#state = state;
   }
 
-  file(sites: FileSites): void {
+  file(sites: FileSites, flows: Flows): void {
     this.#elementKeys(sites);
+    this.#sinkReads(sites, flows);
+    this.#formPaths(sites);
     this.#keyTests(sites);
     this.#typeKeys(sites);
     this.#reflectiveReads(sites);
@@ -122,6 +130,66 @@ export class Keys {
       const keyed = symbol === undefined ? [] : (tableMembers[y] ?? []).filter((member) => member.name === symbolMemberName(symbol));
       state.roleAll(state.declarations(keyed).flat(), "read", sites.file, at);
     }
+  }
+
+  // `line["done"]` through a string-indexed type a typed value was handed into in this file: the read reaches that
+  // value's members of the key's name, at any depth (flows.ts holds the ruling).
+  #sinkReads(sites: FileSites, flows: Flows): void {
+    const state = this.#state;
+    const literal = [...sites.literalKeyReads, ...sites.elementKeys.filter(({ keys }) => keys !== null && keys.length > 0)];
+    if (literal.length === 0) {
+      return;
+    }
+    const receivers = state.world.typedAt(literal, ({ receiver }) => receiver);
+    const arms = state.batch(receivers.map(({ type }) => constituentsOf(type)));
+    const asks = receivers.flatMap(({ item: { keys, receiver } }, y) => {
+      const values = flows.sunkInto(
+        sites.file,
+        (arms[y] ?? []).map(({ id }) => id),
+      );
+      return values.flatMap((value) => (keys ?? []).map((name) => ({ value, name, at: receiver.pos })));
+    });
+    const found = state.batch(asks.map(({ value, name }) => this.#namedAtAnyDepth(value, name)));
+    for (const [y, { at }] of asks.entries()) {
+      state.roleAll(state.declarations(found[y] ?? []).flat(), "read", sites.file, at);
+    }
+  }
+
+  // A TanStack Form field path, `form.setFieldValue("params.seed", v)` or `<form.Field name="title">`: each segment's
+  // member is written by a form write method and read by any other path (../key-resolver.ts formPath).
+  #formPaths(sites: FileSites): void {
+    const state = this.#state;
+    const keys = [
+      ...sites.keyArguments,
+      ...sites.jsxAttributes.flatMap(({ name, value }) => (name === FORM_NAME && value !== undefined ? [value] : [])),
+    ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key));
+    const paths = state.batch(keys.map((key) => formPath(state.world.checker, key)));
+    for (const [y, key] of keys.entries()) {
+      const path = paths[y];
+      if (path !== null && path !== undefined) {
+        state.roleAll(state.declarations(path.members).flat(), path.role === "write" ? "write" : "read", sites.file, key.pos);
+      }
+    }
+  }
+
+  // The members named `name` a value holds, at any depth of the members the tree declares.
+  *#namedAtAnyDepth(start: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
+    const state = this.#state;
+    const found: NativeSymbol[] = [];
+    const seen = new Set<number>();
+    for (let level: readonly Type[] = [start]; level.length > 0; ) {
+      const next: Type[] = [];
+      for (const type of level.filter((candidate) => !(isPrimitive(candidate) || seen.has(candidate.id)))) {
+        seen.add(type.id);
+        const members = (yield* state.membersOf(type)).filter((member) => member.declarations.some((handle) => state.resolver.ours(handle)));
+        found.push(...members.filter((member) => member.name === name));
+        for (const member of members) {
+          next.push(yield* state.world.checker.getTypeOfSymbol.gen(member));
+        }
+      }
+      level = next;
+    }
+    return found;
   }
 
   // For each key expression that is the enclosing function's own parameter, that function and the parameter's index.

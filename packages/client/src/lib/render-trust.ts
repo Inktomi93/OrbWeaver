@@ -119,7 +119,7 @@ export type PlainRemedy = (typeof PLAIN_REMEDIES)[number];
 /** A `tierA` row's author as its policy resolved: a seated character with a resolved policy, another person, or
  *  neither (the fail-closed floor). */
 export interface PlainSubject {
-  readonly author: "character" | "member" | "unattributed";
+  readonly author: Extract<PlainReason, "character" | "member" | "unattributed">;
   /** Where the character's policy came from; set when `author` is `character`. */
   readonly source: RenderPolicySource | undefined;
   /** The characters whose settings hold the row, in roster order: one for a character's row, every binding seat for a

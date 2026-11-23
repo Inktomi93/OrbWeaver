@@ -20,6 +20,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
+import type { Notify } from "#lib";
 import {
   chatInLibraryNotice,
   chatsInLibraryNotice,
@@ -40,7 +41,7 @@ const TRANSCRIPT_ACCEPT = ".jsonl,.json,application/x-ndjson,application/json";
 
 /** The toast to fire for one import batch — `kind` indexes `notify`. */
 interface ImportNotice {
-  readonly kind: "success" | "info" | "error";
+  readonly kind: Extract<keyof Notify, "success" | "info" | "error">;
   readonly message: string;
 }
 
