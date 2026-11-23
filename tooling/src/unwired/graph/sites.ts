@@ -574,6 +574,9 @@ export class FileSites {
   readonly keyReturns: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
   readonly typePairs: { readonly value: Node; readonly slot: Node }[] = [];
+  /** `value satisfies T` over a binding or a literal: the value fills `T`, and a read of its members reads `T`'s. A zod
+   *  schema, a builder call, twins through build.ts `#zodTwins` instead. */
+  readonly checkedValues: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
   readonly computedLoads: CallExpression[] = [];
   /** Calls of a method a Hono app registers routes with; routes.ts confirms each by its declaration. */
@@ -1472,10 +1475,18 @@ class Walker {
     this.#libraryShapes(node);
     this.#keyReturn(node);
     if (product) {
-      const site = valueFlowSite(node) ?? copyFlowSite(node);
-      if (site !== undefined && !this.#frame.stored.has(site.value)) {
-        this.#sites.flowSites.push(site);
-      }
+      this.#flowSite(node);
+    }
+  }
+
+  // A product value handed into a slot: a typed position, a copy, or a `satisfies` check.
+  #flowSite(node: Node): void {
+    if (isSatisfiesExpression(node) && isCheckedValue(unwrapExpression(node.expression))) {
+      this.#sites.checkedValues.push({ value: node.expression, type: node.type });
+    }
+    const site = valueFlowSite(node) ?? copyFlowSite(node);
+    if (site !== undefined && !this.#frame.stored.has(site.value)) {
+      this.#sites.flowSites.push(site);
     }
   }
 
@@ -1783,6 +1794,10 @@ function declaredReturnType(node: Node): TypeNode | undefined {
 // function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
 // The reads a stored literal's key copies into its column.
 const keyCopiedReads = (property: Node): readonly Node[] => (isPropertyAssignment(property) ? copiedReads(property.initializer) : []);
+
+// A value a `satisfies` holds to a type: a binding or a literal, never a builder call such as a zod schema.
+const isCheckedValue = (value: Node | undefined): boolean =>
+  value !== undefined && (isIdentifier(value) || isObjectLiteralExpression(value) || isArrayLiteralExpression(value));
 
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {

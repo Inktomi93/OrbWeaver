@@ -194,6 +194,23 @@ test("a redeclared interface member and the member it redeclares share their rea
   }).toEqual({ writeOnly: ["BaseCfg.spare", "Other.title"], untouched: [] });
 });
 
+// `defs satisfies Record<Task, TaskFields>` holds each row to TaskFields, so a read of a row's member reads TaskFields'
+// member. `unread` is written in every row and read by nobody, so it stays.
+test("an indexed read of a table bound under satisfies reads the checked row type's member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export type Task = "chat" | "embed";',
+      'interface TaskFields { readonly scope: "actor" | "owner"; readonly spend: "fg" | "bg"; readonly unread: string }',
+      'const defs = { chat: { scope: "actor", spend: "fg", unread: "u" }, embed: { scope: "owner", spend: "bg", unread: "u" } } as const;',
+      "export const TASK_DEFS = defs satisfies Record<Task, TaskFields>;",
+      'export const owned = (task: Task): boolean => TASK_DEFS[task].scope === "owner" && TASK_DEFS[task].spend === "fg";',
+      "export const asType = (task: Task): TaskFields => TASK_DEFS[task];",
+    ]),
+  );
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["TaskFields.unread"]);
+});
+
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,

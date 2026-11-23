@@ -110,6 +110,8 @@ export interface HeldSends {
 }
 
 const NO_HELD_TYPES: ReadonlySet<number> = new Set();
+const NO_CHECK_SITES: ReadonlySet<number> = new Set();
+const CHECKED_MARK = "!checked";
 
 export class Flows {
   readonly #state: GraphState;
@@ -121,6 +123,8 @@ export class Flows {
   readonly #walkTrace: { record: number } | null;
   // The value types a file's door sends hold inside an option literal (`{ workerData: v }`), kept from escaping there.
   #heldTypes: ReadonlySet<number> = NO_HELD_TYPES;
+  // The sites of the file's `satisfies` checks, each at its type node: a pair made there also carries reads to the slot.
+  #checkSites: ReadonlySet<number> = NO_CHECK_SITES;
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -134,8 +138,29 @@ export class Flows {
     const handed = this.#handedWhole(sites, held.node);
     // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
     const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
-    this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites)], sites.file);
+    const checked = this.#checkedPairs(sites);
+    this.#checkSites = new Set(checked.map(({ site }) => site));
+    this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites), ...checked], sites.file);
     this.#heldTypes = NO_HELD_TYPES;
+    this.#checkSites = NO_CHECK_SITES;
+  }
+
+  // `defs satisfies Record<Task, TaskFields>`: the checked type is the value's slot, made at the type node.
+  #checkedPairs(sites: FileSites): readonly FlowPair[] {
+    const { world } = this.state;
+    const values = world.typesAt(sites.checkedValues.map(({ value }) => value));
+    const slots = world.typesAt(sites.checkedValues.map(({ type }) => type));
+    return sites.checkedValues.flatMap((pair, at) => {
+      const value = values[at];
+      const slot = slots[at];
+      return value === undefined || slot === undefined ? [] : [{ slot, value, site: pair.type.pos }];
+    });
+  }
+
+  // A pair's identity on the walk: a checked pair is apart from an unchecked one of the same types, since it also
+  // carries reads.
+  #pairKey({ slot, value, site }: FlowPair): string {
+    return `${String(slot.id)}>${String(value.id)}${this.#checkSites.has(site) ? CHECKED_MARK : ""}`;
   }
 
   #typePairs(sites: FileSites): readonly FlowPair[] {
@@ -631,21 +656,23 @@ export class Flows {
       ...pairs.filter(({ value }) => !value.isUnionType()),
       ...unions.flatMap(({ slot, site }, y) => (arms[y] ?? []).filter((arm) => !isPrimitive(arm)).map((value) => ({ slot, value, site }))),
     ];
-    const fresh = [
-      ...new Map(expanded.filter((pair) => this.#isFresh(pair)).map((pair) => [`${String(pair.slot.id)}>${String(pair.value.id)}`, pair])).values(),
-    ];
+    const fresh = [...new Map(expanded.filter((pair) => this.#isFresh(pair)).map((pair) => [this.#pairKey(pair), pair])).values()];
     for (const pair of fresh) {
-      this.#done.add(`${String(pair.slot.id)}>${String(pair.value.id)}`);
+      this.#done.add(this.#pairKey(pair));
     }
     return this.#memberPairs(fresh, file);
   }
 
   // One matched member pair: the slot's declarations flow from the value's; a slot with none leaves the value member read.
   #memberFlow(slots: readonly DeclKey[], values: readonly DeclKey[], file: string, site: number): void {
+    const checked = this.#checkSites.has(site);
     for (const slot of slots) {
       for (const value of values) {
         if (slot !== value) {
           this.#state.flow(slot, value);
+        }
+        if (slot !== value && checked) {
+          this.#state.checks.push([value, slot]);
         }
       }
     }
@@ -672,8 +699,9 @@ export class Flows {
     return out;
   }
 
-  #isFresh({ slot, value }: FlowPair): boolean {
-    return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(`${String(slot.id)}>${String(value.id)}`);
+  #isFresh(pair: FlowPair): boolean {
+    const { slot, value } = pair;
+    return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(this.#pairKey(pair));
   }
 
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
@@ -701,8 +729,8 @@ export class Flows {
     // a pair goes deeper when either member is declared in the tree: the walk follows the value's own members, a library
     // slot names its nested fields as it names its top ones (an SDK block's `source.data`), and a library value filling
     // our slot runs the library's code behind each of our function members, so their parameters pair with the library's
-    const deeper = matched.filter(({ slot, value }, y) => {
-      const key = `${declarationKeys(slot).join(",")}>${declarationKeys(value).join(",")}`;
+    const deeper = matched.filter(({ slot, value, site }, y) => {
+      const key = `${declarationKeys(slot).join(",")}>${declarationKeys(value).join(",")}${this.#checkSites.has(site) ? CHECKED_MARK : ""}`;
       if ((valueDecls[y]?.length ?? 0) + (slotDecls[y]?.length ?? 0) === 0 || this.#doneMembers.has(key)) {
         return false;
       }

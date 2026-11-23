@@ -116,6 +116,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A schema bound under a `z.ZodType<T>` annotation, or returned by a `z.lazy` arrow | twins its keys with `T`'s members | the same | The annotation checks the schema as `satisfies` does (tooling/src/unwired/graph/sites.ts `checkedSchema`, `zodWrappedSchemas`). |
 | A plugin contract member the SDK publishes | listed as received, with the SDK line, and judged by nothing | the same | Guests read it outside the tree (tooling/src/unwired/graph/analyse.ts `Analysis`). |
 | A key beside a spread, `{ ...value, key }` | writes its member, but the copy builds no home: its home's optional members still report only when a build writes it | the same | The value arrives with the copy (tooling/src/unwired/graph/state.ts `copyOnlyWrites`). |
+| A binding or literal under `satisfies T`, such as `defs satisfies Record<Task, TaskFields>` | fills `T` as a slot, and a read of its members reads `T`'s, at any depth | the same | The compiler holds each member to the checked one (tooling/src/unwired/graph/flows.ts `#checkedPairs`). A zod schema twins instead. |
 | The unread member of a one-key tRPC mutation output | listed as acknowledged, apart from the judged rows | the same | The key is the procedure's whole answer (tooling/src/unwired/graph/judge.ts `acknowledgements`). |
 
 Classes still open:

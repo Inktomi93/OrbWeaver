@@ -704,7 +704,7 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
  * with one role set. An interface member and the extended member it redeclares carry reads both ways and writes neither
- * way. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
+ * way; a member a `satisfies` checks carries its reads to the checked member. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
  * a read of the column to the stored member, never a send. Each role a member takes here goes to `onCarry`, so the
  * `--why` record names a role no site gave.
  */
@@ -793,6 +793,10 @@ function roleLinks(state: GraphFacts): {
   for (const [member, base] of state.overrides) {
     add(plainReadTo, member, base, "override");
     add(plainReadTo, base, member, "override");
+  }
+  // A value a `satisfies` holds to a type is read as that type: the compiler keeps each member to the checked one.
+  for (const [value, checked] of state.checks) {
+    add(plainReadTo, value, checked, "check");
   }
   return { readTo, plainReadTo, writeTo };
 }

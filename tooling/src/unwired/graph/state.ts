@@ -222,6 +222,9 @@ export interface GraphFacts {
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   /** An interface member and the member of an extended type it redeclares, `[member, base]`. */
   readonly overrides: readonly (readonly [DeclKey, DeclKey])[];
+  /** A value member and the member of the type a `satisfies` holds it to, `[value, checked]`: a read of the value's
+   *  member reads the checked type's. */
+  readonly checks: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
   readonly pins: readonly DeclKey[];
@@ -311,6 +314,7 @@ export class GraphState implements GraphFacts {
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly overrides: (readonly [DeclKey, DeclKey])[] = [];
+  readonly checks: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];
   readonly cssNames: CssName[] = [];
   readonly pins: DeclKey[] = [];
