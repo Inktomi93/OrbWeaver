@@ -19,6 +19,8 @@ import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
+import type { Verdict as SortVerdict } from "./field-sort.ts";
+import { VERDICTS as SORT_VERDICTS } from "./field-sort.ts";
 import type { Bucket, MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
@@ -73,7 +75,7 @@ const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
 export const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--verdict=<${SORT_VERDICTS.join("|")}>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
@@ -767,12 +769,14 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
-const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile)=(.+)$/u;
+const TRIAL_FLAG = /^--(root|out|bucket|verdict|limit|cpu-profile)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
   readonly out: string;
   readonly buckets: readonly TrialBucket[];
+  /** Only the member findings the judge sorted to one of these; every finding when empty. */
+  readonly verdicts: readonly SortVerdict[];
   /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
   readonly limit: number | null;
   /** Where the compiler CPU profile of one group is written; none when absent. */
@@ -786,28 +790,47 @@ function trialLimit(limit: string | null): number | null {
   return limit === null ? null : Number(limit);
 }
 
+// Only a member row is sorted, so a verdict filter on another bucket would silently trial nothing.
+function refuseUnsortedBuckets(verdicts: readonly SortVerdict[], buckets: readonly TrialBucket[]): void {
+  const unsorted = verdicts.length === 0 ? undefined : buckets.find((bucket) => !MEMBER_BUCKET_SET.has(bucket));
+  if (unsorted !== undefined) {
+    throw new UsageError(`--verdict applies to member buckets (${MEMBER_BUCKETS.join(", ")}); ${unsorted} carries no verdict\n${TRIAL_USAGE}`);
+  }
+}
+
+// One argument: --bucket and --verdict repeat and are checked against their tuples; every other flag keeps its last value.
+function takeTrialFlag(arg: string, into: { readonly buckets: TrialBucket[]; readonly verdicts: SortVerdict[]; readonly flags: Map<string, string> }): void {
+  const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
+  if (name === "") {
+    throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
+  }
+  const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
+  const verdict = name === "verdict" ? oneOf(name, value, SORT_VERDICTS) : null;
+  if (bucket !== null) {
+    into.buckets.push(bucket);
+  } else if (verdict !== null) {
+    into.verdicts.push(verdict);
+  } else {
+    into.flags.set(name, value);
+  }
+}
+
 function parseTrialArgs(argv: readonly string[]): TrialArgs {
   const buckets: TrialBucket[] = [];
+  const verdicts: SortVerdict[] = [];
   const flags = new Map<string, string>();
   for (const arg of argv) {
-    const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
-    if (name === "") {
-      throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
-    }
-    const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
-    if (bucket === null) {
-      flags.set(name, value);
-    } else {
-      buckets.push(bucket);
-    }
+    takeTrialFlag(arg, { buckets, verdicts, flags });
   }
   if (buckets.length === 0) {
     throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
   }
+  refuseUnsortedBuckets(verdicts, buckets);
   return {
     root: resolve(flags.get("root") ?? process.cwd()),
     out: flags.get("out") ?? TRIAL_OUT,
     buckets,
+    verdicts,
     limit: trialLimit(flags.get("limit") ?? null),
     cpuProfile: flags.get("cpu-profile") ?? null,
   };
@@ -816,7 +839,7 @@ function parseTrialArgs(argv: readonly string[]): TrialArgs {
 async function runGraphTrial(args: TrialArgs): Promise<number> {
   // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
   const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
-  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile }, log, timed);
+  const report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, cpuProfile: args.cpuProfile }, log, timed);
   const path = write(args.root, args.out, report);
   for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
