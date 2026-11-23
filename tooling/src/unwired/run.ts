@@ -17,7 +17,7 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import { runCoverage } from "./coverage.ts";
+import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
 import type { Bucket, MemberBucket } from "./graph/analyse.ts";
@@ -47,8 +47,8 @@ import {
   unionsGraph,
   verifyGraph,
 } from "./graph/scan.ts";
-import type { TrialBucket, TrialReach } from "./graph/trial.ts";
-import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_REACHES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import type { TrialBucket } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -73,7 +73,7 @@ const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
 export const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--reach=<${TRIAL_REACHES.join("|")}>] [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
@@ -105,7 +105,7 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -768,9 +768,8 @@ async function runGraph(args: GraphArgs): Promise<number> {
 }
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
-const [NARROWED_REACH] = TRIAL_REACHES;
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
-const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile|reach)=(.+)$/u;
+const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
@@ -780,8 +779,6 @@ interface TrialArgs {
   readonly limit: number | null;
   /** Where the compiler CPU profile of one group is written; none when absent. */
   readonly cpuProfile: string | null;
-  /** Which files each snapshot checks; the find-references set unless the import graph's is asked for. */
-  readonly reach: TrialReach;
 }
 
 function trialLimit(limit: string | null): number | null {
@@ -790,8 +787,6 @@ function trialLimit(limit: string | null): number | null {
   }
   return limit === null ? null : Number(limit);
 }
-
-const trialReach = (value: string | null): TrialReach => oneOf("reach", value, TRIAL_REACHES) ?? NARROWED_REACH;
 
 function parseTrialArgs(argv: readonly string[]): TrialArgs {
   const buckets: TrialBucket[] = [];
@@ -817,14 +812,13 @@ function parseTrialArgs(argv: readonly string[]): TrialArgs {
     buckets,
     limit: trialLimit(flags.get("limit") ?? null),
     cpuProfile: flags.get("cpu-profile") ?? null,
-    reach: trialReach(flags.get("reach") ?? null),
   };
 }
 
 async function runGraphTrial(args: TrialArgs): Promise<number> {
   // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
   const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
-  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile, reach: args.reach }, log, timed);
+  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile }, log, timed);
   const path = write(args.root, args.out, report);
   for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);

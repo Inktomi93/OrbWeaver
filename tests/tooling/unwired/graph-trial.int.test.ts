@@ -9,10 +9,10 @@ import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
-import { TRIAL_BUCKETS, TRIAL_REACHES, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
+import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, LIB as LIBS, WORLD } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
 
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
 const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
@@ -26,24 +26,11 @@ const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
 const RELAY = `${GRAPH_SOURCE}/relay.ts`;
 const KEYS = `${GRAPH_SOURCE}/keys.ts`;
+const AUGMENT = `${GRAPH_SOURCE}/augment.ts`;
 const FIXTURE = `${GRAPH_SOURCE}/shape.json`;
 const SCRIPT = "scripts/names.ts";
 
 const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
-
-const [NARROWED, WIDE] = TRIAL_REACHES;
-
-// What a trial decided for each candidate, without the file sets the reach picks.
-const decided = (report: TrialReport): readonly unknown[] =>
-  report.trials.map(({ label, verdict, errors, removed, compiles }) => ({ label, verdict, errors, removed, compiles }));
-
-// Every planted trial runs under both reaches: the find-references set must reach every error the import graph's does.
-async function trial(root: string, ask: Omit<Parameters<typeof trialGraph>[1], "reach">, log: (line: string) => void = () => undefined): Promise<TrialReport> {
-  const narrowed = await trialGraph(root, { ...ask, reach: NARROWED }, log);
-  const wide = await trialGraph(root, { ...ask, reach: WIDE }, () => undefined);
-  expect(decided(narrowed)).toEqual(decided(wide));
-  return narrowed;
-}
 
 const outcomes = (report: TrialReport): readonly (readonly string[])[] =>
   report.trials.map(({ label, verdict, removed }) => [label, verdict, ...removed.map(({ file, text }) => `${file}: ${text.trim()}`)]);
@@ -75,7 +62,7 @@ test("a delete removes a whole interface member, class member or literal method 
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
   expect(outcomes(report)).toEqual([
     [`${LIB}:Shape.gone`, CONFIRMED, `${LIB}: readonly gone?: string;`],
     [`${LIB}:table.middle`, CONFIRMED, `${LIB}: middle(): number { return 2; },`],
@@ -98,7 +85,7 @@ test("a delete removes a dead exported function's whole statement", { timeout: 1
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(outcomes(report)).toEqual([[`${LIB}:orphan`, CONFIRMED, `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
 });
 
@@ -124,7 +111,7 @@ test.for([
   },
 ])("a dead function named by $site is confirmed with that site removed too", { timeout: 120_000 }, async ({ files, removed }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, CONFIRMED, ...removed]]);
 });
 
@@ -138,7 +125,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:orphan`, NAMED_ONLY, [`${MAIN}:1 binding`]],
   ]);
@@ -147,7 +134,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
 // A for-of binding is a declaration no delete can remove alone: cutting its name leaves a loop that does not parse.
 test("a delete that leaves its file unparsable is unresolved, with the edit it tried", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree({ [MAIN]: ["for (const spare of [1]) {", "}"].join("\n") }, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(
     report.trials.map(({ label, verdict, removed, note }) => [
       label,
@@ -171,7 +158,7 @@ const READER_TREE = (lib: string): Record<string, string> => ({
 test("a product read find-references names refutes the finding with no snapshot", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [TYPE_ONLY], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [TYPE_ONLY], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, references, checked, errors, compiles }) => ({ label, verdict, references, checked, errors, compiles }))).toEqual(
     [{ label: `${LIB}:DEFAULTS`, verdict: REFUTED_REFERENCES, references: [`${SHAPE}:3`], checked: [], errors: [], compiles: 0 }],
   );
@@ -197,7 +184,7 @@ test("a group with an unowned error bisects to the one member it reads, counting
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
@@ -212,10 +199,19 @@ test("a group with an unowned error bisects to the one member it reads, counting
   expect(progress(lines)).toMatch(/ snapshots 5 /u);
 });
 
-// A delete breaks a site that names neither the member nor its file: one that constrains the home type through a
-// re-export, found by the references to the home type, and one that constrains a home-type value, found as an
-// importer of a file that names the home type; an assignment that names the member two re-exports away from any file
-// naming the home type; and a constraint on an alias another file infers, two imports from any file naming the home type.
+// A home-type value two imports from the declaring file, through an alias the middle file infers.
+const RELAYED_SHAPE = {
+  [LIB]: "export interface Shape { readonly kept: string; readonly b: string }",
+  [DOOR]: ['import type { Shape } from "./lib.ts";', "export declare const made: Shape;", "export const keptOf = (shape: Shape): string => shape.kept;"].join(
+    "\n",
+  ),
+  [MID]: ['import { keptOf, made } from "./door.ts";', "export const relayed = made;", "export const kept = keptOf(made);"].join("\n"),
+};
+
+// A delete breaks a site that names neither the member nor its file: a constraint on the home type through a
+// re-export, a constraint on a home-type value, an assignment two re-exports away, and a constraint, a satisfies check,
+// a typeof and a structural assignment on an alias another file infers. Every such site sits in a file the import graph
+// says an edit of the declaring file reaches, and an augmenting file reaches the module it augments.
 test.for([
   {
     site: "a constraint on the home type through a re-export",
@@ -230,7 +226,7 @@ test.for([
         "use(shape);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     site: "a constraint on a home-type value from a file that names the home type",
@@ -249,7 +245,7 @@ test.for([
         "use(view ? keptOf(made) : undefined);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
   {
     site: "an assignment two re-exports away from every file that names the home type",
@@ -263,7 +259,7 @@ test.for([
       [RELAY]: 'export { keptOf, made } from "./door.ts";',
       [MAIN]: ['import { keptOf, made } from "./relay.ts";', 'made.b = "x";', "keptOf(made);"].join("\n"),
     },
-    error: `${MAIN}:2 read`,
+    errors: [`${MAIN}:2 read`],
   },
   {
     site: "a constraint on an inferred alias two imports from every file that names the home type",
@@ -283,22 +279,84 @@ test.for([
         "use(view ? kept : undefined);",
       ].join("\n"),
     },
-    error: `${MAIN}:3 read`,
+    errors: [`${MAIN}:3 read`],
   },
-])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, error }, { plantedTree }) => {
+  {
+    site: "a satisfies check on an inferred alias of a home-type value",
+    files: {
+      ...RELAYED_SHAPE,
+      [MAIN]: [
+        'import { relayed } from "./mid.ts";',
+        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "const checked = true satisfies Needs<typeof relayed>;",
+        "const use = (value: unknown): unknown => value;",
+        "use(checked);",
+      ].join("\n"),
+    },
+    errors: [`${MAIN}:3 read`],
+  },
+  {
+    site: "a constraint on the typeof of an inferred alias",
+    files: {
+      ...RELAYED_SHAPE,
+      [MAIN]: [
+        'import { relayed } from "./mid.ts";',
+        "type Needs<T> = T extends { readonly b: string } ? true : false;",
+        "const held: Needs<typeof relayed> = true;",
+        "const use = (value: unknown): unknown => value;",
+        "use(held);",
+      ].join("\n"),
+    },
+    errors: [`${MAIN}:3 read`],
+  },
+  {
+    // A value assignment is a flow the graph follows, so its member is no finding; a type-level assignability check
+    // (a non-distributive `extends`) is one the graph does not.
+    site: "a structural assignability check on an inferred alias's type",
+    files: {
+      ...RELAYED_SHAPE,
+      [MAIN]: [
+        'import { relayed } from "./mid.ts";',
+        "type Fits = [typeof relayed] extends [{ readonly b: string }] ? true : false;",
+        "const fits: Fits = true;",
+        "const use = (value: unknown): unknown => value;",
+        "use(fits);",
+      ].join("\n"),
+    },
+    errors: [`${MAIN}:3 read`],
+  },
+  {
+    // Inside an augmentation the augmented module's names are in scope with no import, so the augmenting file reads
+    // the home type without importing the file that declares it.
+    site: "a read inside an augmentation of the declaring module",
+    files: {
+      [LIB]: ["export interface Shape { readonly kept: string; readonly b: string }", "export const keptOf = (shape: Shape): string => shape.kept;"].join("\n"),
+      [AUGMENT]: ["export {};", 'declare module "./lib.ts" {', '  interface Shape { readonly echo?: Shape["b"] }', "}"].join("\n"),
+      [MAIN]: [
+        'import { keptOf } from "./lib.ts";',
+        'import "./augment.ts";',
+        "const use = (value: unknown): unknown => value;",
+        'use(keptOf({ kept: "k", b: "v" }));',
+      ].join("\n"),
+    },
+    // The main file writes `b` in a literal, so that write is an error too; the augmentation's read refutes.
+    errors: [`${AUGMENT}:3 read`, `${MAIN}:4 write`],
+  },
+])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, errors: expected }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.b`)
       .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
-  ).toEqual([[`${LIB}:Shape.b`, REFUTED, [error]]]);
-  // The narrowed set checks the breaking file even though it names neither the member nor the file that declares it.
-  expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(MAIN);
+  ).toEqual([[`${LIB}:Shape.b`, REFUTED, expected]]);
+  // The checked set holds the breaking file even though it names neither the member nor the file that declares it.
+  const [breaking] = expected[0]?.split(":") ?? [];
+  expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(breaking);
 });
 
 // A clean compile says only that the compiler needs no site of the name. A member a product string reads as a key
-// (an `in` operand) is confirmed-literal with the hit, the string that only builds a constant listed after it. A JSON key in a file under a package's src that no
+// (an `in` operand off its owner, cast to `object` so the graph sees no read) is confirmed-literal with the hit, the string that only builds a constant listed after it. A JSON key in a file under a package's src that no
 // product module loads, and a string in a script, only annotate, a product read of another type's member of the same name is no hit, and neither
 // is a comment or the candidate's own sites (its declaration, a re-export the delete removes): those stay confirmed.
 test("a compile-clean candidate whose name a product string spells is confirmed-literal, an unloaded JSON key only annotates", { timeout: 120_000 }, async ({
@@ -320,7 +378,7 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
           "export function zqOrphan(): number { return 2; }",
         ].join("\n"),
         [DOOR]: 'export { zqOrphan } from "./lib.ts";',
-        [KEYS]: ['export const KEY = "zqSecret";', 'export const has = (o: object): boolean => "zqSecret" in o;'].join("\n"),
+        [KEYS]: ['export const KEY = "zqSecret";', 'export const has = (o: import("./lib.ts").Shape): boolean => "zqSecret" in (o as object);'].join("\n"),
         [OTHER]: ["export interface Other { readonly zqShared: string }", "export declare const other: Other;"].join("\n"),
         [MAIN]: [
           'import { KEY } from "./keys.ts";',
@@ -340,7 +398,7 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq") || label.endsWith(":zqOrphan"))
@@ -357,14 +415,17 @@ test("a compile-clean candidate whose name a product string spells is confirmed-
 });
 
 // A computed member is searched by the name its key resolves to, never by its bracket text: the same `in` operand reads
-// the plain member and the computed one, so both are confirmed-literal.
+// the plain member and the computed one off their owner cast to `object`, so both are confirmed-literal.
 test("a computed member a product string spells through its key's value is confirmed-literal like a plain one", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
   const root = await plantedTree(
     graphTree(
       {
-        [KEYS]: ['export const LIT = "zqLit";', 'export const has = (o: object): boolean => "zqPlain" in o || "zqLit" in o;'].join("\n"),
+        [KEYS]: [
+          'export const LIT = "zqLit";',
+          'export const has = (o: import("./lib.ts").Shape): boolean => "zqPlain" in (o as object) || "zqLit" in (o as object);',
+        ].join("\n"),
         [LIB]: [
           'import { LIT } from "./keys.ts";',
           "export interface Shape { readonly kept: string; readonly zqPlain?: string; readonly [LIT]?: string }",
@@ -377,7 +438,7 @@ test("a computed member a product string spells through its key's value is confi
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(`${LIB}:Shape.`))
@@ -415,58 +476,221 @@ test("a member named like a keyword is confirmed past its keyword hits", { timeo
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:Shape.`)).map(({ label, verdict, literal }) => [label, verdict, literal.length])).toEqual(
     ["get", "new", "default", "of", "as"].map((member) => [`${LIB}:Shape.${member}`, CONFIRMED, 0]),
   );
 });
 
-// What the product loads counts as product too: a JSON file a product module imports, and a showcase bundle's
-// manifest, which the release build packs into the shipped zip. A JSON file only a script imports stays an annotation.
-test("a key in a JSON file a product module imports or in a bundle manifest is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const [slug] = SHOWCASE_PLUGIN_SLUGS;
-  const manifest = `packages/showcase-plugins/bundles/${slug}/${PLUGIN_MANIFEST_ENTRY}`;
-  const withJson = (include: readonly string[]): string => {
-    const config = z
-      .looseObject({ compilerOptions: z.record(z.string(), z.unknown()) })
-      .parse(JSON.parse(plantedTsconfig({ lib: LIBS, include: [...include] })));
-    return JSON.stringify({ ...config, compilerOptions: { ...config.compilerOptions, resolveJsonModule: true } });
-  };
+// A common word hits code that names something else. A product read holds a row only off a value typed by the
+// member's own owner, a cast stripped, an intersection's or a union's arm included: an unresolved property read, an
+// element access's quoted key, an `in` operand, a destructuring element, shorthand or renamed. The
+// same reads off an untyped value or an `object`, a read of another type's member through a cast, and an import of another
+// declaration of the word stay listed and keep the row confirmed.
+test("a literal read holds a row only off a value its own owner types, quoted or not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
-        "tsconfig.world-browser.json": withJson([]),
-        [WORLD]: withJson(["../*/src", "../a/scripts"]),
         [LIB]: [
-          "export interface Shape { readonly kept: string; readonly zqImported: string; readonly zqScriptOnly: string; readonly zqManifest: string }",
+          "export interface Shape {",
+          "  readonly kept: string;",
+          "  readonly zqKeyed: string;",
+          "  readonly zqCast: string;",
+          "  readonly zqLoose: string;",
+          "  readonly zqForeign: string;",
+          "  readonly zqImported: string;",
+          "  readonly zqQuoted: string;",
+          "  readonly zqInLoose: string;",
+          "  readonly zqQuotedOwn: string;",
+          "  readonly zqInOwn: string;",
+          "  readonly zqBoth: string;",
+          "  readonly zqUnion: string;",
+          "  readonly zqDestr: string;",
+          "  readonly zqAlias: string;",
+          "  readonly zqDestrLoose: string;",
+          "}",
           "export declare const made: Shape;",
         ].join("\n"),
+        [OTHER]: ["export const zqImported = 1;", "export interface Other { readonly zqForeign: string }", "export declare const other: Other;"].join("\n"),
         [MAIN]: [
-          'import table from "../data/table.json" with { type: "json" };',
           'import { made } from "./lib.ts";',
+          'import { other, zqImported } from "./other.ts";',
           "const use = (value: unknown): unknown => value;",
+          'const loose = JSON.parse("{}");',
           "use(made.kept);",
-          "use(table);",
+          "use(zqImported);",
+          "use(loose.zqLoose);",
+          "use((made as any).zqCast);",
+          "use((other as any).zqForeign);",
+          'use((o: object): boolean => "zqKeyed" in o);',
+          'use(loose["zqQuoted"]);',
+          'use("zqInLoose" in loose);',
+          'use((made as any)["zqQuotedOwn"]);',
+          'use("zqInOwn" in (made as object));',
+          'declare const both: import("./lib.ts").Shape & { readonly extra: number };',
+          'use("zqBoth" in (both as object));',
+          'declare const either: import("./lib.ts").Shape | import("./other.ts").Other;',
+          'use("zqUnion" in (either as object));',
+          "const { zqDestr } = made as any;",
+          "const { zqAlias: aliased } = made as any;",
+          "const { zqDestrLoose } = loose;",
+          "use([zqDestr, aliased, zqDestrLoose]);",
         ].join("\n"),
-        "packages/a/data/table.json": '{ "zqImported": 1 }\n',
-        "packages/a/scripts/load.ts": ['import data from "../data/script.json" with { type: "json" };', "export const loaded = data;"].join("\n"),
-        "packages/a/data/script.json": '{ "zqScriptOnly": 1 }\n',
-        [manifest]: '{ "zqManifest": "x" }\n',
       },
       { entries: [MAIN] },
     ),
   );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null });
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq"))
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqImported`, CONFIRMED_LITERAL, ["packages/a/data/table.json:1 config-key"]],
+    [`${LIB}:Shape.zqKeyed`, CONFIRMED, [`${MAIN}:10 string`]],
+    [`${LIB}:Shape.zqCast`, CONFIRMED_LITERAL, [`${MAIN}:8 read`]],
+    [`${LIB}:Shape.zqLoose`, CONFIRMED, [`${MAIN}:7 read`]],
+    [`${LIB}:Shape.zqForeign`, CONFIRMED, [`${MAIN}:9 read`, `${OTHER}:2 declaration`]],
+    [`${LIB}:Shape.zqImported`, CONFIRMED, [`${MAIN}:2 import-export`, `${OTHER}:1 declaration`]],
+    [`${LIB}:Shape.zqQuoted`, CONFIRMED, [`${MAIN}:11 read`]],
+    [`${LIB}:Shape.zqInLoose`, CONFIRMED, [`${MAIN}:12 string`]],
+    [`${LIB}:Shape.zqQuotedOwn`, CONFIRMED_LITERAL, [`${MAIN}:13 read`]],
+    [`${LIB}:Shape.zqInOwn`, CONFIRMED_LITERAL, [`${MAIN}:14 string`]],
+    [`${LIB}:Shape.zqBoth`, CONFIRMED_LITERAL, [`${MAIN}:16 string`]],
+    [`${LIB}:Shape.zqUnion`, CONFIRMED_LITERAL, [`${MAIN}:18 string`]],
+    [`${LIB}:Shape.zqDestr`, CONFIRMED_LITERAL, [`${MAIN}:19 read`]],
+    [`${LIB}:Shape.zqAlias`, CONFIRMED_LITERAL, [`${MAIN}:20 read`]],
+    [`${LIB}:Shape.zqDestrLoose`, CONFIRMED, [`${MAIN}:21 read`]],
+  ]);
+});
+
+const VIEW = `${GRAPH_SOURCE}/view.tsx`;
+
+// A string is a key use only as an `in` operand, an element access's argument or a property name, and only when the
+// whole string is the member's name. A quoted key off the owner that merely contains the word, a whole key off a
+// `Record`, and a string in a value position (a returned value, a literal call argument, a JSX attribute value) only
+// annotate, even where the checker types the slot as a literal union that holds the name. A whole quoted key off the
+// owner, through a cast and in parentheses or not, is the control that still holds.
+test("a string holds a row only as a whole key, never as a value or a key that contains the word", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
+        [LIB]: [
+          "export interface Shape {",
+          "  readonly kept: string;",
+          "  readonly zqWhole: string;",
+          "  readonly zqRecord: string;",
+          "  readonly zqSub: string;",
+          "  readonly zqReturned: string;",
+          "  readonly zqLit: string;",
+          "  readonly zqVoice: string;",
+          "  readonly zqParen: string;",
+          "  readonly zqParenIn: string;",
+          "}",
+          "export declare const made: Shape;",
+        ].join("\n"),
+        [MAIN]: [
+          'import { made } from "./lib.ts";',
+          'import { view } from "./view.tsx";',
+          "const use = (value: unknown): unknown => value;",
+          "const headers: Record<string, string> = {};",
+          "declare function literal<const T extends string>(value: T): { readonly value: T };",
+          'const kindOf = (flag: boolean): "zqReturned" | "other" => (flag ? "other" : "zqReturned");',
+          "use(made.kept);",
+          'use((made as Record<string, string>)["zqWhole"]);',
+          'use(headers["zqRecord"]);',
+          '(made as any)["last-zqSub-id"] = "x";',
+          "use(kindOf(true));",
+          'use(literal("zqLit"));',
+          "use(view);",
+          'use((made as any)[("zqParen")]);',
+          'use(("zqParenIn") in (made as object));',
+        ].join("\n"),
+        [VIEW]: [
+          'const Text = (props: { readonly voice: "datum" | "zqVoice" }): JSX.Element => props as unknown as JSX.Element;',
+          'export const view = (mono: boolean): JSX.Element => <Text voice={mono ? "datum" : "zqVoice"} />;',
+        ].join("\n"),
+      },
+      { entries: [MAIN], jsx: true },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(report.trials.filter(({ label }) => label.includes(":Shape.zq")).map(({ label, verdict }) => [label, verdict])).toEqual([
+    [`${LIB}:Shape.zqWhole`, CONFIRMED_LITERAL],
+    [`${LIB}:Shape.zqRecord`, CONFIRMED],
+    [`${LIB}:Shape.zqSub`, CONFIRMED],
+    [`${LIB}:Shape.zqReturned`, CONFIRMED],
+    [`${LIB}:Shape.zqLit`, CONFIRMED],
+    [`${LIB}:Shape.zqVoice`, CONFIRMED],
+    [`${LIB}:Shape.zqParen`, CONFIRMED_LITERAL],
+    [`${LIB}:Shape.zqParenIn`, CONFIRMED_LITERAL],
+  ]);
+});
+
+// A key in data the product loads holds a row only when the type the product reads that data as carries the row's
+// member along the key's path. A bundle manifest is read as the manifest type the contracts export names, so its key
+// holds that type's members, an array element's included, and only annotates for another type's member of the word. A
+// JSON module a product file imports is typed by its own content, and a JSON file only a script imports is no product
+// data, so both only annotate.
+test("a key in loaded data holds a row only as a member of the type the product reads that data as", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const [slug] = SHOWCASE_PLUGIN_SLUGS;
+  const manifest = `packages/showcase-plugins/bundles/${slug}/${PLUGIN_MANIFEST_ENTRY}`;
+  const contract = "packages/contracts/src/plugin/index.ts";
+  const withJson = (include: readonly string[], paths: Readonly<Record<string, readonly string[]>> = {}): string => {
+    const config = z
+      .looseObject({ compilerOptions: z.record(z.string(), z.unknown()) })
+      .parse(JSON.parse(plantedTsconfig({ lib: LIBS, include: [...include], paths: { ...paths } })));
+    return JSON.stringify({ ...config, compilerOptions: { ...config.compilerOptions, resolveJsonModule: true } });
+  };
+  const root = await plantedTree(
+    graphTree(
+      {
+        "tsconfig.world-browser.json": withJson([]),
+        [WORLD]: withJson(["../*/src", "../a/scripts"], { "@orb/contracts/plugin": ["../contracts/src/plugin/index.ts"] }),
+        [LIB]: [
+          "export interface Shape { readonly kept: string; readonly zqImported: string; readonly zqScriptOnly: string; readonly zqManifest: string }",
+          "export declare const made: Shape;",
+        ].join("\n"),
+        [contract]: [
+          "export interface Deep { readonly zqDeep: string }",
+          "export interface ManifestShape { readonly zqOwned: string; readonly nested?: readonly Deep[] | undefined }",
+          "export type PluginManifest = ManifestShape;",
+        ].join("\n"),
+        [MAIN]: [
+          'import type { PluginManifest } from "@orb/contracts/plugin";',
+          'import table from "../data/table.json" with { type: "json" };',
+          'import { made } from "./lib.ts";',
+          "const use = (value: unknown): unknown => value;",
+          "declare const loaded: PluginManifest;",
+          "use(made.kept);",
+          "use(table);",
+          "use(loaded.nested?.length);",
+        ].join("\n"),
+        "packages/a/data/table.json": '{ "zqImported": 1 }\n',
+        "packages/a/scripts/load.ts": ['import data from "../data/script.json" with { type: "json" };', "export const loaded = data;"].join("\n"),
+        "packages/a/data/script.json": '{ "zqScriptOnly": 1 }\n',
+        [manifest]: `${JSON.stringify({ zqManifest: "x", zqOwned: "y", nested: [{ zqDeep: "z" }] }, null, 2)}\n`,
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.includes(".zq"))
+      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zqImported`, CONFIRMED, ["packages/a/data/table.json:1 config-key"]],
     [`${LIB}:Shape.zqScriptOnly`, CONFIRMED, ["packages/a/data/script.json:1 config-key"]],
-    [`${LIB}:Shape.zqManifest`, CONFIRMED_LITERAL, [`${manifest}:1 config-key`]],
+    [`${LIB}:Shape.zqManifest`, CONFIRMED, [`${manifest}:2 config-key`]],
+    [`${contract}:Deep.zqDeep`, CONFIRMED_LITERAL, [`${manifest}:6 config-key`]],
+    [`${contract}:ManifestShape.zqOwned`, CONFIRMED_LITERAL, [`${manifest}:3 config-key`]],
   ]);
 });
 
@@ -498,7 +722,7 @@ test.for([
 ])("sixteen candidates of eight files share snapshots when $reading reads them", { timeout: 120_000 }, async ({ constrained, snapshots }, { plantedTree }) => {
   const root = await plantedTree(graphTree(sharedTree(constrained), { entries: LIBS_SHARED.map(({ reader }) => reader) }));
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, (line) => lines.push(line));
   const mine = report.trials.filter(({ label }) => /:S\d\.(gone|spare)$/u.test(label));
   expect(mine).toHaveLength(16);
   const bad = constrained === null ? null : `${LIBS_SHARED[constrained]?.lib}:S${String(constrained)}.spare`;
@@ -530,7 +754,7 @@ test("two write-only members of one literal each keep their own write, the maske
     }),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:4 write`]],
     [`${LIB}:A.b`, NAMED_ONLY, [`${LIB}:5 write`]],
@@ -550,7 +774,7 @@ test("an error no single candidate owns splits the group, and each half finds it
     ),
   );
   const lines: string[] = [];
-  const report = await trial(root, { buckets: [DEAD], limit: null }, (line) => lines.push(line));
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
@@ -566,7 +790,7 @@ test("--limit trials an even sample of the findings it names", { timeout: 120_00
   const root = await plantedTree(
     graphTree({ [MAIN]: "export {};", [LIB]: ["const one = 1;", "const two = 2;", "const three = 3;", "const four = 4;"].join("\n") }, { entries: [MAIN] }),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: 2 }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: 2 }, () => undefined);
   expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
 });
 
@@ -611,7 +835,7 @@ test("an error the base program already has is not the removal's", { timeout: 12
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label === `${LIB}:orphan`).map(({ verdict, errors }) => [verdict, errors])).toEqual([[CONFIRMED, []]]);
 });
 
@@ -625,7 +849,7 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
       ].join("\n"),
     }),
   );
-  const report = await trial(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:2 write`]],
   ]);
@@ -653,7 +877,7 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [DEAD], limit: null }, () => undefined);
   expect(report.control.map(({ side, at, name, graph }) => [side, at, name, graph].join(" ")).sort((a, b) => a.localeCompare(b))).toEqual([
     `agree ${LIB}:1 unusedHelper ${DEAD}`,
     `agree ${LIB}:4 #spare ${MEMBER_WRITE_ONLY}`,
@@ -693,7 +917,7 @@ test("a reader only outside the product refutes test-only; a product reader keep
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(`${LIB}:`) && label !== `${LIB}:Shape.kept`)
@@ -724,7 +948,7 @@ test("a reader under snap refutes the finding as a product read, and the control
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, DEAD], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.snapped`)
@@ -759,7 +983,7 @@ test("a declaration the delete leaves unused is not a reader: the candidate stay
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:`)).map(({ label, verdict, errors }) => [label, verdict, errors])).toEqual([
     [`${LIB}:Shape.tagged`, CONFIRMED, []],
     [`${LIB}:Shape.local`, CONFIRMED, []],
@@ -768,7 +992,6 @@ test("a declaration the delete leaves unused is not a reader: the candidate stay
 });
 
 const HOST = `${GRAPH_SOURCE}/host.ts`;
-const AUGMENT = `${GRAPH_SOURCE}/augment.ts`;
 const READER = `${GRAPH_SOURCE}/reader.ts`;
 const REACH_LIB = [
   "export interface Shape { readonly kept: string; readonly gone: string }",
@@ -820,7 +1043,7 @@ test.for([
         { entries: [MAIN] },
       ),
     );
-    const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+    const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
     expect(
       report.trials
         .filter(({ label }) => label === `${LIB}:Shape.gone`)
@@ -852,17 +1075,17 @@ test("a computed member whose constant is read elsewhere is confirmed by its own
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
-  // The constant's reads are not the member's: the delete breaks none of them. Its files are checked all the same,
-  // since a read through the key names only the key.
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  // The constant's reads are not the member's: the delete breaks none of them. The constant's own file imports nothing
+  // the delete edits, so it is not checked.
   expect(report.trials.map(({ label, verdict, references, checked, errors }) => ({ label, verdict, references, checked, errors }))).toEqual([
-    { label: `${LIB}:Shape.[KEY]`, verdict: CONFIRMED, references: [], checked: [KEYS, LIB, MAIN], errors: [] },
+    { label: `${LIB}:Shape.[KEY]`, verdict: CONFIRMED, references: [], checked: [LIB, MAIN], errors: [] },
   ]);
 });
 
 // The member is read only by a test that reaches it through a relay, naming neither its holder nor its file: the
-// member's own references and the relay's importers both put that test in the checked set.
-test("a computed member a test reads through a relay is refuted test-only under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+// test imports the declaring file through the relay, so it is checked.
+test("a computed member a test reads through a relay is refuted test-only", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -880,18 +1103,17 @@ test("a computed member a test reads through a relay is refuted test-only under 
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: REFUTED_TEST_ONLY, checked: [KEYS, LIB, MAIN, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
+  ).toEqual([{ verdict: REFUTED_TEST_ONLY, checked: [LIB, MAIN, RELAY, TEST_FILE], errors: [`${TEST_FILE}:2 read`] }]);
 });
 
-// A constraint through the key constant (`{ readonly [KEY]: string }`) names neither the member nor its holder, and its file imports
-// neither the member's file nor a file that names the holder: the files that reference the key's own symbol are what
-// put it in the checked set.
-test("a computed member a constraint reads only through its key constant is refuted under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+// A constraint through the key constant (`{ readonly [KEY]: string }`) names neither the member nor its holder: its
+// file is checked because it imports the declaring file through a relay, and the key constant's own file is not.
+test("a computed member a constraint reads only through its key constant is refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -915,17 +1137,17 @@ test("a computed member a constraint reads only through its key constant is refu
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-  ).toEqual([{ verdict: REFUTED, checked: [KEYS, LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
+  ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:4 read`] }]);
 });
 
 // A key that is no name, a string literal in brackets, has no symbol a reader names: a constraint that never names the
-// holder or imports its file is reached through the import graph, the owner fallback.
-test("a literal-keyed computed member a constraint reads through a relay is refuted under either reach", { timeout: 120_000 }, async ({ plantedTree }) => {
+// holder is checked as an importer of the declaring file through a relay.
+test("a literal-keyed computed member a constraint reads through a relay is refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -946,7 +1168,7 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.zqDash`)
@@ -954,11 +1176,9 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
   ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:2 write`, `${MAIN}:3 read`] }]);
 });
 
-// A key a library declares has no tree file naming its symbol: the reader is reached through the import graph, the
-// owner fallback, as for a well-known symbol.
-test("a computed member keyed by a library constant a constraint reads through a relay is refuted under either reach", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
+// A key a library declares has no tree file naming its symbol: the reader is checked as an importer of the declaring
+// file through a relay, as for a well-known symbol.
+test("a computed member keyed by a library constant a constraint reads through a relay is refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
@@ -982,7 +1202,7 @@ test("a computed member keyed by a library constant a constraint reads through a
       { entries: [MAIN] },
     ),
   );
-  const report = await trial(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.[LIB_KEY]`)
