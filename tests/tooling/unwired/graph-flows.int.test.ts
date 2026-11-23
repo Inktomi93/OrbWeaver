@@ -4,7 +4,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
 import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/flows.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
@@ -133,6 +133,45 @@ test("a generic declared inside a generic function pairs its own type arguments 
     ]),
   );
   expect(bucketsIn(scan)).toEqual(["member-untouched NominateVars.stale"]);
+});
+
+// A library's unconstrained type parameter is a slot that names nothing, under an optional property too, where the
+// checker's non-nullable form of it (`V & {}`) no longer reads as a type parameter.
+test("a value held under a library's unconstrained type parameter is sent", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export declare function stash<V>(entry: { readonly value: V }): void;",
+      "export declare function hold<V>(entry: { readonly value?: V }): void;",
+    ]),
+    ...source([
+      'import { hold, stash } from "lib";',
+      "export interface Stashed { readonly unread: string }",
+      "export interface Held { readonly unread: string }",
+      "export interface Kept { readonly unread: string }",
+      'export const kept: Kept = { unread: "k" };',
+      "export const stashed = (item: Stashed, held: Held): void => { stash({ value: item }); hold({ value: held }); };",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Kept.unread", "member-sent-only Stashed.unread", "member-sent-only Held.unread"]);
+});
+
+// A debug probe labels an unreadable value with a checked literal and returns it as `unknown`: each branch of the
+// conditional fills the return, so the checked view's members are sent where the probe's reply goes. The same literal
+// returned into a typed slot only pairs, and its members stay written and never read.
+test("a checked literal returned as unknown from a conditional sends its checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface UnreadableView { readonly storedText: string }",
+      "export interface TypedView { readonly storedText: string }",
+      "class Unreadable { constructor(readonly text: string) {} }",
+      "const view = (value: unknown): unknown => (value instanceof Unreadable ? ({ storedText: value.text } satisfies UnreadableView) : value);",
+      "const typed = (value: unknown): TypedView | undefined => (value instanceof Unreadable ? ({ storedText: value.text } satisfies TypedView) : undefined);",
+      "const reply = { json: (value: unknown): unknown => value };",
+      "export const probe = (raw: unknown): unknown => reply.json({ config: view(raw), typed: typed(raw) !== undefined });",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only TypedView.storedText", "member-sent-only UnreadableView.storedText"]);
 });
 
 // `Object.values` and `structuredClone` read every member of the value they take; a value no reflective call takes keeps

@@ -30,6 +30,7 @@
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
   isCallExpression,
+  isConditionalExpression,
   isModuleDeclaration,
   isNewExpression,
   isObjectLiteralExpression,
@@ -161,7 +162,12 @@ function siteNodesOf(sites: FileSites): ReadonlyMap<number, Node> {
     const value = isSpreadElement(node) ? node.expression : node;
     add(value.pos, value);
   }
-  for (const { value } of [...sites.flowSites, ...sites.typePairs]) {
+  for (const { value } of sites.flowSites) {
+    for (const branch of branchesOf(value)) {
+      add(branch.pos, branch);
+    }
+  }
+  for (const { value } of sites.typePairs) {
     add(value.pos, value);
   }
   for (const { value, type } of sites.checkedValues) {
@@ -509,6 +515,19 @@ export class Flows {
     });
   }
 
+  // The type a `satisfies` holds each pair's value to, where the value is its site's own (`{ … } satisfies View` returned
+  // as `unknown`); a value the walk reached below the site's is a part of it, which the check does not hold.
+  #pairCheckedTypes(pairs: readonly FlowPair[]): readonly (Type | undefined)[] {
+    const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
+    const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
+    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
+    const checked = this.#checkedTypes(nodes);
+    return pairs.map(({ value }, at) => {
+      const node = nodes[at];
+      return node !== undefined && types.get(node)?.id === value.id ? checked[at] : undefined;
+    });
+  }
+
   // Note each value handed into a slot type that carries a string index signature, by the file it was handed in.
   #recordSinks(file: string, handed: readonly TypePair[]): void {
     const { state } = this;
@@ -641,10 +660,14 @@ export class Flows {
     return sites.globalAssigns.flatMap(({ value }, x) => (published.has(x) ? [{ node: value, spread: false, door: true }] : []));
   }
 
-  // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder.
+  // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder. A
+  // conditional's branches each fill the slot: their union can collapse (`checked ? view : value` into `unknown` is
+  // `unknown`), which would hide a branch's members from the walk.
   #flowSites(all: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
     const { state } = this;
-    const sites = { flowSites: all.flowSites.filter(({ value }) => !held(value)) };
+    const sites = {
+      flowSites: all.flowSites.flatMap((site) => (held(site.value) ? [] : branchesOf(site.value).map((value) => ({ ...site, value, whole: site.value })))),
+    };
     const values = state.world.typesAt(sites.flowSites.map(({ value }) => value));
     const declared = sites.flowSites.flatMap((site, at) => (site.slot === "declared" ? [{ at, node: site.holder }] : []));
     const declaredTypes = state.world.typesAt(declared.map(({ node }) => node));
@@ -662,7 +685,7 @@ export class Flows {
     // a value inside a literal handed to a library signature's bare type parameter (`tv({ variants: { ink: table } })`)
     // takes its contextual type from its own inference, so its slot is itself: the library takes it whole, as a value
     // handed straight to that parameter does
-    const inferred = this.#libraryInferred(sites.flowSites.map((site) => (site.slot === "contextual" ? argumentHolding(site.value) : undefined)));
+    const inferred = this.#libraryInferred(sites.flowSites.map((site) => (site.slot === "contextual" ? argumentHolding(site.whole) : undefined)));
     return sites.flowSites.flatMap((site, at) => {
       const slot = slots.get(at);
       const value = values[at];
@@ -874,9 +897,12 @@ export class Flows {
       }
     }
     const outcomes = this.#pairDestinations(escaping);
+    const checked = this.#pairCheckedTypes(escaping);
     this.#recordSinks(file, escaping);
     for (const [y, pair] of escaping.entries()) {
-      this.#settle(pair.value, false, { file, at: pair.site }, outcomes[y]);
+      for (const type of [pair.value, ...(checked[y] === undefined ? [] : [checked[y]])]) {
+        this.#settle(type, false, { file, at: pair.site }, outcomes[y]);
+      }
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's
     const unions = pairs.filter(({ value }) => value.isUnionType());
@@ -1055,9 +1081,17 @@ function* declaredPropertyType(state: GraphState, signature: Signature, { index,
       return at;
     }
     const property = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(at), name);
-    at = property === undefined ? undefined : yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(property));
+    at = property === undefined ? undefined : yield* withoutNullish(checker, yield* checker.getTypeOfSymbol.gen(property));
   }
   return at;
+}
+
+// A declared type without its `null` and `undefined` arms. An unconstrained type parameter is kept as itself, where the
+// checker's non-nullable form (`V & {}`) would no longer read as a type parameter.
+function* withoutNullish(checker: Checker, type: Type): APIRequestGenerator<Type> {
+  const arms = (yield* constituentsOf(type)).filter((arm) => !(hasFlag(arm.flags, TypeFlags.Undefined) || hasFlag(arm.flags, TypeFlags.Null)));
+  const [only] = arms;
+  return arms.length === 1 && only?.isTypeParameter() === true ? only : yield* checker.getNonNullableType.gen(type);
 }
 
 // The type a signature's declaration gives its parameter at `index`, before instantiation.
@@ -1065,6 +1099,15 @@ function* declaredParameterType(state: GraphState, signature: Signature, index: 
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const parameter = (yield* target.getParameters.gen())[index];
   return parameter === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(parameter);
+}
+
+// The values an expression can be: each branch of a conditional, through parentheses, else the expression itself.
+function branchesOf(value: Expression): readonly Expression[] {
+  let at = value;
+  while (isParenthesizedExpression(at)) {
+    at = at.expression;
+  }
+  return isConditionalExpression(at) ? [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)] : [value];
 }
 
 const calleeName = (call: Node | undefined): Node | undefined => {
