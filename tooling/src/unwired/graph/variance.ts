@@ -6,12 +6,21 @@
 // generic takes that generic's variance for its position, so an alias such as `MutationFunction<TData, TVariables> =
 // (variables: TVariables) => …` is followed. An explicit `in` or `out` modifier wins over the walk.
 //
-// - Positions that move no value count for nothing: a method's or a constructor's parameter (the call consumes it, and
-//   the type cannot show whether the instance keeps it: `includes(x: T)` and `set(value: V)` read alike), a
-//   conditional's check and extends types, a mapped type's key constraint and name type, and a `keyof` operand. Counting them would make every library
-//   collection pair both ways. A parameter only they use is `none`, which pairs forward, so none drops a pairing.
-// - The walk is keyed by the declaring symbol. A generic reached again while its own walk runs (a tree node holding
-//   `Node<T>[]`, two mutually recursive aliases) answers the polarity seen so far, so every walk ends.
+// - A method's or a constructor's parameter takes a value in, as a function-typed member's does (`mutationFn?(vars: V)`,
+//   `set(key: K, value: V): this`), unless the method answers with a value computed from it: a primitive result other
+//   than `void` (`includes(x: T): boolean`, `indexOf`, `has`) or a result naming one of the generic's own type
+//   parameters (`reduce(…, initialValue: T): T`, `concat`). Those compare or pass the value through the call, and
+//   counting them would make every library collection pair both ways.
+// - A method keeps its value in the instance it is called on. A generic that holds such an instance in a member or a
+//   return (`ReadonlySet<T>.difference(): Set<T>` hands back a fresh set) receives nothing from it, so a generic a
+//   type argument is handed to lends only the variance its function-typed positions give. Where the flow walk pairs
+//   two instances of the held generic itself (`Map<string, Leaf>` handed as `Map<string, Wide>`), its methods count.
+// - Positions that move no value count for nothing: a conditional's check and extends types, a mapped type's key
+//   constraint and name type, and a `keyof` operand. A parameter only they use is `none`, which pairs forward, so none
+//   drops a pairing.
+// - The walk is keyed by the declaring symbol. A generic reached again while its own walk runs on the same stack (a
+//   tree node holding `Node<T>[]`, two mutually recursive aliases) answers the polarity seen so far, its declared
+//   modifiers applied, so every walk ends. Another walk running beside it never reads that partial answer.
 // - A parameter the declaration never uses is `none`.
 import type { Node, TypeParameterDeclaration } from "@typescript/native/ast";
 import {
@@ -46,11 +55,25 @@ export type Variance = (typeof VARIANCES)[number];
 
 type Polarity = 1 | -1;
 
-// What one walk records into: the parameters by name and their variances so far.
+// A generic whose walk is running: its variances so far and the modifiers its declaration fixes.
+interface Running {
+  readonly result: readonly Variance[];
+  readonly fixed: readonly (Variance | null)[];
+}
+
+// What one walk records into: the parameters by name, their variances so far, the generics running on its stack, and
+// whether the generic's own methods count (they do not for a generic a type argument is handed to).
 interface Walk {
   readonly names: ReadonlyMap<string, number>;
   readonly result: Variance[];
+  readonly stack: ReadonlyMap<string, Running>;
+  readonly methods: boolean;
 }
+
+// The cache mark of a walk whose methods count for nothing.
+const HELD_MARK = "!held";
+
+const settle = ({ result, fixed }: Running): readonly Variance[] => result.map((variance, at) => fixed[at] ?? variance);
 
 const flip = (polarity: Polarity): Polarity => (polarity === 1 ? -1 : 1);
 
@@ -84,8 +107,32 @@ const isSignature = (node: Node): boolean =>
   isConstructSignatureDeclaration(node) ||
   isSetAccessorDeclaration(node);
 
-// A member whose parameters the call consumes: a method or a constructor.
-const isConsumingSignature = (node: Node): boolean => isMethodSignatureDeclaration(node) || isMethodDeclaration(node) || isConstructorDeclaration(node);
+// A member whose parameters a call hands in: a method or a constructor.
+const isMemberSignature = (node: Node): boolean => isMethodSignatureDeclaration(node) || isMethodDeclaration(node) || isConstructorDeclaration(node);
+
+// The results a method computes from what it takes rather than keeping it: a comparison, a position, a count, a text.
+const COMPUTED_RESULTS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.BooleanKeyword,
+  SyntaxKind.NumberKeyword,
+  SyntaxKind.StringKeyword,
+  SyntaxKind.BigIntKeyword,
+  SyntaxKind.SymbolKeyword,
+]);
+
+// Whether a type node names one of the walked generic's own type parameters anywhere inside it.
+function namesParameter(node: Node, names: ReadonlyMap<string, number>): boolean {
+  if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && names.has(node.typeName.text)) {
+    return true;
+  }
+  return childrenOf(node).some((child) => namesParameter(child, names));
+}
+
+// Whether a method or constructor keeps the values its parameters take: a constructor and a method with no declared
+// result do, and so does any method whose result is neither computed nor handed back (the module header holds why).
+function keepsWhatItTakes(node: Node, names: ReadonlyMap<string, number>): boolean {
+  const result = isMethodSignatureDeclaration(node) || isMethodDeclaration(node) ? node.type : undefined;
+  return result === undefined || !(COMPUTED_RESULTS.has(result.kind) || namesParameter(result, names));
+}
 
 const childrenOf = (node: Node): readonly Node[] => {
   const out: Node[] = [];
@@ -99,7 +146,6 @@ const childrenOf = (node: Node): readonly Node[] => {
 export class Variances {
   readonly #state: GraphState;
   readonly #done = new Map<string, readonly Variance[]>();
-  readonly #running = new Map<string, Variance[]>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -107,8 +153,14 @@ export class Variances {
 
   /** Each type parameter's variance, in declaration order; empty for a symbol no generic declaration of which is found. */
   *of(symbol: NativeSymbol): APIRequestGenerator<readonly Variance[]> {
-    const key = declarationKeys(symbol).join(",");
-    const known = this.#done.get(key) ?? this.#running.get(key);
+    return yield* this.#of(symbol, new Map(), true);
+  }
+
+  // A generic already on `stack` is a cycle of this walk, answered with what it has seen so far.
+  *#of(symbol: NativeSymbol, stack: ReadonlyMap<string, Running>, methods: boolean): APIRequestGenerator<readonly Variance[]> {
+    const key = `${declarationKeys(symbol).join(",")}${methods ? "" : HELD_MARK}`;
+    const running = stack.get(key);
+    const known = this.#done.get(key) ?? (running === undefined ? undefined : settle(running));
     if (known !== undefined) {
       return known;
     }
@@ -122,15 +174,18 @@ export class Variances {
     const parameters = declarations.map(typeParametersOf).find((list) => list.length > 0) ?? [];
     const fixed = parameters.map(declared);
     const result: Variance[] = parameters.map(() => "none");
-    this.#running.set(key, result);
-    const walk: Walk = { names: new Map(parameters.map(({ name }, at) => [name.text, at])), result };
+    const walk: Walk = {
+      names: new Map(parameters.map(({ name }, at) => [name.text, at])),
+      result,
+      stack: new Map([...stack, [key, { result, fixed }]]),
+      methods,
+    };
     for (const node of declarations) {
       for (const child of childrenOf(node)) {
         yield* this.#walk(child, 1, walk);
       }
     }
-    this.#running.delete(key);
-    const settled = result.map((variance, at) => fixed[at] ?? variance);
+    const settled = settle({ result, fixed });
     this.#done.set(key, settled);
     return settled;
   }
@@ -148,7 +203,7 @@ export class Variances {
       yield* this.#arguments(node, polarity, walk);
       return;
     }
-    if (isSignature(node) || isConsumingSignature(node)) {
+    if (isSignature(node) || isMemberSignature(node)) {
       yield* this.#signature(node, polarity, walk);
       return;
     }
@@ -173,14 +228,14 @@ export class Variances {
     }
   }
 
-  // A signature's parameters take values against its polarity, and a method's none; its return and its other parts keep
-  // the polarity.
+  // A signature's parameters take values against its polarity, and a method's only when it keeps them; its return and
+  // its other parts keep the polarity.
   *#signature(node: Node, polarity: Polarity, walk: Walk): APIRequestGenerator<void> {
-    const consumed = isConsumingSignature(node);
+    const takes = !isMemberSignature(node) || (walk.methods && keepsWhatItTakes(node, walk.names));
     for (const child of childrenOf(node)) {
       if (child.kind !== SyntaxKind.Parameter) {
         yield* this.#walk(child, polarity, walk);
-      } else if (!consumed) {
+      } else if (takes) {
         yield* this.#walk(child, flip(polarity), walk);
       }
     }
@@ -200,7 +255,7 @@ export class Variances {
     const name = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
     const found = yield* checker.getSymbolAtLocation.gen(name);
     const symbol = found !== undefined && hasFlag(found.flags, SymbolFlags.Alias) ? yield* checker.getAliasedSymbol.gen(found) : found;
-    const variances = symbol === undefined ? [] : yield* this.of(symbol);
+    const variances = symbol === undefined ? [] : yield* this.#of(symbol, walk.stack, false);
     for (const [at, argument] of typeArguments.entries()) {
       // a position the referenced generic does not use, or one it is still walking, moves forward
       const variance = variances[at] ?? "none";

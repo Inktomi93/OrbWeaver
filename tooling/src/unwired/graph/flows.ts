@@ -752,7 +752,7 @@ export class Flows {
         const step = { kind: "argument", name: String(at) } as const;
         const forward = { slot: slotArgument, value: argument, at: step };
         const backward = { slot: argument, value: slotArgument, at: step };
-        const variance = variances[at] ?? "none";
+        const variance = variances[at - instances.outer] ?? "none";
         if (variance === "in") {
           return [backward];
         }
@@ -779,11 +779,18 @@ export class Flows {
   }
 
   // Two instantiations of one generic, an interface's or an alias's (`Token<A>` into `Token<B>`): their type arguments,
-  // with the generic whose variance decides which way each pair flows.
+  // with the generic whose variance decides which way each pair flows. An interface or class declared inside a generic
+  // function leads its type arguments with the enclosing type parameters it references (`outer` of them), which its
+  // declaration does not list; an alias's arguments are its own.
   *#sameGeneric(
     slot: Type,
     value: Type,
-  ): APIRequestGenerator<{ readonly slot: readonly Type[]; readonly value: readonly Type[]; readonly generic: NativeSymbol | undefined } | null> {
+  ): APIRequestGenerator<{
+    readonly slot: readonly Type[];
+    readonly value: readonly Type[];
+    readonly generic: NativeSymbol | undefined;
+    readonly outer: number;
+  } | null> {
     const { checker } = this.#state.world;
     if (slot.isTypeReference() && value.isTypeReference()) {
       const [slotTarget, valueTarget] = [yield* slot.getTarget.gen(), yield* value.getTarget.gen()];
@@ -792,6 +799,7 @@ export class Flows {
           slot: yield* checker.getTypeArguments.gen(slot),
           value: yield* checker.getTypeArguments.gen(value),
           generic: yield* slotTarget.getSymbol.gen(),
+          outer: (yield* slotTarget.getOuterTypeParameters.gen()).length,
         };
       }
     }
@@ -799,7 +807,7 @@ export class Flows {
     if (slotAlias === undefined || valueAlias === undefined || slotAlias.id !== valueAlias.id) {
       return null;
     }
-    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen(), generic: slotAlias };
+    return { slot: yield* slot.getAliasTypeArguments.gen(), value: yield* value.getAliasTypeArguments.gen(), generic: slotAlias, outer: 0 };
   }
 
   // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,
