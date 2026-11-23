@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, labelsIn, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, labelsIn, NODE_TYPES, REACT_TYPES, tailwindVariants, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
@@ -29,11 +29,14 @@ const SESSION = [
 const OTHER_SOURCE = 'export interface Note { readonly text: string }\nexport const note: Note = { text: "n" };';
 
 // One planted file per fact a dump carries beyond the use edges and the roles: a function slot's flow, a zod twin, a
-// state tuple's parts and a member published through our own global door that tooling reads.
+// state tuple's parts, a member published through our own global door that tooling reads, and a member the runtime
+// calls by name.
 const FLOW = `${GRAPH_SOURCE}/flow.ts`;
 const TWIN = `${GRAPH_SOURCE}/twin.ts`;
 const STATE = `${GRAPH_SOURCE}/state.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
+const UNSEEN = `${GRAPH_SOURCE}/unseen.ts`;
+const LISTENER = `${GRAPH_SOURCE}/listener.ts`;
 const FACTS = {
   ...ZOD_MODULE,
   ...REACT_TYPES,
@@ -66,6 +69,10 @@ const FACTS = {
     "  globalThis.__orb = bridge;",
     "};",
   ].join("\n"),
+  [UNSEEN]: "export class Doc { toJSON(): object { return {}; } spare(unread: number): void {} }",
+  ...NODE_TYPES,
+  [LISTENER]:
+    '/// <reference types="node" />\nimport type { MessagePort } from "worker_threads";\nexport const listen = (port: MessagePort): void => { port.on("message", () => {}); };',
   "tsconfig.world-browser.json": JSON.stringify({ extends: `./${WORLD}`, include: ["probe.ts"] }),
   "probe.ts": "export const seen = globalThis.__orb?.foo;",
 };
@@ -84,6 +91,9 @@ test("a dumped graph read back analyses to the fresh build's buckets; a dump in 
   expect(bare(labelsIn(fresh, "member-write-only", TWIN))).toEqual(["User.age"]);
   expect(labelsIn(fresh, "state-never-set", STATE)).toEqual(["3 setter"]);
   expect(labelsIn(fresh, "member-sent-only", DOOR)).toEqual(["Bridge.bar"]);
+  expect(labelsIn(fresh, "member-untouched", UNSEEN)).toEqual(["Doc.spare"]);
+  expect(labelsIn(fresh, "binding-unread", UNSEEN)).toEqual(["1 unread"]);
+  expect(labelsIn(fresh, "message-receiver-unpaired", LISTENER)).toEqual(["3 worker"]);
   const read = await scanGraph(root, quiet, options({ from: dump }));
   expect(read.analysis).toEqual(fresh.analysis);
   expect(read.session.from).toEqual(fresh.session.dumped);

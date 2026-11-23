@@ -6,7 +6,7 @@
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, CheckFlags, TypeFlags } from "@typescript/native/sync";
 import type { NativeWorld } from "../native.ts";
-import { hasFlag } from "../native.ts";
+import { DEFAULT_LIBRARY, hasFlag } from "../native.ts";
 import { constituentsOf } from "./resolve.ts";
 import type { GraphFacts, GraphState, LibraryLanding, LostCause, LostKey, LostSlot } from "./state.ts";
 
@@ -73,9 +73,6 @@ function* literalMembers(type: Type): APIRequestGenerator<readonly string[] | nu
   }
   return out.length > 0 ? out.toSorted() : null;
 }
-
-/** The default library's own declarations (`lib.*.d.ts`), which no package manifest names. */
-export const DEFAULT_LIBRARY = "lib";
 
 // The symbol flags that name a slot, in the order they are asked after the receiver's own.
 const SLOT_FLAGS: readonly (readonly [LostSlot, CheckFlags])[] = [

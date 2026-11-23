@@ -11,6 +11,7 @@ import type {
   ExpressionWithTypeArguments,
   FunctionDeclaration,
   GetAccessorDeclaration,
+  ImportDeclaration,
   InterfaceDeclaration,
   JsxAttributes,
   MethodDeclaration,
@@ -21,6 +22,8 @@ import type {
   NoSubstitutionTemplateLiteral,
   ObjectBindingPattern,
   ObjectLiteralExpression,
+  ParameterDeclaration,
+  PropertyAccessExpression,
   PropertyDeclaration,
   PropertySignatureDeclaration,
   SetAccessorDeclaration,
@@ -41,12 +44,17 @@ import {
   isArrayLiteralExpression,
   isArrowFunction,
   isAsExpression,
+  isAwaitExpression,
   isBinaryExpression,
   isBindingElement,
   isBlock,
   isCallExpression,
+  isCatchClause,
   isClassDeclaration,
+  isClassExpression,
+  isComputedPropertyName,
   isConditionalExpression,
+  isConditionalTypeNode,
   isConstructorDeclaration,
   isElementAccessExpression,
   isEnumDeclaration,
@@ -58,6 +66,7 @@ import {
   isForOfStatement,
   isFunctionDeclaration,
   isFunctionExpression,
+  isFunctionLikeDeclaration,
   isFunctionTypeNode,
   isGetAccessorDeclaration,
   isIdentifier,
@@ -80,7 +89,9 @@ import {
   isLiteralTypeNode,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
+  isModuleBlock,
   isModuleDeclaration,
+  isNamedImports,
   isNamespaceExport,
   isNamespaceImport,
   isNewExpression,
@@ -113,7 +124,10 @@ import {
   isTypeReferenceNode,
   isUnionTypeNode,
   isVariableDeclaration,
+  isVariableDeclarationList,
+  isVariableStatement,
   ModifierFlags,
+  NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
 import { hasFlag } from "../native.ts";
@@ -188,6 +202,8 @@ export interface DeclInfo {
   readonly surfacePath: string;
   readonly top: boolean;
   readonly line: number;
+  /** A variable whose initializer runs a call, a construction or an await when its module loads. */
+  readonly effect: boolean;
   readonly shapeOnly: ShapeOnly | null;
   docTags: readonly string[];
 }
@@ -237,6 +253,7 @@ export const UNNAMED = "{…}";
 // TypeScript's convention, kept by noUnusedLocals and Biome's noUnusedVariables: a leading underscore marks a binding
 // never read on purpose (a compile-time pin, a disposal held by `using`).
 const UNREAD_ON_PURPOSE = /^_/u;
+const THIS_PARAMETER = "this";
 
 // An identifier in these positions binds or forwards a name; its use is the later reference, resolved through the alias.
 const forwards = (parent: Node): boolean =>
@@ -352,6 +369,22 @@ export interface NameSite {
   /** A value position that hands the named value on (not `new X`, `X.member`, a heritage clause or its own name). */
   readonly handed: boolean;
   readonly roles: readonly Role[];
+  /** The name a declaration, binding, parameter or import introduces: it uses nothing. */
+  readonly declares: boolean;
+}
+
+/** What a binding is: the kinds binding-unread names. */
+const BINDING_KINDS = ["local", "parameter", "import"] as const;
+type BindingKind = (typeof BINDING_KINDS)[number];
+
+/** A local binding, parameter or import binding, by the key its references resolve to. */
+export interface LocalBinding {
+  readonly key: DeclKey;
+  /** The declaration the binding sits in, or its module. */
+  readonly holder: GraphKey;
+  readonly name: string;
+  readonly kind: BindingKind;
+  readonly line: number;
 }
 
 /** A property an object literal writes: the literal, the key's text and the value written, if any. */
@@ -378,6 +411,12 @@ export type FlowSite =
   | { readonly slot: "contextual"; readonly value: Expression }
   | { readonly slot: "holder"; readonly value: Expression; readonly holder: Expression };
 
+/** A call or construction with explicit type arguments. */
+export interface TypeArgumentSite {
+  readonly call: CallExpression | NewExpression;
+  readonly arguments: readonly TypeNode[];
+}
+
 /** `x[k]`: the receiver, the literal keys `k` can be (null for a computed key) and the key's expression. */
 export interface ElementKey {
   readonly receiver: Node;
@@ -397,7 +436,10 @@ export interface ClassFacts {
   readonly key: DeclKey;
   readonly members: Map<string, DeclKey>;
   readonly statics: Map<string, DeclKey>;
-  readonly heritage: readonly ExpressionWithTypeArguments[];
+  /** Every heritage clause's type: the instance types its members may fill. */
+  readonly heritage: readonly Node[];
+  /** The `extends` clause's base: its value side holds the statics its static members may fill. */
+  readonly bases: readonly ExpressionWithTypeArguments[];
 }
 
 /** An object literal's methods and accessors by name, with the declaration holding the literal. */
@@ -419,6 +461,10 @@ export class FileSites {
   readonly file: string;
   readonly product: boolean;
   readonly names: NameSite[] = [];
+  /** The file's local bindings, parameters and import bindings: what binding-unread judges. */
+  readonly bindings: LocalBinding[] = [];
+  /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
+  readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
   readonly zodTwins: { readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
@@ -428,12 +474,28 @@ export class FileSites {
   readonly pickKeys: { readonly target: TypeNode; readonly keys: readonly string[] }[] = [];
   readonly indexedKeys: IndexedKey[] = [];
   readonly elementKeys: ElementKey[] = [];
+  /** `"k" in x`: a key test touches the member it names without reading its value. */
+  readonly keyTests: ElementKey[] = [];
   /** Members a lib arm selector's pattern names: `Extract<T, { k: … }>`. */
   readonly armSelectorMembers: DeclKey[] = [];
   readonly tvCalls: CallExpression[] = [];
   readonly jsxAttributes: { readonly attributes: JsxAttributes; readonly name: string; readonly value: Node | undefined }[] = [];
   readonly specifiers: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly from: GraphKey; readonly inType: boolean }[] = [];
   readonly urlModules: { readonly target: string; readonly from: GraphKey }[] = [];
+  /** A file a createRequire function loads by its literal relative path: it runs as an import's module does. */
+  readonly requiredModules: { readonly target: string; readonly from: GraphKey }[] = [];
+  /** Calls and constructions with explicit type arguments: constraints.ts keys what each argument's constraint names. */
+  readonly typeArguments: TypeArgumentSite[] = [];
+  /** Calls inside a generic function, which may hand its type parameters to another generic's. */
+  readonly genericCalls: CallExpression[] = [];
+  /** String literal arguments, which name a member where the parameter is `keyof` a type. */
+  readonly keyArguments: Expression[] = [];
+  /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
+  readonly typePairs: { readonly value: Node; readonly slot: Node }[] = [];
+  /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
+  readonly computedLoads: CallExpression[] = [];
+  /** Calls of a method a Hono app registers routes with; routes.ts confirms each by its declaration. */
+  readonly routeCalls: CallExpression[] = [];
   readonly shorthands: { readonly node: ShorthandPropertyAssignment; readonly from: GraphKey }[] = [];
   /** Destructuring patterns, a declaration's or an assignment's, with the route to the type their keys read. */
   readonly patterns: ({
@@ -500,6 +562,8 @@ export interface WalkSink {
   readonly edge: (map: "run" | "typ", from: GraphKey, to: GraphKey) => void;
   readonly role: (key: DeclKey, role: Role, file: string, at: number) => void;
   readonly pin: (key: DeclKey) => void;
+  /** A member the runtime calls by its well-known name. */
+  readonly unseenCall: (key: DeclKey) => void;
   /** A module a `new URL("./x", import.meta.url)` names, if it is one of the tree's code files. */
   readonly urlModule: (fromFile: string, specifier: string) => string | null;
 }
@@ -508,6 +572,24 @@ const CSS_NAME = /^--[\w-]+$/u;
 const ZOD_TYPE = "ZodType";
 const TV = "tv";
 const URL_CONSTRUCTOR = "URL";
+const WELL_KNOWN_SYMBOLS = "Symbol";
+/** The Hono app methods that register a route, with the argument index that holds the path. */
+export const ROUTE_METHODS: ReadonlyMap<string, number> = new Map([
+  ["get", 0],
+  ["post", 0],
+  ["put", 0],
+  ["delete", 0],
+  ["patch", 0],
+  ["options", 0],
+  ["all", 0],
+  ["on", 1],
+]);
+const CREATE_REQUIRE = "createRequire";
+const NODE_MODULE_SPECIFIERS: ReadonlySet<string> = new Set(["node:module", "module"]);
+const INSPECT = "inspect";
+const INSPECT_CUSTOM = "custom";
+// Members the runtime calls by name: JSON.stringify's `toJSON`, coercion's `toString` and `valueOf`, `await`'s `then`.
+const RUNTIME_PROTOCOL_NAMES: ReadonlySet<string> = new Set(["toJSON", "toString", "valueOf", "then"]);
 const ARM_SELECTORS: ReadonlySet<string> = new Set(["Extract", "Exclude"]);
 const MEMBER_SELECTORS: ReadonlySet<string> = new Set(["Pick", "Omit"]);
 // A zod object schema's shape literal, through the chain it is built in (`z.strictObject({ … }).describe(…)`).
@@ -663,12 +745,27 @@ interface Frame {
   readonly stack: GraphKey[];
   readonly literals: LiteralMembers[];
   readonly classes: ClassFacts[];
+  /** The file's names for node:module's createRequire, and for the module itself (`import * as module`). */
+  readonly createRequire: Set<string>;
+  readonly moduleNamespaces: Set<string>;
+  /** The file's bindings that hold a require function createRequire made. */
+  readonly requires: Set<string>;
+  /** How many generic functions enclose the walk. */
+  generic: number;
 }
 
 /** Walk one file: every site its checker passes need, with the declarations and syntax-decided edges told to `sink`. */
 export function collectSites(source: SourceFile, file: string, product: boolean, sink: WalkSink): FileSites {
   const sites = new FileSites(source, file, product);
-  const frame: Frame = { stack: [moduleKey(file)], literals: [], classes: [] };
+  const frame: Frame = {
+    stack: [moduleKey(file)],
+    literals: [],
+    classes: [],
+    createRequire: new Set(),
+    moduleNamespaces: new Set(),
+    requires: new Set(),
+    generic: 0,
+  };
   const walker = new Walker(source, sites, sink, frame);
   walker.visit(source, false);
   return sites;
@@ -692,6 +789,7 @@ class Walker {
   }
 
   visit(node: Node, typePosition: boolean): void {
+    this.#binding(node);
     const pushed = this.#declaration(node);
     this.#docs(node);
     if (isConstructorDeclaration(node)) {
@@ -704,6 +802,10 @@ class Walker {
     if (isNewExpression(node)) {
       this.#sites.newExpressions.push(node);
     }
+    if (isImportDeclaration(node)) {
+      this.#moduleImport(node);
+    }
+    this.#callSites(node);
     const inType = typePosition || isTypePosition(node);
     this.#name(node, inType);
     this.#keyed(node, inType);
@@ -711,7 +813,10 @@ class Walker {
     this.#types(node);
     this.#strings(node, inType);
     this.#spellings(node);
+    const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0;
+    this.#frame.generic += generic ? 1 : 0;
     node.forEachChild((child) => this.visit(child, inType));
+    this.#frame.generic -= generic ? 1 : 0;
     if (pushed) {
       this.#frame.stack.pop();
       if (isClassDeclaration(node)) {
@@ -721,6 +826,133 @@ class Walker {
     if (literal !== undefined) {
       this.#frame.literals.pop();
     }
+  }
+
+  // Sites a call or a callee decides: an implementation's overloads, type arguments and literal keys, a generic
+  // hand-off, a module load and a route registration.
+  #callSites(node: Node): void {
+    if ((isFunctionDeclaration(node) || isMethodDeclaration(node)) && node.body !== undefined) {
+      this.#overloads(node);
+    }
+    if ((isCallExpression(node) || isNewExpression(node)) && node.typeArguments !== undefined && node.typeArguments.length > 0) {
+      this.#sites.typeArguments.push({ call: node, arguments: node.typeArguments });
+    }
+    if (!isCallExpression(node)) {
+      return;
+    }
+    this.#sites.keyArguments.push(...node.arguments.filter((argument) => isStringLiteral(argument) || isNoSubstitutionTemplateLiteral(argument)));
+    if (this.#frame.generic > 0) {
+      this.#sites.genericCalls.push(node);
+    }
+    this.#moduleLoad(node);
+    if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
+      this.#sites.routeCalls.push(node);
+    }
+  }
+
+  // A caller of an overload writes into the implementation's parameters through it: each overload's parameter fills
+  // the implementation's at the same index.
+  #overloads(implementation: FunctionDeclaration | MethodDeclaration): void {
+    const name = keyText(implementation.name);
+    const overloads = siblingsOf(implementation).filter(
+      (sibling): sibling is FunctionDeclaration | MethodDeclaration =>
+        (isFunctionDeclaration(sibling) || isMethodDeclaration(sibling)) && sibling.body === undefined && name !== undefined && keyText(sibling.name) === name,
+    );
+    for (const overload of overloads) {
+      for (const [at, parameter] of overload.parameters.entries()) {
+        const target = implementation.parameters[at];
+        if (target !== undefined) {
+          this.#sites.typePairs.push({ value: parameter, slot: target });
+        }
+      }
+    }
+  }
+
+  // A type literal that matches another type by shape keys that type's members: the extends pattern of a conditional
+  // (`T extends { default: infer C } ? C : T`), and a literal intersected with a union to select its arm
+  // (`Message & { subtype: "a" }`). The pattern's own members are key uses too: deleting one changes the match.
+  #typePatterns(node: Node): void {
+    const pairs: { readonly target: TypeNode; readonly pattern: TypeNode }[] = [];
+    if (isConditionalTypeNode(node)) {
+      pairs.push({ target: node.checkType, pattern: unparenType(node.extendsType) });
+    }
+    if (isIntersectionTypeNode(node)) {
+      const literals = node.types.filter((type) => isTypeLiteralNode(unparenType(type)));
+      for (const target of node.types.filter((type) => !isTypeLiteralNode(unparenType(type)))) {
+        pairs.push(...literals.map((pattern) => ({ target, pattern: unparenType(pattern) })));
+      }
+    }
+    for (const { target, pattern } of pairs) {
+      if (!isTypeLiteralNode(pattern)) {
+        continue;
+      }
+      const keys = pattern.members.flatMap((member) => {
+        const name = keyText(unitName(member));
+        return name === undefined ? [] : [name];
+      });
+      this.#sites.pickKeys.push({ target, keys });
+      for (const member of pattern.members) {
+        this.#sink.role(this.#sink.keyOf(member), "key", this.#sites.file, member.pos);
+      }
+    }
+  }
+
+  // A module loaded by a call: `import(x)`, or a require function node:module's createRequire makes. A literal relative
+  // path loads that file as the import does; any other argument is a load the graph cannot follow, reported with its site.
+  #moduleLoad(node: CallExpression): void {
+    if (isImportDeclarationCall(node)) {
+      const [specifier] = node.arguments;
+      if (specifier !== undefined && !isStringLiteral(specifier) && !isNoSubstitutionTemplateLiteral(specifier)) {
+        this.#sites.computedLoads.push(node);
+      }
+      return;
+    }
+    const { expression } = node;
+    const makesRequire = (at: Node): boolean => isCallExpression(at) && this.#isCreateRequire(at.expression);
+    if (this.#isCreateRequire(expression) && isVariableDeclaration(node.parent) && isIdentifier(node.parent.name)) {
+      this.#frame.requires.add(node.parent.name.text);
+      return;
+    }
+    if (!(makesRequire(expression) || (isIdentifier(expression) && this.#frame.requires.has(expression.text)))) {
+      return;
+    }
+    const [specifier] = node.arguments;
+    const literal = specifier !== undefined && (isStringLiteral(specifier) || isNoSubstitutionTemplateLiteral(specifier)) ? specifier.text : null;
+    const target = literal?.startsWith(".") === true ? this.#sink.urlModule(this.#sites.file, literal) : null;
+    if (target !== null) {
+      this.#sites.requiredModules.push({ target, from: this.#holder });
+    } else if (literal === null) {
+      this.#sites.computedLoads.push(node);
+    }
+  }
+
+  // The module specifier names node:module, so the imported name is its createRequire whatever the file calls it.
+  #moduleImport(node: ImportDeclaration): void {
+    const specifier = node.moduleSpecifier;
+    if (!(isStringLiteral(specifier) && NODE_MODULE_SPECIFIERS.has(specifier.text))) {
+      return;
+    }
+    const bindings = node.importClause?.namedBindings;
+    if (bindings !== undefined && isNamespaceImport(bindings)) {
+      this.#frame.moduleNamespaces.add(bindings.name.text);
+    }
+    for (const element of bindings !== undefined && isNamedImports(bindings) ? bindings.elements : []) {
+      if ((element.propertyName ?? element.name).text === CREATE_REQUIRE) {
+        this.#frame.createRequire.add(element.name.text);
+      }
+    }
+  }
+
+  #isCreateRequire(callee: Node): boolean {
+    if (isIdentifier(callee)) {
+      return this.#frame.createRequire.has(callee.text);
+    }
+    return (
+      isPropertyAccessExpression(callee) &&
+      callee.name.text === CREATE_REQUIRE &&
+      isIdentifier(callee.expression) &&
+      this.#frame.moduleNamespaces.has(callee.expression.text)
+    );
   }
 
   // A declaration: its facts, the edges that keep it and its holder alive together, and its place on the stack.
@@ -736,11 +968,12 @@ class Walker {
     this.#sink.declare(key, {
       file: this.#sites.file,
       kind: node.kind,
-      name: keyText(name) ?? UNNAMED,
+      name: keyText(name) ?? computedText(name) ?? UNNAMED,
       holder,
       surfacePath: surfacePathOf(node),
       top,
       line,
+      effect: isVariableDeclaration(node) && runsOnLoad(node.initializer),
       shapeOnly: shapeOnlyOf(node),
       docTags: [],
     });
@@ -782,6 +1015,23 @@ class Walker {
     }
   }
 
+  // A binding binding-unread judges. Left out, as tsc's noUnusedLocals and noUnusedParameters leave them: a name read
+  // never on purpose, a parameter of a signature with no body, a parameter property, `this`, a `using` declaration, a
+  // catch binding and an object-pattern element whose rest sibling it is omitted from. A top-level variable is a unit
+  // liveness judges.
+  #binding(node: Node): void {
+    if (isExportSpecifier(node) && !isExportDeclarationWithModule(node)) {
+      this.#sites.exportedLocals.add((node.propertyName ?? node.name).text);
+      return;
+    }
+    // tsc judges no binding in an ambient context: a declaration file, `declare module`, `declare global`
+    const found = hasFlag(node.flags, NodeFlags.Ambient) ? null : bindingOf(node, this.#frame.stack.length === 1);
+    if (found !== null && isIdentifier(found.name) && !UNREAD_ON_PURPOSE.test(found.name.text)) {
+      const line = this.#source.getLineAndCharacterOfPosition(found.name.getStart(this.#source)).line + 1;
+      this.#sites.bindings.push({ key: this.#sink.keyOf(node), holder: this.#holder, name: found.name.text, kind: found.kind, line });
+    }
+  }
+
   #member(node: Node, key: DeclKey): void {
     const name = keyText(unitName(node)) ?? UNNAMED;
     if (
@@ -790,16 +1040,37 @@ class Walker {
     ) {
       const owner = this.#frame.classes.at(-1);
       (hasStatic(node) ? owner?.statics : owner?.members)?.set(name, key);
+      if (owner !== undefined && isRuntimeProtocol(node.name)) {
+        // the runtime calls it by its well-known name: JSON.stringify, coercion, `await`, `using`, for-of
+        this.#sink.edge("run", owner.key, key);
+        this.#sink.unseenCall(key);
+      }
     }
     // a node's parent is a fresh wrapper on every read, so a member finds its literal by the walk's stack
     if ((isMethodDeclaration(node) || isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node)) && isObjectLiteralExpression(node.parent)) {
       this.#frame.literals.at(-1)?.members.set(name, key);
     }
+    this.#protocolMember(node, key);
+  }
+
+  // A protocol member outside a class: a type's, which `using`, `await` or coercion calls on every value of that
+  // type, and a literal's, which carries one without a class's heritage.
+  #protocolMember(node: Node, key: DeclKey): void {
+    if ((isPropertySignatureDeclaration(node) || isMethodSignatureDeclaration(node)) && isRuntimeProtocol(node.name)) {
+      this.#sink.unseenCall(key);
+    }
+    if ((isMethodDeclaration(node) || isPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isRuntimeProtocol(node.name)) {
+      this.#sink.edge("run", this.#holder, key);
+      this.#sink.unseenCall(key);
+    }
   }
 
   #class(node: ClassDeclaration, key: DeclKey): void {
-    const heritage = (node.heritageClauses ?? []).flatMap((clause) => clause.types.filter(isExpressionWithTypeArguments));
-    const facts: ClassFacts = { key, members: new Map(), statics: new Map(), heritage };
+    const clauses = node.heritageClauses ?? [];
+    // an `implements` clause holds type references, an `extends` clause an expression with its type arguments
+    const heritage = clauses.flatMap((clause): readonly Node[] => clause.types);
+    const bases = clauses.flatMap((clause) => (clause.token === SyntaxKind.ExtendsKeyword ? clause.types.filter(isExpressionWithTypeArguments) : []));
+    const facts: ClassFacts = { key, members: new Map(), statics: new Map(), heritage, bases };
     this.#sites.classes.push(facts);
     this.#frame.classes.push(facts);
   }
@@ -860,8 +1131,9 @@ class Walker {
   // spelling of a member read beside `x.k` and `x?.k`.
   #name(node: Node, inType: boolean): void {
     if ((isIdentifier(node) || isPrivateIdentifier(node)) && !forwards(node.parent)) {
-      const silent = inType || declaresName(node);
-      this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node) });
+      const declares = declaresName(node);
+      const silent = inType || declares;
+      this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node), declares });
       if (isShorthandPropertyAssignment(node.parent)) {
         this.#sites.shorthands.push({ node: node.parent, from: this.#holder });
       }
@@ -872,7 +1144,7 @@ class Walker {
       isElementAccessExpression(node.parent) &&
       sameNode(node.parent.argumentExpression, node)
     ) {
-      this.#sites.names.push({ node, from: this.#holder, inType: false, handed: false, roles: referenceRoles(node) });
+      this.#sites.names.push({ node, from: this.#holder, inType: false, handed: false, roles: referenceRoles(node), declares: false });
     }
   }
 
@@ -887,6 +1159,10 @@ class Walker {
     ) {
       this.#sites.elementKeys.push({ receiver: node.expression, keys: keyLiterals(node.argumentExpression), argument: node.argumentExpression });
     }
+    if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.InKeyword && !inType) {
+      this.#sites.keyTests.push({ receiver: node.right, keys: keyLiterals(node.left), argument: node.left });
+    }
+    this.#typePatterns(node);
     // `T[K]`: a literal key names one member of T; a generic or union key reads T as a dispatch table
     if (isIndexedAccessTypeNode(node) && !isTypeQueryNode(unparenType(node.objectType))) {
       this.#sites.indexedKeys.push({ object: node.objectType, keys: stringKeysIn(node.indexType), index: node.indexType });
@@ -1056,6 +1332,112 @@ class Walker {
   }
 }
 
+// Names the runtime calls a member by: a well-known symbol (`[Symbol.dispose]`, `[Symbol.iterator]`) or one of
+// RUNTIME_PROTOCOL_NAMES.
+function isRuntimeProtocol(name: Node): boolean {
+  if (isComputedPropertyName(name)) {
+    const { expression } = name;
+    return isPropertyAccessExpression(expression) && (wellKnownSymbol(expression.expression) || inspectCustom(expression));
+  }
+  return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
+}
+
+// The statements or class members a declaration sits among.
+function siblingsOf(node: Node): readonly Node[] {
+  const { parent } = node;
+  if (isSourceFile(parent) || isBlock(parent) || isModuleBlock(parent)) {
+    return parent.statements;
+  }
+  return isClassDeclaration(parent) || isClassExpression(parent) ? parent.members : [];
+}
+
+const isImportDeclarationCall = (node: CallExpression): boolean => node.expression.kind === SyntaxKind.ImportKeyword;
+
+const wellKnownSymbol = (node: Node): boolean => isIdentifier(node) && node.text === WELL_KNOWN_SYMBOLS;
+
+// `[inspect.custom]` or `[util.inspect.custom]`: node:util's logging hook.
+function inspectCustom(access: PropertyAccessExpression): boolean {
+  const { expression } = access;
+  const holder = isPropertyAccessExpression(expression) ? expression.name : expression;
+  return access.name.text === INSPECT_CUSTOM && isIdentifier(holder) && holder.text === INSPECT;
+}
+
+// A computed member name spelled as a dotted path, `[Symbol.iterator]`, so its label names it.
+function computedText(name: Node | undefined): string | undefined {
+  if (name === undefined || !isComputedPropertyName(name)) {
+    return undefined;
+  }
+  const parts: string[] = [];
+  let at: Node = name.expression;
+  while (isPropertyAccessExpression(at)) {
+    parts.unshift(at.name.text);
+    at = at.expression;
+  }
+  return isIdentifier(at) ? `[${[at.text, ...parts].join(".")}]` : undefined;
+}
+
+// An initializer that does work when it runs: a call, a construction or an await, through parentheses and assertions.
+function runsOnLoad(initializer: Node | undefined): boolean {
+  let at = initializer;
+  while (at !== undefined && (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at))) {
+    at = at.expression;
+  }
+  return at !== undefined && (isCallExpression(at) || isNewExpression(at) || isAwaitExpression(at));
+}
+
+// The binding a node introduces, if binding-unread judges it.
+function bindingOf(node: Node, top: boolean): { readonly name: Node; readonly kind: BindingKind } | null {
+  if (isParameterDeclaration(node)) {
+    return judgedParameter(node) ? { name: node.name, kind: "parameter" } : null;
+  }
+  if (isVariableDeclaration(node)) {
+    return top || heldOrCaught(node) ? null : { name: node.name, kind: "local" };
+  }
+  if (isBindingElement(node)) {
+    return node.name !== undefined && judgedElement(node) ? { name: node.name, kind: "local" } : null;
+  }
+  if (isImportSpecifier(node) || isNamespaceImport(node)) {
+    return { name: node.name, kind: "import" };
+  }
+  return isImportClause(node) && node.name !== undefined ? { name: node.name, kind: "import" } : null;
+}
+
+// A parameter of a function with a body, other than a parameter property or `this`.
+function judgedParameter(node: ParameterDeclaration): boolean {
+  const fn = node.parent;
+  if (!("body" in fn) || fn.body === undefined || hasFlag(getCombinedModifierFlags(node), ModifierFlags.ParameterPropertyModifier)) {
+    return false;
+  }
+  return !(isIdentifier(node.name) && node.name.text === THIS_PARAMETER);
+}
+
+// A `using` declaration holds its value for disposal; a catch binding is the error's slot.
+const heldOrCaught = (node: VariableDeclaration): boolean =>
+  isCatchClause(node.parent) || (isVariableDeclarationList(node.parent) && hasFlag(node.parent.flags, NodeFlags.Using));
+
+// A pattern element, other than one a rest sibling omits on purpose or one an exported statement declares.
+function judgedElement(node: BindingElement): boolean {
+  const pattern = node.parent;
+  const omitted =
+    node.dotDotDotToken === undefined && isObjectBindingPattern(pattern) && pattern.elements.some((element) => element.dotDotDotToken !== undefined);
+  return !(omitted || exportedStatement(node));
+}
+
+// `export { a } from "./x"` forwards another module's names; only an export with no module names a local.
+const isExportDeclarationWithModule = (specifier: Node): boolean => {
+  const declaration = specifier.parent.parent;
+  return isExportDeclaration(declaration) && declaration.moduleSpecifier !== undefined;
+};
+
+// A binding element of an exported destructuring (`export const { a } = …`): only a module's statement exports.
+function exportedStatement(node: Node): boolean {
+  let at: Node = node;
+  while (!(isVariableStatement(at) || isSourceFile(at))) {
+    at = at.parent;
+  }
+  return isVariableStatement(at) && (at.modifiers ?? []).some(({ kind }) => kind === SyntaxKind.ExportKeyword);
+}
+
 const isDocNameHolder = (node: Node): boolean =>
   isJSDocLink(node) || isJSDocLinkCode(node) || isJSDocLinkPlain(node) || isJSDocNameReference(node) || isJSDocTypeExpression(node);
 
@@ -1112,7 +1494,12 @@ function bindingText(name: Node): string {
 }
 
 // The property a destructuring element reads, when it names one.
+// The member a pattern element names: `{ a }`, `{ a: b }` or a quoted `{ "aria-label": label }`.
 function bindingKey(element: BindingElement): readonly string[] {
   const named = element.propertyName ?? element.name;
-  return named !== undefined && isIdentifier(named) ? [named.text] : [];
+  if (named !== undefined && isIdentifier(named)) {
+    return [named.text];
+  }
+  const quoted = element.propertyName === undefined ? undefined : keyText(element.propertyName);
+  return quoted === undefined ? [] : [quoted];
 }

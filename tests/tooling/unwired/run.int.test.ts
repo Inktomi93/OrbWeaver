@@ -3,16 +3,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import type { TestOptions } from "vitest";
 import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { graphTree } from "./_planted.ts";
 
 const MEMBER_REPORT = "reports/unwired/unwired.json";
+// Each case spawns the CLI, which loads the tool's module graph: 1 to 3.5 s on a quiet box and past 5 s under load.
+const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
 
 test.for([
   { spelling: "the bare verb", argv: [] },
   { spelling: "scan", argv: ["scan"] },
-])("unwired $spelling runs the member scan and writes its report", async ({ argv }, { runCli, scratch }) => {
+])("unwired $spelling runs the member scan and writes its report", SPAWNS_CLI, async ({ argv }, { runCli, scratch }) => {
   const run = await runCli("unwired", [...argv, `--root=${scratch}`]);
   await expect(run).toExitWith(0);
   expect(existsSync(join(scratch, MEMBER_REPORT))).toBe(true);
@@ -26,13 +29,13 @@ test.for([
   { verb: "procedures", exit: EXIT.misuse },
   { verb: "columns", exit: EXIT.misuse },
   { verb: "params", exit: EXIT.clean },
-])("unwired $verb --cross-check exits $exit", async ({ verb, exit }, { runCli, scratch }) => {
+])("unwired $verb --cross-check exits $exit", SPAWNS_CLI, async ({ verb, exit }, { runCli, scratch }) => {
   const run = await runCli("unwired", [verb, "--cross-check", `--root=${scratch}`]);
   await expect(run).toExitWith(exit);
 });
 
 // `.gitignore` covers only the checkout's own `reports/`, so a scan rooted in a package must not leave a stray there.
-test("a scan rooted inside a checkout files its report under the checkout's reports", async ({ runCli, plantedTree }) => {
+test("a scan rooted inside a checkout files its report under the checkout's reports", SPAWNS_CLI, async ({ runCli, plantedTree }) => {
   const checkout = await plantedTree({ ".git/HEAD": "ref: refs/heads/main\n", "packages/inference/package.json": "{}" });
   const pkg = join(checkout, "packages/inference");
   const run = await runCli("unwired", ["scan", `--root=${pkg}`]);
@@ -55,6 +58,7 @@ function expectEveryBucket(run: { readonly stderr: string }, out: string): void 
 // tree; every other scan here runs over the empty scratch root.
 test.for(["scan", "fields", "params", "shapes", "procedures", "columns"])(
   "unwired %s prints every bucket its report writes",
+  SPAWNS_CLI,
   async (verb, { runCli, scratch, plantedTree }) => {
     const out = join(scratch, "report.json");
     const root = verb === "procedures" ? await plantedTree(graphTree({})) : scratch;

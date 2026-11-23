@@ -8,6 +8,11 @@
 // - Test reads only annotate otherwise: what tests, tooling and scripts do to a member never moves it out of a product bucket.
 // - A doc link keeps nothing alive; a `{@link}` to a name declared outside the file's scope is legal and listed as
 //   information (.claude/rules/comments.md cite grammar), and one declared nowhere is stale.
+// - A class member is judged once its class is live; a member code we do not see calls (a platform-dispatched override,
+//   a runtime protocol member) is reached, as is one an `extends` or `implements` clause dispatches.
+// - A binding (a local, a parameter, an import binding) is unread when no name but its own reads it, judged in every
+//   file as tsc's noUnusedLocals and noUnusedParameters judge it; one whose every reader is code nothing reaches, while
+//   its own holder is reached, is read only by dead code and names that code.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
 import { SyntaxKind } from "@typescript/native/ast";
@@ -22,6 +27,7 @@ import type { DeclInfo, GraphKey } from "./sites.ts";
 import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
 import { SERVER_SOURCE } from "./spellings.ts";
 import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
+import { productReader, testSource } from "./state.ts";
 
 /** The buckets an analysis reports, in report order. */
 export const BUCKETS = [
@@ -29,7 +35,10 @@ export const BUCKETS = [
   "kept-by-ruling",
   "operator-only",
   "consumer-only",
-  "test-only",
+  "testkit-only",
+  "tooling-only",
+  "test-direct-only",
+  "unused-effect",
   "type-only",
   "variant-value-unused",
   "ambient-unused",
@@ -41,6 +50,11 @@ export const BUCKETS = [
   "member-untouched",
   "state-never-read",
   "state-never-set",
+  "binding-unread",
+  "binding-read-only-by-dead",
+  "message-receiver-unpaired",
+  "module-load-computed",
+  "route-param-unread",
   "registry-stale",
   "union-re-spells-a-home",
   "union-slice-of-a-home",
@@ -190,10 +204,21 @@ class Analyser {
 
   run(): Analysis {
     this.#rulings();
-    this.#liveness();
+    const reached = this.#reached();
+    this.#liveness(reached);
     this.#docLinks();
     const roles = settleRoles(this.#graph);
-    this.#members(roles);
+    this.#members(roles, reached.liveTyped);
+    this.#bindings(reached);
+    for (const { file, line, door } of this.#state.unpairedReceivers) {
+      this.#push("message-receiver-unpaired", { label: `${file}:${String(line)} ${door}`, key: null, note: "no send reaches it through its door" });
+    }
+    for (const { file, line, argument } of this.#state.computedLoads.filter(({ file: at }) => isProduction(at))) {
+      this.#push("module-load-computed", { label: `${file}:${String(line)} ${argument}`, key: null, note: "the graph follows no edge from a computed path" });
+    }
+    for (const { file, line, path, param } of this.#state.unreadRouteParams.filter(({ file: at }) => isProduction(at))) {
+      this.#push("route-param-unread", { label: `${file}:${String(line)} :${param}`, key: null, note: `no handler of ${path} reads it` });
+    }
     this.#stateTuples(roles);
     this.#ambient();
     this.#variants();
@@ -205,7 +230,10 @@ class Analyser {
       "kept-by-ruling": result("kept-by-ruling"),
       "operator-only": result("operator-only"),
       "consumer-only": result("consumer-only"),
-      "test-only": result("test-only"),
+      "testkit-only": result("testkit-only"),
+      "tooling-only": result("tooling-only"),
+      "test-direct-only": result("test-direct-only"),
+      "unused-effect": result("unused-effect"),
       "type-only": result("type-only"),
       "variant-value-unused": result("variant-value-unused"),
       "ambient-unused": result("ambient-unused"),
@@ -217,6 +245,11 @@ class Analyser {
       "member-untouched": result("member-untouched"),
       "state-never-read": result("state-never-read"),
       "state-never-set": result("state-never-set"),
+      "binding-unread": result("binding-unread"),
+      "binding-read-only-by-dead": result("binding-read-only-by-dead"),
+      "message-receiver-unpaired": result("message-receiver-unpaired"),
+      "module-load-computed": result("module-load-computed"),
+      "route-param-unread": result("route-param-unread"),
       "registry-stale": result("registry-stale"),
       "union-re-spells-a-home": result("union-re-spells-a-home"),
       "union-slice-of-a-home": result("union-slice-of-a-home"),
@@ -293,8 +326,11 @@ class Analyser {
   #reached(): Reached & { readonly live: ReadonlySet<GraphKey> } {
     const state = this.#state;
     const { run, typ } = state;
-    const product = this.#modules(["product", "published"]);
+    // D357: snap drives the real app, so what a snap file reaches the product uses
+    const snap = this.#graph.files.filter((file) => productReader(file) && !isProduction(file)).map(moduleKey);
+    const product = [...this.#modules(["product", "published"]), ...snap];
     const kept = [...product, ...this.#why.keys()];
+    const outside = this.#graph.files.filter((file) => !productReader(file));
     return {
       live: reach(product, [run]),
       liveKept: reach(kept, [run]),
@@ -302,7 +338,9 @@ class Analyser {
       productTyped: reach(product, [run, typ]),
       operator: reach(this.#modules(["operator"]), [run, typ]),
       consumer: reach(this.#modules(["consumer"]), [run, typ]),
-      any: reach(this.#graph.files.filter((file) => !isProduction(file)).map(moduleKey), [run, typ]),
+      any: reach(outside.map(moduleKey), [run, typ]),
+      testkit: reach(outside.filter((file) => TESTKIT_HOMES.some((home) => file.startsWith(home))).map(moduleKey), [run, typ]),
+      tooling: reach(outside.filter((file) => !(testSource(file) || TESTKIT_HOMES.some((home) => file.startsWith(home)))).map(moduleKey), [run, typ]),
     };
   }
 
@@ -311,8 +349,7 @@ class Analyser {
     return info.top && isProduction(info.file) && info.name !== UNNAMED && (RUNTIME_UNITS.has(info.kind) || TYPE_UNITS.has(info.kind));
   }
 
-  #liveness(): void {
-    const reached = this.#reached();
+  #liveness(reached: Reached & { readonly live: ReadonlySet<GraphKey> }): void {
     for (const [key, info] of this.#state.decls) {
       if (!this.#judgedUnit(info)) {
         continue;
@@ -321,7 +358,7 @@ class Analyser {
       if (isType ? reached.productTyped.has(key) : reached.live.has(key)) {
         continue;
       }
-      const bucket = livenessBucket(key, isType, reached, this.#why.has(key));
+      const bucket = livenessBucket(key, { isType, effect: info.effect }, reached, this.#why.has(key));
       const label = `${info.file}:${info.name}${isType ? " (type)" : ""}`;
       const note = bucket === "kept-by-ruling" ? (this.#why.get(key) ?? "reached from a ruled keep") : this.#docLinksTo(key);
       this.#push(bucket, { label, key, note });
@@ -348,18 +385,42 @@ class Analyser {
     }
   }
 
-  #members(roles: ReadonlyMap<DeclKey, MemberRoles>): void {
+  // A binding nothing reads, and one whose every reader is code nothing reaches while the binding's own holder is
+  // reached: an import or a local the dead code alone keeps. A reader only the operator, a consumer, the tests or the
+  // tooling reach is no dead reader.
+  #bindings(reached: Reached): void {
+    const liveTyped = reached.liveTyped;
+    const dead = (reader: GraphKey): boolean => ![liveTyped, reached.operator, reached.consumer, reached.any].some((set) => set.has(reader));
+    for (const binding of this.#state.bindings) {
+      const label = `${binding.file}:${String(binding.line)} ${binding.name}`;
+      if (binding.readers.length === 0) {
+        this.#push("binding-unread", { label, key: binding.key, note: binding.written ? `${binding.kind}, only written` : binding.kind });
+      } else if (isProduction(binding.file) && liveTyped.has(binding.holder) && binding.readers.every(dead)) {
+        const note = `${binding.kind} read only by ${binding.readers.map((reader) => this.#readerLabel(reader)).join(", ")}`;
+        this.#push("binding-read-only-by-dead", { label, key: binding.key, note });
+      }
+    }
+  }
+
+  #readerLabel(reader: GraphKey): string {
+    const info = isDeclKey(reader) ? this.#state.decls.get(reader) : undefined;
+    return info === undefined ? reader : `${info.file}:${String(info.line)} ${info.name}`;
+  }
+
+  #members(roles: ReadonlyMap<DeclKey, MemberRoles>, liveTyped: ReadonlySet<GraphKey>): void {
     const state = this.#state;
-    const liveTyped = reach([...this.#modules(["product", "published"]), ...this.#why.keys()], [state.run, state.typ]);
     const dispatched = dispatchedMembers(state.run, state.decls);
     for (const [key, info] of state.decls) {
-      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && liveTyped.has(key)) || info.shapeOnly !== null || this.#published(info)) {
+      // a class member is judged once its class is live: nothing but a call or a read reaches a method
+      const judged = liveTyped.has(key) || (isClassMember(info, state.decls) && liveTyped.has(info.holder));
+      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && judged) || info.shapeOnly !== null || this.#published(info)) {
         continue;
       }
       const role = roles.get(key);
       // the dev bridge ruling: another world's read through our own global door is a product read
       const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
-      const bucket = doorRead ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
+      // a member the runtime calls by its well-known name is read, even on a value the product only sends
+      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
@@ -435,7 +496,11 @@ class Analyser {
   }
 }
 
-type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any", ReadonlySet<GraphKey>>>;
+type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any" | "testkit" | "tooling", ReadonlySet<GraphKey>>>;
+
+// The testkit's homes: its world subpaths and the component-test mount harness. A unit only they reach is a helper a
+// test reaches through the kit, apart from one a test file names itself.
+const TESTKIT_HOMES = ["tests/support/", "playwright/"] as const;
 
 // Where the product first wrote a member, and what another world does to it.
 function memberNote(role: MemberRoles | undefined): string | null {
@@ -447,7 +512,10 @@ function memberNote(role: MemberRoles | undefined): string | null {
   return notes.length === 0 ? null : notes.join("; ");
 }
 
-function livenessBucket(key: GraphKey, isType: boolean, reached: Reached, ruled: boolean): Bucket {
+// A unit nothing in the product reaches: kept, reached another way, reached only from outside the product (by the
+// testkit, tooling or a test file itself), or dead; a dead variable whose initializer runs a call is an unused effect.
+function livenessBucket(key: GraphKey, info: { readonly isType: boolean; readonly effect: boolean }, reached: Reached, ruled: boolean): Bucket {
+  const { isType } = info;
   if ((!isType && reached.liveKept.has(key)) || ruled || (isType && reached.liveTyped.has(key))) {
     return "kept-by-ruling";
   }
@@ -460,7 +528,17 @@ function livenessBucket(key: GraphKey, isType: boolean, reached: Reached, ruled:
   if (reached.consumer.has(key)) {
     return "consumer-only";
   }
-  return reached.any.has(key) ? "test-only" : "dead";
+  if (reached.any.has(key)) {
+    return outsideBucket(key, reached);
+  }
+  return info.effect && !isType ? "unused-effect" : "dead";
+}
+
+function outsideBucket(key: GraphKey, reached: Reached): Bucket {
+  if (reached.testkit.has(key)) {
+    return "testkit-only";
+  }
+  return reached.tooling.has(key) ? "tooling-only" : "test-direct-only";
 }
 
 // The member bucket a member's product roles put it in, or null when the product reads it. A key use (an arm
@@ -493,6 +571,9 @@ function dispatchedMembers(run: ReadonlyEdges, decls: ReadonlyMap<DeclKey, DeclI
   }
   return out;
 }
+
+const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): boolean =>
+  isDeclKey(info.holder) && decls.get(info.holder)?.kind === SyntaxKind.ClassDeclaration;
 
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
