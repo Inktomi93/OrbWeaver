@@ -13,6 +13,8 @@
 //   handed to a wire shape writes the wire's `at`, not the row's. Only a key the slot declares no member for (a generic
 //   call infers the slot from the literal itself, `run<R>({ req: { ...req, accounting } })`) fills the spread source's.
 // - A literal no slot types writes its own keys, so a flow from the slot it is handed into carries the writes.
+// - A key beside a spread writes its member, but the literal copies the spread value: it builds no home
+//   (state.ts `copyOnlyWrites`).
 // - A value forwarded from a bare parameter (`(lv: 2 | 1) => t({ level: lv })`) names no member to forward from, so its
 //   type selects the axis values instead.
 import type { Node, ObjectLiteralExpression } from "@typescript/native/ast";
@@ -77,6 +79,10 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   // `--ablate=literal-keys` drops every object literal key's write: through its contextual type, through the spreads
   // beside it and into its own key.
   if (!state.session.options.ablate.has("literal-keys")) {
+    state.copyKeys(
+      sites.file,
+      sites.literalProperties.filter(({ literal }) => literal.properties.some(isSpreadAssignment)).map(({ at }) => at),
+    );
     const writes = sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
       const type = schema ? undefined : slots.get(spanKey(literal));
       return type === undefined ? [] : [{ type, name, value, at, jsx: false }];

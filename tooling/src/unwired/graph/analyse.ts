@@ -447,7 +447,7 @@ class Analyser {
     const dispatched = dispatchedMembers(state.run, state.decls);
     // a schema key with a `satisfies` twin is its type's member, judged there
     const twinned = new Set(state.twins.flat());
-    const written = writtenHomes(state.decls, roles);
+    const written = writtenHomes(state, roles);
     // a member filling a typed slot of ours is judged at that slot: the slot requires it, so the two delete together
     const fills = new Set([...state.flows].flatMap(([slot, values]) => (isProduction(state.decls.get(slot)?.file ?? "") ? [...values] : [])));
     for (const [key, info] of state.decls) {
@@ -641,11 +641,11 @@ interface MemberShape {
 /** Whether a declaration is a member a member bucket judges: a type, interface or class member, or a zod schema key. */
 export const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
 
-// The holders some member of which the product writes.
-function writtenHomes(decls: ReadonlyMap<DeclKey, DeclInfo>, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
+// The holders some member of which the product writes, by a write that builds a value: a key beside a spread copies one.
+function writtenHomes(state: GraphFacts, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
   const out = new Set<GraphKey>();
   for (const [key, role] of roles) {
-    const holder = role.product.has("write") ? decls.get(key)?.holder : undefined;
+    const holder = role.product.has("write") && !state.copyOnlyWrites.has(key) ? state.decls.get(key)?.holder : undefined;
     if (holder !== undefined) {
       out.add(holder);
     }

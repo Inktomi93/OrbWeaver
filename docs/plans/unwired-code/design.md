@@ -115,6 +115,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A lookup keyed by a parameter no caller narrows | reads the members the key's own literal type names | the same | The key type bounds the lookup (tooling/src/unwired/graph/keys.ts `finish`). |
 | A schema bound under a `z.ZodType<T>` annotation, or returned by a `z.lazy` arrow | twins its keys with `T`'s members | the same | The annotation checks the schema as `satisfies` does (tooling/src/unwired/graph/sites.ts `checkedSchema`, `zodWrappedSchemas`). |
 | A plugin contract member the SDK publishes | listed as received, with the SDK line, and judged by nothing | the same | Guests read it outside the tree (tooling/src/unwired/graph/analyse.ts `Analysis`). |
+| A key beside a spread, `{ ...value, key }` | writes its member, but the copy builds no home: its home's optional members still report only when a build writes it | the same | The value arrives with the copy (tooling/src/unwired/graph/state.ts `copyOnlyWrites`). |
 | The unread member of a one-key tRPC mutation output | listed as acknowledged, apart from the judged rows | the same | The key is the procedure's whole answer (tooling/src/unwired/graph/judge.ts `acknowledgements`). |
 
 Classes still open:
