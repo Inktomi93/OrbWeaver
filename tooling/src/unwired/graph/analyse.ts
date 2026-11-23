@@ -52,6 +52,8 @@ export const BUCKETS = [
   "binding-unread",
   "binding-read-only-by-dead",
   "message-receiver-unpaired",
+  "module-load-computed",
+  "route-param-unread",
   "registry-stale",
   "union-re-spells-a-home",
   "union-slice-of-a-home",
@@ -210,6 +212,12 @@ class Analyser {
     for (const { file, line, door } of this.#state.unpairedReceivers) {
       this.#push("message-receiver-unpaired", { label: `${file}:${String(line)} ${door}`, key: null, note: "no send reaches it through its door" });
     }
+    for (const { file, line, argument } of this.#state.computedLoads.filter(({ file: at }) => isProduction(at))) {
+      this.#push("module-load-computed", { label: `${file}:${String(line)} ${argument}`, key: null, note: "the graph follows no edge from a computed path" });
+    }
+    for (const { file, line, path, param } of this.#state.unreadRouteParams.filter(({ file: at }) => isProduction(at))) {
+      this.#push("route-param-unread", { label: `${file}:${String(line)} :${param}`, key: null, note: `no handler of ${path} reads it` });
+    }
     this.#stateTuples(roles);
     this.#ambient();
     this.#variants();
@@ -239,6 +247,8 @@ class Analyser {
       "binding-unread": result("binding-unread"),
       "binding-read-only-by-dead": result("binding-read-only-by-dead"),
       "message-receiver-unpaired": result("message-receiver-unpaired"),
+      "module-load-computed": result("module-load-computed"),
+      "route-param-unread": result("route-param-unread"),
       "registry-stale": result("registry-stale"),
       "union-re-spells-a-home": result("union-re-spells-a-home"),
       "union-slice-of-a-home": result("union-slice-of-a-home"),
@@ -409,7 +419,8 @@ class Analyser {
       const role = roles.get(key);
       // the dev bridge ruling: another world's read through our own global door is a product read
       const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
-      const bucket = doorRead ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key) || state.unseenCalls.has(key));
+      // a member the runtime calls by its well-known name is read, even on a value the product only sends
+      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }

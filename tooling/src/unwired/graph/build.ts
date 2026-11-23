@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 import process from "node:process";
-import type { Node } from "@typescript/native/ast";
+import type { CallExpression, Node } from "@typescript/native/ast";
 import {
   isAwaitExpression,
   isCallExpression,
@@ -37,11 +37,12 @@ import type { DeclKey } from "./resolve.ts";
 import { addAll, allOf, answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
+import { RouteParams } from "./routes.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
-import type { BuildSession, GraphFacts, LostCause } from "./state.ts";
+import type { BuildSession, ComputedLoad, GraphFacts, LostCause } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
@@ -157,6 +158,14 @@ const MB = 1e6;
 // The walk reports its progress every this many files.
 const PROGRESS_EVERY = 1000;
 
+// A computed load's site and the argument it loads, as the source spells it.
+function computedLoad(call: CallExpression, file: string): ComputedLoad {
+  const source = call.getSourceFile();
+  const [argument = call] = call.arguments;
+  const line = source.getLineAndCharacterOfPosition(call.getStart(source)).line + 1;
+  return { file, line, argument: source.text.slice(argument.getStart(source), argument.end) };
+}
+
 class Builder {
   readonly #state: GraphState;
   readonly #variants: Variants;
@@ -164,6 +173,7 @@ class Builder {
   readonly #keys: Keys;
   readonly #classes = new Map<DeclKey, ClassFacts>();
   readonly #doors: MessageDoors;
+  readonly #routes: RouteParams;
   // The current file's binding readers, filled by its name and shorthand passes.
   #fileReaders: { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } = { readers: new Map(), written: new Set() };
   readonly #pendingSlots: PendingClass[] = [];
@@ -175,6 +185,7 @@ class Builder {
     this.#variants = new Variants(state.session);
     this.#flows = new Flows(this.#state);
     this.#doors = new MessageDoors(this.#state);
+    this.#routes = new RouteParams(this.#state);
     this.#keys = new Keys(this.#state);
   }
 
@@ -257,6 +268,11 @@ class Builder {
     this.#tags(sites);
     fileSpellings(state, sites);
     state.cssNames.push(...sites.cssNames);
+    // a module a require function loads by a literal path runs as an import's does
+    for (const { target, from } of sites.requiredModules) {
+      state.edge("run", from, moduleKey(target));
+    }
+    state.computedLoads.push(...sites.computedLoads.map((call) => computedLoad(call, sites.file)));
     // a module loaded by path (a Worker, a child process) runs as its own entry, kept alive by what spawns it
     for (const { target, from } of sites.urlModules) {
       state.edge("run", from, moduleKey(target));
@@ -274,6 +290,7 @@ class Builder {
     }
     this.#bindingReads(sites, resolved);
     this.#doors.file(sites, symbols, resolved);
+    this.#routes.file(sites.routeCalls, sites.file);
     this.#bareReads(sites, symbols, resolved);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(

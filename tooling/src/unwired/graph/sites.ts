@@ -11,6 +11,7 @@ import type {
   ExpressionWithTypeArguments,
   FunctionDeclaration,
   GetAccessorDeclaration,
+  ImportDeclaration,
   InterfaceDeclaration,
   JsxAttributes,
   MethodDeclaration,
@@ -22,6 +23,7 @@ import type {
   ObjectBindingPattern,
   ObjectLiteralExpression,
   ParameterDeclaration,
+  PropertyAccessExpression,
   PropertyDeclaration,
   PropertySignatureDeclaration,
   SetAccessorDeclaration,
@@ -85,6 +87,7 @@ import {
   isMethodDeclaration,
   isMethodSignatureDeclaration,
   isModuleDeclaration,
+  isNamedImports,
   isNamespaceExport,
   isNamespaceImport,
   isNewExpression,
@@ -469,6 +472,12 @@ export class FileSites {
   readonly jsxAttributes: { readonly attributes: JsxAttributes; readonly name: string; readonly value: Node | undefined }[] = [];
   readonly specifiers: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly from: GraphKey; readonly inType: boolean }[] = [];
   readonly urlModules: { readonly target: string; readonly from: GraphKey }[] = [];
+  /** A file a createRequire function loads by its literal relative path: it runs as an import's module does. */
+  readonly requiredModules: { readonly target: string; readonly from: GraphKey }[] = [];
+  /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
+  readonly computedLoads: CallExpression[] = [];
+  /** Calls of a method a Hono app registers routes with; routes.ts confirms each by its declaration. */
+  readonly routeCalls: CallExpression[] = [];
   readonly shorthands: { readonly node: ShorthandPropertyAssignment; readonly from: GraphKey }[] = [];
   /** Destructuring patterns, a declaration's or an assignment's, with the route to the type their keys read. */
   readonly patterns: ({
@@ -546,6 +555,21 @@ const ZOD_TYPE = "ZodType";
 const TV = "tv";
 const URL_CONSTRUCTOR = "URL";
 const WELL_KNOWN_SYMBOLS = "Symbol";
+/** The Hono app methods that register a route, with the argument index that holds the path. */
+export const ROUTE_METHODS: ReadonlyMap<string, number> = new Map([
+  ["get", 0],
+  ["post", 0],
+  ["put", 0],
+  ["delete", 0],
+  ["patch", 0],
+  ["options", 0],
+  ["all", 0],
+  ["on", 1],
+]);
+const CREATE_REQUIRE = "createRequire";
+const NODE_MODULE_SPECIFIERS: ReadonlySet<string> = new Set(["node:module", "module"]);
+const INSPECT = "inspect";
+const INSPECT_CUSTOM = "custom";
 // Members the runtime calls by name: JSON.stringify's `toJSON`, coercion's `toString` and `valueOf`, `await`'s `then`.
 const RUNTIME_PROTOCOL_NAMES: ReadonlySet<string> = new Set(["toJSON", "toString", "valueOf", "then"]);
 const ARM_SELECTORS: ReadonlySet<string> = new Set(["Extract", "Exclude"]);
@@ -703,12 +727,17 @@ interface Frame {
   readonly stack: GraphKey[];
   readonly literals: LiteralMembers[];
   readonly classes: ClassFacts[];
+  /** The file's names for node:module's createRequire, and for the module itself (`import * as module`). */
+  readonly createRequire: Set<string>;
+  readonly moduleNamespaces: Set<string>;
+  /** The file's bindings that hold a require function createRequire made. */
+  readonly requires: Set<string>;
 }
 
 /** Walk one file: every site its checker passes need, with the declarations and syntax-decided edges told to `sink`. */
 export function collectSites(source: SourceFile, file: string, product: boolean, sink: WalkSink): FileSites {
   const sites = new FileSites(source, file, product);
-  const frame: Frame = { stack: [moduleKey(file)], literals: [], classes: [] };
+  const frame: Frame = { stack: [moduleKey(file)], literals: [], classes: [], createRequire: new Set(), moduleNamespaces: new Set(), requires: new Set() };
   const walker = new Walker(source, sites, sink, frame);
   walker.visit(source, false);
   return sites;
@@ -745,6 +774,15 @@ class Walker {
     if (isNewExpression(node)) {
       this.#sites.newExpressions.push(node);
     }
+    if (isImportDeclaration(node)) {
+      this.#moduleImport(node);
+    }
+    if (isCallExpression(node)) {
+      this.#moduleLoad(node);
+      if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
+        this.#sites.routeCalls.push(node);
+      }
+    }
     const inType = typePosition || isTypePosition(node);
     this.#name(node, inType);
     this.#keyed(node, inType);
@@ -764,6 +802,64 @@ class Walker {
     }
   }
 
+  // A module loaded by a call: `import(x)`, or a require function node:module's createRequire makes. A literal relative
+  // path loads that file as the import does; any other argument is a load the graph cannot follow, reported with its site.
+  #moduleLoad(node: CallExpression): void {
+    if (isImportDeclarationCall(node)) {
+      const [specifier] = node.arguments;
+      if (specifier !== undefined && !isStringLiteral(specifier) && !isNoSubstitutionTemplateLiteral(specifier)) {
+        this.#sites.computedLoads.push(node);
+      }
+      return;
+    }
+    const { expression } = node;
+    const makesRequire = (at: Node): boolean => isCallExpression(at) && this.#isCreateRequire(at.expression);
+    if (this.#isCreateRequire(expression) && isVariableDeclaration(node.parent) && isIdentifier(node.parent.name)) {
+      this.#frame.requires.add(node.parent.name.text);
+      return;
+    }
+    if (!(makesRequire(expression) || (isIdentifier(expression) && this.#frame.requires.has(expression.text)))) {
+      return;
+    }
+    const [specifier] = node.arguments;
+    const literal = specifier !== undefined && (isStringLiteral(specifier) || isNoSubstitutionTemplateLiteral(specifier)) ? specifier.text : null;
+    const target = literal?.startsWith(".") === true ? this.#sink.urlModule(this.#sites.file, literal) : null;
+    if (target !== null) {
+      this.#sites.requiredModules.push({ target, from: this.#holder });
+    } else if (literal === null) {
+      this.#sites.computedLoads.push(node);
+    }
+  }
+
+  // The module specifier names node:module, so the imported name is its createRequire whatever the file calls it.
+  #moduleImport(node: ImportDeclaration): void {
+    const specifier = node.moduleSpecifier;
+    if (!(isStringLiteral(specifier) && NODE_MODULE_SPECIFIERS.has(specifier.text))) {
+      return;
+    }
+    const bindings = node.importClause?.namedBindings;
+    if (bindings !== undefined && isNamespaceImport(bindings)) {
+      this.#frame.moduleNamespaces.add(bindings.name.text);
+    }
+    for (const element of bindings !== undefined && isNamedImports(bindings) ? bindings.elements : []) {
+      if ((element.propertyName ?? element.name).text === CREATE_REQUIRE) {
+        this.#frame.createRequire.add(element.name.text);
+      }
+    }
+  }
+
+  #isCreateRequire(callee: Node): boolean {
+    if (isIdentifier(callee)) {
+      return this.#frame.createRequire.has(callee.text);
+    }
+    return (
+      isPropertyAccessExpression(callee) &&
+      callee.name.text === CREATE_REQUIRE &&
+      isIdentifier(callee.expression) &&
+      this.#frame.moduleNamespaces.has(callee.expression.text)
+    );
+  }
+
   // A declaration: its facts, the edges that keep it and its holder alive together, and its place on the stack.
   #declaration(node: Node): boolean {
     const name = isUnitDeclaration(node) ? node.name : undefined;
@@ -777,7 +873,7 @@ class Walker {
     this.#sink.declare(key, {
       file: this.#sites.file,
       kind: node.kind,
-      name: keyText(name) ?? UNNAMED,
+      name: keyText(name) ?? computedText(name) ?? UNNAMED,
       holder,
       surfacePath: surfacePathOf(node),
       top,
@@ -858,6 +954,11 @@ class Walker {
     // a node's parent is a fresh wrapper on every read, so a member finds its literal by the walk's stack
     if ((isMethodDeclaration(node) || isGetAccessorDeclaration(node) || isSetAccessorDeclaration(node)) && isObjectLiteralExpression(node.parent)) {
       this.#frame.literals.at(-1)?.members.set(name, key);
+    }
+    if ((isMethodDeclaration(node) || isPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isRuntimeProtocol(node.name)) {
+      // a literal carries a protocol member without a class's heritage: the runtime still calls it by name
+      this.#sink.edge("run", this.#holder, key);
+      this.#sink.unseenCall(key);
     }
   }
 
@@ -1132,9 +1233,34 @@ class Walker {
 function isRuntimeProtocol(name: Node): boolean {
   if (isComputedPropertyName(name)) {
     const { expression } = name;
-    return isPropertyAccessExpression(expression) && isIdentifier(expression.expression) && expression.expression.text === WELL_KNOWN_SYMBOLS;
+    return isPropertyAccessExpression(expression) && (wellKnownSymbol(expression.expression) || inspectCustom(expression));
   }
   return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
+}
+
+const isImportDeclarationCall = (node: CallExpression): boolean => node.expression.kind === SyntaxKind.ImportKeyword;
+
+const wellKnownSymbol = (node: Node): boolean => isIdentifier(node) && node.text === WELL_KNOWN_SYMBOLS;
+
+// `[inspect.custom]` or `[util.inspect.custom]`: node:util's logging hook.
+function inspectCustom(access: PropertyAccessExpression): boolean {
+  const { expression } = access;
+  const holder = isPropertyAccessExpression(expression) ? expression.name : expression;
+  return access.name.text === INSPECT_CUSTOM && isIdentifier(holder) && holder.text === INSPECT;
+}
+
+// A computed member name spelled as a dotted path, `[Symbol.iterator]`, so its label names it.
+function computedText(name: Node | undefined): string | undefined {
+  if (name === undefined || !isComputedPropertyName(name)) {
+    return undefined;
+  }
+  const parts: string[] = [];
+  let at: Node = name.expression;
+  while (isPropertyAccessExpression(at)) {
+    parts.unshift(at.name.text);
+    at = at.expression;
+  }
+  return isIdentifier(at) ? `[${[at.text, ...parts].join(".")}]` : undefined;
 }
 
 // An initializer that does work when it runs: a call, a construction or an await, through parentheses and assertions.

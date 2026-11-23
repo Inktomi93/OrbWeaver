@@ -144,6 +144,21 @@ const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics"] a
 export type MessageDoor = (typeof MESSAGE_DOORS)[number];
 
 /** A receiver no send reaches through its door. */
+/** A module load no edge follows: `import(x)` or a createRequire function called with a computed path. */
+export interface ComputedLoad {
+  readonly file: string;
+  readonly line: number;
+  readonly argument: string;
+}
+
+/** A route path's `:name` segment no handler of the route reads. */
+export interface RouteParam {
+  readonly file: string;
+  readonly line: number;
+  readonly path: string;
+  readonly param: string;
+}
+
 export interface MessageReceiver {
   readonly file: string;
   readonly line: number;
@@ -173,6 +188,8 @@ export interface GraphFacts {
   readonly bindings: readonly BindingFact[];
   /** Message receivers no send reaches through their door (message-doors.ts). */
   readonly unpairedReceivers: readonly MessageReceiver[];
+  readonly computedLoads: readonly ComputedLoad[];
+  readonly unreadRouteParams: readonly RouteParam[];
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
@@ -245,6 +262,8 @@ export class GraphState implements GraphFacts {
   readonly unseenCalls = new Set<DeclKey>();
   readonly bindings: BindingFact[] = [];
   readonly unpairedReceivers: MessageReceiver[] = [];
+  readonly computedLoads: ComputedLoad[] = [];
+  readonly unreadRouteParams: RouteParam[] = [];
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];

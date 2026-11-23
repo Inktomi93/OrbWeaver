@@ -3,7 +3,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { plantedTsconfig } from "@orb/testkit/tooling";
 import type { Bucket, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
@@ -264,6 +264,25 @@ export function tailwindVariants(): Record<string, string> {
   return {
     [`${at}/package.json`]: JSON.stringify({ name: TV_PACKAGE, types: `${TV_DIST}/index.d.ts` }),
     ...Object.fromEntries(declarations.map((name) => [`${at}/${TV_DIST}/${name}`, readFileSync(join(dist, name), "utf8")])),
+  };
+}
+
+// The server package owns hono; the route pass recognises a route and a parameter read by hono's own declarations.
+const SERVER_MANIFEST = join(import.meta.dirname, "../../../packages/server/package.json");
+const HONO_PACKAGE = "hono";
+const HONO_TYPES = "dist/types";
+
+/** The installed hono declarations at `node_modules/hono`. */
+export function hono(): Record<string, string> {
+  // hono's exports map hides its package.json, so its folder is read off the module it resolves to
+  const entry = createRequire(SERVER_MANIFEST).resolve(HONO_PACKAGE);
+  const folder = `${sep}node_modules${sep}${HONO_PACKAGE}${sep}`;
+  const types = join(entry.slice(0, entry.lastIndexOf(folder) + folder.length), HONO_TYPES);
+  const at = `node_modules/${HONO_PACKAGE}`;
+  const declarations = readdirSync(types, { recursive: true, encoding: "utf8" }).filter((name) => name.endsWith(DECLARATION));
+  return {
+    [`${at}/package.json`]: JSON.stringify({ name: HONO_PACKAGE, types: `${HONO_TYPES}/index.d.ts` }),
+    ...Object.fromEntries(declarations.map((name) => [`${at}/${HONO_TYPES}/${name}`, readFileSync(join(types, name), "utf8")])),
   };
 }
 
