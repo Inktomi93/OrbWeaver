@@ -372,6 +372,46 @@ test("an assertion of a library's parameter sends the asserted type to that libr
   ]);
 });
 
+// A serialization whose string is compared reads every member in the process, as a dotted-path reader does with its
+// value; a response or a thrown serialization only sends the members, and an in-tree logger that drops the value sends
+// nothing.
+test("a dotted-path read and a compared serialization read a value's members; a response or a throw only sends them", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Snapshot { readonly mode: string; readonly deep: { readonly leaf: string } }",
+      "export interface Detail { readonly note: string }",
+      "export interface View { readonly status: string; readonly details: readonly Detail[] }",
+      "export interface Passed { readonly unread: string }",
+      "export interface Pair { readonly left: string; readonly inner: { readonly right: string } }",
+      "export interface Failed { readonly code: string }",
+      "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
+      "const log = (value: unknown): void => { void value; };",
+      "const c = { json: (value: unknown): unknown => value };",
+      'const snapshot: Snapshot = { mode: "m", deep: { leaf: "l" } };',
+      'const view: View = { status: "ok", details: [{ note: "n" }] };',
+      'const passed: Passed = { unread: "u" };',
+      'const pair: Pair = { left: "l", inner: { right: "r" } };',
+      'const failed: Failed = { code: "c" };',
+      'export const sample = nestedValue(snapshot, "mode");',
+      "export const sent = c.json(view);",
+      "export const same = JSON.stringify(pair) === JSON.stringify(pair);",
+      'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
+      "log(passed);",
+    ]),
+  );
+  expect({
+    sent: labelsIn(scan, "member-sent-only", FILE),
+    written: labelsIn(scan, "member-write-only", FILE),
+  }).toEqual({ sent: ["Detail.note", "View.status", "View.details", "Failed.code"], written: ["Passed.unread"] });
+  expect(scan.members.unwired.filter(({ member }) => member === "status" || member === "code").map(({ sent }) => sent[0]?.split(" ")[0])).toEqual([
+    "http",
+    "error",
+  ]);
+});
+
 // A typed value handed into a string-indexed type is read back by a literal key through that type in the same file:
 // the key reads the value's member of its name, at any depth. A member no key names stays sent.
 test("a literal key read through a string-indexed type reads the handed value's member of that name", { timeout: 120_000 }, async ({ plantedTree }) => {

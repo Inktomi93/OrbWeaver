@@ -47,7 +47,7 @@ import {
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, IndexKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
-import { PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
+import { NESTED_READS, PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { rowColumns } from "./drizzle-rows.ts";
 import { handedAt } from "./handoffs.ts";
@@ -336,7 +336,7 @@ function* resolved(handle: NodeHandle): APIRequestGenerator<Node | undefined> {
 // A serialization or a constructor whose destination its callee alone names, or null for any other call.
 function namedDestination(call: Invocation): readonly Destination[] | null {
   const text = call.expression.getText();
-  if (isCallExpression(call) && text === "JSON.stringify") {
+  if (isCallExpression(call) && text === SERIALIZE) {
     const serialized = serializedBy(call);
     return serialized.whole ? [] : [{ destination: serialized.destination, receiver: null }];
   }
@@ -387,17 +387,34 @@ function* libraryDestination(world: NativeWorld, call: Invocation, index: number
 
 /** Where a chased value goes. `dropped`: it reached an in-tree body that only consumes it, on every path (the value is
  *  tested, voided or left as a bare statement), so nothing receives it. A value returned, bound or stored is not
- *  followed, which is no drop. */
+ *  followed, which is no drop. `read`: some path reads every member of the value in the process, a compared
+ *  serialization or a dotted-path read ({@link NESTED_READS}). */
 export interface Chase {
   readonly to: readonly Destination[];
   readonly dropped: boolean;
+  readonly read: boolean;
 }
 
-const sentTo = (to: readonly Destination[]): Chase => ({ to, dropped: false });
+const sentTo = (to: readonly Destination[]): Chase => ({ to, dropped: false, read: false });
+const READ_WHOLE: Chase = { to: [], dropped: false, read: true };
+const SERIALIZE = "JSON.stringify";
+
+// A call that reads every member of the value it takes: a serialization whose string is compared, hashed or keyed, or
+// a dotted-path reader's first argument.
+function readsWhole(call: Invocation, index: number): boolean {
+  if (isCallExpression(call) && call.expression.getText() === SERIALIZE) {
+    return serializedBy(call).whole;
+  }
+  const { text } = calleeOf(call);
+  return index === 0 && text !== null && NESTED_READS.has(text);
+}
 
 // Where a value given to `call` at `index` goes: a serialization's destination, a library, a logger, or wherever the
 // in-tree callee hands its parameter on.
 function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase> {
+  if (readsWhole(call, index)) {
+    return READ_WHOLE;
+  }
   const named = namedDestination(call);
   if (named !== null) {
     return sentTo(named);
@@ -413,14 +430,18 @@ function* callDestinations(world: NativeWorld, call: Invocation, index: number, 
   const fn = declaration === undefined ? null : functionOf(declaration);
   const parameter = fn === null ? undefined : (fn.parameters[index] ?? fn.parameters.at(-1));
   if (fn?.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)) {
-    if (depth >= CHASE_DEPTH) {
-      return sentTo([]);
-    }
-    const uses = yield* all(...usesOf(fn.body, parameter.name.text).map((use) => destinationsOf(world, use, depth + 1)));
-    const to = uses.flatMap((use) => use.to);
-    return { to, dropped: to.length === 0 && uses.every((use) => use.dropped) };
+    return depth >= CHASE_DEPTH ? sentTo([]) : yield* bodyChase(world, usesOf(fn.body, parameter.name.text), depth);
   }
   return sentTo((yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call));
+}
+
+// Where an in-tree body's uses of its parameter take the value: every destination any use reaches, a read where any
+// use reads it whole, and a drop only where every use drops it.
+function* bodyChase(world: NativeWorld, uses: readonly Node[], depth: number): APIRequestGenerator<Chase> {
+  const chased = yield* all(...uses.map((use) => destinationsOf(world, use, depth + 1)));
+  const to = chased.flatMap((use) => use.to);
+  const read = chased.some((use) => use.read);
+  return { to, dropped: to.length === 0 && !read && chased.every((use) => use.dropped), read };
 }
 
 // A use that ends the value where it stands: a test, a `void`, a `typeof` or a bare statement. Any other position with
@@ -453,7 +474,7 @@ const CONSUMING_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
 
 function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIRequestGenerator<Chase> {
   const carrier = carrierOf(value);
-  return carrier === null ? { to: [], dropped: consumedAt(value) } : yield* callDestinations(world, carrier.call, carrier.index, depth);
+  return carrier === null ? { to: [], dropped: consumedAt(value), read: false } : yield* callDestinations(world, carrier.call, carrier.index, depth);
 }
 
 /** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
