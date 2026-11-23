@@ -42,6 +42,8 @@ import { addAll, allOf, answer } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
+import type { ValueSelector } from "./selectors.ts";
+import { valueSelectors } from "./selectors.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
 import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
@@ -75,11 +77,16 @@ interface UrlSpawn {
 export interface Graph {
   readonly facts: GraphFacts;
   readonly variants: readonly VariantAxis[];
+  /** Every exact data-* value selector the sheets and the product strings spell, which a variant value's row names. */
+  readonly variantSelectors: readonly ValueSelector[];
   readonly kept: readonly KeptExport[];
   readonly sdk: SdkSurface;
   readonly urlSpawns: readonly UrlSpawn[];
   readonly files: readonly string[];
 }
+
+// What one program's build yields; the tree's sheets are read once, beside the programs.
+type WorldGraph = Omit<Graph, "variantSelectors">;
 
 // The type a destructuring pattern's keys read: its source's, the element type for a for-of target, then down each step
 // (a tuple's element by its index, else the list's element type).
@@ -124,12 +131,13 @@ export interface BuiltGraph {
 export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
   const state = new GraphState(root, world, roots, session);
   const merged = new Builder(state).build(judgedFiles(state));
-  const apart = (): readonly Graph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
+  const apart = (): readonly WorldGraph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
   const parts = session.profile === null ? apart() : session.profile.time("apart", apart);
   state.enter(world);
   const all = [merged, ...parts];
   const graph: Graph = {
     ...merged,
+    variantSelectors: valueSelectors(root, world),
     variants: all.flatMap(({ variants }) => variants),
     kept: all.flatMap(({ kept }) => kept),
     urlSpawns: all.flatMap(({ urlSpawns }) => urlSpawns),
@@ -149,7 +157,7 @@ function judgedFiles(state: GraphState): readonly string[] {
 
 // A world the merge cannot hold (worlds.ts WORLDS_APART), walked as its own program into the same facts: only the files
 // the merged program does not hold, so a file both hold is walked once, in the merged program.
-function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): Graph {
+function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): WorldGraph {
   using world = NativeWorld.open(state.root, config);
   state.enter(world);
   const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
@@ -220,7 +228,7 @@ class Builder {
     this.#keys = new Keys(this.#state);
   }
 
-  build(files: readonly string[]): Graph {
+  build(files: readonly string[]): WorldGraph {
     const state = this.#state;
     const { profile } = state.session;
     const walk = (): void => this.#walk(files);

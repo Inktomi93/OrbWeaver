@@ -15,6 +15,10 @@
 //   its own holder is reached, is read only by dead code and names that code.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
+
+import type { StampedVariantAxis } from "@orb/ui/lib";
+import { STAMPED_VARIANT_AXES } from "@orb/ui/lib";
+import { TONES } from "@orb/ui/tokens";
 import { SyntaxKind } from "@typescript/native/ast";
 import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.ts";
 import { isProduction } from "../worlds.ts";
@@ -28,6 +32,7 @@ import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
 import { SERVER_SOURCE } from "./spellings.ts";
 import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
 import { productReader, testSource } from "./state.ts";
+import type { VariantAxis } from "./variants.ts";
 
 /** The buckets an analysis reports, in report order. */
 export const BUCKETS = [
@@ -41,6 +46,7 @@ export const BUCKETS = [
   "unused-effect",
   "type-only",
   "variant-value-unused",
+  "variant-selector-stale",
   "ambient-unused",
   "ambient-files-walked",
   "doc-link-cross-scope",
@@ -236,6 +242,7 @@ class Analyser {
       "unused-effect": result("unused-effect"),
       "type-only": result("type-only"),
       "variant-value-unused": result("variant-value-unused"),
+      "variant-selector-stale": result("variant-selector-stale"),
       "ambient-unused": result("ambient-unused"),
       "ambient-files-walked": result("ambient-files-walked"),
       "doc-link-cross-scope": result("doc-link-cross-scope"),
@@ -481,19 +488,50 @@ class Analyser {
   }
 
   // A variant value no consumer selects, on an axis no write fed a wide value; an axis wholly unused is reported whole.
+  // A value no consumer selects, with the stamped-attribute selectors that select it: variantAttrs stamps only the values
+  // callers select, so a selector alone keeps nothing, and one delete removes the arm and its selectors. A stamped
+  // selector whose value no recipe declares is stale.
   #variants(): void {
-    for (const axis of this.#graph.variants.filter(({ dynamic, file }) => !dynamic && isProduction(file))) {
+    const axes = this.#graph.variants.filter(({ file }) => isProduction(file));
+    const selectors = this.#graph.variantSelectors.filter(({ attribute }) => STAMPED_ATTRIBUTES.has(attribute));
+    for (const axis of axes.filter(({ dynamic }) => !dynamic)) {
       const unused = axis.values.filter(({ used }) => !used).map(({ name }) => name);
       if (unused.length > 0) {
         const whole = unused.length === axis.values.length;
+        const selecting = selectors.filter(({ attribute, value }) => attribute === `${DATA_PREFIX}${axis.name}` && unused.includes(value));
         this.#push("variant-value-unused", {
           label: `${axis.file}:${axis.name}${whole ? ` (whole axis: ${unused.join(", ")})` : ` = ${unused.join(", ")}`}`,
           key: axis.key,
-          note: null,
+          note: selecting.length === 0 ? null : `selected by ${selecting.map(({ value, at }) => `${at} (${value})`).join(", ")}`,
         });
       }
     }
+    const declared = stampedValues(axes);
+    for (const { attribute, value, at } of selectors) {
+      if (declared.get(attribute)?.has(value) !== true) {
+        this.#push("variant-selector-stale", { label: `${at} [${attribute}="${value}"]`, key: null, note: "no recipe declares the value" });
+      }
+    }
   }
+}
+
+const DATA_PREFIX = "data-";
+const TONE_AXIS = "tone" satisfies StampedVariantAxis;
+const STAMPED_ATTRIBUTES: ReadonlySet<string> = new Set(STAMPED_VARIANT_AXES.map((axis) => `${DATA_PREFIX}${axis}`));
+
+// The values each stamped attribute can hold: what the recipes declare on that axis; for data-tone also the D336 tones
+// the tone door writes; and for data-variant also the recipe tone arms the door moves there when a tone displaces one.
+function stampedValues(axes: readonly VariantAxis[]): ReadonlyMap<string, ReadonlySet<string>> {
+  const declared = (name: string): readonly string[] => axes.filter((axis) => axis.name === name).flatMap(({ values }) => values.map((value) => value.name));
+  const extra: Readonly<Record<StampedVariantAxis, readonly string[]>> = {
+    variant: declared(TONE_AXIS),
+    size: [],
+    square: [],
+    tone: TONES,
+    glyph: [],
+    step: [],
+  };
+  return new Map(STAMPED_VARIANT_AXES.map((axis) => [`${DATA_PREFIX}${axis}`, new Set([...declared(axis), ...extra[axis]])]));
 }
 
 type Reached = Readonly<Record<"liveKept" | "liveTyped" | "productTyped" | "operator" | "consumer" | "any" | "testkit" | "tooling", ReadonlySet<GraphKey>>>;

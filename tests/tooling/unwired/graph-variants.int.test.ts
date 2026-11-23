@@ -107,3 +107,36 @@ test("a selection co-inferred with its recipe selects the recipe's axis values",
   );
   expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = md, lg"]);
 });
+
+// A stamped attribute's selector names the value it selects (packages/ui/src/lib/variant-attrs.ts stamps the arm a caller
+// picked), so an unused value's row lists every selector that one delete removes with it; a selector keeps nothing. A
+// selector naming a value no recipe declares is stale; data-tone also takes the tone door's tones.
+test("an unused stamped value names its selectors; a selector of an undeclared value is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const sheet = `${GRAPH_SOURCE}/stamps.css`;
+  const scan = await graphScan(plantedTree, {
+    ...source([
+      'import { tv } from "tailwind-variants";',
+      'const chip = tv({ variants: { size: { sm: "s", lg: "l" }, step: { one: "1" }, tone: { loud: "x" } } });',
+      'export const small = chip({ size: "sm", step: "one", tone: "loud" });',
+      'export const hover = "data-[size=lg]:p-1 data-[step=two]:p-2";',
+    ]),
+    [sheet]: [
+      '[data-size="lg"] { color: red; }',
+      '[data-size="xl"] { color: red; }',
+      '[data-tone="info"] { color: red; }',
+      '[data-orientation="vertical"] { color: red; }',
+      '[data-size^="x"] { color: red; }',
+      // a tone that displaces a recipe's tone arm moves the arm to data-variant
+      '[data-variant="loud"] { color: red; }',
+    ].join("\n"),
+  });
+  const rows = (bucket: "variant-value-unused" | "variant-selector-stale"): readonly (readonly [string, string | null])[] =>
+    scan.analysis[bucket].map(({ label, note }) => [label, note]);
+  expect({ unused: rows("variant-value-unused"), stale: rows("variant-selector-stale") }).toEqual({
+    unused: [[`${FILE}:size = lg`, `selected by ${sheet}:1 (lg), ${FILE}:4 (lg)`]],
+    stale: [
+      [`${sheet}:2 [data-size="xl"]`, "no recipe declares the value"],
+      [`${FILE}:4 [data-step="two"]`, "no recipe declares the value"],
+    ],
+  });
+});
