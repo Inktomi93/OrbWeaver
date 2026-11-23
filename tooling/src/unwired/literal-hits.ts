@@ -6,6 +6,8 @@
 // changed here changes the graph's literal evidence too.
 //
 // Rulings:
+// - A searched name is one word (isLiteralName): its text builds the pattern, so any other text is refused, never
+//   matched as something else. A caller searches a member by the word it is read by, never by its bracket text.
 // - TS and JS files are read on the graph program (D357): the caller hands in the NativeWorld it opened, the program's
 //   own tree serves a file the program holds, and a file outside it is parsed alone through the same process. Every
 //   other file is classified by its type. A literal search sees reads the compiler cannot: a JSON scenario, a
@@ -14,19 +16,35 @@
 //   disagree on a role: an object literal key, a JSX attribute and a class member that supplies its value write, a
 //   destructuring key reads, a type member's own name declares.
 // - A generated file is the house markers' call alone (tooling/src/floor/paths/generated-file.ts).
+// - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
+//   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays.
+// - A string or template hit holds a row only as a key, never as copy text: in key syntax, or where the checker's
+//   contextual type for it is a string-literal union holding the name, a dotted path by its segment (keyedHits).
+// - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
+//   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
+//   file a product module imports; each showcase bundle's manifest, which the release build packs into the shipped
+//   zip. A hit in a test, the tooling or any other config is evidence to list, never to keep a row by.
 import { existsSync, readFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import { basename, extname, join, relative, resolve } from "node:path";
 import process from "node:process";
+import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type {
   ClassDeclaration,
   ClassExpression,
   EnumDeclaration,
+  Expression,
   FunctionDeclaration,
   FunctionExpression,
   InterfaceDeclaration,
+  MethodDeclaration,
+  MethodSignatureDeclaration,
   ModuleDeclaration,
   Node,
   ParameterDeclaration,
+  PropertyAssignment,
+  PropertyDeclaration,
+  PropertySignatureDeclaration,
   SourceFile,
   TypeAliasDeclaration,
   TypeParameterDeclaration,
@@ -36,9 +54,11 @@ import {
   getLeadingCommentRanges,
   getTokenAtPosition,
   getTrailingCommentRanges,
+  isBinaryExpression,
   isBindingElement,
   isClassDeclaration,
   isClassExpression,
+  isComputedPropertyName,
   isElementAccessExpression,
   isEnumDeclaration,
   isExportDeclaration,
@@ -46,13 +66,27 @@ import {
   isFunctionDeclaration,
   isFunctionExpression,
   isHeritageClause,
+  isIdentifier,
   isImportDeclaration,
   isImportEqualsDeclaration,
   isInterfaceDeclaration,
   isJSDocNodeKind,
+  isKeywordKind,
+  isMethodDeclaration,
+  isMethodSignatureDeclaration,
   isModuleDeclaration,
+  isNoSubstitutionTemplateLiteral,
+  isNumericLiteral,
   isParameterDeclaration,
+  isPrivateIdentifier,
+  isPropertyAssignment,
+  isPropertyDeclaration,
+  isPropertySignatureDeclaration,
   isSourceFile,
+  isStringLiteral,
+  isTemplateExpression,
+  isTemplateHead,
+  isTemplateSpan,
   isTypeAliasDeclaration,
   isTypeNode,
   isTypeParameterDeclaration,
@@ -60,16 +94,22 @@ import {
   SyntaxKind,
   skipTrivia,
 } from "@typescript/native/ast";
+import type { APIRequestGenerator } from "@typescript/native/sync";
+import { isRemoteNode } from "@typescript/native/sync";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { execGit, runGit } from "../floor/git/git.ts";
 import { isGeneratedFile } from "../floor/paths/generated-file.ts";
 import { looksLikeTestFilename } from "../floor/testing/test-kinds.ts";
+import { moduleSpecifiers } from "../floor/typescript/import-graph.ts";
+import { showcaseSourceDirectory } from "../plugin-author-showcase/index.ts";
 import type { Verdict } from "./field-sort.ts";
 import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
+import { declarationKeys, deepestAt, nameAt, nodePlace } from "./native.ts";
+import { isProduction } from "./optional-population.ts";
 
 const DEAD: Verdict = "dead";
 const ASK: Verdict = "ask";
@@ -108,7 +148,8 @@ export function gitGrep(root: string, rev: string | null, args: readonly string[
 }
 
 /** Where a hit sits. `read`, `write`, `call`: a code occurrence by the graph's role rules. `type`: a type position.
- *  `declaration`: a declaration's own name. `import-export`: an import or export declaration, its specifier included.
+ *  `declaration`: a declaration's own name. `keyword`: the word spelled as syntax (`get` in an accessor, `new`, `as`,
+ *  `type` in `import type`), which names nothing. `import-export`: an import or export declaration, its specifier included.
  *  `string`: a string, regular expression or JSX text. `template`: a template literal's text. `jsdoc`, `comment`: a doc
  *  comment or any other comment. `doc`: Markdown, plain text or a file under docs/. `config-key`, `config-value`: a JSON
  *  or YAML key or value. `generated`: any hit in a generated file. `other`: a file of another type, such as a script or a
@@ -119,6 +160,7 @@ export const HIT_KINDS = [
   "call",
   "type",
   "declaration",
+  "keyword",
   "import-export",
   "string",
   "template",
@@ -145,6 +187,9 @@ interface LiteralHit {
   readonly at: string;
   /** The parsed file's UTF-16 offset of the hit, or null in a file the parser does not read. */
   readonly offset: number | null;
+  /** Where the name holding the hit starts, the start a site key names: a private name's `#`, a quoted name's quote,
+   *  else the hit's own offset; null where `offset` is. */
+  readonly site: number | null;
   /** The graph program holds the file, so the graph sees this hit; false for a file outside every world. */
   readonly graph: boolean;
   readonly kind: HitKind;
@@ -159,6 +204,12 @@ export interface LiteralSearch {
   readonly ignored: number;
   /** Each name's hits in `git grep` order, every occurrence on a line classified on its own. */
   readonly hits: ReadonlyMap<string, readonly LiteralHit[]>;
+  /** The data files the product loads: each JSON file a product module imports and each showcase bundle's manifest. */
+  readonly productData: ReadonlySet<string>;
+  /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
+  readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
+  /** The string and template hits in held product source that act as a key, the only ones that can hold a row. */
+  readonly keyed: ReadonlySet<LiteralHit>;
 }
 
 const PARSED = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -198,8 +249,11 @@ const isGenerated = (root: string, file: string): boolean => isGeneratedFile(fil
 const escaped = (name: string): string => name.replaceAll(/\$/gu, String.raw`\$`);
 // ASCII, spelled out: git's PCRE reads a Greek or accented letter as a word character, JavaScript's `\w` does not.
 const WORD_CHAR = "[A-Za-z0-9_$]";
-/** A name the search takes: one word of {@link WORD_CHAR}, since the match boundaries assume one. */
+// A name the search takes: one word of WORD_CHAR, since the match boundaries assume one.
 const NAME = /^[A-Za-z0-9_$]+$/u;
+
+/** Whether {@link searchLiterals} can search a name: one word of ASCII letters, digits, `_` and `$`. */
+export const isLiteralName = (name: string): boolean => NAME.test(name);
 // One pattern for both passes: git grep finds the lines and the JavaScript pass finds each hit on them, so the two
 // agree on every boundary. `git grep -w -F` with many names rescans each candidate and is far slower than one PCRE
 // alternation on a large tree.
@@ -363,6 +417,10 @@ function parsedKind(source: SourceFile, position: number): HitKind {
   if (position < skipTrivia(source.text, token.pos)) {
     return commentKind(source.text, token, position);
   }
+  // The tree has no node for a keyword: the token is the navigator's own, with no symbol and nothing it reads.
+  if (isKeywordKind(token.kind)) {
+    return "keyword";
+  }
   if (chain.some((node) => isImportDeclaration(node) || isImportEqualsDeclaration(node) || isExportDeclaration(node))) {
     return "import-export";
   }
@@ -391,12 +449,18 @@ interface Found {
 }
 
 /** Search the working tree's tracked files for each name as a whole word, or null for a root with no git index. Parsed
- *  files are read on `world`, the graph program the caller owns. */
+ *  files are read on `world`, the graph program the caller owns.
+ *  @throws Error when a name is not one {@link isLiteralName} word, before any search: its text would build a pattern
+ *  that is not the word, a `[KEY]` a character class. */
 export function searchLiterals(root: string, world: NativeWorld, names: readonly string[]): LiteralSearch | null {
+  const wanted = [...new Set(names)];
+  const refused = wanted.filter((name) => !isLiteralName(name));
+  if (refused.length > 0) {
+    throw new Error(`literal hits: ${refused.map((name) => JSON.stringify(name)).join(", ")} not one word of letters, digits, _ and $`);
+  }
   if (!existsSync(join(root, ".git"))) {
     return null;
   }
-  const wanted = [...new Set(names)].filter((name) => name !== "");
   const files = execGit(root, ["ls-files", "-z"]).split("\0").filter(Boolean).length;
   const ignored = execGit(root, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory"]).split("\0").filter(Boolean).length;
   const byFile = grepNames(root, wanted);
@@ -412,7 +476,150 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
       hits.get(hit.name)?.push(hit);
     }
   }
-  return { files, ignored, hits };
+  const all = [...hits.values()].flat();
+  return { files, ignored, hits, productData: loadedData(root, world, all), resolved: resolvedHits(world, all), keyed: keyedHits(world, all) };
+}
+
+// The data files among the hits' files that the product loads: a JSON file the program holds that a product module
+// imports (its import resolved by the program, so a JSON a test or a script imports stays out), and every showcase
+// bundle's manifest under the source directory the release build packs from.
+function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet<string> {
+  const manifests = SHOWCASE_PLUGIN_SLUGS.map((slug) => relative(root, join(showcaseSourceDirectory(root), slug, PLUGIN_MANIFEST_ENTRY)));
+  const held = new Set(hits.flatMap(({ file }) => (fileType(file) === "config" && world.has(file) ? [file] : [])));
+  if (held.size === 0) {
+    return new Set(manifests);
+  }
+  const specifiers = world.files
+    .filter((source) => isProduction(world.fileOfSource(source)))
+    .flatMap((source) => moduleSpecifiers(source).map((specifier) => ({ specifier, from: source.fileName })));
+  const resolved = world.batch(specifiers.map(({ specifier, from }) => world.program.getResolvedModuleFromModuleSpecifier.gen(specifier, from)));
+  const imported = resolved.flatMap((module) => (module?.resolvedFileName === undefined ? [] : [relative(root, module.resolvedFileName)]));
+  return new Set([...manifests, ...imported.filter((file) => held.has(file))]);
+}
+
+const CODE_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call"]);
+const TEXT_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["string", "template"]);
+
+// A string or template hit in held product source acts as a key when it sits in key syntax, or when the checker's
+// contextual type for it is a string-literal union with a member whose dotted segments hold the name: a keyof
+// parameter, a typed registry, a form path. Judged by the type, never by the callee's name; copy text is neither.
+function keyedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlySet<LiteralHit> {
+  const asked = hits.flatMap((hit) => {
+    const token = hit.graph && hit.offset !== null && TEXT_KINDS.has(hit.kind) && isProduction(hit.file) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    const text = token === undefined ? undefined : textExpression(token);
+    return text === undefined ? [] : [{ hit, text }];
+  });
+  const syntactic = asked.filter(({ text }) => inKeySyntax(text));
+  const typed = asked.filter(({ text }) => !inKeySyntax(text));
+  sendable(
+    "the literal hits' strings",
+    typed.map(({ hit, text }) => ({ node: text, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the string its token sits in` })),
+  );
+  const literals = world.batch(typed.map(({ text }) => contextualLiterals(world, text)));
+  return new Set([
+    ...syntactic.map(({ hit }) => hit),
+    ...typed.flatMap(({ hit }, at) => ((literals[at] ?? []).some((value) => value.split(PATH_SEPARATOR).includes(hit.name)) ? [hit] : [])),
+  ]);
+}
+
+const PATH_SEPARATOR = ".";
+
+// The string or template expression a text hit's token sits in: the literal itself, or the template a head, middle or
+// tail belongs to.
+function textExpression(token: Node): Expression | undefined {
+  if (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) {
+    return token;
+  }
+  const template = isTemplateHead(token) ? token.parent : token.parent.parent;
+  return (isTemplateHead(token) || isTemplateSpan(token.parent)) && isTemplateExpression(template) ? template : undefined;
+}
+
+// Key syntax: an `in` operand, a computed name, or a quoted member or property name. An element access's quoted key is
+// no string hit: the role rules read it as a read, held unless the checker resolves it elsewhere.
+function inKeySyntax(text: Expression): boolean {
+  const { parent } = text;
+  if (isBinaryExpression(parent)) {
+    return parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, text);
+  }
+  return isComputedPropertyName(parent) || (isNamedMember(parent) && sameNode(parent.name, text));
+}
+
+const isNamedMember = (
+  node: Node,
+): node is PropertyAssignment | PropertySignatureDeclaration | PropertyDeclaration | MethodDeclaration | MethodSignatureDeclaration =>
+  isPropertyAssignment(node) ||
+  isPropertySignatureDeclaration(node) ||
+  isPropertyDeclaration(node) ||
+  isMethodDeclaration(node) ||
+  isMethodSignatureDeclaration(node);
+
+// The string-literal values of the type the checker expects at a text, each member of a union on its own.
+function* contextualLiterals(world: NativeWorld, text: Expression): APIRequestGenerator<readonly string[]> {
+  const type = yield* world.checker.getContextualType.gen(text);
+  if (type === undefined) {
+    return [];
+  }
+  const members = type.isUnionType() ? yield* type.getTypes.gen() : [type];
+  return members.flatMap((member) => (member.isStringLiteralType() ? [member.value] : []));
+}
+
+// The node a held file's hit or known site starts, by its `file:offset`.
+function heldNodeAt(world: NativeWorld, file: string, offset: number): Node | undefined {
+  const source = world.source(file);
+  return source === undefined ? undefined : getTokenAtPosition(source, offset);
+}
+
+// Every node bound for the checker that did not come from the program's own tree, named with where it came from, so a
+// failing batch lists all its offenders rather than the API's first refusal.
+function sendable(query: string, asked: readonly { readonly node: Node; readonly what: string }[]): void {
+  const foreign = asked.filter(({ node }) => !isRemoteNode(node));
+  if (foreign.length > 0) {
+    throw new Error(
+      `literal hits: ${String(foreign.length)} of ${String(asked.length)} nodes for ${query} are not from the program's tree:\n${foreign.map(({ node, what }) => `  ${what}: ${nodePlace(node)}`).join("\n")}`,
+    );
+  }
+}
+
+// What each code hit in a held file resolves to, in one batched lookup.
+function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlyMap<LiteralHit, readonly string[]> {
+  const asked = hits.flatMap((hit) => {
+    const node = hit.graph && hit.offset !== null && CODE_KINDS.has(hit.kind) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    return node === undefined ? [] : [{ hit, node }];
+  });
+  sendable(
+    "the literal hits' code reads",
+    asked.map(({ hit, node }) => ({ node, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, node from getTokenAtPosition at ${String(hit.offset)}` })),
+  );
+  const symbols = world.symbolsAt(asked.map(({ node }) => node));
+  return new Map(
+    asked.flatMap(({ hit }, at) => {
+      const symbol = symbols[at];
+      return symbol === undefined ? [] : [[hit, declarationKeys(symbol)] as const];
+    }),
+  );
+}
+
+// The declaration keys each row's known sites resolve to in the held files: the row's own member, however many
+// declarations it merges. An empty set (no known site the program holds resolves) drops no hit.
+function rowDeclarations(world: NativeWorld, rows: readonly { readonly member: string; readonly known: readonly string[] }[]): readonly ReadonlySet<string>[] {
+  const asked = rows.flatMap((row, at) =>
+    row.known.flatMap((key) => {
+      const split = key.lastIndexOf(":");
+      const source = world.source(key.slice(0, split));
+      const node = source === undefined ? undefined : nameAt(source, Number(key.slice(split + 1)));
+      return node === undefined ? [] : [{ at, node, what: `known site ${key} of ${row.member}, node from the tree walk` }];
+    }),
+  );
+  sendable("the rows' known sites", asked);
+  const symbols = world.symbolsAt(asked.map(({ node }) => node));
+  const keys = rows.map(() => new Set<string>());
+  for (const [index, { at }] of asked.entries()) {
+    const symbol = symbols[index];
+    for (const key of symbol === undefined ? [] : declarationKeys(symbol)) {
+      keys[at]?.add(key);
+    }
+  }
+  return keys;
 }
 
 // Every file's hits but those of the parsed files the program does not hold, which come back to be parsed alone.
@@ -488,15 +695,17 @@ function unparsedHits(file: string, type: FileType, generated: boolean, found: r
     line: hit.line.line,
     at: `${file}:${String(hit.line.line)}`,
     offset: null,
+    site: null,
     graph: false,
     scope,
     kind: unparsedKind(type, generated, hit),
   }));
 }
 
-// git grep numbers lines by "\n" alone, while the compiler's line table also breaks at a lone "\r", U+2028 and U+2029,
-// so a grepped line is found in the program's text by git's rule.
-function grepLineStarts(text: string): readonly number[] {
+// git counts lines by LF alone; TypeScript's line table also breaks at CR, U+2028 and U+2029, so a git line number read
+// through getPositionOfLineAndCharacter lands short after any of those. Each hit is placed by git's own line starts over
+// the program's text, both in UTF-16 units, and the text there must spell the word.
+function gitLineStarts(text: string): readonly number[] {
   const starts = [0];
   for (let at = text.indexOf("\n"); at !== -1; at = text.indexOf("\n", at + 1)) {
     starts.push(at + 1);
@@ -504,20 +713,45 @@ function grepLineStarts(text: string): readonly number[] {
   return starts;
 }
 
-// The program read each file once and git greps the tree later, so a file edited in between is refused by name: its
-// hits would sit at offsets the program never held.
+// The program's text drops a leading byte-order mark that git's first line still carries.
+const BYTE_ORDER_MARK = "\u{feff}";
+
+function hitOffset(source: SourceFile, starts: readonly number[], { name, line, index }: Found): number {
+  const dropped = line.line === 1 && line.text.startsWith(BYTE_ORDER_MARK) && !source.text.startsWith(BYTE_ORDER_MARK) ? BYTE_ORDER_MARK.length : 0;
+  const offset = (starts[line.line - 1] ?? Number.NaN) + index - dropped;
+  if (!source.text.startsWith(name, offset)) {
+    const reads = JSON.stringify(source.text.slice(offset, offset + name.length));
+    throw new Error(`literal hits: ${line.file}:${String(line.line)} names ${name} at offset ${String(offset)}, where the program's text reads ${reads}`);
+  }
+  return offset;
+}
+
+// A hit inside a private name or a quoted, template or numeric name sits past the name's start, the offset a site key
+// carries; any other hit starts its own name.
+function nameStart(source: SourceFile, offset: number): number {
+  const holder = deepestAt(source, offset);
+  const named =
+    holder !== undefined && (isPrivateIdentifier(holder) || isStringLiteral(holder) || isNoSubstitutionTemplateLiteral(holder) || isNumericLiteral(holder));
+  return named ? holder.getStart(source) : offset;
+}
+
 function parsedHits(source: SourceFile, file: string, found: readonly Found[], graph: boolean): readonly LiteralHit[] {
   const scope = scopeOf(file, "parsed");
-  const { text } = source;
-  const starts = grepLineStarts(text);
-  return found.map(({ name, line, index }) => {
-    const start = starts[line.line - 1];
-    const next = starts[line.line];
-    if (start === undefined || text.slice(start, next === undefined ? text.length : next - 1) !== line.text) {
-      throw new Error(`literal hits: ${file}:${String(line.line)} on disk is not the program's text of that line; the file changed after the program read it`);
-    }
-    const offset = start + index;
-    return { name, file, line: line.line, at: `${file}:${String(line.line)}`, offset, graph, scope, kind: parsedKind(source, offset) };
+  const starts = gitLineStarts(source.text);
+  return found.map((hit) => {
+    const { name, line } = hit;
+    const offset = hitOffset(source, starts, hit);
+    return {
+      name,
+      file,
+      line: line.line,
+      at: `${file}:${String(line.line)}`,
+      offset,
+      site: nameStart(source, offset),
+      graph,
+      scope,
+      kind: parsedKind(source, offset),
+    };
   });
 }
 
@@ -527,7 +761,28 @@ function parsedHits(source: SourceFile, file: string, found: readonly Found[], g
 const SAVING: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call", "import-export", "string", "template", "config-key", "generated", "other"]);
 const savesRow = (hit: LiteralHit): boolean => SAVING.has(hit.kind) || (hit.kind === "type" && hit.scope === "test");
 
-const offsetKey = (hit: LiteralHit): string | null => (hit.offset === null ? null : `${hit.file}:${String(hit.offset)}`);
+const siteKey = (file: string, site: number): string => `${file}:${String(site)}`;
+const offsetKey = (hit: LiteralHit): string | null => (hit.site === null ? null : siteKey(hit.file, hit.site));
+
+/** The key a row's own site is known by, the one a hit there carries: the name starting at `pos` past its trivia, a
+ *  private name at its `#` and a quoted name at its quote. `pos` may be a node's full start. */
+export const ownSiteKey = (source: SourceFile, file: string, pos: number): string => siteKey(file, nameStart(source, skipTrivia(source.text, pos)));
+
+/** The word a string, a JSON key or a plugin reads a declaration by, the one to search its name as: an identifier's
+ *  text, a quoted or numeric name's value, and for a computed name the member symbol's name, which is the key's value
+ *  (`[KEY]` with `KEY = "a"` is `a`). Null for a private name: no string reaches `#x`, so the compile is the whole answer. */
+export function* searchedWord(world: NativeWorld, name: Node): APIRequestGenerator<string | null> {
+  if (isPrivateIdentifier(name)) {
+    return null;
+  }
+  if (isComputedPropertyName(name)) {
+    const member = yield* world.checker.getSymbolAtLocation.gen(name);
+    return member?.name ?? name.getText(name.getSourceFile());
+  }
+  return isIdentifier(name) || isStringLiteral(name) || isNoSubstitutionTemplateLiteral(name) || isNumericLiteral(name)
+    ? name.text
+    : name.getText(name.getSourceFile());
+}
 
 // A common name hits thousands of lines; the row keeps every count and this many hits, the saving ones first.
 const KEPT_HITS = 25;
@@ -544,6 +799,11 @@ export interface LiteralEvidence {
   readonly writers: readonly string[];
   /** Hits at the row's own known sites, left out: its declarations and the sites the scan already recorded. */
   readonly own: number;
+  /** Code hits left out because the checker resolves them to another declaration of the same name. */
+  readonly elsewhere: number;
+  /** Some saving hit sits in parsed product source or loaded product data, so it can stand for a product read; any
+   *  other hit only annotates. Those hits lead {@link LiteralEvidence.hits}. */
+  readonly productRead: boolean;
 }
 
 /** What the stage did over one run. */
@@ -562,6 +822,8 @@ export interface LiteralStage {
   readonly ownHits: number;
   /** Never-written rows the stage searched, by where they ended. */
   readonly neverWritten: { readonly ask: number; readonly dead: number };
+  /** Dead rows whose member is not one word: no search can clear them, so they moved to ask unsearched. */
+  readonly unsearchable: number;
 }
 
 interface StageRow {
@@ -574,24 +836,66 @@ interface StageRow {
 }
 
 // One row's hits outside its known sites, and how many sat at them.
-function searched(search: LiteralSearch, member: string, known: ReadonlySet<string>): { readonly hits: readonly LiteralHit[]; readonly own: number } {
+function searched(
+  search: LiteralSearch,
+  member: string,
+  { known, declarations }: { readonly known: ReadonlySet<string>; readonly declarations: ReadonlySet<string> },
+): { readonly hits: readonly LiteralHit[]; readonly own: number; readonly elsewhere: number } {
   const all = search.hits.get(member) ?? [];
-  const hits = all.filter((hit) => {
+  const outside = all.filter((hit) => {
     const key = offsetKey(hit);
     return key === null || !known.has(key);
   });
-  return { hits, own: all.length - hits.length };
+  const hits = outside.filter((hit) => {
+    const goes = search.resolved.get(hit);
+    return goes === undefined || declarations.size === 0 || goes.some((key) => declarations.has(key));
+  });
+  return { hits, own: all.length - outside.length, elsewhere: outside.length - hits.length };
 }
 
-function evidenceOf(row: StageRow, hits: readonly LiteralHit[], own: number, files: number): LiteralEvidence {
+// Each row's hits outside its known sites and off other declarations of its name, and the evidence they make.
+function judged(
+  search: LiteralSearch,
+  world: NativeWorld,
+  rows: readonly Omit<StageRow, "verdict">[],
+): readonly { readonly hits: readonly LiteralHit[]; readonly literal: LiteralEvidence }[] {
+  const declarations = rowDeclarations(world, rows);
+  return rows.map((row, at) => {
+    const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: declarations[at] ?? new Set() });
+    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, keyed: search.keyed }, search.files) };
+  });
+}
+
+/** Each row's evidence from a search that covered its member name: its hits outside its own known sites and off any
+ *  other declaration of the name, the ones that can be a real read first, and whether any can, in the product or at
+ *  all. The fields literal stage and the delete trial judge a row by it; `world` is the program the search read. */
+export const rowsEvidence = (search: LiteralSearch, world: NativeWorld, rows: readonly Omit<StageRow, "verdict">[]): readonly LiteralEvidence[] =>
+  judged(search, world, rows).map(({ literal }) => literal);
+
+function evidenceOf(
+  row: Omit<StageRow, "verdict">,
+  hits: readonly LiteralHit[],
+  {
+    own,
+    elsewhere,
+    productData,
+    keyed,
+  }: { readonly own: number; readonly elsewhere: number; readonly productData: ReadonlySet<string>; readonly keyed: ReadonlySet<LiteralHit> },
+  files: number,
+): LiteralEvidence {
   const saving = hits.filter(savesRow);
+  const holding = saving.filter(
+    (hit) => (hit.offset !== null && isProduction(hit.file) && (!TEXT_KINDS.has(hit.kind) || keyed.has(hit))) || productData.has(hit.file),
+  );
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
   return {
     note: unwritten ?? empty,
     saved: saving.length > 0,
     counts: countKinds(hits),
-    hits: [...saving, ...hits.filter((hit) => !savesRow(hit))].slice(0, KEPT_HITS).map(({ at, kind, scope }) => ({ at, kind, scope })),
+    hits: [...holding, ...saving.filter((hit) => !holding.includes(hit)), ...hits.filter((hit) => !savesRow(hit))]
+      .slice(0, KEPT_HITS)
+      .map(({ at, kind, scope }) => ({ at, kind, scope })),
     writers: row.neverWritten
       ? hits
           .filter((hit) => hit.kind === "write")
@@ -599,6 +903,8 @@ function evidenceOf(row: StageRow, hits: readonly LiteralHit[], own: number, fil
           .map((hit) => hit.at)
       : [],
     own,
+    elsewhere,
+    productRead: holding.length > 0,
   };
 }
 
@@ -611,33 +917,41 @@ function countKinds(hits: readonly LiteralHit[]): Partial<Record<HitKind, number
 }
 
 /** Search every dead row's member name over the tracked tree and move a row with a hit that can be a read to ask. A
- *  row's own known sites are no hit: the stage looks for what the scan missed. Null stage for a root with no git index,
- *  which leaves every row as it was. */
+ *  row's own known sites are no hit: the stage looks for what the scan missed. A dead row whose member is not one word
+ *  (a quoted `"content-type"` key) moves to ask unsearched, since no search can clear it. Null stage for a root with no
+ *  git index, which leaves every row as it was. */
 export function literalStage<Row extends StageRow>(
   root: string,
   world: NativeWorld,
   rows: readonly Row[],
   control: { readonly key: string; readonly member: string; readonly known: readonly string[] },
 ): { readonly rows: readonly (Row & { readonly literal: LiteralEvidence | null })[]; readonly stage: LiteralStage | null } {
-  const dead = rows.filter((row) => row.verdict === DEAD);
+  const unsearchable = new Set(rows.filter((row) => row.verdict === DEAD && !isLiteralName(row.member)));
+  const dead = rows.filter((row) => row.verdict === DEAD && !unsearchable.has(row));
   const search = searchLiterals(root, world, [control.member, ...dead.map((row) => row.member)]);
   if (search === null) {
     return { rows: rows.map((row) => ({ ...row, literal: null })), stage: null };
   }
-  const controlHits = searched(search, control.member, new Set(control.known)).hits.filter(savesRow).length;
+  const controlHits = searched(search, control.member, { known: new Set(control.known), declarations: new Set() }).hits.filter(savesRow).length;
   if (controlHits === 0) {
     throw new Error(`literal stage: the wired control ${control.key} has no hit outside its declaration, so the search is broken`);
   }
   const movedBy: Partial<Record<HitKind, number>> = {};
   let staleOnly = 0;
   let ownHits = 0;
+  const verdicts = new Map(dead.map((row, at) => [row, at]));
+  const judgedDead = judged(search, world, dead);
   const staged = rows.map((row) => {
-    if (row.verdict !== DEAD) {
+    if (unsearchable.has(row)) {
+      return { ...row, verdict: ASK, literal: null };
+    }
+    const at = verdicts.get(row);
+    const found = at === undefined ? undefined : judgedDead[at];
+    if (found === undefined) {
       return { ...row, literal: null };
     }
-    const { hits, own } = searched(search, row.member, new Set(row.known));
-    ownHits += own;
-    const literal = evidenceOf(row, hits, own, search.files);
+    const { hits, literal } = found;
+    ownHits += literal.own;
     for (const kind of new Set(hits.filter(savesRow).map((hit) => hit.kind))) {
       movedBy[kind] = (movedBy[kind] ?? 0) + 1;
     }
@@ -653,12 +967,13 @@ export function literalStage<Row extends StageRow>(
       files: search.files,
       ignored: search.ignored,
       control: { key: control.key, hits: controlHits },
-      deadBefore: dead.length,
+      deadBefore: dead.length + unsearchable.size,
       deadAfter: staged.filter((row) => row.verdict === DEAD).length,
       movedBy,
       staleOnly,
       ownHits,
       neverWritten: { ask: unwritten.filter((row) => row.verdict === ASK).length, dead: unwritten.filter((row) => row.verdict === DEAD).length },
+      unsearchable: unsearchable.size,
     },
   };
 }
@@ -695,6 +1010,7 @@ function kindCounts(hits: readonly LiteralHit[]): KindCounts {
     call: count("call"),
     type: count("type"),
     declaration: count("declaration"),
+    keyword: count("keyword"),
     "import-export": count("import-export"),
     string: count("string"),
     template: count("template"),

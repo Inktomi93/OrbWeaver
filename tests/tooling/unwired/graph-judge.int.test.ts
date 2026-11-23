@@ -8,6 +8,12 @@ import { GRAPH_SOURCE, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, la
 
 const FILE = `${GRAPH_SOURCE}/row.ts`;
 const quiet = (): undefined => undefined;
+// The literal stage searches the git index, so a case that judges dead rows commits its tree.
+const commitTree = (root: string): void => {
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-qm", "planted"]);
+};
 const TREE = {
   [FILE]: [
     "export interface Row { readonly live: string; readonly kept: string; readonly owned: string; readonly lapsed: string }",
@@ -129,9 +135,7 @@ test("the literal search leaves a row's own sites out and moves a row a stray sp
       [`${GRAPH_SOURCE}/lookup.ts`]: 'export const KEY = "zqMarked";\n',
     }),
   );
-  execFixtureGit(root, ["init", "-q"]);
-  execFixtureGit(root, ["add", "-A"]);
-  execFixtureGit(root, ["-c", "user.name=planted", "-c", "user.email=planted@example.invalid", "commit", "-qm", "planted"]);
+  commitTree(root);
   const scan = await scanGraph(root, quiet);
   const rows = scan.members.unwired.map(({ member, verdict, literal }) => [member, verdict, literal?.own ?? null, literal?.saved ?? null]);
   expect(rows).toEqual([
@@ -139,6 +143,50 @@ test("the literal search leaves a row's own sites out and moves a row a stray sp
     ["zqMarked", "ask", 2, true],
   ]);
   expect(scan.members.literalStage?.control.key).toBe(`${RULES}:Note.seen`);
+});
+
+// A quoted key's own declaration and write sites are keyed where the search keys a hit, at the quote, so they stay no
+// evidence and the row stays dead. No string reaches a private name, so a `#` member is never searched and keeps its sort.
+test("a quoted key's own sites are no hit, and a private member is never searched", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [RULES]: [
+        'export interface Note { readonly "zqQuoted": string; readonly seen: string }',
+        'export const note: Note = { "zqQuoted": "q", seen: "s" };',
+        "export const seen = (): string => note.seen;",
+        "export class Box { #zqHidden = 1; readonly shown = 2; }",
+        "export const shown = (): number => new Box().shown;",
+      ].join("\n"),
+    }),
+  );
+  commitTree(root);
+  const scan = await scanGraph(root, quiet);
+  const rows = scan.members.unwired.map(({ member, verdict, literal }) => [member, verdict, literal?.own ?? null, literal?.saved ?? null]);
+  expect(rows).toEqual([
+    ["zqQuoted", "dead", 2, false],
+    ["#zqHidden", "dead", null, null],
+  ]);
+});
+
+// A computed member is read by its key's value, never by its bracket text: `[LIT]` with `LIT = "zqLit"` is searched as
+// `zqLit`, and the string that spells the key is a hit that can be a read.
+test("a computed member is searched by the value of its key", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const keys = `${GRAPH_SOURCE}/keys.ts`;
+  const root = await plantedTree(
+    graphTree({
+      [keys]: 'export const LIT = "zqLit";\n',
+      [RULES]: [
+        'import { LIT } from "./keys.ts";',
+        "export interface Shape { readonly [LIT]?: string; readonly kept: string }",
+        "export const kept = (shape: Shape): string => shape.kept;",
+      ].join("\n"),
+    }),
+  );
+  commitTree(root);
+  const scan = await scanGraph(root, quiet);
+  const rows = scan.members.unwired.map(({ member, verdict, literal }) => [member, verdict, literal?.hits.map(({ at, kind }) => `${at} ${kind}`) ?? null]);
+  expect(rows).toEqual([["[LIT]", "ask", [`${keys}:1 string`]]]);
+  expect(scan.members.literalStage?.unsearchable).toBe(0);
 });
 
 // A plain literal's keys and a variant table's values are declared under the same node kind as a schema key, but only a

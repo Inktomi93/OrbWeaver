@@ -1,7 +1,7 @@
 // One graph session: the roots, the merged program and the build (or a dump's graph), then the analysis, the
-// find-references check of a member bucket, the custom-property pass, the DOM-hook pass, the unions scan, the codes
-// scan, the removed-keys check or the shapes scan over it. Every result carries what the session ran under, so a narrowed, ablated or dumped run is never read as
-// a fresh build of the whole tree.
+// find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
+// pass, the unions scan, the codes scan, the removed-keys check or the shapes scan over it. Every result carries what
+// the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -37,6 +37,8 @@ import type { ShapesOptions, ShapesReport } from "./shapes.ts";
 import { shapesPass } from "./shapes.ts";
 import type { BuildSession } from "./state.ts";
 import { productReader } from "./state.ts";
+import type { TrialBucket, TrialReach, TrialReport } from "./trial.ts";
+import { runTrials } from "./trial.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
 import type { Verified } from "./verify.ts";
@@ -302,6 +304,26 @@ export function codesGraph(root: string, judging: CodesJudging, log: GraphLog, o
  *  dump does not carry, so it takes no `from`. */
 export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<DomReport>> {
   return session(root, log, { options: { ...options, from: null }, ...NO_SITES }, ({ world, time }) => time("analyse", () => domPass(root, world())));
+}
+
+/** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
+ *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them, and
+ *  `cpuProfile` names where the compiler CPU profile of one group is written; `reach` picks which files a snapshot checks. */
+export function trialGraph(
+  root: string,
+  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null; readonly cpuProfile?: string | null; readonly reach: TrialReach },
+  log: GraphLog,
+  options: GraphOptions = FRESH_BUILD,
+): Promise<WithSession<TrialReport>> {
+  return session(root, log, { options, ...NO_SITES }, (work) => {
+    const analysis = work.time("analyse", () => analyse(work.graph));
+    return runTrials(
+      work.graph,
+      work.world(),
+      { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null, reach: ask.reach },
+      log,
+    );
+  });
 }
 
 /** Check a deletion branch, then resolve every receiver site of a key it removes over the session's merged program. A

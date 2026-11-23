@@ -5,12 +5,15 @@
 // the sort calls dead (literal-hits.ts). A row's key is the fields scan's `file:Home.member`, so one judged list serves both.
 //
 // - A row's own sites are its declaration's name and every production site the build recorded for it (state.ts
-//   roleSites), as the word offsets the literal search reports: those hits are no new evidence.
+//   roleSites), keyed by literal-hits.ts ownSiteKey as the search keys a hit there: those hits are no new evidence.
+// - A row is searched by the word it is read by (literal-hits.ts searchedWord), never its label: a computed member by
+//   its key's value, a quoted one by its text. A private member is never searched, since no string reaches it.
 import type { JsxAttribute, Node, PropertyAssignment, PropertyDeclaration, SourceFile } from "@typescript/native/ast";
 import {
   getTokenAtPosition,
   isArrayLiteralExpression,
   isAsExpression,
+  isIdentifier,
   isJsxAttribute,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
@@ -32,7 +35,7 @@ import { FieldSort, homeAliases, promiseFacts } from "../field-sort.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
 import type { LiteralEvidence, LiteralStage } from "../literal-hits.ts";
-import { literalStage } from "../literal-hits.ts";
+import { literalStage, ownSiteKey, searchedWord } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
@@ -43,6 +46,7 @@ import { declKeyParts } from "./resolve.ts";
 import type { DeclInfo } from "./sites.ts";
 import { isDeclKey, MEMBER_KINDS } from "./sites.ts";
 import type { GraphFacts, RoleSite } from "./state.ts";
+import { declaredNameOf } from "./verify.ts";
 import { siteLine } from "./why.ts";
 
 /** The lists a member row is judged by. */
@@ -80,12 +84,11 @@ export type JudgedMembers = JudgedSplit<MemberRow> & {
 
 const VALIDATED: MemberBucket = "member-validated";
 const READ_ONLY: MemberBucket = "member-read-only";
-const QUOTES: ReadonlySet<string> = new Set(['"', "'", "`"]);
 
 const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
 
-// A row before its literal search, with what the search needs.
-type Sorted = Omit<MemberRow, "literal"> & { readonly known: readonly string[]; readonly neverWritten: boolean };
+// A row before its literal search, with what the search needs: the word it is searched by, null for a private name.
+type Sorted = Omit<MemberRow, "literal"> & { readonly known: readonly string[]; readonly neverWritten: boolean; readonly word: string | null };
 
 // The program's text at each site the judge reads: word offsets, lines and the value a write gives.
 class Sources {
@@ -103,20 +106,22 @@ class Sources {
     return this.#files.get(file);
   }
 
-  // A role site's `at` is its node's start with trivia; the search reports the word, inside a key's quotes.
+  // A site the build recorded in a file the program holds, keyed as the search keys a hit on the name starting there.
   offset(file: string, at: number): string {
-    const text = this.#source(file)?.text ?? "";
-    const start = skipTrivia(text, at);
-    return `${file}:${String(QUOTES.has(text.charAt(start)) ? start + 1 : start)}`;
+    const source = this.#source(file);
+    if (source === undefined) {
+      throw new Error(`member judge: a role site sits in ${file}, which the program does not hold`);
+    }
+    return ownSiteKey(source, file, at);
   }
 
-  // The word offset of a declaration's own name: its first whole-word spelling inside the declaration's span.
-  declared(key: DeclKey, name: string): string {
-    const { file, pos, end } = declKeyParts(key);
-    const text = this.#source(file)?.text ?? "";
-    const word = new RegExp(`(?<![\\w$])${name.replaceAll("$", "\\$")}(?![\\w$])`, "u");
-    const found = word.exec(text.slice(pos, end));
-    return `${file}:${String(found === null ? pos : pos + found.index)}`;
+  // A declaration's own name node; every member finding is a named declaration.
+  name(key: DeclKey): Node {
+    const name = declaredNameOf(this.#world, key);
+    if (name === undefined) {
+      throw new Error(`member judge: the declaration ${key} has no name`);
+    }
+    return name;
   }
 
   located(file: string, at: number): string {
@@ -213,6 +218,21 @@ function foundRows(facts: GraphFacts, analysis: Analysis, keyOf: ReadonlyMap<Dec
   );
 }
 
+// The positive control of the literal search: the first wired member, in key order, named by an identifier, whose text is
+// the word it is searched by. A computed or quoted name could spell no word and fail the control for that reason alone.
+function wiredControl(
+  wired: readonly (PromiseField & { readonly decl: DeclKey })[],
+  sources: Sources,
+): { readonly key: string; readonly member: string; readonly known: readonly string[] } | undefined {
+  for (const { decl, key, file, member } of wired) {
+    const name = sources.name(decl);
+    if (isIdentifier(name)) {
+      return { key, member, known: [sources.offset(file, name.pos)] };
+    }
+  }
+  return undefined;
+}
+
 /** Judge the member buckets of `analysis`: split them by `rulings` (reading which items are open from `root`'s
  *  docs/work), sort each row, name where it is sent, and search every dead row's name over the tree. */
 export function judgeMembers(
@@ -234,25 +254,29 @@ export function judgeMembers(
     aliases,
   );
   const ownSites = (decl: DeclKey): readonly RoleSite[] => (facts.roleSites.get(decl) ?? []).filter(({ file }) => isProduction(file));
-  const knownOf = (decl: DeclKey, info: DeclInfo): readonly string[] => [
-    sources.declared(decl, info.name),
-    ...ownSites(decl).map(({ file, at }) => sources.offset(file, at)),
-  ];
-  const sorted = found.map(({ decl, info, row }): Sorted => {
+  const named = found.map((entry) => ({ ...entry, name: sources.name(entry.decl) }));
+  const words = world.batch(named.map(({ name }) => searchedWord(world, name)));
+  const sorted = named.map(({ decl, info, row, name }, at): Sorted => {
     const sites = ownSites(decl);
     const sent = sites.flatMap((site) => sendLine(site, sources));
-    const handAuthored = sites.some(({ role, file, at }) => role === "write" && sources.handWritten(file, at));
+    const handAuthored = sites.some(({ role, file, at: site }) => role === "write" && sources.handWritten(file, site));
     const promise = promised.get(row.key) ?? { onlyHome: false, siblings: [], setting: null, namedSetting: null };
     const { verdict, evidence } = sorter.sort({ ...row, ...promise, handAuthored, siblingsUsed: wiredHomes.has(`${row.file}:${row.home}`), sent });
-    return { ...row, sent, verdict, evidence, known: knownOf(decl, info), neverWritten: row.bucket === READ_ONLY };
+    const known = [sources.offset(info.file, name.pos), ...sites.map((site) => sources.offset(site.file, site.at))];
+    return { ...row, sent, verdict, evidence, known, neverWritten: row.bucket === READ_ONLY, word: words[at] ?? null };
   });
-  const control = members.filter(({ file, key }) => isProduction(file) && !reported.has(key)).sort((a, b) => a.key.localeCompare(b.key))[0];
-  const controlInfo = control === undefined ? undefined : facts.decls.get(control.decl);
+  const control = wiredControl(
+    members.filter(({ file, key }) => isProduction(file) && !reported.has(key)).sort((a, b) => a.key.localeCompare(b.key)),
+    sources,
+  );
+  const searched = sorted.flatMap((row) => (row.word === null ? [] : [{ ...row, member: row.word }]));
   const staged =
-    control === undefined || controlInfo === undefined
-      ? { rows: sorted.map((row) => ({ ...row, literal: null })), stage: null }
-      : literalStage(root, world, sorted, { key: control.key, member: control.member, known: [sources.declared(control.decl, controlInfo.name)] });
-  const rows = staged.rows.map(({ known: _known, neverWritten: _neverWritten, ...row }): MemberRow => row);
+    control === undefined ? { rows: searched.map((row) => ({ ...row, literal: null })), stage: null } : literalStage(root, world, searched, control);
+  const literals = new Map(searched.map((row, at) => [row.key, staged.rows[at]] as const));
+  const rows = sorted.map(({ known: _known, neverWritten: _neverWritten, word: _word, ...row }): MemberRow => {
+    const searchedRow = literals.get(row.key);
+    return { ...row, verdict: searchedRow?.verdict ?? row.verdict, literal: searchedRow?.literal ?? null };
+  });
   const { unwired, deliberate } = sortDeliberate(rows, rulings.deliberate);
   const split = sortJudged(
     unwired.filter(({ bucket }) => bucket !== VALIDATED),

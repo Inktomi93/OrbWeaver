@@ -37,10 +37,20 @@ export function evenSample<T>(entries: readonly T[], size: number | null): reado
   return Array.from({ length: count }, (_, at) => entries[Math.floor((at * entries.length) / count)]).filter((entry) => entry !== undefined);
 }
 
-/** Verify each finding of a member bucket against find-references in `world`. */
-export function verifyFindings(world: NativeWorld, findings: readonly Finding[], chains = false): readonly Verified[] {
+/** One finding's find-references answer: its declaration's name (undefined when no declaration sits at its key), every
+ *  occurrence besides that name, and the product reads among them the checker resolves to the finding's own
+ *  declaration. */
+export interface FindingReferences {
+  readonly finding: Finding;
+  readonly name: Node | undefined;
+  readonly occurrences: readonly Node[];
+  readonly reads: readonly Node[];
+}
+
+/** Find-references for each finding, every handle resolved in one batch. */
+export function referencesOf(world: NativeWorld, findings: readonly Finding[]): readonly FindingReferences[] {
   const resolver = new Resolver(world);
-  const names = findings.map(({ key }) => (key !== null && isDeclKey(key) ? nameOf(world, key) : undefined));
+  const names = findings.map(({ key }) => (key !== null && isDeclKey(key) ? declaredNameOf(world, key) : undefined));
   const groups = world.batch(names.map((name) => (name === undefined ? noReferences() : world.referencedSymbolsOf(name))));
   const handles = groups.map((entries) => entries.flatMap(({ references }) => references));
   const nodes = world.batch(handles.flat().map((handle) => handle.resolve.gen()));
@@ -64,11 +74,18 @@ export function verifyFindings(world: NativeWorld, findings: readonly Finding[],
     const { key } = finding;
     const mine = key !== null && isDeclKey(key) ? own.filter((_, z) => (owners[y + z] ?? []).includes(key)) : [];
     y += own.length;
-    const shown = mine.slice(0, SHOWN_READS);
+    return { finding, name: names[x], occurrences: occurrences[x] ?? [], reads: mine };
+  });
+}
+
+/** Verify each finding of a member bucket against find-references in `world`. */
+export function verifyFindings(world: NativeWorld, findings: readonly Finding[], chains = false): readonly Verified[] {
+  return referencesOf(world, findings).map(({ finding, name, occurrences, reads }) => {
+    const shown = reads.slice(0, SHOWN_READS);
     return {
       label: finding.label,
-      verdict: verdictOf(names[x] !== undefined, mine.length > 0),
-      refs: occurrences[x]?.length ?? 0,
+      verdict: verdictOf(name !== undefined, reads.length > 0),
+      refs: occurrences.length,
       reads: shown.map((node) => `${world.fileOfSource(node.getSourceFile())}:${String(lineOf(node))}`),
       ...(chains ? { chains: shown.map(chainOf) } : {}),
     };
@@ -96,15 +113,16 @@ function* noReferences(): ReturnType<NativeWorld["referencedSymbolsOf"]> {
   return [];
 }
 
-// The name node of the declaration a key names, found by its span in its file.
-function nameOf(world: NativeWorld, key: DeclKey): Node | undefined {
+/** The name node of the declaration a key names, found by its span in its file. */
+export function declaredNameOf(world: NativeWorld, key: DeclKey): Node | undefined {
   const { file, pos, end, kind } = declKeyParts(key);
   const source = world.source(file);
   const node = source === undefined ? undefined : nodeAt(source, { pos, end, kind });
   return node === undefined ? undefined : declarationNameOf(node);
 }
 
-function nodeAt(source: SourceFile, { pos, end, kind }: { readonly pos: number; readonly end: number; readonly kind: SyntaxKind }): Node | undefined {
+/** The node of `kind` that spans exactly `pos` to `end` in `source`. */
+export function nodeAt(source: SourceFile, { pos, end, kind }: { readonly pos: number; readonly end: number; readonly kind: SyntaxKind }): Node | undefined {
   let found: Node | undefined;
   const visit = (node: Node): void => {
     if (found !== undefined || node.pos > pos || node.end < end) {
