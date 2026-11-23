@@ -1,5 +1,5 @@
 ---
-kind: decision
+kind: work
 status: open
 updated: 2026-11-23
 priority: P3
@@ -7,7 +7,7 @@ area: chat
 plan: unwired-code
 ---
 
-# Decide whether a host can set another member's active persona from the client
+# The setActivePersona router stops accepting targetUserId
 
 ## What
 
@@ -19,7 +19,7 @@ An accepted input with no sender is either a missing host control or surface to 
 
 ## Done when
 
-The owner rules: build a host control that sends targetUserId, with its authorization covered by a test, or drop the zod key and amend the router comment; the verb parameter stays either way.
+Owner ruling: drop the targetUserId key from the setActivePersona router input and amend the router comment, keeping the verb parameter for server callers; no host control is built. The router input refuses targetUserId, the persona router tests pass, and no client or spec sends it.
 
 ## Evidence
 
