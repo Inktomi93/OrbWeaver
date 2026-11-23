@@ -14,9 +14,11 @@ import {
   isCallExpression,
   isConditionalExpression,
   isElementAccessExpression,
+  isExpressionStatement,
   isFunctionDeclaration,
   isFunctionExpression,
   isIdentifier,
+  isIfStatement,
   isInterfaceDeclaration,
   isModuleBlock,
   isModuleDeclaration,
@@ -25,6 +27,7 @@ import {
   isObjectLiteralExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
+  isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isPropertySignatureDeclaration,
@@ -35,7 +38,10 @@ import {
   isSpreadElement,
   isStringLiteral,
   isTypeAssertion,
+  isTypeOfExpression,
   isVariableDeclaration,
+  isVoidExpression,
+  isWhileStatement,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
@@ -379,38 +385,79 @@ function* libraryDestination(world: NativeWorld, call: Invocation, index: number
   return [{ destination: (yield* isLogCall(world, call)) ? "log" : "dependency", receiver: pkg }];
 }
 
+/** Where a chased value goes. `dropped`: it reached an in-tree body that only consumes it, on every path (the value is
+ *  tested, voided or left as a bare statement), so nothing receives it. A value returned, bound or stored is not
+ *  followed, which is no drop. */
+export interface Chase {
+  readonly to: readonly Destination[];
+  readonly dropped: boolean;
+}
+
+const sentTo = (to: readonly Destination[]): Chase => ({ to, dropped: false });
+
 // Where a value given to `call` at `index` goes: a serialization's destination, a library, a logger, or wherever the
 // in-tree callee hands its parameter on.
-function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<readonly Destination[]> {
+function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase> {
   const named = namedDestination(call);
   if (named !== null) {
-    return named;
+    return sentTo(named);
   }
   const { name } = calleeOf(call);
   const declarations = (name === null ? undefined : yield* symbolOf(world, name))?.declarations ?? [];
   const inTree = declarations.find((handle) => world.fileOf(handle) !== null);
   const outside = declarations.find((handle) => world.fileOf(handle) === null);
   if (inTree === undefined && outside !== undefined) {
-    return yield* libraryDestination(world, call, index, outside.path);
+    return sentTo(yield* libraryDestination(world, call, index, outside.path));
   }
   const declaration = inTree === undefined ? undefined : yield* resolved(inTree);
   const fn = declaration === undefined ? null : functionOf(declaration);
   const parameter = fn === null ? undefined : (fn.parameters[index] ?? fn.parameters.at(-1));
   if (fn?.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)) {
-    const { body } = fn;
-    const parameterName = parameter.name.text;
-    return depth >= CHASE_DEPTH ? [] : (yield* all(...usesOf(body, parameterName).map((use) => destinationsOf(world, use, depth + 1)))).flat();
+    if (depth >= CHASE_DEPTH) {
+      return sentTo([]);
+    }
+    const uses = yield* all(...usesOf(fn.body, parameter.name.text).map((use) => destinationsOf(world, use, depth + 1)));
+    const to = uses.flatMap((use) => use.to);
+    return { to, dropped: to.length === 0 && uses.every((use) => use.dropped) };
   }
-  return (yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call);
+  return sentTo((yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call));
 }
 
-function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIRequestGenerator<readonly Destination[]> {
+// A use that ends the value where it stands: a test, a `void`, a `typeof` or a bare statement. Any other position with
+// no call to follow (a return, a binding, a store, a key's receiver) passes the value on unseen.
+function consumedAt(value: Node): boolean {
+  let node = value;
+  for (let up = carriedUp(node); up !== null; up = carriedUp(node)) {
+    node = up;
+  }
+  const { parent } = node;
+  if (isVoidExpression(parent) || isTypeOfExpression(parent) || isExpressionStatement(parent) || isPrefixUnaryExpression(parent)) {
+    return true;
+  }
+  if ((isIfStatement(parent) || isWhileStatement(parent)) && parent.expression === node) {
+    return true;
+  }
+  return isBinaryExpression(parent) && CONSUMING_OPERATORS.has(parent.operatorToken.kind);
+}
+
+// The operators whose operands are only compared or tested; `??` and `||` hand an operand on (isWrapper).
+const CONSUMING_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.EqualsEqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsEqualsToken,
+  SyntaxKind.EqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsToken,
+  SyntaxKind.AmpersandAmpersandToken,
+  SyntaxKind.InstanceOfKeyword,
+  SyntaxKind.InKeyword,
+]);
+
+function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIRequestGenerator<Chase> {
   const carrier = carrierOf(value);
-  return carrier === null ? [] : yield* callDestinations(world, carrier.call, carrier.index, depth);
+  return carrier === null ? { to: [], dropped: consumedAt(value) } : yield* callDestinations(world, carrier.call, carrier.index, depth);
 }
 
 /** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
-export const sendDestinations = (world: NativeWorld, value: Node): APIRequestGenerator<readonly Destination[]> => destinationsOf(world, value, 0);
+export const sendChase = (world: NativeWorld, value: Node): APIRequestGenerator<Chase> => destinationsOf(world, value, 0);
 
 // --- The provider request reach -----------------------------------------------------------------------------
 
@@ -840,7 +887,7 @@ export function openFacts(world: NativeWorld, home: ReadonlySet<string>, open: r
   const answers = world.batch(
     handed.map(function* (value): APIRequestGenerator<{ readonly into: Handed; readonly to: readonly Destination[] }> {
       const into = openSet.has(nodeKey(world, value)) ? { ...NOTHING, keys: yield* heldMembers(world, value) } : yield* handedInto(world, value);
-      return { into, to: into.keys.length === 0 ? [] : yield* destinationsOf(world, value, 0) };
+      return { into, to: into.keys.length === 0 ? [] : (yield* destinationsOf(world, value, 0)).to };
     }),
   );
   const sends: OpenSend[] = [];

@@ -31,16 +31,18 @@ import {
   isModuleDeclaration,
   isNewExpression,
   isObjectLiteralExpression,
+  isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isSatisfiesExpression,
   isSpreadElement,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
-import type { Destination, ProviderReach } from "../open-sends.ts";
-import { identitySlot, providerReach, sendDestinations } from "../open-sends.ts";
+import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
+import { identitySlot, providerReach, sendChase } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -123,6 +125,7 @@ const NO_HELD_TYPES: ReadonlySet<number> = new Set();
 const NO_CHECK_SITES: ReadonlySet<number> = new Set();
 const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
 const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
+const UNFOLLOWED: Chase = { to: [], dropped: false };
 
 // The value node behind each site position a file's pairs carry: a hand-off, a flow site, a type pair, a checked value.
 function siteNodesOf(sites: FileSites): ReadonlyMap<number, Node> {
@@ -360,31 +363,64 @@ export class Flows {
         pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos });
       }
     }
-    const sends = this.#destinations(escaping.map(({ at }) => nodes[at]));
-    for (const [y, { at, value, door }] of escaping.entries()) {
-      this.escape(value, door, { file: sites.file, at: nodes[at]?.pos ?? 0 }, sends[y] ?? UNCLASSIFIED);
-    }
+    this.#escapeHanded(
+      escaping.map(({ at, value, door }) => ({ node: nodes[at], value, door })),
+      sites.file,
+    );
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
   }
 
-  // Where each escaping value goes, asked only when the build keeps role sites to carry the answer. The call a site's
+  // Values handed whole into opaque slots: each escapes where its chase leads, with the type a `satisfies` holds it to,
+  // unless an in-tree body drops it.
+  #escapeHanded(escaping: readonly { readonly node: Node | undefined; readonly value: Type; readonly door: boolean }[], file: string): void {
+    const sends = this.#destinations(escaping.map(({ node }) => node));
+    const checked = this.#checkedTypes(escaping.map(({ node }) => node));
+    for (const [y, { node, value, door }] of escaping.entries()) {
+      const send = sends[y];
+      if (send === null) {
+        continue;
+      }
+      const site = { file, at: node?.pos ?? 0 };
+      for (const type of [value, ...(checked[y] === undefined ? [] : [checked[y]])]) {
+        this.escape(type, door, site, send ?? UNCLASSIFIED);
+      }
+    }
+  }
+
+  // Where each escaping value goes, or null for a value an in-tree body drops: nothing receives it, so it does not
+  // escape. The chase runs whether or not the build keeps role sites, since a drop decides a bucket. The call a site's
   // value is handed to takes everything inside it, but the request reach marks expressions one by one, so only a value
   // that is the site's own (`whole`) can be a provider send.
-  #destinations(nodes: readonly (Node | undefined)[], whole: (at: number) => boolean = () => true): readonly Destination[] {
+  #destinations(nodes: readonly (Node | undefined)[], whole: (at: number) => boolean = () => true): readonly (Destination | null)[] {
     const { state } = this;
-    if (!(state.session.memberSites || state.session.siteFiles.length > 0)) {
-      return [];
-    }
-    const found = state.batch(nodes.map((node) => (node === undefined ? answer<readonly Destination[]>([]) : sendDestinations(state.world, node))));
-    return found.map((list, at) => {
+    const found = state.batch(nodes.map((node) => (node === undefined ? answer<Chase>(UNFOLLOWED) : sendChase(state.world, node))));
+    return found.map(({ to, dropped }, at) => {
       const node = nodes[at];
-      return list[0] ?? (node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED);
+      if (dropped) {
+        return null;
+      }
+      return to[0] ?? (node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED);
     });
+  }
+
+  // The type a `satisfies` holds each escaping value to, through parentheses: whoever takes the value takes that shape,
+  // so its members are sent too.
+  #checkedTypes(nodes: readonly (Node | undefined)[]): readonly (Type | undefined)[] {
+    const checks = nodes.map((node) => {
+      let at = node;
+      while (at !== undefined && isParenthesizedExpression(at)) {
+        at = at.expression;
+      }
+      return at !== undefined && isSatisfiesExpression(at) ? at.type : undefined;
+    });
+    const present = checks.flatMap((type) => (type === undefined ? [] : [type]));
+    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
+    return checks.map((type) => (type === undefined ? undefined : types.get(type)));
   }
 
   // Where a value a pair hands on goes, chased from the value at the pair's site; the pair's value is that site's own
   // when their types are one.
-  #pairDestinations(pairs: readonly FlowPair[]): readonly Destination[] {
+  #pairDestinations(pairs: readonly FlowPair[]): readonly (Destination | null)[] {
     const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
     const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
     const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
@@ -735,7 +771,10 @@ export class Flows {
     }
     const sends = this.#pairDestinations(escaping);
     for (const [y, pair] of escaping.entries()) {
-      this.escape(pair.value, false, { file, at: pair.site }, sends[y] ?? UNCLASSIFIED);
+      const send = sends[y];
+      if (send !== null) {
+        this.escape(pair.value, false, { file, at: pair.site }, send ?? UNCLASSIFIED);
+      }
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's
     const unions = pairs.filter(({ value }) => value.isUnionType());
@@ -815,6 +854,9 @@ export class Flows {
     const escaping = open.flatMap(({ pair }, y) => ((decls[y]?.length ?? 0) === 0 ? [] : [{ pair, y }]));
     const sends = this.#pairDestinations(escaping.map(({ pair }) => pair));
     for (const [z, { pair, y }] of escaping.entries()) {
+      if (sends[z] === null) {
+        continue;
+      }
       const held = (types[y] ?? []).filter((type) => !isPrimitive(type)).flatMap((type) => this.deepMembers(type, false));
       state.escapeAll([...(decls[y] ?? []), ...held], { file, at: pair.site }, sends[z] ?? UNCLASSIFIED);
     }

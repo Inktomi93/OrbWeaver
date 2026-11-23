@@ -292,6 +292,56 @@ test("a written data attribute is sent, a written aria attribute is read, and an
   expect(labelsIn(scan, "member-write-only", FILE)).toEqual([]);
 });
 
+// A literal checked by `satisfies` and handed into an opaque slot leaves as the checked shape: the type's members are
+// sent where the value goes, a library or a file through an in-tree helper.
+test("a value checked by satisfies and handed into an opaque slot sends the checked type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export declare function render(value: Readonly<Record<string, unknown>>): string;"], "render"),
+    ...source([
+      'import { render } from "render";',
+      "declare function writeFileSync(path: string, data: string): void;",
+      "export interface View { readonly shown: string }",
+      "export interface Bundle { readonly saved: number }",
+      'export const shown = (): string => render({ shown: "s" } satisfies View);',
+      'const download = (payload: unknown): void => writeFileSync("out.json", JSON.stringify(payload));',
+      "export const saved = (): void => download({ saved: 1 } satisfies Bundle);",
+    ]),
+  });
+  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+    ["View.shown", "member-sent-only", [`dependency ${FILE}:5 render`]],
+    ["Bundle.saved", "member-sent-only", [`file ${FILE}:7`]],
+  ]);
+});
+
+// An in-tree body that only consumes a value it takes (tests it, voids it), itself or through a helper it calls, drops
+// it: nothing receives the value, so it does not escape. A body that returns, stores or passes the value on along any
+// path keeps the escape, even beside a drop on another path.
+test("a value an in-tree body drops on every path is not sent; one it passes on along any path is", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule(["export declare function json(value: object): string;"]),
+    ...source([
+      'import { json } from "lib";',
+      "export interface Ignored { readonly a: string }",
+      "export interface Helped { readonly b: string }",
+      "export interface Returned { readonly c: string }",
+      "export interface Stored { readonly d: string }",
+      "export interface Passed { readonly e: string }",
+      "const ignore = (value: unknown): void => { void value; };",
+      "const quiet = (value: unknown): void => { if (value === null) { return; } ignore(value); };",
+      "const keep = (value: unknown): unknown => { if (value === null) { return undefined; } return value; };",
+      "const cache: { held: unknown } = { held: undefined };",
+      "const stash = (value: unknown): void => { void value; cache.held = value; };",
+      "const forward = (value: unknown): string => (typeof value === 'object' && value !== null ? json(value) : '');",
+      'export const run = (): void => { ignore({ a: "a" } satisfies Ignored); quiet({ b: "b" } satisfies Helped); };',
+      'export const kept = (): unknown => keep({ c: "c" } satisfies Returned);',
+      'export const stashed = (): void => stash({ d: "d" } satisfies Stored);',
+      'export const forwarded = (): string => forward({ e: "e" } satisfies Passed);',
+    ]),
+  });
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["Ignored.a", "Helped.b", "cache.held"]);
+  expect(labelsIn(scan, "member-sent-only", FILE)).toEqual(["Returned.c", "Stored.d", "Passed.e"]);
+});
+
 // A slot with a string index signature names some members and takes the rest as open entries: the members it does not
 // name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
 // it names pairs, so a read of the slot's member reads it.
