@@ -35,7 +35,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
+import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { StoreWrite } from "../boundaries.ts";
 import { copiedReads } from "../boundaries.ts";
 import { parsedColumns, schemaParses } from "../handoffs.ts";
@@ -60,13 +60,16 @@ import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute
 import { collectSites, GLOBAL_OBJECTS, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
-import type { BuildSession, ComputedLoad, GraphFacts, LostCause } from "./state.ts";
+import type { BuildSession, ComputedLoad, GraphFacts, LostCause, LostSlot } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
 
 const ZOD_TYPE = "ZodType";
+const ANY_RECEIVER: LostSlot = "any-receiver";
+// The receiver a read off `any` names: the type has no alias, symbol or declaring file.
+const ANY_TYPE = "any";
 
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
@@ -435,6 +438,7 @@ class Builder {
     this.#constraints.file(sites, sites.file);
     this.#flows.link(this.#constraints.inferredPairs(sites.inferredCalls), sites.file);
     this.#bareReads(sites, symbols, resolved);
+    this.#anyReceiverReads(sites, symbols);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(
       sites.names.flatMap((site, at) => {
@@ -607,6 +611,36 @@ class Builder {
       const read = `${sites.file}:${String(site.node.pos)} .${name}`;
       state.lostReads.push(read);
       state.lostCauses.push({ read, where: `${sites.file}:${String(sites.lineOf(site.node))}`, ...(keys.get(site) ?? NO_KEY), ...slot });
+    }
+  }
+
+  // A property read off a receiver typed `any` names no member, so no step places it: it is a lost read whose key is its
+  // name alone, and a member of that name anywhere could be what it reads. A write through `any` is not listed.
+  #anyReceiverReads(sites: FileSites, symbols: readonly (NativeSymbol | undefined)[]): void {
+    const state = this.#state;
+    const reads = sites.names.flatMap((site, at) => {
+      const { parent } = site.node;
+      return symbols[at] === undefined &&
+        !site.inType &&
+        site.roles.some((role) => READS.has(role)) &&
+        isPropertyAccessExpression(parent) &&
+        sameNode(parent.name, site.node)
+        ? [{ site, receiver: parent.expression }]
+        : [];
+    });
+    for (const { item, type } of state.world.typedAt(reads, ({ receiver }) => receiver)) {
+      if (hasFlag(type.flags, TypeFlags.Any)) {
+        const read = `${sites.file}:${String(item.site.node.pos)} .${nameText(item.site.node)}`;
+        state.lostReads.push(read);
+        state.lostCauses.push({
+          read,
+          where: `${sites.file}:${String(sites.lineOf(item.site.node))}`,
+          ...NO_KEY,
+          slot: ANY_RECEIVER,
+          detail: null,
+          receiver: ANY_TYPE,
+        });
+      }
     }
   }
 

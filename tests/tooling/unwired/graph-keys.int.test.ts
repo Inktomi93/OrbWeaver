@@ -407,3 +407,20 @@ test("a form field path reads or writes each member along its segments", { timeo
     writeOnly: labelsIn(scan, "member-write-only", form),
   }).toEqual({ readOnly: ["Values.title"], untouched: ["Values.params.dead", "Values.gone"], writeOnly: [] });
 });
+
+// A read off a receiver typed `any` names no member, so it credits none: it is a lost read by its name alone, which the
+// member rows can list beside a row of that name. A write through `any` and a typed read are not lost reads.
+test("a read off an any receiver is a lost read by its name and credits no member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Shape { readonly kept: string; readonly stray?: string }",
+      "export const shape: Shape = { kept: 'k' };",
+      "declare const untyped: any;",
+      "untyped.written = 1;",
+      "export const read = shape.kept + (untyped.stray as string);",
+    ]),
+  );
+  expect(scan.lostReads.filter((read) => read.startsWith(`${FILE}:`)).map((read) => read.slice(read.indexOf(" ") + 1))).toEqual([".stray"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Shape.stray"]);
+});
