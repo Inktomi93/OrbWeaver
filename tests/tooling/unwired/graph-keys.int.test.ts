@@ -211,6 +211,23 @@ test("an indexed read of a table bound under satisfies reads the checked row typ
   expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["TaskFields.unread"]);
 });
 
+// Rows spread into an array of a wider element type fill that element type: a read of `row.off` reads OffEntry's `off`,
+// which flowed in. `why` flows in and nobody reads it.
+test("an array spread hands its elements to the array's element type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Entry { readonly name: string }",
+      "export interface OffEntry extends Entry { readonly off: string; readonly why: string }",
+      'export const offs: readonly OffEntry[] = [{ name: "n", off: "o", why: "w" }];',
+      'export const entries: readonly Entry[] = [{ name: "m" }];',
+      "const rows: readonly (Entry & { readonly off?: string })[] = [...entries, ...offs];",
+      'export const shownRows = rows.map((row) => row.name + (row.off ?? ""));',
+    ]),
+  );
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["OffEntry.why"]);
+});
+
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,

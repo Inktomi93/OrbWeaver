@@ -1820,7 +1820,8 @@ function valueFlowSite(node: Node): FlowSite | undefined {
 }
 
 // A value copied into a prop or a literal slot by name: a JSX attribute's value, as an argument is to a parameter; a
-// shorthand's binding, into the slot of the same name; a spread's members, member by member.
+// shorthand's binding, into the slot of the same name; a spread's members, member by member; an array spread's
+// elements, into the array's element type.
 function copyFlowSite(node: Node): FlowSite | undefined {
   if (isJsxAttribute(node) && node.initializer !== undefined && isJsxExpression(node.initializer)) {
     const { expression } = node.initializer;
@@ -1828,6 +1829,9 @@ function copyFlowSite(node: Node): FlowSite | undefined {
   }
   if (isShorthandPropertyAssignment(node) && isObjectLiteralExpression(node.parent) && isIdentifier(node.name)) {
     return { value: node.name, slot: "contextual" };
+  }
+  if (isSpreadElement(node) && isArrayLiteralExpression(node.parent)) {
+    return { value: node.expression, slot: "holder", holder: node.parent };
   }
   return (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) && (isObjectLiteralExpression(node.parent) || isJsxAttributes(node.parent))
     ? { value: node.expression, slot: "holder", holder: node.parent }
