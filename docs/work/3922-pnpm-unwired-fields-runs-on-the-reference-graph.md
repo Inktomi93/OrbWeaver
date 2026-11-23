@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-pnpm unwired fields still walks and resolves the tree with engine one (fields.ts, occurrences.ts, classify.ts) and keeps TypeScript 6 paths, while the graph now carries member roles and, after 3891, the fields judging.
+pnpm unwired fields still runs on engine one (fields.ts). The graph has taken acknowledged, plugin-SDK received, interface redeclaration reads, reflective reads, parameter-key narrowing and the z.ZodType and z.lazy twins. These fields recognitions remain to port into graph/judge.ts or the flow walk, each with a red-first graph case: a key overriding a spread copy builds no home; a table under satisfies Record\<K, T> reads through T; an array spread fills the element type; a tRPC paged query writes its input cursor; an inferred type argument links to the constraint; an extend checked against its own type does not read the base key; a client vars twin writes through mutationOptions; open-send destinations (in-tree log sink, render and query deps, the provider request chase as a provider destination); compared JSON.stringify and dotted-path reads; TanStack form paths; any-receiver reads as unresolved. Then switch the verb: fields becomes a projection of the judged member rows, refuses --cross-check, fields.ts is deleted and field-declarations.ts stays for brand-flow. The 3922 lane report under reports/lanes/ holds the held projection, the red table and the expected moved-row classes.
 
 ## Why
 
