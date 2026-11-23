@@ -10,6 +10,8 @@ export { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } f
 export { Sources } from "./classify.ts";
 export type { Analysis, Bucket, Finding, MemberBucket } from "./graph/analyse.ts";
 export { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
+export type { CensusReport, CensusShape, SiteClass } from "./graph/census.ts";
+export { SITE_CLASSES } from "./graph/census.ts";
 export type { CodesReport } from "./graph/codes.ts";
 export type { ColumnsReport } from "./graph/columns.ts";
 export type { CssBucket, CssReport } from "./graph/css.ts";
@@ -30,6 +32,7 @@ export { QUERIES } from "./graph/query.ts";
 export type { RemovedKeysReport } from "./graph/removed-keys.ts";
 export type { GraphScan, GraphSessionReport, GraphVerification, WithSession } from "./graph/scan.ts";
 export {
+  censusGraph,
   codesGraph,
   columnsGraph,
   cssGraph,
