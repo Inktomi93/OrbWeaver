@@ -23,10 +23,12 @@ import {
 import type {
   APIRequestGenerator,
   Checker,
+  ConfiguredProjectId,
   LanguageService,
   Symbol as NativeSymbol,
   NodeHandle,
   Program,
+  ProjectId,
   ReferencedSymbolEntry,
   RetainedSourceFile,
   SignatureUsage,
@@ -180,6 +182,7 @@ export class NativeWorld implements Disposable {
   // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
   #settling = false;
   readonly #snapshot: Snapshot;
+  readonly #project: ConfiguredProjectId;
 
   private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
     this.config = config;
@@ -192,6 +195,7 @@ export class NativeWorld implements Disposable {
     if (project === undefined) {
       throw new Error(`${config}: the TypeScript 7.1 API loaded no project`);
     }
+    this.#project = project.id;
     this.checker = project.checker;
     this.program = project.program;
     this.#languageService = project.languageService;
@@ -549,18 +553,20 @@ export class NativeWorld implements Disposable {
     files: Readonly<Record<string, string>>,
     requests: (program: Program) => readonly APIRequestGenerator<T>[],
     time: <R>(step: TrialStep, work: () => R) => R = (_, work) => work(),
-  ): T[] {
+  ): { readonly answers: T[]; readonly projects: readonly ProjectId[] } {
     using held = new DisposableStack();
+    // Only the merged project is built: `true` asks a program of every project the snapshot holds, and an edited
+    // file's own nearest tsconfig can open one more.
     const snapshot = held.adopt(
-      time("snapshot", () => this.#snapshot.update({ fileSystem: { kind: "layer", files }, ensurePrograms: true })),
+      time("snapshot", () => this.#snapshot.update({ fileSystem: { kind: "layer", files }, ensurePrograms: [this.#project] })),
       (made) => made.dispose(),
     );
-    const project = snapshot.getConfiguredProject(`${this.#root}/${this.config}`);
+    const project = snapshot.getProject(this.#project);
     if (project === undefined) {
       throw new Error(`${this.config}: the throwaway snapshot holds no project`);
     }
     const { program } = project;
-    return time("diagnostics", () => this.#api.batch(...requests(program)));
+    return { answers: time("diagnostics", () => this.#api.batch(...requests(program))), projects: snapshot.getProjects().map(({ id }) => id) };
   }
 }
 

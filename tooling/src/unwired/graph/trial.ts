@@ -50,7 +50,7 @@ import {
   ModifierFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { Diagnostic } from "@typescript/native/sync";
+import type { Diagnostic, ProjectId } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { NativeWorld } from "../native.ts";
@@ -121,6 +121,11 @@ interface Trial {
   readonly tsUnused: boolean;
   readonly note: string | null;
 }
+
+/** Which files a snapshot checks: those find-references ties to the candidate (`references`), or every file the import
+ *  graph says an edit of its file can break (`imports`), the wider set the narrowed one is proven against. */
+export const TRIAL_REACHES = ["references", "imports"] as const;
+export type TrialReach = (typeof TRIAL_REACHES)[number];
 
 /** The trial's phases, in run order. */
 export const TRIAL_PHASES = ["references", "unused", ...TRIAL_STEPS, "attribution"] as const;
@@ -265,6 +270,7 @@ interface Candidate {
   readonly key: DeclKey;
   readonly edits: Edits;
   readonly occurrences: readonly Node[];
+  readonly holders: readonly Node[];
   readonly tsUnused: boolean;
 }
 
@@ -337,13 +343,17 @@ class Trials {
   readonly #compiles = new Map<Candidate, number>();
   #snapshots = 0;
   readonly #phases: Phases;
+  readonly #reach: TrialReach;
+  readonly #holderFiles = new Map<Node, readonly string[]>();
+  #seen: { readonly checked: number; readonly projects: readonly ProjectId[] }[] = [];
   #resolver: Resolver | null = null;
 
-  constructor(graph: Graph, world: NativeWorld, root: string, phases: Phases) {
+  constructor(graph: Graph, world: NativeWorld, root: string, { phases, reach }: { readonly phases: Phases; readonly reach: TrialReach }) {
     this.#graph = graph;
     this.#world = world;
     this.#root = root;
     this.#phases = phases;
+    this.#reach = reach;
     this.#imports = ImportGraph.build(world.program, (requests) => world.batch(requests), world.files);
   }
 
@@ -460,9 +470,7 @@ class Trials {
   } {
     const edits = mergeEdits(items.map((item) => item.edits));
     const edited = [...edits.keys()];
-    const checked = [
-      ...new Set([...edited, ...edited.flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)))]),
-    ].sort();
+    const checked = this.#checkedFor(items, edited);
     const base = this.#baseErrors(checked);
     const texts = Object.fromEntries(edited.map((file) => [this.#absolute(file), spliced(this.#world.source(file)?.text ?? "", edits.get(file) ?? [])]));
     this.#snapshots += 1;
@@ -470,7 +478,10 @@ class Trials {
       this.#compiles.set(item, (this.#compiles.get(item) ?? 0) + 1);
     }
     // Both lists in one round: an edit that does not parse discards the semantic list.
-    const [syntax = [], semantic = []] = this.#world.trial(
+    const {
+      answers: [syntax = [], semantic = []],
+      projects,
+    } = this.#world.trial(
       texts,
       (program) => [
         program.getSyntacticDiagnostics.gen(edited.map((file) => this.#absolute(file))),
@@ -478,6 +489,7 @@ class Trials {
       ],
       (step, work) => this.#phases.time(step, work),
     );
+    this.#seen.push({ checked: checked.length, projects });
     const [first] = syntax;
     const added = addedErrors(base, semantic, new Map([...edits].map(([file, splices]) => [this.#absolute(file), splices]))).filter(
       ({ diagnostic }) => diagnostic.reportsUnnecessary !== true,
@@ -488,6 +500,45 @@ class Trials {
       owners: items.length === 1 ? added.map(() => 0) : this.#phases.time("attribution", () => this.#owners(items, added)),
       checked,
     };
+  }
+
+  // The files a snapshot of these candidates checks. Under `references`: the edited files, each file that names a
+  // candidate or a declaration holding it (its home type and the declarations up to its file's top level), the direct
+  // importers of those (a re-export, a derived type) and what an augmentation among them reaches. A delete breaks a site
+  // that names the member, or one that builds, assigns or constrains a holder, and both name the holder.
+  #checkedFor(items: readonly Candidate[], edited: readonly string[]): readonly string[] {
+    if (this.#reach === "imports") {
+      return [
+        ...new Set([...edited, ...edited.flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)))]),
+      ].sort();
+    }
+    const named = [
+      ...edited,
+      ...items.flatMap(({ occurrences }) => occurrences.map((node) => this.#world.fileOfSource(node.getSourceFile()))),
+      ...this.#filesNaming(items.flatMap(({ holders }) => holders)),
+    ];
+    const near = this.#imports.around([...new Set(named)].map((file) => this.#absolute(file))).map((at) => relative(this.#root, at));
+    return [...new Set([...named, ...near])].filter((file) => this.#world.has(file)).sort();
+  }
+
+  // The files find-references names each declaration in, asked once per declaration name.
+  #filesNaming(names: readonly Node[]): readonly string[] {
+    const missing = [...new Set(names)].filter((name) => !this.#holderFiles.has(name));
+    const world = this.#world;
+    const groups = world.batch(missing.map((name) => world.referencedSymbolsOf(name)));
+    for (const [at, name] of missing.entries()) {
+      const files = (groups[at] ?? []).flatMap(({ references }) => references.flatMap((handle) => world.fileOf(handle) ?? []));
+      this.#holderFiles.set(name, [...new Set([world.fileOfSource(name.getSourceFile()), ...files])]);
+    }
+    return names.flatMap((name) => this.#holderFiles.get(name) ?? []);
+  }
+
+  // Each snapshot since the last call: its checked-file count and, past the one merged project, every project it built.
+  #takeSeen(): string {
+    const seen = this.#seen;
+    this.#seen = [];
+    const extra = seen.flatMap(({ projects }) => (projects.length > 1 ? projects : []));
+    return `checked ${seen.map(({ checked }) => String(checked)).join(",")} projects ${seen.map(({ projects }) => String(projects.length)).join(",")}${extra.length === 0 ? "" : ` (${[...new Set(extra)].join(" ")})`}`;
   }
 
   #removed(edits: Edits): readonly Removal[] {
@@ -694,7 +745,7 @@ class Trials {
       };
     }
     const edits = this.edits(key, node, isTopLevel(node) ? exportSitesOf(occurrences) : []);
-    return { candidate: { bucket, finding, key, edits, occurrences, tsUnused } };
+    return { candidate: { bucket, finding, key, edits, occurrences, holders: holdersOf(node), tsUnused } };
   }
 
   /** Trial every group, logging progress after each; the compiler CPU profile covers the first group with more than
@@ -727,7 +778,7 @@ class Trials {
       done += items.length;
       const minutes = (performance.now() - started) / MS_PER_MINUTE;
       log(
-        `trial groups ${String(at + 1)}/${String(groups.size)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+        `trial groups ${String(at + 1)}/${String(groups.size)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
       );
     }
     return { tried, profiled };
@@ -786,6 +837,19 @@ function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undef
   const { parent } = found ?? {};
   const named = parent === undefined || found === undefined ? undefined : declarationNameOf(parent);
   return named !== undefined && found !== undefined && sameSpan(named, found) ? parent : found;
+}
+
+// The names of the declarations that hold a declaration, from its parent up to its file's top level: a member's home
+// type and the binding or unit that type sits in.
+function holdersOf(node: Node): readonly Node[] {
+  const names: Node[] = [];
+  for (let at = node.parent; !isSourceFile(at); at = at.parent) {
+    const name = declarationNameOf(at);
+    if (name !== undefined) {
+      names.push(name);
+    }
+  }
+  return names;
 }
 
 // Each phase's wall time and the compiler requests sent inside it; phases nest only where none is timed twice.
@@ -848,11 +912,12 @@ export function runTrials(
     readonly buckets: readonly TrialBucket[];
     readonly limit: number | null;
     readonly cpuProfile: string | null;
+    readonly reach: TrialReach;
   },
   log: (line: string) => void,
 ): TrialReport {
   const phases = new Phases(world);
-  const trials = new Trials(graph, world, run.root, phases);
+  const trials = new Trials(graph, world, run.root, { phases, reach: run.reach });
   const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
   const picked = evenSample(all, run.limit);
   const found = phases.time("references", () =>

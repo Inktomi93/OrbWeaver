@@ -4,6 +4,7 @@
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import { TRIAL_REACHES } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree, LIB as LIBS, WORLD } from "./_planted.ts";
@@ -13,8 +14,23 @@ const MAIN = `${GRAPH_SOURCE}/main.ts`;
 const SHAPE = `${GRAPH_SOURCE}/shape.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
+const RELAY = `${GRAPH_SOURCE}/relay.ts`;
 
 const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
+
+const [NARROWED, WIDE] = TRIAL_REACHES;
+
+// What a trial decided for each candidate, without the file sets the reach picks.
+const decided = (report: TrialReport): readonly unknown[] =>
+  report.trials.map(({ label, verdict, errors, removed, compiles }) => ({ label, verdict, errors, removed, compiles }));
+
+// Every planted trial runs under both reaches: the find-references set must reach every error the import graph's does.
+async function trial(root: string, ask: Omit<Parameters<typeof trialGraph>[1], "reach">, log: (line: string) => void = () => undefined): Promise<TrialReport> {
+  const narrowed = await trialGraph(root, { ...ask, reach: NARROWED }, log);
+  const wide = await trialGraph(root, { ...ask, reach: WIDE }, () => undefined);
+  expect(decided(narrowed)).toEqual(decided(wide));
+  return narrowed;
+}
 
 const outcomes = (report: TrialReport): readonly (readonly string[])[] =>
   report.trials.map(({ label, verdict, removed }) => [label, verdict, ...removed.map(({ file, text }) => `${file}: ${text.trim()}`)]);
@@ -46,7 +62,7 @@ test("a delete removes a whole interface member, class member or literal method 
     ),
   );
   const lines: string[] = [];
-  const report = await trialGraph(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null }, (line) => lines.push(line));
   expect(outcomes(report)).toEqual([
     [`${LIB}:Shape.gone`, "confirmed", `${LIB}: readonly gone?: string;`],
     [`${LIB}:table.middle`, "confirmed", `${LIB}: middle(): number { return 2; },`],
@@ -69,7 +85,7 @@ test("a delete removes a dead exported function's whole statement", { timeout: 1
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(outcomes(report)).toEqual([[`${LIB}:orphan`, "confirmed", `${LIB}: /** Nothing calls this. */\nexport function orphan(): number { return 2; }`]]);
 });
 
@@ -95,7 +111,7 @@ test.for([
   },
 ])("a dead function named by $site is confirmed with that site removed too", { timeout: 120_000 }, async ({ files, removed }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(outcomes(report).filter(([label]) => label === `${LIB}:orphan`)).toEqual([[`${LIB}:orphan`, "confirmed", ...removed]]);
 });
 
@@ -109,7 +125,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:orphan`, "named-only", [`${MAIN}:1 binding`]],
   ]);
@@ -118,7 +134,7 @@ test("an import its own file never uses is a binding the delete removes: named-o
 // A for-of binding is a declaration no delete can remove alone: cutting its name leaves a loop that does not parse.
 test("a delete that leaves its file unparsable is unresolved, with the edit it tried", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree({ [MAIN]: ["for (const spare of [1]) {", "}"].join("\n") }, { entries: [MAIN] }));
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(
     report.trials.map(({ label, verdict, removed, note }) => [
       label,
@@ -142,7 +158,7 @@ const READER_TREE = (lib: string): Record<string, string> => ({
 test("a product read find-references names refutes the finding with no snapshot", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
   const lines: string[] = [];
-  const report = await trialGraph(root, { buckets: ["type-only"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: ["type-only"], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, references, checked, errors, compiles }) => ({ label, verdict, references, checked, errors, compiles }))).toEqual(
     [{ label: `${LIB}:DEFAULTS`, verdict: "refuted-references", references: [`${SHAPE}:3`], checked: [], errors: [], compiles: 0 }],
   );
@@ -168,7 +184,7 @@ test("a group with an unowned error bisects to the one member it reads, counting
     ),
   );
   const lines: string[] = [];
-  const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
@@ -181,6 +197,70 @@ test("a group with an unowned error bisects to the one member it reads, counting
   ]);
   // lib: the whole group, its clean half kept+a, the half b+c, then b and c alone; main: its own group.
   expect(progress(lines)).toMatch(/ snapshots 6 /u);
+});
+
+// A delete breaks a site that names neither the member nor its file: one that constrains the home type through a
+// re-export, found by the references to the home type, and one that constrains a home-type value, found as an
+// importer of a file that names the home type; and an assignment that names the member two re-exports away from any file naming the home type.
+test.for([
+  {
+    site: "a constraint on the home type through a re-export",
+    files: {
+      [LIB]: "export interface Shape { readonly kept: string; readonly b: string }",
+      [DOOR]: 'export type { Shape } from "./lib.ts";',
+      [MAIN]: [
+        'import type { Shape } from "./door.ts";',
+        "type Needs<T extends { readonly b: string }> = T;",
+        "const shape: Needs<Shape> | undefined = undefined;",
+        "const use = (value: unknown): unknown => value;",
+        "use(shape?.kept);",
+      ].join("\n"),
+    },
+    error: `${MAIN}:3 read`,
+  },
+  {
+    site: "a constraint on a home-type value from a file that names the home type",
+    files: {
+      [LIB]: "export interface Shape { readonly kept: string; readonly b: string }",
+      [DOOR]: [
+        'import type { Shape } from "./lib.ts";',
+        "export declare const made: Shape;",
+        "export const keptOf = (shape: Shape): string => shape.kept;",
+      ].join("\n"),
+      [MAIN]: [
+        'import { keptOf, made } from "./door.ts";',
+        "type Needs<T extends { readonly b: string }> = T;",
+        "const view: Needs<typeof made> | undefined = undefined;",
+        "const use = (value: unknown): unknown => value;",
+        "use(view === undefined ? undefined : keptOf(view));",
+      ].join("\n"),
+    },
+    error: `${MAIN}:3 read`,
+  },
+  {
+    site: "an assignment two re-exports away from every file that names the home type",
+    files: {
+      [LIB]: "export interface Shape { readonly kept: string; b: string }",
+      [DOOR]: [
+        'import type { Shape } from "./lib.ts";',
+        "export declare const made: Shape;",
+        "export const keptOf = (shape: Shape): string => shape.kept;",
+      ].join("\n"),
+      [RELAY]: 'export { keptOf, made } from "./door.ts";',
+      [MAIN]: ['import { keptOf, made } from "./relay.ts";', 'made.b = "x";', "keptOf(made);"].join("\n"),
+    },
+    error: `${MAIN}:2 read`,
+  },
+])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, error }, { plantedTree }) => {
+  const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
+  const report = await trial(root, { buckets: ["member-untouched", "member-write-only"], limit: null });
+  expect(
+    report.trials
+      .filter(({ label }) => label === `${LIB}:Shape.b`)
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([[`${LIB}:Shape.b`, "refuted", [error]]]);
+  // The narrowed set checks the breaking file even though it names neither the member nor the file that declares it.
+  expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(MAIN);
 });
 
 // The checker reports one excess property per literal, so the second member's write shows only once the first is settled.
@@ -201,7 +281,7 @@ test("two write-only members of one literal each keep their own write, the maske
     }),
   );
   const lines: string[] = [];
-  const report = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: ["member-write-only"], limit: null }, (line) => lines.push(line));
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, "named-only", [`${LIB}:4 write`]],
     [`${LIB}:A.b`, "named-only", [`${LIB}:5 write`]],
@@ -221,7 +301,7 @@ test("an error no single candidate owns splits the group, and each half finds it
     ),
   );
   const lines: string[] = [];
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, (line) => lines.push(line));
+  const report = await trial(root, { buckets: ["dead"], limit: null }, (line) => lines.push(line));
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(LIB))
@@ -237,7 +317,7 @@ test("--limit trials an even sample of the findings it names", { timeout: 120_00
   const root = await plantedTree(
     graphTree({ [MAIN]: "export {};", [LIB]: ["const one = 1;", "const two = 2;", "const three = 3;", "const four = 4;"].join("\n") }, { entries: [MAIN] }),
   );
-  const report = await trialGraph(root, { buckets: ["dead"], limit: 2 }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: 2 }, () => undefined);
   expect(report.trials.map(({ label }) => label)).toEqual([`${LIB}:one`, `${LIB}:three`]);
 });
 
@@ -280,7 +360,7 @@ test("an error the base program already has is not the removal's", { timeout: 12
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label === `${LIB}:orphan`).map(({ verdict, errors }) => [verdict, errors])).toEqual([["confirmed", []]]);
 });
 
@@ -294,7 +374,7 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
       ].join("\n"),
     }),
   );
-  const report = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["member-write-only"], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, "named-only", [`${LIB}:2 write`]],
   ]);
@@ -322,7 +402,7 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, { buckets: ["dead"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["dead"], limit: null }, () => undefined);
   expect(report.control.map(({ side, at, name, graph }) => [side, at, name, graph].join(" ")).sort((a, b) => a.localeCompare(b))).toEqual([
     `agree ${LIB}:1 unusedHelper dead`,
     `agree ${LIB}:4 #spare member-write-only`,
@@ -362,7 +442,7 @@ test("a reader only outside the product refutes test-only; a product reader keep
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label.startsWith(`${LIB}:`) && label !== `${LIB}:Shape.kept`)
@@ -399,7 +479,7 @@ test("a declaration the delete leaves unused is not a reader: the candidate stay
       { entries: [MAIN] },
     ),
   );
-  const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+  const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
   expect(report.trials.filter(({ label }) => label.startsWith(`${LIB}:`)).map(({ label, verdict, errors }) => [label, verdict, errors])).toEqual([
     [`${LIB}:Shape.tagged`, "confirmed", []],
     [`${LIB}:Shape.local`, "confirmed", []],
@@ -460,7 +540,7 @@ test.for([
         { entries: [MAIN] },
       ),
     );
-    const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
+    const report = await trial(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
     expect(
       report.trials
         .filter(({ label }) => label === `${LIB}:Shape.gone`)

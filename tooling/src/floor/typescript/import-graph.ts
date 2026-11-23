@@ -170,6 +170,21 @@ export class ImportGraph {
     return [...seen];
   }
 
+  /** The direct importers of each of `files`, and what each of them reaches without an import: the importers of a
+   *  module it augments and the files that spell a global it declares, with their importers. Every source when one of
+   *  them is a script or reaches every file. */
+  around(files: readonly string[]): readonly string[] {
+    const reaches = files.flatMap((at) => {
+      const reach = this.#reach.get(at);
+      return reach === undefined ? [] : [reach];
+    });
+    if (reaches.includes("everywhere")) {
+      return this.#files;
+    }
+    const reached = reaches.flatMap((reach) => (reach === "everywhere" ? [] : reach));
+    return [...new Set([...files.flatMap((at) => [...(this.#importers.get(at) ?? [])]), ...reached, ...reached.flatMap((at) => this.importers(at))])];
+  }
+
   /** The files besides `file` an edit of it can break: its importers, and the reach of each of them and of `file`
    *  that augments a module or the global scope; every other source when the edit itself augments (`augmenting`). */
   readers(file: string, augmenting: boolean): readonly string[] {

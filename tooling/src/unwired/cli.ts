@@ -3,8 +3,7 @@ import process from "node:process";
 import { runTool } from "../floor/cli/run-tool.ts";
 import { exportProcessEnv, processEnvValue } from "../floor/process/process-env.ts";
 import { lowerToolingPriority } from "../floor/process/process-priority.ts";
-import { runUnwired } from "./index.ts";
-import { TRIAL_VERB } from "./run.ts";
+import { runUnwired, TRIAL_VERB } from "./index.ts";
 
 // The compiler process is Go, whose collector lets the heap grow to twice the live set: on the real tree that passes
 // the run's memory bar while node holds well under a gigabyte. A soft limit makes it collect first; a limit the caller
