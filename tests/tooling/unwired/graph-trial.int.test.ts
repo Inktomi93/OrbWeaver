@@ -483,7 +483,8 @@ test("a member named like a keyword is confirmed past its keyword hits", { timeo
 });
 
 // A common word hits code that names something else. A product read holds a row only off a value typed by the
-// member's own owner, a cast stripped: an unresolved property read, an element access's quoted key, an `in` operand. The
+// member's own owner, a cast stripped, an intersection's or a union's arm included: an unresolved property read, an
+// element access's quoted key, an `in` operand, a destructuring element, shorthand or renamed. The
 // same reads off an untyped value or an `object`, a read of another type's member through a cast, and an import of another
 // declaration of the word stay listed and keep the row confirmed.
 test("a literal read holds a row only off a value its own owner types, quoted or not", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -503,6 +504,10 @@ test("a literal read holds a row only off a value its own owner types, quoted or
           "  readonly zqQuotedOwn: string;",
           "  readonly zqInOwn: string;",
           "  readonly zqBoth: string;",
+          "  readonly zqUnion: string;",
+          "  readonly zqDestr: string;",
+          "  readonly zqAlias: string;",
+          "  readonly zqDestrLoose: string;",
           "}",
           "export declare const made: Shape;",
         ].join("\n"),
@@ -524,6 +529,12 @@ test("a literal read holds a row only off a value its own owner types, quoted or
           'use("zqInOwn" in (made as object));',
           'declare const both: import("./lib.ts").Shape & { readonly extra: number };',
           'use("zqBoth" in (both as object));',
+          'declare const either: import("./lib.ts").Shape | import("./other.ts").Other;',
+          'use("zqUnion" in (either as object));',
+          "const { zqDestr } = made as any;",
+          "const { zqAlias: aliased } = made as any;",
+          "const { zqDestrLoose } = loose;",
+          "use([zqDestr, aliased, zqDestrLoose]);",
         ].join("\n"),
       },
       { entries: [MAIN] },
@@ -547,6 +558,10 @@ test("a literal read holds a row only off a value its own owner types, quoted or
     [`${LIB}:Shape.zqQuotedOwn`, CONFIRMED_LITERAL, [`${MAIN}:13 read`]],
     [`${LIB}:Shape.zqInOwn`, CONFIRMED_LITERAL, [`${MAIN}:14 string`]],
     [`${LIB}:Shape.zqBoth`, CONFIRMED_LITERAL, [`${MAIN}:16 string`]],
+    [`${LIB}:Shape.zqUnion`, CONFIRMED_LITERAL, [`${MAIN}:18 string`]],
+    [`${LIB}:Shape.zqDestr`, CONFIRMED_LITERAL, [`${MAIN}:19 read`]],
+    [`${LIB}:Shape.zqAlias`, CONFIRMED_LITERAL, [`${MAIN}:20 read`]],
+    [`${LIB}:Shape.zqDestrLoose`, CONFIRMED, [`${MAIN}:21 read`]],
   ]);
 });
 
@@ -556,7 +571,7 @@ const VIEW = `${GRAPH_SOURCE}/view.tsx`;
 // whole string is the member's name. A quoted key off the owner that merely contains the word, a whole key off a
 // `Record`, and a string in a value position (a returned value, a literal call argument, a JSX attribute value) only
 // annotate, even where the checker types the slot as a literal union that holds the name. A whole quoted key off the
-// owner, through a cast, is the control that still holds.
+// owner, through a cast and in parentheses or not, is the control that still holds.
 test("a string holds a row only as a whole key, never as a value or a key that contains the word", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
@@ -571,6 +586,8 @@ test("a string holds a row only as a whole key, never as a value or a key that c
           "  readonly zqReturned: string;",
           "  readonly zqLit: string;",
           "  readonly zqVoice: string;",
+          "  readonly zqParen: string;",
+          "  readonly zqParenIn: string;",
           "}",
           "export declare const made: Shape;",
         ].join("\n"),
@@ -588,6 +605,8 @@ test("a string holds a row only as a whole key, never as a value or a key that c
           "use(kindOf(true));",
           'use(literal("zqLit"));',
           "use(view);",
+          'use((made as any)[("zqParen")]);',
+          'use(("zqParenIn") in (made as object));',
         ].join("\n"),
         [VIEW]: [
           'const Text = (props: { readonly voice: "datum" | "zqVoice" }): JSX.Element => props as unknown as JSX.Element;',
@@ -607,40 +626,54 @@ test("a string holds a row only as a whole key, never as a value or a key that c
     [`${LIB}:Shape.zqReturned`, CONFIRMED],
     [`${LIB}:Shape.zqLit`, CONFIRMED],
     [`${LIB}:Shape.zqVoice`, CONFIRMED],
+    [`${LIB}:Shape.zqParen`, CONFIRMED_LITERAL],
+    [`${LIB}:Shape.zqParenIn`, CONFIRMED_LITERAL],
   ]);
 });
 
-// What the product loads counts as product too: a JSON file a product module imports, and a showcase bundle's
-// manifest, which the release build packs into the shipped zip. A JSON file only a script imports stays an annotation.
-test("a key in a JSON file a product module imports or in a bundle manifest is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
+// A key in data the product loads holds a row only when the type the product reads that data as carries the row's
+// member along the key's path. A bundle manifest is read as the manifest type the contracts export names, so its key
+// holds that type's members, an array element's included, and only annotates for another type's member of the word. A
+// JSON module a product file imports is typed by its own content, and a JSON file only a script imports is no product
+// data, so both only annotate.
+test("a key in loaded data holds a row only as a member of the type the product reads that data as", { timeout: 120_000 }, async ({ plantedTree }) => {
   const [slug] = SHOWCASE_PLUGIN_SLUGS;
   const manifest = `packages/showcase-plugins/bundles/${slug}/${PLUGIN_MANIFEST_ENTRY}`;
-  const withJson = (include: readonly string[]): string => {
+  const contract = "packages/contracts/src/plugin/index.ts";
+  const withJson = (include: readonly string[], paths: Readonly<Record<string, readonly string[]>> = {}): string => {
     const config = z
       .looseObject({ compilerOptions: z.record(z.string(), z.unknown()) })
-      .parse(JSON.parse(plantedTsconfig({ lib: LIBS, include: [...include] })));
+      .parse(JSON.parse(plantedTsconfig({ lib: LIBS, include: [...include], paths: { ...paths } })));
     return JSON.stringify({ ...config, compilerOptions: { ...config.compilerOptions, resolveJsonModule: true } });
   };
   const root = await plantedTree(
     graphTree(
       {
         "tsconfig.world-browser.json": withJson([]),
-        [WORLD]: withJson(["../*/src", "../a/scripts"]),
+        [WORLD]: withJson(["../*/src", "../a/scripts"], { "@orb/contracts/plugin": ["../contracts/src/plugin/index.ts"] }),
         [LIB]: [
           "export interface Shape { readonly kept: string; readonly zqImported: string; readonly zqScriptOnly: string; readonly zqManifest: string }",
           "export declare const made: Shape;",
         ].join("\n"),
+        [contract]: [
+          "export interface Deep { readonly zqDeep: string }",
+          "export interface ManifestShape { readonly zqOwned: string; readonly nested?: readonly Deep[] | undefined }",
+          "export type PluginManifest = ManifestShape;",
+        ].join("\n"),
         [MAIN]: [
+          'import type { PluginManifest } from "@orb/contracts/plugin";',
           'import table from "../data/table.json" with { type: "json" };',
           'import { made } from "./lib.ts";',
           "const use = (value: unknown): unknown => value;",
+          "declare const loaded: PluginManifest;",
           "use(made.kept);",
           "use(table);",
+          "use(loaded.nested?.length);",
         ].join("\n"),
         "packages/a/data/table.json": '{ "zqImported": 1 }\n',
         "packages/a/scripts/load.ts": ['import data from "../data/script.json" with { type: "json" };', "export const loaded = data;"].join("\n"),
         "packages/a/data/script.json": '{ "zqScriptOnly": 1 }\n',
-        [manifest]: '{ "zqManifest": "x" }\n',
+        [manifest]: `${JSON.stringify({ zqManifest: "x", zqOwned: "y", nested: [{ zqDeep: "z" }] }, null, 2)}\n`,
       },
       { entries: [MAIN] },
     ),
@@ -650,12 +683,14 @@ test("a key in a JSON file a product module imports or in a bundle manifest is c
   const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(
     report.trials
-      .filter(({ label }) => label.includes(":Shape.zq"))
+      .filter(({ label }) => label.includes(".zq"))
       .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqImported`, CONFIRMED_LITERAL, ["packages/a/data/table.json:1 config-key"]],
+    [`${LIB}:Shape.zqImported`, CONFIRMED, ["packages/a/data/table.json:1 config-key"]],
     [`${LIB}:Shape.zqScriptOnly`, CONFIRMED, ["packages/a/data/script.json:1 config-key"]],
-    [`${LIB}:Shape.zqManifest`, CONFIRMED_LITERAL, [`${manifest}:1 config-key`]],
+    [`${LIB}:Shape.zqManifest`, CONFIRMED, [`${manifest}:2 config-key`]],
+    [`${contract}:Deep.zqDeep`, CONFIRMED_LITERAL, [`${manifest}:6 config-key`]],
+    [`${contract}:ManifestShape.zqOwned`, CONFIRMED_LITERAL, [`${manifest}:3 config-key`]],
   ]);
 });
 

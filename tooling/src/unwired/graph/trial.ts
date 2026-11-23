@@ -21,12 +21,14 @@
 //   delete removes and the occurrence spans that attribute a group's errors, ahead of the base-symbol owner.
 // - tsc's own unused verdict, a reportsUnnecessary diagnostic at the candidate's name in the base program, is recorded
 //   beside each trial and never decides it.
-// - A compile-clean candidate whose name has a hit in product source outside its own sites that can be a read (a
-//   string key, a JSON key, a call by name) is confirmed-literal, through the fields literal stage's own judge
-//   (../literal-hits.ts). A hit in a test, the tooling or a config only annotates, and a code hit the checker resolves
-//   to another declaration of the name is no hit. A name is searched by the word it is read by (a computed member by
-//   its key's value); a private name is never searched, and a name that is not one word keeps confirmed with a note.
-// - Reads under snap count as the product's (D357, ./state.ts productReader), in the trial and in the control.
+// - A compile-clean candidate is confirmed-literal when a hit of its name outside its own sites, in product source or
+//   loaded product data, names its own declaration, through the fields literal stage's own judge (../literal-hits.ts):
+//   the checker resolves it there, or it is a read or a data key off a value whose type carries the member. A hit in a
+//   test, the tooling or a config only annotates, and a code hit the checker resolves to another declaration of the
+//   name is no hit. A name is searched by the word it is read by (a computed member by its key's value); a private name
+//   is never searched, and a name that is not one word keeps confirmed with a note.
+// - A compile error under snap counts as a product read (D357, ./state.ts productReader), in the trial and in the
+//   control. A literal hit under snap only annotates: the literal judge holds a hit in product source alone.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
