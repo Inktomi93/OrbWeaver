@@ -3,9 +3,10 @@
 // properties nothing reads, the class and data-* hooks with no partner, or the error codes nothing throws or handles;
 // `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
-// restated-port targets the derive codemod reads; the bare verb runs engine one over every world, and engine two under
-// `--cross-check`; the dead-inside-live verbs `fields`, `unions`, `params`, `shapes`, `procedures` and `columns` query the
-// graph and refuse `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves
+// restated-port targets the derive codemod reads; the member scan (`scan`, also the bare verb) and the dead-inside-live
+// verbs `fields`, `unions`, `params`, `shapes`, `procedures` and `columns` query the graph, and each writes one report
+// under reports/unwired/ with its judged rows apart; no verb has an engine two, so every verb refuses `--cross-check`
+// (D357); `removed-keys` resolves
 // every receiver site of a removed contract key over the graph session's merged program and exits 1 while one still
 // sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
@@ -16,8 +17,8 @@ import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
-import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
+import type { DeliberateEntry } from "./deliberate.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import type { Verdict as SortVerdict } from "./field-sort.ts";
 import { VERDICTS as SORT_VERDICTS } from "./field-sort.ts";
@@ -39,6 +40,7 @@ import {
   cssGraph,
   domGraph,
   fieldsGraph,
+  memberScanGraph,
   paramsGraph,
   proceduresGraph,
   queryGraph,
@@ -61,8 +63,6 @@ import { HITS_USAGE, runHits } from "./literal-hits.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
-import type { ScanOptions } from "./scan.ts";
-import { scanUnwired } from "./scan.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
@@ -107,7 +107,7 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -119,6 +119,15 @@ const PORT_LIMITS: readonly string[] = [
   "A whole restated type with no port member is the shapes scan's row, not a ports target.",
   "A port reached only through a string-addressed registry, a JSON or scenario file, or from outside the tree is not a flow.",
 ];
+
+/** The options every scan takes: the root, the deliberate and judged lists and a progress log. */
+interface ScanOptions {
+  readonly root: string;
+  readonly deliberate: readonly DeliberateEntry[];
+  /** The rows a board item owns, for this scan's report. */
+  readonly judged: readonly JudgedEntry[];
+  readonly log: (line: string) => void;
+}
 
 interface Finding {
   readonly kind: string;
@@ -163,9 +172,6 @@ function literalLine(stage: LiteralStage | null): string {
   return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)} unsearchable=${String(stage.unsearchable)}`;
 }
 
-/** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["fields", "unions", "params", "shapes", "procedures", "columns"]);
-
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
   scan: [],
@@ -185,10 +191,10 @@ const bucketCounts = (report: object): string =>
     .join(" ");
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
-  scan: scan("reports/unwired/unwired.json", scanUnwired),
+  scan: scan("reports/unwired/unwired.json", ({ root, deliberate, judged, log: report }) => memberScanGraph(root, { deliberate, judged }, report)),
   fields: scan(
     "reports/unwired/fields.json",
-    ({ root, deliberate, judged, log: report }) => fieldsGraph(root, { deliberate, judged: judged ?? [] }, report),
+    ({ root, deliberate, judged, log: report }) => fieldsGraph(root, { deliberate, judged }, report),
     (report) =>
       ` sent=${Object.entries(report.sentBy)
         .map(([destination, count]) => `${destination}:${String(count)}`)
@@ -207,8 +213,6 @@ interface Args {
   readonly out: string | null;
   readonly leg: Leg | null;
   readonly cluster: ClusterGroup | null;
-  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1. */
-  readonly crossCheck: boolean;
   /** The revisions `removed-keys` compares: the branch's head against its merge base with `base`. */
   readonly base: string;
   readonly head: string;
@@ -227,11 +231,10 @@ function parseArgs(argv: readonly string[]): Args {
   const named = VERBS.find((candidate) => candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  const crossCheck = argv.includes(CROSS_CHECK_FLAG);
-  if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} has no engine two to cross-check\n${USAGE}`);
+  if (argv.includes(CROSS_CHECK_FLAG)) {
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs on the reference graph alone, with no engine two to cross-check (D357)\n${USAGE}`);
   }
-  const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
+  const rest = named === undefined ? argv : argv.slice(1);
   for (const arg of rest) {
     const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);
     if (match === null) {
@@ -245,7 +248,6 @@ function parseArgs(argv: readonly string[]): Args {
     out: flags.get("out") ?? null,
     leg: oneOf("leg", flags.get("leg") ?? null, LEGS),
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
-    crossCheck,
     base: flags.get("base") ?? DEFAULT_BASE,
     head: flags.get("head") ?? DEFAULT_HEAD,
   };
@@ -934,14 +936,7 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
 
 async function runScan(args: Args, verb: ScanVerb): Promise<number> {
   const chosen = SCANS[verb];
-  const { report, counts } = await chosen.execute({
-    root: args.root,
-    testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
-    deliberate: DELIBERATE,
-    judged: JUDGED[verb],
-    log,
-    crossCheck: args.crossCheck,
-  });
+  const { report, counts } = await chosen.execute({ root: args.root, deliberate: DELIBERATE, judged: JUDGED[verb], log });
   const path = write(args.root, args.out ?? chosen.out, report);
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);

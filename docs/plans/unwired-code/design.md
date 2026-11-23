@@ -46,20 +46,17 @@ A deleted tRPC input key strips silently under `z.object`. A sweep of every land
 
 Scan tables are not committed, because `reports/` is gitignored. Each scan writes its report under `reports/unwired/`. `removed-keys` prints its table, and a landing saves it as `reports/unwired/removed-keys.txt`. An item that lands on a table names that path and the file's SHA-256 content hash in its Evidence.
 
-## Engine disagreements
+## A namespace member is a value use
 
-Engine one judges, and find-references audits one way: a disagreement means engine two found a production site in a role engine one lacks. Every row is decidable inside one program, so the cause is not a gap between tsconfig worlds. 3838 traced the rows.
-
-- Find-references on a member also returns the sites of every member that shares its base: the base's own and each sibling override's, as `<p className>` beside a props type that redeclares `className`. Engine two tags those sites `relative`. A tagged write builds the base's or the sibling's value, so it is no write of the asked member. A tagged read still counts, since a subtype value can reach a base-typed reader. The member's own sites and those of the members that inherit it stay untagged.
-- A component handed on through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`, escapes: engine one's value index and the params graph query both read a namespace member as a value use of the module's declaration.
+A component handed on through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`, escapes: the graph reads a namespace member as a value use of the module's declaration.
 
 ## One pass for the member scan
 
-`pnpm unwired scan` builds each world's program once and judges every member with engine one. Engine two and the TypeScript 6 flow pass found no use engine one lacks, in the fixtures and on the real tree, so engine two runs only under `--cross-check`, through the TypeScript 6 language service, and a member it finds used is a disagreement to fix in engine one. The fields, unions and params scans are queries over the reference graph (D357) and have no engine two.
+`pnpm unwired scan` is a query over the reference graph (D357): the graph's member rows whose member is callable, a method or a member whose type has a call signature, in tooling/src/unwired/graph/members.ts. A row is test-only when production never reads it and a site outside the product reads or calls it; a site outside the product that only writes it, such as a test fake, makes no row test-only. No scan has an engine two, so every verb refuses `--cross-check`.
 
-Engine one counts two uses no name shows:
+The graph counts two uses no name shows:
 
-- A parameter or variable typed `Owner["m"]` that holds the member's value, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`. The binding holds the member's value only when a call passes it, or its initializer is, an identifier the code also writes into `Owner.m`. The type annotation alone credits nothing. The write must sit in a file the same world homes as the call, so a member wired across worlds this way stays reported; judge it by hand.
+- A parameter or variable typed `Owner["m"]` that holds the member's value, as a composition root hands a verb into its sibling: each value read of the binding reads `Owner.m`. The binding holds the member's value only when a call passes it, or its initializer is, an identifier the code also writes into `Owner.m`. The type annotation alone credits nothing. A call in a program apart from the binding's own stays unjoined, so judge such a member by hand.
 - A value handed to a slot a library declares, as `mutate(input, settle)`: the library reads each member its slot names, so the hand-off reads the value's same-named members.
 
 ## Limits of the fields scan
@@ -130,6 +127,11 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A property read off a receiver typed `any`, such as `untyped.stray` | credits no member; a lost read (`any-receiver`) by its name, so the member rows can list it beside a row of that name | credits no field; listed in `unresolved` beside a reported row of that name | tooling/src/unwired/graph/build.ts `#anyReceiverReads`. A write through `any` is not listed. |
 | A literal key read through a string-indexed type a typed value was handed into in the same file, such as `line["done"]` on a `Record<string, unknown>` | reads the value's members of the key's name, at any depth | the same | tooling/src/unwired/graph/keys.ts `#sinkReads`. It cannot tell two values handed into one type apart. |
 | A value handed into a slot with a string index signature, such as an `Entry` into a `LogRecord` with `[field: string]: unknown` | pairs the members the slot names; each other member is sent, nested members too, where the value goes | the same | tooling/src/unwired/graph/flows.ts `#indexedEscapes`. |
+| A member typed `Owner["m"]`, such as a port member `viaIndex: Service["viaIndex"]` | a read of it reads `Owner.m` | the same | The member holds the owner's value (tooling/src/unwired/graph/member-links.ts). |
+| A parameter or variable typed `Owner["m"]` | a read of it reads `Owner.m` only when its initializer, or an argument some call passes it, is an identifier a literal also writes into `Owner.m` | the same | A composition root hands a verb into its sibling this way; the annotation alone credits nothing (tooling/src/unwired/graph/member-links.ts). A call in a program apart from the binding's own is not joined. |
+| An overload's parameter beside its implementation's, through a returned function type too | the overload's parameter type fills the implementation's as a flow | links the two | Callers write the overload's members and the implementation reads its own (tooling/src/unwired/graph/member-links.ts). |
+| A class member that implements or overrides a member of a heritage type, or a static a class value fills a slot with | writes the member it fills | writes the member | The class supplies the member as a literal's key does (tooling/src/unwired/graph/build.ts `#dispatch`). |
+| A value under `satisfies Record<string, T>`, or handed into a slot whose string index signature's value type holds members | each entry pairs with the index value type, at any depth | links each key to the member its contextual type gives it | The index signature types every entry (tooling/src/unwired/graph/flows.ts `indexValueTypes`). An index signature typed `unknown` or a primitive keeps the escape. |
 | A value inside the provider backends that no other destination takes | sent to `provider` only when the value at its site reaches a request the backends make, and received where a doc names the member; a value nested in a reaching literal takes the destination of the call the literal goes to | the same | tooling/src/unwired/open-sends.ts `providerReach`; the graph chases each escape from the value at its site, at any depth of the flow walk (tooling/src/unwired/graph/flows.ts). |
 
 Classes still open:

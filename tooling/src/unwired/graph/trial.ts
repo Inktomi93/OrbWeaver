@@ -72,6 +72,7 @@ import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
+import { nodeAt } from "./declared.ts";
 import { judgeMembers, NO_RULINGS, verdictsByDecl } from "./judge.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
@@ -79,7 +80,7 @@ import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
 import { productReader } from "./state.ts";
 import type { FindingReferences } from "./verify.ts";
-import { evenSample, nodeAt, referencesOf } from "./verify.ts";
+import { evenSample, referencesOf } from "./verify.ts";
 
 /** The buckets whose findings name a declaration a delete can remove. */
 export const TRIAL_BUCKETS = [

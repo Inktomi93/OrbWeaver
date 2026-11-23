@@ -493,9 +493,9 @@ export function valueUse(name: Node): ValueUse {
   return isCallExpression(parent) && isPropertyAccessExpression(parent.expression) && parent.expression.name.text === ENUM_PARSE ? "parse" : "escape";
 }
 
-const CARRY_LINKS = ["flow", "twin", "column", "override", "check", "build-read", "door-read"] as const;
-/** How a member took a role no site gave it: along a flow, a zod twin, a column, an interface member's redeclaration or
- *  a `satisfies` check, or from a credit. */
+const CARRY_LINKS = ["flow", "twin", "column", "override", "check", "derive", "build-read", "door-read"] as const;
+/** How a member took a role no site gave it: along a flow, a zod twin, a column, an interface member's redeclaration,
+ *  a `satisfies` check or an `Owner["m"]` holder, or from a credit. */
 type CarryLink = (typeof CARRY_LINKS)[number];
 
 /** A product read credited before the carry, with the file that reads: a build script's closure or the dev-bridge door. */
