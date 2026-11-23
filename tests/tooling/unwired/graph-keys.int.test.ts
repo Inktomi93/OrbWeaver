@@ -3,7 +3,7 @@
 // a `z.lazy` arrow's too), a reflective platform call reads every member, a redeclared member shares its reads, a
 // function filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
 import { expect, test } from "@orb/testkit/tooling";
-import { TRIAL_REACHES, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
+import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
 
@@ -83,7 +83,7 @@ test("a schema checked against a declared ZodType reads that type's members at d
   const untouched = bare(labelsIn(scan, "member-untouched", FILE));
   expect(untouched.filter((label) => label.endsWith(".text"))).toEqual([]);
   expect(untouched.filter((label) => label.endsWith(".spare"))).toHaveLength(3);
-  const trial = await trialGraph(root, { buckets: ["member-untouched"], limit: null, reach: TRIAL_REACHES[0] }, () => undefined);
+  const trial = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, () => undefined);
   expect(trial.trials.filter(({ label }) => label.startsWith(`${FILE}:`)).map(({ label, verdict }) => [label.slice(FILE.length + 1), verdict])).toEqual(
     untouched.map((label) => [label, CONFIRMED]),
   );
