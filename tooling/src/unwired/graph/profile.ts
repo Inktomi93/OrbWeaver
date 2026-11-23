@@ -58,7 +58,8 @@ export interface GraphProfileReport {
   /** Every walked file, slowest first. */
   readonly files: readonly FileTime[];
   readonly fileQuantiles: FileQuantiles;
-  readonly compiler: CompilerProfile | null;
+  /** The compiler profiles the run wrote, in the order it wrote them. */
+  readonly compilers: readonly CompilerProfile[];
 }
 
 const MB = 1e6;
@@ -119,7 +120,7 @@ export class GraphProfile {
   report(
     measures: BuildMeasures,
     world: { readonly stats: WorldStats; readonly timing: TimingAccumulators } | null,
-    compiler: CompilerProfile | null,
+    compilers: readonly CompilerProfile[],
   ): GraphProfileReport {
     const phase = (name: ProfilePhase): number => (name === "resolve" ? (world?.stats.ms ?? 0) : (this.#ms.get(name) ?? 0));
     const files = this.#files.toSorted((a, b) => b.ms - a.ms || a.file.localeCompare(b.file));
@@ -142,7 +143,7 @@ export class GraphProfile {
       rssPeakMb: Math.round(this.#rss / MB),
       files,
       fileQuantiles: fileQuantiles(files),
-      compiler,
+      compilers,
     };
   }
 }

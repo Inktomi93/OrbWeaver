@@ -32,7 +32,7 @@ import { explainLost } from "./lost.ts";
 import type { MemberScanReport } from "./members.ts";
 import { memberScanOf } from "./members.ts";
 import type { Ablation, GraphLog, GraphOptions } from "./options.ts";
-import { FRESH_BUILD, tracing } from "./options.ts";
+import { FRESH_BUILD, profiling, tracing } from "./options.ts";
 import type { ParamsLists, ParamsReport } from "./params.ts";
 import { PARAMS_HOMES, paramsPass } from "./params.ts";
 import { readPprof } from "./pprof.ts";
@@ -127,7 +127,8 @@ class Session implements Disposable {
   readonly #profile: GraphProfile | null;
   readonly #sites: SitePlan;
   #world: NativeWorld | null = null;
-  #compiler: CompilerProfile | null = null;
+  readonly #compilers: CompilerProfile[] = [];
+  #cpuStopped = false;
   // The last line the run logged: when the compiler dies, it names the step the run was on.
   #progress: string | null = null;
 
@@ -152,7 +153,7 @@ class Session implements Disposable {
     }
     const world = this.time("open", () => openGraphWorld(this.#root, this.#profile !== null));
     // the profile starts once, when the world opens; every later ask for the world reuses it
-    if (this.#options.profile?.kind === "cpu") {
+    if (this.#options.profile !== null && profiling(this.#options, "cpu")) {
       mkdirSync(this.#options.profile.dir, { recursive: true });
       world.debug.startCPUProfile(this.#options.profile.dir);
     }
@@ -164,8 +165,37 @@ class Session implements Disposable {
     try {
       return await this.#run(use);
     } catch (error) {
+      this.#saveProfilesAtFailure();
       throw await this.#namingCompilerExit(error);
     }
+  }
+
+  // A run that failed keeps what the compiler profiles can still say: the heap as it stands now, and the CPU samples so
+  // far. A compiler that already died has nothing to save, and that is logged, never thrown over the run's own error.
+  #saveProfilesAtFailure(): void {
+    const { profile } = this.#options;
+    if (profile === null || this.#world === null) {
+      return;
+    }
+    const world = this.#world;
+    const saves = [
+      ["heap", (): string => String(world.debug.saveHeapProfile(profile.dir))],
+      ["cpu", (): string | undefined => (this.#cpuStopped ? undefined : String(world.debug.stopCPUProfile()))],
+    ] as const;
+    for (const [kind, save] of saves) {
+      if (!profiling(this.#options, kind)) {
+        continue;
+      }
+      try {
+        const path = save();
+        if (path !== undefined) {
+          this.#log(`${kind} profile saved at failure: ${path}`);
+        }
+      } catch (error) {
+        this.#log(`${kind} profile not saved at failure: ${errorMessage(error)}`);
+      }
+    }
+    this.#cpuStopped = true;
   }
 
   // A run that failed because the compiler process died: the API itself can only say "unknown reason", since the exit
@@ -222,7 +252,7 @@ class Session implements Disposable {
         ...carriedEntries(options.why, graph.facts.decls, steps, { sites: graph.facts.roleSites, product: productReader, world: this.#world }),
       ],
       lost: options.explainLost ? explainLost(graph.facts) : null,
-      profile: this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, this.#compiler) ?? null,
+      profile: this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, this.#compilers) ?? null,
     };
     return { ...value, session: report };
   }
@@ -238,19 +268,20 @@ class Session implements Disposable {
     const roots = this.#profile === null ? await loadRoots(this.#root) : await this.#profile.timeAsync("open", () => loadRoots(this.#root));
     const world = this.world();
     const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, ...this.#sites });
-    if (options.profile?.kind === "heap") {
+    if (options.profile !== null && profiling(options, "heap")) {
       mkdirSync(options.profile.dir, { recursive: true });
       const path = String(world.debug.saveHeapProfile(options.profile.dir));
-      this.#compiler = { kind: "heap", path, summary: readPprof(path, HEAP_SAMPLES) };
+      this.#compilers.push({ kind: "heap", path, summary: readPprof(path, HEAP_SAMPLES) });
     }
     const dumped = options.dump === null ? null : writeDump(options.dump, this.#root, graph, new Date());
     return { graph, why, dumped, from: null };
   }
 
   #stopCpu(): void {
-    if (this.#options.profile?.kind === "cpu" && this.#world !== null && this.#compiler === null) {
+    if (profiling(this.#options, "cpu") && this.#world !== null && !this.#cpuStopped) {
+      this.#cpuStopped = true;
       const path = String(this.#world.debug.stopCPUProfile());
-      this.#compiler = { kind: "cpu", path, summary: readPprof(path, CPU_SAMPLES) };
+      this.#compilers.push({ kind: "cpu", path, summary: readPprof(path, CPU_SAMPLES) });
     }
   }
 
@@ -382,14 +413,13 @@ export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions
 /** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
  *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them,
  *  `verdicts` keeps only the member findings the judge sorted to one of them (the build then keeps member sites, which the
- *  sort reads), `ledger` keeps each trial as it lands and skips the ones an earlier run kept, and `cpuProfile` names where
- *  the compiler CPU profile of one group is written. */
+ *  sort reads) and `ledger` keeps each trial as it lands and
+ *  skips the ones an earlier run kept. */
 export function trialGraph(
   root: string,
   ask: {
     readonly buckets: readonly TrialBucket[];
     readonly limit: number | null;
-    readonly cpuProfile?: string | null;
     readonly verdicts?: readonly Verdict[];
     readonly ledger?: TrialLedger;
   },
@@ -407,7 +437,6 @@ export function trialGraph(
         analysis,
         buckets: ask.buckets,
         limit: ask.limit,
-        cpuProfile: ask.cpuProfile ?? null,
         verdicts,
         ...(ask.ledger === undefined ? {} : { ledger: ask.ledger }),
       },

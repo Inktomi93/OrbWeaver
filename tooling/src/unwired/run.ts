@@ -76,7 +76,7 @@ const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
 export const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--verdict=<${SORT_VERDICTS.join("|")}>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--verdict=<${SORT_VERDICTS.join("|")}>]... [--limit=<n>] [--profile=<${PROFILES.join("|")}>[,...]] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
@@ -107,7 +107,7 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
 };
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
-const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
+const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=<${PROFILES.join("|")}>[,...]]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
 const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
@@ -390,6 +390,23 @@ const PROFILE_DIR_SUFFIX = ".profile";
 // The profiles the compiler writes while it builds the graph: a run from a dump builds none.
 const COMPILER_PROFILES: ReadonlySet<ProfileKind> = new Set<ProfileKind>(["cpu", "heap"]);
 
+// `--profile` takes a comma-separated list of kinds, each one of the PROFILES tuple, in every verb that profiles.
+const PROFILE_SEPARATOR = ",";
+
+function profileKinds(value: string | null): readonly ProfileKind[] | null {
+  if (value === null) {
+    return null;
+  }
+  const kinds = new Set<ProfileKind>();
+  for (const kind of value.split(PROFILE_SEPARATOR)) {
+    const found = oneOf(PROFILE_FLAG, kind, PROFILES);
+    if (found !== null) {
+      kinds.add(found);
+    }
+  }
+  return [...kinds];
+}
+
 // A flag's value when it is given bare: `--profile` profiles wall time, `--explain-lost` takes none.
 const BARE_VALUES: ReadonlyMap<string, string> = new Map([
   [PROFILE_FLAG, PROFILES[0]],
@@ -443,12 +460,13 @@ function graphOptions(flags: ReadonlyMap<string, readonly string[]>, profileDir:
   if (from !== null && built.length > 0) {
     throw new UsageError(`--from reads a built graph; --${built.join(", --")} act on a build\n${USAGE}`);
   }
-  const profile = oneOf(PROFILE_FLAG, single(flags, PROFILE_FLAG), PROFILES);
-  if (from !== null && profile !== null && COMPILER_PROFILES.has(profile)) {
-    throw new UsageError(`--from reads a built graph; --profile=${profile} profiles the compiler's build\n${USAGE}`);
+  const kinds = profileKinds(single(flags, PROFILE_FLAG));
+  const compiler = kinds?.find((kind) => COMPILER_PROFILES.has(kind));
+  if (from !== null && compiler !== undefined) {
+    throw new UsageError(`--from reads a built graph; --profile=${compiler} profiles the compiler's build\n${USAGE}`);
   }
   return {
-    profile: profile === null ? null : { kind: profile, dir: profileDir },
+    profile: kinds === null ? null : { kinds, dir: profileDir },
     why: parsed("why", flags.get("why") ?? [], whyTarget),
     files: single(flags, "files"),
     traces,
@@ -519,8 +537,12 @@ function logProfile(profile: GraphProfileReport): void {
   for (const { axis, file, causes } of profile.dynamicAxes) {
     log(`profile dynamic axis ${file}:${axis} <- ${causes.join(", ")}`);
   }
-  if (profile.compiler !== null) {
-    const { kind, path, summary } = profile.compiler;
+  logCompilers(profile);
+}
+
+// Each compiler profile the run wrote, its top functions shown; the report keeps every one.
+function logCompilers(profile: GraphProfileReport): void {
+  for (const { kind, path, summary } of profile.compilers) {
     log(
       `profile ${kind} ${path}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
     );
@@ -774,7 +796,7 @@ const TRIAL_OUT = "reports/unwired/graph-trial.json";
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
 // Beside the out file: each trial as its group lands, which a rerun of the same commit skips.
 const TRIAL_LEDGER_SUFFIX = ".trials.jsonl";
-const TRIAL_FLAG = /^--(root|out|bucket|verdict|limit|cpu-profile)=(.+)$/u;
+const TRIAL_FLAG = /^--(root|out|bucket|verdict|limit|profile)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
@@ -784,8 +806,8 @@ interface TrialArgs {
   readonly verdicts: readonly SortVerdict[];
   /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
   readonly limit: number | null;
-  /** Where the compiler CPU profile of one group is written; none when absent. */
-  readonly cpuProfile: string | null;
+  /** The profiles asked for beside the wall timing every trial keeps; the compiler ones are written beside the report. */
+  readonly profile: readonly ProfileKind[];
 }
 
 function trialLimit(limit: string | null): number | null {
@@ -837,22 +859,18 @@ function parseTrialArgs(argv: readonly string[]): TrialArgs {
     buckets,
     verdicts,
     limit: trialLimit(flags.get("limit") ?? null),
-    cpuProfile: flags.get("cpu-profile") ?? null,
+    profile: profileKinds(flags.get(PROFILE_FLAG) ?? null) ?? [],
   };
 }
 
 async function runGraphTrial(args: TrialArgs): Promise<number> {
-  // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
-  const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
+  // A wall profile turns on the compiler's request timing, which the trial's phase table reads, so every trial keeps it.
+  const kinds = [...new Set<ProfileKind>([PROFILES[0], ...args.profile])];
+  const timed: GraphOptions = { ...FRESH_BUILD, profile: { kinds, dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
   const ledger = new FileLedger(args.root, resolve(checkoutOf(args.root), `${args.out}${TRIAL_LEDGER_SUFFIX}`));
   let report: Awaited<ReturnType<typeof trialGraph>>;
   try {
-    report = await trialGraph(
-      args.root,
-      { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, cpuProfile: args.cpuProfile, ledger },
-      log,
-      timed,
-    );
+    report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, ledger }, log, timed);
   } catch (error) {
     // The trials that landed are the run's result so far: keep them with the failure, and a rerun of this commit skips them.
     ledger.fail(describeThrown(error, "message"));
@@ -884,8 +902,11 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
     `trial phases ${TRIAL_PHASES.map((phase) => {
       const { ms: took, requests, serverMs } = report.phases[phase];
       return `${phase}=${ms(took)}/${String(requests)}req/server ${ms(serverMs)}`;
-    }).join(" ")}${report.cpuProfile === null ? "" : ` cpu-profile=${report.cpuProfile}`}`,
+    }).join(" ")}`,
   );
+  if (report.session.profile !== null) {
+    logCompilers(report.session.profile);
+  }
   const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
   log(
     report.literalFiles === null

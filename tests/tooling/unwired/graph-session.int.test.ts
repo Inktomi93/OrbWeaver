@@ -14,6 +14,7 @@ import { GRAPH_SOURCE, graphTree, labelsIn, libraryModule, NODE_TYPES, REACT_TYP
 const FILE = `${GRAPH_SOURCE}/session.ts`;
 const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const quiet = (): undefined => undefined;
+const SAVED_AT_FAILURE = "heap profile saved at failure: ";
 const options = (changes: Partial<GraphOptions>): GraphOptions => ({ ...FRESH_BUILD, ...changes });
 
 // A sent member, a written one, a read one and a parameter-keyed table one caller cannot narrow.
@@ -271,19 +272,61 @@ test("a compiler profile emits every phase, the world's requests, each walked fi
   const root = await plantedTree(graphTree({ [FILE]: SESSION, [OTHER]: OTHER_SOURCE }));
   const compilers = new Map<string, readonly unknown[]>();
   for (const kind of ["heap", "cpu"] as const) {
-    const { session } = await scanGraph(root, quiet, options({ profile: { kind, dir: join(scratch, kind) } }));
+    const { session } = await scanGraph(root, quiet, options({ profile: { kinds: [kind], dir: join(scratch, kind) } }));
     const profile = session.profile;
     expect(Object.keys(profile?.phases ?? {})).toEqual([...PROFILE_PHASES]);
     expect(profile?.phases.walk).toBeGreaterThan(0);
     expect(profile?.world?.sent).toBeGreaterThan(0);
     expect(profile?.files.map(({ file }) => file).sort()).toEqual([OTHER, FILE].sort());
-    expect(profile?.compiler?.kind).toBe(kind);
-    expect(existsSync(profile?.compiler?.path ?? "")).toBe(true);
-    compilers.set(kind, profile?.compiler?.summary.entries ?? []);
+    expect(profile?.compilers.map((compiler) => compiler.kind)).toEqual([kind]);
+    expect(existsSync(profile?.compilers[0]?.path ?? "")).toBe(true);
+    compilers.set(kind, profile?.compilers[0]?.summary.entries ?? []);
   }
   // a sampled cpu profile of a planted tree can hold no sample, so only the heap's allocators are asserted
   expect(compilers.get("heap")?.length).toBeGreaterThan(0);
   expect((await scanGraph(root, quiet)).session.profile).toBeNull();
+});
+
+test("one run profiles the compiler's cpu and heap together and reports both", { timeout: 240_000 }, async ({ plantedTree, scratch }) => {
+  const root = await plantedTree(graphTree({ [FILE]: SESSION, [OTHER]: OTHER_SOURCE }));
+  const { session } = await scanGraph(root, quiet, options({ profile: { kinds: ["wall", "heap", "cpu"], dir: join(scratch, "both") } }));
+  expect(session.profile?.compilers.map(({ kind }) => kind)).toEqual(["heap", "cpu"]);
+  for (const compiler of session.profile?.compilers ?? []) {
+    expect(existsSync(compiler.path)).toBe(true);
+  }
+});
+
+// The heap profile after the build says nothing of what a long trial grew: a run that throws saves another, from the
+// compiler as it stands when the run fails.
+test("a run that throws still saves its heap profile", { timeout: 120_000 }, async ({ plantedTree, scratch }) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface Row { readonly a: string; readonly b: string }",
+        'export const row: Row = { a: "1", b: "2" };',
+        "export const a = (): string => row.a;",
+      ].join("\n"),
+    }),
+  );
+  const lines: string[] = [];
+  const failed = await trialGraph(
+    root,
+    { buckets: ["member-write-only"], limit: null },
+    (line) => {
+      lines.push(line);
+      if (line.startsWith("trial groups ")) {
+        throw new Error("the run broke");
+      }
+    },
+    options({ profile: { kinds: ["heap"], dir: join(scratch, "crash") } }),
+  ).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect((failed as Error).message).toBe("the run broke");
+  const saved = lines.find((line) => line.startsWith(SAVED_AT_FAILURE));
+  expect(saved).toBeDefined();
+  expect(existsSync(saved?.slice(SAVED_AT_FAILURE.length) ?? "")).toBe(true);
 });
 
 // The compiler's process dies after the trial's first group: the run's own error is a dead channel, and disposing the
