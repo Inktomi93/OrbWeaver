@@ -102,7 +102,7 @@ test("an @supports condition is a feature query, but the rules inside its block 
 });
 
 test("a retired appearance attribute warns and points at its replacement; an author's own data attribute does not", () => {
-  const retired = OWNER_CSS_RENAMES.find((row) => row.kind === "appearance-attribute");
+  const retired = OWNER_CSS_RENAMES.find((row) => row.kind === "appearance-attribute" && row.see !== undefined);
   if (retired?.see === undefined) {
     throw new Error("The rename table records no retired appearance attribute with a successor");
   }
