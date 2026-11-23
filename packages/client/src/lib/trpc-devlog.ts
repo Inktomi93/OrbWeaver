@@ -3,12 +3,12 @@
 // prod for errors too, so this module (+ log-clock) ships.
 
 import { isPrimitive } from "@orb/kit/guards";
+import type { Operation } from "@trpc/client";
 import { CONSOLE_STYLES } from "./console-styles.ts";
 import { logClock } from "./log-clock.ts";
 import { requestRefusalOf } from "./request-refused.ts";
 
-const TRPC_OP_TYPES = ["query", "mutation", "subscription"] as const;
-type TrpcOpType = (typeof TRPC_OP_TYPES)[number];
+type TrpcOpType = Operation["type"];
 
 /**
  * The structural slice of tRPC's `LoggerLinkFnOptions` this formatter reads — declared locally

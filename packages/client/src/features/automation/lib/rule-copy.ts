@@ -29,7 +29,7 @@ import {
   SPEND_ARM_TYPES,
 } from "@orb/contracts/automation";
 import type { RoutableTask } from "@orb/contracts/inference";
-import type { PluginToastLevel } from "@orb/contracts/plugin";
+import type { Notify } from "#lib";
 import { ITEM_ENABLED_SETTING, itemSwitchName, timeLib } from "#lib";
 import type { FireOutcomeView } from "./fire-outcome.ts";
 
@@ -391,7 +391,7 @@ export function fireDetailLine(outcome: string, detail: Record<string, unknown> 
 export function runOutcomeNotice(
   name: string,
   outcome: AutomationRunOutcome,
-): { readonly channel: Extract<PluginToastLevel, "success" | "warn" | "error">; readonly line: string } {
+): { readonly channel: Extract<keyof Notify, "success" | "warn" | "error">; readonly line: string } {
   switch (outcome) {
     case "fired":
       return { channel: "success", line: `Ran "${name}": it fired.` };

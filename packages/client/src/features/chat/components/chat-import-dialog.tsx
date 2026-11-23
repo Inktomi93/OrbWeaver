@@ -13,7 +13,6 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { mergeImportWindows } from "@orb/contracts/chat";
 import type { ChatImportResult } from "@orb/contracts/import";
-import type { PluginToastLevel } from "@orb/contracts/plugin";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +20,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DismissDialog, ImportedChatsMemoryOffer } from "#components";
 import { importChats, useInvalidation, useTRPC } from "#data";
+import type { Notify } from "#lib";
 import {
   chatInLibraryNotice,
   chatsInLibraryNotice,
@@ -41,7 +41,7 @@ const TRANSCRIPT_ACCEPT = ".jsonl,.json,application/x-ndjson,application/json";
 
 /** The toast to fire for one import batch — `kind` indexes `notify`. */
 interface ImportNotice {
-  readonly kind: Extract<PluginToastLevel, "success" | "info" | "error">;
+  readonly kind: Extract<keyof Notify, "success" | "info" | "error">;
   readonly message: string;
 }
 

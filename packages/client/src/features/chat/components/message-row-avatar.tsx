@@ -34,7 +34,7 @@ export function renderRowAvatar(args: {
   readonly role: MessageRole;
   readonly showInChatAvatars: boolean;
   readonly avatarSize: AppearanceSettings["avatarSize"];
-  readonly avatarShape: "round" | "square" | "rounded";
+  readonly avatarShape: AppearanceSettings["avatarShape"];
   readonly avatarAspect: "square" | "portrait";
   readonly avatarRing: "none" | "accent";
   /** #288 — the gutter chip aligns with the SPEAKER'S NAME, and since the header moved inside the

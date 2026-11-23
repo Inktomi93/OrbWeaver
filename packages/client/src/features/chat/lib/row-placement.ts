@@ -4,6 +4,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { StackProps } from "@orb/ui/layout";
 import type { RowSkin } from "./message-row-variants.ts";
 
 /** {@link headerShape}'s answer: whether the bar names the speaker, and whether it takes a line. */
@@ -49,7 +50,7 @@ export function identitySlots<Node>(
 }
 
 /** Where the row body sits across the track: a user row at the trailing edge in a skin that aligns by role. */
-export function rowAlignFor(skin: RowSkin, role: MessageRole): "start" | "center" | "end" {
+export function rowAlignFor(skin: RowSkin, role: MessageRole): Extract<NonNullable<StackProps["align"]>, "start" | "center" | "end"> {
   if (skin.rowAlign === "role") {
     return role === "user" ? "end" : "start";
   }

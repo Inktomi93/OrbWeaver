@@ -251,7 +251,7 @@ function CountDetail({
 }: {
   readonly form: CardForm;
   readonly name: Extract<
-    CharacterFacetId,
+    keyof CharacterCardFormValues,
     "description" | "personality" | "scenario" | "exampleMessages" | "creatorNotes" | "systemPrompt" | "postHistoryInstructions"
   >;
   readonly tokens: boolean;
