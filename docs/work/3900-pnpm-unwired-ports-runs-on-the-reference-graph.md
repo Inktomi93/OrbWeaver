@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-22
+updated: 2026-11-23
 priority: P3
 area: tooling
 plan: unwired-code
@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-pnpm unwired ports walks and resolves the tree with its own engine path instead of querying the graph (D357).
+pnpm unwired ports walks and resolves the tree with its own engine path instead of querying the graph (D357). The census shares its TypeScript 6 helpers with the typescript-eslint rules (aliased, foreignTypes, derivedMembers, placementOf), so a TypeScript 7.1 copy would be a second home; the move waits until those rules run on TypeScript 7.
 
 ## Why
 
