@@ -6,8 +6,8 @@ import { createRequire } from "node:module";
 import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { plantedTsconfig } from "@orb/testkit/tooling";
-import type { Bucket, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
-import { scanGraph } from "../../../tooling/src/unwired/index.ts";
+import type { Bucket, FieldsReport, GraphScan, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
+import { fieldsGraph, scanGraph } from "../../../tooling/src/unwired/index.ts";
 
 /** The libs of a planted tree with no DOM. */
 export const LIB = ["ESNext"];
@@ -166,6 +166,26 @@ export async function graphScan(
 ): Promise<GraphScan> {
   return await scanGraph(await plantedTree(graphTree(files, options)), () => undefined);
 }
+
+/** Run the fields query over a planted graph tree, its rows split by `rulings`. */
+export async function fieldsScan(
+  plantedTree: (tree: Record<string, string>) => Promise<string>,
+  files: Readonly<Record<string, string>>,
+  options: GraphTreeOptions = {},
+  rulings: Parameters<typeof fieldsGraph>[1] = { deliberate: [], judged: [] },
+): Promise<FieldsReport> {
+  return await fieldsGraph(await plantedTree(graphTree(files, options)), rulings, () => undefined);
+}
+
+/** A fields report's rows in one planted file, as `Home.member kind`, sorted. */
+export const fieldRows = (
+  rows: readonly { readonly file: string; readonly home: string; readonly member: string; readonly kind: string }[],
+  file: string,
+): string[] =>
+  rows
+    .filter((row) => row.file.endsWith(file))
+    .map(({ home, member, kind }) => `${home}.${member} ${kind}`)
+    .toSorted();
 
 /** A bucket's labels for one planted file, without its path: `Holder.member` for a member, the name for a unit. */
 export const labelsIn = (scan: GraphScan, bucket: Bucket, file: string): readonly string[] =>

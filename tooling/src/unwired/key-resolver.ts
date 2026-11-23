@@ -105,7 +105,7 @@ type KeyResolution = ResolutionBase &
     | { readonly outcome: "unresolved"; readonly reason: UnresolvedReason }
   );
 
-export type { KeyResolution, UnresolvedReason };
+export type { KeyResolution };
 
 const isKeyName = isPropertyName;
 const isStringKey = (node: Node): node is StringLiteral | NoSubstitutionTemplateLiteral => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);

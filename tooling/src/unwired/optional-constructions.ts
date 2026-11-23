@@ -18,7 +18,7 @@ import {
 import ts from "typescript";
 import type { Site } from "./classify.ts";
 import { nameAt, Sources, siteKey } from "./classify.ts";
-import { fieldDeclarations } from "./fields.ts";
+import { fieldDeclarations } from "./field-declarations.ts";
 import type { NativeWorld } from "./native.ts";
 import { declarationKeys } from "./native.ts";
 import { constructionWrites, joinConstructionWrites } from "./occurrences.ts";
@@ -97,7 +97,7 @@ export function optionalConstructionFacts(
   registry: Map<string, number>,
   plugins: PluginSources,
 ): ConstructionFacts {
-  const fields: OptionalField[] = fieldDeclarations(world, true).filter((field) => field.optional && home.has(field.site.file));
+  const fields: OptionalField[] = fieldDeclarations(world).filter((field) => field.optional && home.has(field.site.file));
   fields.push(...inlineFields(world, home, new Set(fields.map(({ site }) => siteKey(site))), plugins));
   const files = world.files.filter((file) => home.has(world.siteOf(file).file));
   return { fields, properties: constructionWrites(world, home), ...optionalUsage(world, files, registry, plugins) };
