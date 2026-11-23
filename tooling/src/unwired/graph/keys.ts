@@ -1,10 +1,12 @@
 // Keyed reads: `x[k]`, `T[K]`, `Pick<T, K>`, an arm selector's pattern, a lookup keyed by the enclosing function's
-// parameter, and a published global's members read by name in script text.
+// parameter, a platform call or a `for…in` loop that reads every key of a value, and a published global's members read
+// by name in script text.
 //
 // - `x[k]` reads each literal `k` can be: a literal, a conditional of literals, or a key the checker types as literals
 //   (a template over a tuple's members, a loop variable over one). A key that is the enclosing function's parameter
 //   reads the keys its callers pass (getSignatureUsage), through callers that hand their own parameter on; a caller
-//   that passes a wide value, or a reference that is not a call, reads the table whole, as any other computed key does.
+//   that passes a wide value, or a reference that is not a call, reads every literal the parameter's own type allows,
+//   or the table whole for a wide parameter, as any other computed key does.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
 //   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
@@ -39,6 +41,8 @@ interface ParameterKeyed {
   readonly file: string;
   /** The position of the keyed read. */
   readonly at: number;
+  /** The literals the key's own type allows, or null for a wide key: a lookup the callers cannot narrow reads only these. */
+  readonly allowed: readonly string[] | null;
 }
 
 // A key typed as a symbol (`built[Symbol.asyncDispose]`) names the one member declared under that symbol, never every
@@ -61,6 +65,7 @@ export class Keys {
     this.#elementKeys(sites);
     this.#keyTests(sites);
     this.#typeKeys(sites);
+    this.#reflectiveReads(sites);
     for (const { key, at } of sites.armSelectorMembers) {
       this.#state.role(key, "key", sites.file, at);
     }
@@ -87,15 +92,19 @@ export class Keys {
     state.roleNamed(named, "read", sites.file);
     const computed = receivers.flatMap(({ item: site, type }) => (site.keys === null ? [{ ...site, type }] : []));
     const parameters = this.#parameterKeys(computed.map(({ argument }) => argument));
-    const rest = computed.filter((site, y) => {
+    const allKeyTypes = state.world.typesAt(computed.map(({ argument }) => argument));
+    const allTypedKeys = state.batch(allKeyTypes.map((type) => literalValues(type)));
+    const kept = computed.flatMap((site, y) => {
       const parameter = parameters[y];
+      const keys = allTypedKeys[y] ?? null;
       if (parameter !== undefined) {
-        this.#parameterKeyed.push({ table: site.type, ...parameter, file: sites.file, at: site.receiver.pos });
+        this.#parameterKeyed.push({ table: site.type, ...parameter, file: sites.file, at: site.receiver.pos, allowed: keys?.length === 0 ? null : keys });
       }
-      return parameter === undefined;
+      return parameter === undefined ? [{ site, keyType: allKeyTypes[y], keys }] : [];
     });
-    const keyTypes = state.world.typesAt(rest.map(({ argument }) => argument));
-    const typedKeys = state.batch(keyTypes.map((type) => literalValues(type)));
+    const rest = kept.map(({ site }) => site);
+    const keyTypes = kept.map(({ keyType }) => keyType);
+    const typedKeys = kept.map(({ keys }) => keys);
     const typedNamed = rest.flatMap(({ type, receiver }, z) => (typedKeys[z] ?? []).map((name) => ({ type, name, at: receiver.pos })));
     state.roleNamed(typedNamed, "read", sites.file);
     const whole = rest
@@ -132,6 +141,30 @@ export class Keys {
     );
   }
 
+  // `Object.entries(x)`, `structuredClone(x)`: the platform reads every member of the value; `Object.keys(x)` and
+  // `for (k in x)` use each member's name. A callee the tree declares is our own function.
+  #reflectiveReads(sites: FileSites): void {
+    const state = this.#state;
+    const callees = state.world.symbolsAt(sites.reflectiveReads.flatMap(({ callee }) => (callee === null ? [] : [callee])));
+    let at = 0;
+    const platform = sites.reflectiveReads.filter(({ callee }) => {
+      if (callee === null) {
+        return true;
+      }
+      const symbol = callees[at++];
+      return symbol !== undefined && !symbol.declarations.some((handle) => state.resolver.ours(handle));
+    });
+    const values = state.world.typedAt(platform, ({ value }) => value);
+    for (const role of ["read", "key"] as const) {
+      const taken = values.filter(({ item }) => item.role === role);
+      state.roleWhole(
+        taken.map(({ item: { value }, type }) => ({ type, at: value.pos })),
+        role,
+        sites.file,
+      );
+    }
+  }
+
   #typeKeys(sites: FileSites): void {
     const state = this.#state;
     const objects = state.world.typedAt(sites.indexedKeys, ({ object }) => object);
@@ -155,14 +188,18 @@ export class Keys {
     const state = this.#state;
     for (const keyed of this.#parameterKeyed) {
       const keys = this.#keysOf(keyed.fn, keyed.index);
+      // the callers narrow the key; failing that, the key's own literal type does
+      const names = keys === "whole" ? keyed.allowed : [...keys];
       if (keys === "whole") {
-        this.#traceWhole(keyed);
+        this.#traceUnnarrowed(keyed);
+      }
+      if (names === null) {
         state.count("parameter-keyed lookups read whole");
         state.roleWhole([{ type: keyed.table, at: keyed.at }], "read", keyed.file);
       } else {
         state.count("parameter-keyed lookups narrowed");
         state.roleNamed(
-          [...keys].map((name) => ({ type: keyed.table, name, at: keyed.at })),
+          names.map((name) => ({ type: keyed.table, name, at: keyed.at })),
           "read",
           keyed.file,
         );
@@ -171,8 +208,8 @@ export class Keys {
     this.#scriptGlobals(flows);
   }
 
-  // `--trace=param-key`: a lookup its callers could not narrow, at the function that keys it.
-  #traceWhole(keyed: ParameterKeyed): void {
+  // `--trace=param-key`: a lookup its callers could not narrow, at the function that keys it, with what it reads instead.
+  #traceUnnarrowed(keyed: ParameterKeyed): void {
     const state = this.#state;
     const trace = tracing(state.session.options, "param-key");
     const source = keyed.fn.getSourceFile();
@@ -184,7 +221,8 @@ export class Keys {
     const holder = isVariableDeclaration(keyed.fn.parent) ? keyed.fn.parent : keyed.fn;
     const name = state.decls.get(state.resolver.keyOf(holder))?.name ?? "(anonymous)";
     const line = source.getLineAndCharacterOfPosition(keyed.fn.getStart(source)).line + 1;
-    state.session.log(`trace param-key ${file}:${String(line)} ${name} reads parameter ${String(keyed.index)}'s table whole`);
+    const reads = keyed.allowed === null ? "its table whole" : `what its key type names: ${keyed.allowed.join(", ")}`;
+    state.session.log(`trace param-key ${file}:${String(line)} ${name} keyed by parameter ${String(keyed.index)} reads ${reads}`);
   }
 
   // The keys a function's parameter takes across its callers.

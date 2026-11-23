@@ -109,6 +109,13 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A schema key nothing writes | `member-validated` | `never-written` when the key is optional and its home is written | A key only a parse fills validates outside input. |
 | A read by a package-root file such as a token build script | a use when every manifest's build, or a published package's prepare, runs the file or imports it through the pnpm-run closure (tooling/src/unwired/graph/roots.ts `shippedScripts`); a private package's prepare ships nothing | a use: its production pattern takes `packages/<package>/*.ts` | D357: a script whose output ships is the product's. |
 | An optional member of a type a production parameter is annotated with | no `member-read-only` row: a caller may leave it unset | the same rule, but some aliased homes are missed | The graph resolves the annotation through import aliases (tooling/src/unwired/graph/build.ts `#parameterHomes`). |
+| An interface member that redeclares a member of a type it extends | a read of either reads the other; a write carries neither way | the same | A subtype value can reach a base-typed reader (tooling/src/unwired/graph/build.ts `#overrides`, carried in tooling/src/unwired/graph/analyse.ts `roleLinks`). |
+| A value handed to `Object.entries`, `Object.values`, `Object.assign` or `structuredClone` | reads every member | the same | The platform reads each member's value (tooling/src/unwired/graph/keys.ts `#reflectiveReads`). |
+| A value handed to `Object.keys` or a `for…in` loop | a key use of every member, as an `in` test is: a member the product only writes stays `member-write-only`, and `Object.keys` still sends the value | reads every member | The platform lists names and reads no value (tooling/src/unwired/graph/keys.ts `#reflectiveReads`). |
+| A lookup keyed by a parameter no caller narrows | reads the members the key's own literal type names | the same | The key type bounds the lookup (tooling/src/unwired/graph/keys.ts `finish`). |
+| A schema bound under a `z.ZodType<T>` annotation, or returned by a `z.lazy` arrow | twins its keys with `T`'s members | the same | The annotation checks the schema as `satisfies` does (tooling/src/unwired/graph/sites.ts `checkedSchema`, `zodWrappedSchemas`). |
+| A plugin contract member the SDK publishes | listed as received, with the SDK line, and judged by nothing | the same | Guests read it outside the tree (tooling/src/unwired/graph/analyse.ts `Analysis`). |
+| The unread member of a one-key tRPC mutation output | listed as acknowledged, apart from the judged rows | the same | The key is the procedure's whole answer (tooling/src/unwired/graph/judge.ts `acknowledgements`). |
 
 Classes still open:
 

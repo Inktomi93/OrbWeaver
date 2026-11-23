@@ -25,6 +25,7 @@ import {
   isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isPropertySignatureDeclaration,
   isQualifiedName,
   isShorthandPropertyAssignment,
   isSpreadAssignment,
@@ -49,7 +50,7 @@ import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
-import { addAll, allOf, answer, constituentsOf } from "./resolve.ts";
+import { addAll, allOf, answer, constituentsOf, keyText } from "./resolve.ts";
 import { READS, sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
@@ -344,6 +345,7 @@ class Builder {
     this.#variants.readTables(state, sites.tvCalls, sites.file);
     this.#keys.file(sites);
     this.#zodTwins(sites);
+    this.#overrides(sites);
     this.#parses(sites);
     this.#parameterHomes(sites);
     this.#hookTuples(sites);
@@ -654,6 +656,32 @@ class Builder {
     for (const [y, ask] of asks.entries()) {
       for (const member of members[y] ?? []) {
         state.twins.push([ask.decl, member]);
+      }
+    }
+  }
+
+  // `interface Leaf extends Base { readonly title: string }`: a member that redeclares a member of an extended type
+  // holds the same field, so the analysis carries a read of either to the other (analyse.ts roleLinks).
+  #overrides(sites: FileSites): void {
+    const state = this.#state;
+    const asks = sites.extendingInterfaces.flatMap((node) => {
+      const own = node.members.flatMap((member) => {
+        const name = isPropertySignatureDeclaration(member) ? keyText(member.name) : undefined;
+        return name === undefined ? [] : [{ name, key: state.resolver.keyOf(member) }];
+      });
+      return (node.heritageClauses ?? []).flatMap((clause) => clause.types.flatMap((base) => own.map((member) => ({ ...member, base }))));
+    });
+    const bases = state.world.typesAt(asks.map(({ base }) => base));
+    const props = state.batch(
+      asks.map(({ name }, at) => {
+        const type = bases[at];
+        return type === undefined ? answer<NativeSymbol | undefined>(undefined) : state.world.checker.getPropertyOfType.gen(type, name);
+      }),
+    );
+    const decls = state.declarations(props);
+    for (const [at, { key }] of asks.entries()) {
+      for (const base of (decls[at] ?? []).filter((decl) => decl !== key && state.decls.has(decl))) {
+        state.overrides.push([key, base]);
       }
     }
   }

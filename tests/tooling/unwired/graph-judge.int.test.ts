@@ -307,3 +307,52 @@ test("a member keyed by a declared unique symbol is a brand, judged by nothing",
   const scan = await scanGraph(root, quiet);
   expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, RULES).map((label) => `${bucket} ${label}`))).toEqual(["member-sent-only Plain.note"]);
 });
+
+// A tRPC mutation whose output schema has one key answers with that key alone: its unread member acknowledges the call
+// and reports apart from the dead, through the key's `satisfies` twin too. A two-key output's unread members stay rows.
+test("a never-read one-member mutation output reports as an acknowledgement, apart from the judged rows", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [RULES]: [
+        'import { z } from "zod";',
+        "interface Chain { output<S>(schema: S): Chain; mutation<T>(resolve: () => T): T }",
+        "declare const procedure: Chain;",
+        "export interface Done { readonly ok: boolean }",
+        "export interface Pair { readonly left: string; readonly right: string }",
+        "const doneSchema = z.object({ ok: z.boolean() }) satisfies z.ZodType<Done>;",
+        "const pairSchema = z.object({ left: z.string(), right: z.string() }) satisfies z.ZodType<Pair>;",
+        "const done = (): Done => ({ ok: true });",
+        'const pair = (): Pair => ({ left: "l", right: "r" });',
+        "export const finish = procedure.output(doneSchema).mutation(done);",
+        "export const split = procedure.output(pairSchema).mutation(pair);",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect({
+    acknowledged: scan.members.acknowledged.map(({ home, member }) => `${home}.${member}`),
+    unwired: scan.members.unwired.map(({ home, member }) => `${home}.${member}`),
+  }).toEqual({ acknowledged: ["Done.ok"], unwired: ["Pair.left", "Pair.right"] });
+});
+
+// The SDK's declarations are read by guests outside the tree: a member they publish is received, with the SDK line that
+// declares it, and never judged; a member they leave out stays a row.
+test("a plugin contract member the SDK publishes is received with its cite, never judged", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const contract = "packages/contracts/src/plugin/thing.ts";
+  const root = await plantedTree(
+    graphTree({
+      [contract]: [
+        "export interface PluginThing { readonly shown: string; readonly hidden: string }",
+        'export const thing = (): PluginThing => ({ shown: "s", hidden: "h" });',
+      ].join("\n"),
+      "packages/plugin-sdk/package.json": JSON.stringify({ name: "@orb/plugin-sdk", files: ["extra.d.ts"] }),
+      "packages/plugin-sdk/extra.d.ts": "export interface PluginThing { readonly shown: string }",
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect({
+    received: scan.members.received.map(({ key, receiver, cite }) => [key, receiver, cite]),
+    unwired: scan.members.unwired.map(({ key }) => key),
+  }).toEqual({ received: [[`${contract}:PluginThing.shown`, "plugin-sdk", "packages/plugin-sdk/extra.d.ts:1"]], unwired: [`${contract}:PluginThing.hidden`] });
+});

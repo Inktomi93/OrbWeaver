@@ -92,7 +92,9 @@ export interface Finding {
   readonly note: string | null;
 }
 
-export type Analysis = { readonly [B in Bucket]: readonly Finding[] };
+/** The buckets, and apart from them each plugin contract member the SDK publishes that a member bucket would report:
+ *  guests read it outside the tree, so it is judged by nothing and only listed, with the SDK declaration as its note. */
+export type Analysis = { readonly [B in Bucket]: readonly Finding[] } & { readonly published: readonly Finding[] };
 
 const RUNTIME_UNITS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.FunctionDeclaration,
@@ -207,6 +209,7 @@ class Analyser {
   readonly #graph: Graph;
   readonly #why = new Map<GraphKey, string>();
   readonly #out = new Map<Bucket, Finding[]>(BUCKETS.map((bucket) => [bucket, []]));
+  readonly #publishedRows: Finding[] = [];
   readonly #onCarry: CarrySink;
 
   constructor(graph: Graph, onCarry: CarrySink) {
@@ -269,6 +272,7 @@ class Analyser {
       "union-re-spells-a-home": result("union-re-spells-a-home"),
       "union-slice-of-a-home": result("union-slice-of-a-home"),
       "union-repeated-no-home": result("union-repeated-no-home"),
+      published: this.#publishedRows,
     };
   }
 
@@ -450,6 +454,7 @@ class Analyser {
       if (!this.#judgedMember(key, info, liveTyped) || (info.schemaKey && twinned.has(key))) {
         continue;
       }
+      const cite = this.#published(info);
       const role = roles.get(key);
       const shape = {
         name: info.name,
@@ -460,7 +465,9 @@ class Analyser {
       };
       // a member the runtime calls by its well-known name is read, even on a value the product only sends
       const bucket = state.unseenCalls.has(key) ? null : memberBucket(shape, role);
-      if (bucket !== null) {
+      if (bucket !== null && cite !== null) {
+        this.#publishedRows.push({ label: this.#memberLabel(info), key, note: cite });
+      } else if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
     }
@@ -470,12 +477,12 @@ class Analyser {
   // or a read reaches a method.
   #judgedMember(key: DeclKey, info: DeclInfo, liveTyped: ReadonlySet<GraphKey>): boolean {
     const live = liveTyped.has(key) || (isClassMember(info, this.#state.decls) && liveTyped.has(info.holder));
-    return isMember(info) && isProduction(info.file) && live && info.shapeOnly === null && !this.#published(info);
+    return isMember(info) && isProduction(info.file) && live && info.shapeOnly === null;
   }
 
-  // A plugin contract member the SDK publishes is read by plugin authors outside the tree.
-  #published(info: DeclInfo): boolean {
-    return publishedAt(this.#graph.sdk, { file: info.file, home: info.surfacePath, member: info.name }) !== null;
+  // Where the SDK publishes a plugin contract member, which plugin authors read outside the tree; null for any other.
+  #published(info: DeclInfo): string | null {
+    return publishedAt(this.#graph.sdk, { file: info.file, home: info.surfacePath, member: info.name });
   }
 
   #memberLabel(info: DeclInfo): string {
@@ -631,7 +638,8 @@ interface MemberShape {
   readonly reachedOtherwise: boolean;
 }
 
-const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
+/** Whether a declaration is a member a member bucket judges: a type, interface or class member, or a zod schema key. */
+export const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
 
 // The holders some member of which the product writes.
 function writtenHomes(decls: ReadonlyMap<DeclKey, DeclInfo>, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
@@ -695,7 +703,8 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
- * with one role set. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
+ * with one role set. An interface member and the extended member it redeclares carry reads both ways and writes neither
+ * way. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
  * a read of the column to the stored member, never a send. Each role a member takes here goes to `onCarry`, so the
  * `--why` record names a role no site gave.
  */
@@ -718,12 +727,12 @@ export function settleRoles(
     }
     const carried = {
       read: { product: carriedReads(current.product), other: carriedReads(current.other), write: current.write },
-      columnRead: { product: onlyReads(current.product), other: onlyReads(current.other), write: current.write },
+      plainRead: { product: onlyReads(current.product), other: onlyReads(current.other), write: current.write },
       written: { product: carriedWrites(current.product), other: carriedWrites(current.other), write: current.write },
     } as const;
     for (const [kind, map] of [
       ["read", links.readTo],
-      ["columnRead", links.columnReadTo],
+      ["plainRead", links.plainReadTo],
       ["written", links.writeTo],
     ] as const) {
       for (const { to, link } of map.get(key) ?? []) {
@@ -743,14 +752,15 @@ interface RoleLink {
 }
 
 // Which members a role carries to: a read or send of a slot member goes to the value member that filled it, a write of
-// the value member to the slot, and a zod twin's halves both ways; a read of a column goes to the member stored into it.
+// the value member to the slot, and a zod twin's halves both ways; a read alone of a column goes to the member stored
+// into it, and of an interface member to the member it redeclares and back.
 function roleLinks(state: GraphFacts): {
   readonly readTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
-  readonly columnReadTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
+  readonly plainReadTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
   readonly writeTo: ReadonlyMap<DeclKey, readonly RoleLink[]>;
 } {
   const readTo = new Map<DeclKey, RoleLink[]>();
-  const columnReadTo = new Map<DeclKey, RoleLink[]>();
+  const plainReadTo = new Map<DeclKey, RoleLink[]>();
   const writeTo = new Map<DeclKey, RoleLink[]>();
   const add = (map: Map<DeclKey, RoleLink[]>, from: DeclKey, to: DeclKey, link: CarryStep["link"]): void => {
     const list = map.get(from);
@@ -774,11 +784,17 @@ function roleLinks(state: GraphFacts): {
   }
   for (const [column, members] of state.columnFlows) {
     for (const member of members) {
-      add(columnReadTo, column, member, "column");
+      add(plainReadTo, column, member, "column");
       add(writeTo, member, column, "column");
     }
   }
-  return { readTo, columnReadTo, writeTo };
+  // A redeclared member reads as the member it redeclares, and a read through the base may read a subtype's value; a
+  // write or a send carries neither way, since it builds or hands on the one type's value only.
+  for (const [member, base] of state.overrides) {
+    add(plainReadTo, member, base, "override");
+    add(plainReadTo, base, member, "override");
+  }
+  return { readTo, plainReadTo, writeTo };
 }
 
 // A read carries as a read and a send as a send: an escape never becomes a read on the member it reaches.
