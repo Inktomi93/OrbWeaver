@@ -64,6 +64,7 @@ import {
 import type { Diagnostic, ProjectId } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
+import type { Verdict } from "../field-sort.ts";
 import type { LiteralEvidence } from "../literal-hits.ts";
 import { isLiteralName, ownSiteKey, rowsEvidence, searchedWord, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
@@ -71,6 +72,7 @@ import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
+import { judgeMembers, NO_RULINGS, verdictsByDecl } from "./judge.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
 import type { GraphKey } from "./sites.ts";
@@ -967,8 +969,9 @@ const siteOf = (world: NativeWorld, node: Node): string =>
   `${world.fileOfSource(node.getSourceFile())}:${String(node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1)}`;
 
 /** Run the delete trial over every finding of the named buckets, or an even sample of `limit` of them, then the
- *  unused-diagnostics control; `cpuProfile` names a directory for the compiler CPU profile of the first group with more
- *  than one candidate. */
+ *  unused-diagnostics control; `verdicts` keeps only the member findings the judge sorted to one of them (the sort needs a
+ *  graph built with member sites); `cpuProfile` names a directory for the compiler CPU profile of the first group with
+ *  more than one candidate. */
 export function runTrials(
   graph: Graph,
   world: NativeWorld,
@@ -978,12 +981,20 @@ export function runTrials(
     readonly buckets: readonly TrialBucket[];
     readonly limit: number | null;
     readonly cpuProfile: string | null;
+    /** Only the member findings the judge sorted to one of these; every finding when empty. */
+    readonly verdicts?: readonly Verdict[];
   },
   log: (line: string) => void,
 ): TrialReport {
   const phases = new Phases(world);
   const trials = new Trials(graph, world, run.root, phases);
-  const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
+  const verdicts = run.verdicts ?? [];
+  const sorted = verdicts.length === 0 ? null : verdictsByDecl(graph, judgeMembers({ root: run.root, graph, analysis: run.analysis, world }, NO_RULINGS));
+  const wanted = ({ key }: Finding): boolean => {
+    const verdict = key !== null && isDeclKey(key) ? sorted?.get(key) : undefined;
+    return sorted === null || (verdict !== undefined && verdicts.includes(verdict));
+  };
+  const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].filter(wanted).map((finding) => ({ bucket, finding })));
   const picked = evenSample(all, run.limit);
   const found = phases.time("references", () =>
     referencesOf(

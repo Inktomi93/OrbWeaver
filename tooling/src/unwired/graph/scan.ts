@@ -3,6 +3,7 @@
 // pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report or the columns scan over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
 import { mkdirSync } from "node:fs";
+import type { Verdict } from "../field-sort.ts";
 import type { NativeWorld } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
@@ -319,17 +320,19 @@ export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions
 }
 
 /** Build and analyse the graph, then delete each finding of the named buckets in a throwaway snapshot and run the
- *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them, and
- *  `cpuProfile` names where the compiler CPU profile of one group is written. */
+ *  unused-diagnostics control (./trial.ts); `limit` takes an even sample of the findings instead of all of them,
+ *  `verdicts` keeps only the member findings the judge sorted to one of them (the build then keeps member sites, which the
+ *  sort reads), and `cpuProfile` names where the compiler CPU profile of one group is written. */
 export function trialGraph(
   root: string,
-  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null; readonly cpuProfile?: string | null },
+  ask: { readonly buckets: readonly TrialBucket[]; readonly limit: number | null; readonly cpuProfile?: string | null; readonly verdicts?: readonly Verdict[] },
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<TrialReport>> {
-  return session(root, log, { options, ...NO_SITES }, (work) => {
+  const verdicts = ask.verdicts ?? [];
+  return session(root, log, { options, ...(verdicts.length === 0 ? NO_SITES : MEMBER_SITES) }, (work) => {
     const analysis = work.time("analyse", () => analyse(work.graph));
-    return runTrials(work.graph, work.world(), { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null }, log);
+    return runTrials(work.graph, work.world(), { root, analysis, buckets: ask.buckets, limit: ask.limit, cpuProfile: ask.cpuProfile ?? null, verdicts }, log);
   });
 }
 
