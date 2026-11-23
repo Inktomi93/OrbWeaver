@@ -135,6 +135,23 @@ test.for([
   expect(untouched).not.toContain(read);
 });
 
+// A key both options spell has two members of the checked type as partners, so it takes a check, not a twin; it is still
+// its type's member, judged there, never a schema key of its own.
+test("a key a discriminated union's options share is judged at the checked type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      'export interface Ok { readonly status: "ok"; readonly at: string }',
+      'export interface Down { readonly status: "down"; readonly at: string; readonly reason: string }',
+      'export const healthSchema = z.discriminatedUnion("status", [z.object({ status: z.string(), at: z.string() }), z.object({ status: z.string(), at: z.string(), reason: z.string() })]) satisfies z.ZodType<Ok | Down>;',
+      "export const atOf = (health: Ok | Down): string => health.at + health.status;",
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-validated", FILE))).toEqual([]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Down.reason"]);
+});
+
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,

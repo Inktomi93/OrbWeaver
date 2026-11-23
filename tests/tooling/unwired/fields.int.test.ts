@@ -112,6 +112,9 @@ test("the fields query reports never-read, never-written and unreferenced fields
   expect(found.toSorted((a, b) => a.field.localeCompare(b.field))).toEqual([
     { field: "BaseCfg.spare", kind: "never-read", origin: "type", tests: 0 },
     { field: "Copied.b", kind: "never-read", origin: "type", tests: 0 },
+    // the `down` option's `at`: the read narrows to the `ok` option, and a schema key shared by both options passes no
+    // read from one option's member to the other's
+    { field: "Health.at", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Health.detail", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "HostView.gone", kind: "unreferenced", origin: "type", tests: 0 },
     { field: "Keyed.unkeyed", kind: "never-read", origin: "type", tests: 0 },
