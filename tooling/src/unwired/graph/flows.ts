@@ -17,8 +17,16 @@
 // are the members of the type it satisfies, build.ts zodTwins), and a validator hands its input to no receiver but the
 // schema's own keys. The exceptions are the calls whose argument is data parse returns as its output
 // (ZOD_OUTPUT_VALUES): that value fills the output slot like any hand-off.
-import type { Node } from "@typescript/native/ast";
-import { isCallExpression, isModuleDeclaration, isPropertyAccessExpression, isSpreadElement } from "@typescript/native/ast";
+import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
+import {
+  isCallExpression,
+  isModuleDeclaration,
+  isNewExpression,
+  isObjectLiteralExpression,
+  isPropertyAccessExpression,
+  isPropertyAssignment,
+  isSpreadElement,
+} from "@typescript/native/ast";
 import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
 import { signatureOf } from "../drizzle-rows.ts";
@@ -27,7 +35,7 @@ import type { Destination } from "../open-sends.ts";
 import { identitySlot, sendDestinations } from "../open-sends.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { allOf, answer, constituentsOf } from "./resolve.ts";
+import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
@@ -77,7 +85,8 @@ const opaqueFlag = (type: Type): boolean => OPAQUE_FLAGS.some((flag) => hasFlag(
 
 const deepKey = (type: Type, throughCalls: boolean): string => `${String(type.id)}${throughCalls ? "c" : ""}`;
 
-/** A slot that names none of a value's members: whatever holds it reads them all. */
+/** A slot that names none of a value's members: whatever holds it reads them all. A function slot names its
+ *  parameters and its return instead, which the flow walk pairs with the value's. */
 export function* opaqueSlot(state: GraphState, type: Type): APIRequestGenerator<boolean> {
   if (opaqueFlag(type)) {
     return true;
@@ -86,7 +95,6 @@ export function* opaqueSlot(state: GraphState, type: Type): APIRequestGenerator<
     if (opaqueFlag(arm)) {
       return true;
     }
-    // a callable arm names no members, but a value that is not a function never lands in it
     if (!isPrimitive(arm) && (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0 && (yield* arm.getCallSignatures.gen()).length === 0) {
       return true;
     }
@@ -209,7 +217,8 @@ export class Flows {
     ];
   }
 
-  // The types a value holds besides its members: a list's or tuple's element types, an index signature's value type.
+  // The types a value holds besides its members: a list's or tuple's element types, an index signature's value type,
+  // and a mapped type's template (`Record<Key, { root: string }>`), whose members a library's own key type declares.
   *#contained(type: Type, throughCalls: boolean): APIRequestGenerator<readonly Type[]> {
     const { checker } = this.#state.world;
     const out: Type[] = [];
@@ -218,6 +227,9 @@ export class Flows {
         out.push(...(yield* checker.getTypeArguments.gen(arm)));
       }
       out.push(...(yield* checker.getIndexInfosOfType.gen(arm)).map((info) => info.valueType));
+      if (arm.isMappedType()) {
+        out.push(yield* arm.getTemplateType.gen());
+      }
       if (throughCalls) {
         out.push(...(yield* this.#awaitedReturns(yield* arm.getCallSignatures.gen())));
       }
@@ -373,6 +385,23 @@ export class Flows {
     return { library: new Set(library.map(({ x }) => x)), generic: new Set(library.flatMap(({ x }, y) => (own[y] === true ? [x] : []))) };
   }
 
+  // The held values whose property a library signature declares as a bare type parameter of its own, before
+  // instantiation (`ownTypeParameter` holds why an outer one pairs instead).
+  #libraryInferred(held: readonly (HeldInArgument | undefined)[]): ReadonlySet<number> {
+    const state = this.#state;
+    const asks = held.flatMap((entry, x) => (entry === undefined ? [] : [{ x, entry }]));
+    const signatures = state.batch(asks.map(({ entry }) => state.world.checker.getResolvedSignature.gen(entry.call)));
+    const declared = state.batch(
+      asks.map(({ entry }, y) => {
+        const signature = signatures[y];
+        return signature?.declaration === undefined || state.resolver.ours(signature.declaration)
+          ? answer(undefined)
+          : ownedTypeParameter(signature, declaredPropertyType(state, signature, entry));
+      }),
+    );
+    return new Set(asks.flatMap(({ x }, y) => (declared[y] === true ? [x] : [])));
+  }
+
   // `globalThis.x = v` on a global our own `declare global` declares: published to readers outside the program (a
   // browser console, a test driver's evaluate).
   #published(sites: FileSites): readonly HandedWhole[] {
@@ -403,9 +432,17 @@ export class Flows {
       ...declared.map(({ at }, y) => [at, declaredTypes[y]] as const),
       ...contextual.map(({ at }, y) => [at, contextualTypes[y]] as const),
     ]);
+    // a value inside a literal handed to a library signature's bare type parameter (`tv({ variants: { ink: table } })`)
+    // takes its contextual type from its own inference, so its slot is itself: the library takes it whole, as a value
+    // handed straight to that parameter does
+    const inferred = this.#libraryInferred(sites.flowSites.map((site) => (site.slot === "contextual" ? argumentHolding(site.value) : undefined)));
     return sites.flowSites.flatMap((site, at) => {
       const slot = slots.get(at);
       const value = values[at];
+      if (value !== undefined && inferred.has(at) && !isPrimitive(value)) {
+        this.escape(value, false, { file: all.file, at: site.value.pos }, UNCLASSIFIED);
+        return [];
+      }
       return slot === undefined || value === undefined ? [] : [{ slot, value, site: site.value.pos }];
     });
   }
@@ -531,14 +568,17 @@ export class Flows {
     if (targets.some((symbol) => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle)))) {
       return null;
     }
+    // members pair by their escaped name, which a well-known symbol key (`[Symbol.iterator]`) has and a display name lacks
+    const valueMembers = new Map((yield* checker.getPropertiesOfType.gen(value)).map((member) => [member.escapedName, member] as const));
     const out: Step[] = [];
     for (const member of yield* checker.getPropertiesOfType.gen(slot)) {
-      const [slotMember, valueMember] = [
-        yield* checker.getTypeOfPropertyOfType.gen(slot, member.name),
-        yield* checker.getTypeOfPropertyOfType.gen(value, member.name),
-      ];
-      if (slotMember !== undefined && valueMember !== undefined) {
-        out.push({ slot: slotMember, value: valueMember, at: { kind: "member", name: member.name } });
+      const counterpart = valueMembers.get(member.escapedName);
+      if (counterpart !== undefined) {
+        out.push({
+          slot: yield* checker.getTypeOfSymbol.gen(member),
+          value: yield* checker.getTypeOfSymbol.gen(counterpart),
+          at: { kind: "member", name: member.name },
+        });
       }
     }
     return out;
@@ -635,11 +675,12 @@ export class Flows {
     for (const y of matched.keys()) {
       this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file, matched[y]?.site ?? 0);
     }
-    // a pair goes deeper when the value member is declared in the tree: the walk follows the value's own members, and a
-    // library slot names its nested fields as it names its top ones (an SDK block's `source.data`)
+    // a pair goes deeper when either member is declared in the tree: the walk follows the value's own members, a library
+    // slot names its nested fields as it names its top ones (an SDK block's `source.data`), and a library value filling
+    // our slot runs the library's code behind each of our function members, so their parameters pair with the library's
     const deeper = matched.filter(({ slot, value }, y) => {
       const key = `${declarationKeys(slot).join(",")}>${declarationKeys(value).join(",")}`;
-      if ((valueDecls[y]?.length ?? 0) === 0 || this.#doneMembers.has(key)) {
+      if ((valueDecls[y]?.length ?? 0) + (slotDecls[y]?.length ?? 0) === 0 || this.#doneMembers.has(key)) {
         return false;
       }
       this.#doneMembers.add(key);
@@ -656,9 +697,56 @@ export class Flows {
 
 // Whether a signature's parameter at `index` is typed by a type parameter the signature declares itself, so the call infers it.
 function* ownTypeParameter(state: GraphState, signature: Signature, index: number): APIRequestGenerator<boolean> {
+  return yield* ownedTypeParameter(signature, declaredParameterType(state, signature, index));
+}
+
+// Whether a declared type is a type parameter the signature declares itself.
+function* ownedTypeParameter(signature: Signature, declaredType: APIRequestGenerator<Type | undefined>): APIRequestGenerator<boolean> {
   const target = (yield* signature.getTarget.gen()) ?? signature;
-  const declared = yield* declaredParameterType(state, signature, index);
+  const declared = yield* declaredType;
   return declared?.isTypeParameter() === true && (target.typeParameters ?? []).includes(declared.id);
+}
+
+/** A value a literal argument holds: the call, the argument's index and the property names down to the value. */
+interface HeldInArgument {
+  readonly call: CallExpression | NewExpression;
+  readonly index: number;
+  readonly path: readonly string[];
+}
+
+// The call argument a value sits in, through the object literals that hold it as a property's value.
+function argumentHolding(value: Expression): HeldInArgument | undefined {
+  const path: string[] = [];
+  let at: Node = value;
+  while (isPropertyAssignment(at.parent) && isObjectLiteralExpression(at.parent.parent)) {
+    const name = keyText(at.parent.name);
+    if (name === undefined) {
+      return undefined;
+    }
+    path.unshift(name);
+    at = at.parent.parent;
+  }
+  const call = at.parent;
+  if (path.length === 0 || !(isCallExpression(call) || isNewExpression(call))) {
+    return undefined;
+  }
+  const index = (call.arguments ?? []).findIndex((argument) => argument.pos === at.pos);
+  return index < 0 ? undefined : { call, index, path };
+}
+
+// The type a signature's declaration gives a property inside its parameter, before instantiation: the first type
+// parameter on the way down, since everything below it is the argument's own inferred type.
+function* declaredPropertyType(state: GraphState, signature: Signature, { index, path }: HeldInArgument): APIRequestGenerator<Type | undefined> {
+  const { checker } = state.world;
+  let at = yield* declaredParameterType(state, signature, index);
+  for (const name of path) {
+    if (at === undefined || at.isTypeParameter()) {
+      return at;
+    }
+    const property = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(at), name);
+    at = property === undefined ? undefined : yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(property));
+  }
+  return at;
 }
 
 // The type a signature's declaration gives its parameter at `index`, before instantiation.
