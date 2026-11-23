@@ -21,14 +21,14 @@ import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
-import { ABLATIONS, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import { ABLATIONS, FRESH_BUILD, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
 import type { GraphProfileReport } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import { cssGraph, queryGraph, scanGraph, trialGraph, verifyGraph } from "./graph/scan.ts";
 import type { TrialBucket } from "./graph/trial.ts";
-import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_VERDICTS } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
@@ -54,7 +54,7 @@ const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, and the
  *  queries each name is asked (./graph/query.ts). */
 const GRAPH_VERBS = ["graph", "graph-verify", "graph-css", "graph-why", "graph-users", "graph-impact", "graph-reach"] as const;
@@ -623,7 +623,7 @@ async function runGraph(args: GraphArgs): Promise<number> {
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
-const TRIAL_FLAG = /^--(root|out|bucket|limit)=(.+)$/u;
+const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
@@ -631,6 +631,8 @@ interface TrialArgs {
   readonly buckets: readonly TrialBucket[];
   /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
   readonly limit: number | null;
+  /** Where the compiler CPU profile of one group is written; none when absent. */
+  readonly cpuProfile: string | null;
 }
 
 function trialLimit(limit: string | null): number | null {
@@ -658,15 +660,23 @@ function parseTrialArgs(argv: readonly string[]): TrialArgs {
   if (buckets.length === 0) {
     throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
   }
-  return { root: resolve(flags.get("root") ?? process.cwd()), out: flags.get("out") ?? TRIAL_OUT, buckets, limit: trialLimit(flags.get("limit") ?? null) };
+  return {
+    root: resolve(flags.get("root") ?? process.cwd()),
+    out: flags.get("out") ?? TRIAL_OUT,
+    buckets,
+    limit: trialLimit(flags.get("limit") ?? null),
+    cpuProfile: flags.get("cpu-profile") ?? null,
+  };
 }
 
 async function runGraphTrial(args: TrialArgs): Promise<number> {
-  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit }, log);
+  // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
+  const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
+  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile }, log, timed);
   const path = write(args.root, args.out, report);
   for (const trial of report.trials.filter(({ verdict }) => verdict !== "confirmed")) {
-    const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`).join(",");
-    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? errors}\n`);
+    const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
+    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors].join(",")}\n`);
   }
   for (const row of report.control.filter(({ side }) => side !== "agree")) {
     process.stdout.write(`control-${row.side}\t${row.at}\t${row.name}\t${row.code === null ? "" : `TS${String(row.code)}`}\t${row.graph}\n`);
@@ -676,7 +686,18 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
     log(
       `${bucket} trials=${String(mine.length)} ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${String(mine.filter((trial) => trial.verdict === verdict).length)}`).join(" ")}`,
     );
+    const unused = mine.filter(({ tsUnused }) => tsUnused);
+    const compiles = mine.reduce((sum, trial) => sum + trial.compiles, 0);
+    log(
+      `${bucket} tsc-unused=${String(unused.length)} ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${String(unused.filter((trial) => trial.verdict === verdict).length)}`).join(" ")} compiles=${String(compiles)}`,
+    );
   }
+  log(
+    `trial phases ${TRIAL_PHASES.map((phase) => {
+      const { ms: took, requests, serverMs } = report.phases[phase];
+      return `${phase}=${ms(took)}/${String(requests)}req/server ${ms(serverMs)}`;
+    }).join(" ")}${report.cpuProfile === null ? "" : ` cpu-profile=${report.cpuProfile}`}`,
+  );
   const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
   log(`control ${sides.join(" ")} written to ${path}`);
   return EXIT.clean;

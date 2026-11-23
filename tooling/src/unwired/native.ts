@@ -42,6 +42,14 @@ import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts"
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
 
+// A list in pieces of at most BATCH, for the wire's array-form requests.
+const chunked = <T>(items: readonly T[]): readonly (readonly T[])[] =>
+  Array.from({ length: Math.ceil(items.length / BATCH) }, (_, at) => items.slice(at * BATCH, (at + 1) * BATCH));
+
+/** The two steps of a throwaway trial: making its snapshot and asking its program. */
+export const TRIAL_STEPS = ["snapshot", "diagnostics"] as const;
+export type TrialStep = (typeof TRIAL_STEPS)[number];
+
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript symbol and type flags are compiler-owned bitfields.
@@ -330,9 +338,10 @@ export class NativeWorld implements Disposable {
     this.#answers.clear();
   }
 
-  /** The symbol at each node, an import alias followed to the symbol it names. */
+  /** The symbol at each node, an import alias followed to the symbol it names. Each chunk of nodes is one wire request
+   *  (`getSymbolsAtLocations`), not one request per node. */
   symbolsAt(nodes: readonly Node[]): (NativeSymbol | undefined)[] {
-    const found = this.batch(nodes.map((node) => this.checker.getSymbolAtLocation.gen(node)));
+    const found = this.batch(chunked(nodes).map((chunk) => this.checker.getSymbolAtLocation.gen(chunk))).flat();
     return this.#unalias(found);
   }
 
@@ -359,9 +368,9 @@ export class NativeWorld implements Disposable {
     return this.batch(nodes.map((node) => this.checker.getContextualType.gen(node)));
   }
 
-  /** The type at each node. */
+  /** The type at each node, each chunk of nodes in one wire request (`getTypeAtLocations`). */
   typesAt(nodes: readonly Node[]): Type[] {
-    return this.batch(nodes.map((node) => this.checker.getTypeAtLocation.gen(node)));
+    return this.batch(chunked(nodes).map((chunk) => this.checker.getTypeAtLocation.gen(chunk))).flat();
   }
 
   /** Each item with the type at the node it names, in one batch. */
@@ -503,18 +512,26 @@ export class NativeWorld implements Disposable {
     this.#api.close();
   }
 
-  /** Hand `use` the program of a throwaway snapshot where each absolute file in `files` reads its text; the snapshot is
-   *  disposed when `use` returns.
-   *  @remarks Ask the handed program directly, never through {@link NativeWorld.batch}: its answer memo keys a request
+  /** The answers to `requests`, asked of the program of a throwaway snapshot where each absolute file in `files` reads
+   *  its text, in one batch round; the snapshot is disposed after it.
+   *  @remarks The round goes straight to the API, never through {@link NativeWorld.batch}: its answer memo keys a request
    *  without its snapshot, so a throwaway program's question would get the world's own answer back. */
-  trial<T>(files: Readonly<Record<string, string>>, use: (program: Program) => T): T {
+  trial<T>(
+    files: Readonly<Record<string, string>>,
+    requests: (program: Program) => readonly APIRequestGenerator<T>[],
+    time: <R>(step: TrialStep, work: () => R) => R = (_, work) => work(),
+  ): T[] {
     using held = new DisposableStack();
-    const snapshot = held.adopt(this.#snapshot.update({ fileSystem: { kind: "layer", files }, ensurePrograms: true }), (made) => made.dispose());
+    const snapshot = held.adopt(
+      time("snapshot", () => this.#snapshot.update({ fileSystem: { kind: "layer", files }, ensurePrograms: true })),
+      (made) => made.dispose(),
+    );
     const project = snapshot.getConfiguredProject(`${this.#root}/${this.config}`);
     if (project === undefined) {
       throw new Error(`${this.config}: the throwaway snapshot holds no project`);
     }
-    return use(project.program);
+    const { program } = project;
+    return time("diagnostics", () => this.#api.batch(...requests(program)));
   }
 }
 

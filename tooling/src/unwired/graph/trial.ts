@@ -13,9 +13,15 @@
 //   reader of the candidate, so it refutes nothing and is dropped.
 // - Reads only outside the product (a test, a type test, tooling) make the verdict refuted-test-only: a test read
 //   annotates a candidate and never keeps it.
+// - Before any snapshot, find-references on each candidate (./verify.ts referencesOf): a product read the checker
+//   resolves to the candidate refutes it with no compile (refuted-references). The same pass gives the export sites a
+//   delete removes and the occurrence spans that attribute a group's errors, ahead of the base-symbol owner.
+// - tsc's own unused verdict, a reportsUnnecessary diagnostic at the candidate's name in the base program, is recorded
+//   beside each trial and never decides it.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
+import { mkdirSync } from "node:fs";
 import { relative } from "node:path";
 import type { Declaration, Expression, Node, SourceFile } from "@typescript/native/ast";
 import {
@@ -48,7 +54,7 @@ import type { Diagnostic } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { NativeWorld } from "../native.ts";
-import { hasFlag, propertiesNamed } from "../native.ts";
+import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
@@ -57,7 +63,8 @@ import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
 import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
-import { evenSample, nodeAt } from "./verify.ts";
+import type { FindingReferences } from "./verify.ts";
+import { evenSample, nodeAt, referencesOf } from "./verify.ts";
 
 /** The buckets whose findings name a declaration a delete can remove. */
 export const TRIAL_BUCKETS = [
@@ -73,18 +80,18 @@ export const TRIAL_BUCKETS = [
 ] as const satisfies readonly Bucket[];
 export type TrialBucket = (typeof TRIAL_BUCKETS)[number];
 
-/** A trial's outcome: no new error; only sites the delete removes with it; a product reader; readers outside the
- *  product only; or no trial ran. */
-export const TRIAL_VERDICTS = ["confirmed", "named-only", "refuted", "refuted-test-only", "unresolved"] as const;
-export type TrialVerdict = (typeof TRIAL_VERDICTS)[number];
+/** A trial's outcome: no new error; only sites the delete removes with it; a product read find-references names, with
+ *  no compile; a product reader the compile found; readers outside the product only; or no trial ran. */
+export const TRIAL_VERDICTS = ["confirmed", "named-only", "refuted-references", "refuted", "refuted-test-only", "unresolved"] as const;
+type TrialVerdict = (typeof TRIAL_VERDICTS)[number];
 
-/** What a new error's site does to the removed declaration. */
-export const SITE_KINDS = ["write", "binding", "read"] as const;
-export type SiteKind = (typeof SITE_KINDS)[number];
+// What a new error's site does to the removed declaration.
+const SITE_KINDS = ["write", "binding", "read"] as const;
+type SiteKind = (typeof SITE_KINDS)[number];
 
-/** One error the removal added: `file:line` in the unedited tree, its TypeScript code, its site kind, whether the site
- *  is product source and its text. */
-export interface TrialError {
+// One error the removal added: `file:line` in the unedited tree, its TypeScript code, its site kind, whether the site
+// is product source and its text.
+interface TrialError {
   readonly at: string;
   readonly code: number;
   readonly kind: SiteKind;
@@ -92,30 +99,47 @@ export interface TrialError {
   readonly text: string;
 }
 
-/** One span a delete removed, by its repository-relative file. */
-export interface Removal {
+// One span a delete removed, by its repository-relative file.
+interface Removal {
   readonly file: string;
   readonly text: string;
 }
 
-/** One candidate's trial: what the delete removed, the files it checked and the errors it added. */
-export interface Trial {
+// One candidate's trial: the product reads find-references named (`file:line`), what the delete removed, the files it
+// checked, the errors it added, how many snapshots held it and whether tsc reports it unused.
+interface Trial {
   readonly bucket: TrialBucket;
   readonly label: string;
   readonly verdict: TrialVerdict;
+  readonly references: readonly string[];
   readonly removed: readonly Removal[];
   readonly checked: readonly string[];
   readonly errors: readonly TrialError[];
+  readonly compiles: number;
+  readonly tsUnused: boolean;
   readonly note: string | null;
+}
+
+/** The trial's phases, in run order. */
+export const TRIAL_PHASES = ["references", "unused", ...TRIAL_STEPS, "attribution"] as const;
+type TrialPhase = (typeof TRIAL_PHASES)[number];
+
+// One phase's wall time and the compiler requests it sent, with their server and round-trip time; the request
+// figures are zero unless the world collects timing.
+interface PhaseCost {
+  readonly ms: number;
+  readonly requests: number;
+  readonly serverMs: number;
+  readonly roundTripMs: number;
 }
 
 /** Where TypeScript's unused-code diagnostics and the graph stand on one declaration. */
 export const CONTROL_SIDES = ["agree", "ts-only", "graph-only", "graph-unjudged"] as const;
-export type ControlSide = (typeof CONTROL_SIDES)[number];
+type ControlSide = (typeof CONTROL_SIDES)[number];
 
-/** One control row: the declaration's `file:line` and name, TypeScript's code (null when it reports nothing) and the
- *  graph's bucket, `live`, or the kind of declaration it does not judge. */
-export interface ControlRow {
+// One control row: the declaration's `file:line` and name, TypeScript's code (null when it reports nothing) and the
+// graph's bucket, `live`, or the kind of declaration it does not judge.
+interface ControlRow {
   readonly side: ControlSide;
   readonly at: string;
   readonly name: string;
@@ -123,10 +147,13 @@ export interface ControlRow {
   readonly graph: string;
 }
 
-/** The trials of every named bucket's findings, and the unused-diagnostics control. */
+/** The trials of every named bucket's findings, the unused-diagnostics control, each phase's cost, and the path of the
+ *  compiler CPU profile of one group when one was asked for. */
 export interface TrialReport {
   readonly trials: readonly Trial[];
   readonly control: readonly ControlRow[];
+  readonly phases: Readonly<Record<TrialPhase, PhaseCost>>;
+  readonly cpuProfile: string | null;
 }
 
 // An object literal writes a property its type no longer has.
@@ -156,10 +183,10 @@ function commaList(node: Node): readonly Node[] | undefined {
 
 const wholeOf = (node: Node): Splice => ({ start: node.pos, end: node.end, text: "" });
 
-/** The span a delete removes: the whole node with its leading trivia, its statement when it is a declaration or export
- *  list's only entry, and in a comma-separated list the comma after it, else the one before it. A type or class member
- *  holds its own separator. */
-export function deletion(source: SourceFile, node: Node): Splice {
+// The span a delete removes: the whole node with its leading trivia, its statement when it is a declaration or export
+// list's only entry, and in a comma-separated list the comma after it, else the one before it. A type or class member
+// holds its own separator.
+function deletion(source: SourceFile, node: Node): Splice {
   const { parent } = node;
   if (isVariableDeclaration(node) && isVariableDeclarationList(parent) && parent.declarations.length === 1 && isVariableStatement(parent.parent)) {
     return wholeOf(parent.parent);
@@ -228,12 +255,15 @@ const firstLine = (text: string): string => text.split("\n")[0] ?? text;
 // The edits a delete makes, by repository-relative file.
 type Edits = ReadonlyMap<string, readonly Splice[]>;
 
-// One finding ready to trial: its bucket, its declaration's key and the edits that delete it.
+// One finding ready to trial: its bucket, its declaration's key, the edits that delete it, its find-references
+// occurrences and tsc's unused verdict.
 interface Candidate {
   readonly bucket: TrialBucket;
   readonly finding: Finding;
   readonly key: DeclKey;
   readonly edits: Edits;
+  readonly occurrences: readonly Node[];
+  readonly tsUnused: boolean;
 }
 
 // An added error no single candidate of its group owns.
@@ -242,13 +272,20 @@ const MS_PER_MINUTE = 60_000;
 // The rate a progress line divides by never starts below this, so the first group does not print a huge rate.
 const MIN_MINUTES = 1 / 60;
 
-const unresolvedTrial = ({ bucket, finding }: { readonly bucket: TrialBucket; readonly finding: Finding }, note: string): Trial => ({
+const unresolvedTrial = (
+  { bucket, finding, tsUnused }: { readonly bucket: TrialBucket; readonly finding: Finding; readonly tsUnused: boolean },
+  note: string,
+  compiles = 0,
+): Trial => ({
   bucket,
   label: finding.label,
   verdict: "unresolved",
+  references: [],
   removed: [],
   checked: [],
   errors: [],
+  compiles,
+  tsUnused,
   note,
 });
 
@@ -295,12 +332,16 @@ class Trials {
   readonly #root: string;
   readonly #imports: ImportGraph;
   readonly #base = new Map<string, readonly Diagnostic[]>();
+  readonly #compiles = new Map<Candidate, number>();
+  #snapshots = 0;
+  readonly #phases: Phases;
   #resolver: Resolver | null = null;
 
-  constructor(graph: Graph, world: NativeWorld, root: string) {
+  constructor(graph: Graph, world: NativeWorld, root: string, phases: Phases) {
     this.#graph = graph;
     this.#world = world;
     this.#root = root;
+    this.#phases = phases;
     this.#imports = ImportGraph.build(world.program, (requests) => world.batch(requests), world.files);
   }
 
@@ -312,18 +353,47 @@ class Trials {
     return diagnostic.fileName === undefined ? "" : relative(this.#root, diagnostic.fileName);
   }
 
+  /** How many throwaway snapshots the trial has made. */
+  get snapshots(): number {
+    return this.#snapshots;
+  }
+
+  /** Whether tsc reports each declaration name unused in the base program: a reportsUnnecessary suggestion or error
+   *  that starts at it. One round reads both lists for every named file, and the semantic list seeds the base errors. */
+  tsUnused(names: readonly (Node | undefined)[]): readonly boolean[] {
+    const files = [...new Set(names.flatMap((name) => (name === undefined ? [] : [this.#world.fileOfSource(name.getSourceFile())])))].filter(
+      (file) => !this.#base.has(file),
+    );
+    const { program } = this.#world;
+    const absolute = files.map((file) => this.#absolute(file));
+    const [suggestions = [], semantic = []] =
+      files.length === 0 ? [] : this.#world.batch([program.getSuggestionDiagnostics.gen(absolute), program.getSemanticDiagnostics.gen(absolute)]);
+    this.#seedBase(files, semantic);
+    const unused = new Set(
+      [...suggestions, ...files.flatMap((file) => this.#base.get(file) ?? [])]
+        .filter(({ reportsUnnecessary }) => reportsUnnecessary === true)
+        .map((diagnostic) => `${this.#relative(diagnostic)}:${String(diagnostic.pos)}`),
+    );
+    return names.map(
+      (name) => name !== undefined && unused.has(`${this.#world.fileOfSource(name.getSourceFile())}:${String(name.getStart(name.getSourceFile()))}`),
+    );
+  }
+
+  #seedBase(files: readonly string[], found: readonly Diagnostic[]): void {
+    const byFile = new Map<string, Diagnostic[]>(files.map((file) => [file, []]));
+    for (const diagnostic of found) {
+      byFile.get(this.#relative(diagnostic))?.push(diagnostic);
+    }
+    for (const [file, diagnostics] of byFile) {
+      this.#base.set(file, diagnostics);
+    }
+  }
+
   // The base program's errors on each file, read once per file in one request for every file not yet read.
   #baseErrors(files: readonly string[]): readonly Diagnostic[] {
     const missing = files.filter((file) => !this.#base.has(file));
     if (missing.length > 0) {
-      const found = this.#world.program.getSemanticDiagnostics(missing.map((file) => this.#absolute(file)));
-      const byFile = new Map<string, Diagnostic[]>(missing.map((file) => [file, []]));
-      for (const diagnostic of found) {
-        byFile.get(this.#relative(diagnostic))?.push(diagnostic);
-      }
-      for (const [file, diagnostics] of byFile) {
-        this.#base.set(file, diagnostics);
-      }
+      this.#seedBase(missing, this.#world.program.getSemanticDiagnostics(missing.map((file) => this.#absolute(file))));
     }
     return files.flatMap((file) => this.#base.get(file) ?? []);
   }
@@ -333,27 +403,6 @@ class Trials {
     return source === undefined ? (diagnostic.startPosition?.line ?? 0) + 1 : source.getLineAndCharacterOfPosition(pos).line + 1;
   }
 
-  /** The export specifiers and default exports that name each candidate, in any file, by find-references on its name. */
-  exportSites(nodes: readonly (Node | undefined)[]): readonly (readonly Node[])[] {
-    const world = this.#world;
-    const names = nodes.map((node) => (node === undefined ? undefined : declarationNameOf(node)));
-    const groups = world.batch(names.map((name) => (name === undefined ? noReferences() : world.referencedSymbolsOf(name))));
-    const handles = groups.map((entries) => entries.flatMap(({ references }) => references).filter((handle) => world.fileOf(handle) !== null));
-    const resolved = world.batch(handles.flat().map((handle) => handle.resolve.gen()));
-    let at = 0;
-    return handles.map((list) => {
-      const found = resolved.slice(at, at + list.length);
-      at += list.length;
-      return found.flatMap((reference): Node[] => {
-        const { parent } = reference ?? {};
-        if (parent !== undefined && isExportSpecifier(parent)) {
-          return [parent];
-        }
-        return parent !== undefined && isExportAssignment(parent) ? [parent] : [];
-      });
-    });
-  }
-
   /** Trial a group of candidates that share a declaring file: all deleted in one snapshot, every importer closure
    *  checked once, and each added error attributed to the candidate whose declaration its site resolves to in the
    *  base program.
@@ -361,38 +410,52 @@ class Trials {
    *  half is tried alone. One deleted candidate can mask another's error (the checker reports one excess property per
    *  object literal), so a candidate left without an error while others have some is tried again without them; a
    *  candidate is confirmed only by a trial that added no error at all. */
-  group(items: readonly Candidate[], count: () => void): readonly Trial[] {
+  group(items: readonly Candidate[]): readonly Trial[] {
     if (items.length === 0) {
       return [];
     }
-    const outcome = this.#check(items, count);
+    const outcome = this.#check(items);
     if (items.length > 1 && (outcome.syntax !== null || outcome.owners.includes(UNOWNED))) {
       const half = Math.ceil(items.length / 2);
-      return [...this.group(items.slice(0, half), count), ...this.group(items.slice(half), count)];
+      return [...this.group(items.slice(0, half)), ...this.group(items.slice(half))];
     }
     const errorsOf = (at: number): readonly TrialError[] => outcome.added.filter((_, x) => outcome.owners[x] === at).map((error) => this.#error(error));
     const quiet = items.filter((_, at) => errorsOf(at).length === 0);
-    const again = outcome.added.length > 0 && quiet.length > 0 ? new Map(this.group(quiet, count).map((trial, at) => [quiet[at], trial])) : null;
+    const again = outcome.added.length > 0 && quiet.length > 0 ? new Map(this.group(quiet).map((trial, at) => [quiet[at], trial])) : null;
     return items.map((item, at) => {
       const removed = this.#removed(item.edits);
+      const compiles = this.#compiles.get(item) ?? 0;
       if (outcome.syntax !== null) {
-        return { ...unresolvedTrial(item, `the delete edit does not parse: ${outcome.syntax}`), removed };
+        return { ...unresolvedTrial(item, `the delete edit does not parse: ${outcome.syntax}`, compiles), removed };
       }
       const retried = again?.get(item);
       if (retried !== undefined) {
         return retried;
       }
       const errors = errorsOf(at);
-      return { bucket: item.bucket, label: item.finding.label, verdict: verdictOf(errors), removed, checked: outcome.checked, errors, note: null };
+      return {
+        bucket: item.bucket,
+        label: item.finding.label,
+        verdict: verdictOf(errors),
+        references: [],
+        removed,
+        checked: outcome.checked,
+        errors,
+        compiles,
+        tsUnused: item.tsUnused,
+        note: null,
+      };
     });
   }
 
   // One snapshot with every candidate of a group deleted: the first syntax error of an edited file, else the errors it
   // added and which candidate owns each.
-  #check(
-    items: readonly Candidate[],
-    count: () => void,
-  ): { readonly syntax: string | null; readonly added: readonly AddedError[]; readonly owners: readonly number[]; readonly checked: readonly string[] } {
+  #check(items: readonly Candidate[]): {
+    readonly syntax: string | null;
+    readonly added: readonly AddedError[];
+    readonly owners: readonly number[];
+    readonly checked: readonly string[];
+  } {
     const edits = mergeEdits(items.map((item) => item.edits));
     const edited = [...edits.keys()];
     const checked = [
@@ -400,20 +463,27 @@ class Trials {
     ].sort();
     const base = this.#baseErrors(checked);
     const texts = Object.fromEntries(edited.map((file) => [this.#absolute(file), spliced(this.#world.source(file)?.text ?? "", edits.get(file) ?? [])]));
-    count();
-    const { syntax, added } = this.#world.trial(texts, (program) => ({
-      syntax: program.getSyntacticDiagnostics(edited.map((file) => this.#absolute(file))),
-      added: addedErrors(
-        base,
-        program.getSemanticDiagnostics(checked.map((file) => this.#absolute(file))),
-        new Map([...edits].map(([file, splices]) => [this.#absolute(file), splices])),
-      ).filter(({ diagnostic }) => diagnostic.reportsUnnecessary !== true),
-    }));
+    this.#snapshots += 1;
+    for (const item of items) {
+      this.#compiles.set(item, (this.#compiles.get(item) ?? 0) + 1);
+    }
+    // Both lists in one round: an edit that does not parse discards the semantic list.
+    const [syntax = [], semantic = []] = this.#world.trial(
+      texts,
+      (program) => [
+        program.getSyntacticDiagnostics.gen(edited.map((file) => this.#absolute(file))),
+        program.getSemanticDiagnostics.gen(checked.map((file) => this.#absolute(file))),
+      ],
+      (step, work) => this.#phases.time(step, work),
+    );
     const [first] = syntax;
+    const added = addedErrors(base, semantic, new Map([...edits].map(([file, splices]) => [this.#absolute(file), splices]))).filter(
+      ({ diagnostic }) => diagnostic.reportsUnnecessary !== true,
+    );
     return {
       syntax: first === undefined ? null : firstLine(first.text),
       added,
-      owners: items.length === 1 ? added.map(() => 0) : this.#owners(items, added),
+      owners: items.length === 1 ? added.map(() => 0) : this.#phases.time("attribution", () => this.#owners(items, added)),
       checked,
     };
   }
@@ -422,9 +492,27 @@ class Trials {
     return [...edits].flatMap(([file, splices]) => splices.map(({ start, end }) => ({ file, text: this.#world.source(file)?.text.slice(start, end) ?? "" })));
   }
 
-  // Which candidate each added error belongs to: the one whose declaration the error's site resolves to in the base
-  // program, through an import alias or, for an object literal's key, through the literal's contextual type.
+  // Which candidate each added error belongs to: the one whose find-references occurrence holds the error's start,
+  // else the one whose declaration the site resolves to in the base program.
   #owners(items: readonly Candidate[], added: readonly AddedError[]): readonly number[] {
+    const byReference = added.map(({ diagnostic, pos }) => {
+      const file = this.#relative(diagnostic);
+      const matches = items.flatMap((item, x) =>
+        item.occurrences.some((node) => this.#world.fileOfSource(node.getSourceFile()) === file && node.getStart(node.getSourceFile()) <= pos && pos < node.end)
+          ? [x]
+          : [],
+      );
+      return matches.length === 1 ? (matches[0] ?? UNOWNED) : UNOWNED;
+    });
+    const rest = added.filter((_, at) => byReference[at] === UNOWNED);
+    const bySymbol = rest.length === 0 ? [] : this.#symbolOwners(items, rest);
+    let next = 0;
+    return byReference.map((owner) => (owner === UNOWNED ? (bySymbol[next++] ?? UNOWNED) : owner));
+  }
+
+  // The owner by the base symbol at each error's site, through an import alias or, for an object literal's key, through
+  // the literal's contextual type.
+  #symbolOwners(items: readonly Candidate[], added: readonly AddedError[]): readonly number[] {
     const world = this.#world;
     const { checker } = world;
     const sites = added.map(({ diagnostic, pos }) => {
@@ -579,17 +667,76 @@ class Trials {
     return out;
   }
 
+  /** A finding's trial when a missing declaration or a product read find-references names decides it, else the
+   *  candidate its declaring file's group deletes. */
+  decide(
+    { bucket, finding }: { readonly bucket: TrialBucket; readonly finding: Finding },
+    { occurrences, reads }: Pick<FindingReferences, "occurrences" | "reads">,
+    tsUnused: boolean,
+  ): { readonly trial: Trial } | { readonly candidate: Candidate } {
+    const { key } = finding;
+    const node = key !== null && isDeclKey(key) ? this.nodeOf(key) : undefined;
+    if (key === null || !isDeclKey(key) || node === undefined) {
+      return { trial: unresolvedTrial({ bucket, finding, tsUnused }, "no declaration at the finding's span") };
+    }
+    // An import or export that names the candidate binds it; the delete removes or rewrites that site, so only a use reads.
+    const used = reads.filter((read) => moduleSite(read) === undefined);
+    if (used.length > 0) {
+      return {
+        trial: {
+          ...unresolvedTrial({ bucket, finding, tsUnused }, ""),
+          verdict: "refuted-references",
+          references: used.map((read) => siteOf(this.#world, read)),
+          note: null,
+        },
+      };
+    }
+    const edits = this.edits(key, node, isTopLevel(node) ? exportSitesOf(occurrences) : []);
+    return { candidate: { bucket, finding, key, edits, occurrences, tsUnused } };
+  }
+
+  /** Trial every group, logging progress after each; the compiler CPU profile covers the first group with more than
+   *  one candidate when `cpuProfile` names a directory. */
+  tryGroups(
+    groups: ReadonlyMap<string, readonly Candidate[]>,
+    run: { readonly total: number; readonly cpuProfile: string | null },
+    log: (line: string) => void,
+  ): { readonly tried: ReadonlyMap<Finding, Trial>; readonly profiled: string | null } {
+    const tried = new Map<Finding, Trial>();
+    const started = performance.now();
+    let done = 0;
+    let profiled: string | null = null;
+    for (const [at, items] of [...groups.values()].entries()) {
+      const dir = profiled === null && items.length > 1 ? run.cpuProfile : null;
+      if (dir !== null) {
+        mkdirSync(dir, { recursive: true });
+        this.#world.debug.startCPUProfile(dir);
+      }
+      const outcome = this.group(items);
+      if (dir !== null) {
+        profiled = String(this.#world.debug.stopCPUProfile());
+      }
+      for (const [x, item] of items.entries()) {
+        const trial = outcome[x];
+        if (trial !== undefined) {
+          tried.set(item.finding, trial);
+        }
+      }
+      done += items.length;
+      const minutes = (performance.now() - started) / MS_PER_MINUTE;
+      log(
+        `trial groups ${String(at + 1)}/${String(groups.size)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+      );
+    }
+    return { tried, profiled };
+  }
+
   /** The declaration a key names, in the world's parse. */
   nodeOf(key: DeclKey): Node | undefined {
     const parts = declKeyParts(key);
     const source = this.#world.source(parts.file);
     return source === undefined ? undefined : nodeAt(source, parts);
   }
-}
-
-function* noReferences(): ReturnType<NativeWorld["referencedSymbolsOf"]> {
-  yield* [];
-  return [];
 }
 
 function verdictOf(errors: readonly TrialError[]): TrialVerdict {
@@ -639,50 +786,92 @@ function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undef
   return named !== undefined && found !== undefined && sameSpan(named, found) ? parent : found;
 }
 
+// Each phase's wall time and the compiler requests sent inside it; phases nest only where none is timed twice.
+class Phases {
+  readonly #world: NativeWorld;
+  readonly #costs = new Map<TrialPhase, PhaseCost>();
+
+  constructor(world: NativeWorld) {
+    this.#world = world;
+  }
+
+  time<R>(phase: TrialPhase, work: () => R): R {
+    const before = this.#world.timing();
+    const began = performance.now();
+    try {
+      return work();
+    } finally {
+      const after = this.#world.timing();
+      const so = this.#costs.get(phase) ?? NO_COST;
+      this.#costs.set(phase, {
+        ms: so.ms + performance.now() - began,
+        requests: so.requests + after.requestCount - before.requestCount,
+        serverMs: so.serverMs + after.serverTimeMs - before.serverTimeMs,
+        roundTripMs: so.roundTripMs + after.roundTripMs - before.roundTripMs,
+      });
+    }
+  }
+
+  report(): Readonly<Record<TrialPhase, PhaseCost>> {
+    const cost = (phase: TrialPhase): PhaseCost => this.#costs.get(phase) ?? NO_COST;
+    return {
+      references: cost("references"),
+      unused: cost("unused"),
+      snapshot: cost("snapshot"),
+      diagnostics: cost("diagnostics"),
+      attribution: cost("attribution"),
+    } satisfies Record<TrialPhase, PhaseCost>;
+  }
+}
+
+const NO_COST: PhaseCost = { ms: 0, requests: 0, serverMs: 0, roundTripMs: 0 };
+
+// The export specifiers and default exports among a declaration's find-references occurrences.
+const exportSitesOf = (occurrences: readonly Node[]): readonly Node[] =>
+  occurrences.flatMap(({ parent }) => (isExportSpecifier(parent) || isExportAssignment(parent) ? [parent] : []));
+
+// A `file:line` for a node of the world's parse.
+const siteOf = (world: NativeWorld, node: Node): string =>
+  `${world.fileOfSource(node.getSourceFile())}:${String(node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1)}`;
+
 /** Run the delete trial over every finding of the named buckets, or an even sample of `limit` of them, then the
- *  unused-diagnostics control. */
+ *  unused-diagnostics control; `cpuProfile` names a directory for the compiler CPU profile of the first group with more
+ *  than one candidate. */
 export function runTrials(
   graph: Graph,
   world: NativeWorld,
-  run: { readonly root: string; readonly analysis: Analysis; readonly buckets: readonly TrialBucket[]; readonly limit: number | null },
+  run: {
+    readonly root: string;
+    readonly analysis: Analysis;
+    readonly buckets: readonly TrialBucket[];
+    readonly limit: number | null;
+    readonly cpuProfile: string | null;
+  },
   log: (line: string) => void,
 ): TrialReport {
-  const trials = new Trials(graph, world, run.root);
+  const phases = new Phases(world);
+  const trials = new Trials(graph, world, run.root, phases);
   const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
   const picked = evenSample(all, run.limit);
-  const nodes = picked.map(({ finding: { key } }) => (key !== null && isDeclKey(key) ? trials.nodeOf(key) : undefined));
-  const exportSites = trials.exportSites(nodes.map((node) => (node !== undefined && isTopLevel(node) ? node : undefined)));
-  const results = new Map<Finding, Trial>();
+  const found = phases.time("references", () =>
+    referencesOf(
+      world,
+      picked.map(({ finding }) => finding),
+    ),
+  );
+  const tsUnused = phases.time("unused", () => trials.tsUnused(found.map(({ name }) => name)));
+  const decided = new Map<Finding, Trial>();
   const groups = new Map<string, Candidate[]>();
-  for (const [at, { bucket, finding }] of picked.entries()) {
-    const node = nodes[at];
-    const { key } = finding;
-    if (key === null || !isDeclKey(key) || node === undefined) {
-      results.set(finding, unresolvedTrial({ bucket, finding }, "no declaration at the finding's span"));
-      continue;
+  for (const [at, pick] of picked.entries()) {
+    const outcome = trials.decide(pick, found[at] ?? { occurrences: [], reads: [] }, tsUnused[at] ?? false);
+    if ("trial" in outcome) {
+      decided.set(pick.finding, outcome.trial);
+    } else {
+      const { file } = declKeyParts(outcome.candidate.key);
+      groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
     }
-    const file = declKeyParts(key).file;
-    groups.set(file, [...(groups.get(file) ?? []), { bucket, finding, key, edits: trials.edits(key, node, exportSites[at] ?? []) }]);
   }
-  const started = performance.now();
-  const tally = { snapshots: 0 };
-  const counted = (): void => {
-    tally.snapshots += 1;
-  };
-  let done = 0;
-  for (const [at, items] of [...groups.values()].entries()) {
-    for (const [x, trial] of trials.group(items, counted).entries()) {
-      const item = items[x];
-      if (item !== undefined) {
-        results.set(item.finding, trial);
-      }
-    }
-    done += items.length;
-    const minutes = (performance.now() - started) / MS_PER_MINUTE;
-    log(
-      `trial groups ${String(at + 1)}/${String(groups.size)} candidates ${String(done)}/${String(picked.length)} snapshots ${String(tally.snapshots)} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
-    );
-  }
-  const trialsInOrder = picked.flatMap(({ finding }) => results.get(finding) ?? []);
-  return { trials: trialsInOrder, control: trials.control(run.analysis) };
+  const { tried, profiled } = trials.tryGroups(groups, { total: picked.length, cpuProfile: run.cpuProfile }, log);
+  const trialsInOrder = picked.flatMap(({ finding }) => decided.get(finding) ?? tried.get(finding) ?? []);
+  return { trials: trialsInOrder, control: trials.control(run.analysis), phases: phases.report(), cpuProfile: profiled };
 }

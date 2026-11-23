@@ -53,8 +53,10 @@ test("a delete removes a whole interface member, class member or literal method 
     [`${LIB}:table.last`, "confirmed", `${LIB}: , last(): number { return 3; }`],
     [`${LIB}:Box.written`, "confirmed", `${LIB}: written = 3;`],
   ]);
-  // One file, one snapshot: the two literal neighbours share the comma between them.
+  // One file, one snapshot: a clean compile confirms the whole group, and the two literal neighbours share the comma
+  // between them.
   expect(progress(lines)).toMatch(/ snapshots 1 /u);
+  expect(report.trials.map(({ compiles }) => compiles)).toEqual([1, 1, 1, 1]);
 });
 
 test("a delete removes a dead exported function's whole statement", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -136,48 +138,49 @@ const READER_TREE = (lib: string): Record<string, string> => ({
   [OTHER]: "export const alone = 1;",
 });
 
-// The import's error sits on line 1 either way: on the specifier when the module keeps another export, on the module
-// when the delete took its last one. The reader is the use on line 3.
-test.for([
-  { left: "another export", lib: ["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n") },
-  { left: "no export", lib: "export const DEFAULTS = { a: 1 };" },
-])(
-  "a type reader the delete breaks refutes the finding at its line when the module keeps $left; only the declaring file and its importers are checked",
-  { timeout: 120_000 },
-  async ({ lib }, { plantedTree }) => {
-    const root = await plantedTree(graphTree(READER_TREE(lib), { entries: [MAIN] }));
-    const report = await trialGraph(root, { buckets: ["type-only"], limit: null }, () => undefined);
-    expect(
-      report.trials.map(({ label, verdict, checked, errors }) => ({ label, verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
-    ).toEqual([{ label: `${LIB}:DEFAULTS`, verdict: "refuted", checked: [LIB, MAIN, SHAPE], errors: [`${SHAPE}:3 read`] }]);
-  },
-);
-
-// One file's candidates are deleted in one snapshot; each added error goes to the candidate its site resolves to.
-
-test("candidates of one file are deleted together and the refutation lands on the candidate its reader names", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
-  // main keeps one export of lib alive, so deleting both candidates still leaves lib a module.
-  const tree = {
-    ...READER_TREE(["export const DEFAULTS = { a: 1 };", "export const orphan = (): number => 2;", "export const kept = 3;"].join("\n")),
-    [MAIN]: [
-      'import type { Shape } from "./shape.ts";',
-      'import { kept } from "./lib.ts";',
-      "const use = (value: number): number => value;",
-      "const shape: Shape = { a: kept };",
-      "use(shape.a);",
-    ].join("\n"),
-  };
-  const root = await plantedTree(graphTree(tree, { entries: [MAIN] }));
+// Find-references names the type read on line 3; the import on line 1 only binds the name.
+test("a product read find-references names refutes the finding with no snapshot", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree(READER_TREE(["export const DEFAULTS = { a: 1 };", "export const SPARE = 2;"].join("\n")), { entries: [MAIN] }));
   const lines: string[] = [];
-  const report = await trialGraph(root, { buckets: ["type-only", "dead"], limit: null }, (line) => lines.push(line));
-  expect(report.trials.filter(({ label }) => label.startsWith(LIB)).map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at }) => at)])).toEqual([
-    [`${LIB}:DEFAULTS`, "refuted", [`${SHAPE}:3`]],
-    [`${LIB}:orphan`, "confirmed", []],
+  const report = await trialGraph(root, { buckets: ["type-only"], limit: null }, (line) => lines.push(line));
+  expect(report.trials.map(({ label, verdict, references, checked, errors, compiles }) => ({ label, verdict, references, checked, errors, compiles }))).toEqual(
+    [{ label: `${LIB}:DEFAULTS`, verdict: "refuted-references", references: [`${SHAPE}:3`], checked: [], errors: [], compiles: 0 }],
+  );
+  expect(lines.filter((line) => line.startsWith("trial groups "))).toEqual([]);
+});
+
+// One file's candidates share a snapshot. A structural constraint reads `b` where neither find-references nor the base
+// symbol at the error's site names it, so the group halves until `b` stands alone.
+test("a group with an unowned error bisects to the one member it reads, counting each member's compiles", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [LIB]: "export interface Shape { readonly kept: string; readonly a: string; readonly b: string; readonly c: string }",
+        [MAIN]: [
+          'import type { Shape } from "./lib.ts";',
+          "type Needs<T extends { readonly b: string }> = T;",
+          "const shape: Needs<Shape> | undefined = undefined;",
+          "const use = (value: unknown): unknown => value;",
+          "use(shape?.kept);",
+        ].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  const lines: string[] = [];
+  const report = await trialGraph(root, { buckets: ["member-untouched"], limit: null }, (line) => lines.push(line));
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(LIB))
+      .map(({ label, verdict, errors, compiles }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`), compiles]),
+  ).toEqual([
+    [`${LIB}:Shape.kept`, "confirmed", [], 2],
+    [`${LIB}:Shape.a`, "confirmed", [], 2],
+    [`${LIB}:Shape.b`, "refuted", [`${MAIN}:3 read`], 3],
+    [`${LIB}:Shape.c`, "confirmed", [], 3],
   ]);
-  // lib's group, orphan again without the refuted DEFAULTS, and other.ts: no split, which would take four.
-  expect(progress(lines)).toMatch(/ snapshots 3 /u);
+  // lib: the whole group, its clean half kept+a, the half b+c, then b and c alone; main: its own group.
+  expect(progress(lines)).toMatch(/ snapshots 6 /u);
 });
 
 // The checker reports one excess property per literal, so the second member's write shows only once the first is settled.
@@ -247,12 +250,12 @@ test("pnpm unwired graph-trial takes each --bucket, prints each refuting error a
   const run = await runCli("unwired", ["graph-trial", "--bucket=type-only", "--bucket=dead", `--root=${root}`, `--out=${join(scratch, "trial.json")}`]);
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout.split("\n").filter((line) => !line.startsWith("control-") && line !== "")).toEqual([
-    `refuted\ttype-only\t${LIB}:DEFAULTS\t${SHAPE}:3 TS2305 read`,
+    `refuted-references\ttype-only\t${LIB}:DEFAULTS\t${SHAPE}:3`,
   ]);
   const tallies = run.stderr.split("\n").filter((line) => line.includes(" trials="));
   expect(tallies).toEqual([
-    "type-only trials=1 confirmed=0 named-only=0 refuted=1 refuted-test-only=0 unresolved=0",
-    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ named-only=0 refuted=0 refuted-test-only=0 unresolved=0$/u),
+    "type-only trials=1 confirmed=0 named-only=0 refuted-references=1 refuted=0 refuted-test-only=0 unresolved=0",
+    expect.stringMatching(/^dead trials=\d+ confirmed=\d+ named-only=0 refuted-references=0 refuted=0 refuted-test-only=0 unresolved=0$/u),
   ]);
 });
 
@@ -325,6 +328,11 @@ test("the control lists where TypeScript's unused-code diagnostics and the graph
     `agree ${LIB}:4 #spare member-write-only`,
     `graph-only ${LIB}:2 chained dead`,
     `graph-unjudged ${LIB}:6 unusedLocal VariableDeclaration`,
+  ]);
+  // tsc's own verdict rides on each trial: it reports the helper nothing calls, not the one that helper calls.
+  expect(report.trials.filter(({ label }) => label.startsWith(LIB)).map(({ label, tsUnused }) => [label, tsUnused])).toEqual([
+    [`${LIB}:unusedHelper`, true],
+    [`${LIB}:chained`, false],
   ]);
 });
 
