@@ -2,7 +2,7 @@
 // rules, split by the side of the tree that holds it, and the literal stage that moves a dead field row to ask only on a
 // hit that can be a read.
 
-import { symlinkSync } from "node:fs";
+import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
@@ -273,4 +273,33 @@ test("more names than one grep pattern holds are searched in parts, and each hit
     { verdict: "ask", counts: { string: 1, write: 1 }, writers: ["packages/a/src/both.ts:1"] },
   ]);
   expect(stage?.deadAfter).toBe(members.length - 2);
+});
+
+// git grep numbers lines by "\n" alone, while the compiler's line table also breaks at U+2028 inside a string: a hit on
+// a later line is still read where it sits, at its own offset.
+test("a hit after a line separator in a string is classified where it sits", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const separator = String.fromCodePoint(0x20_28);
+  const file = "packages/a/src/separated.ts";
+  const text = `export const s = "a${separator}b";\nexport const read = (o: { n: number }): number => o.zqAfterSeparator;\n`;
+  const root = await plantedTree(graphTree({ [file]: text }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const search = searchLiterals(root, world, ["zqAfterSeparator"]);
+  expect(search?.hits.get("zqAfterSeparator")?.map(({ at, kind, offset }) => [at, kind, offset])).toEqual([
+    [`${file}:2`, "read", text.indexOf("zqAfterSeparator")],
+  ]);
+});
+
+// The program reads each file once; a file edited before the search greps it gives lines the program never held, so
+// the search refuses rather than reading another line's text.
+test("a held file that changed on disk after the program read it is refused, naming the file", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/edited.ts";
+  const root = await plantedTree(graphTree({ [file]: "export const read = (o: { n: number }): number => o.zqEdited;\n" }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const path = join(root, file);
+  writeFileSync(path, `// a line the program never read\n${readFileSync(path, "utf8")}`);
+  expect(() => searchLiterals(root, world, ["zqEdited"])).toThrow(`${file}:2`);
 });

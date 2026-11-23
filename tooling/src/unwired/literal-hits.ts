@@ -494,10 +494,29 @@ function unparsedHits(file: string, type: FileType, generated: boolean, found: r
   }));
 }
 
+// git grep numbers lines by "\n" alone, while the compiler's line table also breaks at a lone "\r", U+2028 and U+2029,
+// so a grepped line is found in the program's text by git's rule.
+function grepLineStarts(text: string): readonly number[] {
+  const starts = [0];
+  for (let at = text.indexOf("\n"); at !== -1; at = text.indexOf("\n", at + 1)) {
+    starts.push(at + 1);
+  }
+  return starts;
+}
+
+// The program read each file once and git greps the tree later, so a file edited in between is refused by name: its
+// hits would sit at offsets the program never held.
 function parsedHits(source: SourceFile, file: string, found: readonly Found[], graph: boolean): readonly LiteralHit[] {
   const scope = scopeOf(file, "parsed");
+  const { text } = source;
+  const starts = grepLineStarts(text);
   return found.map(({ name, line, index }) => {
-    const offset = source.getPositionOfLineAndCharacter(line.line - 1, 0) + index;
+    const start = starts[line.line - 1];
+    const next = starts[line.line];
+    if (start === undefined || text.slice(start, next === undefined ? text.length : next - 1) !== line.text) {
+      throw new Error(`literal hits: ${file}:${String(line.line)} on disk is not the program's text of that line; the file changed after the program read it`);
+    }
+    const offset = start + index;
     return { name, file, line: line.line, at: `${file}:${String(line.line)}`, offset, graph, scope, kind: parsedKind(source, offset) };
   });
 }
