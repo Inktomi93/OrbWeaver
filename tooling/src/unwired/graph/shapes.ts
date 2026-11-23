@@ -1,5 +1,13 @@
-// `pnpm unwired shapes`: named object types in different files with the same members that are assignable both ways
-// (a second home for one concept), type aliases that only rename another type, and re-exports of re-exports.
+// `pnpm unwired shapes` as a query over the graph session: named object types in different files with the same members
+// that are assignable both ways (a second home for one concept), type aliases that only rename another type, and
+// re-exports of re-exports.
+//
+// - The scan reads the session's one merged program (D357), so a pair is compared once, with every product package in
+//   one checker; a client type and a server type of the same shape are now a pair.
+// - The report keeps the buckets the per-world scan wrote except `disagreements`: the graph is one engine, so no second
+//   engine can disagree with it.
+// - Only product source (worlds.ts `isProduction`) declares a home. Shapes judges declarations, never uses, so nothing
+//   is credited.
 import type { ExportSpecifier, Identifier, InterfaceDeclaration, Node, TypeAliasDeclaration, TypeReferenceNode } from "@typescript/native/ast";
 import {
   isExportSpecifier,
@@ -13,20 +21,16 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
-import ts from "typescript";
-import type { Site } from "./classify.ts";
-import { nameAt } from "./classify.ts";
-import type { DeliberateSide } from "./deliberate.ts";
-import { sortDeliberate } from "./deliberate.ts";
-import type { DistinctRegistry } from "./distinct-lookalikes.ts";
-import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
-import type { JudgedSplit } from "./judged.ts";
-import { sortJudged } from "./judged.ts";
-import { ServiceWorld } from "./language-service.ts";
-import { declarationKeys, hasFlag, NativeWorld } from "./native.ts";
-import type { ScanOptions } from "./scan.ts";
-import { scanWorlds } from "./scan.ts";
-import { isProduction } from "./worlds.ts";
+import type { Site } from "../classify.ts";
+import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
+import { sortDeliberate } from "../deliberate.ts";
+import type { DistinctRegistry } from "../distinct-lookalikes.ts";
+import { DISTINCT_LOOKALIKES, isDistinctPair } from "../distinct-lookalikes.ts";
+import type { JudgedEntry, JudgedSplit } from "../judged.ts";
+import { sortJudged } from "../judged.ts";
+import type { NativeWorld } from "../native.ts";
+import { declarationKeys, hasFlag } from "../native.ts";
+import { isProduction } from "../worlds.ts";
 
 const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;
 /** `restated`: two named object types in different files with the same members, each assignable to the other.
@@ -60,14 +64,12 @@ export interface ShapesReport {
   readonly staleJudged: JudgedSplit<UnwiredShape>["staleJudged"];
   /** Restated pairs `tooling/src/unwired/distinct-lookalikes.ts` judges two concepts: no review work. */
   readonly distinct: readonly UnwiredShape[];
-  /** Findings engine one made that engine two's checker does not reproduce. */
-  readonly disagreements: readonly string[];
   readonly limits: readonly string[];
 }
 
 /** What the shapes scan cannot see, printed with every run. */
 const SHAPE_LIMITS: readonly string[] = [
-  "Two homes are compared only inside one package world: a client type and a server type of the same shape are never paired, and test worlds are not scanned.",
+  "Only product source (packages/*/src) declares a home: a test or tooling type is never paired. Every product package shares the one merged program, so a client type and a server type of the same shape are paired.",
   "A generic type, a callable type and a type with fewer than two in-tree members hold no home, so their restatements are not reported.",
   "A declaration whose text after its own name names the other type counts as derived from it, so a restatement that also mentions its twin by name is missed.",
   "A computed form (Pick, Omit, an indexed access, a mapped or conditional type) is derived, never a second home, even where it re-spells the same members.",
@@ -77,7 +79,6 @@ const SHAPE_LIMITS: readonly string[] = [
 
 // Below two members a matching shape is a coincidence, `{ id }` across a dozen verbs.
 const MIN_MEMBERS = 2;
-const MAX_HOPS = 16;
 // Core-0 §4's per-verb homes: a domain contract's params.ts holds every verb's *Params and its results.ts every verb's
 // *Result. The law names them by file and type name; no checker fact marks a verb.
 const PER_VERB_HOMES = [
@@ -191,8 +192,7 @@ interface Shape {
 // property-name set, so a side that adds a member of its own differs in that member's declarations and stays a candidate.
 const oneSource = (a: Shape, b: Shape): boolean => a.sources.every((source, index) => source !== "" && source === b.sources[index]);
 
-/** One side of a restated pair, held past its world's pass: its name and place, never its declaration node, so the
- *  world's syntax tree is freed when the pass ends. */
+/** One side of a restated pair: its name and place, never its declaration node. */
 interface Side {
   readonly site: Site;
   readonly line: number;
@@ -209,7 +209,6 @@ const sideOf = (type: Declared): Side => ({
 
 interface Pair {
   readonly key: string;
-  readonly world: string;
   readonly first: Side;
   readonly second: Side;
   readonly names: readonly string[];
@@ -239,7 +238,7 @@ function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair
       group
         .slice(index + 1)
         .filter((b) => a.declared.site.file !== b.declared.site.file && !linked(a.declared, b.declared) && !oneSource(a.shape, b.shape))
-        // One orientation per pair, so two worlds that list the files in opposite order key the same pair.
+        // One orientation per pair, so the program's file order never decides which side a row names first.
         .map((b) => ({ ...(sideKey(a.declared) <= sideKey(b.declared) ? { a, b } : { a: b, b: a }), names: key.split(",") })),
     ),
   );
@@ -254,7 +253,6 @@ function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair
       ? [
           {
             key: [a.declared, b.declared].map(sideKey).join("="),
-            world: world.config,
             first: sideOf(a.declared),
             second: sideOf(b.declared),
             names: members,
@@ -262,12 +260,6 @@ function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair
         ]
       : [],
   );
-}
-
-/** A named finding and the site of its name, for engine two to look up. */
-interface Located {
-  readonly finding: UnwiredShape;
-  readonly site: Site;
 }
 
 type Synonym = Declared & { readonly node: TypeAliasDeclaration & { readonly type: TypeReferenceNode } };
@@ -295,7 +287,7 @@ function* exportedByModule(world: NativeWorld, node: Named): APIRequestGenerator
 
 // A synonym's target: its file, or `external` for a library type. A library type has no home in the tree, so an alias
 // its own file keeps private is a local spelling of it, not a second home; an exported one gives the tree a second name.
-function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Located[] {
+function synonyms(world: NativeWorld, types: readonly Declared[]): readonly UnwiredShape[] {
   const aliases = types.filter(isSynonym);
   const targets = world.symbolsAt(aliases.map(({ node }) => node.type.typeName));
   const external = aliases.map((_, index) => {
@@ -305,7 +297,7 @@ function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Loca
   const local = aliases.filter((_, index) => external[index] === true);
   const answers = world.batch(local.map(({ node }) => exportedByModule(world, node)));
   const localExported = new Map(local.map((alias, index) => [alias, answers[index]] as const));
-  return aliases.flatMap((alias, index): Located[] => {
+  return aliases.flatMap((alias, index): UnwiredShape[] => {
     const { node, site, line } = alias;
     const target = targets[index];
     const handle = target?.declarations[0];
@@ -322,7 +314,7 @@ function synonyms(world: NativeWorld, types: readonly Declared[]): readonly Loca
       at: [world.fileOf(handle) ?? "external"],
       perVerb: isPerVerb(nameOf(node), site.file),
     };
-    return [{ finding, site }];
+    return [finding];
   });
 }
 
@@ -331,11 +323,13 @@ interface Hop {
   readonly reexport: boolean;
 }
 
-// The alias hops from an export specifier to the symbol it finally names.
+// The alias hops from an export specifier to the symbol it finally names; a symbol seen before ends a cycle.
 function* hopsOf(world: NativeWorld, specifier: ExportSpecifier): APIRequestGenerator<{ readonly hops: readonly Hop[]; readonly target: string }> {
   const hops: Hop[] = [];
+  const seen = new Set<number>();
   let symbol: NativeSymbol | undefined = yield* world.checker.getSymbolAtLocation.gen(specifier.name);
-  while (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) && hops.length < MAX_HOPS) {
+  while (symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) && !seen.has(symbol.id)) {
+    seen.add(symbol.id);
     const handle = symbol.declarations[0];
     const file = handle === undefined ? null : world.fileOf(handle);
     // A library's own re-exports are not a chain the tree can shorten.
@@ -345,7 +339,7 @@ function* hopsOf(world: NativeWorld, specifier: ExportSpecifier): APIRequestGene
   return { hops, target: symbol?.name ?? "" };
 }
 
-function reexports(world: NativeWorld): readonly Located[] {
+function reexports(world: NativeWorld): readonly UnwiredShape[] {
   const specifiers: ExportSpecifier[] = [];
   eachProductionNode(world, (node) => {
     if (isExportSpecifier(node)) {
@@ -353,7 +347,7 @@ function reexports(world: NativeWorld): readonly Located[] {
     }
   });
   const walked = world.batch(specifiers.map((specifier) => hopsOf(world, specifier)));
-  return specifiers.flatMap((specifier, index): Located[] => {
+  return specifiers.flatMap((specifier, index): UnwiredShape[] => {
     const walk = walked[index];
     if (walk === undefined) {
       return [];
@@ -371,62 +365,20 @@ function reexports(world: NativeWorld): readonly Located[] {
       perVerb: false,
     };
     if (files.length >= 2) {
-      return [{ finding: { ...base, kind: "reexport-chain" }, site }];
+      return [{ ...base, kind: "reexport-chain" }];
     }
     const renamed = walk.target !== "" && walk.target !== exported && walk.target !== "default";
-    return renamed ? [{ finding: { ...base, kind: "renamed-reexport" }, site }] : [];
+    return renamed ? [{ ...base, kind: "renamed-reexport" }] : [];
   });
 }
 
-// Engine two's checks, each in the world engine one found the finding in.
-function serviceType(world: ServiceWorld, site: Site): ts.Type | undefined {
-  const source = world.source(site.file);
-  const name = source === undefined ? undefined : nameAt(source, site.position);
-  const symbol = name === undefined ? undefined : world.checker.getSymbolAtLocation(name);
-  return symbol === undefined ? undefined : world.checker.getDeclaredTypeOfSymbol(symbol);
-}
-
-function serviceRestates(world: ServiceWorld, pair: Pair): boolean {
-  const a = serviceType(world, pair.first.site);
-  const b = serviceType(world, pair.second.site);
-  return a !== undefined && b !== undefined && world.checker.isTypeAssignableTo(a, b) && world.checker.isTypeAssignableTo(b, a);
-}
-
-function serviceHops(world: ServiceWorld, start: ts.Symbol | undefined): { readonly files: readonly string[]; readonly target: string } {
-  const files = new Set<string>();
-  let symbol = start;
-  for (let hop = 0; symbol !== undefined && hasFlag(symbol.flags, ts.SymbolFlags.Alias) && hop < MAX_HOPS; hop++) {
-    const declaration = symbol.declarations?.[0];
-    const file = declaration !== undefined && ts.isExportSpecifier(declaration) ? world.siteOf(declaration).file : null;
-    if (file !== null && !file.includes("node_modules")) {
-      files.add(file);
-    }
-    symbol = world.checker.getImmediateAliasedSymbol(symbol);
-  }
-  return { files: [...files], target: symbol?.name ?? "" };
-}
-
-function serviceSynonym(world: ServiceWorld, name: ts.Node, member: string): boolean {
-  const alias = name.parent;
-  if (!(ts.isTypeAliasDeclaration(alias) && ts.isTypeReferenceNode(alias.type) && alias.type.typeArguments === undefined)) {
-    return false;
-  }
-  const symbol = world.checker.getSymbolAtLocation(alias.type.typeName);
-  const target = symbol !== undefined && hasFlag(symbol.flags, ts.SymbolFlags.Alias) ? world.checker.getAliasedSymbol(symbol) : symbol;
-  return target?.name === member;
-}
-
-function serviceConfirms(world: ServiceWorld, { finding, site }: Located): boolean {
-  const source = world.source(site.file);
-  const name = source === undefined ? undefined : nameAt(source, site.position);
-  if (name === undefined) {
-    return false;
-  }
-  if (finding.kind === "synonym") {
-    return serviceSynonym(world, name, finding.member);
-  }
-  const walk = serviceHops(world, world.checker.getSymbolAtLocation(name));
-  return finding.kind === "reexport-chain" ? walk.files.length >= 2 : walk.target === finding.member;
+/** The repository, the deliberate and judged lists, and the registry of look-alikes judged two concepts (the tree's own
+ *  by default; a test passes its own). */
+export interface ShapesOptions {
+  readonly root: string;
+  readonly deliberate: readonly DeliberateEntry[];
+  readonly judged?: readonly JudgedEntry[] | undefined;
+  readonly distinct?: DistinctRegistry;
 }
 
 const restatement = ({ key, first, second }: Pair): UnwiredShape => ({
@@ -450,7 +402,7 @@ const sidesOf = ({ first, second }: Pair): readonly [DeliberateSide, DeliberateS
 // The deliberate list first, then Core-0 §4's per-verb names, then the judged look-alikes; the rest is unwired.
 function bucket(
   findings: readonly UnwiredShape[],
-  options: ScanOptions,
+  options: ShapesOptions,
   sides: ReadonlyMap<string, readonly [DeliberateSide, DeliberateSide]>,
   registry: DistinctRegistry,
 ): Pick<ShapesReport, "unwired" | "judged" | "staleJudged" | "deliberate" | "distinct"> {
@@ -471,42 +423,11 @@ function bucket(
   return { ...sortJudged(unwired, options), deliberate, distinct };
 }
 
-/** Run both engines over the package worlds of `root` for second homes, synonyms and re-export chains; a test passes
- *  its own distinct registry. */
-export function scanShapes(options: ScanOptions, distinct: DistinctRegistry = DISTINCT_LOOKALIKES): ShapesReport {
-  const { worlds } = scanWorlds(options);
-  const pairs = new Map<string, Pair>();
-  const named = new Map<string, Located & { readonly world: string }>();
-  let scanned = 0;
-  for (const config of worlds) {
-    using world = NativeWorld.open(options.root, config);
-    const types = declared(world);
-    scanned += types.length;
-    for (const pair of restated(world, types)) {
-      pairs.set(pair.key, pairs.get(pair.key) ?? pair);
-    }
-    for (const located of [...synonyms(world, types), ...reexports(world)]) {
-      named.set(located.finding.key, named.get(located.finding.key) ?? { ...located, world: config });
-    }
-    options.log(`${config}: ${types.length} named types`);
-  }
-  const findings: UnwiredShape[] = [];
-  const disagreements: string[] = [];
-  for (const config of new Set([...[...pairs.values()].map((pair) => pair.world), ...[...named.values()].map((entry) => entry.world)])) {
-    const world = ServiceWorld.open(options.root, config);
-    const checks = [
-      ...[...pairs.values()].filter((pair) => pair.world === config).map((pair) => ({ finding: restatement(pair), holds: serviceRestates(world, pair) })),
-      ...[...named.values()].filter((entry) => entry.world === config).map((entry) => ({ finding: entry.finding, holds: serviceConfirms(world, entry) })),
-    ];
-    for (const { finding, holds } of checks) {
-      if (holds) {
-        findings.push(finding);
-      } else {
-        disagreements.push(finding.key);
-      }
-    }
-    options.log(`${config}: engine two checked ${checks.length} findings`);
-  }
-  const sides = new Map([...pairs.values()].map((pair) => [pair.key, sidesOf(pair)] as const));
-  return { scanned, ...bucket(findings, options, sides, distinct), disagreements, limits: SHAPE_LIMITS };
+/** Second homes, synonyms and re-export chains over the session's merged program. */
+export function shapesPass(world: NativeWorld, options: ShapesOptions): ShapesReport {
+  const types = declared(world);
+  const pairs = restated(world, types);
+  const findings = [...pairs.map(restatement), ...synonyms(world, types), ...reexports(world)];
+  const sides = new Map(pairs.map((pair) => [pair.key, sidesOf(pair)] as const));
+  return { scanned: types.length, ...bucket(findings, options, sides, options.distinct ?? DISTINCT_LOOKALIKES), limits: SHAPE_LIMITS };
 }

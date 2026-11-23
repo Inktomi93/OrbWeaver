@@ -23,7 +23,7 @@ test("a value no caller selects is unused; a literal, a default, a false arm and
       'export const small = Button({ size: "sm" });',
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = md, lg", "tone = loud"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["button.size = md, lg", "button.tone = loud"]);
 });
 
 test("a table built through a wrapped tv is read like one built by tv itself", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -36,7 +36,7 @@ test("a table built through a wrapped tv is read like one built by tv itself", {
       'export const plain = card({ pad: "none" });',
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["pad = wide"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["card.pad = wide"]);
 });
 
 // `recipe(bag)` hands the whole parameter bag over: each axis the bag's type carries takes the bag member's literals
@@ -52,7 +52,7 @@ test("a whole parameter bag handed to a recipe selects each axis by its member's
       'export const small = styled({ size: "sm" });',
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = lg", "tone (whole axis: plain, loud)"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["recipe.size = lg", "recipe.tone (whole axis: plain, loud)"]);
 });
 
 // A typed value selects every literal its type can be: `2 | 1` a numeric axis's keys, `boolean` both arms of a
@@ -67,7 +67,7 @@ test("a typed value selects its literal type's members, numeric keys and a boole
       "export const shown = (lv: 2 | 1, flag: boolean): string => badge({ level: lv, on: flag });",
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["level = 3", "on = mixed"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["badge.level = 3", "badge.on = mixed"]);
 });
 
 // `props.size` forwards the prop it reads, so the axis takes what callers write into `ButtonProps.size`; `lg` is the
@@ -83,7 +83,7 @@ test("a prop read off the parameter bag forwards the values callers write into i
       'export const both = [Button({ size: "sm" }), Button({ size: "md" })];',
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = lg"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["button.size = lg"]);
 });
 
 // `variantProps(recipe, { size })` with `size` read off typed props: the selection's own type fits the recipe's props,
@@ -105,5 +105,52 @@ test("a selection co-inferred with its recipe selects the recipe's axis values",
       'export const shown = chip({ size: "sm" });',
     ]),
   );
-  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["size = md, lg"]);
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["button.size = md, lg"]);
+});
+
+// A stamped attribute's selector names the value it selects (packages/ui/src/lib/variant-attrs.ts stamps the arm a caller
+// picked), so an unused value's row lists every selector that one delete removes with it; a selector keeps nothing. A
+// selector naming a value no recipe declares is stale; data-tone also takes the tone door's tones.
+test("an unused stamped value names its selectors; a selector of an undeclared value is stale", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const sheet = `${GRAPH_SOURCE}/stamps.css`;
+  const scan = await graphScan(plantedTree, {
+    ...source([
+      'import { tv } from "tailwind-variants";',
+      'const chip = tv({ variants: { size: { sm: "s", lg: "l" }, step: { one: "1" }, tone: { loud: "x" } } });',
+      'export const small = chip({ size: "sm", step: "one", tone: "loud" });',
+      'export const hover = "data-[size=lg]:p-1 data-[step=two]:p-2";',
+    ]),
+    [sheet]: [
+      '[data-size="lg"] { color: red; }',
+      '[data-size="xl"] { color: red; }',
+      '[data-tone="info"] { color: red; }',
+      '[data-orientation="vertical"] { color: red; }',
+      '[data-size^="x"] { color: red; }',
+      // a tone that displaces a recipe's tone arm moves the arm to data-variant
+      '[data-variant="loud"] { color: red; }',
+    ].join("\n"),
+  });
+  const rows = (bucket: "variant-value-unused" | "variant-selector-stale"): readonly (readonly [string, string | null])[] =>
+    scan.analysis[bucket].map(({ label, note }) => [label, note]);
+  expect({ unused: rows("variant-value-unused"), stale: rows("variant-selector-stale") }).toEqual({
+    unused: [[`${FILE}:chip.size = lg`, `selected by ${sheet}:1 (lg), ${FILE}:4 (lg)`]],
+    stale: [
+      [`${sheet}:2 [data-size="xl"]`, "no recipe declares the value"],
+      [`${FILE}:4 [data-step="two"]`, "no recipe declares the value"],
+    ],
+  });
+});
+
+// Two recipes in one file may each declare an axis of one name: each row names its recipe, so it stays its own row.
+test("an axis two recipes share a name for reports once per recipe", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'import { tv } from "tailwind-variants";',
+      'export const linear = tv({ variants: { danger: { true: "d" } } });',
+      'export const arc = tv({ variants: { danger: { true: "d" } } });',
+      "export const shown = linear() + arc();",
+    ]),
+  );
+  expect(labelsIn(scan, "variant-value-unused", FILE)).toEqual(["linear.danger (whole axis: true)", "arc.danger (whole axis: true)"]);
 });

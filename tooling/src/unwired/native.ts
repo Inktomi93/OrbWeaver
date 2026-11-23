@@ -504,6 +504,21 @@ export class NativeWorld implements Disposable {
     return this.#api.batch(...files.map((file) => this.#api.createSourceFileFromFile.gen(resolve(this.#root, file))));
   }
 
+  /** Parse each text on its own, outside any program, by its repository-relative file name, and read each parse with
+   *  `read` before its lease ends. */
+  static readTexts<T>(root: string, texts: ReadonlyMap<string, string>, read: (source: SourceFile) => T): ReadonlyMap<string, T> {
+    using api = new API({ cwd: root });
+    const entries = [...texts];
+    const retained = api.batch(...entries.map(([file, text]) => api.createSourceFile.gen(resolve(root, file), text)));
+    try {
+      return new Map(entries.map(([file], at) => [file, read((retained[at] as RetainedSourceFile).sourceFile)]));
+    } finally {
+      for (const lease of retained) {
+        lease[Symbol.dispose]();
+      }
+    }
+  }
+
   /** Whether the world holds the repository-relative file. */
   has(file: string): boolean {
     return this.#sourceOf.has(file);
