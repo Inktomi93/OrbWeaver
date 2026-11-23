@@ -71,7 +71,7 @@ export interface Text {
 }
 
 /** One part of a template: fixed text, or the alternatives a span holds. */
-export type Part = string | readonly Text[];
+type Part = string | readonly Text[];
 
 /** What an expression can hold, or null when the checker holds it only as a wide type. */
 export type Texts = readonly Text[] | null;
@@ -207,7 +207,7 @@ function headOf(parts: readonly Part[], answer: Texts): string {
 }
 
 /** A template's spelling: fixed text, and each span's alternatives as `{a|b}`. Linear in the lists, never their product. */
-export function spelled(parts: readonly Part[]): string {
+function spelled(parts: readonly Part[]): string {
   return parts.map((part) => (typeof part === "string" ? part : `{${part.map(({ text }) => text).join("|")}}`)).join("");
 }
 

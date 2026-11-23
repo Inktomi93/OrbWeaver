@@ -43,7 +43,7 @@ import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts"
 const BATCH = 5000;
 
 /** The name {@link NativeWorld.libraryOf} gives the compiler's own default library files, which belong to no manifest. */
-export const DEFAULT_LIBRARY = "(default library)";
+const DEFAULT_LIBRARY = "(default library)";
 
 /** Whether a compiler-owned bitfield carries `flag`. */
 export function hasFlag(flags: number, flag: number): boolean {
