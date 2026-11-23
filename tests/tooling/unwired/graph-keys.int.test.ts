@@ -83,6 +83,27 @@ test("an extended schema twins its extend literal's keys with the type it satisf
   expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Base.id", "View.hidden"]);
 });
 
+// A key an extend literal names replaces the base's, as zod's `util.Extend` drops it, so a read of that key through the
+// extension never reads the base's. `Fields.character` is read only through the copy and stays written and never read;
+// `Fields.applied`, inherited, is read through it.
+test("a key of an extended schema checked against its own type does not read the base's key", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Fields { readonly applied: string; readonly character: string }",
+      "export const fieldsSchema = z.object({ applied: z.string(), character: z.string() }) satisfies z.ZodType<Fields>;",
+      "export interface Copy { readonly applied: string; readonly character: string }",
+      "export const copySchema = fieldsSchema.extend({ character: z.string() }) satisfies z.ZodType<Copy>;",
+      'export const fields: Fields = { applied: "a", character: "c" };',
+      'export const copy: Copy = { applied: "a", character: "c" };',
+      "export const appliedOf = (result: Fields): string => result.applied;",
+      "export const copied = (result: z.infer<typeof copySchema>): string => result.applied + result.character;",
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-write-only", FILE)).filter((label) => label.startsWith("Fields."))).toEqual(["Fields.character"]);
+});
+
 // The twin is zod's: a type of the same name declared anywhere else spells a satisfies check and twins nothing.
 test("a satisfies reference twins only through zod's ZodType, never a local type of that name", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
@@ -192,6 +213,60 @@ test("a redeclared interface member and the member it redeclares share their rea
     writeOnly: bare(labelsIn(scan, "member-write-only", FILE)),
     untouched: bare(labelsIn(scan, "member-untouched", FILE)),
   }).toEqual({ writeOnly: ["BaseCfg.spare", "Other.title"], untouched: [] });
+});
+
+// `defs satisfies Record<Task, TaskFields>` holds each row to TaskFields, so a read of a row's member reads TaskFields'
+// member. `unread` is written in every row and read by nobody, so it stays.
+test("an indexed read of a table bound under satisfies reads the checked row type's member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export type Task = "chat" | "embed";',
+      'interface TaskFields { readonly scope: "actor" | "owner"; readonly spend: "fg" | "bg"; readonly unread: string }',
+      'const defs = { chat: { scope: "actor", spend: "fg", unread: "u" }, embed: { scope: "owner", spend: "bg", unread: "u" } } as const;',
+      "export const TASK_DEFS = defs satisfies Record<Task, TaskFields>;",
+      'export const owned = (task: Task): boolean => TASK_DEFS[task].scope === "owner" && TASK_DEFS[task].spend === "fg";',
+      "export const asType = (task: Task): TaskFields => TASK_DEFS[task];",
+    ]),
+  );
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["TaskFields.unread"]);
+});
+
+// Rows spread into an array of a wider element type fill that element type: a read of `row.off` reads OffEntry's `off`,
+// which flowed in. `why` flows in and nobody reads it.
+test("an array spread hands its elements to the array's element type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Entry { readonly name: string }",
+      "export interface OffEntry extends Entry { readonly off: string; readonly why: string }",
+      'export const offs: readonly OffEntry[] = [{ name: "n", off: "o", why: "w" }];',
+      'export const entries: readonly Entry[] = [{ name: "m" }];',
+      "const rows: readonly (Entry & { readonly off?: string })[] = [...entries, ...offs];",
+      'export const shownRows = rows.map((row) => row.name + (row.off ?? ""));',
+    ]),
+  );
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["OffEntry.why"]);
+});
+
+// A paged query fills its input's cursor from `getNextPageParam`; the same call fills nothing else, so `after` stays read
+// and never written. A plain query is the control: it writes no cursor.
+test("a paged query writes its input's cursor and no other member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export const listInputSchema = z.object({ limit: z.string(), cursor: z.string().optional(), after: z.string().optional() });",
+      "type ListInput = z.infer<typeof listInputSchema>;",
+      'export const list = (input: ListInput): string => input.limit + (input.cursor ?? "") + (input.after ?? "");',
+      "export const pageOf = (page: string): string => page;",
+      "export interface Procedure<I> { infiniteQueryOptions(input: I, next: typeof pageOf): unknown; queryOptions(input: I): unknown }",
+      "declare const procedure: Procedure<ListInput>;",
+      'export const paged = procedure.infiniteQueryOptions({ limit: "10" }, pageOf);',
+      'export const single = procedure.queryOptions({ limit: "1" });',
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-read-only", FILE))).toEqual(["listInputSchema.after"]);
 });
 
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {

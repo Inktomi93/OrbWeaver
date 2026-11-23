@@ -447,7 +447,7 @@ class Analyser {
     const dispatched = dispatchedMembers(state.run, state.decls);
     // a schema key with a `satisfies` twin is its type's member, judged there
     const twinned = new Set(state.twins.flat());
-    const written = writtenHomes(state.decls, roles);
+    const written = writtenHomes(state, roles);
     // a member filling a typed slot of ours is judged at that slot: the slot requires it, so the two delete together
     const fills = new Set([...state.flows].flatMap(([slot, values]) => (isProduction(state.decls.get(slot)?.file ?? "") ? [...values] : [])));
     for (const [key, info] of state.decls) {
@@ -641,11 +641,11 @@ interface MemberShape {
 /** Whether a declaration is a member a member bucket judges: a type, interface or class member, or a zod schema key. */
 export const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
 
-// The holders some member of which the product writes.
-function writtenHomes(decls: ReadonlyMap<DeclKey, DeclInfo>, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
+// The holders some member of which the product writes, by a write that builds a value: a key beside a spread copies one.
+function writtenHomes(state: GraphFacts, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
   const out = new Set<GraphKey>();
   for (const [key, role] of roles) {
-    const holder = role.product.has("write") ? decls.get(key)?.holder : undefined;
+    const holder = role.product.has("write") && !state.copyOnlyWrites.has(key) ? state.decls.get(key)?.holder : undefined;
     if (holder !== undefined) {
       out.add(holder);
     }
@@ -704,7 +704,7 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
  * with one role set. An interface member and the extended member it redeclares carry reads both ways and writes neither
- * way. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
+ * way; a member a `satisfies` checks carries its reads to the checked member. A member a credit names is read by the product before the carry. A Drizzle column hand-off carries
  * a read of the column to the stored member, never a send. Each role a member takes here goes to `onCarry`, so the
  * `--why` record names a role no site gave.
  */
@@ -793,6 +793,10 @@ function roleLinks(state: GraphFacts): {
   for (const [member, base] of state.overrides) {
     add(plainReadTo, member, base, "override");
     add(plainReadTo, base, member, "override");
+  }
+  // A value a `satisfies` holds to a type is read as that type: the compiler keeps each member to the checked one.
+  for (const [value, checked] of state.checks) {
+    add(plainReadTo, value, checked, "check");
   }
   return { readTo, plainReadTo, writeTo };
 }

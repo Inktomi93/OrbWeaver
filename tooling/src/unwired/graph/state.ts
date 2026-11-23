@@ -202,6 +202,9 @@ export interface GraphFacts {
   readonly roleSites: ReadonlyMap<DeclKey, readonly RoleSite[]>;
   /** The types a production parameter is annotated with: a caller may leave their optional members unset. */
   readonly parameterHomes: ReadonlySet<DeclKey>;
+  /** Members every product write of which is a key beside a spread, `{ ...value, key }`: the copy builds no home, so
+   *  such a write leaves its home's optional members unset by nobody. */
+  readonly copyOnlyWrites: ReadonlySet<DeclKey>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
   /** Drizzle column hand-offs, column to the stored member: a read of the column reads the member, and a send of the
    *  column, which hands the library its definition, sends no stored value. */
@@ -219,6 +222,9 @@ export interface GraphFacts {
   readonly twins: readonly (readonly [DeclKey, DeclKey])[];
   /** An interface member and the member of an extended type it redeclares, `[member, base]`. */
   readonly overrides: readonly (readonly [DeclKey, DeclKey])[];
+  /** A value member and the member of the type a `satisfies` holds it to, `[value, checked]`: a read of the value's
+   *  member reads the checked type's. */
+  readonly checks: readonly (readonly [DeclKey, DeclKey])[];
   readonly stateParts: readonly StatePart[];
   readonly cssNames: readonly CssName[];
   readonly pins: readonly DeclKey[];
@@ -292,6 +298,10 @@ export class GraphState implements GraphFacts {
   readonly roles = new Map<DeclKey, MemberRoles>();
   readonly roleSites = new Map<DeclKey, RoleSite[]>();
   readonly parameterHomes = new Set<DeclKey>();
+  readonly copyOnlyWrites = new Set<DeclKey>();
+  // Members some product write builds a value of, and the `file:at` of each key beside a spread in this build.
+  readonly #builtWrites = new Set<DeclKey>();
+  readonly #copyKeys = new Set<string>();
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
   readonly columnFlows = new Map<DeclKey, Set<DeclKey>>();
@@ -304,6 +314,7 @@ export class GraphState implements GraphFacts {
   /** A zod schema key and the member of the type it `satisfies z.ZodType<T>`: one member, roles merged both ways. */
   readonly twins: (readonly [DeclKey, DeclKey])[] = [];
   readonly overrides: (readonly [DeclKey, DeclKey])[] = [];
+  readonly checks: (readonly [DeclKey, DeclKey])[] = [];
   readonly stateParts: StatePart[] = [];
   readonly cssNames: CssName[] = [];
   readonly pins: DeclKey[] = [];
@@ -381,6 +392,25 @@ export class GraphState implements GraphFacts {
     }
   }
 
+  /** Mark each key at `ats` in `file` as one beside a spread: its write copies a value rather than build one. */
+  copyKeys(file: string, ats: readonly number[]): void {
+    for (const at of ats) {
+      this.#copyKeys.add(`${file}:${String(at)}`);
+    }
+  }
+
+  #noteBuild(key: DeclKey, file: string, at: number): void {
+    if (this.#builtWrites.has(key)) {
+      return;
+    }
+    if (this.#copyKeys.has(`${file}:${String(at)}`)) {
+      this.copyOnlyWrites.add(key);
+      return;
+    }
+    this.#builtWrites.add(key);
+    this.copyOnlyWrites.delete(key);
+  }
+
   #record(key: DeclKey, site: RoleSite): void {
     const { role, file, at } = site;
     if (this.session.declaringHomes.some((home) => file.startsWith(home) && key.startsWith(home))) {
@@ -393,6 +423,9 @@ export class GraphState implements GraphFacts {
       this.roleSites.set(key, sites);
     }
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
+    if (role === "write" && this.product(file)) {
+      this.#noteBuild(key, file, at);
+    }
     if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {

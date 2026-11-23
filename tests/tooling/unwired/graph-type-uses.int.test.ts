@@ -40,6 +40,26 @@ test("a generic type spelled with a type argument keys each member its parameter
   expect(bucketsIn(scan)).toEqual(["member-untouched ReadOnlyDb.q", "member-untouched SeatDeps.spare"]);
 });
 
+// At the call, `Room` infers to the argument's own type, so the body's reads through the constraint reach the value only
+// through a link from that type to the constraint. `Summary.dead` is outside the constraint, and nobody hands `Lonely`
+// to the generic: both stay written and never read.
+test("a type argument inferred at a call links its value to the parameter's constraint", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "export interface Summary { readonly id: string; readonly stamp: number | null; readonly dead: string }",
+      "export interface Candidate { readonly id: string; readonly stamp: number | null }",
+      "export function split<Room extends Candidate>(items: readonly Room[]): Room | undefined {",
+      '  return items.find((room) => room.stamp !== null && room.id !== "");',
+      "}",
+      'export const rows: readonly Summary[] = [{ id: "a", stamp: 1, dead: "d" }];',
+      "export const hearth = split(rows);",
+      "export interface Lonely { readonly id: string; readonly stamp: number | null }",
+      'export const lonely: Lonely = { id: "l", stamp: 2 };',
+    ].join("\n"),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Summary.dead", "member-write-only Lonely.id", "member-write-only Lonely.stamp"]);
+});
+
 test("a list handed to a generic's list parameter fills that parameter's element constraint with its own", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     [FILE]: [
@@ -50,7 +70,8 @@ test("a list handed to a generic's list parameter fills that parameter's element
       'export const kept = rerankOrKeep([{ id: "a", sourceText: null, spare: "" }]);',
     ].join("\n"),
   });
-  expect(bucketsIn(scan)).toEqual(["member-untouched rerankOrKeep.spare"]);
+  // the literal argument fills the outer constraint, so `spare` is written; the inner body reads only `id` and `sourceText`
+  expect(bucketsIn(scan)).toEqual(["member-write-only rerankOrKeep.spare"]);
 });
 
 test("a literal returned where the declared return is an alias of keyof keys that member, which a discarded bump only writes", { timeout: 120_000 }, async ({

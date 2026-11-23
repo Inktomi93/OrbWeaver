@@ -568,12 +568,21 @@ export class FileSites {
   readonly typeArguments: TypeArgumentSite[] = [];
   /** Calls inside a generic function, which may hand its type parameters to another generic's. */
   readonly genericCalls: CallExpression[] = [];
+  /** Product calls with arguments and no explicit type arguments: constraints.ts pairs each value a generic callee's
+   *  type parameter is inferred from with that parameter's constraint. */
+  readonly inferredCalls: CallExpression[] = [];
   /** String literal arguments, which name a member where the parameter is `keyof` a type. */
   readonly keyArguments: Expression[] = [];
   /** A returned key literal, or a conditional of them, with its function's declared return type. */
   readonly keyReturns: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
   readonly typePairs: { readonly value: Node; readonly slot: Node }[] = [];
+  /** The input of each `procedure.infiniteQueryOptions(input, …)` call, with the verb's position: TanStack Query fills
+   *  the input's cursor from `getNextPageParam` on every page, so the call writes that member though no caller names it. */
+  readonly pagedQueries: { readonly input: Expression; readonly at: number }[] = [];
+  /** `value satisfies T` over a binding or a literal: the value fills `T`, and a read of its members reads `T`'s. A zod
+   *  schema, a builder call, twins through build.ts `#zodTwins` instead. */
+  readonly checkedValues: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** `import(x)` or a createRequire function's call whose argument is not a literal path: a load no edge follows. */
   readonly computedLoads: CallExpression[] = [];
   /** Calls of a method a Hono app registers routes with; routes.ts confirms each by its declaration. */
@@ -656,6 +665,10 @@ export interface WalkSink {
 
 const CSS_NAME = /^--[\w-]+$/u;
 const TV = "tv";
+// The tRPC options-proxy verb for a paged query.
+const PAGED_QUERY = "infiniteQueryOptions";
+/** The input member a paged query's pages fill. */
+export const PAGE_CURSOR = "cursor";
 const URL_CONSTRUCTOR = "URL";
 const WELL_KNOWN_SYMBOLS = "Symbol";
 /** The Hono app methods that register a route, with the argument index that holds the path. */
@@ -1050,6 +1063,9 @@ class Walker {
     }
     if (this.#frame.generic > 0) {
       this.#sites.genericCalls.push(node);
+    }
+    if (this.#sites.product && node.typeArguments === undefined && node.arguments.length > 0) {
+      this.#sites.inferredCalls.push(node);
     }
     this.#moduleLoad(node);
     this.#stores(node);
@@ -1471,11 +1487,20 @@ class Walker {
     }
     this.#libraryShapes(node);
     this.#keyReturn(node);
+    this.#pagedQuery(node);
     if (product) {
-      const site = valueFlowSite(node) ?? copyFlowSite(node);
-      if (site !== undefined && !this.#frame.stored.has(site.value)) {
-        this.#sites.flowSites.push(site);
-      }
+      this.#flowSite(node);
+    }
+  }
+
+  // A product value handed into a slot: a typed position, a copy, or a `satisfies` check.
+  #flowSite(node: Node): void {
+    if (isSatisfiesExpression(node) && isCheckedValue(unwrapExpression(node.expression))) {
+      this.#sites.checkedValues.push({ value: node.expression, type: node.type });
+    }
+    const site = valueFlowSite(node) ?? copyFlowSite(node);
+    if (site !== undefined && !this.#frame.stored.has(site.value)) {
+      this.#sites.flowSites.push(site);
     }
   }
 
@@ -1493,6 +1518,13 @@ class Walker {
   }
 
   // The library calls whose syntax the graph reads: a `tv()` table, a JSX attribute's value, a zod schema's twin keys.
+  #pagedQuery(node: Node): void {
+    const [input] = isCallExpression(node) ? node.arguments : [];
+    if (input !== undefined && isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === PAGED_QUERY) {
+      this.#sites.pagedQueries.push({ input, at: node.expression.name.pos });
+    }
+  }
+
   #libraryShapes(node: Node): void {
     this.#reflective(node);
     if (isCallExpression(node) && isTvCallee(node.expression) && node.arguments[0] !== undefined && isObjectLiteralExpression(node.arguments[0])) {
@@ -1784,6 +1816,10 @@ function declaredReturnType(node: Node): TypeNode | undefined {
 // The reads a stored literal's key copies into its column.
 const keyCopiedReads = (property: Node): readonly Node[] => (isPropertyAssignment(property) ? copiedReads(property.initializer) : []);
 
+// A value a `satisfies` holds to a type: a binding or a literal, never a builder call such as a zod schema.
+const isCheckedValue = (value: Node | undefined): boolean =>
+  value !== undefined && (isIdentifier(value) || isObjectLiteralExpression(value) || isArrayLiteralExpression(value));
+
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {
     return { value: node.initializer, slot: "declared", holder: node.name };
@@ -1805,7 +1841,8 @@ function valueFlowSite(node: Node): FlowSite | undefined {
 }
 
 // A value copied into a prop or a literal slot by name: a JSX attribute's value, as an argument is to a parameter; a
-// shorthand's binding, into the slot of the same name; a spread's members, member by member.
+// shorthand's binding, into the slot of the same name; a spread's members, member by member; an array spread's
+// elements, into the array's element type.
 function copyFlowSite(node: Node): FlowSite | undefined {
   if (isJsxAttribute(node) && node.initializer !== undefined && isJsxExpression(node.initializer)) {
     const { expression } = node.initializer;
@@ -1813,6 +1850,9 @@ function copyFlowSite(node: Node): FlowSite | undefined {
   }
   if (isShorthandPropertyAssignment(node) && isObjectLiteralExpression(node.parent) && isIdentifier(node.name)) {
     return { value: node.name, slot: "contextual" };
+  }
+  if (isSpreadElement(node) && isArrayLiteralExpression(node.parent)) {
+    return { value: node.expression, slot: "holder", holder: node.parent };
   }
   return (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) && (isObjectLiteralExpression(node.parent) || isJsxAttributes(node.parent))
     ? { value: node.expression, slot: "holder", holder: node.parent }

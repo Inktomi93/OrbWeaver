@@ -57,7 +57,9 @@ test("a type parameter handed to a generic pairs its constraint with that generi
       'claim((params: { readonly chatId: string; readonly spare: string }) => params.spare)({ chatId: "a", spare: "b" });',
     ].join("\n"),
   });
-  expect(untouched(scan)).toEqual(["member-untouched claim.spare"]);
+  // the literal the returned function takes fills `claim`'s constraint through the arrow's parameter, and no body reads
+  // `spare` through it
+  expect(untouched(scan)).toEqual(["member-write-only claim.spare"]);
 });
 
 test("a type argument fills a library constraint member by member", { timeout: 120_000 }, async ({ plantedTree }) => {

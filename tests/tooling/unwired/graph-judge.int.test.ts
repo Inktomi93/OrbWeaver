@@ -70,6 +70,28 @@ test("a read-only member reports only when every read sees a default the tree ch
   expect(scan.members.unwired.filter(({ bucket }) => bucket === "member-read-only").map(({ member }) => member)).toEqual(["theme"]);
 });
 
+// A literal that spreads a value and overrides a key copies that value: the key is written, but the copy builds no
+// home, so a home whose value only arrives from outside leaves its optional members unset by nobody. A literal that
+// builds the home from scratch is the control: its unwritten optional member reports.
+test("a key that overrides a spread copy writes its member but builds no home", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const copied = (built: readonly string[]): Promise<string> =>
+    plantedTree(
+      graphTree({
+        [RULES]: [
+          "export interface Cfg { readonly mode?: string; readonly port?: string }",
+          "declare const raw: unknown;",
+          "const cfg = raw as Cfg;",
+          'export const copy: Cfg = { ...cfg, ["mode"]: "x" };',
+          ...built,
+          'export const shown = (cfg.port ?? "") + (copy.mode ?? "");',
+        ].join("\n"),
+      }),
+    );
+  const readOnly = async (root: string): Promise<readonly string[]> => labelsIn(await scanGraph(root, quiet), "member-read-only", RULES);
+  expect(await readOnly(await copied([]))).toEqual([]);
+  expect(await readOnly(await copied(['export const built: Cfg = { mode: "y" };']))).toEqual(["Cfg.port"]);
+});
+
 // A schema key nothing reads or writes only validates input from outside the tree (owner ruling: a sent field needs a
 // receiver read), so it reports apart from the dead and no judged list takes it. A key with a `satisfies` twin is its
 // type's member and is judged there.
