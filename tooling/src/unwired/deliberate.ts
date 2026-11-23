@@ -11,6 +11,10 @@ export type DeliberateEntry =
 
 const AGENT_CALLED =
   "the dev-only `globalThis.__orb` agent bridge: browser-driving agents call this accessor through `--eval` and scenario scripts, and no typed caller in the tree does";
+// Snap and the floor probes call these members, and the old member engine classes a tooling caller as non-product. The
+// graph engine counts snap as a product reader (D357), and the work in 3923 moves `pnpm unwired scan` onto it, which retires these rows.
+const SNAP_READ =
+  "the dev-only `globalThis.__orb` agent bridge: snap or a floor probe reads this member, and the old member engine classes a tooling caller as non-product";
 const AGENT_RESULT =
   "the dev-only `globalThis.__orb` agent bridge: snap reads this result record off `unknown` through shape validators, so no read resolves to its members";
 const SETTLE_SIGNAL = "docs/law/Spine-Testing.md: a suite waits on the composed root's actual settle signal, never a delay";
@@ -59,6 +63,23 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "capabilities", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "corpusMode", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "closeModal", reason: AGENT_CALLED },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "animations", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "resetEvidence", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "motionFlaggersSettled", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "motionFlaggersDrain", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "snap", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "resetRing", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "consoleErrors", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "appearanceMatrixContract", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "setMotionAuditDropTrackingPaused", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "section", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "openModal", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "openConfig", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "contextTab", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "openChat", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "openCharacter", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "panel", reason: SNAP_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbCssHandle", member: "read", reason: SNAP_READ },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbSeedHandle", member: null, reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "SEED_PROFILES", member: null, reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginLogLine", member: null, reason: AGENT_RESULT },
