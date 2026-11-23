@@ -22,7 +22,7 @@ import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
 import type { DeclInfo, GraphKey, LocalBinding } from "./sites.ts";
 import { MEMBER_KINDS } from "./sites.ts";
-import { WhyTracker } from "./why.ts";
+import { siteLine, WhyTracker } from "./why.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
 export interface MemberRoles {
@@ -203,6 +203,9 @@ export interface GraphFacts {
   /** The types a production parameter is annotated with: a caller may leave their optional members unset. */
   readonly parameterHomes: ReadonlySet<DeclKey>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
+  /** Drizzle column hand-offs, column to the stored member: a read of the column reads the member, and a send of the
+   *  column, which hands the library its definition, sends no stored value. */
+  readonly columnFlows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
   readonly door: ReadonlySet<DeclKey>;
   /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
   readonly unseenCalls: ReadonlySet<DeclKey>;
@@ -285,6 +288,7 @@ export class GraphState implements GraphFacts {
   readonly parameterHomes = new Set<DeclKey>();
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
+  readonly columnFlows = new Map<DeclKey, Set<DeclKey>>();
   /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
   readonly door = new Set<DeclKey>();
   readonly unseenCalls = new Set<DeclKey>();
@@ -356,6 +360,10 @@ export class GraphState implements GraphFacts {
     addEdge(this.flows, slot, value);
   }
 
+  columnFlow(column: DeclKey, member: DeclKey): void {
+    addEdge(this.columnFlows, column, member);
+  }
+
   role(key: DeclKey, role: Role, file: string, at: number): void {
     this.#record(key, role === "escape" ? { role, file, at, ...UNCLASSIFIED } : { role, file, at });
   }
@@ -379,7 +387,7 @@ export class GraphState implements GraphFacts {
     if (this.product(file) || (READS.has(role) && productReader(file))) {
       roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {
-        roles.write = `${file}:${String(at)}`;
+        roles.write = `${file}:${String(siteLine(this.world, file, at))}`;
       }
     } else {
       roles.other = withRoles(roles.other, [role]);

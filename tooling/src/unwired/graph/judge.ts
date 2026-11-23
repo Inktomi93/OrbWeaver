@@ -164,7 +164,7 @@ function carriesInto(facts: GraphFacts): ReadonlyMap<string, ReadonlySet<string>
   const add = (from: string, to: string): void => {
     into.set(from, (into.get(from) ?? new Set()).add(to));
   };
-  for (const [slot, values] of facts.flows) {
+  for (const [slot, values] of [...facts.flows, ...facts.columnFlows]) {
     for (const value of values) {
       add(value, slot);
     }

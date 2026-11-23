@@ -3,6 +3,7 @@
 // declaration's span holds the name, or covers the line) and judged exactly against the walked declarations at the end.
 import { basename } from "node:path";
 import { getCallSites } from "node:util";
+import { skipTrivia } from "@typescript/native/ast";
 import type { NativeWorld } from "../native.ts";
 import type { WhyTarget } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -10,6 +11,12 @@ import { declKeyParts } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import type { DeclInfo } from "./sites.ts";
 import { isDeclKey } from "./sites.ts";
+
+/** The line a recorded site names: the node's full start, past its leading trivia, so a comment above the node is not its line. */
+export function siteLine(world: NativeWorld, file: string, at: number): number {
+  const source = world.source(file);
+  return (source === undefined ? 0 : source.getLineAndCharacterOfPosition(skipTrivia(source.text, at)).line) + 1;
+}
 
 /** One role a `--why` target's member was given. */
 export interface WhyEntry {
@@ -97,7 +104,7 @@ export class WhyTracker {
           ? info.name === target.name && (target.owner === null || owner === target.owner)
           : info.file === target.file && info.line === target.line,
       );
-      const line = (this.#world.source(event.file)?.getLineAndCharacterOfPosition(event.at).line ?? 0) + 1;
+      const line = siteLine(this.#world, event.file, event.at);
       return matched.map((target) => ({
         target: targetText(target),
         member: owner === null ? info.name : `${owner}.${info.name}`,

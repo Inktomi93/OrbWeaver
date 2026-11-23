@@ -20,14 +20,21 @@ import {
   isIdentifier,
   isInterfaceDeclaration,
   isObjectBindingPattern,
+  isObjectLiteralExpression,
   isPropertyAccessExpression,
+  isPropertyAssignment,
   isQualifiedName,
+  isSpreadAssignment,
+  isSpreadElement,
+  isStringLiteral,
   isTypeReferenceNode,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
+import type { StoreWrite } from "../boundaries.ts";
+import { copiedReads } from "../boundaries.ts";
 import { hasFlag, NativeWorld } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
@@ -38,7 +45,7 @@ import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
-import { addAll, allOf, answer } from "./resolve.ts";
+import { addAll, allOf, answer, constituentsOf } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
@@ -283,6 +290,7 @@ class Builder {
   #file(sites: FileSites): void {
     const state = this.#state;
     this.#names(sites);
+    this.#stores(sites);
     fileSlotWrites(state, this.#variants, sites);
     this.#flows.file(sites, this.#doors.held(sites.file));
     this.#variants.readTables(state, sites.tvCalls, sites.file);
@@ -309,6 +317,36 @@ class Builder {
     for (const { target, from } of sites.urlModules) {
       state.edge("run", from, moduleKey(target));
       this.#urlSpawns.push({ module: moduleKey(target), from: sites.file });
+    }
+  }
+
+  // A Drizzle write flows each stored value into its columns (sites.ts holds the ruling): a key's copied read into the
+  // column the key names, and each member of a whole or spread value into the same-named column, so a column read back
+  // reads the member.
+  #stores(sites: FileSites): void {
+    if (sites.stores.length === 0) {
+      return;
+    }
+    const state = this.#state;
+    const { checker } = state.world;
+    const tables = state.world.typesAt(sites.stores.map(({ table }) => table));
+    const { copies, wholes } = storedParts(sites.stores);
+    const sources = state.declarations(state.world.symbolsAt(copies.map(({ read }) => read)));
+    const columns = state.declarations(state.batch(copies.map(({ at, name }) => columnOf(checker, tables[at], name))));
+    const values = state.world.typesAt(wholes.map(({ value }) => value));
+    const members = state.batch(wholes.map(({ at }, y) => storedMembers(state, tables[at], values[y]))).flat();
+    const memberKeys = state.declarations(members.map(({ member }) => member));
+    const memberColumns = state.declarations(members.map(({ column }) => column));
+    const pairs = [
+      ...copies.map((_, y) => ({ columns: columns[y] ?? [], sources: sources[y] ?? [] })),
+      ...members.map((_, y) => ({ columns: memberColumns[y] ?? [], sources: memberKeys[y] ?? [] })),
+    ];
+    for (const pair of pairs) {
+      for (const column of pair.columns) {
+        for (const source of pair.sources) {
+          state.columnFlow(column, source);
+        }
+      }
     }
   }
 
@@ -847,4 +885,61 @@ function namesAMember(node: Node): boolean {
 function destructured(call: Node): boolean {
   const up = isAwaitExpression(call.parent) ? call.parent.parent : call.parent;
   return isVariableDeclaration(up) && isObjectBindingPattern(up.name);
+}
+
+// What each Drizzle write stores, by the write's index: the reads its literal keys copy, with the key, and the whole
+// values it stores, a spread into the literal among them.
+function storedParts(stores: readonly StoreWrite[]): {
+  readonly copies: readonly { readonly at: number; readonly name: string; readonly read: Node }[];
+  readonly wholes: readonly { readonly at: number; readonly value: Node }[];
+} {
+  const copies: { readonly at: number; readonly name: string; readonly read: Node }[] = [];
+  const wholes: { readonly at: number; readonly value: Node }[] = [];
+  for (const [at, { value }] of stores.entries()) {
+    if (!isObjectLiteralExpression(value)) {
+      wholes.push({ at, value: isSpreadElement(value) ? value.expression : value });
+      continue;
+    }
+    wholes.push(...value.properties.flatMap((property) => (isSpreadAssignment(property) ? [{ at, value: property.expression }] : [])));
+    copies.push(...value.properties.flatMap((property) => keyCopies(at, property)));
+  }
+  return { copies, wholes };
+}
+
+// The reads a stored literal's key copies into the column the key names.
+function keyCopies(at: number, property: Node): readonly { readonly at: number; readonly name: string; readonly read: Node }[] {
+  if (!(isPropertyAssignment(property) && (isIdentifier(property.name) || isStringLiteral(property.name)))) {
+    return [];
+  }
+  const { text } = property.name;
+  return copiedReads(property.initializer).map((read) => ({ at, name: text, read }));
+}
+
+// The column a stored key names on its table.
+function* columnOf(checker: Checker, table: Type | undefined, name: string): APIRequestGenerator<NativeSymbol | undefined> {
+  return table === undefined ? undefined : yield* checker.getPropertyOfType.gen(table, name);
+}
+
+// Each member of a stored value, a list's through its element type, beside the same-named column of the table.
+function* storedMembers(
+  state: GraphState,
+  table: Type | undefined,
+  value: Type | undefined,
+): APIRequestGenerator<readonly { readonly member: NativeSymbol; readonly column: NativeSymbol }[]> {
+  if (table === undefined || value === undefined) {
+    return [];
+  }
+  const { checker } = state.world;
+  const type = yield* checker.getNonNullableType.gen(value);
+  const element = (yield* checker.isArrayType.gen(type)) && type.isTypeReference() ? (yield* checker.getTypeArguments.gen(type))[0] : undefined;
+  const out: { readonly member: NativeSymbol; readonly column: NativeSymbol }[] = [];
+  for (const arm of yield* constituentsOf(element ?? type)) {
+    for (const member of yield* state.membersOf(arm)) {
+      const column = yield* checker.getPropertyOfType.gen(table, member.name);
+      if (column !== undefined) {
+        out.push({ member, column });
+      }
+    }
+  }
+  return out;
 }

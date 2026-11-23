@@ -1,6 +1,10 @@
 // The syntactic half of the graph's walk: one pass over a file collects every site a later checker pass resolves (names,
 // literal keys, hand-offs, flow sites, keyed reads, variant tables, JSX attributes, module specifiers, classes, doc
 // names), the declarations it meets and the edges syntax alone decides. No checker call happens here.
+//
+// - A Drizzle write hands each stored value to its column (../boundaries.ts storeWritesAt): a read it copies into a key
+//   gets no role and the stored value is not handed whole, so build.ts flows each member into its column instead. A
+//   property read inside a table definition defines an index or a foreign key and reads no stored value.
 import type {
   BindingElement,
   CallExpression,
@@ -133,6 +137,8 @@ import {
   NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
+import type { StoreWrite } from "../boundaries.ts";
+import { copiedReads, storeWritesAt, tableDefinition } from "../boundaries.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
@@ -521,6 +527,8 @@ export class FileSites {
   /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
   readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
+  /** The Drizzle writes: each stored value and the table it lands in. */
+  readonly stores: StoreWrite[] = [];
   /** The type names a production parameter is annotated with: a home whose optional members a caller may leave unset. */
   readonly parameterTypes: Node[] = [];
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
@@ -857,6 +865,11 @@ interface Frame {
   readonly twinShapes: Set<string>;
   /** How many generic functions enclose the walk. */
   generic: number;
+  /** The property names a Drizzle write copies into a column, and the arguments a Drizzle write stores. */
+  readonly copied: Set<Node>;
+  readonly stored: Set<Node>;
+  /** How many Drizzle table definitions enclose the walk. */
+  tables: number;
 }
 
 /** Walk one file: every site its checker passes need, with the declarations and syntax-decided edges told to `sink`. */
@@ -871,6 +884,9 @@ export function collectSites(source: SourceFile, file: string, product: boolean,
     requires: new Set(),
     twinShapes: new Set(),
     generic: 0,
+    copied: new Set(),
+    stored: new Set(),
+    tables: 0,
   };
   const walker = new Walker(source, sites, sink, frame);
   walker.visit(source, false);
@@ -920,10 +936,7 @@ class Walker {
     this.#types(node);
     this.#strings(node, inType);
     this.#spellings(node);
-    const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0;
-    this.#frame.generic += generic ? 1 : 0;
-    node.forEachChild((child) => this.visit(child, inType));
-    this.#frame.generic -= generic ? 1 : 0;
+    this.#children(node, inType);
     if (pushed) {
       this.#frame.stack.pop();
       if (isClassDeclaration(node)) {
@@ -933,6 +946,17 @@ class Walker {
     if (literal !== undefined) {
       this.#frame.literals.pop();
     }
+  }
+
+  // The children, counting the generic functions and the Drizzle table definitions that enclose them.
+  #children(node: Node, inType: boolean): void {
+    const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0 ? 1 : 0;
+    const table = isCallExpression(node) && tableDefinition(node) !== null ? 1 : 0;
+    this.#frame.generic += generic;
+    this.#frame.tables += table;
+    node.forEachChild((child) => this.visit(child, inType));
+    this.#frame.generic -= generic;
+    this.#frame.tables -= table;
   }
 
   // Sites a call or a callee decides: an implementation's overloads, type arguments and literal keys, a generic
@@ -952,6 +976,7 @@ class Walker {
       this.#sites.genericCalls.push(node);
     }
     this.#moduleLoad(node);
+    this.#stores(node);
     if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
       this.#sites.routeCalls.push(node);
     }
@@ -1283,7 +1308,7 @@ class Walker {
   #name(node: Node, inType: boolean): void {
     if ((isIdentifier(node) || isPrivateIdentifier(node)) && !forwards(node.parent)) {
       const declares = declaresName(node);
-      const silent = inType || declares;
+      const silent = inType || declares || this.#handedToColumn(node);
       this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node), declares });
       if (isShorthandPropertyAssignment(node.parent)) {
         this.#sites.shorthands.push({ node: node.parent, from: this.#holder });
@@ -1355,7 +1380,7 @@ class Walker {
     this.#libraryShapes(node);
     if (product) {
       const site = valueFlowSite(node) ?? copyFlowSite(node);
-      if (site !== undefined) {
+      if (site !== undefined && !this.#frame.stored.has(site.value)) {
         this.#sites.flowSites.push(site);
       }
     }
@@ -1387,13 +1412,34 @@ class Walker {
     return [{ name: property.name.text, decl: this.#sink.keyOf(property) }];
   }
 
+  // A name whose read a Drizzle write or a table definition takes over (the header's ruling).
+  #handedToColumn(node: Node): boolean {
+    return this.#frame.copied.has(node) || (this.#frame.tables > 0 && isPropertyAccessExpression(node.parent) && node.parent.name === node);
+  }
+
+  // A Drizzle write's stored values, the reads its literal keys copy, and the argument it stores (the header's ruling).
+  #stores(node: CallExpression): void {
+    const stores = storeWritesAt(node);
+    if (stores.length === 0) {
+      return;
+    }
+    this.#sites.stores.push(...stores);
+    const [argument] = node.arguments;
+    for (const stored of [...(argument === undefined ? [] : [argument]), ...stores.map(({ value }) => value)]) {
+      this.#frame.stored.add(stored);
+    }
+    for (const read of stores.flatMap(({ value }) => (isObjectLiteralExpression(value) ? value.properties.flatMap(keyCopiedReads) : []))) {
+      this.#frame.copied.add(read);
+    }
+  }
+
   // Each argument: a function value flows into its parameter's slot; any other non-primitive value is handed on whole,
   // an object literal too, so its values escape into an opaque slot (its keys are written by the literal-key pass).
   #arguments(node: CallExpression | NewExpression): void {
     for (const [index, argument] of (node.arguments ?? []).entries()) {
       if (isArrowFunction(argument) || isFunctionExpression(argument)) {
         this.#sites.flowSites.push({ value: argument, slot: "contextual" });
-      } else if (!(isStringLiteral(argument) || isNumericLiteral(argument))) {
+      } else if (!(isStringLiteral(argument) || isNumericLiteral(argument) || this.#frame.stored.has(argument))) {
         this.#sites.handedWhole.push({ node: argument, spread: isSpreadElement(argument), door: false, call: { node, index } });
       }
     }
@@ -1595,6 +1641,9 @@ const isDocNameHolder = (node: Node): boolean =>
 
 // A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
 // function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
+// The reads a stored literal's key copies into its column.
+const keyCopiedReads = (property: Node): readonly Node[] => (isPropertyAssignment(property) ? copiedReads(property.initializer) : []);
+
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {
     return { value: node.initializer, slot: "declared", holder: node.name };

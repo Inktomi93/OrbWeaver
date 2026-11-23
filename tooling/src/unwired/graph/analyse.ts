@@ -628,12 +628,12 @@ const isClassMember = (info: DeclInfo, decls: ReadonlyMap<DeclKey, DeclInfo>): b
 /**
  * Member roles carried to a fixpoint: a read of a slot member reads the value member that filled it, a send of it sends
  * that member on, and a write of the value member fills the slot. A zod twin is a flow both ways, so its two halves end
- * with one role set.
+ * with one role set. A Drizzle column hand-off carries a read of the column to the stored member, never a send.
  */
 export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
   const { facts: state } = graph;
   const roles = new Map([...state.roles].map(([key, value]) => [key, { ...value }]));
-  const { readTo, writeTo } = roleLinks(state);
+  const { readTo, columnReadTo, writeTo } = roleLinks(state);
   const queue = [...roles.keys()];
   for (let key = queue.pop(); key !== undefined; key = queue.pop()) {
     const current = roles.get(key);
@@ -643,15 +643,22 @@ export function settleRoles(graph: Graph): ReadonlyMap<DeclKey, MemberRoles> {
     const read = { product: carriedReads(current.product), other: carriedReads(current.other), write: current.write };
     const written = { product: carriedWrites(current.product), other: carriedWrites(current.other), write: current.write };
     queue.push(...(readTo.get(key) ?? []).filter((value) => carry(roles, value, read)));
+    const columnRead = { product: onlyReads(current.product), other: onlyReads(current.other), write: current.write };
+    queue.push(...(columnReadTo.get(key) ?? []).filter((value) => carry(roles, value, columnRead)));
     queue.push(...(writeTo.get(key) ?? []).filter((slot) => carry(roles, slot, written)));
   }
   return roles;
 }
 
 // Which members a role carries to: a read or send of a slot member goes to the value member that filled it, a write of
-// the value member to the slot, and a zod twin's halves both ways.
-function roleLinks(state: GraphFacts): { readonly readTo: ReadonlyMap<DeclKey, DeclKey[]>; readonly writeTo: ReadonlyMap<DeclKey, DeclKey[]> } {
+// the value member to the slot, and a zod twin's halves both ways; a read of a column goes to the member stored into it.
+function roleLinks(state: GraphFacts): {
+  readonly readTo: ReadonlyMap<DeclKey, DeclKey[]>;
+  readonly columnReadTo: ReadonlyMap<DeclKey, DeclKey[]>;
+  readonly writeTo: ReadonlyMap<DeclKey, DeclKey[]>;
+} {
   const readTo = new Map<DeclKey, DeclKey[]>();
+  const columnReadTo = new Map<DeclKey, DeclKey[]>();
   const writeTo = new Map<DeclKey, DeclKey[]>();
   const link = (map: Map<DeclKey, DeclKey[]>, from: DeclKey, to: DeclKey): void => {
     const list = map.get(from);
@@ -673,7 +680,13 @@ function roleLinks(state: GraphFacts): { readonly readTo: ReadonlyMap<DeclKey, D
     link(writeTo, a, b);
     link(writeTo, b, a);
   }
-  return { readTo, writeTo };
+  for (const [column, members] of state.columnFlows) {
+    for (const member of members) {
+      link(columnReadTo, column, member);
+      link(writeTo, member, column);
+    }
+  }
+  return { readTo, columnReadTo, writeTo };
 }
 
 // A read carries as a read and a send as a send: an escape never becomes a read on the member it reaches.
@@ -681,6 +694,7 @@ const carriedReads = (side: ReadonlySet<Role>): readonly Role[] => [
   ...(readsIn(side) ? (["read"] as const) : []),
   ...(side.has("escape") ? (["escape"] as const) : []),
 ];
+const onlyReads = (side: ReadonlySet<Role>): readonly Role[] => (readsIn(side) ? ["read"] : []);
 const carriedWrites = (side: ReadonlySet<Role>): readonly Role[] => (side.has("write") ? ["write"] : []);
 
 // Add roles to a member; whether anything was new.
