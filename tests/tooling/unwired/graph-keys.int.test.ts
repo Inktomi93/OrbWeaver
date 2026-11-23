@@ -228,6 +228,26 @@ test("an array spread hands its elements to the array's element type", { timeout
   expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["OffEntry.why"]);
 });
 
+// A paged query fills its input's cursor from `getNextPageParam`; the same call fills nothing else, so `after` stays read
+// and never written. A plain query is the control: it writes no cursor.
+test("a paged query writes its input's cursor and no other member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export const listInputSchema = z.object({ limit: z.string(), cursor: z.string().optional(), after: z.string().optional() });",
+      "type ListInput = z.infer<typeof listInputSchema>;",
+      'export const list = (input: ListInput): string => input.limit + (input.cursor ?? "") + (input.after ?? "");',
+      "export const pageOf = (page: string): string => page;",
+      "export interface Procedure<I> { infiniteQueryOptions(input: I, next: typeof pageOf): unknown; queryOptions(input: I): unknown }",
+      "declare const procedure: Procedure<ListInput>;",
+      'export const paged = procedure.infiniteQueryOptions({ limit: "10" }, pageOf);',
+      'export const single = procedure.queryOptions({ limit: "1" });',
+    ]),
+  });
+  expect(bare(labelsIn(scan, "member-read-only", FILE))).toEqual(["listInputSchema.after"]);
+});
+
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,

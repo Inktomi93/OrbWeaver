@@ -118,6 +118,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields sc
 | A key beside a spread, `{ ...value, key }` | writes its member, but the copy builds no home: its home's optional members still report only when a build writes it | the same | The value arrives with the copy (tooling/src/unwired/graph/state.ts `copyOnlyWrites`). |
 | A binding or literal under `satisfies T`, such as `defs satisfies Record<Task, TaskFields>` | fills `T` as a slot, and a read of its members reads `T`'s, at any depth | the same | The compiler holds each member to the checked one (tooling/src/unwired/graph/flows.ts `#checkedPairs`). A zod schema twins instead. |
 | An array spread, `[...entries, ...offs]` | each spread list fills the array's element type, as a list argument does | the same | tooling/src/unwired/graph/sites.ts `copyFlowSite`. |
+| The input of a tRPC `infiniteQueryOptions(input, …)` call | writes the input's `cursor`, and no other member | the same | TanStack Query fills the cursor from `getNextPageParam` on every page (tooling/src/unwired/graph/slots.ts `pagedWrites`). |
 | The unread member of a one-key tRPC mutation output | listed as acknowledged, apart from the judged rows | the same | The key is the procedure's whole answer (tooling/src/unwired/graph/judge.ts `acknowledgements`). |
 
 Classes still open:

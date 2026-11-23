@@ -40,7 +40,7 @@ import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
-import { declarationNameOf, isZodShapeKey } from "./sites.ts";
+import { declarationNameOf, isZodShapeKey, PAGE_CURSOR } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { literalValues } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
@@ -87,7 +87,7 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
       const type = schema ? undefined : slots.get(spanKey(literal));
       return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
     });
-    slotWrites(state, variants, sites, [...writes, ...spreadWrites(state, sites, slots)]);
+    slotWrites(state, variants, sites, [...writes, ...spreadWrites(state, sites, slots), ...pagedWrites(state, sites)]);
     ownKeyWrites(state, sites, slots);
   }
   bagSelections(state, variants, sites);
@@ -138,6 +138,15 @@ function spreadWrites(
 function insideLiteral(key: DeclKey, file: string, literal: ObjectLiteralExpression): boolean {
   const parts = declKeyParts(key);
   return parts.file === file && parts.pos >= literal.pos && parts.end <= literal.end;
+}
+
+// A paged query writes its input slot's cursor, which TanStack Query fills from `getNextPageParam` (sites.ts `pagedQueries`).
+function pagedWrites(state: GraphState, sites: FileSites): readonly SlotWrite[] {
+  const inputs = state.contextualTypes(sites.pagedQueries.map(({ input }) => input));
+  return sites.pagedQueries.flatMap(({ at }, x) => {
+    const type = inputs[x];
+    return type === undefined ? [] : [{ type, name: PAGE_CURSOR, value: undefined, at, jsx: false }];
+  });
 }
 
 // A literal no slot types, such as a local `as const` table handed on later, writes its own keys; the flow from the slot

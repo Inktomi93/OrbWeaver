@@ -574,6 +574,9 @@ export class FileSites {
   readonly keyReturns: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
   readonly typePairs: { readonly value: Node; readonly slot: Node }[] = [];
+  /** The input of each `procedure.infiniteQueryOptions(input, …)` call, with the verb's position: TanStack Query fills
+   *  the input's cursor from `getNextPageParam` on every page, so the call writes that member though no caller names it. */
+  readonly pagedQueries: { readonly input: Expression; readonly at: number }[] = [];
   /** `value satisfies T` over a binding or a literal: the value fills `T`, and a read of its members reads `T`'s. A zod
    *  schema, a builder call, twins through build.ts `#zodTwins` instead. */
   readonly checkedValues: { readonly value: Expression; readonly type: TypeNode }[] = [];
@@ -659,6 +662,9 @@ export interface WalkSink {
 
 const CSS_NAME = /^--[\w-]+$/u;
 const TV = "tv";
+/** The tRPC options-proxy verb for a paged query, and the input member its pages fill. */
+export const PAGED_QUERY = "infiniteQueryOptions";
+export const PAGE_CURSOR = "cursor";
 const URL_CONSTRUCTOR = "URL";
 const WELL_KNOWN_SYMBOLS = "Symbol";
 /** The Hono app methods that register a route, with the argument index that holds the path. */
@@ -1474,6 +1480,7 @@ class Walker {
     }
     this.#libraryShapes(node);
     this.#keyReturn(node);
+    this.#pagedQuery(node);
     if (product) {
       this.#flowSite(node);
     }
@@ -1504,6 +1511,13 @@ class Walker {
   }
 
   // The library calls whose syntax the graph reads: a `tv()` table, a JSX attribute's value, a zod schema's twin keys.
+  #pagedQuery(node: Node): void {
+    const [input] = isCallExpression(node) ? node.arguments : [];
+    if (input !== undefined && isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === PAGED_QUERY) {
+      this.#sites.pagedQueries.push({ input, at: node.expression.name.pos });
+    }
+  }
+
   #libraryShapes(node: Node): void {
     this.#reflective(node);
     if (isCallExpression(node) && isTvCallee(node.expression) && node.arguments[0] !== undefined && isObjectLiteralExpression(node.arguments[0])) {
