@@ -8,15 +8,11 @@
 // visit, and on what clock — is local, because that is the half the two consumers genuinely differ on.
 
 import { classTokensInSelector, isDeadCssMarkerClass } from "@orb/kit/dead-css";
+import type { MotionFlaggerDrainReceipt } from "./agent-bridge-contract.ts";
 import { isExternalDevtoolsElement } from "./motion-animation-state.ts";
 
 const initialScan = Promise.withResolvers<void>();
 let initialScanSettled = false;
-
-export interface MotionFlaggerDrainReceipt {
-  readonly requestedGeneration: number;
-  readonly completedGeneration: number;
-}
 
 type MotionFlaggerDrainRequest = () => Promise<MotionFlaggerDrainReceipt>;
 let requestActiveDrain: MotionFlaggerDrainRequest | null = null;

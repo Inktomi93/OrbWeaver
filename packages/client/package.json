@@ -12,6 +12,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./agent-bridge-contract": "./src/lib/agent-bridge-contract.ts",
     "./components": "./src/components/index.ts",
     "./compose": "./src/compose/index.ts",
     "./data": "./src/data/index.ts",

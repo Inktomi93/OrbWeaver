@@ -5,11 +5,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import type { TestOptions } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, CensusReport, SiteClass } from "../../../tooling/src/unwired/index.ts";
 import { censusGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree } from "./_planted.ts";
 
+// Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
+const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
 const FILE = `${GRAPH_SOURCE}/census.ts`;
 const TIMEOUT = { timeout: 120_000 };
 const KEYS_OFF = "literal-keys" satisfies Ablation;
@@ -199,7 +202,7 @@ test("pnpm unwired graph-census prints its top gap shapes and writes the report 
   expect(readFileSync(join(scratch, "census.txt"), "utf8")).toContain(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n  sites placed=0`);
 });
 
-test("graph-census refuses --from before any build, since its role sites come from its own build", async ({ runCli, scratch }) => {
+test("graph-census refuses --from before any build, since its role sites come from its own build", SPAWNS_CLI, async ({ runCli, scratch }) => {
   const refused = await runCli("unwired", ["graph-census", `--root=${scratch}`, `--from=${join(scratch, "graph.dump")}`]);
   await expect(refused).toExitWith(EXIT.misuse);
   expect(refused.stderr).toContain("graph-census reads the role sites of its own build");

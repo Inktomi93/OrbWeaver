@@ -1,5 +1,5 @@
 // The run shapes of motion-audit: parsed args, the reach queue, the in-page motion snapshot
-// (mirrors packages/client/src/lib/motion-stats.ts — the probe reads it via __orb), the CDP trace
+// (mirrors packages/client/src/lib/agent-bridge-contract.ts — the probe reads it via __orb), the CDP trace
 // event shape, and the audit result.
 //
 // REACH VOCABULARY LIMITATION (#1072): the audit's reach vocabulary is `click` (a measured
@@ -69,7 +69,7 @@ export interface Args {
   errors: string[];
 }
 
-// ── The in-page motion snapshot shapes (mirror motion-stats.ts — the probe reads them via __orb) ──
+// ── The in-page motion snapshot shapes (mirror agent-bridge-contract.ts — the probe reads them via __orb) ──
 export interface LoafRecord extends LongAnimationFrameTiming {
   readonly scripts: ReadonlyArray<{
     sourceURL: string;
@@ -86,7 +86,7 @@ export interface LoafRecord extends LongAnimationFrameTiming {
     readonly firstForTrigger: boolean;
   };
 }
-/** One attributed layout shift as the collector's ring publishes it (`motion-stats.ts` `ShiftRecord`).
+/** One attributed layout shift as the collector's ring publishes it (`agent-bridge-contract.ts` `ShiftRecord`).
  *  Diagnostic passthrough: the report names the waves, no budget arm reads it — the ring is CAPPED
  *  (`SHIFT_RING_CAP`), so deriving a total from it would silently under-count. */
 export interface ShiftRecord {
@@ -174,7 +174,7 @@ interface AnimationAttribution {
   readonly phase?: AnimationPhase;
 }
 
-/** One `__orb.flags()` raise (mirrors `packages/client/src/lib/motion-flaggers.ts` `MotionFlagRecord`).
+/** One `__orb.flags()` raise (mirrors `packages/client/src/lib/agent-bridge-contract.ts` `MotionFlagRecord`).
  *  motion-audit consumes the `anim` channel ONLY, and consumes the raw `animation` FACTS — never the
  *  channel's own `overBudget` verdict, which is guide §3.7's console policy and not this tool's
  *  (#1069's allowance fork is open; importing that verdict would import the fork with it). */

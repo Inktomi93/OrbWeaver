@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-tooling/src/unwired/deliberate.ts keeps AGENT_RESULT rows for the bridge's result records (motion, theme fallback, CSS merge, plugin log and UI, appearance matrix, query and shell snapshots, nav capabilities, RPG and ring metadata). Snap's evaluate closures return these types, but each result goes into a shape validator that takes unknown, so no member read resolves to the declaration.
+tooling/src/unwired/deliberate.ts keeps AGENT_RESULT rows for the bridge's result records (motion, theme fallback, CSS merge, plugin log and UI, appearance matrix, query and shell snapshots, nav capabilities, RPG and ring metadata). Snap's evaluate closures return these types, but each result goes into a shape validator that takes unknown, so no member read resolves to the declaration. tooling/src/ui-audit/contract/types.ts also restates ShellSnapshot by hand, on the stale premise that tooling has no @orb/client dependency; since 3788 it can import the type.
 
 ## Why
 
