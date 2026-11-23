@@ -214,8 +214,11 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 - A CT or e2e pass or failure under the command is not a test verdict. The compiled suites stay the verdict.
 - The report gives each suite's matched and unmatched hits and the matched share of each kind. Read the share before you judge an unexecuted entry in a file that suite ran.
 - Suites run one after another, never side by side. The report records the peak memory of each suite's process tree and of the merge.
-- Each finished suite writes a run record beside its output. `--merge=<suites>` merges recorded suites without a new run, so the suites can run as separate commands. A suite's worker count sets its peak; separate commands do not lower it.
-- `--merge` refuses a record whose HEAD or working tree differs from the current tree. A list merged from two trees names code that one of them lacks.
+- Each finished suite writes a run record beside its output. `--merge=<suites>` merges recorded suites without a new run, so the suites can run as separate commands.
+- A suite's worker count sets its peak; separate commands do not lower it. Pass `--ct=--workers=<n>` or `--node=--maxWorkers=<n>` to lower a part's peak.
+- Sizing a part assumes the `shared` profile's worker caps in `tooling/concurrency-profile.json`. `ORB_DEDICATED_BOX=1` raises them, and the sizing no longer holds.
+- `--merge` refuses a record whose HEAD or working tree differs from the current tree. A list merged from two trees names code that one of them lacks. The tree leaves out the run folder and every report the command wrote.
+- A suite that ends with a crash exit, a signal or timeout, or no coverage written is recorded incomplete. No command merges an incomplete record. A test failure is a verdict, and its coverage merges.
 - A branch no run executes is judged like a finding: write a test that runs it through production, close it with a type, or delete it.
 - The report is input to judgement and never a gate.
 

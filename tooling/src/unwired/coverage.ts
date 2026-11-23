@@ -3,7 +3,7 @@
 // the suites' own exit codes are recorded and never turn into this command's verdict.
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { z } from "zod";
 import { EXIT } from "../floor/cli/exit-contract.ts";
@@ -12,13 +12,24 @@ import { execGit, runGit } from "../floor/git/git.ts";
 import { execNicedSync, spawnNicedTranscript } from "../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../floor/process/process-env.ts";
 import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "../floor/process/run-marker.ts";
-import { COVERAGE_DIR_ENV } from "../floor/testing/coverage-collection.ts";
+import { COVERAGE_DIR_ENV, COVERAGE_LAYOUT } from "../floor/testing/coverage-collection.ts";
 import { convertBrowserRun, convertNodeRun } from "./coverage-convert.ts";
 import type { CoverageInput, CoverageSuite } from "./coverage-merge.ts";
 import { COVERAGE_SUITES, diskHead, isProductionSource, istanbulMapSchema, mergeCoverage, PRODUCTION_COVERAGE_SCOPE } from "./coverage-merge.ts";
 
 const DEFAULT_OUT = "reports/unwired/coverage.json";
-const RUN_DIR = "reports/unwired/coverage-run";
+/** The run folder each suite writes its output and its run record into, relative to the root. */
+export const COVERAGE_RUN_DIR = "reports/unwired/coverage-run";
+
+/** Why a suite's record is incomplete: a coverage map from a suite with no test verdict lacks what its unrun tests reach. */
+export const INCOMPLETE_RUN = {
+  /** It exited with a code that is neither a pass nor a test failure. */
+  crash: "crash",
+  /** It ended on a signal or a timeout, with no exit code. */
+  signal: "signal",
+  /** It ended without writing its coverage. */
+  noMap: "no-map",
+} as const;
 const NODE_ISTANBUL = "node-istanbul";
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_HOUR = 3600;
@@ -52,18 +63,24 @@ interface Args {
 
 const FLAG = /^--(root|out|suites|merge|node|ct|e2e)=(.+)$/u;
 
-/** The usage line of the `coverage` verb. */
+/**
+ * The usage line of the `coverage` verb.
+ *
+ * @remarks A `--node`, `--ct` or `--e2e` value that is not a file passes to the suite as a flag, so `--ct=--workers=<n>`
+ * and `--node=--maxWorkers=<n>` lower a suite's peak below the shared profile's caps.
+ */
 export const COVERAGE_USAGE =
-  "pnpm unwired coverage [--suites=node,ct,e2e] [--merge=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... [--out=<file>]";
+  "pnpm unwired coverage [--suites=node,ct,e2e] [--merge=node,ct,e2e] [--node=<file>|--node=--maxWorkers=<n>]... [--ct=<file>|--ct=--workers=<n>]... [--e2e=<arg>]... [--out=<file>]";
 
 function suiteList(flag: string, value: string): readonly CoverageSuite[] {
-  return value.split(",").map((name) => {
+  const named = value.split(",").map((name) => {
     const suite = COVERAGE_SUITES.find((candidate) => candidate === name);
     if (suite === undefined) {
       throw new UsageError(`--${flag}=${value}: expected a comma list of ${COVERAGE_SUITES.join(", ")}`);
     }
     return suite;
   });
+  return [...new Set(named)];
 }
 
 function parseCoverageArgs(argv: readonly string[]): Args {
@@ -101,10 +118,25 @@ interface TreeState {
   readonly tree: string;
 }
 
+// Every report path a command has written from this run folder, so the tree id never counts the command's own output.
+const OUTPUTS_FILE = "outputs.json";
+const outputsSchema = z.array(z.string());
+
+// Adds this command's report to the run folder's list and returns the whole list, repository-relative.
+function noteOutput(root: string, runDir: string, out: string): readonly string[] {
+  const path = join(runDir, OUTPUTS_FILE);
+  const held = existsSync(path) ? outputsSchema.parse(JSON.parse(readFileSync(path, "utf8"))) : [];
+  const rel = relative(root, resolve(root, out));
+  const outputs = rel.startsWith("..") || held.includes(rel) ? held : [...held, rel];
+  writeFileSync(path, `${JSON.stringify(outputs, null, 1)}\n`);
+  return outputs;
+}
+
 // The tree id is `git write-tree` over a scratch copy of the index after `git add --all`, so two runs share it only
 // when every tracked and untracked file matched; the copy keeps the index's stat cache, so only changed files are
-// hashed. A dead-code list merged from two trees would name code that one of them never had.
-function treeState(root: string): TreeState {
+// hashed. A dead-code list merged from two trees would name code that one of them never had. The run folder and every
+// report the command wrote are left out: they are its output, not the code it measured.
+function treeState(root: string, excluded: readonly string[]): TreeState {
   const head = runGit(root, ["rev-parse", "--verify", "--quiet", "HEAD"]);
   const scratch = mkdtempSync(join(tmpdir(), "orb-coverage-tree-"));
   try {
@@ -115,6 +147,8 @@ function treeState(root: string): TreeState {
     }
     const scoped = { extra: { ["GIT_INDEX_FILE"]: index } };
     execGit(root, ["add", "--all"], scoped);
+    // Removed after the add, not excluded from it: git refuses an exclude pathspec that names an ignored path.
+    execGit(root, ["rm", "--cached", "-r", "--quiet", "--ignore-unmatch", "--", ...excluded.map((rel) => `:(literal)${rel}`)], scoped);
     return { head: head.status === 0 ? head.stdout.trim() : null, tree: execGit(root, ["write-tree"], scoped).trim() };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
@@ -188,10 +222,66 @@ const suiteRunSchema = z.object({
   paths: z.array(z.string()),
   head: z.string().nullable(),
   tree: z.string(),
+  incomplete: z.enum(Object.values(INCOMPLETE_RUN)).nullable(),
 });
 type SuiteRun = z.infer<typeof suiteRunSchema>;
+type IncompleteRun = (typeof INCOMPLETE_RUN)[keyof typeof INCOMPLETE_RUN];
 
 const recordPath = (runDir: string, suite: CoverageSuite): string => join(runDir, `${suite}.run.json`);
+
+// Vitest and Playwright both exit 0 when every test passed and 1 when a test failed and the run itself finished.
+const SUITE_PASS_EXIT = 0;
+const TEST_FAILURE_EXIT = 1;
+const NODE_MAP = "coverage-final.json";
+
+const holdsJson = (dir: string): boolean => existsSync(dir) && readdirSync(dir).some((name) => name.endsWith(".json"));
+
+// Whether the suite left the coverage the merge reads: vitest's map, or browser hits or server dumps.
+function wroteMap(runDir: string, suite: CoverageSuite): boolean {
+  if (suite === "node") {
+    return existsSync(join(runDir, NODE_ISTANBUL, NODE_MAP));
+  }
+  return holdsJson(join(runDir, suite, COVERAGE_LAYOUT.browser)) || holdsJson(join(runDir, suite, COVERAGE_LAYOUT.node));
+}
+
+// A suite that ended without a test verdict stopped before its unrun tests reached their code, so its map would name
+// that code unexecuted. A test failure is a verdict: the suite ran to the end.
+function incompleteRun(runDir: string, suite: CoverageSuite, exitCode: number | null): IncompleteRun | null {
+  if (exitCode === null) {
+    return INCOMPLETE_RUN.signal;
+  }
+  if (exitCode !== SUITE_PASS_EXIT && exitCode !== TEST_FAILURE_EXIT) {
+    return INCOMPLETE_RUN.crash;
+  }
+  return wroteMap(runDir, suite) ? null : INCOMPLETE_RUN.noMap;
+}
+
+function describeIncomplete(run: SuiteRun): string {
+  switch (run.incomplete) {
+    case INCOMPLETE_RUN.crash:
+      return `${run.suite} is incomplete (${run.incomplete}: it exited ${String(run.exitCode)})`;
+    case INCOMPLETE_RUN.signal:
+      return `${run.suite} is incomplete (${run.incomplete}: it ended on a signal or the suite timeout, with no exit code)`;
+    case INCOMPLETE_RUN.noMap:
+      return `${run.suite} is incomplete (${run.incomplete}: it wrote no coverage)`;
+    case null:
+      return `${run.suite} is complete`;
+  }
+}
+
+/**
+ * Refuses to merge any run that ended without a test verdict, naming each one and why.
+ *
+ * @throws UsageError when one of `runs` is incomplete.
+ */
+function refuseIncomplete(flag: string, runs: readonly SuiteRun[]): void {
+  const incomplete = runs.filter((run) => run.incomplete !== null);
+  if (incomplete.length > 0) {
+    throw new UsageError(
+      `${flag}: ${incomplete.map(describeIncomplete).join("; ")}; rerun ${incomplete.map((run) => run.suite).join(",")} with --suites, then merge the others with --merge`,
+    );
+  }
+}
 
 // Everything one suite's run leaves in the run folder, cleared before the suite runs again.
 const suiteOutputs = (runDir: string, suite: CoverageSuite): readonly string[] => [
@@ -215,6 +305,7 @@ function recordedRuns(runDir: string, suites: readonly CoverageSuite[], current:
     }
     return suiteRunSchema.parse(JSON.parse(readFileSync(path, "utf8")));
   });
+  refuseIncomplete("--merge", runs);
   const mismatched = runs.filter((run) => !sameTree(run, current));
   if (mismatched.length > 0) {
     throw new UsageError(
@@ -282,6 +373,7 @@ async function runSuite(plan: SuitePlan, suite: CoverageSuite, paths: readonly s
     peakRssBytes: sampler.stop(),
     paths: [...paths],
     ...plan.tree,
+    incomplete: incompleteRun(runDir, suite, result.code),
   };
   writeFileSync(recordPath(runDir, suite), `${JSON.stringify(run, null, 1)}\n`);
   return run;
@@ -312,7 +404,7 @@ async function suiteInput(
   suite: CoverageSuite,
 ): Promise<{ readonly input: CoverageInput; readonly unmapped: readonly string[]; readonly lost: readonly string[] }> {
   if (suite === "node") {
-    const raw: unknown = JSON.parse(readFileSync(join(runDir, NODE_ISTANBUL, "coverage-final.json"), "utf8"));
+    const raw: unknown = JSON.parse(readFileSync(join(runDir, NODE_ISTANBUL, NODE_MAP), "utf8"));
     return { input: { suite, map: istanbulMapSchema.parse(raw) }, unmapped: [], lost: [] };
   }
   const suiteDir = join(runDir, suite);
@@ -327,15 +419,17 @@ async function suiteInput(
 /** Runs the chosen suites in order, merges their coverage and writes the report. */
 export async function runCoverage(argv: readonly string[], log: (line: string) => void): Promise<number> {
   const args = parseCoverageArgs(argv);
-  const runDir = join(args.root, RUN_DIR);
+  const runDir = join(args.root, COVERAGE_RUN_DIR);
   mkdirSync(runDir, { recursive: true });
-  const tree = treeState(args.root);
+  const tree = treeState(args.root, [COVERAGE_RUN_DIR, ...noteOutput(args.root, runDir, args.out)]);
   // Refused before any suite runs, so a mismatch costs no hours of suite time.
   const recorded = recordedRuns(runDir, args.merge, tree);
   const fresh: SuiteRun[] = [];
   for (const suite of args.suites) {
     fresh.push(await runSuite({ root: args.root, runDir, tree, log }, suite, args.paths[suite]));
   }
+  // Every record is written by now, so a later command can merge the complete ones.
+  refuseIncomplete("coverage", fresh);
   // The Node suite's map is the universe, so the inputs go in the order the suites are declared.
   const runs = COVERAGE_SUITES.flatMap((suite) => [...recorded, ...fresh].filter((run) => run.suite === suite));
   const sampler = sampleTreePeak();
