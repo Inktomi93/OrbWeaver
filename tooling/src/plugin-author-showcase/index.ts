@@ -49,10 +49,15 @@ export function showcaseBundleDirectory(repoRoot: string): string {
   return join(repoRoot, "packages", "showcase-plugins", "dist", "bundles");
 }
 
+/** The authored bundle sources the release build packs, one directory per showcase slug. */
+export function showcaseSourceDirectory(repoRoot: string): string {
+  return join(repoRoot, "packages", "showcase-plugins", "bundles");
+}
+
 export async function compileShowcasePlugins(repoRoot: string, compilerObserver?: PluginAuthorCompilerObserver): Promise<ShowcaseAuthorResult> {
   // The toolchain loads the TypeScript compiler; the testkit's bundle lookup reads only the receipt half of this module.
   const { packPluginDirectory } = await import("@orb/plugin-toolchain");
-  const sourceRoot = join(repoRoot, "packages", "showcase-plugins", "bundles");
+  const sourceRoot = showcaseSourceDirectory(repoRoot);
   // Resolve the SDK through its package exports, as the orb-plugin CLI does in a template checkout.
   const sdkDirectory = dirname(createRequire(join(repoRoot, "packages", "showcase-plugins", "package.json")).resolve("@orb/plugin-sdk/package.json"));
   const outputRoot = join(repoRoot, "packages", "showcase-plugins", "dist", "author-js");

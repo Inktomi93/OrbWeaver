@@ -11,7 +11,7 @@ import { z } from "zod";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { openGraphWorld } from "../../../tooling/src/unwired/graph/build.ts";
 import type { HitKind, HitScope } from "../../../tooling/src/unwired/literal-hits.ts";
-import { HIT_KINDS, HIT_SCOPES, hitsReport, literalStage, runHits, searchLiterals } from "../../../tooling/src/unwired/literal-hits.ts";
+import { HIT_KINDS, HIT_SCOPES, hitsReport, literalStage, rowsEvidence, runHits, searchLiterals } from "../../../tooling/src/unwired/literal-hits.ts";
 import { graphTree } from "./_planted.ts";
 
 const TIMEOUT = 120_000;
@@ -24,6 +24,7 @@ const KIND_NAMES: Readonly<Record<HitKind, readonly string[]>> = {
   call: ["zqCall", "zqTag"],
   type: ["zqType", "zqImplemented"],
   declaration: ["zqDeclaration", "zqLocal", "zqRenamed"],
+  keyword: ["satisfies"],
   "import-export": ["zqImport", "zqExport", "zqModule"],
   string: ["zqString", "zqText"],
   template: ["zqTemplate"],
@@ -58,9 +59,163 @@ const CODE = [
   '  return shape.zqRead + bag["zqKeyed"] + typed + zqDestructured + s.length + u.length;',
   "}",
   "export const k = 1 + /** zqLoose inside an expression */ 2;",
+  "export const pinned = 1 satisfies number;",
 ].join("\n");
 
 const VIEW = ["export const View = () => (", '  <div zqAttr="1">', "    {/* zqJsx in a container */}", "    zqText", "  </div>", ");"].join("\n");
+
+// git numbers lines by LF alone, while the program's line table also breaks at U+2028 and U+2029; a hit placed by the
+// program's line table lands short after either. Neither an astral character, a variation selector, an accented
+// letter, a byte-order mark nor a lone-surrogate escape before the hit may move it off its word.
+const char = (point: number): string => String.fromCodePoint(point);
+const LONE_SURROGATE_ESCAPE = `${String.fromCodePoint(92)}uD800`;
+const AWKWARD_TEXT = [
+  `${char(0xfe_ff)}export const bag = { zqShifted: 1 };`,
+  `export const awkward = "${char(0x20_28)} ${char(0x20_29)} ${char(0x1_f5_6f)}${char(0xfe_0f)} caf${char(0xe9)} ${LONE_SURROGATE_ESCAPE}";`,
+  "export const read = bag.zqShifted;",
+].join("\n");
+
+test("a hit after a line or paragraph separator, an astral character and a BOM stays on its word", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/awkward.ts";
+  const root = await plantedTree(graphTree({ [file]: AWKWARD_TEXT }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const hits = searchLiterals(root, world, ["zqShifted"])?.hits.get("zqShifted") ?? [];
+  expect(hits.map(({ at, kind }) => `${at} ${kind}`)).toEqual([`${file}:1 write`, `${file}:3 read`]);
+  const text = world.source(file)?.text ?? "";
+  expect(hits.map(({ offset }) => text.slice(offset ?? 0, (offset ?? 0) + "zqShifted".length))).toEqual(["zqShifted", "zqShifted"]);
+});
+
+// A known site is the key of the name it was minted from: a computed name's key starts at its `[`, a private name's at
+// its `#`, a quoted name's at its quote. Each resolves through the tree to that name, so the member's own reads stay
+// evidence and a read of another declaration of the word drops.
+const NAMES_TEXT = [
+  'const KEY = "zqComputed";',
+  "export class Box {",
+  "  [KEY] = 1;",
+  "  #zqPrivate = 2;",
+  '  "zqQuoted" = 3;',
+  "  4242 = 4;",
+  "  *[Symbol.iterator](): Generator<number> { yield this.#zqPrivate; }",
+  "}",
+  "export const box = new Box();",
+  "export const reads = [box.zqComputed, box.zqQuoted, box[4242], box[Symbol.iterator]];",
+].join("\n");
+
+test("a known site with a computed, symbol, private, quoted or numeric name resolves to that name", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/names.ts";
+  const root = await plantedTree(graphTree({ [file]: NAMES_TEXT }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const rows = [
+    { member: "zqComputed", name: "[KEY]" },
+    { member: "iterator", name: "[Symbol.iterator]" },
+    { member: "zqPrivate", name: "#zqPrivate =" },
+    { member: "zqQuoted", name: '"zqQuoted" =' },
+    { member: "4242", name: "4242 =" },
+  ].map(({ member, name }) => ({ member, known: [`${file}:${String(NAMES_TEXT.indexOf(name))}`], neverWritten: false }));
+  const search = searchLiterals(
+    root,
+    world,
+    rows.map(({ member }) => member),
+  );
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  expect(
+    rowsEvidence(search, world, rows).map(({ elsewhere, productRead, hits }, at) => [
+      rows[at]?.member,
+      elsewhere,
+      productRead,
+      hits.map(({ at: site, kind }) => `${site} ${kind}`),
+    ]),
+  ).toEqual([
+    ["zqComputed", 0, true, [`${file}:10 read`, `${file}:1 string`]],
+    // Both words read SymbolConstructor.iterator, another declaration of the name.
+    ["iterator", 2, false, []],
+    ["zqPrivate", 0, true, [`${file}:7 read`]],
+    ["zqQuoted", 0, true, [`${file}:10 read`]],
+    ["4242", 0, true, [`${file}:10 read`]],
+  ]);
+});
+
+// A row is held for the product only by a saving hit in product source the parser reads or in data the product loads:
+// a column name in a migration or a class in a stylesheet under a package's src is no read of a member. The hits that
+// hold a row lead its list, so a long list of tooling hits never hides them.
+test("only a hit in parsed product source or loaded data holds a row, and those hits lead its list", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ".planted/rule.ts": 'export const keys = ["zqColumn", "zqHeld"];\n',
+      "packages/a/src/schema.sql": "CREATE TABLE t (zqColumn text);\n",
+      "packages/a/src/look.css": ".zqColumn { color: red; }\n",
+      "packages/a/src/use.ts": 'export const has = (o: object): boolean => "zqHeld" in o;\n',
+    }),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const rows = ["zqColumn", "zqHeld"].map((member) => ({ member, known: [], neverWritten: false }));
+  const search = searchLiterals(
+    root,
+    world,
+    rows.map(({ member }) => member),
+  );
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  expect(rowsEvidence(search, world, rows).map(({ productRead, hits }) => [productRead, hits.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
+    [false, [".planted/rule.ts:1 string", "packages/a/src/look.css:1 other", "packages/a/src/schema.sql:1 other"]],
+    [true, ["packages/a/src/use.ts:1 string", ".planted/rule.ts:1 string"]],
+  ]);
+});
+
+const KEYS_TEXT = [
+  'export const copy = "zqCopy is shown to people";',
+  'export const plain = (say: (text: string) => void): void => say("zqPlain");',
+  'export const elem = (o: Readonly<Record<string, number>>): number | undefined => o["zqElem"];',
+  'export const has = (o: object): boolean => "zqIn" in o;',
+  'export const computed = { ["zqComputedKey"]: 1 };',
+  "interface Form { readonly zqField: string }",
+  "declare function field<T>(name: keyof T & string): void;",
+  'field<Form>("zqField");',
+  'type Path = "params.zqBan" | "params.other";',
+  "declare function setPath(path: Path): void;",
+  'setPath("params.zqBan");',
+  "export const tpl = (o: object): boolean => `zqTpl` in o;",
+  "export const head = (o: object, k: string): boolean => `zqHead.\u0024{k}` in o;",
+].join("\n");
+// A string holds a row only where it acts as a key: in key syntax, or where the checker types it as a string-literal
+// union holding the name, a dotted path by its segment. Copy text and a string the checker types as plain `string`
+// only annotate. An element access's quoted key is a read by the role rules, held as an unresolved read.
+test("a string or template hit holds a row only as a key, by its syntax or its contextual literal type", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const file = "packages/a/src/keys.ts";
+  const root = await plantedTree(graphTree({ [file]: KEYS_TEXT }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  const members = ["zqCopy", "zqPlain", "zqElem", "zqIn", "zqComputedKey", "zqBan", "zqTpl", "zqHead"];
+  const rows = members.map((member) => ({ member, known: [], neverWritten: false }));
+  const search = searchLiterals(root, world, [...members, "zqField"]);
+  if (search === null) {
+    throw new Error("the planted tree has a git index");
+  }
+  const field = { member: "zqField", known: [`${file}:${String(KEYS_TEXT.indexOf("zqField"))}`], neverWritten: false };
+  expect(
+    rowsEvidence(search, world, [...rows, field]).map(({ productRead, hits }, at) => [members[at] ?? field.member, productRead, hits.map(({ kind }) => kind)]),
+  ).toEqual([
+    ["zqCopy", false, ["string"]],
+    ["zqPlain", false, ["string"]],
+    ["zqElem", true, ["read"]],
+    ["zqIn", true, ["string"]],
+    ["zqComputedKey", true, ["string"]],
+    ["zqBan", true, ["string", "type"]],
+    ["zqTpl", true, ["template"]],
+    ["zqHead", true, ["template"]],
+    ["zqField", true, ["string"]],
+  ]);
+});
 
 test("every kind of hit is classified where it sits", { timeout: TIMEOUT }, async ({ plantedTree }) => {
   const root = await plantedTree(
@@ -273,4 +428,21 @@ test("more names than one grep pattern holds are searched in parts, and each hit
     { verdict: "ask", counts: { string: 1, write: 1 }, writers: ["packages/a/src/both.ts:1"] },
   ]);
   expect(stage?.deadAfter).toBe(members.length - 2);
+});
+
+// A name's text builds the pattern, so a name that is not one word would search for something else: `[LIT]` is a
+// character class. The search refuses it, and the stage moves such a dead row to ask unsearched, never leaves it dead.
+test("a name that is not one word is refused by the search and moves its dead row to ask unsearched", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree(graphTree({ [DECLARATION]: DECLARED, "packages/a/src/letters.ts": "export const L = 1;\n" }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  using world = openGraphWorld(root);
+  expect(() => searchLiterals(root, world, ["zqWord", "[L]"])).toThrow(/"\[L\]" not one word/u);
+  const rows = ["zq-dash", "zqQuietRow"].map((member) => ({ member, verdict: "dead" as const, known: [], neverWritten: false }));
+  const { rows: staged, stage } = literalStage(root, world, rows, CONTROL);
+  expect(staged.map(({ member, verdict, literal }) => [member, verdict, literal === null])).toEqual([
+    ["zq-dash", "ask", true],
+    ["zqQuietRow", "dead", false],
+  ]);
+  expect([stage?.unsearchable, stage?.deadBefore, stage?.deadAfter]).toEqual([1, 2, 1]);
 });

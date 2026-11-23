@@ -370,3 +370,26 @@ test("engine two walks an inheriting member a declaration file of the tree's own
   // AmbientChild.mark overrides Root.mark through the ambient file's heritage clause, so the read reaches it by type
   expect(tags).toEqual(["1"]);
 });
+
+// A site key starts a computed name at its bracket, where the tree holds the whole `[…]` and no token of its own:
+// engine two answers for the member it names, never for the constant inside the brackets.
+test("engine two answers a computed member's site with the member's own references", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const keys = 'export const KEY = "zqComputed";';
+  const shape = 'import { KEY } from "./keys.ts";\nexport interface Shape { readonly [KEY]?: string }';
+  const root = await plantedTree({
+    "packages/a/tsconfig.json": plantedTsconfig({ lib: LIB }),
+    "packages/a/src/keys.ts": keys,
+    "packages/a/src/shape.ts": shape,
+    "packages/a/src/use.ts": [
+      'import { KEY } from "./keys.ts";',
+      'import type { Shape } from "./shape.ts";',
+      "export const key = KEY;",
+      'export const read = (shape: Shape): string => shape.zqComputed ?? "";',
+    ].join("\n"),
+  });
+  const sources = new Sources(root);
+  const worlds = ["packages/a/tsconfig.json"];
+  const asked = { file: "packages/a/src/shape.ts", position: shape.indexOf("[KEY]") };
+  const served = serviceReferences(root, worlds, [asked], { log: () => undefined, lists: NativeWorld.fileLists(root, worlds) });
+  expect((served.get(`${asked.file}:${asked.position}`) ?? []).map((found) => `${found.file}:${sources.line(found)}`)).toEqual(["packages/a/src/use.ts:4"]);
+});
