@@ -451,7 +451,7 @@ class Analyser {
   }
 
   #memberLabel(info: DeclInfo): string {
-    const home = memberHome(this.#state.decls, info.holder);
+    const home = memberHome(this.#state.decls, info);
     return `${info.file}:${home === "" ? "" : `${home}.`}${info.name}`;
   }
 
@@ -504,12 +504,13 @@ class Analyser {
   }
 }
 
-/** The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal. */
-export function memberHome(decls: ReadonlyMap<DeclKey, DeclInfo>, holder: GraphKey): string {
-  const names: string[] = [];
+/** The dotted names of a member's holders, outermost first: `Home.outer` for a member of a nested literal, with each
+ *  schema key's {@link DeclInfo.via} path before it. */
+export function memberHome(decls: ReadonlyMap<DeclKey, DeclInfo>, member: DeclInfo): string {
+  const names = [...member.via];
   const declOf = (key: GraphKey): DeclInfo | undefined => (isDeclKey(key) ? decls.get(key) : undefined);
-  for (let at = declOf(holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
-    names.unshift(at.name);
+  for (let at = declOf(member.holder); at !== undefined; at = at.top ? undefined : declOf(at.holder)) {
+    names.unshift(...at.via, at.name);
   }
   return names.join(".");
 }

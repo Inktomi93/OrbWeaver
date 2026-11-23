@@ -77,6 +77,30 @@ Engine one links a hand-off through a generic constraint, a spread into a typed 
 
 A key an `.extend({ key })` call re-declares is the base schema's key, so its reads and writes count for the base. A schema checked against a mapped re-keying, `{ [K in keyof T]?: T[K] }`, mirrors `T`.
 
+## Member rows on the graph against the fields scan
+
+The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the fields scan's `file:Home.member` key, so one judged list and one deliberate list serve both. Where a row differs from the fields row of the same key, this table holds the reason. The graph's answer is the target unless the row says otherwise.
+
+| Class | Graph | Fields scan | Ruling |
+| - | - | - | - |
+| A literal typed by a schema's inferred type (`z.infer`, `z.input`, a tRPC input) | writes the shape key: the mapped member's source is the key itself | writes the key | Both credit the write. A mapping from a shape key's schema to its parsed value is the field, not a table keyed by it (tooling/src/unwired/graph/slots.ts). |
+| A schema key under object keys that declare nothing, such as a router's procedure key | homed through each of those keys: `router.procedure.key` | the same path | One spelling (tooling/src/unwired/graph/sites.ts `schemaKeyPath`). |
+| Union options that name one member under one home | one row per option, numbered in source order, `Home.member#2` from the second on | the same numbering | One spelling (tooling/src/unwired/graph/judge.ts `declaredMembers`). |
+| A local literal no slot types, handed on later as an argument or an array element | writes its own keys, and the slot it lands in takes the writes at every depth | credits the write | Both credit the write (tooling/src/unwired/graph/slots.ts `ownKeyWrites`, tooling/src/unwired/graph/sites.ts `valueFlowSite`). |
+| A member typed `?: never` | judged by nothing | judged as a field | A union exclusion marker holds no data (tooling/src/unwired/graph/sites.ts `shapeOnlyOf`). |
+| A member keyed by a `declare const` unique symbol | judged by nothing | not in its population | A brand key exists only in the type (tooling/src/unwired/graph/sites.ts `isPhantomKey`). A member keyed by a real symbol is judged. |
+| A schema key with a `satisfies` twin, union options included | judged at the twin type's member | judged at the schema key when it finds no mirror for a union option | The type member is the home (tooling/src/unwired/graph/build.ts `zodTwins`). |
+| A type registry entry reached only through `Registry[K]` | a key use, so no row | `unreferenced` | A key use names the member; see "Limits of the fields scan". |
+| A read of a discriminant through the union | reads the member of every option | can report an option's member `never-read` | Every option's member is read. |
+| A read by a package-root file such as a token build script | not a use (D357: product code, the dev bridge and snap) | a use: its production pattern takes `packages/<package>/*.ts` | D357 holds until the owner rules otherwise. |
+| An optional member of a type a production parameter is annotated with | no `member-read-only` row: a caller may leave it unset | the same rule, but some aliased homes are missed | The graph resolves the annotation through import aliases (tooling/src/unwired/graph/build.ts `#parameterHomes`). |
+
+Classes still open:
+
+- A member of a `declare class`, such as a mint class that brands a type, has no run-time presence either. It reports `member-sent-only` or `member-untouched` today.
+- A member of a type that exists only to name a type error, such as the members of `NamesEvery` in packages/kit/src/guards/index.ts, reports `member-untouched`.
+- A computed key built from a runtime symbol (`{ [token]: true }`) writes nothing, as in the fields scan.
+
 ## Limits of the unions scan
 
 `UNION_LIMITS` in `tooling/src/unwired/graph/unions.ts` is the one list. These classes stay reported, so judge them by hand:

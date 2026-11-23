@@ -218,7 +218,7 @@ export const NODE_TYPES = {
 };
 
 /** A minimal zod at zod's own path: object schemas that keep their keys, `z.ZodType` for `satisfies`, `extend`, a
- *  validator and a default. */
+ *  validator, a default and an optional key. */
 export const ZOD_MODULE = {
   "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
   // zod's declarations sit under a nested scope manifest that names no package, as the installed zod's do
@@ -231,6 +231,7 @@ export const ZOD_MODULE = {
     "  parse(value: unknown): T;",
     "  extend<S>(shape: S): Schema<T & Shape<S>>;",
     "  default(value: Exclude<T, undefined>): Schema<T>;",
+    "  optional(): Schema<T | undefined>;",
     "}",
     "export declare namespace z {",
     "  type ZodType<T = unknown> = Schema<T>;",

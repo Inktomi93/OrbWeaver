@@ -156,3 +156,103 @@ test("only a schema key among literal keys is judged as a member", { timeout: 12
   const scan = await scanGraph(root, quiet);
   expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, RULES).map((label) => `${bucket} ${label}`))).toEqual(["member-validated formSchema.field"]);
 });
+
+// A schema's inferred type maps each key's schema to the value it parses, so a literal typed by it writes the key: the
+// home is written, and an optional key no literal sends reports read-only.
+test("a literal typed by a schema's inferred type writes its keys, so an optional key nothing sends reports read-only", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [RULES]: [
+        'import { z } from "zod";',
+        "const sendSchema = z.strictObject({ id: z.string(), note: z.string().optional() });",
+        "export type Send = z.infer<typeof sendSchema>;",
+        'export const handle = (raw: unknown): string => { const input = sendSchema.parse(raw); return input.id + (input.note ?? ""); };',
+        'export const sent: Send = { id: "a" };',
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, RULES).map((label) => `${bucket} ${label}`))).toEqual(["member-read-only sendSchema.note"]);
+});
+
+// The fields scan homes a schema key through every object key between its binding and its shape literal; a router's
+// procedure keys declare nothing, so without them two procedures' keys of one name would share a home.
+test("a schema key under object keys that declare nothing is homed through them, as the fields scan spells it", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [RULES]: [
+        'import { z } from "zod";',
+        "export const router = { copy: z.strictObject({ name: z.string() }), update: z.strictObject({ patch: z.strictObject({ name: z.string() }) }) };",
+        "export const parsed = (raw: unknown): unknown => [router.copy.parse(raw), router.update.parse(raw)];",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect(labelsIn(scan, "member-validated", RULES)).toEqual(["router.copy.name", "router.update.patch", "router.update.patch.name"]);
+});
+
+// Two options of a union name one member under one home; each is its own row, numbered in source order as the fields
+// scan numbers its keys, so a judged entry names the option it means. A literal written into the union writes both.
+test("union options that name one member under one home are keyed apart in source order", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [RULES]: [
+        'export type Outcome = { readonly kind: "a"; readonly at: string } | { readonly kind: "b"; readonly at: string };',
+        'export const make = (): Outcome => ({ kind: "a", at: "x" });',
+        "export const kindOf = (): string => make().kind;",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(RULES.length + 1), bucket])).toEqual([
+    ["Outcome.at", "member-write-only"],
+    ["Outcome.at#2", "member-write-only"],
+  ]);
+});
+
+// A local literal no slot types writes its own keys, and the slot it is later handed into, as an argument or an array
+// element, takes those writes at every depth; an optional member nothing writes still reports read-only.
+test("a local literal handed on later writes its keys into the slot it lands in, nested keys and array elements too", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      [RULES]: [
+        "export interface Inner { readonly deep?: boolean; readonly other?: boolean }",
+        "export interface Opts { readonly inner?: Inner; readonly name: string }",
+        'export const register = (opts: Opts): boolean => (opts.inner?.deep ?? false) || (opts.inner?.other ?? false) || opts.name !== "";',
+        'export function setup(): boolean { const preset = { inner: { deep: true }, name: "n" } as const; return register(preset) && register({ inner: { other: true }, name: "m" }); }',
+        "export interface Row { readonly tag?: string; readonly note?: string; readonly id: string }",
+        'const first = { tag: "t", id: "a" } as const;',
+        'export const rows: readonly Row[] = [first, { id: "b" }];',
+        'export const tags = (): string => rows.map((row) => (row.tag ?? "") + (row.note ?? "") + row.id).join();',
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, RULES).map((label) => `${bucket} ${label}`))).toEqual(["member-read-only Row.note"]);
+});
+
+// A member keyed by a `declare const` unique symbol brands a type: no value has the key at run time, so sending the
+// value whole sends no such member; a plain member sent beside it still reports.
+test("a member keyed by a declared unique symbol is a brand, judged by nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [RULES]: [
+        "declare const brand: unique symbol;",
+        'export type Id = string & { readonly [brand]: "id" };',
+        "export interface Plain { readonly note: string }",
+        "export const make = (raw: string): Id => raw as Id;",
+        "export const sendAll = (id: Id, plain: Plain): string => JSON.stringify([id, plain]);",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, RULES).map((label) => `${bucket} ${label}`))).toEqual(["member-sent-only Plain.note"]);
+});

@@ -176,14 +176,20 @@ function carriesInto(facts: GraphFacts): ReadonlyMap<string, ReadonlySet<string>
   return into;
 }
 
-// Every member the graph declares, as the promise test and the sibling test read it.
+// Every member the graph declares, as the promise test and the sibling test read it. Union options name one member
+// under one home, each its own row: they are numbered in source order as the fields scan numbers them
+// (fields.ts uniquelyKeyed), the first keeping the bare key.
 function declaredMembers(facts: GraphFacts): readonly (PromiseField & { readonly decl: DeclKey })[] {
-  return [...facts.decls].flatMap(([decl, info]) => {
-    if (!isMember(info)) {
-      return [];
-    }
-    const home = memberHome(facts.decls, info.holder);
-    return [{ decl, key: `${info.file}:${home}.${info.name}`, file: info.file, line: info.line, home, member: info.name, keys: [decl] }];
+  const members = [...facts.decls]
+    .flatMap(([decl, info]) => (isMember(info) ? [{ decl, info, pos: declKeyParts(decl).pos }] : []))
+    .sort((a, b) => a.info.file.localeCompare(b.info.file) || a.pos - b.pos);
+  const seen = new Map<string, number>();
+  return members.map(({ decl, info }) => {
+    const home = memberHome(facts.decls, info);
+    const bare = `${info.file}:${home}.${info.name}`;
+    const nth = (seen.get(bare) ?? 0) + 1;
+    seen.set(bare, nth);
+    return { decl, key: nth === 1 ? bare : `${bare}#${String(nth)}`, file: info.file, line: info.line, home, member: info.name, keys: [decl] };
   });
 }
 
@@ -194,15 +200,15 @@ interface Found {
 }
 
 // The member findings with their declarations; analyse.ts files each under its own declaration's key.
-function foundRows(facts: GraphFacts, analysis: Analysis): readonly Found[] {
+function foundRows(facts: GraphFacts, analysis: Analysis, keyOf: ReadonlyMap<DeclKey, string>): readonly Found[] {
   return MEMBER_BUCKETS.flatMap((bucket) =>
     analysis[bucket].map(({ key, label, note }): Found => {
       const info = key !== null && isDeclKey(key) ? facts.decls.get(key) : undefined;
-      if (info === undefined || key === null || !isDeclKey(key)) {
-        throw new Error(`member finding ${label} names no declaration`);
+      const rowKey = key !== null && isDeclKey(key) ? keyOf.get(key) : undefined;
+      if (info === undefined || rowKey === undefined || key === null || !isDeclKey(key)) {
+        throw new Error(`member finding ${label} names no declared member`);
       }
-      const home = memberHome(facts.decls, info.holder);
-      return { decl: key, info, row: { key: `${info.file}:${home}.${info.name}`, bucket, file: info.file, home, member: info.name, note } };
+      return { decl: key, info, row: { key: rowKey, bucket, file: info.file, home: memberHome(facts.decls, info), member: info.name, note } };
     }),
   );
 }
@@ -215,9 +221,9 @@ export function judgeMembers(
 ): JudgedMembers {
   const { facts } = graph;
   const sources = new Sources(world);
-  const found = foundRows(facts, analysis);
-  const reported = new Set(found.map(({ row }) => row.key));
   const members = declaredMembers(facts);
+  const found = foundRows(facts, analysis, new Map(members.map(({ decl, key }) => [decl, key])));
+  const reported = new Set(found.map(({ row }) => row.key));
   const wiredHomes = new Set(members.filter(({ file, key }) => isProduction(file) && !reported.has(key)).map(({ file, home }) => `${file}:${home}`));
   const aliases = homeAliases(root);
   const promises = promiseFacts(members, carriesInto(facts), aliases);
