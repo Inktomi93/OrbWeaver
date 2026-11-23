@@ -3,7 +3,7 @@
 // its sends named, and a dead row's name searched over the tree with the row's own sites left out.
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { scanGraph } from "../../../tooling/src/unwired/index.ts";
+import { MEMBER_BUCKETS, scanGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, labelsIn, plantJudged, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/row.ts`;
@@ -136,4 +136,23 @@ test("the literal search leaves a row's own sites out and moves a row a stray sp
     ["zqMarked", "ask", 2, true],
   ]);
   expect(scan.members.literalStage?.control.key).toBe(`${RULES}:Note.seen`);
+});
+
+// A plain literal's keys and a variant table's values are declared under the same node kind as a schema key, but only a
+// schema key is a member of a value the product parses; the others are judged as variant values or not at all.
+test("only a schema key among literal keys is judged as a member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [RULES]: [
+        'import { z } from "zod";',
+        "export const config = { used: 1, spare: 2 };",
+        "export const usedOf = (): number => config.used;",
+        "export const formSchema = z.strictObject({ field: z.string() });",
+        "export const check = (raw: unknown): unknown => formSchema.parse(raw);",
+      ].join("\n"),
+    }),
+  );
+  const scan = await scanGraph(root, quiet);
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, RULES).map((label) => `${bucket} ${label}`))).toEqual(["member-validated formSchema.field"]);
 });
