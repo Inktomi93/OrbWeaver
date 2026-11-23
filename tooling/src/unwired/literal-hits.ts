@@ -14,6 +14,10 @@
 //   disagree on a role: an object literal key, a JSX attribute and a class member that supplies its value write, a
 //   destructuring key reads, a type member's own name declares.
 // - A generated file is the house markers' call alone (tooling/src/floor/paths/generated-file.ts).
+// - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
+//   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays.
+// - Only a saving hit in product source, the plugin bundles' included, can stand for a product read; a hit in a test,
+//   the tooling or a config is evidence to list, never to keep a row by (productRead).
 import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 import process from "node:process";
@@ -70,6 +74,8 @@ import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
+import { declarationKeys } from "./native.ts";
+import { isProduction } from "./optional-population.ts";
 
 const DEAD: Verdict = "dead";
 const ASK: Verdict = "ask";
@@ -159,6 +165,8 @@ export interface LiteralSearch {
   readonly ignored: number;
   /** Each name's hits in `git grep` order, every occurrence on a line classified on its own. */
   readonly hits: ReadonlyMap<string, readonly LiteralHit[]>;
+  /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
+  readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
 }
 
 const PARSED = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -412,7 +420,51 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
       hits.get(hit.name)?.push(hit);
     }
   }
-  return { files, ignored, hits };
+  return { files, ignored, hits, resolved: resolvedHits(world, [...hits.values()].flat()) };
+}
+
+const CODE_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call"]);
+
+// The node a held file's hit or known site starts, by its `file:offset`.
+function heldNodeAt(world: NativeWorld, file: string, offset: number): Node | undefined {
+  const source = world.source(file);
+  return source === undefined ? undefined : getTokenAtPosition(source, offset);
+}
+
+// What each code hit in a held file resolves to, in one batched lookup.
+function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlyMap<LiteralHit, readonly string[]> {
+  const asked = hits.flatMap((hit) => {
+    const node = hit.graph && hit.offset !== null && CODE_KINDS.has(hit.kind) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    return node === undefined ? [] : [{ hit, node }];
+  });
+  const symbols = world.symbolsAt(asked.map(({ node }) => node));
+  return new Map(
+    asked.flatMap(({ hit }, at) => {
+      const symbol = symbols[at];
+      return symbol === undefined ? [] : [[hit, declarationKeys(symbol)] as const];
+    }),
+  );
+}
+
+// The declaration keys each row's known sites resolve to in the held files: the row's own member, however many
+// declarations it merges. An empty set (no known site the program holds resolves) drops no hit.
+function rowDeclarations(world: NativeWorld, rows: readonly { readonly known: readonly string[] }[]): readonly ReadonlySet<string>[] {
+  const asked = rows.flatMap((row, at) =>
+    row.known.flatMap((key) => {
+      const split = key.lastIndexOf(":");
+      const node = heldNodeAt(world, key.slice(0, split), Number(key.slice(split + 1)));
+      return node === undefined ? [] : [{ at, node }];
+    }),
+  );
+  const symbols = world.symbolsAt(asked.map(({ node }) => node));
+  const keys = rows.map(() => new Set<string>());
+  for (const [index, { at }] of asked.entries()) {
+    const symbol = symbols[index];
+    for (const key of symbol === undefined ? [] : declarationKeys(symbol)) {
+      keys[at]?.add(key);
+    }
+  }
+  return keys;
 }
 
 // Every file's hits but those of the parsed files the program does not hold, which come back to be parsed alone.
@@ -525,6 +577,10 @@ export interface LiteralEvidence {
   readonly writers: readonly string[];
   /** Hits at the row's own known sites, left out: its declarations and the sites the scan already recorded. */
   readonly own: number;
+  /** Code hits left out because the checker resolves them to another declaration of the same name. */
+  readonly elsewhere: number;
+  /** Some saving hit sits in product source, so it can stand for a product read; any other hit only annotates. */
+  readonly productRead: boolean;
 }
 
 /** What the stage did over one run. */
@@ -555,26 +611,48 @@ interface StageRow {
 }
 
 // One row's hits outside its known sites, and how many sat at them.
-function searched(search: LiteralSearch, member: string, known: ReadonlySet<string>): { readonly hits: readonly LiteralHit[]; readonly own: number } {
+function searched(
+  search: LiteralSearch,
+  member: string,
+  { known, declarations }: { readonly known: ReadonlySet<string>; readonly declarations: ReadonlySet<string> },
+): { readonly hits: readonly LiteralHit[]; readonly own: number; readonly elsewhere: number } {
   const all = search.hits.get(member) ?? [];
-  const hits = all.filter((hit) => {
+  const outside = all.filter((hit) => {
     const key = offsetKey(hit);
     return key === null || !known.has(key);
   });
-  return { hits, own: all.length - hits.length };
+  const hits = outside.filter((hit) => {
+    const goes = search.resolved.get(hit);
+    return goes === undefined || declarations.size === 0 || goes.some((key) => declarations.has(key));
+  });
+  return { hits, own: all.length - outside.length, elsewhere: outside.length - hits.length };
 }
 
-// One row's hits outside its known sites and the evidence they make.
-function judged(search: LiteralSearch, row: Omit<StageRow, "verdict">): { readonly hits: readonly LiteralHit[]; readonly literal: LiteralEvidence } {
-  const { hits, own } = searched(search, row.member, new Set(row.known));
-  return { hits, literal: evidenceOf(row, hits, own, search.files) };
+// Each row's hits outside its known sites and off other declarations of its name, and the evidence they make.
+function judged(
+  search: LiteralSearch,
+  world: NativeWorld,
+  rows: readonly Omit<StageRow, "verdict">[],
+): readonly { readonly hits: readonly LiteralHit[]; readonly literal: LiteralEvidence }[] {
+  const declarations = rowDeclarations(world, rows);
+  return rows.map((row, at) => {
+    const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: declarations[at] ?? new Set() });
+    return { hits, literal: evidenceOf(row, hits, { own, elsewhere }, search.files) };
+  });
 }
 
-/** One row's evidence from a search that covered its member name: its hits outside its own known sites, the ones that
- *  can be a real read first, and whether any can. The fields literal stage and the delete trial judge a row by it. */
-export const rowEvidence = (search: LiteralSearch, row: Omit<StageRow, "verdict">): LiteralEvidence => judged(search, row).literal;
+/** Each row's evidence from a search that covered its member name: its hits outside its own known sites and off any
+ *  other declaration of the name, the ones that can be a real read first, and whether any can, in the product or at
+ *  all. The fields literal stage and the delete trial judge a row by it; `world` is the program the search read. */
+export const rowsEvidence = (search: LiteralSearch, world: NativeWorld, rows: readonly Omit<StageRow, "verdict">[]): readonly LiteralEvidence[] =>
+  judged(search, world, rows).map(({ literal }) => literal);
 
-function evidenceOf(row: Omit<StageRow, "verdict">, hits: readonly LiteralHit[], own: number, files: number): LiteralEvidence {
+function evidenceOf(
+  row: Omit<StageRow, "verdict">,
+  hits: readonly LiteralHit[],
+  { own, elsewhere }: { readonly own: number; readonly elsewhere: number },
+  files: number,
+): LiteralEvidence {
   const saving = hits.filter(savesRow);
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
@@ -590,6 +668,8 @@ function evidenceOf(row: Omit<StageRow, "verdict">, hits: readonly LiteralHit[],
           .map((hit) => hit.at)
       : [],
     own,
+    elsewhere,
+    productRead: saving.some((hit) => isProduction(hit.file)),
   };
 }
 
@@ -615,18 +695,22 @@ export function literalStage<Row extends StageRow>(
   if (search === null) {
     return { rows: rows.map((row) => ({ ...row, literal: null })), stage: null };
   }
-  const controlHits = searched(search, control.member, new Set(control.known)).hits.filter(savesRow).length;
+  const controlHits = searched(search, control.member, { known: new Set(control.known), declarations: new Set() }).hits.filter(savesRow).length;
   if (controlHits === 0) {
     throw new Error(`literal stage: the wired control ${control.key} has no hit outside its declaration, so the search is broken`);
   }
   const movedBy: Partial<Record<HitKind, number>> = {};
   let staleOnly = 0;
   let ownHits = 0;
+  const verdicts = new Map(dead.map((row, at) => [row, at]));
+  const judgedDead = judged(search, world, dead);
   const staged = rows.map((row) => {
-    if (row.verdict !== DEAD) {
+    const at = verdicts.get(row);
+    const found = at === undefined ? undefined : judgedDead[at];
+    if (found === undefined) {
       return { ...row, literal: null };
     }
-    const { hits, literal } = judged(search, row);
+    const { hits, literal } = found;
     ownHits += literal.own;
     for (const kind of new Set(hits.filter(savesRow).map((hit) => hit.kind))) {
       movedBy[kind] = (movedBy[kind] ?? 0) + 1;

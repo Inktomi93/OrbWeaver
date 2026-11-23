@@ -19,8 +19,10 @@
 //   delete removes and the occurrence spans that attribute a group's errors, ahead of the base-symbol owner.
 // - tsc's own unused verdict, a reportsUnnecessary diagnostic at the candidate's name in the base program, is recorded
 //   beside each trial and never decides it.
-// - A compile-clean candidate whose name has a hit outside its own sites that can be a read (a string key, a JSON
-//   key, a call by name) is confirmed-literal, through the fields literal stage's own judge (../literal-hits.ts).
+// - A compile-clean candidate whose name has a hit in product source outside its own sites that can be a read (a
+//   string key, a JSON key, a call by name) is confirmed-literal, through the fields literal stage's own judge
+//   (../literal-hits.ts). A hit in a test, the tooling or a config only annotates, and a code hit the checker resolves
+//   to another declaration of the name is no hit.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
@@ -57,7 +59,7 @@ import type { Diagnostic, ProjectId } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { LiteralEvidence } from "../literal-hits.ts";
-import { rowEvidence, searchLiterals } from "../literal-hits.ts";
+import { rowsEvidence, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import { isProduction } from "../worlds.ts";
@@ -126,7 +128,8 @@ interface Trial {
   readonly compiles: number;
   readonly tsUnused: boolean;
   readonly note: string | null;
-  /** For a compile-clean candidate, the hits of its name outside its own sites, the ones that can be a read first. */
+  /** For a compile-clean candidate, the hits of its name outside its own sites and off other declarations of the name,
+   *  the ones that can be a read first: the reason for confirmed-literal, else an annotation on confirmed. */
   readonly literal: LiteralEvidence["hits"];
 }
 
@@ -921,21 +924,26 @@ function literalPass(
           world,
           asked.map(({ name }) => textOf(name)),
         );
-  const evidence = new Map(
+  const found =
     search === null
       ? []
-      : asked.map(({ trial, name, occurrences }) => [
-          trial,
-          rowEvidence(search, {
+      : rowsEvidence(
+          search,
+          world,
+          asked.map(({ name, occurrences }) => ({
             member: textOf(name),
             known: [name, ...occurrences].map((node) => `${world.fileOfSource(node.getSourceFile())}:${String(node.getStart(node.getSourceFile()))}`),
             neverWritten: false,
-          }),
-        ]),
-  );
+          })),
+        );
+  const evidence = new Map(asked.flatMap(({ trial }, at) => (found[at] === undefined ? [] : [[trial, found[at]] as const])));
   const trials = compiled.map(({ trial }) => {
-    const found = evidence.get(trial);
-    return found?.saved === true ? { ...trial, verdict: "confirmed-literal" as const, literal: found.hits } : trial;
+    const literal = evidence.get(trial);
+    if (literal === undefined || !literal.saved) {
+      return trial;
+    }
+    // A saving hit outside the product annotates: the row keeps the compile's confirmed and lists the hits.
+    return { ...trial, verdict: literal.productRead ? ("confirmed-literal" as const) : trial.verdict, literal: literal.hits };
   });
   return { trials, files: search?.files ?? (asked.length === 0 ? 0 : null) };
 }

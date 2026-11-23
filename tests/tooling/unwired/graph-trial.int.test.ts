@@ -17,7 +17,8 @@ const OTHER = `${GRAPH_SOURCE}/other.ts`;
 const DOOR = `${GRAPH_SOURCE}/door.ts`;
 const RELAY = `${GRAPH_SOURCE}/relay.ts`;
 const KEYS = `${GRAPH_SOURCE}/keys.ts`;
-const FIXTURE = "packages/a/fixtures/shape.json";
+const FIXTURE = `${GRAPH_SOURCE}/shape.json`;
+const SCRIPT = "scripts/names.ts";
 
 const progress = (lines: readonly string[]): string => lines.findLast((line) => line.startsWith("trial groups ")) ?? "";
 
@@ -267,29 +268,40 @@ test.for([
 });
 
 // A clean compile says only that the compiler needs no site of the name. A member read through a key built from a
-// string in another file, or named by a JSON fixture key, is confirmed-literal with the hit; a comment and the
-// candidate's own sites (its declaration, a re-export the delete removes) are no hit, so a quiet member and a
-// re-exported dead function stay confirmed.
-test("a compile-clean candidate whose name a string or a JSON key spells is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
+// string in another product file, or named by a JSON key the product holds, is confirmed-literal with the hit. A
+// string in a script only annotates, a product read of another type's member of the same name is no hit, and neither
+// is a comment or the candidate's own sites (its declaration, a re-export the delete removes): those stay confirmed.
+test("a compile-clean candidate whose name a product string or JSON key spells is confirmed-literal", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree(
       {
         [LIB]: [
-          "export interface Shape { readonly kept: string; readonly zqSecret: string; readonly zqFixture: string; readonly zqQuiet: string }",
+          "export interface Shape {",
+          "  readonly kept: string;",
+          "  readonly zqSecret: string;",
+          "  readonly zqFixture: string;",
+          "  readonly zqQuiet: string;",
+          "  readonly zqScripted: string;",
+          "  readonly zqShared: string;",
+          "}",
           "export declare const made: Shape;",
           "export function zqOrphan(): number { return 2; }",
         ].join("\n"),
         [DOOR]: 'export { zqOrphan } from "./lib.ts";',
         [KEYS]: 'export const KEY = "zqSecret";',
+        [OTHER]: ["export interface Other { readonly zqShared: string }", "export declare const other: Other;"].join("\n"),
         [MAIN]: [
           'import { KEY } from "./keys.ts";',
           'import { made } from "./lib.ts";',
+          'import { other } from "./other.ts";',
           "const use = (value: unknown): unknown => value;",
           "use(made.kept);",
+          "use(other.zqShared);",
           "// zqQuiet is only mentioned here.",
           "use((made as unknown as Readonly<Record<string, unknown>>)[KEY]);",
         ].join("\n"),
         [FIXTURE]: '{ "kept": "k", "zqFixture": "f" }\n',
+        [SCRIPT]: 'export const scripted = "zqScripted";\n',
       },
       { entries: [MAIN] },
     ),
@@ -300,11 +312,13 @@ test("a compile-clean candidate whose name a string or a JSON key spells is conf
   expect(
     report.trials
       .filter(({ label }) => label.includes(":Shape.zq") || label.endsWith(":zqOrphan"))
-      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind }) => `${at} ${kind}`)]),
+      .map(({ label, verdict, literal }) => [label, verdict, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
   ).toEqual([
-    [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:1 string`]],
-    [`${LIB}:Shape.zqFixture`, "confirmed-literal", [`${FIXTURE}:1 config-key`]],
+    [`${LIB}:Shape.zqSecret`, "confirmed-literal", [`${KEYS}:1 string product`]],
+    [`${LIB}:Shape.zqFixture`, "confirmed-literal", [`${FIXTURE}:1 config-key product`]],
     [`${LIB}:Shape.zqQuiet`, "confirmed", []],
+    [`${LIB}:Shape.zqScripted`, "confirmed", [`${SCRIPT}:1 string tooling`]],
+    [`${LIB}:Shape.zqShared`, "confirmed", []],
     [`${LIB}:zqOrphan`, "confirmed", []],
   ]);
   expect(report.literalFiles).toBeGreaterThan(0);
