@@ -49,6 +49,7 @@ import { isProduction } from "../worlds.ts";
 import type { Analysis, Finding, MemberBucket } from "./analyse.ts";
 import { isMember, MEMBER_BUCKETS, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
+import { declaredNameOf } from "./declared.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -57,7 +58,6 @@ import type { DeclInfo } from "./sites.ts";
 import { isDeclKey } from "./sites.ts";
 import type { GraphFacts, RoleSite } from "./state.ts";
 import { productReader } from "./state.ts";
-import { declaredNameOf } from "./verify.ts";
 import { siteLine } from "./why.ts";
 
 /** The lists a member row is judged by. */
@@ -225,9 +225,10 @@ function carriesInto(facts: GraphFacts): ReadonlyMap<string, ReadonlySet<string>
   return into;
 }
 
-// Every member the graph declares, as the promise test and the sibling test read it. Union options name one member
-// under one home, each its own row: they are numbered in source order, the first keeping the bare key.
-function declaredMembers(facts: GraphFacts): readonly (PromiseField & { readonly decl: DeclKey })[] {
+/** Every member the graph declares with its row key, as the promise test, the sibling test and the member scan read it.
+ *  Union options name one member under one home, each its own row: they are numbered in source order, the first keeping
+ *  the bare key. */
+export function declaredMembers(facts: GraphFacts): readonly (PromiseField & { readonly decl: DeclKey })[] {
   const members = [...facts.decls]
     .flatMap(([decl, info]) => (isMember(info) ? [{ decl, info, pos: declKeyParts(decl).pos }] : []))
     .sort((a, b) => a.info.file.localeCompare(b.info.file) || a.pos - b.pos);
@@ -416,4 +417,16 @@ export function judgeMembers(
     received,
     literalStage: staged.stage,
   };
+}
+
+/** The sort's verdict of each member declaration a judge under {@link NO_RULINGS} kept, whichever list holds its row. A
+ *  member the judge sets apart as received has no verdict and is absent. */
+export function verdictsByDecl(graph: Graph, members: JudgedMembers): ReadonlyMap<DeclKey, Verdict> {
+  const declOf = new Map(declaredMembers(graph.facts).map(({ decl, key }) => [key, decl]));
+  return new Map(
+    [...members.unwired, ...members.validated, ...members.acknowledged].flatMap(({ key, verdict }) => {
+      const decl = declOf.get(key);
+      return decl === undefined ? [] : [[decl, verdict] as const];
+    }),
+  );
 }

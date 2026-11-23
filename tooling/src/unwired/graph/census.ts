@@ -20,6 +20,7 @@ import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket } from "./analyse.ts";
 import { isMember, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
+import { declaredNameOf } from "./declared.ts";
 import type { GraphLog } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, Resolver } from "./resolve.ts";
@@ -28,7 +29,7 @@ import { occurrenceRoles, READS, sameNode } from "./roles.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
 import type { RoleSite } from "./state.ts";
 import { productReader, UNCLASSIFIED } from "./state.ts";
-import { declaredNameOf, evenSample } from "./verify.ts";
+import { evenSample } from "./verify.ts";
 
 /**
  * Where a reference site stands against the graph, first match wins: the graph gave the member a role at the site; the

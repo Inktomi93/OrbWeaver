@@ -801,6 +801,11 @@ function roleLinks(state: GraphFacts): {
   for (const [value, checked] of state.checks) {
     add(plainReadTo, value, checked, "check");
   }
+  // A holder typed `Owner["m"]` holds the member's value, so a read of it reads the member; a write builds the holder's
+  // own value and carries nowhere.
+  for (const [holder, member] of state.derivations) {
+    add(plainReadTo, holder, member, "derive");
+  }
   return { readTo, plainReadTo, writeTo };
 }
 

@@ -1,10 +1,27 @@
 import { spawn } from "node:child_process";
 import { globSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import process from "node:process";
 
+// Usage: pnpm typecheck [tsconfig.json ...] [--extendedDiagnostics] [--generateTrace=<dir>]
+//   --extendedDiagnostics   print the compiler's own counts, memory and per-phase times after each program.
+//   --generateTrace=<dir>   write each program's trace and type list to <dir>/<program slug>/, so programs never overwrite each other.
+// The compiler also takes --pprofDir <dir> for CPU and memory profiles; it is a manual option, run as
+// `node node_modules/@typescript/native/bin/tsc --noEmit true --incremental false --pprofDir <dir> --project <tsconfig>`.
+const EXTENDED_DIAGNOSTICS_FLAG = "--extendedDiagnostics";
+const GENERATE_TRACE_FLAG = "--generateTrace";
+const GENERATE_TRACE_PREFIX = `${GENERATE_TRACE_FLAG}=`;
+
 const root = resolve(import.meta.dirname, "..");
-const operands = process.argv.slice(2);
+const args = process.argv.slice(2);
+const extendedDiagnostics = args.includes(EXTENDED_DIAGNOSTICS_FLAG);
+const traceArg = args.find((arg) => arg.startsWith(GENERATE_TRACE_PREFIX));
+const traceDir = traceArg?.slice(GENERATE_TRACE_PREFIX.length);
+if (traceDir === "") {
+  throw new Error(`${GENERATE_TRACE_FLAG} needs a directory: ${GENERATE_TRACE_PREFIX}<dir>`);
+}
+const traceRoot = traceDir === undefined ? undefined : resolve(root, traceDir);
+const operands = args.filter((arg) => arg !== EXTENDED_DIAGNOSTICS_FLAG && arg !== traceArg);
 const routerConfig = "packages/server/tsconfig.router.json";
 const routerConsumers = ["packages/client/tsconfig.json", "tooling/tsconfig.json", "tsconfig.node.json", "tsconfig.tests-dom.json"].map((config) =>
   resolve(root, config),
@@ -32,6 +49,13 @@ for (const config of configs) {
   }
 }
 
+// A program's trace directory name: its config path from the repo root with separators folded, so each program owns one.
+function programSlug(config: string): string {
+  return relative(root, resolve(root, config))
+    .replaceAll(/[^A-Za-z0-9]+/gu, "-")
+    .replace(/^-|-$/gu, "");
+}
+
 // Refresh the public declaration before its consumers, never for an unrelated scoped package check.
 const programs = configs.some((config) => routerConsumers.includes(resolve(root, config))) ? [routerConfig, ...configs] : configs;
 // Independent -p programs cannot share a compiler invocation; serial runs bound their memory footprint.
@@ -47,6 +71,8 @@ for (const config of programs) {
       "false",
       "--project",
       config,
+      ...(extendedDiagnostics ? [EXTENDED_DIAGNOSTICS_FLAG] : []),
+      ...(traceRoot === undefined ? [] : [GENERATE_TRACE_FLAG, resolve(traceRoot, programSlug(config))]),
     ],
     {
       cwd: root,

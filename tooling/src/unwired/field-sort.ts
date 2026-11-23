@@ -7,7 +7,8 @@ import { catBlobs, execGit, runGit } from "../floor/git/git.ts";
 import type { SendDestination } from "./boundaries.ts";
 import { typeNameOf } from "./plugin-surface.ts";
 
-const VERDICTS = ["dead", "forgotten", "ask"] as const;
+/** The verdicts the sort gives a row. */
+export const VERDICTS = ["dead", "forgotten", "ask"] as const;
 /** `dead`: no promise and no outside receiver. `forgotten`: a promise and a hand-written value or used siblings, and no
  *  reader ever: an unfinished feature. `ask`: an outside receiver, a promise with a removed reader, or a settings key of
  *  the same name no flow connects, which a person must judge. */

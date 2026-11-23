@@ -109,7 +109,13 @@ export function* opaqueSlot(state: GraphState, type: Type): APIRequestGenerator<
     if (opaqueFlag(arm)) {
       return true;
     }
-    if (!isPrimitive(arm) && (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0 && (yield* arm.getCallSignatures.gen()).length === 0) {
+    // a table typed by its index signature's value, as `Record<string, Copy>` is, names its entries' members
+    if (
+      !isPrimitive(arm) &&
+      (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0 &&
+      (yield* arm.getCallSignatures.gen()).length === 0 &&
+      (yield* indexValueTypes(state, arm)).length === 0
+    ) {
       return true;
     }
   }
@@ -144,6 +150,18 @@ function* stringIndexedArms(checker: Checker, slot: Type): APIRequestGenerator<r
   for (const arm of yield* constituentsOf(slot)) {
     if (!isPrimitive(arm) && (yield* checker.getIndexInfoOfType.gen(arm, IndexKind.String)) !== undefined) {
       out.push(arm.id);
+    }
+  }
+  return out;
+}
+
+// The value types of a slot's string index signatures that hold members: an entry filling one is a value of that type.
+function* indexValueTypes(state: GraphState, slot: Type): APIRequestGenerator<readonly Type[]> {
+  const out: Type[] = [];
+  for (const arm of yield* constituentsOf(slot)) {
+    const info = isPrimitive(arm) ? undefined : yield* state.world.checker.getIndexInfoOfType.gen(arm, IndexKind.String);
+    if (info !== undefined && !isPrimitive(info.valueType) && (yield* state.membersOf(info.valueType)).length > 0) {
+      out.push(info.valueType);
     }
   }
   return out;
@@ -925,9 +943,11 @@ export class Flows {
     return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(this.#pairKey(pair));
   }
 
-  // A slot with a string index signature takes the value's members it does not name as open entries: whoever reads
-  // the slot reads them by no name, so each escapes with everything it holds, chased from the value at the pair's site.
-  #indexedEscapes(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[], file: string): void {
+  // A slot with a string index signature takes the value's members it does not name as entries. An index signature whose
+  // value type holds members, as `Record<string, Copy>` does, types each entry: the entry's value pairs with that type,
+  // returned for the next level. Any other entry is open: whoever reads the slot reads it by no name, so it escapes with
+  // everything it holds, chased from the value at the pair's site.
+  #indexedEscapes(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
     const indexed = state.batch(fresh.map(({ slot }) => stringIndexedArms(checker, slot)));
@@ -935,8 +955,12 @@ export class Flows {
     const values = state.batch(open.map(({ pair }) => state.membersOf(pair.value)));
     const unnamed = open.map(({ named }, y) => (values[y] ?? []).filter(({ name }) => !named.has(name)));
     const types = state.batch(unnamed.map((members) => allOf(members.map((member) => checker.getTypeOfSymbol.gen(member)))));
+    const entryTypes = state.batch(open.map(({ pair }) => indexValueTypes(state, pair.slot)));
+    const typed = open.flatMap(({ pair }, y) =>
+      (entryTypes[y] ?? []).flatMap((slot) => (types[y] ?? []).filter((value) => !isPrimitive(value)).map((value) => ({ slot, value, site: pair.site }))),
+    );
     const decls = unnamed.map((members) => state.declarations(members).flat());
-    const escaping = open.flatMap(({ pair }, y) => ((decls[y]?.length ?? 0) === 0 ? [] : [{ pair, y }]));
+    const escaping = open.flatMap(({ pair }, y) => ((decls[y]?.length ?? 0) === 0 || (entryTypes[y]?.length ?? 0) > 0 ? [] : [{ pair, y }]));
     const outcomes = this.#pairDestinations(escaping.map(({ pair }) => pair));
     this.#recordSinks(
       file,
@@ -953,13 +977,14 @@ export class Flows {
         state.escapeAll(members, { file, at: pair.site }, send);
       }
     }
+    return typed;
   }
 
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
-    this.#indexedEscapes(fresh, slotMembers, file);
+    const entries = this.#indexedEscapes(fresh, slotMembers, file);
     const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
     const matched = asks.flatMap(({ pair, member, x }, y) => {
@@ -990,11 +1015,14 @@ export class Flows {
       return true;
     });
     const types = state.batch(deeper.flatMap(({ slot, value }) => [checker.getTypeOfSymbol.gen(slot), checker.getTypeOfSymbol.gen(value)]));
-    return deeper.flatMap(({ site }, y) => {
-      const slot = types[2 * y];
-      const value = types[2 * y + 1];
-      return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value, site }] : [];
-    });
+    return [
+      ...entries,
+      ...deeper.flatMap(({ site }, y) => {
+        const slot = types[2 * y];
+        const value = types[2 * y + 1];
+        return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value, site }] : [];
+      }),
+    ];
   }
 }
 

@@ -5,13 +5,11 @@ import { dirname, join, relative, resolve } from "node:path";
 import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   isArrowFunction,
-  isClassDeclaration,
   isComputedPropertyName,
   isFunctionDeclaration,
   isFunctionExpression,
   isGetAccessorDeclaration,
   isIdentifier,
-  isInterfaceDeclaration,
   isMethodDeclaration,
   isNoSubstitutionTemplateLiteral,
   isPropertyAssignment,
@@ -98,15 +96,6 @@ export function hasFlag(flags: number, flag: number): boolean {
   return (flags & flag) !== 0;
 }
 
-/** A find-references site. `relative`: it names a base or sibling member find-references groups with the asked member
- *  by their shared base, so it reads or writes the asked member's value only through a flow between the two types. */
-export interface FoundReference extends Site {
-  readonly relative: boolean;
-}
-
-// A property, accessor or method: the symbols find-references groups by a shared base member.
-const isMember = (symbol: NativeSymbol): boolean => hasFlag(symbol.flags, SymbolFlags.PropertyOrAccessor) || hasFlag(symbol.flags, SymbolFlags.Method);
-
 /** A world's source files, and the root files its config names rather than reaches through imports. */
 export interface WorldFiles {
   readonly held: ReadonlySet<string>;
@@ -175,18 +164,6 @@ function* ask(request: Request): APIRequestGenerator<unknown> {
 
 const pageStarts = (size: number): readonly number[] => Array.from({ length: Math.ceil(size / BATCH) }, (_, page) => page * BATCH);
 
-// The `extends` and `implements` types of every declaration of an interface or class symbol.
-function* heritageOf(owner: NativeSymbol | undefined): APIRequestGenerator<readonly Node[]> {
-  const types: Node[] = [];
-  for (const handle of owner?.declarations ?? []) {
-    const declaration = yield* handle.resolve.gen();
-    if (declaration !== undefined && (isInterfaceDeclaration(declaration) || isClassDeclaration(declaration))) {
-      types.push(...(declaration.heritageClauses ?? []).flatMap((clause) => [...clause.types]));
-    }
-  }
-  return types;
-}
-
 /** What a world's batches cost: rounds to the compiler, distinct requests sent, asks the answer memo served, and the
  *  wall time spent inside {@link NativeWorld.batch}. */
 export interface WorldStats {
@@ -241,7 +218,7 @@ export class NativeWorld implements Disposable {
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
   }
 
-  // The world config is overlaid with the source bridge, the same programs engine two loads.
+  // The world config is overlaid with the source bridge, so a world resolves workspace imports to their sources.
   static open(root: string, config: string, declarations: ReadonlySet<string> = new Set()): NativeWorld {
     return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, new API({ cwd: root }), (file) => declarations.has(file));
   }
@@ -532,12 +509,6 @@ export class NativeWorld implements Disposable {
     return this.#sourceOf.get(file);
   }
 
-  /** The sites TypeScript 7.1 find-references reports for the name at each site, the site itself included. A
-   *  reference in a file outside the world's sources (a library or `node_modules`) is not resolved. */
-  referencesAt(sites: readonly Site[]): FoundReference[][] {
-    return this.batch(sites.map((site) => this.#referencesOf(site)));
-  }
-
   /** Find-references at a node, one group per symbol it may mean. A computed member name is asked through the
    *  member's own symbol: find-references answers nothing at a `[…]`, and a position inside it means the expression
    *  the brackets hold. */
@@ -566,58 +537,6 @@ export class NativeWorld implements Disposable {
   /** Every reference to the function a declaration names, each with the call that invokes it when one does. */
   *signatureUsage(declaration: Node): APIRequestGenerator<SignatureUsage[]> {
     return yield* this.#languageService.getSignatureUsage.gen(declaration);
-  }
-
-  *#referencesOf(site: Site): APIRequestGenerator<FoundReference[]> {
-    const file = this.#sourceOf.get(site.file);
-    if (file === undefined) {
-      return [];
-    }
-    const node = nameAt(file, site.position);
-    if (node === undefined) {
-      return [];
-    }
-    const groups = yield* this.referencedSymbolsOf(node);
-    const asked = yield* this.checker.getSymbolAtLocation.gen(node);
-    const found: FoundReference[] = [];
-    for (const group of groups) {
-      const viaRelative = asked !== undefined && isMember(asked) && (yield* this.#isRelative(asked, group.symbol));
-      const handles = group.references.filter((candidate) => this.fileOf(candidate) !== null);
-      const references = yield* all(...handles.map((handle) => handle.resolve.gen()));
-      found.push(...references.flatMap((reference) => (reference === undefined ? [] : [{ ...this.siteOf(reference), relative: viaRelative }])));
-    }
-    return found;
-  }
-
-  // Find-references on a member answers one group per member sharing its root: its own, a base type's, and every
-  // sibling that overrides the same base, as `<p className>` beside a props type that redeclares `className`. A group
-  // is a relative unless its member is the asked one or inherits it; one with no symbol or no declaration is not judged.
-  *#isRelative(asked: NativeSymbol, symbol: NativeSymbol | undefined): APIRequestGenerator<boolean> {
-    if (symbol === undefined || !isMember(symbol) || symbol.declarations.length === 0) {
-      return false;
-    }
-    const own = new Set(declarationKeys(asked));
-    return !(declarationKeys(symbol).some((key) => own.has(key)) || (yield* this.#inherits(symbol, own, new Set())));
-  }
-
-  // Whether `member` overrides the member declared at `own` through its owner's `extends` or `implements` chain. A
-  // library member never inherits a tree member, so only a member the world's sources declare is walked.
-  *#inherits(member: NativeSymbol, own: ReadonlySet<string>, seen: Set<string>): APIRequestGenerator<boolean> {
-    const keys = declarationKeys(member);
-    if (keys.some((key) => seen.has(key)) || member.declarations.every((handle) => this.fileOf(handle) === null)) {
-      return false;
-    }
-    for (const key of keys) {
-      seen.add(key);
-    }
-    const owner = yield* this.checker.getParentOfSymbol.gen(member);
-    for (const heritage of yield* heritageOf(owner)) {
-      const base = yield* this.checker.getPropertyOfType.gen(yield* this.checker.getTypeAtLocation.gen(heritage), member.name);
-      if (base !== undefined && (declarationKeys(base).some((key) => own.has(key)) || (yield* this.#inherits(base, own, seen)))) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** A node's site in one of the world's files. */
