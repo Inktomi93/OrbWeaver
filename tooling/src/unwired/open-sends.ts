@@ -63,7 +63,8 @@ interface OpenSend {
   readonly keys: readonly string[];
 }
 
-interface Destination {
+/** Where a sent value goes: the destination's kind and the library, logger or call that takes it, when one is named. */
+export interface Destination {
   readonly destination: SendDestination;
   readonly receiver: string | null;
 }
@@ -403,6 +404,9 @@ function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIReq
   const carrier = carrierOf(value);
   return carrier === null ? [] : yield* callDestinations(world, carrier.call, carrier.index, depth);
 }
+
+/** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
+export const sendDestinations = (world: NativeWorld, value: Node): APIRequestGenerator<readonly Destination[]> => destinationsOf(world, value, 0);
 
 // --- The provider request reach -----------------------------------------------------------------------------
 

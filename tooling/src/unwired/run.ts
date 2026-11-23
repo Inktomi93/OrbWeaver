@@ -638,8 +638,13 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
   const path = write(args.root, args.out, graph);
   const { members } = graph;
   // A member bucket lists only the rows no ruling names; the deliberate and judged rows follow it apart.
-  const shown = (bucket: Bucket): readonly { readonly label: string; readonly note: string | null }[] =>
-    isMemberBucket(bucket) ? members.unwired.filter((row) => row.bucket === bucket).map(({ key, note }) => ({ label: key, note })) : graph.analysis[bucket];
+  const shown = (bucket: Bucket): readonly { readonly label: string; readonly note: string | null }[] => {
+    if (!isMemberBucket(bucket)) {
+      return graph.analysis[bucket];
+    }
+    const rows = bucket === "member-validated" ? members.validated : members.unwired.filter((row) => row.bucket === bucket);
+    return rows.map(({ key, verdict, note }) => ({ label: `${key}\t${verdict}`, note }));
+  };
   for (const bucket of BUCKETS) {
     for (const finding of shown(bucket)) {
       process.stdout.write(`${bucket}\t${finding.label}${finding.note === null ? "" : `\t${finding.note}`}\n`);
@@ -655,6 +660,7 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
     process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
   }
   logSession(graph.session);
+  log(literalLine(members.literalStage));
   const ruled = `deliberate=${String(members.deliberate.length)} judged=${String(members.judged.length)} stale-judged=${String(members.staleJudged.length)}`;
   log(
     `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(shown(bucket).length)}`).join(" ")} ${ruled} lost-reads=${String(graph.lostReads.length)} written to ${path}`,

@@ -205,6 +205,10 @@ export interface DeclInfo {
   /** A variable whose initializer runs a call, a construction or an await when its module loads. */
   readonly effect: boolean;
   readonly shapeOnly: ShapeOnly | null;
+  /** A `?` member, or a schema key whose builder chain makes it optional or defaulted: a reader may see its default. */
+  readonly optional: boolean;
+  /** A key of a zod object schema's shape literal: it declares a member of the parsed value, and the literal writes none. */
+  readonly schemaKey: boolean;
   docTags: readonly string[];
 }
 
@@ -246,6 +250,18 @@ const unitName = (node: Node): Node | undefined => (isUnitDeclaration(node) ? no
 
 /** The name a declaration-like node declares: a unit's, a binding's, a parameter's or a literal key's. */
 export const declarationNameOf = (node: Node): Node | undefined => unitName(node) ?? namingName(node);
+
+/** The declaration kinds of a member: what a type, a class or an enum holds. A zod shape key is a member too, marked
+ *  {@link DeclInfo.schemaKey}, since its kind is every literal key's. */
+export const MEMBER_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.PropertySignature,
+  SyntaxKind.PropertyDeclaration,
+  SyntaxKind.MethodSignature,
+  SyntaxKind.MethodDeclaration,
+  SyntaxKind.GetAccessor,
+  SyntaxKind.SetAccessor,
+  SyntaxKind.EnumMember,
+]);
 
 /** The name a declaration without one is labelled with. */
 export const UNNAMED = "{…}";
@@ -387,11 +403,14 @@ export interface LocalBinding {
   readonly line: number;
 }
 
-/** A property an object literal writes: the literal, the key's text and the value written, if any. */
+/** A property an object literal writes: the literal, the key's text, where the key sits and the value written, if any. A
+ *  zod shape literal's keys, a twinned `extend` literal's too, name the parsed value's members and write nothing. */
 export interface LiteralProperty {
   readonly literal: ObjectLiteralExpression;
   readonly name: string;
+  readonly at: number;
   readonly value: Node | undefined;
+  readonly schema: boolean;
 }
 
 /** A value handed on whole: a call argument, a spread, or a value published to a global our own declarations name. */
@@ -466,6 +485,8 @@ export class FileSites {
   /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
   readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
+  /** The type names a production parameter is annotated with: a home whose optional members a caller may leave unset. */
+  readonly parameterTypes: Node[] = [];
   readonly hookTuples: { readonly call: CallExpression; readonly elements: readonly Node[] }[] = [];
   readonly zodTwins: { readonly shape: TypeNode; readonly keys: readonly { readonly name: string; readonly decl: DeclKey }[] }[] = [];
   readonly handedWhole: HandedWhole[] = [];
@@ -597,6 +618,9 @@ const ZOD_OBJECT_BUILDERS: ReadonlySet<string> = new Set(["object", "strictObjec
 // An inline `z.union` or `z.discriminatedUnion` spells each arm; an arm held in a constant twins at its own `satisfies`.
 const ZOD_UNION_BUILDERS: ReadonlySet<string> = new Set(["union", "discriminatedUnion"]);
 const ZOD_EXTENDERS: ReadonlySet<string> = new Set(["extend", "safeExtend"]);
+const ZOD_NAMESPACE = "z";
+// A builder method anywhere on a key's chain (`z.string().optional()`) makes the key optional or gives it a default.
+const ZOD_OPTIONAL: ReadonlySet<string> = new Set(["optional", "nullish", "default", "prefault", "catch"]);
 // A variable's JSDoc sits on its statement (`/** @public */ export const x = …`), two levels up from the declaration.
 const hasJsDoc = (node: UnitDeclaration): boolean => {
   const holder = isVariableDeclaration(node) ? node.parent.parent : node;
@@ -688,6 +712,33 @@ function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
   return shapes;
 }
 
+// `z.object({ … })`: the literal a zod object builder takes as its shape. An `extend` literal is left out: its callee is
+// any value's method, and the base's own keys are declared at the base.
+const spanOf = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
+
+function isZodShape(literal: ObjectLiteralExpression): boolean {
+  const call = literal.parent;
+  return (
+    isCallExpression(call) &&
+    sameNode(call.arguments[0], literal) &&
+    isPropertyAccessExpression(call.expression) &&
+    ZOD_OBJECT_BUILDERS.has(call.expression.name.text) &&
+    isIdentifier(call.expression.expression) &&
+    call.expression.expression.text === ZOD_NAMESPACE
+  );
+}
+
+// `z.string().optional()`: a builder method that makes a key optional or defaulted, anywhere on its initializer's chain.
+function isOptionalSchema(node: Node): boolean {
+  for (let at: Node | undefined = unwrapExpression(node); at !== undefined && isCallExpression(at) && isPropertyAccessExpression(at.expression); ) {
+    if (ZOD_OPTIONAL.has(at.expression.name.text)) {
+      return true;
+    }
+    at = unwrapExpression(at.expression.expression);
+  }
+  return false;
+}
+
 function zodShapeOf(expression: Node): ObjectLiteralExpression | undefined {
   for (let at: Node | undefined = unwrapExpression(expression); at !== undefined && isCallExpression(at); ) {
     const callee = at.expression;
@@ -750,6 +801,8 @@ interface Frame {
   readonly moduleNamespaces: Set<string>;
   /** The file's bindings that hold a require function createRequire made. */
   readonly requires: Set<string>;
+  /** The spans of the shape literals a `satisfies z.ZodType<T>` chain spells, its `extend` literals among them. */
+  readonly twinShapes: Set<string>;
   /** How many generic functions enclose the walk. */
   generic: number;
 }
@@ -764,6 +817,7 @@ export function collectSites(source: SourceFile, file: string, product: boolean,
     createRequire: new Set(),
     moduleNamespaces: new Set(),
     requires: new Set(),
+    twinShapes: new Set(),
     generic: 0,
   };
   const walker = new Walker(source, sites, sink, frame);
@@ -790,7 +844,8 @@ class Walker {
 
   visit(node: Node, typePosition: boolean): void {
     this.#binding(node);
-    const pushed = this.#declaration(node);
+    const pushed = this.#declaration(node) || this.#schemaKey(node);
+    this.#parameterType(node);
     this.#docs(node);
     if (isConstructorDeclaration(node)) {
       this.#sink.edge("run", this.#holder, this.#sink.keyOf(node));
@@ -975,6 +1030,8 @@ class Walker {
       line,
       effect: isVariableDeclaration(node) && runsOnLoad(node.initializer),
       shapeOnly: shapeOnlyOf(node),
+      optional: (isPropertySignatureDeclaration(node) || isPropertyDeclaration(node)) && node.postfixToken?.kind === SyntaxKind.QuestionToken,
+      schemaKey: false,
       docTags: [],
     });
     if (hasJsDoc(node) && (top || isClassDeclaration(node.parent))) {
@@ -991,6 +1048,45 @@ class Walker {
     }
     this.#frame.stack.push(key);
     return true;
+  }
+
+  // A key of a zod shape literal declares a member of its schema, held by the schema's binding or by the key whose
+  // nested schema it sits in, so its home reads `userSchema.inner` as the fields scan spells it.
+  #schemaKey(node: Node): boolean {
+    if (!((isPropertyAssignment(node) || isShorthandPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isZodShape(node.parent))) {
+      return false;
+    }
+    const name = keyText(node.name);
+    if (name === undefined) {
+      return false;
+    }
+    const key = this.#sink.keyOf(node);
+    const holder = this.#holder;
+    this.#sink.declare(key, {
+      file: this.#sites.file,
+      kind: node.kind,
+      name,
+      holder,
+      surfacePath: "",
+      top: false,
+      line: this.#source.getLineAndCharacterOfPosition(node.name.getStart(this.#source)).line + 1,
+      effect: false,
+      shapeOnly: null,
+      optional: isPropertyAssignment(node) && isOptionalSchema(node.initializer),
+      schemaKey: true,
+      docTags: [],
+    });
+    // a literal key lives with its schema, which runs the key's builder chain; a read of the key keeps the schema too
+    this.#sink.edge("run", holder, key);
+    this.#sink.edge("run", key, holder);
+    this.#frame.stack.push(key);
+    return true;
+  }
+
+  #parameterType(node: Node): void {
+    if (this.#sites.product && isParameterDeclaration(node) && node.type !== undefined && isTypeReferenceNode(node.type)) {
+      this.#sites.parameterTypes.push(node.type.typeName);
+    }
   }
 
   // The edges that keep a declaration and its holder alive together, a pin on a binding unread on purpose, and a field
@@ -1093,17 +1189,18 @@ class Walker {
     }
     this.#sites.literals.push(literal);
     this.#frame.literals.push(literal);
+    const schema = isZodShape(node) || this.#frame.twinShapes.has(spanOf(node));
     for (const property of node.properties) {
       const name = isSpreadAssignment(property) ? undefined : keyText(property.name);
       if (name === undefined) {
         continue;
       }
       if (isPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, name, value: property.initializer });
+        this.#sites.literalProperties.push({ literal: node, name, at: property.name.pos, value: property.initializer, schema });
       } else if (isShorthandPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, name, value: property.name });
+        this.#sites.literalProperties.push({ literal: node, name, at: property.name.pos, value: property.name, schema });
       } else if (isMethodDeclaration(property)) {
-        this.#sites.literalProperties.push({ literal: node, name, value: undefined });
+        this.#sites.literalProperties.push({ literal: node, name, at: property.name.pos, value: undefined, schema });
       }
     }
     return literal;
@@ -1223,6 +1320,7 @@ class Walker {
     if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type) && referenceName(node.type) === ZOD_TYPE && node.type.typeArguments?.[0] !== undefined) {
       const [shape] = node.type.typeArguments;
       for (const literal of zodShapesOf(node.expression)) {
+        this.#frame.twinShapes.add(spanOf(literal));
         this.#sites.zodTwins.push({ shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });
       }
     }

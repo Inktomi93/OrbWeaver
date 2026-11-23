@@ -22,11 +22,13 @@ import { isCallExpression, isModuleDeclaration, isPropertyAccessExpression, isSp
 import type { APIRequestGenerator, Signature, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
+import type { Destination } from "../open-sends.ts";
+import { sendDestinations } from "../open-sends.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
-import { isPrimitive } from "./state.ts";
+import { isPrimitive, UNCLASSIFIED } from "./state.ts";
 
 /** A slot type and the value type that fills it. */
 export interface FlowPair {
@@ -193,14 +195,14 @@ export class Flows {
     return out;
   }
 
-  /** Record every member a value holds as escaping, from a product file; a value published through our own global
-   *  door also marks its members as the door's. */
-  escape(value: Type, door: boolean, file: string, at: number): void {
+  /** Record every member a value holds as escaping at `site`, each sent where `send` names; a value published through
+   *  our own global door also marks its members as the door's. */
+  escape(value: Type, door: boolean, site: { readonly file: string; readonly at: number }, send: Destination): void {
     if (this.#state.session.options.ablate.has("escape")) {
       return;
     }
     const members = this.deepMembers(value, door);
-    this.#state.roleAll(members, "escape", file, at);
+    this.#state.escapeAll(members, site, send);
     if (door) {
       for (const member of members) {
         this.#state.door.add(member);
@@ -224,24 +226,35 @@ export class Flows {
     const slots = new Map(slotAt.map((at, y) => [at, contextual[y]]));
     this.#opaqueOf([...slots.values()].flatMap((type) => (type === undefined ? [] : [type])));
     const spreads = this.#spreadPairs(handed, values);
-    const pairs: FlowPair[] = [...spreads.pairs];
+    const pairs: FlowPair[] = [];
+    const escaping: { readonly at: number; readonly value: Type; readonly door: boolean }[] = [];
     for (const [at, entry] of handed.entries()) {
       const value = values[at];
       const slot = slots.get(at);
-      if (spreads.paired.has(at)) {
+      if (spreads.paired.has(at) || value === undefined || isPrimitive(value)) {
         continue;
       }
-      const opaque = entry.spread || entry.door || libraryGeneric.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true);
-      if (value === undefined || isPrimitive(value)) {
-        continue;
-      }
-      if (opaque) {
-        this.escape(value, entry.door, sites.file, nodes[at]?.pos ?? 0);
+      if (entry.spread || entry.door || libraryGeneric.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
+        escaping.push({ at, value, door: entry.door });
       } else if (slot !== undefined) {
         pairs.push({ slot, value });
       }
     }
-    return pairs;
+    const sends = this.#destinations(escaping.map(({ at }) => nodes[at]));
+    for (const [y, { at, value, door }] of escaping.entries()) {
+      this.escape(value, door, { file: sites.file, at: nodes[at]?.pos ?? 0 }, sends[y] ?? UNCLASSIFIED);
+    }
+    return [...spreads.pairs, ...pairs];
+  }
+
+  // Where each escaping value goes, asked only when the build keeps role sites to carry the answer.
+  #destinations(nodes: readonly (Node | undefined)[]): readonly Destination[] {
+    const { state } = this;
+    if (!(state.session.memberSites || state.session.siteFiles.length > 0)) {
+      return [];
+    }
+    const found = state.batch(nodes.map((node) => (node === undefined ? answer<readonly Destination[]>([]) : sendDestinations(state.world, node))));
+    return found.map((list) => list[0] ?? UNCLASSIFIED);
   }
 
   // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
@@ -462,7 +475,7 @@ export class Flows {
       if (this.#opaque.get(pair.slot.id) !== true) {
         pairs.push(pair);
       } else if (!(isPrimitive(pair.value) || this.#heldTypes.has(pair.value.id))) {
-        this.escape(pair.value, false, file, 0);
+        this.escape(pair.value, false, { file, at: 0 }, UNCLASSIFIED);
       }
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's

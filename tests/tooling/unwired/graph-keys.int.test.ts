@@ -33,7 +33,9 @@ test("a zod schema's keys are the members of the type it satisfies", { timeout: 
       "export const nameOf = (user: z.infer<typeof userSchema>): string => user.name;",
     ]),
   });
-  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["User.age"]);
+  // a schema key names a member of the parsed value and writes none, so the twin's unread member is untouched
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["User.age"]);
+  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual([]);
 });
 
 test("an inline union schema twins each arm's keys with the union's members", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -47,7 +49,7 @@ test("an inline union schema twins each arm's keys with the union's members", { 
       'export const leftOf = (value: z.infer<typeof eitherSchema>): string => ("left" in value ? value.left : value.kind);',
     ]),
   });
-  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["B.right"]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["B.right"]);
 });
 
 test("an extended schema twins its extend literal's keys with the type it satisfies", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -62,7 +64,7 @@ test("an extended schema twins its extend literal's keys with the type it satisf
       "export const countOf = (view: z.infer<typeof viewSchema>): number => view.count;",
     ]),
   });
-  expect(bare(labelsIn(scan, "member-write-only", FILE))).toEqual(["Base.id", "View.hidden"]);
+  expect(bare(labelsIn(scan, "member-untouched", FILE))).toEqual(["Base.id", "View.hidden"]);
 });
 
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {

@@ -88,7 +88,7 @@ test("a dumped graph read back analyses to the fresh build's buckets; a dump in 
   // each fact decides a bucket in the fresh build, so a dump that drops one analyses to other buckets
   expect(labelsIn(fresh, "member-write-only", OTHER)).toEqual(["Note.text"]);
   expect(labelsIn(fresh, "member-untouched", FLOW)).toEqual(["Event.extra", "Mine.other"]);
-  expect(bare(labelsIn(fresh, "member-write-only", TWIN))).toEqual(["User.age"]);
+  expect(bare(labelsIn(fresh, "member-untouched", TWIN))).toEqual(["User.age"]);
   expect(labelsIn(fresh, "state-never-set", STATE)).toEqual(["3 setter"]);
   expect(labelsIn(fresh, "member-sent-only", DOOR)).toEqual(["Bridge.bar"]);
   expect(labelsIn(fresh, "member-untouched", UNSEEN)).toEqual(["Doc.spare"]);
@@ -129,7 +129,7 @@ interface AblatedReading {
 const ABLATED: Readonly<Record<Ablation, AblatedReading>> = {
   escape: { reading: (scan) => labelsIn(scan, "member-write-only", FILE), fresh: [], ablated: ["Tag.name", "Tag.color"] },
   "literal-keys": { reading: (scan) => labelsIn(scan, "member-untouched", OTHER), fresh: [], ablated: ["Note.text"] },
-  "zod-twins": { reading: (scan) => labelsIn(scan, "member-untouched", TWIN), fresh: [], ablated: ["User.name", "User.age"] },
+  "zod-twins": { reading: (scan) => labelsIn(scan, "member-untouched", TWIN), fresh: ["User.age"], ablated: ["User.name", "User.age"] },
   spelling: {
     reading: (scan) => (scan.session.lost?.bySlot ?? []).map(({ slot, sample }) => `${slot} ${sample}`),
     fresh: [],

@@ -30,6 +30,7 @@ import { GraphProfile } from "./profile.ts";
 import type { Query, QueryAnswer } from "./query.ts";
 import { GraphQueries } from "./query.ts";
 import { loadRoots } from "./roots.ts";
+import type { BuildSession } from "./state.ts";
 import type { UnionsOptions, UnionsReport } from "./unions.ts";
 import { scanUnionsOnGraph } from "./unions.ts";
 import type { Verified } from "./verify.ts";
@@ -96,15 +97,15 @@ class Session implements Disposable {
   readonly #options: GraphOptions;
   readonly #log: GraphLog;
   readonly #profile: GraphProfile | null;
-  readonly #siteFiles: readonly string[];
+  readonly #sites: SitePlan;
   #world: NativeWorld | null = null;
   #compiler: CompilerProfile | null = null;
 
-  constructor(root: string, options: GraphOptions, log: GraphLog, siteFiles: readonly string[]) {
+  constructor(root: string, log: GraphLog, { options, ...sites }: SessionPlan) {
     this.#root = root;
     this.#options = options;
     this.#log = log;
-    this.#siteFiles = siteFiles;
+    this.#sites = sites;
     this.#profile = options.profile === null ? null : new GraphProfile();
   }
 
@@ -113,12 +114,17 @@ class Session implements Disposable {
   }
 
   world(): NativeWorld {
-    this.#world ??= this.time("open", () => openGraphWorld(this.#root, this.#profile !== null));
-    if (this.#options.profile?.kind === "cpu" && this.#compiler === null) {
-      mkdirSync(this.#options.profile.dir, { recursive: true });
-      this.#world.debug.startCPUProfile(this.#options.profile.dir);
+    if (this.#world !== null) {
+      return this.#world;
     }
-    return this.#world;
+    const world = this.time("open", () => openGraphWorld(this.#root, this.#profile !== null));
+    // the profile starts once, when the world opens; every later ask for the world reuses it
+    if (this.#options.profile?.kind === "cpu") {
+      mkdirSync(this.#options.profile.dir, { recursive: true });
+      world.debug.startCPUProfile(this.#options.profile.dir);
+    }
+    this.#world = world;
+    return world;
   }
 
   async run<T>(use: (work: SessionWork) => T | Promise<T>): Promise<WithSession<T>> {
@@ -155,7 +161,7 @@ class Session implements Disposable {
     const options = this.#options;
     const roots = this.#profile === null ? await loadRoots(this.#root) : await this.#profile.timeAsync("open", () => loadRoots(this.#root));
     const world = this.world();
-    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, siteFiles: this.#siteFiles });
+    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, ...this.#sites });
     if (options.profile?.kind === "heap") {
       mkdirSync(options.profile.dir, { recursive: true });
       const path = String(world.debug.saveHeapProfile(options.profile.dir));
@@ -177,31 +183,30 @@ class Session implements Disposable {
   }
 }
 
-// What a session builds under: its options, and the file prefixes whose declarations keep their role sites.
-interface SessionPlan {
+// Which role sites a build keeps: every site of a declaration under a prefix, and every production member's.
+type SitePlan = Pick<BuildSession, "siteFiles" | "memberSites">;
+
+// What a session builds under: its options and the role sites it keeps.
+interface SessionPlan extends SitePlan {
   readonly options: GraphOptions;
-  readonly siteFiles: readonly string[];
 }
 
 // Only a verb that reads role sites keeps any.
-const NO_SITES: readonly string[] = [];
+const NO_SITES: SitePlan = { siteFiles: [], memberSites: false };
+// The member scan's sort and literal search read each reported member's own sites.
+const MEMBER_SITES: SitePlan = { siteFiles: [], memberSites: true };
 
-async function session<T>(
-  root: string,
-  log: GraphLog,
-  { options, siteFiles }: SessionPlan,
-  use: (work: SessionWork) => T | Promise<T>,
-): Promise<WithSession<T>> {
-  using running = new Session(root, options, log, siteFiles);
+async function session<T>(root: string, log: GraphLog, plan: SessionPlan, use: (work: SessionWork) => T | Promise<T>): Promise<WithSession<T>> {
+  using running = new Session(root, log, plan);
   return await running.run(use);
 }
 
-const scanOf = (root: string, { graph, time }: SessionWork, rulings: MemberRulings): GraphScan => {
+const scanOf = (root: string, { graph, time, world }: SessionWork, rulings: MemberRulings): GraphScan => {
   const analysis = time("analyse", () => analyse(graph));
   return {
     files: graph.files.length,
     analysis,
-    members: judgeMembers(root, graph, analysis, rulings),
+    members: time("analyse", () => judgeMembers({ root, graph, analysis, world: world() }, rulings)),
     counts: [...graph.facts.counts].sort(([a], [b]) => a.localeCompare(b)).map(([name, count]) => ({ name, count })),
     lostReads: graph.facts.lostReads,
   };
@@ -214,7 +219,7 @@ export function scanGraph(
   options: GraphOptions = FRESH_BUILD,
   rulings: MemberRulings = NO_RULINGS,
 ): Promise<WithSession<GraphScan>> {
-  return session(root, log, { options, siteFiles: NO_SITES }, (work) => scanOf(root, work, rulings));
+  return session(root, log, { options, ...MEMBER_SITES }, (work) => scanOf(root, work, rulings));
 }
 
 /** Build and analyse the graph, then check an even sample of one member bucket against find-references. */
@@ -225,7 +230,7 @@ export function verifyGraph(
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<{ readonly scan: GraphScan; readonly verification: GraphVerification }>> {
   const { bucket, sample } = check;
-  return session(root, log, { options, siteFiles: NO_SITES }, (work) => {
+  return session(root, log, { options, ...MEMBER_SITES }, (work) => {
     const scan = scanOf(root, work, NO_RULINGS);
     const findings = scan.analysis[bucket];
     const chains = tracing(options, "verify-chain") !== undefined;
@@ -241,7 +246,7 @@ export function queryGraph(
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<{ readonly answers: readonly QueryAnswer[] }>> {
-  return session(root, log, { options, siteFiles: NO_SITES }, ({ graph, time }) => ({
+  return session(root, log, { options, ...NO_SITES }, ({ graph, time }) => ({
     answers: time("analyse", () => new GraphQueries(graph).answer(ask.query, ask.names)),
   }));
 }
@@ -253,28 +258,28 @@ export function unionsGraph(
   log: GraphLog,
   options: GraphOptions = FRESH_BUILD,
 ): Promise<WithSession<UnionsReport>> {
-  return session(root, log, { options, siteFiles: NO_SITES }, ({ world, time }) => time("analyse", () => scanUnionsOnGraph(world(), { ...lists, root, log })));
+  return session(root, log, { options, ...NO_SITES }, ({ world, time }) => time("analyse", () => scanUnionsOnGraph(world(), { ...lists, root, log })));
 }
 
 /** Build the graph, then report the custom properties nothing reads. */
 export function cssGraph(root: string, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CssReport>> {
-  return session(root, log, { options, siteFiles: NO_SITES }, ({ graph, time }) => time("analyse", () => cssPass(root, graph)));
+  return session(root, log, { options, ...NO_SITES }, ({ graph, time }) => time("analyse", () => cssPass(root, graph)));
 }
 
 /** Build the graph, then report the tRPC procedures and HTTP routes no production code calls. */
 export function proceduresGraph(options: ProceduresOptions, log: GraphLog): Promise<WithSession<ProceduresReport>> {
-  return session(options.root, log, { options: FRESH_BUILD, siteFiles: PROCEDURE_HOMES }, ({ graph, world, time }) =>
+  return session(options.root, log, { options: FRESH_BUILD, siteFiles: PROCEDURE_HOMES, memberSites: false }, ({ graph, world, time }) =>
     time("analyse", () => proceduresOf(graph, world(), options)),
   );
 }
 
 /** Build the graph, then report the error and refusal codes nothing throws or no client branch names. */
 export function codesGraph(root: string, judging: CodesJudging, log: GraphLog, options: GraphOptions = FRESH_BUILD): Promise<WithSession<CodesReport>> {
-  return session(root, log, { options, siteFiles: NO_SITES }, ({ graph, world, time }) => time("analyse", () => codesPass(graph, world(), judging, log)));
+  return session(root, log, { options, ...NO_SITES }, ({ graph, world, time }) => time("analyse", () => codesPass(graph, world(), judging, log)));
 }
 
 /** Build the graph, then report the class and data-* hooks with no partner. The pass reads the program's source, which a
  *  dump does not carry, so it takes no `from`. */
 export function domGraph(root: string, log: GraphLog, options: Omit<GraphOptions, "from"> = FRESH_BUILD): Promise<WithSession<DomReport>> {
-  return session(root, log, { options: { ...options, from: null }, siteFiles: NO_SITES }, ({ world, time }) => time("analyse", () => domPass(root, world())));
+  return session(root, log, { options: { ...options, from: null }, ...NO_SITES }, ({ world, time }) => time("analyse", () => domPass(root, world())));
 }

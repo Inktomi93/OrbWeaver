@@ -15,6 +15,8 @@
 //   its own holder is reached, is read only by dead code and names that code.
 // - A shape-only member (an exclusion marker, a `satisfies` check's type literal) and a member the plugin SDK publishes
 //   are judged by nothing.
+// - A sent field needs a receiver read: a zod schema key nothing in the product reads or writes only validates input
+//   from outside the tree, so it reports as member-validated, apart from the dead, and no judged list takes it.
 import { SyntaxKind } from "@typescript/native/ast";
 import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.ts";
 import { isProduction } from "../worlds.ts";
@@ -24,7 +26,7 @@ import type { Role } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
-import { isDeclKey, moduleKey, UNNAMED } from "./sites.ts";
+import { isDeclKey, MEMBER_KINDS, moduleKey, UNNAMED } from "./sites.ts";
 import { SERVER_SOURCE } from "./spellings.ts";
 import type { GraphFacts, MemberRoles, ReadonlyEdges, RegistrySite } from "./state.ts";
 import { productReader, testSource } from "./state.ts";
@@ -48,6 +50,8 @@ export const BUCKETS = [
   "member-write-only",
   "member-sent-only",
   "member-untouched",
+  "member-read-only",
+  "member-validated",
   "state-never-read",
   "state-never-set",
   "binding-unread",
@@ -63,7 +67,13 @@ export const BUCKETS = [
 export type Bucket = (typeof BUCKETS)[number];
 
 /** The member buckets verify.ts asks the language service about. */
-export const MEMBER_BUCKETS = ["member-write-only", "member-sent-only", "member-untouched"] as const satisfies readonly Bucket[];
+export const MEMBER_BUCKETS = [
+  "member-write-only",
+  "member-sent-only",
+  "member-untouched",
+  "member-read-only",
+  "member-validated",
+] as const satisfies readonly Bucket[];
 export type MemberBucket = (typeof MEMBER_BUCKETS)[number];
 
 /** One reported entry: its label, the graph node it names (null for a file or a doc site) and a reason. */
@@ -82,15 +92,6 @@ const RUNTIME_UNITS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EnumDeclaration,
 ]);
 const TYPE_UNITS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
-const MEMBERS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.PropertySignature,
-  SyntaxKind.PropertyDeclaration,
-  SyntaxKind.MethodSignature,
-  SyntaxKind.MethodDeclaration,
-  SyntaxKind.GetAccessor,
-  SyntaxKind.SetAccessor,
-  SyntaxKind.EnumMember,
-]);
 const AMBIENT_KINDS: ReadonlySet<SyntaxKind> = new Set([...TYPE_UNITS, ...RUNTIME_UNITS, SyntaxKind.PropertySignature, SyntaxKind.MethodSignature]);
 // A written `data-*` member reaches the DOM as an attribute: a send whose receiver reads it by attribute name (a CSS
 // selector, a test locator). A written `aria-*` member is read by the platform's accessibility tree.
@@ -243,6 +244,8 @@ class Analyser {
       "member-write-only": result("member-write-only"),
       "member-sent-only": result("member-sent-only"),
       "member-untouched": result("member-untouched"),
+      "member-read-only": result("member-read-only"),
+      "member-validated": result("member-validated"),
       "state-never-read": result("state-never-read"),
       "state-never-set": result("state-never-set"),
       "binding-unread": result("binding-unread"),
@@ -410,21 +413,36 @@ class Analyser {
   #members(roles: ReadonlyMap<DeclKey, MemberRoles>, liveTyped: ReadonlySet<GraphKey>): void {
     const state = this.#state;
     const dispatched = dispatchedMembers(state.run, state.decls);
+    // a schema key with a `satisfies` twin is its type's member, judged there
+    const twinned = new Set(state.twins.flat());
+    const written = writtenHomes(state.decls, roles);
     for (const [key, info] of state.decls) {
-      // a class member is judged once its class is live: nothing but a call or a read reaches a method
-      const judged = liveTyped.has(key) || (isClassMember(info, state.decls) && liveTyped.has(info.holder));
-      if (!(MEMBERS.has(info.kind) && isProduction(info.file) && judged) || info.shapeOnly !== null || this.#published(info)) {
+      if (!this.#judgedMember(key, info, liveTyped) || (info.schemaKey && twinned.has(key))) {
         continue;
       }
       const role = roles.get(key);
       // the dev bridge ruling: another world's read through our own global door is a product read
       const doorRead = state.door.has(key) && readsIn(role?.other ?? NO_ROLES);
+      const shape = {
+        name: info.name,
+        schemaKey: info.schemaKey,
+        // an optional member a caller may leave unset, or one of a home no product code writes, is no default the tree chose
+        defaulted: info.optional && !state.parameterHomes.has(info.holder) && written.has(info.holder),
+        reachedOtherwise: info.kind === SyntaxKind.EnumMember || dispatched.has(key),
+      };
       // a member the runtime calls by its well-known name is read, even on a value the product only sends
-      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(info.name, role, info.kind === SyntaxKind.EnumMember || dispatched.has(key));
+      const bucket = doorRead || state.unseenCalls.has(key) ? null : memberBucket(shape, role);
       if (bucket !== null) {
         this.#push(bucket, { label: this.#memberLabel(info), key, note: memberNote(role) });
       }
     }
+  }
+
+  // A live production member that holds data: a class member is judged once its class is live, since nothing but a call
+  // or a read reaches a method.
+  #judgedMember(key: DeclKey, info: DeclInfo, liveTyped: ReadonlySet<GraphKey>): boolean {
+    const live = liveTyped.has(key) || (isClassMember(info, this.#state.decls) && liveTyped.has(info.holder));
+    return isMember(info) && isProduction(info.file) && live && info.shapeOnly === null && !this.#published(info);
   }
 
   // A plugin contract member the SDK publishes is read by plugin authors outside the tree.
@@ -541,12 +559,43 @@ function outsideBucket(key: GraphKey, reached: Reached): Bucket {
   return reached.tooling.has(key) ? "tooling-only" : "test-direct-only";
 }
 
-// The member bucket a member's product roles put it in, or null when the product reads it. A key use (an arm
-// selector's pattern, a member `Pick` names) touches a member without reading its data.
-function memberBucket(name: string, role: MemberRoles | undefined, reachedOtherwise: boolean): MemberBucket | null {
+// A member as its bucket rule reads it: its name, whether it is a schema key, whether an unwritten value of it is a
+// default every reader sees, and whether a dispatch or an enum reaches it otherwise.
+interface MemberShape {
+  readonly name: string;
+  readonly schemaKey: boolean;
+  readonly defaulted: boolean;
+  readonly reachedOtherwise: boolean;
+}
+
+const isMember = (info: DeclInfo): boolean => MEMBER_KINDS.has(info.kind) || info.schemaKey;
+
+// The holders some member of which the product writes.
+function writtenHomes(decls: ReadonlyMap<DeclKey, DeclInfo>, roles: ReadonlyMap<DeclKey, MemberRoles>): ReadonlySet<GraphKey> {
+  const out = new Set<GraphKey>();
+  for (const [key, role] of roles) {
+    const holder = role.product.has("write") ? decls.get(key)?.holder : undefined;
+    if (holder !== undefined) {
+      out.add(holder);
+    }
+  }
+  return out;
+}
+
+// The member bucket a member's product roles put it in, or null when the product uses it. A key use (an arm selector's
+// pattern, a member `Pick` names) touches a member without reading its data. A member read and never written reports
+// only when every read sees a default. A schema key nothing reads or writes only validates outside input (owner ruling:
+// a sent field needs a receiver read), so it reports apart from the dead.
+function memberBucket({ name, schemaKey, defaulted, reachedOtherwise }: MemberShape, role: MemberRoles | undefined): MemberBucket | null {
   const product = role?.product ?? NO_ROLES;
-  if (readsIn(product) || (ARIA_ATTRIBUTE.test(name) && product.has("write"))) {
+  if (readsIn(product)) {
+    return product.has("write") || !defaulted ? null : "member-read-only";
+  }
+  if (ARIA_ATTRIBUTE.test(name) && product.has("write")) {
     return null;
+  }
+  if (schemaKey && !product.has("write")) {
+    return "member-validated";
   }
   if (product.has("escape") || (DATA_ATTRIBUTE.test(name) && product.has("write"))) {
     return "member-sent-only";
@@ -564,7 +613,7 @@ function dispatchedMembers(run: ReadonlyEdges, decls: ReadonlyMap<DeclKey, DeclI
   for (const [from, targets] of run) {
     for (const target of targets) {
       const info = isDeclKey(target) ? decls.get(target) : undefined;
-      if (info !== undefined && MEMBERS.has(info.kind) && info.holder !== from) {
+      if (info !== undefined && isMember(info) && info.holder !== from) {
         out.add(target);
       }
     }

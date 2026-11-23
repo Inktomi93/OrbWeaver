@@ -288,6 +288,7 @@ class Builder {
     this.#variants.readTables(state, sites.tvCalls, sites.file);
     this.#keys.file(sites);
     this.#zodTwins(sites);
+    this.#parameterHomes(sites);
     this.#hookTuples(sites);
     this.#docs(sites);
     this.#shorthands(sites);
@@ -513,6 +514,16 @@ class Builder {
     for (const [y, ask] of asks.entries()) {
       for (const member of members[y] ?? []) {
         state.twins.push([ask.decl, member]);
+      }
+    }
+  }
+
+  // The types a production parameter is annotated with: a caller may leave their optional members unset.
+  #parameterHomes(sites: FileSites): void {
+    const state = this.#state;
+    for (const keys of state.declarations(state.world.symbolsAt(sites.parameterTypes))) {
+      for (const key of keys) {
+        state.parameterHomes.add(key);
       }
     }
   }

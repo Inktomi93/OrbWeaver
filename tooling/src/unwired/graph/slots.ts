@@ -69,9 +69,9 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   // `--ablate=literal-keys` drops every object literal key's write through its contextual type.
   const writes = state.session.options.ablate.has("literal-keys")
     ? []
-    : sites.literalProperties.flatMap(({ literal, name, value }): SlotWrite[] => {
-        const type = slots.get(spanKey(literal));
-        return type === undefined ? [] : [{ type, name, value, at: literal.pos, jsx: false }];
+    : sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
+        const type = schema ? undefined : slots.get(spanKey(literal));
+        return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
       });
   slotWrites(state, variants, sites, writes);
   bagSelections(state, variants, sites);

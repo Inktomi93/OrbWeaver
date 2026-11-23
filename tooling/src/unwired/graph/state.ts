@@ -6,19 +6,22 @@
 // - Owner ruling: snap (tooling/src/snap/) drives the product as its user does, so its read of a member is a product
 //   read, as a dev-bridge read is (analyse.ts); its other roles, and every other tool's, only annotate.
 import type { Expression } from "@typescript/native/ast";
+import { SyntaxKind } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
+import type { Destination } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
 import type { GraphOptions } from "./options.ts";
 import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
-import { answer, constituentsOf, EXHAUSTED, Resolver } from "./resolve.ts";
+import { answer, constituentsOf, declKeyParts, EXHAUSTED, Resolver } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
 import type { DeclInfo, GraphKey, LocalBinding } from "./sites.ts";
+import { MEMBER_KINDS } from "./sites.ts";
 import { WhyTracker } from "./why.ts";
 
 /** What the code does to one member: the product's roles, every other world's, and the product's first write. */
@@ -28,12 +31,15 @@ export interface MemberRoles {
   write: string | null;
 }
 
-/** One role a declaration was given and the site that gave it. */
-export interface RoleSite {
-  readonly role: Role;
-  readonly file: string;
-  readonly at: number;
-}
+const LITERAL_KEY_KINDS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment]);
+
+/** A send no destination was found for, or one made at no position. */
+export const UNCLASSIFIED: Destination = { destination: "unclassified", receiver: null };
+
+/** One role a declaration was given and the site that gave it; an escape site names where the value went. */
+export type RoleSite =
+  | { readonly role: Exclude<Role, "escape">; readonly file: string; readonly at: number }
+  | ({ readonly role: "escape"; readonly file: string; readonly at: number } & Destination);
 
 /** Where snap lives: it drives the product as its user does, so its reads and its requests are the product's. */
 export const SNAP_SOURCE = "tooling/src/snap/";
@@ -194,6 +200,8 @@ export interface GraphFacts {
   readonly roles: ReadonlyMap<DeclKey, MemberRoles>;
   /** Every role site of a declaration whose file starts with one of the build's {@link BuildSession.siteFiles}, for a verb that counts and inspects sites. */
   readonly roleSites: ReadonlyMap<DeclKey, readonly RoleSite[]>;
+  /** The types a production parameter is annotated with: a caller may leave their optional members unset. */
+  readonly parameterHomes: ReadonlySet<DeclKey>;
   readonly flows: ReadonlyMap<DeclKey, ReadonlySet<DeclKey>>;
   readonly door: ReadonlySet<DeclKey>;
   /** Members code we do not see calls: a platform-dispatched override, a runtime protocol member. */
@@ -232,6 +240,8 @@ export interface BuildSession {
   readonly profile: GraphProfile | null;
   /** The file prefixes whose declarations keep every role site. */
   readonly siteFiles: readonly string[];
+  /** Keep every role site of each production member too: the sites a member row's sort and literal search read. */
+  readonly memberSites: boolean;
 }
 
 /** The value types whose apparent type is a lib wrapper interface: they carry no member of ours. */
@@ -272,6 +282,7 @@ export class GraphState implements GraphFacts {
   readonly doc: Edges = new Map();
   readonly roles = new Map<DeclKey, MemberRoles>();
   readonly roleSites = new Map<DeclKey, RoleSite[]>();
+  readonly parameterHomes = new Set<DeclKey>();
   /** Member flows, slot member to the value member that fills it. */
   readonly flows = new Map<DeclKey, Set<DeclKey>>();
   /** The members a value published to a global our own `declare global` declares holds: the dev bridge's surface. */
@@ -346,10 +357,22 @@ export class GraphState implements GraphFacts {
   }
 
   role(key: DeclKey, role: Role, file: string, at: number): void {
+    this.#record(key, role === "escape" ? { role, file, at, ...UNCLASSIFIED } : { role, file, at });
+  }
+
+  /** Every key escapes at one site, sent where `send` names. */
+  escapeAll(keys: Iterable<DeclKey>, site: { readonly file: string; readonly at: number }, send: Destination): void {
+    for (const key of keys) {
+      this.#record(key, { role: "escape", ...site, ...send });
+    }
+  }
+
+  #record(key: DeclKey, site: RoleSite): void {
+    const { role, file, at } = site;
     this.why?.note(key, role, file, at);
-    if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
+    if (this.keepsSites(key)) {
       const sites = this.roleSites.get(key) ?? [];
-      sites.push({ role, file, at });
+      sites.push(site);
       this.roleSites.set(key, sites);
     }
     const roles = this.roles.get(key) ?? { product: NO_ROLES, other: NO_ROLES, write: null };
@@ -368,6 +391,20 @@ export class GraphState implements GraphFacts {
     for (const key of keys) {
       this.role(key, role, file, at);
     }
+  }
+
+  /** Whether the build keeps every role site of `key`: a declaration under a site prefix, or a production member when
+   *  the session keeps member sites. */
+  keepsSites(key: DeclKey): boolean {
+    if (this.session.siteFiles.some((prefix) => key.startsWith(prefix))) {
+      return true;
+    }
+    if (!this.session.memberSites) {
+      return false;
+    }
+    const { file, kind } = declKeyParts(key);
+    // a literal key is a member when it is a zod schema's, which only its declaration says; keep every one's sites
+    return (MEMBER_KINDS.has(kind) || LITERAL_KEY_KINDS.has(kind)) && this.product(file);
   }
 
   count(name: string, by = 1): void {

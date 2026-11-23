@@ -30,6 +30,8 @@ test("a protocol member on a class or a literal counts as called; a member of an
     "member-write-only": [],
     "member-sent-only": ["Money.spare"],
     "member-untouched": ["lazy.spare", "bag.spare"],
+    "member-read-only": [],
+    "member-validated": [],
   });
 });
 
