@@ -1,10 +1,10 @@
-// How the flow walk carries a value through a generic's type arguments, a library's type parameter, a conditional and a
-// reflective platform call. Each case keeps a member nothing writes, reads or sends, so a rule that pairs too much
-// fails it as surely as a rule that pairs too little fails the member it credits.
+// How the flow walk carries a value through a generic's type arguments, a library's type parameter, a conditional, a
+// zod validator and a reflective platform call. Each case keeps a member nothing writes, reads or sends, so a rule that
+// pairs too much fails it as surely as a rule that pairs too little fails the member it credits.
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
 import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/flows.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
@@ -194,4 +194,31 @@ test("Object.values and structuredClone read every member of their value", { tim
     ]),
   });
   expect(bucketsIn(scan)).toEqual(["member-write-only Left.c"]);
+});
+
+// A row view built by parsing a literal through its schema: the literal's keys are the values parse returns, so they
+// write the schema's keys and the checked type behind them, and the row handed to `mayAct` carries the writes into
+// its optional slot. A key the literal lacks (`spare`) stays unwritten, and a `parse` no zod schema declares writes
+// nothing (`Loose.funderUserId`).
+test("a literal parsed by a zod schema writes the keys it holds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface RowBase { readonly ownerId: string | null; readonly funderUserId: string | null; readonly spare?: string }",
+      "const rowBaseSchema = z.strictObject({ ownerId: z.string(), funderUserId: z.string(), spare: z.string().optional() }) satisfies z.ZodType<RowBase>;",
+      "export interface Loose { readonly ownerId: string | null; readonly funderUserId?: string | null }",
+      "declare const other: { parse(value: unknown): Loose };",
+      "declare const stored: { readonly ownerId: string; readonly funderUserId: string };",
+      "export function mayAct(row: { readonly ownerId: string | null; readonly funderUserId?: string | null }): boolean {",
+      "  return row.ownerId === null || (row.funderUserId ?? null) === null;",
+      "}",
+      "const toRowBase = (): RowBase => rowBaseSchema.parse({ ownerId: stored.ownerId, funderUserId: stored.funderUserId });",
+      "const loose = (): Loose => other.parse({ ownerId: stored.ownerId, funderUserId: stored.funderUserId });",
+      'export const retry = (): boolean => mayAct(toRowBase()) && mayAct({ ownerId: "o" }) && (toRowBase().spare ?? "") === "";',
+      'const seed: Loose = { ownerId: "s" };',
+      'export const looseOwner = (): string => (loose().funderUserId ?? "") + String(loose().ownerId) + String(seed.ownerId);',
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-read-only RowBase.spare", "member-read-only Loose.funderUserId"]);
 });
