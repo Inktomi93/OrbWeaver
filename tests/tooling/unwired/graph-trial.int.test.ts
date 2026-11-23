@@ -849,8 +849,8 @@ test("a trial that fails keeps the trials that landed with its failure, and a re
   expect(partial.trials.map(({ label, verdict }) => [label, verdict])).toEqual([[`${FIRST}:Ax.x`, NAMED_ONLY]]);
   // the failure keeps the run's own error, the time and the group it was on; the tool prints the run's own error
   expect(partial.failure).toMatch(/Unexpected EOF.*the trial failed at \S+; last progress: trial group 2\/2 starting/u);
-  expect(crashed.stderr).toContain("Unexpected EOF");
-  expect(crashed.stderr).not.toContain("EPIPE");
+  expect(crashed.stderr).toContain("TOOL ERROR (thrown): Error: Unexpected EOF");
+  expect(crashed.stderr).not.toContain("SuppressedError");
   const rerun = await runCli("unwired", argv);
   await expect(rerun).toExitWith(EXIT.clean);
   expect(rerun.stderr).toContain("resumed 1 trials");
