@@ -2,10 +2,9 @@
 // library that reads keys, a downloaded file, a library or an unseen caller that hands an object in and reads it back,
 // or a library a module augmentation types. In the provider backends a value is a provider send only when it reaches a
 // request; a parsed response and a logger field bag are not, and a literal element read of the parsed value is its read.
-import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanFields } from "../../../tooling/src/unwired/index.ts";
-
-const WORLD = "packages/inference/tsconfig.json";
+import { expect, test } from "@orb/testkit/tooling";
+import type { FieldsReport } from "../../../tooling/src/unwired/index.ts";
+import { fieldsScan } from "./_planted.ts";
 
 const LIBRARIES = {
   "node_modules/pino/package.json": '{ "name": "pino", "types": "index.d.ts" }',
@@ -20,6 +19,9 @@ const LIBRARIES = {
   "node_modules/@types/mdast/index.d.ts": "export interface Root { type: string; children: unknown[] }",
   "node_modules/query/package.json": '{ "name": "query", "types": "index.d.ts" }',
   "node_modules/query/index.d.ts": "export interface Register {}",
+  // a graph tree builds with no DOM lib, so the fetch Response a backend's reader takes is a library's own
+  "node_modules/fetchlib/package.json": '{ "name": "fetchlib", "types": "index.d.ts" }',
+  "node_modules/fetchlib/index.d.ts": "export interface Response { readonly ok: boolean }",
   "node_modules/@ai-sdk/provider/package.json": '{ "name": "@ai-sdk/provider", "types": "index.d.ts" }',
   "node_modules/@ai-sdk/provider/index.d.ts": [
     "export type JSONObject = { [key: string]: unknown };",
@@ -74,6 +76,7 @@ const OUTSIDE = [
 
 const BACKEND = [
   'import type { JSONObject, Model } from "@ai-sdk/provider";',
+  'import type { Response } from "fetchlib";',
   "interface Routing { readonly zqOrder?: string; readonly [key: string]: unknown }",
   "interface Parsed { readonly zqOrder: string; readonly zqExtra: string }",
   "interface Reply { readonly zqDone: boolean; readonly zqCalls: string; readonly zqUnread: string }",
@@ -111,14 +114,12 @@ const BACKEND = [
 ].join("\n");
 
 test("an open slot sends to the logger, library or file it leads to, and a backend value only to a request", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree({
+  const report = await fieldsScan(plantedTree, {
     ...LIBRARIES,
-    [WORLD]: plantedTsconfig(),
     "packages/inference/src/other/outside.ts": OUTSIDE,
     "packages/inference/src/backends/chat.ts": BACKEND,
   });
-  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-  const row = ({ home, member, verdict, sent }: (typeof report.unwired)[number]): string =>
+  const row = ({ home, member, verdict, sent }: FieldsReport["unwired"][number]): string =>
     [`${home}.${member}`, verdict, ...sent.map((send) => send.split(" ").toSpliced(1, 1).join(" "))].join(" ");
   const found = new Set(report.unwired.map(row));
   for (const expected of [
@@ -131,18 +132,18 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
     "Bundle.zqSaved ask file",
     "Chip.data.zqTag ask dependency mdast",
     "Dice.data.zqDiceTag ask unclassified caller of zqDicePlugin",
-    "Register.zqMeta ask dependency query",
     "Dropped.zqDropped dead",
     "Parsed.zqExtra ask provider",
-    "Reply.zqUnread dead",
+    "Reply.zqUnread ask unclassified",
     "Sampling.zqHeat ask log log.emit",
     "Knobs.zqTopK ask provider",
     "Extras.zqKeyed ask provider",
-    "Answer.zqCode dead",
+    "Answer.zqCode ask unclassified",
   ]) {
     expect(found).toContain(expected);
   }
-  // The parsed reply is read through its literal element reads, so neither key is reported.
-  expect([...found].filter((line) => line.startsWith("Reply.zqDone") || line.startsWith("Reply.zqCalls"))).toEqual([]);
+  // The parsed reply is read through its literal element reads, so neither key is reported; the augmentation's member
+  // is read by the library it augments.
+  expect([...found].filter((line) => /^(Reply\.zqDone|Reply\.zqCalls|Register\.zqMeta) /u.test(line))).toEqual([]);
   expect(report.received).toEqual([]);
 });

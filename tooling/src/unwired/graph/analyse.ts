@@ -450,6 +450,9 @@ class Analyser {
     const written = writtenHomes(state, roles);
     // a member filling a typed slot of ours is judged at that slot: the slot requires it, so the two delete together
     const fills = new Set([...state.flows].flatMap(([slot, values]) => (isProduction(state.decls.get(slot)?.file ?? "") ? [...values] : [])));
+    // A Drizzle store's copy of a member is a use the column judges: the member is read only where its column is read
+    // back (roleLinks carries that read), so the copy's own edge reaches nothing.
+    const stored = new Set([...state.columnFlows.values()].flatMap((members) => [...members]));
     for (const [key, info] of state.decls) {
       if (!this.#judgedMember(key, info, liveTyped) || (info.schemaKey && twinned.has(key))) {
         continue;
@@ -461,7 +464,7 @@ class Analyser {
         schemaKey: info.schemaKey,
         // an optional member a caller may leave unset, or one of a home no product code writes, is no default the tree chose
         defaulted: info.optional && !state.parameterHomes.has(info.holder) && written.has(info.holder),
-        reachedOtherwise: info.kind === SyntaxKind.EnumMember || dispatched.has(key) || fills.has(key),
+        reachedOtherwise: info.kind === SyntaxKind.EnumMember || (dispatched.has(key) && !stored.has(key)) || fills.has(key),
       };
       // a member the runtime calls by its well-known name is read, even on a value the product only sends
       const bucket = state.unseenCalls.has(key) ? null : memberBucket(shape, role);
@@ -797,6 +800,11 @@ function roleLinks(state: GraphFacts): {
   // A value a `satisfies` holds to a type is read as that type: the compiler keeps each member to the checked one.
   for (const [value, checked] of state.checks) {
     add(plainReadTo, value, checked, "check");
+  }
+  // A holder typed `Owner["m"]` holds the member's value, so a read of it reads the member; a write builds the holder's
+  // own value and carries nowhere.
+  for (const [holder, member] of state.derivations) {
+    add(plainReadTo, holder, member, "derive");
   }
   return { readTo, plainReadTo, writeTo };
 }

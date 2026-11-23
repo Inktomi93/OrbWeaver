@@ -3,9 +3,10 @@
 // properties nothing reads, the class and data-* hooks with no partner, or the error codes nothing throws or handles;
 // `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
-// restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
-// verbs run both engines except `unions`, `params`, `shapes`, `procedures` and `columns`, which query the graph and refuse
-// `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves
+// restated-port targets the derive codemod reads; the member scan (`scan`, also the bare verb) and the dead-inside-live
+// verbs `fields`, `unions`, `params`, `shapes`, `procedures` and `columns` query the graph, and each writes one report
+// under reports/unwired/ with its judged rows apart; no verb has an engine two, so every verb refuses `--cross-check`
+// (D357); `removed-keys` resolves
 // every receiver site of a removed contract key over the graph session's merged program and exits 1 while one still
 // sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
@@ -16,10 +17,11 @@ import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
-import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
+import type { DeliberateEntry } from "./deliberate.ts";
 import { DELIBERATE } from "./deliberate.ts";
-import { scanFields } from "./fields.ts";
+import type { Verdict as SortVerdict } from "./field-sort.ts";
+import { VERDICTS as SORT_VERDICTS } from "./field-sort.ts";
 import type { Bucket, MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
@@ -37,6 +39,8 @@ import {
   columnsGraph,
   cssGraph,
   domGraph,
+  fieldsGraph,
+  memberScanGraph,
   paramsGraph,
   proceduresGraph,
   queryGraph,
@@ -47,8 +51,8 @@ import {
   unionsGraph,
   verifyGraph,
 } from "./graph/scan.ts";
-import type { TrialBucket, TrialReach } from "./graph/trial.ts";
-import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_REACHES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import type { TrialBucket } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -59,8 +63,6 @@ import { HITS_USAGE, runHits } from "./literal-hits.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
-import type { ScanOptions } from "./scan.ts";
-import { scanUnwired } from "./scan.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
@@ -73,7 +75,7 @@ const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
 export const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--reach=<${TRIAL_REACHES.join("|")}>] [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--verdict=<${SORT_VERDICTS.join("|")}>]... [--limit=<n>] [--cpu-profile=<dir>] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
@@ -105,7 +107,7 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
 const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -117,6 +119,15 @@ const PORT_LIMITS: readonly string[] = [
   "A whole restated type with no port member is the shapes scan's row, not a ports target.",
   "A port reached only through a string-addressed registry, a JSON or scenario file, or from outside the tree is not a flow.",
 ];
+
+/** The options every scan takes: the root, the deliberate and judged lists and a progress log. */
+interface ScanOptions {
+  readonly root: string;
+  readonly deliberate: readonly DeliberateEntry[];
+  /** The rows a board item owns, for this scan's report. */
+  readonly judged: readonly JudgedEntry[];
+  readonly log: (line: string) => void;
+}
 
 interface Finding {
   readonly kind: string;
@@ -161,9 +172,6 @@ function literalLine(stage: LiteralStage | null): string {
   return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)} unsearchable=${String(stage.unsearchable)}`;
 }
 
-/** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["unions", "params", "shapes", "procedures", "columns"]);
-
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
   scan: [],
@@ -183,15 +191,13 @@ const bucketCounts = (report: object): string =>
     .join(" ");
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
-  scan: scan("reports/unwired/unwired.json", scanUnwired),
+  scan: scan("reports/unwired/unwired.json", ({ root, deliberate, judged, log: report }) => memberScanGraph(root, { deliberate, judged }, report)),
   fields: scan(
     "reports/unwired/fields.json",
-    scanFields,
+    ({ root, deliberate, judged, log: report }) => fieldsGraph(root, { deliberate, judged }, report),
     (report) =>
-      ` unplaced=${Object.entries(report.unresolvedByReason)
-        .map(([reason, count]) => `${reason}:${count}`)
-        .join(",")} sent=${Object.entries(report.sentBy)
-        .map(([destination, count]) => `${destination}:${count}`)
+      ` sent=${Object.entries(report.sentBy)
+        .map(([destination, count]) => `${destination}:${String(count)}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
   params: scan("reports/unwired/params.json", ({ root, deliberate, judged, log: report }) => paramsGraph({ root, deliberate, judged }, report)),
@@ -207,8 +213,6 @@ interface Args {
   readonly out: string | null;
   readonly leg: Leg | null;
   readonly cluster: ClusterGroup | null;
-  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1. */
-  readonly crossCheck: boolean;
   /** The revisions `removed-keys` compares: the branch's head against its merge base with `base`. */
   readonly base: string;
   readonly head: string;
@@ -227,11 +231,10 @@ function parseArgs(argv: readonly string[]): Args {
   const named = VERBS.find((candidate) => candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  const crossCheck = argv.includes(CROSS_CHECK_FLAG);
-  if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} has no engine two to cross-check\n${USAGE}`);
+  if (argv.includes(CROSS_CHECK_FLAG)) {
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs on the reference graph alone, with no engine two to cross-check (D357)\n${USAGE}`);
   }
-  const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
+  const rest = named === undefined ? argv : argv.slice(1);
   for (const arg of rest) {
     const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);
     if (match === null) {
@@ -245,7 +248,6 @@ function parseArgs(argv: readonly string[]): Args {
     out: flags.get("out") ?? null,
     leg: oneOf("leg", flags.get("leg") ?? null, LEGS),
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
-    crossCheck,
     base: flags.get("base") ?? DEFAULT_BASE,
     head: flags.get("head") ?? DEFAULT_HEAD,
   };
@@ -768,20 +770,19 @@ async function runGraph(args: GraphArgs): Promise<number> {
 }
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
-const [NARROWED_REACH] = TRIAL_REACHES;
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
-const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile|reach)=(.+)$/u;
+const TRIAL_FLAG = /^--(root|out|bucket|verdict|limit|cpu-profile)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
   readonly out: string;
   readonly buckets: readonly TrialBucket[];
+  /** Only the member findings the judge sorted to one of these; every finding when empty. */
+  readonly verdicts: readonly SortVerdict[];
   /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
   readonly limit: number | null;
   /** Where the compiler CPU profile of one group is written; none when absent. */
   readonly cpuProfile: string | null;
-  /** Which files each snapshot checks; the find-references set unless the import graph's is asked for. */
-  readonly reach: TrialReach;
 }
 
 function trialLimit(limit: string | null): number | null {
@@ -791,40 +792,56 @@ function trialLimit(limit: string | null): number | null {
   return limit === null ? null : Number(limit);
 }
 
-const trialReach = (value: string | null): TrialReach => oneOf("reach", value, TRIAL_REACHES) ?? NARROWED_REACH;
+// Only a member row is sorted, so a verdict filter on another bucket would silently trial nothing.
+function refuseUnsortedBuckets(verdicts: readonly SortVerdict[], buckets: readonly TrialBucket[]): void {
+  const unsorted = verdicts.length === 0 ? undefined : buckets.find((bucket) => !MEMBER_BUCKET_SET.has(bucket));
+  if (unsorted !== undefined) {
+    throw new UsageError(`--verdict applies to member buckets (${MEMBER_BUCKETS.join(", ")}); ${unsorted} carries no verdict\n${TRIAL_USAGE}`);
+  }
+}
+
+// One argument: --bucket and --verdict repeat and are checked against their tuples; every other flag keeps its last value.
+function takeTrialFlag(arg: string, into: { readonly buckets: TrialBucket[]; readonly verdicts: SortVerdict[]; readonly flags: Map<string, string> }): void {
+  const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
+  if (name === "") {
+    throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
+  }
+  const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
+  const verdict = name === "verdict" ? oneOf(name, value, SORT_VERDICTS) : null;
+  if (bucket !== null) {
+    into.buckets.push(bucket);
+  } else if (verdict !== null) {
+    into.verdicts.push(verdict);
+  } else {
+    into.flags.set(name, value);
+  }
+}
 
 function parseTrialArgs(argv: readonly string[]): TrialArgs {
   const buckets: TrialBucket[] = [];
+  const verdicts: SortVerdict[] = [];
   const flags = new Map<string, string>();
   for (const arg of argv) {
-    const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
-    if (name === "") {
-      throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
-    }
-    const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
-    if (bucket === null) {
-      flags.set(name, value);
-    } else {
-      buckets.push(bucket);
-    }
+    takeTrialFlag(arg, { buckets, verdicts, flags });
   }
   if (buckets.length === 0) {
     throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
   }
+  refuseUnsortedBuckets(verdicts, buckets);
   return {
     root: resolve(flags.get("root") ?? process.cwd()),
     out: flags.get("out") ?? TRIAL_OUT,
     buckets,
+    verdicts,
     limit: trialLimit(flags.get("limit") ?? null),
     cpuProfile: flags.get("cpu-profile") ?? null,
-    reach: trialReach(flags.get("reach") ?? null),
   };
 }
 
 async function runGraphTrial(args: TrialArgs): Promise<number> {
   // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
   const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
-  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile, reach: args.reach }, log, timed);
+  const report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, cpuProfile: args.cpuProfile }, log, timed);
   const path = write(args.root, args.out, report);
   for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
@@ -919,14 +936,7 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
 
 async function runScan(args: Args, verb: ScanVerb): Promise<number> {
   const chosen = SCANS[verb];
-  const { report, counts } = await chosen.execute({
-    root: args.root,
-    testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
-    deliberate: DELIBERATE,
-    judged: JUDGED[verb],
-    log,
-    crossCheck: args.crossCheck,
-  });
+  const { report, counts } = await chosen.execute({ root: args.root, deliberate: DELIBERATE, judged: JUDGED[verb], log });
   const path = write(args.root, args.out ?? chosen.out, report);
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);

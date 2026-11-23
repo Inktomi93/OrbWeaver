@@ -6,8 +6,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { ColumnsReport, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
-import { columnsGraph, runUnwired, scanFields } from "../../../tooling/src/unwired/index.ts";
-import { graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+import { columnsGraph, runUnwired } from "../../../tooling/src/unwired/index.ts";
+import { fieldsScan, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
 
 const scan = (root: string, judged?: readonly JudgedEntry[]): Promise<ColumnsReport> => columnsGraph({ root, deliberate: [], judged }, () => undefined);
 const named = (report: ColumnsReport): string[] => report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted();
@@ -274,10 +274,10 @@ test("a whole-row read of a column named like a library column member reads the 
   expect(named(report)).toEqual(["rules.dialect never-written", "rules.id never-written", "rules.name never-written", "rules.spare unreferenced"]);
 });
 
-// The fields scan: a row handed whole to a declared shape carries reads up to its columns and nothing down, so a read of
-// the column on another row credits no member of the shape. Nobody reads RunView, so both members stay unreferenced.
+// The fields query: a row handed whole to a declared shape writes the shape and carries reads up to its columns and
+// nothing down, so a read of the column on another row credits no member of the shape. Nobody reads RunView, so both
+// members stay never-read.
 const ROW_VIEW = {
-  [WORLD]: plantedTsconfig({ lib: LIB, include: ["src", "../db/src"] }),
   ...DRIZZLE_PKG,
   "packages/db/src/schema/tables.ts": 'import { sqliteTable, text } from "drizzle-orm";\nexport const runs = sqliteTable("runs", { a: text(), b: text() });',
   "packages/a/src/views.ts": [
@@ -290,8 +290,8 @@ const ROW_VIEW = {
 };
 
 test("a column read never credits the shape its row is handed to", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scanFields({ root: await plantedTree(ROW_VIEW), worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-  expect(report.unwired.filter(({ home }) => home === "RunView").map(({ member, kind }) => `${member} ${kind}`)).toEqual(["a unreferenced", "b unreferenced"]);
+  const report = await fieldsScan(plantedTree, ROW_VIEW);
+  expect(report.unwired.filter(({ home }) => home === "RunView").map(({ member, kind }) => `${member} ${kind}`)).toEqual(["a never-read", "b never-read"]);
 });
 
 // A zod parse's output type names the keys it copies out of its argument; a safe parse answers them on `data`.

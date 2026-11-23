@@ -162,6 +162,13 @@
       "when": 1794945594656,
       "tag": "0022_user-seed-ledger-drop-seeded-at",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1795456689676,
+      "tag": "0023_user-settings-schema-version-11",
+      "breakpoints": true
     }
   ]
 }

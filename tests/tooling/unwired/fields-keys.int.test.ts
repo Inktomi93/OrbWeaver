@@ -1,23 +1,10 @@
-// String keys and built keys the fields scan places through the key resolver, one step per case, each with a truly
-// dead twin beside it that stays reported; and the keys no step places, which report as unresolved and never as a
-// name match.
-import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { JSX_NAMESPACE, LIB, WORLD } from "./_planted.ts";
+// String keys and built keys the fields query places, one form per case, each with a truly dead twin beside it that
+// stays reported; and the reads no walk places, which are listed as unresolved and never credited by their name.
+import { expect, test } from "@orb/testkit/tooling";
+import { fieldsScan, GRAPH_SOURCE, JSX_NAMESPACE, fieldRows as named } from "./_planted.ts";
 
-type Report = ReturnType<typeof scanFields>;
-
-// A tree with a db package beside the app package, which the one package world does not hold.
-const ROOT_WORLD = "tsconfig.json";
-const scan = (root: string): Report => scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-const named = (report: Report, file: string): string[] =>
-  report.unwired
-    .filter((entry) => entry.file.endsWith(file))
-    .map(({ home, member, kind }) => `${home}.${member} ${kind}`)
-    .toSorted();
 const planted = (file: string, lines: readonly string[]): Readonly<Record<string, string>> => ({
-  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
-  [`packages/a/src/${file}`]: lines.join("\n"),
+  [`${GRAPH_SOURCE}/${file}`]: lines.join("\n"),
 });
 
 // Step two: a computed string key names no member the checker walk reaches; find-references places it, so `kept` is
@@ -42,15 +29,16 @@ const copied = (built: readonly string[]): Readonly<Record<string, string>> =>
   ]);
 
 test("a key that overrides a spread copy writes its member but builds no home", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(named(scan(await plantedTree(copied([]))), "copied.ts")).toEqual([]);
-  expect(named(scan(await plantedTree(copied(["export const built: Cfg = { mode: 'y' };"]))), "copied.ts")).toEqual(["Cfg.port never-written"]);
+  expect(named((await fieldsScan(plantedTree, copied([]))).unwired, "copied.ts")).toEqual([]);
+  expect(named((await fieldsScan(plantedTree, copied(["export const built: Cfg = { mode: 'y' };"]))).unwired, "copied.ts")).toEqual(["Cfg.port never-written"]);
 });
 
 test("a computed string key writes the member find-references places it on", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(named(scan(await plantedTree(COMPUTED)), "computed.ts")).toEqual(["Box.lost never-written"]);
+  expect(named((await fieldsScan(plantedTree, COMPUTED)).unwired, "computed.ts")).toEqual(["Box.lost never-written"]);
 });
 
-// Step four: a key slot declared `keyof Ctx`, as a parameter and as a literal's member, reads the member it names.
+// Step four: a key slot declared `keyof Ctx`, as a parameter and as a literal's member, names a member and reads no
+// value, so the members only the literal writes stay unread.
 const KEYOF = planted("keyof.ts", [
   "export interface Ctx { readonly services: string; readonly auth: string; readonly unused: string }",
   "export const ctx: Ctx = { services: 's', auth: 'a', unused: 'u' };",
@@ -61,12 +49,17 @@ const KEYOF = planted("keyof.ts", [
   "export const sorted = column.field;",
 ]);
 
-test("a string key in a keyof slot reads the member it names", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(named(scan(await plantedTree(KEYOF)), "keyof.ts")).toEqual(["Ctx.unused never-read"]);
+test("a string key in a keyof slot is a key use, never a read", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(named((await fieldsScan(plantedTree, KEYOF)).unwired, "keyof.ts")).toEqual([
+    "Ctx.auth never-read",
+    "Ctx.services never-read",
+    "Ctx.unused never-read",
+  ]);
 });
 
 // Step five: a generic call's slot `keyof T & string` names the type its `items` argument binds to T, as a fuzzy
-// search's field list does; `gone` is listed by nobody.
+// search's field list does: a key use, so only a value read reads a member. The anonymous constraint of the bodyless
+// `search` is its own home, filled by the argument and read by nothing.
 const GENERIC = planted("generic.ts", [
   "export interface Row { readonly id: string; readonly name: string; readonly gone: string }",
   "export interface SearchOptions<T> { readonly fields: readonly (keyof T & string)[] }",
@@ -80,17 +73,22 @@ const GENERIC = planted("generic.ts", [
   "export const left = pick(pair, 'left');",
 ]);
 
-test("a generic call's key slot reads the member of the type its argument binds", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(named(scan(await plantedTree(GENERIC)), "generic.ts")).toEqual(["Pair.right never-read", "Row.gone never-read"]);
+test("a generic call's key slot names the member of the type its argument binds and reads no value", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(named((await fieldsScan(plantedTree, GENERIC)).unwired, "generic.ts")).toEqual([
+    "Pair.left never-read",
+    "Pair.right never-read",
+    "Row.gone never-read",
+    "Row.name never-read",
+    "search.id never-read",
+  ]);
 });
 
 // Step six: TanStack Form's paths walk the form data type segment by segment. `setFieldValue` writes `params.seed`,
 // `getFieldValue` reads it, a `Field` reads `title`; `params.dead` and `gone` are named by nobody. The default
 // values write `params.fixed`, so a set path taken as a read would leave `params.seed` never written.
 const FORM = {
-  [WORLD]: plantedTsconfig({ lib: LIB, jsx: "preserve" }),
-  "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
-  "packages/a/src/form-api.ts": [
+  [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
+  [`${GRAPH_SOURCE}/form-api.ts`]: [
     "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
     "export type ReactFormExtendedApi<TFormData> = {",
     "  setFieldValue(name: string, value: unknown): void;",
@@ -99,7 +97,7 @@ const FORM = {
     "};",
     "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
   ].join("\n"),
-  "packages/a/src/form.tsx": [
+  [`${GRAPH_SOURCE}/form.tsx`]: [
     'import { useForm } from "./form-api.ts";',
     "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly gone?: string }",
     "export function Editor(): JSX.Element {",
@@ -112,7 +110,7 @@ const FORM = {
 };
 
 test("a form field path reads or writes each member along its segments", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(named(scan(await plantedTree(FORM)), "form.tsx")).toEqual([
+  expect(named((await fieldsScan(plantedTree, FORM, { jsx: true })).unwired, "form.tsx")).toEqual([
     "Values.gone unreferenced",
     "Values.params.dead unreferenced",
     "Values.title never-written",
@@ -132,49 +130,60 @@ const BUILT = planted("built.ts", [
 ]);
 
 test("a spread credits only the keys its value was built with", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(BUILT));
-  expect(named(report, "built.ts")).toEqual(["Delta.b never-written", "Delta.modelInSamples never-written"]);
+  const report = await fieldsScan(plantedTree, BUILT);
+  expect(named(report.unwired, "built.ts")).toEqual(["Delta.b never-written", "Delta.modelInSamples never-written"]);
   expect(report.unresolved).toEqual([]);
-  expect(report.unresolvedByReason).toEqual({ synthetic: 1 });
 });
 
 // Step three, second half: a Drizzle select row's member has no declaration and reads the column of the table whose
-// column names it holds, so the input copied into `title` is read back; `body` is stored and never selected.
+// column names it holds, so the input copied into `title` is read back; `body` is stored and never selected. The
+// store's literal key judges nothing: `note` is stored unselected too, but it also fills a read slot of ours. The graph
+// knows a store by drizzle-orm's own declarations, so the stub sits at its package path.
 const ROW = {
-  [ROOT_WORLD]: plantedTsconfig({ lib: LIB, include: ["packages"] }),
-  "packages/db/src/schema/notes.ts": [
-    "declare function sqliteTable<C>(name: string, columns: C): C & { readonly $inferSelect: { [K in Extract<keyof C, string>]: string } };",
-    "declare const text: () => string;",
-    'export const notes = sqliteTable("notes", { title: text(), body: text() });',
+  "node_modules/drizzle-orm/package.json": JSON.stringify({ name: "drizzle-orm", types: "index.d.ts" }),
+  "node_modules/drizzle-orm/index.d.ts": [
+    "export declare function sqliteTable<C>(name: string, columns: C): C & { readonly $inferSelect: { [K in Extract<keyof C, string>]: string } };",
+    "export declare const text: () => string;",
+    "export declare const db: { insert(table: unknown): { values(value: unknown): void } };",
   ].join("\n"),
-  "packages/a/src/notes.ts": [
+  "packages/db/src/schema/notes.ts": [
+    'import { sqliteTable, text } from "drizzle-orm";',
+    'export const notes = sqliteTable("notes", { title: text(), body: text(), note: text() });',
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/notes.ts`]: [
+    'import { db } from "drizzle-orm";',
     'import { notes } from "../../db/src/schema/notes.ts";',
-    "declare const db: { insert(table: unknown): { values(value: unknown): void } };",
-    "export interface NoteInput { readonly title: string; readonly body: string }",
-    "export function save(input: NoteInput): void { db.insert(notes).values({ title: input.title, body: input.body }); }",
+    "export interface NoteInput { readonly title: string; readonly body: string; readonly note: string }",
+    "interface Echo { readonly note: string }",
+    "const echo = (value: Echo): string => value.note;",
+    "export function save(input: NoteInput): string {",
+    "  db.insert(notes).values({ title: input.title, body: input.body, note: input.note });",
+    "  return echo({ note: input.note });",
+    "}",
     "declare const row: typeof notes.$inferSelect;",
     "export const shown = row.title;",
   ].join("\n"),
 };
 
 test("a select row's member reads the column its table names", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scanFields({ root: await plantedTree(ROW), worlds: [ROOT_WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-  expect(named(report, "notes.ts")).toEqual(["NoteInput.body unreferenced"]);
+  const report = await fieldsScan(plantedTree, ROW);
+  expect(named(report.unwired, "notes.ts")).toEqual(["NoteInput.body unreferenced"]);
   expect(report.unresolved).toEqual([]);
 });
 
-// A key no step places is unresolved and credits no field: an excess key on a closed shape and a read through `any` are
-// counted by reason. Only the read whose name spells a reported row's member, in the role that row lacks, is listed.
+// A read no walk places credits no field. Only a product read off an `any` receiver whose name spells a reported row's
+// member, where that row has no read, is listed. A lost read of a mapped member has a receiver type that holds its
+// key, so the same name there is not listed.
 const UNPLACED = planted("unplaced.ts", [
   "export interface Shape { readonly kept: string; readonly stray?: string }",
   "export const shape = { kept: 'k', loose: 'l' } as Shape;",
   "declare const untyped: any;",
-  "export const read = shape.kept + (untyped.stray as string);",
+  "declare function make<K extends string>(keys: readonly K[]): { [P in K]: string };",
+  "export const read = shape.kept + (untyped.stray as string) + make(['stray']).stray;",
 ]);
 
 test("a key no step places reports as unresolved and credits no field", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(UNPLACED));
-  expect(report.unresolved).toEqual(["packages/a/src/unplaced.ts:4 stray untyped -> Shape.stray"]);
-  expect(report.unresolvedByReason).toEqual({ absent: 1, untyped: 1 });
-  expect(named(report, "unplaced.ts")).toEqual(["Shape.stray unreferenced"]);
+  const report = await fieldsScan(plantedTree, UNPLACED);
+  expect(report.unresolved).toEqual([`${GRAPH_SOURCE}/unplaced.ts:5 stray any-receiver -> Shape.stray`]);
+  expect(named(report.unwired, "unplaced.ts")).toEqual(["Shape.stray unreferenced"]);
 });

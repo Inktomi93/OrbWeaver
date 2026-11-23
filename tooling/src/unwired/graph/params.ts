@@ -75,13 +75,13 @@ import type { NativeWorld } from "../native.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
+import { nodeAt } from "./declared.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, keyText, Resolver } from "./resolve.ts";
 import { occurrenceRoles, sameNode, valueUse } from "./roles.ts";
 import { declarationNameOf } from "./sites.ts";
 import { unwrapValue } from "./slots.ts";
 import type { RoleSite } from "./state.ts";
-import { nodeAt } from "./verify.ts";
 
 const PARAM_KINDS = ["unsupplied", "same-literal", "unsupplied-prop"] as const;
 /** `unsupplied`: an optional parameter no product call passes. `same-literal`: every product call passes the same

@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-After every scan runs on the graph, the TypeScript 6 language service (language-service.ts, classify.ts), the per-world programs and bridge, occurrences.ts, key-resolver.ts, handoffs.ts, type-members.ts and scan.ts have no caller.
+Every scan now runs on the graph: params, columns, fields and the member scan moved, and scan.ts and language-service.ts are deleted. What is left of engine one has no scan caller: the remaining parts of classify.ts, occurrences.ts, key-resolver.ts, handoffs.ts and type-members.ts (field-declarations.ts reads type-members for brand-flow, so that reader moves first), the per-world programs and bridge, and the engine-one internals 3922 and 3923 left unread (occurrences.ts propertyFacts beyond constructionWrites, open-sends.ts leftovers). Each module's remaining reader is named in the 3923 lane report under reports/lanes/.
 
 ## Why
 

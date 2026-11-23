@@ -1,21 +1,11 @@
-// Read and write forms the fields scan's engine one must link: each found case has a truly dead twin beside it that
-// stays reported.
-import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
-import { scanFields } from "../../../tooling/src/unwired/index.ts";
-import { LIB, WORLD, ZOD_STUB } from "./_planted.ts";
-
-const scan = (root: string): ReturnType<typeof scanFields> => scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
-const fieldsOf = (report: ReturnType<typeof scanFields>, file: string): string[] =>
-  report.unwired
-    .filter((entry) => entry.file.endsWith(file))
-    .map(({ home, member, kind }) => `${home}.${member} ${kind}`)
-    .toSorted();
+// Read and write forms the fields query must link: each found case has a truly dead twin beside it that stays reported.
+import { expect, test } from "@orb/testkit/tooling";
+import { fieldRows, fieldsScan, GRAPH_SOURCE, ZOD_MODULE } from "./_planted.ts";
 
 // The value meets only the constraint's members inside the generic body: at the call, `Room` infers to the argument's
 // own type, so only a link from that type to the constraint carries the read back.
 const CONSTRAINT = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/hearth.ts": [
+  [`${GRAPH_SOURCE}/hearth.ts`]: [
     "export interface Summary { readonly id: string; readonly stamp: number | null; readonly dead: string }",
     "export interface Candidate { readonly id: string; readonly stamp: number | null }",
     "export function split<Room extends Candidate>(items: readonly Room[]): Room | undefined {",
@@ -30,14 +20,14 @@ const CONSTRAINT = {
 };
 
 test("a type argument inferred at a call links to its parameter's constraint", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(CONSTRAINT));
-  expect(fieldsOf(report, "hearth.ts")).toEqual(["Lonely.id never-read", "Lonely.stamp never-read", "Summary.dead never-read"]);
+  const report = await fieldsScan(plantedTree, CONSTRAINT);
+  expect(fieldRows(report.unwired, "hearth.ts")).toEqual(["Lonely.id never-read", "Lonely.stamp never-read", "Summary.dead never-read"]);
 });
 
-// An anonymous constraint, and a row key typed by a type parameter whose constraint is a union of names.
+// An anonymous constraint, and a row key typed by a type parameter whose constraint is a union of names: the callers
+// narrow the key, so a name no call passes stays unread.
 const GENERIC_ROW = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/lanes.ts": [
+  [`${GRAPH_SOURCE}/lanes.ts`]: [
     "export interface Row { readonly lane: string; readonly dead: string }",
     "export const group = <T extends { readonly lane: string }>(items: readonly T[]): number => items.filter((item) => item.lane === 'a').length;",
     "export const rows: readonly Row[] = [{ lane: 'a', dead: 'd' }];",
@@ -50,14 +40,14 @@ const GENERIC_ROW = {
 };
 
 test("an anonymous constraint and a key typed by a type parameter read the members they name", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(GENERIC_ROW));
-  expect(fieldsOf(report, "lanes.ts")).toEqual(["Keyed.spare never-read", "Row.dead never-read"]);
+  const report = await fieldsScan(plantedTree, GENERIC_ROW);
+  expect(fieldRows(report.unwired, "lanes.ts")).toEqual(["Keyed.second never-read", "Keyed.spare never-read", "Row.dead never-read"]);
 });
 
-// A spread into a typed literal links the nested object too: `patch.title` is read through the params twin.
+// A spread into a typed literal links the nested object too: `patch.title` is read through the params twin, and each
+// twin's own nested `stale` is judged where nothing reads it.
 const NESTED_TWIN = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/twin.ts": [
+  [`${GRAPH_SOURCE}/twin.ts`]: [
     "export interface Input { readonly id: string; readonly patch?: { readonly title?: string; readonly stale?: string } }",
     "export interface Params { readonly owner: string; readonly id: string; readonly patch?: { readonly title?: string | undefined; readonly stale?: string | undefined } | undefined }",
     "export const verb = (params: Params): string => params.owner + params.id + (params.patch?.title ?? '');",
@@ -70,19 +60,20 @@ const NESTED_TWIN = {
 };
 
 test("a spread links the nested members of a twin type", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(NESTED_TWIN));
-  expect(fieldsOf(report, "twin.ts")).toEqual([
+  const report = await fieldsScan(plantedTree, NESTED_TWIN);
+  expect(fieldRows(report.unwired, "twin.ts")).toEqual([
     "Input.patch.stale never-read",
     "Orphan.id never-read",
     "Orphan.patch never-read",
     "Orphan.patch.title never-read",
+    "Params.patch.stale never-read",
   ]);
 });
 
-// `"key" in value` reads the property of that name on the value's type.
+// `"key" in value` narrows by the property of that name: a key use, which reads no value, so the narrowed read is the
+// one that counts and the tested member itself stays unread.
 const IN_CHECK = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/frames.ts": [
+  [`${GRAPH_SOURCE}/frames.ts`]: [
     "export interface Frame { readonly kind: string; readonly payload: string }",
     "export interface Fault { readonly __fault: true; readonly code: string; readonly spare: string }",
     "export const route = (frame: Frame | Fault): string => ('__fault' in frame ? frame.code : frame.payload);",
@@ -92,101 +83,81 @@ const IN_CHECK = {
   ].join("\n"),
 };
 
-test("an in check reads the property it names", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(IN_CHECK));
-  expect(fieldsOf(report, "frames.ts")).toEqual(["Fault.spare never-read", "Frame.kind never-read"]);
+test("an in check narrows the value and reads no member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await fieldsScan(plantedTree, IN_CHECK);
+  expect(fieldRows(report.unwired, "frames.ts")).toEqual(["Fault.__fault never-read", "Fault.spare never-read", "Frame.kind never-read"]);
 });
 
 // A server codec re-declares a contract key under a stricter schema with `.extend({ key })`: the override is the same wire
 // field, so a read through it reads the base key. `dropped`, written and never read through either, stays reported.
 const EXTENDED = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": [
-    "export interface Schema<V> { readonly value?: V }",
-    "export interface ObjectSchema<T> { readonly shape: T; extend<U>(more: U): ObjectSchema<Omit<T, keyof U> & U> }",
-    "const objectOf = <T>(shape: T): ObjectSchema<T> => ({ shape, extend: <U>(more: U) => objectOf({ ...shape, ...more }) as never });",
-    "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
-    "export const z = { object: <T>(shape: T): ObjectSchema<T> => objectOf(shape), string: (): Schema<string> => ({}) };",
-  ].join("\n"),
-  "packages/a/src/wire.ts": [
-    'import { z } from "./z.ts";',
+  ...ZOD_MODULE,
+  [`${GRAPH_SOURCE}/wire.ts`]: [
+    'import { z } from "zod";',
     "export const viewSchema = z.object({ role: z.string(), name: z.string(), dropped: z.string() });",
   ].join("\n"),
-  "packages/a/src/codec.ts": [
-    'import type { Infer } from "./z.ts";',
-    'import { z } from "./z.ts";',
+  [`${GRAPH_SOURCE}/codec.ts`]: [
+    'import { z } from "zod";',
     'import { viewSchema as wireViewSchema } from "./wire.ts";',
     "export const viewSchema = wireViewSchema.extend({ role: z.string() });",
-    "type View = Infer<typeof viewSchema>;",
+    "type View = z.infer<typeof viewSchema>;",
     'export const made: View = { role: "r", name: "n", dropped: "d" };',
     "export const shown = (view: View): string => view.role + view.name;",
   ].join("\n"),
 };
 
 test("a key an extend call re-declares reads and writes as the base schema's key", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(EXTENDED));
-  expect(fieldsOf(report, "wire.ts")).toEqual(["viewSchema.dropped never-read"]);
+  const report = await fieldsScan(plantedTree, EXTENDED);
+  expect(fieldRows(report.unwired, "wire.ts")).toEqual(["viewSchema.dropped never-read"]);
 });
 
 // A schema checked against a mapped re-keying of a type, `{ [K in keyof T]?: T[K] }`, mirrors `T`: its keys are `T`'s
 // members. `spare`, which production writes and never reads, stays reported.
 const REKEYED = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": ZOD_STUB,
-  "packages/a/src/meta.ts": [
-    'import type { Checked } from "./z.ts";',
-    'import { z } from "./z.ts";',
+  ...ZOD_MODULE,
+  [`${GRAPH_SOURCE}/meta.ts`]: [
+    'import { z } from "zod";',
     "export interface Meta { readonly title: string; readonly spare: string }",
-    "export const metaSchema = z.object({ title: z.string(), spare: z.string() }) satisfies Checked<{ [K in keyof Meta]?: Meta[K] }>;",
+    "export const metaSchema = z.object({ title: z.string(), spare: z.string() }) satisfies z.ZodType<{ [K in keyof Meta]?: Meta[K] }>;",
     'export const made: Meta = { title: "t", spare: "s" };',
     "export const shown = (meta: Meta): string => meta.title;",
   ].join("\n"),
 };
 
 test("a schema checked against a mapped re-keying of a type mirrors that type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(REKEYED));
-  expect(fieldsOf(report, "meta.ts")).toEqual(["Meta.spare never-read"]);
+  const report = await fieldsScan(plantedTree, REKEYED);
+  expect(fieldRows(report.unwired, "meta.ts")).toEqual(["Meta.spare never-read"]);
 });
 
 // An extended schema checked against a type of its own is another endpoint's shape: its keys mirror that type, so a read
 // through it never reads the base's key. `Fields.character` is read only through the copy schema's parsed value and
 // stays reported.
 const EXTENDED_OTHER = {
-  [WORLD]: plantedTsconfig({ lib: LIB }),
-  "packages/a/src/z.ts": [
-    "export interface Schema<V> { readonly value?: V }",
-    "export interface ObjectSchema<T> { readonly shape: T; extend<U>(more: U): ObjectSchema<Omit<T, keyof U> & U> }",
-    "const objectOf = <T>(shape: T): ObjectSchema<T> => ({ shape, extend: <U>(more: U) => objectOf({ ...shape, ...more }) as never });",
-    "export type Checked<T> = { readonly shape: unknown } & { readonly checked?: T };",
-    "export type Infer<S> = S extends { readonly shape: infer T } ? { [K in keyof T]: T[K] extends Schema<infer V> ? V : never } : never;",
-    "export const z = { object: <T>(shape: T): ObjectSchema<T> => objectOf(shape), string: (): Schema<string> => ({}) };",
-  ].join("\n"),
-  "packages/a/src/fields.ts": [
-    'import type { Checked } from "./z.ts";',
-    'import { z } from "./z.ts";',
+  ...ZOD_MODULE,
+  [`${GRAPH_SOURCE}/fields.ts`]: [
+    'import { z } from "zod";',
     "export interface Fields { readonly applied: string; readonly character: string }",
-    "export const fieldsSchema = z.object({ applied: z.string(), character: z.string() }) satisfies Checked<Fields>;",
+    "export const fieldsSchema = z.object({ applied: z.string(), character: z.string() }) satisfies z.ZodType<Fields>;",
   ].join("\n"),
-  "packages/a/src/copy.ts": [
-    'import type { Checked } from "./z.ts";',
-    'import { z } from "./z.ts";',
+  [`${GRAPH_SOURCE}/copy.ts`]: [
+    'import { z } from "zod";',
     'import { fieldsSchema } from "./fields.ts";',
     "export interface Copy { readonly applied: string; readonly character: string }",
-    "export const copySchema = fieldsSchema.extend({ character: z.string() }) satisfies Checked<Copy>;",
+    "export const copySchema = fieldsSchema.extend({ character: z.string() }) satisfies z.ZodType<Copy>;",
   ].join("\n"),
-  "packages/a/src/use.ts": [
+  [`${GRAPH_SOURCE}/use.ts`]: [
     'import type { Copy } from "./copy.ts";',
     'import type { copySchema } from "./copy.ts";',
     'import type { Fields } from "./fields.ts";',
-    'import type { Infer } from "./z.ts";',
+    'import type { z } from "zod";',
     'export const fields: Fields = { applied: "a", character: "c" };',
     'export const copy: Copy = { applied: "a", character: "c" };',
     "export const appliedOf = (result: Fields): string => result.applied;",
-    "export const copied = (result: Infer<typeof copySchema>): string => result.applied + result.character;",
+    "export const copied = (result: z.infer<typeof copySchema>): string => result.applied + result.character;",
   ].join("\n"),
 };
 
 test("a key of an extended schema checked against its own type does not read the base's key", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = scan(await plantedTree(EXTENDED_OTHER));
-  expect(fieldsOf(report, "fields.ts")).toEqual(["Fields.character never-read"]);
+  const report = await fieldsScan(plantedTree, EXTENDED_OTHER);
+  expect(fieldRows(report.unwired, "fields.ts")).toEqual(["Fields.character never-read"]);
 });
