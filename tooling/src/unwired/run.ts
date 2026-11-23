@@ -3,25 +3,29 @@
 // properties nothing reads, the class and data-* hooks with no partner, or the error codes nothing throws or handles;
 // `graph-dom` reads source, so it refuses `--from`. `graph-worlds-check` proves the merged program against each world's
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
-// restated-port targets the derive codemod reads; the bare verb runs engine one over every world, the dead-inside-live
-// verbs run both engines except `unions`, `params`, `shapes`, `procedures` and `columns`, which query the graph and refuse
-// `--cross-check`, and each writes one report under reports/unwired/ with its judged rows apart; `removed-keys` resolves
+// restated-port targets the derive codemod reads; the member scan (`scan`, also the bare verb) and the dead-inside-live
+// verbs `fields`, `unions`, `params`, `shapes`, `procedures` and `columns` query the graph, and each writes one report
+// under reports/unwired/ with its judged rows apart; no verb has an engine two, so every verb refuses `--cross-check`
+// (D357); `removed-keys` resolves
 // every receiver site of a removed contract key over the graph session's merged program and exits 1 while one still
 // sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
 // (./literal-hits.ts); `graph-trial` deletes each finding of the named buckets in a throwaway snapshot
-// (./graph/trial.ts).
+// (./graph/trial.ts); `graph-census` counts the compiler's references to every product member by the context each
+// sits in and the role the graph gave it (./graph/census.ts), and refuses `--from`.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
-import { UsageError } from "../floor/cli/run-tool.ts";
-import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
-import { runCoverage } from "./coverage.ts";
+import { describeThrown, UsageError } from "../floor/cli/run-tool.ts";
+import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
+import type { DeliberateEntry } from "./deliberate.ts";
 import { DELIBERATE } from "./deliberate.ts";
-import { scanFields } from "./fields.ts";
+import type { Verdict as SortVerdict } from "./field-sort.ts";
+import { VERDICTS as SORT_VERDICTS } from "./field-sort.ts";
 import type { Bucket, MemberBucket } from "./graph/analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./graph/analyse.ts";
+import { censusText, SITE_CLASSES, shapeLine, TOP_SHAPES } from "./graph/census.ts";
 import { CSS_BUCKETS } from "./graph/css.ts";
 import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
@@ -33,10 +37,13 @@ import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import {
+  censusGraph,
   codesGraph,
   columnsGraph,
   cssGraph,
   domGraph,
+  fieldsGraph,
+  memberScanGraph,
   paramsGraph,
   proceduresGraph,
   queryGraph,
@@ -47,8 +54,9 @@ import {
   unionsGraph,
   verifyGraph,
 } from "./graph/scan.ts";
-import type { TrialBucket, TrialReach } from "./graph/trial.ts";
-import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_PHASES, TRIAL_REACHES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import type { TrialBucket } from "./graph/trial.ts";
+import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_GROUP, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import { FileLedger } from "./graph/trial-ledger.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
 import { checkWorlds } from "./graph/worlds-check.ts";
@@ -59,8 +67,6 @@ import { HITS_USAGE, runHits } from "./literal-hits.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
-import type { ScanOptions } from "./scan.ts";
-import { scanUnwired } from "./scan.ts";
 
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
@@ -73,7 +79,7 @@ const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
 export const TRIAL_VERB = "graph-trial";
-const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--limit=<n>] [--cpu-profile=<dir>] [--reach=<${TRIAL_REACHES.join("|")}>] [--root=<dir>] [--out=<file>]`;
+const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--verdict=<${SORT_VERDICTS.join("|")}>]... [--limit=<n>] [--profile=<${PROFILES.join("|")}>[,...]] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
  *  DOM-hook pass, the queries each name is asked (./graph/query.ts), and the merged program checked against each world. */
@@ -87,6 +93,7 @@ const GRAPH_VERBS = [
   "graph-impact",
   "graph-reach",
   "graph-worlds-check",
+  "graph-census",
   "codes",
 ] as const;
 type GraphVerb = (typeof GRAPH_VERBS)[number];
@@ -101,11 +108,14 @@ const GRAPH_OUT: Readonly<Record<GraphVerb, string>> = {
   "graph-reach": "reports/unwired/graph-reach.json",
   codes: "reports/unwired/codes.json",
   "graph-worlds-check": "reports/unwired/graph-worlds-check.json",
+  "graph-census": "reports/unwired/graph-census.json",
 };
 // The query each query verb asks; the other graph verbs ask none.
 const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "why", "graph-users": "users", "graph-impact": "impact", "graph-reach": "reach" };
-const GRAPH_SESSION_USAGE = `[--explain-lost] [--profile[=${PROFILES.join("|")}]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>] [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | pnpm unwired ${COVERAGE_VERB} [--suites=node,ct,e2e] [--node=<file>]... [--ct=<file>]... [--e2e=<arg>]... | ${HITS_USAGE}`;
+// What a session that builds its graph takes; one that may read a dump takes `--from` too.
+const GRAPH_BUILD_USAGE = `[--explain-lost] [--profile[=<${PROFILES.join("|")}>[,...]]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>]`;
+const GRAPH_SESSION_USAGE = `${GRAPH_BUILD_USAGE} [--from=<file>]`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-census [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_BUILD_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -117,6 +127,15 @@ const PORT_LIMITS: readonly string[] = [
   "A whole restated type with no port member is the shapes scan's row, not a ports target.",
   "A port reached only through a string-addressed registry, a JSON or scenario file, or from outside the tree is not a flow.",
 ];
+
+/** The options every scan takes: the root, the deliberate and judged lists and a progress log. */
+interface ScanOptions {
+  readonly root: string;
+  readonly deliberate: readonly DeliberateEntry[];
+  /** The rows a board item owns, for this scan's report. */
+  readonly judged: readonly JudgedEntry[];
+  readonly log: (line: string) => void;
+}
 
 interface Finding {
   readonly kind: string;
@@ -161,9 +180,6 @@ function literalLine(stage: LiteralStage | null): string {
   return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)} ownHits=${String(stage.ownHits)} neverWritten ask=${String(stage.neverWritten.ask)} dead=${String(stage.neverWritten.dead)} unsearchable=${String(stage.unsearchable)}`;
 }
 
-/** The scan verbs with no engine two, which refuse `--cross-check`. */
-const ENGINE_ONE_VERBS: ReadonlySet<Verb> = new Set<Verb>(["unions", "params", "shapes", "procedures", "columns"]);
-
 /** Each scan's judged list: the rows a board item owns. */
 const JUDGED: Readonly<Record<ScanVerb, readonly JudgedEntry[]>> = {
   scan: [],
@@ -183,15 +199,13 @@ const bucketCounts = (report: object): string =>
     .join(" ");
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
-  scan: scan("reports/unwired/unwired.json", scanUnwired),
+  scan: scan("reports/unwired/unwired.json", ({ root, deliberate, judged, log: report }) => memberScanGraph(root, { deliberate, judged }, report)),
   fields: scan(
     "reports/unwired/fields.json",
-    scanFields,
+    ({ root, deliberate, judged, log: report }) => fieldsGraph(root, { deliberate, judged }, report),
     (report) =>
-      ` unplaced=${Object.entries(report.unresolvedByReason)
-        .map(([reason, count]) => `${reason}:${count}`)
-        .join(",")} sent=${Object.entries(report.sentBy)
-        .map(([destination, count]) => `${destination}:${count}`)
+      ` sent=${Object.entries(report.sentBy)
+        .map(([destination, count]) => `${destination}:${String(count)}`)
         .join(",")}\n${literalLine(report.literalStage)}`,
   ),
   params: scan("reports/unwired/params.json", ({ root, deliberate, judged, log: report }) => paramsGraph({ root, deliberate, judged }, report)),
@@ -207,8 +221,6 @@ interface Args {
   readonly out: string | null;
   readonly leg: Leg | null;
   readonly cluster: ClusterGroup | null;
-  /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1. */
-  readonly crossCheck: boolean;
   /** The revisions `removed-keys` compares: the branch's head against its merge base with `base`. */
   readonly base: string;
   readonly head: string;
@@ -227,11 +239,10 @@ function parseArgs(argv: readonly string[]): Args {
   const named = VERBS.find((candidate) => candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  const crossCheck = argv.includes(CROSS_CHECK_FLAG);
-  if (crossCheck && ENGINE_ONE_VERBS.has(verb)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} has no engine two to cross-check\n${USAGE}`);
+  if (argv.includes(CROSS_CHECK_FLAG)) {
+    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs on the reference graph alone, with no engine two to cross-check (D357)\n${USAGE}`);
   }
-  const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
+  const rest = named === undefined ? argv : argv.slice(1);
   for (const arg of rest) {
     const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);
     if (match === null) {
@@ -245,7 +256,6 @@ function parseArgs(argv: readonly string[]): Args {
     out: flags.get("out") ?? null,
     leg: oneOf("leg", flags.get("leg") ?? null, LEGS),
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
-    crossCheck,
     base: flags.get("base") ?? DEFAULT_BASE,
     head: flags.get("head") ?? DEFAULT_HEAD,
   };
@@ -376,6 +386,12 @@ interface GraphArgs {
 
 const GRAPH_FLAG = /^--(root|out|bucket|sample|profile|why|files|trace|ablate|dump|from|explain-lost)(?:=(.+))?$/u;
 const VERIFY_FLAGS: ReadonlySet<string> = new Set(["bucket", "sample"]);
+// The verify flag the census reads too: an even sample of the members it asks.
+const SAMPLE_FLAG = "sample";
+const SOURCE_VERBS: Readonly<Partial<Record<GraphVerb, string>>> = {
+  "graph-dom": "reads the program's source, which a dump does not carry",
+  "graph-census": "reads the role sites of its own build, which a dump may not hold",
+};
 // The flags a run may repeat; every other flag takes one value.
 const REPEATED_FLAGS: ReadonlySet<string> = new Set(["why", "trace", "ablate"]);
 const PROFILE_FLAG = "profile";
@@ -387,6 +403,23 @@ const PROFILE_DIR_SUFFIX = ".profile";
 // The profiles the compiler writes while it builds the graph: a run from a dump builds none.
 const COMPILER_PROFILES: ReadonlySet<ProfileKind> = new Set<ProfileKind>(["cpu", "heap"]);
 
+// `--profile` takes a comma-separated list of kinds, each one of the PROFILES tuple, in every verb that profiles.
+const PROFILE_SEPARATOR = ",";
+
+function profileKinds(value: string | null): readonly ProfileKind[] | null {
+  if (value === null) {
+    return null;
+  }
+  const kinds = new Set<ProfileKind>();
+  for (const kind of value.split(PROFILE_SEPARATOR)) {
+    const found = oneOf(PROFILE_FLAG, kind, PROFILES);
+    if (found !== null) {
+      kinds.add(found);
+    }
+  }
+  return [...kinds];
+}
+
 // A flag's value when it is given bare: `--profile` profiles wall time, `--explain-lost` takes none.
 const BARE_VALUES: ReadonlyMap<string, string> = new Map([
   [PROFILE_FLAG, PROFILES[0]],
@@ -396,7 +429,7 @@ const BARE_VALUES: ReadonlyMap<string, string> = new Map([
 // One flag's name and value, refused when the verb takes no such flag, it repeats a single flag, or its value is wrong.
 function graphFlag(verb: GraphVerb, arg: string, flags: ReadonlyMap<string, readonly string[]>): { readonly name: string; readonly given: string } {
   const [, name = "", value] = GRAPH_FLAG.exec(arg) ?? [];
-  const known = name !== "" && (verb === "graph-verify" || !VERIFY_FLAGS.has(name));
+  const known = name !== "" && (verb === "graph-verify" || !VERIFY_FLAGS.has(name) || (verb === "graph-census" && name === SAMPLE_FLAG));
   const given = value ?? BARE_VALUES.get(name);
   if (!known || given === undefined || (flags.has(name) && !REPEATED_FLAGS.has(name)) || (name === EXPLAIN_LOST_FLAG && value !== undefined)) {
     throw new UsageError(`${arg}: unknown or repeated argument\n${USAGE}`);
@@ -440,12 +473,13 @@ function graphOptions(flags: ReadonlyMap<string, readonly string[]>, profileDir:
   if (from !== null && built.length > 0) {
     throw new UsageError(`--from reads a built graph; --${built.join(", --")} act on a build\n${USAGE}`);
   }
-  const profile = oneOf(PROFILE_FLAG, single(flags, PROFILE_FLAG), PROFILES);
-  if (from !== null && profile !== null && COMPILER_PROFILES.has(profile)) {
-    throw new UsageError(`--from reads a built graph; --profile=${profile} profiles the compiler's build\n${USAGE}`);
+  const kinds = profileKinds(single(flags, PROFILE_FLAG));
+  const compiler = kinds?.find((kind) => COMPILER_PROFILES.has(kind));
+  if (from !== null && compiler !== undefined) {
+    throw new UsageError(`--from reads a built graph; --profile=${compiler} profiles the compiler's build\n${USAGE}`);
   }
   return {
-    profile: profile === null ? null : { kind: profile, dir: profileDir },
+    profile: kinds === null ? null : { kinds, dir: profileDir },
     why: parsed("why", flags.get("why") ?? [], whyTarget),
     files: single(flags, "files"),
     traces,
@@ -458,14 +492,15 @@ function graphOptions(flags: ReadonlyMap<string, readonly string[]>, profileDir:
 
 function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
   const { flags, names } = graphFlags(verb, argv);
-  if (verb === "graph-dom" && flags.has("from")) {
-    throw new UsageError(`graph-dom reads the program's source, which a dump does not carry; drop --from\n${USAGE}`);
+  const source = SOURCE_VERBS[verb];
+  if (source !== undefined && flags.has("from")) {
+    throw new UsageError(`${verb} ${source}; drop --from\n${USAGE}`);
   }
   const bucket = oneOf("bucket", single(flags, "bucket"), MEMBER_BUCKETS);
   if (verb === "graph-verify" && bucket === null) {
     throw new UsageError(`graph-verify needs --bucket\n${USAGE}`);
   }
-  const sample = single(flags, "sample");
+  const sample = single(flags, SAMPLE_FLAG);
   if (sample !== null && !POSITIVE_COUNT.test(sample)) {
     throw new UsageError(`--sample=${sample}: expected a positive count`);
   }
@@ -516,8 +551,12 @@ function logProfile(profile: GraphProfileReport): void {
   for (const { axis, file, causes } of profile.dynamicAxes) {
     log(`profile dynamic axis ${file}:${axis} <- ${causes.join(", ")}`);
   }
-  if (profile.compiler !== null) {
-    const { kind, path, summary } = profile.compiler;
+  logCompilers(profile);
+}
+
+// Each compiler profile the run wrote, its top functions shown; the report keeps every one.
+function logCompilers(profile: GraphProfileReport): void {
+  for (const { kind, path, summary } of profile.compilers) {
     log(
       `profile ${kind} ${path}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
     );
@@ -652,6 +691,27 @@ async function runGraphVerify(args: GraphArgs, bucket: MemberBucket): Promise<nu
   return EXIT.clean;
 }
 
+const JSON_EXTENSION = ".json";
+const TEXT_EXTENSION = ".txt";
+
+// The census writes its report twice: the JSON, and beside it the text a reader ranks the next graph batch from.
+async function runGraphCensus(args: GraphArgs): Promise<number> {
+  const report = await censusGraph(args.root, { sample: args.sample }, log, args.options);
+  const path = write(args.root, args.out, report);
+  const text = `${path.endsWith(JSON_EXTENSION) ? path.slice(0, -JSON_EXTENSION.length) : path}${TEXT_EXTENSION}`;
+  writeFileSync(text, censusText(report));
+  for (const shape of report.gaps.slice(0, TOP_SHAPES)) {
+    process.stdout.write(`${shapeLine(shape)}\n`);
+  }
+  logSession(report.session);
+  const { members, sites } = report;
+  log(
+    `members=${String(members.asked)}/${String(members.of)} unread=${String(members.unread)} unresolved=${String(members.unresolved)} ${SITE_CLASSES.map((name) => `${name}=${String(sites[name])}`).join(" ")} gap-shapes=${String(report.gaps.length)} false-finding-shapes=${String(report.falseFindings.length)} unknown-slots=${String(report.unknownSlots)} written to ${path} and ${text}`,
+  );
+  logLimits(report.limits);
+  return EXIT.clean;
+}
+
 const MEMBER_BUCKET_SET: ReadonlySet<Bucket> = new Set(MEMBER_BUCKETS);
 const isMemberBucket = (bucket: Bucket): bucket is MemberBucket => MEMBER_BUCKET_SET.has(bucket);
 
@@ -764,24 +824,28 @@ async function runGraph(args: GraphArgs): Promise<number> {
   if (args.verb === "graph-dom") {
     return await runGraphDom(args);
   }
+  if (args.verb === "graph-census") {
+    return await runGraphCensus(args);
+  }
   return args.verb === "graph-verify" && args.bucket !== null ? await runGraphVerify(args, args.bucket) : await runGraphScan(args);
 }
 
 const TRIAL_OUT = "reports/unwired/graph-trial.json";
-const [NARROWED_REACH] = TRIAL_REACHES;
 const TRIAL_USAGE = `usage: ${TRIAL_SYNOPSIS}`;
-const TRIAL_FLAG = /^--(root|out|bucket|limit|cpu-profile|reach)=(.+)$/u;
+// Beside the out file: each trial as its group lands, which a rerun of the same commit skips.
+const TRIAL_LEDGER_SUFFIX = ".trials.jsonl";
+const TRIAL_FLAG = /^--(root|out|bucket|verdict|limit|profile)=(.+)$/u;
 
 interface TrialArgs {
   readonly root: string;
   readonly out: string;
   readonly buckets: readonly TrialBucket[];
+  /** Only the member findings the judge sorted to one of these; every finding when empty. */
+  readonly verdicts: readonly SortVerdict[];
   /** An even sample of this many findings, the user's choice for a quick run; every finding when absent. */
   readonly limit: number | null;
-  /** Where the compiler CPU profile of one group is written; none when absent. */
-  readonly cpuProfile: string | null;
-  /** Which files each snapshot checks; the find-references set unless the import graph's is asked for. */
-  readonly reach: TrialReach;
+  /** The profiles asked for beside the wall timing every trial keeps; the compiler ones are written beside the report. */
+  readonly profile: readonly ProfileKind[];
 }
 
 function trialLimit(limit: string | null): number | null {
@@ -791,40 +855,77 @@ function trialLimit(limit: string | null): number | null {
   return limit === null ? null : Number(limit);
 }
 
-const trialReach = (value: string | null): TrialReach => oneOf("reach", value, TRIAL_REACHES) ?? NARROWED_REACH;
+// Only a member row is sorted, so a verdict filter on another bucket would silently trial nothing.
+function refuseUnsortedBuckets(verdicts: readonly SortVerdict[], buckets: readonly TrialBucket[]): void {
+  const unsorted = verdicts.length === 0 ? undefined : buckets.find((bucket) => !MEMBER_BUCKET_SET.has(bucket));
+  if (unsorted !== undefined) {
+    throw new UsageError(`--verdict applies to member buckets (${MEMBER_BUCKETS.join(", ")}); ${unsorted} carries no verdict\n${TRIAL_USAGE}`);
+  }
+}
+
+// One argument: --bucket and --verdict repeat and are checked against their tuples; every other flag keeps its last value.
+function takeTrialFlag(arg: string, into: { readonly buckets: TrialBucket[]; readonly verdicts: SortVerdict[]; readonly flags: Map<string, string> }): void {
+  const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
+  if (name === "") {
+    throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
+  }
+  const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
+  const verdict = name === "verdict" ? oneOf(name, value, SORT_VERDICTS) : null;
+  if (bucket !== null) {
+    into.buckets.push(bucket);
+  } else if (verdict !== null) {
+    into.verdicts.push(verdict);
+  } else {
+    into.flags.set(name, value);
+  }
+}
 
 function parseTrialArgs(argv: readonly string[]): TrialArgs {
   const buckets: TrialBucket[] = [];
+  const verdicts: SortVerdict[] = [];
   const flags = new Map<string, string>();
   for (const arg of argv) {
-    const [, name = "", value = ""] = TRIAL_FLAG.exec(arg) ?? [];
-    if (name === "") {
-      throw new UsageError(`${arg}: unknown argument\n${TRIAL_USAGE}`);
-    }
-    const bucket = name === "bucket" ? oneOf(name, value, TRIAL_BUCKETS) : null;
-    if (bucket === null) {
-      flags.set(name, value);
-    } else {
-      buckets.push(bucket);
-    }
+    takeTrialFlag(arg, { buckets, verdicts, flags });
   }
   if (buckets.length === 0) {
     throw new UsageError(`${TRIAL_VERB} needs --bucket\n${TRIAL_USAGE}`);
   }
+  refuseUnsortedBuckets(verdicts, buckets);
   return {
     root: resolve(flags.get("root") ?? process.cwd()),
     out: flags.get("out") ?? TRIAL_OUT,
     buckets,
+    verdicts,
     limit: trialLimit(flags.get("limit") ?? null),
-    cpuProfile: flags.get("cpu-profile") ?? null,
-    reach: trialReach(flags.get("reach") ?? null),
+    profile: profileKinds(flags.get(PROFILE_FLAG) ?? null) ?? [],
   };
 }
 
 async function runGraphTrial(args: TrialArgs): Promise<number> {
-  // A wall profile turns on the compiler's request timing, which the trial's phase table reads.
-  const timed: GraphOptions = { ...FRESH_BUILD, profile: { kind: "wall", dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
-  const report = await trialGraph(args.root, { buckets: args.buckets, limit: args.limit, cpuProfile: args.cpuProfile, reach: args.reach }, log, timed);
+  // A wall profile turns on the compiler's request timing, which the trial's phase table reads, so every trial keeps it.
+  const kinds = [...new Set<ProfileKind>([PROFILES[0], ...args.profile])];
+  const timed: GraphOptions = { ...FRESH_BUILD, profile: { kinds, dir: `${args.out}${PROFILE_DIR_SUFFIX}` } };
+  const ledger = new FileLedger(args.root, resolve(checkoutOf(args.root), `${args.out}${TRIAL_LEDGER_SUFFIX}`));
+  // The last trial-group line the run logged names the step a failure came on; the log lines after it (a disposal that failed too) do not.
+  const seen: string[] = [];
+  const tracked = (line: string): void => {
+    if (line.startsWith(TRIAL_GROUP)) {
+      seen.push(line);
+    }
+    log(line);
+  };
+  let report: Awaited<ReturnType<typeof trialGraph>>;
+  try {
+    report = await trialGraph(args.root, { buckets: args.buckets, verdicts: args.verdicts, limit: args.limit, ledger }, tracked, timed);
+  } catch (error) {
+    // The trials that landed are the run's result so far: keep them with the failure, and a rerun of this commit skips them.
+    const note = `the trial failed at ${new Date().toISOString()}; last progress: ${seen.at(-1) ?? "none"}`;
+    log(note);
+    ledger.fail(`${describeThrown(error, "message")} (${note})`);
+    const partial = write(args.root, args.out, ledger.kept);
+    log(`the trial failed after ${String(ledger.kept.trials.length)} kept trials; they and the failure are in ${partial}`);
+    throw error;
+  }
   const path = write(args.root, args.out, report);
   for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
@@ -849,8 +950,11 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
     `trial phases ${TRIAL_PHASES.map((phase) => {
       const { ms: took, requests, serverMs } = report.phases[phase];
       return `${phase}=${ms(took)}/${String(requests)}req/server ${ms(serverMs)}`;
-    }).join(" ")}${report.cpuProfile === null ? "" : ` cpu-profile=${report.cpuProfile}`}`,
+    }).join(" ")}`,
   );
+  if (report.session.profile !== null) {
+    logCompilers(report.session.profile);
+  }
   const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
   log(
     report.literalFiles === null
@@ -919,14 +1023,7 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
 
 async function runScan(args: Args, verb: ScanVerb): Promise<number> {
   const chosen = SCANS[verb];
-  const { report, counts } = await chosen.execute({
-    root: args.root,
-    testWorlds: TEST_WORLDS.filter((config) => existsSync(join(args.root, config))),
-    deliberate: DELIBERATE,
-    judged: JUDGED[verb],
-    log,
-    crossCheck: args.crossCheck,
-  });
+  const { report, counts } = await chosen.execute({ root: args.root, deliberate: DELIBERATE, judged: JUDGED[verb], log });
   const path = write(args.root, args.out ?? chosen.out, report);
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);

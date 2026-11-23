@@ -35,7 +35,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { SignatureKind, SymbolFlags } from "@typescript/native/sync";
+import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { StoreWrite } from "../boundaries.ts";
 import { copiedReads } from "../boundaries.ts";
 import { parsedColumns, schemaParses } from "../handoffs.ts";
@@ -45,12 +45,14 @@ import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
 import { Constraints } from "./constraints.ts";
+import { declaredNameOf } from "./declared.ts";
 import { Flows, insideGlobalScope, ZOD_PACKAGE } from "./flows.ts";
 import { Keys } from "./keys.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
+import { MemberLinks } from "./member-links.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
-import { addAll, allOf, answer, constituentsOf, keyText } from "./resolve.ts";
+import { addAll, allOf, answer, constituentsOf, declKeyParts, keyText } from "./resolve.ts";
 import { READS, sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
@@ -60,13 +62,16 @@ import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute
 import { collectSites, GLOBAL_OBJECTS, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
-import type { BuildSession, ComputedLoad, GraphFacts, LostCause } from "./state.ts";
+import type { BuildSession, ComputedLoad, GraphFacts, LostCause, LostSlot } from "./state.ts";
 import { GraphState } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
 
 const ZOD_TYPE = "ZodType";
+const ANY_RECEIVER: LostSlot = "any-receiver";
+// The receiver a read off `any` names: the type has no alias, symbol or declaring file.
+const ANY_TYPE = "any";
 
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
@@ -259,6 +264,7 @@ class Builder {
   readonly #doors: MessageDoors;
   readonly #routes: RouteParams;
   readonly #constraints: Constraints;
+  readonly #links: MemberLinks;
   readonly #staticSideCache = new Map<number, readonly Type[]>();
   // The current file's binding readers, filled by its name and shorthand passes.
   #fileReaders: { readonly readers: Map<DeclKey, Set<GraphKey>>; readonly written: Set<DeclKey> } = { readers: new Map(), written: new Set() };
@@ -274,6 +280,7 @@ class Builder {
     this.#routes = new RouteParams(this.#state);
     this.#constraints = new Constraints(this.#state);
     this.#keys = new Keys(this.#state);
+    this.#links = new MemberLinks(this.#state, this.#flows);
   }
 
   build(files: readonly string[]): WorldGraph {
@@ -285,6 +292,7 @@ class Builder {
       state.unpairedReceivers.push(...this.#doors.unpaired);
       this.#settleClasses();
       this.#keys.finish(this.#flows);
+      this.#links.settle();
       return this.#variants.finish();
     };
     if (profile === null) {
@@ -343,9 +351,10 @@ class Builder {
     fileSlotWrites(state, this.#variants, sites);
     this.#flows.file(sites, this.#doors.held(sites.file));
     this.#variants.readTables(state, sites.tvCalls, sites.file);
-    this.#keys.file(sites);
+    this.#keys.file(sites, this.#flows);
     this.#zodTwins(sites);
     this.#overrides(sites);
+    this.#links.file(sites.file);
     this.#parses(sites);
     this.#parameterHomes(sites);
     this.#hookTuples(sites);
@@ -435,6 +444,7 @@ class Builder {
     this.#constraints.file(sites, sites.file);
     this.#flows.link(this.#constraints.inferredPairs(sites.inferredCalls), sites.file);
     this.#bareReads(sites, symbols, resolved);
+    this.#anyReceiverReads(sites, symbols);
     // a namespace binding used whole (`typeof schema`, `f(schema)`) uses every export; `ns.member` resolves alone
     this.#wholeModule(
       sites.names.flatMap((site, at) => {
@@ -607,6 +617,36 @@ class Builder {
       const read = `${sites.file}:${String(site.node.pos)} .${name}`;
       state.lostReads.push(read);
       state.lostCauses.push({ read, where: `${sites.file}:${String(sites.lineOf(site.node))}`, ...(keys.get(site) ?? NO_KEY), ...slot });
+    }
+  }
+
+  // A property read off a receiver typed `any` names no member, so no step places it: it is a lost read whose key is its
+  // name alone, and a member of that name anywhere could be what it reads. A write through `any` is not listed.
+  #anyReceiverReads(sites: FileSites, symbols: readonly (NativeSymbol | undefined)[]): void {
+    const state = this.#state;
+    const reads = sites.names.flatMap((site, at) => {
+      const { parent } = site.node;
+      return symbols[at] === undefined &&
+        !site.inType &&
+        site.roles.some((role) => READS.has(role)) &&
+        isPropertyAccessExpression(parent) &&
+        sameNode(parent.name, site.node)
+        ? [{ site, receiver: parent.expression }]
+        : [];
+    });
+    for (const { item, type } of state.world.typedAt(reads, ({ receiver }) => receiver)) {
+      if (hasFlag(type.flags, TypeFlags.Any)) {
+        const read = `${sites.file}:${String(item.site.node.pos)} .${nameText(item.site.node)}`;
+        state.lostReads.push(read);
+        state.lostCauses.push({
+          read,
+          where: `${sites.file}:${String(sites.lineOf(item.site.node))}`,
+          ...NO_KEY,
+          slot: ANY_RECEIVER,
+          detail: null,
+          receiver: ANY_TYPE,
+        });
+      }
     }
   }
 
@@ -873,8 +913,9 @@ class Builder {
     return types;
   }
 
-  // A class member that fills a member of these types is used through it; one whose filled member is the platform's
-  // (declared outside the tree), or a generic slot inferred from the class itself, is called by code we do not see.
+  // A class member that fills a member of these types is used through it, and supplies that member as a literal's key
+  // does; one whose filled member is the platform's (declared outside the tree), or a generic slot inferred from the class
+  // itself, is called by code we do not see.
   #dispatch(types: readonly (Type | undefined)[], facts: ClassFacts, side: "instance" | "static"): void {
     const state = this.#state;
     const members = [...(side === "instance" ? facts.members : facts.statics)];
@@ -886,6 +927,7 @@ class Builder {
       const ours = others.filter((decl) => state.decls.has(decl));
       for (const other of ours) {
         state.edge("run", other, key);
+        state.role(other, "write", declKeyParts(key).file, declaredNameOf(state.world, key)?.pos ?? declKeyParts(key).pos);
         state.count("dispatch edges");
       }
       if (ours.length < others.length || (others.length === 0 && props[y] !== undefined)) {

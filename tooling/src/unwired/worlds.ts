@@ -24,12 +24,6 @@ function bridgedPaths(root: string, config: string, parsed: ts.ParsedCommandLine
   return Object.fromEntries<string[]>([...own, ...bridge]);
 }
 
-/** One world's program as the reference scans load it: {@link loadWorld} with the source bridge. */
-export function loadScanWorld(root: string, config: string): ts.ParsedCommandLine {
-  const parsed = loadWorld(root, config);
-  return { ...parsed, options: { ...parsed.options, paths: bridgedPaths(root, config, parsed) } };
-}
-
 // The part of a world's config the bridge rewrites; every other key is the compiler's and passes through.
 const WorldConfig = z.looseObject({ compilerOptions: z.looseObject({}).optional() });
 
@@ -183,8 +177,8 @@ export function browserFiles(root: string): ReadonlySet<string> {
   return files;
 }
 
-/** The host's realpath; every scan host sets it, so a workspace package keeps its source path. */
-export const realpath = (path: string): string => ts.sys.realpath?.(path) ?? path;
+// The host's realpath, so a workspace package keeps its source path.
+const realpath = (path: string): string => ts.sys.realpath?.(path) ?? path;
 
 export function createWorldProgram(root: string, config: string): ts.Program {
   const parsed = loadWorld(root, config);

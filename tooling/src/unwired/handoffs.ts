@@ -90,7 +90,7 @@ function givenAt(node: Node): Node | undefined {
 
 /** The expressions a node hands to a typed slot: call and `new` arguments, array elements, a returned or JSX value, an
  *  arrow's body, an annotated initializer and a key's value. */
-export function handedAt(node: Node): readonly Node[] {
+function handedAt(node: Node): readonly Node[] {
   if (isCallExpression(node) || isNewExpression(node)) {
     return withoutSpreads(node.arguments ?? []);
   }

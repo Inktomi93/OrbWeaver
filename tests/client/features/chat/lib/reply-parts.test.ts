@@ -232,13 +232,22 @@ test.each([
   ["a close with a form feed", "</style\f>"],
   ["a close with a slash", "</style/>"],
   ["a close with a newline", "</style\n>"],
-  ["a close with a no-break space", `</style${String.fromCodePoint(0xa0)}>`],
 ])("no script reaches another run past %s", (_name, close) => {
   const parts = framed(`<style>.a{}${close}<script>alert(1)</script><b>A.</b>\n\n${DICE}\n\nB.`);
   const sheets = sides(parts).flatMap((run) => [...run.before, ...run.after]);
   // Positive control: the sheet is carried, as far as its close.
   expect(sheets.map((sheet) => sheet.css.slice(0, ".a{}".length))).toEqual([".a{}"]);
   expect(sheets.filter((sheet) => HTML_STYLE_CLOSE_RE.test(sheet.css) || sheet.css.includes("<script"))).toEqual([]);
+});
+
+// A no-break space is no HTML whitespace, so a close followed by one ends nothing: the element runs to the end of the
+// text, the renderer draws it as no stylesheet, and nothing past it is carried. The same reply with a real close is the
+// control.
+test("a close with a no-break space ends no style element, so no sheet and no script is carried", () => {
+  const reply = (close: string): string => `<style>.a{}${close}<script>alert(1)</script><b>A.</b>\n\n${DICE}\n\nB.`;
+  const carriedCss = (close: string): string[] => sides(framed(reply(close))).flatMap((run) => [...run.before, ...run.after].map((sheet) => sheet.css));
+  expect(carriedCss("</style>")).toEqual([".a{}"]);
+  expect(carriedCss(`</style${String.fromCodePoint(0xa0)}>`)).toEqual([]);
 });
 
 const roomSheet = (css: string, authorId: CharacterId = keeperId): RoomSheet => ({ media: undefined, title: undefined, css, authorId });

@@ -1,7 +1,7 @@
 // Where a value handed into an open slot goes. A slot that names no member (unknown, object, a string index) passes the
-// value on, so the scan follows it: into a helper's body, to a logger, a serialization or a library. Inside the provider
-// backends a value with no other destination is a provider send only when it reaches a request the backends make. A
-// library logger's argument is a log send whether or not its slot is open.
+// value on, so the chase follows it: into a helper's body, to a logger, a serialization or a library. Inside the
+// provider backends a value with no other destination is a provider send only when it reaches a request the backends
+// make.
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
@@ -14,54 +14,40 @@ import {
   isCallExpression,
   isConditionalExpression,
   isElementAccessExpression,
+  isExpressionStatement,
   isFunctionDeclaration,
   isFunctionExpression,
   isIdentifier,
-  isInterfaceDeclaration,
-  isModuleBlock,
-  isModuleDeclaration,
+  isIfStatement,
   isNewExpression,
   isNonNullExpression,
   isObjectLiteralExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
+  isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
-  isPropertySignatureDeclaration,
   isReturnStatement,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
   isSpreadAssignment,
   isSpreadElement,
-  isStringLiteral,
   isTypeAssertion,
+  isTypeOfExpression,
   isVariableDeclaration,
+  isVoidExpression,
+  isWhileStatement,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
-import { all, IndexKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
-import { PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
-import type { Site } from "./classify.ts";
-import { rowColumns } from "./drizzle-rows.ts";
-import { handedAt } from "./handoffs.ts";
+import { NESTED_READS, PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
 import type { FunctionLike, NativeWorld } from "./native.ts";
-import { constituents, declarationKeys, hasFlag, isFunctionLike } from "./native.ts";
-import { isProduction } from "./worlds.ts";
+import { constituents, hasFlag, isFunctionLike } from "./native.ts";
 
-// A serialization sends nested members too: a response's `messages[].content` leaves with the response. Deep enough
-// for a view holding a list of rows that hold one nested object.
-const SEND_DEPTH = 4;
 // Helpers a value passes through before it leaves: a sink that wraps a logger that wraps pino.
 const CHASE_DEPTH = 3;
-
-/** A value sent out of the process, the declaration keys it carries, and who receives it when the scan can name it. */
-interface OpenSend {
-  readonly site: Site;
-  readonly destination: SendDestination;
-  readonly receiver: string | null;
-  readonly keys: readonly string[];
-}
 
 /** Where a sent value goes: the destination's kind and the library, logger or call that takes it, when one is named. */
 export interface Destination {
@@ -98,56 +84,6 @@ function packageOf(path: string): string | null {
   return name.startsWith(TYPES_SCOPE) ? name.slice(TYPES_SCOPE.length) : name;
 }
 
-// --- Held members -------------------------------------------------------------------------------------------
-
-// The object types a value of `type` holds: itself or an array's element, each union member once.
-function* heldObjects(checker: Checker, type: Type): APIRequestGenerator<readonly Type[]> {
-  const plain = yield* checker.getNonNullableType.gen(type);
-  const element = (yield* checker.isArrayType.gen(plain)) && plain.isTypeReference() ? (yield* checker.getTypeArguments.gen(plain))[0] : undefined;
-  return (yield* constituents(element ?? plain)).filter((member) => hasFlag(member.flags, TypeFlags.Object) || hasFlag(member.flags, TypeFlags.Intersection));
-}
-
-// The in-tree members of object types: each declared member, and for a Drizzle row the column each of its
-// declaration-less members stands for. `declared` holds the declared ones alone, whose values nest further.
-function* treeProperties(
-  world: NativeWorld,
-  objects: readonly Type[],
-): APIRequestGenerator<{ readonly all: readonly NativeSymbol[]; readonly declared: readonly NativeSymbol[] }> {
-  const perObject = yield* all(...objects.map((type) => world.checker.getPropertiesOfType.gen(type)));
-  const declared = perObject.flat().filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
-  const columns = yield* all(
-    ...objects.flatMap((type, at) =>
-      (perObject[at] ?? []).filter((property) => property.declarations.length === 0).map((property) => rowColumns(world, type, property.name)),
-    ),
-  );
-  return { all: [...declared, ...columns.flat()], declared };
-}
-
-/** The in-tree members a value carries, through nested objects and array elements, each with its name. */
-function* heldNamed(world: NativeWorld, types: readonly Type[], levels: number): APIRequestGenerator<readonly NativeSymbol[]> {
-  const { checker } = world;
-  const found: NativeSymbol[] = [];
-  const seen = new Set<number>();
-  let pending = types;
-  for (let depth = 0; depth < levels && pending.length > 0; depth++) {
-    const held = (yield* all(...pending.map((type) => heldObjects(checker, type)))).flat();
-    const objects = held.filter((type) => !seen.has(type.id));
-    for (const type of objects) {
-      seen.add(type.id);
-    }
-    const properties = yield* treeProperties(world, objects);
-    found.push(...properties.all);
-    pending = properties.declared.length === 0 ? [] : yield* checker.getTypeOfSymbol.gen(properties.declared);
-  }
-  return found;
-}
-
-/** The declaration keys of every in-tree member a value carries, through nested objects and array elements. */
-export function* heldMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
-  const held = yield* heldNamed(world, [yield* world.checker.getTypeAtLocation.gen(value)], SEND_DEPTH);
-  return held.flatMap((property) => declarationKeys(property));
-}
-
 // --- Open slots ---------------------------------------------------------------------------------------------
 
 /** A slot no member names a key in: `unknown`, `object`, a type parameter bounded by one, or a type with an index
@@ -163,54 +99,6 @@ export function* isOpenType(checker: Checker, type: Type): APIRequestGenerator<b
   const members = yield* constituents(type);
   const infos = yield* all(...members.map((member) => checker.getIndexInfosOfType.gen(member)));
   return infos.some((list) => list.length > 0);
-}
-
-interface Handed {
-  /** The handed value's members the slot does not name, with their nested members. */
-  readonly keys: readonly string[];
-  /** The string-indexed object types of the slot, which a literal element read of the value goes through. */
-  readonly sinks: readonly number[];
-  /** Every handed member by name, at any depth, for a literal element read through a sink. */
-  readonly named: readonly NativeSymbol[];
-}
-
-const NOTHING: Handed = { keys: [], sinks: [], named: [] };
-
-// The in-tree members a typed value hands to its open slot. A string-indexed slot takes the members it does not name;
-// `unknown`, `object` or a bounded type parameter takes them all.
-function* handedInto(world: NativeWorld, value: Node): APIRequestGenerator<Handed> {
-  const { checker } = world;
-  const slot = yield* checker.getContextualType.gen(value as Expression);
-  if (slot === undefined) {
-    return NOTHING;
-  }
-  const valueType = yield* checker.getTypeAtLocation.gen(value);
-  if (hasFlag(valueType.flags, TypeFlags.Any)) {
-    return NOTHING;
-  }
-  const sources = yield* heldObjects(checker, valueType);
-  const properties = (yield* treeProperties(world, sources)).all;
-  if (properties.length === 0) {
-    return NOTHING;
-  }
-  const slotObjects = yield* heldObjects(checker, slot);
-  const indexes = yield* all(...slotObjects.map((type) => checker.getIndexInfoOfType.gen(type, IndexKind.String)));
-  const indexed = slotObjects.filter((_, at) => indexes[at] !== undefined);
-  const whole = indexed.length === 0 && (yield* isOpenType(checker, slot));
-  if (indexed.length === 0 && !whole) {
-    return NOTHING;
-  }
-  const named = yield* all(...properties.map((property) => all(...indexed.map((type) => checker.getPropertyOfType.gen(type, property.name)))));
-  const unnamed = whole ? properties : properties.filter((_, at) => (named[at] ?? []).every((member) => member === undefined));
-  if (unnamed.length === 0) {
-    return NOTHING;
-  }
-  const nested = yield* heldNamed(world, yield* checker.getTypeOfSymbol.gen(unnamed), SEND_DEPTH - 1);
-  return {
-    keys: [...unnamed, ...nested].flatMap((property) => declarationKeys(property)),
-    sinks: indexed.map((type) => type.id),
-    named: [...properties, ...(yield* heldNamed(world, yield* checker.getTypeOfSymbol.gen(properties), SEND_DEPTH - 1))],
-  };
 }
 
 // --- Where a handed value goes ------------------------------------------------------------------------------
@@ -330,7 +218,7 @@ function* resolved(handle: NodeHandle): APIRequestGenerator<Node | undefined> {
 // A serialization or a constructor whose destination its callee alone names, or null for any other call.
 function namedDestination(call: Invocation): readonly Destination[] | null {
   const text = call.expression.getText();
-  if (isCallExpression(call) && text === "JSON.stringify") {
+  if (isCallExpression(call) && text === SERIALIZE) {
     const serialized = serializedBy(call);
     return serialized.whole ? [] : [{ destination: serialized.destination, receiver: null }];
   }
@@ -379,38 +267,100 @@ function* libraryDestination(world: NativeWorld, call: Invocation, index: number
   return [{ destination: (yield* isLogCall(world, call)) ? "log" : "dependency", receiver: pkg }];
 }
 
+/** Where a chased value goes. `dropped`: it reached an in-tree body that only consumes it, on every path (the value is
+ *  tested, voided or left as a bare statement), so nothing receives it. A value returned, bound or stored is not
+ *  followed, which is no drop. `read`: some path reads every member of the value in the process, a compared
+ *  serialization or a dotted-path read ({@link NESTED_READS}). */
+export interface Chase {
+  readonly to: readonly Destination[];
+  readonly dropped: boolean;
+  readonly read: boolean;
+}
+
+const sentTo = (to: readonly Destination[]): Chase => ({ to, dropped: false, read: false });
+const READ_WHOLE: Chase = { to: [], dropped: false, read: true };
+const SERIALIZE = "JSON.stringify";
+
+// A call that reads every member of the value it takes: a serialization whose string is compared, hashed or keyed, or
+// a dotted-path reader's first argument.
+function readsWhole(call: Invocation, index: number): boolean {
+  if (isCallExpression(call) && call.expression.getText() === SERIALIZE) {
+    return serializedBy(call).whole;
+  }
+  const { text } = calleeOf(call);
+  return index === 0 && text !== null && NESTED_READS.has(text);
+}
+
 // Where a value given to `call` at `index` goes: a serialization's destination, a library, a logger, or wherever the
 // in-tree callee hands its parameter on.
-function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<readonly Destination[]> {
+function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase> {
+  if (readsWhole(call, index)) {
+    return READ_WHOLE;
+  }
   const named = namedDestination(call);
   if (named !== null) {
-    return named;
+    return sentTo(named);
   }
   const { name } = calleeOf(call);
   const declarations = (name === null ? undefined : yield* symbolOf(world, name))?.declarations ?? [];
   const inTree = declarations.find((handle) => world.fileOf(handle) !== null);
   const outside = declarations.find((handle) => world.fileOf(handle) === null);
   if (inTree === undefined && outside !== undefined) {
-    return yield* libraryDestination(world, call, index, outside.path);
+    return sentTo(yield* libraryDestination(world, call, index, outside.path));
   }
   const declaration = inTree === undefined ? undefined : yield* resolved(inTree);
   const fn = declaration === undefined ? null : functionOf(declaration);
   const parameter = fn === null ? undefined : (fn.parameters[index] ?? fn.parameters.at(-1));
   if (fn?.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)) {
-    const { body } = fn;
-    const parameterName = parameter.name.text;
-    return depth >= CHASE_DEPTH ? [] : (yield* all(...usesOf(body, parameterName).map((use) => destinationsOf(world, use, depth + 1)))).flat();
+    return depth >= CHASE_DEPTH ? sentTo([]) : yield* bodyChase(world, usesOf(fn.body, parameter.name.text), depth);
   }
-  return (yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call);
+  return sentTo((yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call));
 }
 
-function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIRequestGenerator<readonly Destination[]> {
+// Where an in-tree body's uses of its parameter take the value: every destination any use reaches, a read where any
+// use reads it whole, and a drop only where every use drops it.
+function* bodyChase(world: NativeWorld, uses: readonly Node[], depth: number): APIRequestGenerator<Chase> {
+  const chased = yield* all(...uses.map((use) => destinationsOf(world, use, depth + 1)));
+  const to = chased.flatMap((use) => use.to);
+  const read = chased.some((use) => use.read);
+  return { to, dropped: to.length === 0 && !read && chased.every((use) => use.dropped), read };
+}
+
+// A use that ends the value where it stands: a test, a `void`, a `typeof` or a bare statement. Any other position with
+// no call to follow (a return, a binding, a store, a key's receiver) passes the value on unseen.
+function consumedAt(value: Node): boolean {
+  let node = value;
+  for (let up = carriedUp(node); up !== null; up = carriedUp(node)) {
+    node = up;
+  }
+  const { parent } = node;
+  if (isVoidExpression(parent) || isTypeOfExpression(parent) || isExpressionStatement(parent) || isPrefixUnaryExpression(parent)) {
+    return true;
+  }
+  if ((isIfStatement(parent) || isWhileStatement(parent)) && parent.expression === node) {
+    return true;
+  }
+  return isBinaryExpression(parent) && CONSUMING_OPERATORS.has(parent.operatorToken.kind);
+}
+
+// The operators whose operands are only compared or tested; `??` and `||` hand an operand on (isWrapper).
+const CONSUMING_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.EqualsEqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsEqualsToken,
+  SyntaxKind.EqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsToken,
+  SyntaxKind.AmpersandAmpersandToken,
+  SyntaxKind.InstanceOfKeyword,
+  SyntaxKind.InKeyword,
+]);
+
+function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIRequestGenerator<Chase> {
   const carrier = carrierOf(value);
-  return carrier === null ? [] : yield* callDestinations(world, carrier.call, carrier.index, depth);
+  return carrier === null ? { to: [], dropped: consumedAt(value), read: false } : yield* callDestinations(world, carrier.call, carrier.index, depth);
 }
 
 /** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
-export const sendDestinations = (world: NativeWorld, value: Node): APIRequestGenerator<readonly Destination[]> => destinationsOf(world, value, 0);
+export const sendChase = (world: NativeWorld, value: Node): APIRequestGenerator<Chase> => destinationsOf(world, value, 0);
 
 // --- The provider request reach -----------------------------------------------------------------------------
 
@@ -561,6 +511,18 @@ function requestReach(world: NativeWorld, home: ReadonlySet<string>): ReadonlySe
   return reached;
 }
 
+/** The values that reach a provider request the backends make: only such a value is a provider send when no other
+ *  destination takes it. */
+export interface ProviderReach {
+  readonly has: (node: Node) => boolean;
+}
+
+/** The provider request reach of a world's `home` files: empty unless some of them sit under {@link PROVIDER_BODIES}. */
+export function providerReach(world: NativeWorld, home: ReadonlySet<string>): ProviderReach {
+  const reached = requestReach(world, home);
+  return { has: (node) => world.siteOf(node).file.startsWith(PROVIDER_BODIES) && reached.has(nodeKey(world, node)) };
+}
+
 interface Marking {
   readonly world: NativeWorld;
   readonly readers: ReadonlySet<string>;
@@ -639,12 +601,15 @@ function feeding(world: NativeWorld, declaration: Node, calls: Calls): readonly 
   return [];
 }
 
-// --- Assertions and module augmentations --------------------------------------------------------------------
+// --- Assertions --------------------------------------------------------------------
 
-// `tree as MarkdownNode` on a parameter a library typed: the library hands the object in and reads it back, so the
-// asserted type's in-tree members are that library's. On a returned closure's `unknown` parameter the receiver is the
-// unseen caller of the factory.
-function* assertedSend(world: NativeWorld, assertion: Node & { readonly expression: Expression }): APIRequestGenerator<OpenSend | null> {
+/** An `as` or angle-bracket assertion: its operand is handed to the asserted type. */
+export type Assertion = Node & { readonly expression: Expression };
+
+/** `tree as MarkdownNode` on a parameter a library typed: the library hands the object in and reads it back, so the
+ *  asserted type's in-tree members are sent to that library. On a returned closure's `unknown` parameter the receiver is
+ *  the unseen caller of the factory. Null for any other assertion. */
+export function* assertedDestination(world: NativeWorld, assertion: Assertion): APIRequestGenerator<Destination | null> {
   const { checker } = world;
   const operand = assertion.expression;
   if (!isIdentifier(operand)) {
@@ -658,16 +623,11 @@ function* assertedSend(world: NativeWorld, assertion: Node & { readonly expressi
   const typed = yield* operandType.getSymbol.gen();
   const declarations = typed?.declarations ?? [];
   const pkg = declarations.length > 0 && declarations.every((handle) => world.fileOf(handle) === null) ? packageOf(declarations[0]?.path ?? "") : null;
-  const caller = pkg === null && hasFlag(operandType.flags, TypeFlags.Unknown) ? yield* unseenCaller(world, symbol.valueDeclaration) : null;
-  if (pkg === null && caller === null) {
-    return null;
+  if (pkg !== null) {
+    return { destination: "dependency", receiver: pkg };
   }
-  const keys = (yield* heldNamed(world, [yield* checker.getTypeAtLocation.gen(assertion)], SEND_DEPTH)).flatMap((property) => declarationKeys(property));
-  if (keys.length === 0) {
-    return null;
-  }
-  const site = world.siteOf(assertion);
-  return pkg === null ? { site, destination: "unclassified", receiver: caller, keys } : { site, destination: "dependency", receiver: pkg, keys };
+  const caller = hasFlag(operandType.flags, TypeFlags.Unknown) ? yield* unseenCaller(world, symbol.valueDeclaration) : null;
+  return caller === null ? null : { destination: "unclassified", receiver: caller };
 }
 
 // The function a returned closure comes from, when the closure's `unknown` parameter is the one asserted: whoever calls
@@ -688,162 +648,4 @@ function* unseenCaller(world: NativeWorld, handle: NodeHandle): APIRequestGenera
   }
   const named = factory as Node & { readonly name?: Node };
   return named.name !== undefined && isIdentifier(named.name) ? `caller of ${named.name.text}` : "caller of a returned closure";
-}
-
-// An interface inside `declare module "pkg"` is that library's: it reads every member at type level.
-function augmentations(world: NativeWorld, home: ReadonlySet<string>): readonly OpenSend[] {
-  const members: { readonly name: Node; readonly pkg: string }[] = [];
-  for (const file of world.files.filter((source) => home.has(world.siteOf(source).file))) {
-    file.forEachChild((statement) => {
-      if (!(isModuleDeclaration(statement) && isStringLiteral(statement.name) && !statement.name.text.startsWith(".") && statement.body !== undefined)) {
-        return;
-      }
-      const pkg = statement.name.text;
-      const { body } = statement;
-      for (const declaration of isModuleBlock(body) ? body.statements : []) {
-        if (isInterfaceDeclaration(declaration)) {
-          members.push(...declaration.members.flatMap((member) => (isPropertySignatureDeclaration(member) ? [{ name: member.name, pkg }] : [])));
-        }
-      }
-    });
-  }
-  const symbols = world.symbolsAt(members.map(({ name }) => name));
-  return members.flatMap(({ name, pkg }, at) => {
-    const symbol = symbols[at];
-    return symbol === undefined ? [] : [{ site: world.siteOf(name), destination: "dependency" as const, receiver: pkg, keys: declarationKeys(symbol) }];
-  });
-}
-
-// --- Direct logger arguments --------------------------------------------------------------------------------
-
-// A call a logger's name or method could spell, before the checker is asked whose it is.
-function spelledLikeLog(call: Invocation): boolean {
-  const { text, receiver } = calleeOf(call);
-  const receiverText = lastName(receiver);
-  return (text !== null && (LOG_METHODS.has(text) || LOG_NAME.test(text))) || (receiverText !== null && LOG_NAME.test(receiverText));
-}
-
-// A library logger infers its parameter from the argument, `debug<T extends object>(obj: T)`, so the slot is the value's
-// own type and names every member. No slot is open, yet the logger writes each member out.
-function* loggedSend(world: NativeWorld, call: Invocation, argument: Node): APIRequestGenerator<OpenSend | null> {
-  const { pkg } = yield* calleeAt(world, call);
-  if (pkg === null || pkg === COLUMN_PACKAGE || isAiSdk(pkg)) {
-    return null;
-  }
-  const slot = yield* world.checker.getContextualType.gen(argument as Expression);
-  // An open slot's members leave through the open-slot pass.
-  if (slot === undefined || (yield* isOpenType(world.checker, slot)) || !(yield* isLogCall(world, call))) {
-    return null;
-  }
-  const keys = yield* heldMembers(world, argument);
-  return keys.length === 0 ? null : { site: world.siteOf(argument), destination: "log", receiver: pkg, keys };
-}
-
-// --- The whole pass -----------------------------------------------------------------------------------------
-
-/** A literal-key element read with no declaration, `row["tool_calls"]`, and the type it reads through. */
-export interface LiteralRead {
-  readonly site: Site;
-  readonly receiver: Node;
-  readonly name: string;
-}
-
-/** What a world's open slots send, and the members a literal element read through one of them reads. */
-export interface OpenFacts {
-  readonly sends: readonly OpenSend[];
-  readonly reads: readonly { readonly site: Site; readonly keys: readonly string[] }[];
-}
-
-type Assertion = Node & { readonly expression: Expression };
-
-interface HandedValues {
-  readonly values: readonly Node[];
-  readonly assertions: readonly Assertion[];
-  /** Each argument of a call spelled like a logger's, with its call. */
-  readonly logged: readonly { readonly call: Invocation; readonly argument: Node }[];
-}
-
-// Every value a production file hands to a typed slot, every assertion, whose operand is handed to the asserted type,
-// and every argument of a call spelled like a logger's.
-function handedValues(world: NativeWorld, files: ReadonlySet<string>): HandedValues {
-  const values: Node[] = [];
-  const assertions: Assertion[] = [];
-  const logged: { readonly call: Invocation; readonly argument: Node }[] = [];
-  for (const file of world.files.filter((source) => files.has(world.siteOf(source).file))) {
-    const visit = (node: Node): void => {
-      if (isAsExpression(node) || isTypeAssertion(node)) {
-        values.push(node.expression);
-        assertions.push(node);
-      } else {
-        const handed = handedAt(node);
-        values.push(...handed.filter((value) => !isObjectLiteralExpression(value)));
-        if ((isCallExpression(node) || isNewExpression(node)) && spelledLikeLog(node)) {
-          logged.push(...handed.map((argument) => ({ call: node, argument })));
-        }
-      }
-      node.forEachChild(visit);
-    };
-    file.forEachChild(visit);
-  }
-  return { values, assertions, logged };
-}
-
-// Each file's string-indexed sink types, with the members of every value handed into one, by name.
-type Sinks = Map<string, Map<string, string[]>>;
-
-function recordSinks(sinks: Sinks, file: string, into: Handed): void {
-  for (const sink of into.sinks) {
-    const key = `${file}|${String(sink)}`;
-    const byName = sinks.get(key) ?? new Map<string, string[]>();
-    for (const member of into.named) {
-      byName.set(member.name, [...(byName.get(member.name) ?? []), ...declarationKeys(member)]);
-    }
-    sinks.set(key, byName);
-  }
-}
-
-function sinkReads(world: NativeWorld, sinks: Sinks, literalReads: readonly LiteralRead[]): OpenFacts["reads"] {
-  const receivers = world.batch(
-    literalReads.map(function* ({ receiver }): APIRequestGenerator<readonly number[]> {
-      const type = yield* world.checker.getNonNullableType.gen(yield* world.checker.getTypeAtLocation.gen(receiver));
-      return (yield* constituents(type)).map((member) => member.id);
-    }),
-  );
-  return literalReads.flatMap(({ site, name }, at) => {
-    const keys = (receivers[at] ?? []).flatMap((id) => sinks.get(`${site.file}|${String(id)}`)?.get(name) ?? []);
-    return keys.length === 0 ? [] : [{ site, keys: [...new Set(keys)] }];
-  });
-}
-
-/** Every open-slot send of a world's production `home` files: a typed value handed into an open slot (`open` holds the
- *  open literal keys' values and open spreads, which send all their members), a value given straight to a library
- *  logger, an assertion of a library's parameter, and a module augmentation. A literal element read on a value whose type a typed value was handed into in the same
- *  file reads that value's members of its name. */
-export function openFacts(world: NativeWorld, home: ReadonlySet<string>, open: readonly Node[], literalReads: readonly LiteralRead[]): OpenFacts {
-  const files = new Set([...home].filter(isProduction));
-  const { values, assertions, logged } = handedValues(world, files);
-  const handed = [...open, ...values];
-  const reach = requestReach(world, files);
-  const openSet = new Set(open.map((node) => nodeKey(world, node)));
-  const answers = world.batch(
-    handed.map(function* (value): APIRequestGenerator<{ readonly into: Handed; readonly to: readonly Destination[] }> {
-      const into = openSet.has(nodeKey(world, value)) ? { ...NOTHING, keys: yield* heldMembers(world, value) } : yield* handedInto(world, value);
-      return { into, to: into.keys.length === 0 ? [] : yield* destinationsOf(world, value, 0) };
-    }),
-  );
-  const sends: OpenSend[] = [];
-  const sinks: Sinks = new Map();
-  for (const [at, value] of handed.entries()) {
-    const { into, to } = answers[at] ?? { into: NOTHING, to: [] };
-    const site = world.siteOf(value);
-    const requested = to.length === 0 && site.file.startsWith(PROVIDER_BODIES) && reach.has(nodeKey(world, value));
-    for (const { destination, receiver } of requested ? [{ destination: "provider" as const, receiver: null }] : to) {
-      sends.push({ site, destination, receiver, keys: into.keys });
-    }
-    recordSinks(sinks, site.file, into);
-  }
-  sends.push(...world.batch(logged.map(({ call, argument }) => loggedSend(world, call, argument))).flatMap((send) => (send === null ? [] : [send])));
-  sends.push(...world.batch(assertions.map((assertion) => assertedSend(world, assertion))).flatMap((send) => (send === null ? [] : [send])));
-  sends.push(...augmentations(world, files));
-  return { sends, reads: sinkReads(world, sinks, literalReads) };
 }

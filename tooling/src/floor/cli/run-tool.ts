@@ -19,8 +19,23 @@ import { EXIT } from "./exit-contract.ts";
 /** Throw from a tool main for CLI misuse — the runner maps it to exit 3 (misuse) with the message. */
 export class UsageError extends Error {}
 
-function describeThrown(e: unknown): string {
-  return e instanceof Error ? (e.stack ?? e.message) : String(e);
+/**
+ * A thrown value as text: an Error's stack, or its message when `detail` is `message`. A `SuppressedError` carries two
+ * failures, a `using` block's disposal in `.error` and the run's own failure in `.suppressed`, so it names both, the
+ * run's first; a chain of them unpacks the same way.
+ */
+export function describeThrown(e: unknown, detail: "stack" | "message" = "stack"): string {
+  if (e instanceof SuppressedError) {
+    const run = describeThrown(e.suppressed, detail);
+    const disposal = describeThrown(e.error, detail);
+    return detail === "message"
+      ? `${run}; disposal then failed: ${disposal}`
+      : `the run failed, then its disposal failed too\n--- the run's error ---\n${run}\n--- the disposal's error ---\n${disposal}`;
+  }
+  if (!(e instanceof Error)) {
+    return String(e);
+  }
+  return detail === "message" ? e.message : (e.stack ?? e.message);
 }
 
 /** The no-downgrade lattice (behavior 3). */

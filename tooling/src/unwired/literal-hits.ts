@@ -19,12 +19,31 @@
 // - A code hit (a read, write or call) in a file the program holds that the checker resolves to a declaration other
 //   than the row's is another member of the same name, so it is no evidence for the row; an unresolved one stays. An
 //   object literal key, a shorthand's included, also resolves to the member its contextual type names, which it writes.
-// - A string or template hit holds a row only as a key, never as copy text: in key syntax, or where the checker's
-//   contextual type for it is a string-literal union holding the name, a dotted path by its segment (keyedHits).
+// - A hit holds a row only when it names the row's own declaration. A code hit names it when the checker resolves it
+//   there (an object literal key its slot names). A read names it when the receiver, with casts, `satisfies`, `!` and
+//   parentheses taken off, has a type with a property of that name that resolves to the declaration, a union's or
+//   intersection's constituent included (ownedHits): an unresolved property read `(row as any).id`, a destructuring
+//   element off its declaration's initializer `const { id } = row as any`, and a string whose whole text is the name,
+//   parentheses taken off, as an element access's argument `(row as any)["id"]` or an `in` operand `"id" in (row as
+//   object)`. A destructuring pattern with no initializer to read (a parameter, a nested or an assignment pattern, a
+//   loop variable) only annotates.
+// - A quoted property name in an object literal or a type holds only when the checker resolves it to the row's
+//   declaration; a key of a `Record`-typed literal names the literal's own property and only annotates.
+// - A receiver typed `any`, `unknown`, `object`, `Record<string, …>` or an index signature names no owner, so its reads
+//   only annotate, quoted or not. A string in a value position (a returned value, a call argument, a JSX attribute
+//   value, a `z.literal`) and a key that only contains the word annotate too.
+// - The cost: a member read by name at runtime off data untyped from the start, never typed by its owner, can look
+//   deletable.
+// - A key in loaded data holds a row only when the type the product reads that data as carries the row's declaration
+//   along the key's path. A bundle manifest is read as the host's manifest type (MANIFEST_TYPE), found through the
+//   program by the contracts export the host imports it by; with no such export in the world its keys only annotate.
+//   A JSON module a product file imports is typed by its own content, whose members its own keys declare, so its keys
+//   never name another declaration and only annotate.
+// - An import or export only annotates: one that binds the row's own declaration is always one of its own sites.
 // - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
 //   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
 //   file a product module imports; each showcase bundle's manifest, which the release build packs into the shipped
-//   zip. A hit in a test, the tooling or any other config is evidence to list, never to keep a row by.
+//   zip. A hit in a test, the tooling (snap's included) or any other config is evidence to list, never to keep a row by.
 import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, join, relative, resolve } from "node:path";
 import process from "node:process";
@@ -55,6 +74,8 @@ import {
   getLeadingCommentRanges,
   getTokenAtPosition,
   getTrailingCommentRanges,
+  isArrayLiteralExpression,
+  isAsExpression,
   isBinaryExpression,
   isBindingElement,
   isClassDeclaration,
@@ -76,29 +97,32 @@ import {
   isMethodDeclaration,
   isMethodSignatureDeclaration,
   isModuleDeclaration,
+  isNonNullExpression,
   isNoSubstitutionTemplateLiteral,
   isNumericLiteral,
+  isObjectBindingPattern,
   isObjectLiteralExpression,
   isParameterDeclaration,
+  isParenthesizedExpression,
   isPrivateIdentifier,
+  isPropertyAccessExpression,
   isPropertyAssignment,
   isPropertyDeclaration,
   isPropertySignatureDeclaration,
+  isSatisfiesExpression,
   isShorthandPropertyAssignment,
   isSourceFile,
   isStringLiteral,
-  isTemplateExpression,
-  isTemplateHead,
-  isTemplateSpan,
   isTypeAliasDeclaration,
+  isTypeAssertion,
   isTypeNode,
   isTypeParameterDeclaration,
   isVariableDeclaration,
   SyntaxKind,
   skipTrivia,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
-import { isRemoteNode } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
+import { isRemoteNode, SymbolFlags } from "@typescript/native/sync";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { execGit, runGit } from "../floor/git/git.ts";
@@ -111,7 +135,7 @@ import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import type { NativeWorld } from "./native.ts";
-import { declarationKeys, deepestAt, nameAt, nodePlace, propertiesNamed } from "./native.ts";
+import { constituents, declarationKeys, deepestAt, hasFlag, nameAt, nodePlace, propertiesNamed } from "./native.ts";
 import type { PluginSources } from "./optional-population.ts";
 import { isProduction, readPluginSources } from "./optional-population.ts";
 
@@ -212,8 +236,13 @@ export interface LiteralSearch {
   readonly productData: ReadonlySet<string>;
   /** The declaration keys each resolved code hit in a held file goes to; a hit the checker resolves to nothing is absent. */
   readonly resolved: ReadonlyMap<LiteralHit, readonly string[]>;
-  /** The string and template hits in held product source that act as a key, the only ones that can hold a row. */
+  /** The hits in held product source whose whole quoted text is the name, as an `in` operand, an element access's
+   *  argument or a property name: the key uses that hold a row the program holds no declaration for. */
   readonly keyed: ReadonlySet<LiteralHit>;
+  /** For each read-shaped hit in a held file (an unresolved property or element read, a destructuring element, a
+   *  whole-key `in` operand) and each bundle manifest key, the declaration keys of that name's members on the type the
+   *  value is read as. */
+  readonly owned: ReadonlyMap<LiteralHit, readonly string[]>;
   /** The plugin author and SDK sources, which count as product source beside the packages' own. */
   readonly plugins: PluginSources;
 }
@@ -484,25 +513,35 @@ export function searchLiterals(root: string, world: NativeWorld, names: readonly
   }
   const all = [...hits.values()].flat();
   const plugins = readPluginSources(root);
+  const manifests = bundleManifests(root);
+  const resolved = resolvedHits(world, all);
   return {
     files,
     ignored,
     hits,
-    productData: loadedData(root, world, all, plugins),
-    resolved: resolvedHits(world, all),
+    productData: loadedData(root, world, all, { plugins, manifests }),
+    resolved,
     keyed: keyedHits(world, all, plugins),
+    owned: new Map([...ownedHits(world, all, resolved), ...manifestOwned(root, world, all, manifests)]),
     plugins,
   };
 }
 
+// Every showcase bundle's manifest under the source directory the release build packs from.
+const bundleManifests = (root: string): ReadonlySet<string> =>
+  new Set(SHOWCASE_PLUGIN_SLUGS.map((slug) => relative(root, join(showcaseSourceDirectory(root), slug, PLUGIN_MANIFEST_ENTRY))));
+
 // The data files among the hits' files that the product loads: a JSON file the program holds that a product module
-// imports (its import resolved by the program, so a JSON a test or a script imports stays out), and every showcase
-// bundle's manifest under the source directory the release build packs from.
-function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[], plugins: PluginSources): ReadonlySet<string> {
-  const manifests = SHOWCASE_PLUGIN_SLUGS.map((slug) => relative(root, join(showcaseSourceDirectory(root), slug, PLUGIN_MANIFEST_ENTRY)));
+// imports (its import resolved by the program, so a JSON a test or a script imports stays out), and every manifest.
+function loadedData(
+  root: string,
+  world: NativeWorld,
+  hits: readonly LiteralHit[],
+  { plugins, manifests }: { readonly plugins: PluginSources; readonly manifests: ReadonlySet<string> },
+): ReadonlySet<string> {
   const held = new Set(hits.flatMap(({ file }) => (fileType(file) === "config" && world.has(file) ? [file] : [])));
   if (held.size === 0) {
-    return new Set(manifests);
+    return manifests;
   }
   const specifiers = world.files
     .filter((source) => isProduction(world.fileOfSource(source), plugins))
@@ -512,52 +551,194 @@ function loadedData(root: string, world: NativeWorld, hits: readonly LiteralHit[
   return new Set([...manifests, ...imported.filter((file) => held.has(file))]);
 }
 
+// The type the host parses a bundle manifest into (pluginManifestSchema's output): the contracts export specifier the
+// host imports it by, and the alias's name there.
+const MANIFEST_TYPE = { specifier: "@orb/contracts/plugin", alias: "PluginManifest" } as const;
+
+// The manifest type through the program: the specifier resolved from a held file that imports it, and the alias among
+// that module's exports. Undefined when no held file imports it or it resolves outside the world.
+function manifestType(root: string, world: NativeWorld): Type | undefined {
+  const importer = world.files
+    .flatMap((source) => moduleSpecifiers(source).flatMap((specifier) => (specifier.text === MANIFEST_TYPE.specifier ? [{ source, specifier }] : [])))
+    .at(0);
+  if (importer === undefined) {
+    return undefined;
+  }
+  const { checker } = world;
+  const [found] = world.batch([
+    (function* (): APIRequestGenerator<{ readonly held: boolean; readonly type: Type | undefined }> {
+      const module = yield* world.program.getResolvedModuleFromModuleSpecifier.gen(importer.specifier, importer.source.fileName);
+      const file = module?.resolvedFileName === undefined ? undefined : world.source(relative(root, module.resolvedFileName));
+      const symbol = file === undefined ? undefined : yield* checker.getSymbolAtLocation.gen(file);
+      if (symbol === undefined) {
+        return { held: false, type: undefined };
+      }
+      const exported = (yield* checker.getExportsOfModule.gen(symbol)).find(({ name }) => name === MANIFEST_TYPE.alias);
+      const alias = exported !== undefined && hasFlag(exported.flags, SymbolFlags.Alias) ? yield* checker.getAliasedSymbol.gen(exported) : exported;
+      return { held: true, type: alias === undefined ? undefined : yield* checker.getDeclaredTypeOfSymbol.gen(alias) };
+    })(),
+  ]);
+  if (found?.held === true && found.type === undefined) {
+    throw new Error(
+      `literal hits: ${MANIFEST_TYPE.specifier} resolves in the program but exports no ${MANIFEST_TYPE.alias}, the type a manifest is parsed into`,
+    );
+  }
+  return found?.type;
+}
+
+// An array element's step on a data key's path from the document's root; every other step is the enclosing key's name.
+const ITEM: null = null;
+type DataStep = string | typeof ITEM;
+
+// The path of each key of a parsed data file, by the key's git line and name.
+function dataPaths(source: SourceFile): ReadonlyMap<string, readonly (readonly DataStep[])[]> {
+  const starts = gitLineStarts(source.text);
+  const paths = new Map<string, DataStep[][]>();
+  const visit = (node: Node): void => {
+    if (isPropertyAssignment(node) && isStringLiteral(node.name)) {
+      const start = node.name.getStart(source);
+      const line = starts.findLastIndex((at) => at <= start) + 1;
+      const key = `${String(line)}:${node.name.text}`;
+      paths.set(key, [...(paths.get(key) ?? []), pathOf(node)]);
+    }
+    node.forEachChild(visit);
+  };
+  source.forEachChild(visit);
+  return paths;
+}
+
+// The steps from the document's root down to the object that holds `key`.
+function pathOf(key: PropertyAssignment): DataStep[] {
+  const steps: DataStep[] = [];
+  let node: Node = key.parent;
+  for (;;) {
+    const { parent } = node;
+    if (isArrayLiteralExpression(parent)) {
+      steps.unshift(ITEM);
+      node = parent;
+    } else if (isPropertyAssignment(parent) && isStringLiteral(parent.name)) {
+      steps.unshift(parent.name.text);
+      node = parent.parent;
+    } else {
+      return steps;
+    }
+  }
+}
+
+// The types one step below `types`: an array's element type, or the type of each member of the step's name, a union's
+// arms each taken (propertiesNamed splits them).
+function* stepTypes(checker: Checker, types: readonly Type[], step: DataStep): APIRequestGenerator<readonly Type[]> {
+  const next: Type[] = [];
+  for (const type of types) {
+    next.push(...(step === ITEM ? yield* elementTypes(checker, type) : yield* memberTypes(checker, type, step)));
+  }
+  return next;
+}
+
+function* elementTypes(checker: Checker, type: Type): APIRequestGenerator<readonly Type[]> {
+  const elements: Type[] = [];
+  for (const arm of yield* constituents(type)) {
+    if ((yield* checker.isArrayType.gen(arm)) && arm.isTypeReference()) {
+      elements.push(...(yield* checker.getTypeArguments.gen(arm)).slice(0, 1));
+    }
+  }
+  return elements;
+}
+
+function* memberTypes(checker: Checker, type: Type, name: string): APIRequestGenerator<readonly Type[]> {
+  const types: Type[] = [];
+  for (const member of yield* propertiesNamed(checker, type, name)) {
+    if (member !== undefined) {
+      types.push(yield* checker.getTypeOfSymbol.gen(member));
+    }
+  }
+  return types;
+}
+
+// The declaration keys of the members a data key names on `type`, along its path.
+function* dataMembers(checker: Checker, type: Type, paths: readonly (readonly DataStep[])[], name: string): APIRequestGenerator<readonly string[]> {
+  const keys: string[] = [];
+  for (const path of paths) {
+    let types: readonly Type[] = [type];
+    for (const step of path) {
+      types = yield* stepTypes(checker, types, step);
+    }
+    for (const owner of types) {
+      keys.push(...(yield* propertiesNamed(checker, owner, name)).flatMap((member) => (member === undefined ? [] : declarationKeys(member))));
+    }
+  }
+  return keys;
+}
+
+// What each bundle manifest key names on the host's manifest type, along its path.
+function manifestOwned(
+  root: string,
+  world: NativeWorld,
+  hits: readonly LiteralHit[],
+  manifests: ReadonlySet<string>,
+): ReadonlyMap<LiteralHit, readonly string[]> {
+  const keys = hits.filter((hit) => hit.kind === "config-key" && manifests.has(hit.file));
+  const type = keys.length === 0 ? undefined : manifestType(root, world);
+  if (type === undefined) {
+    return new Map();
+  }
+  const paths = new Map<string, ReadonlyMap<string, readonly (readonly DataStep[])[]>>();
+  parsePage(world, [...new Set(keys.map(({ file }) => file))], (file, source) => {
+    paths.set(file, dataPaths(source));
+  });
+  const { checker } = world;
+  const members = world.batch(keys.map((hit) => dataMembers(checker, type, paths.get(hit.file)?.get(`${String(hit.line)}:${hit.name}`) ?? [], hit.name)));
+  return new Map(keys.map((hit, at) => [hit, members[at] ?? []] as const));
+}
+
 const CODE_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["read", "write", "call"]);
 const TEXT_KINDS: ReadonlySet<HitKind> = new Set<HitKind>(["string", "template"]);
+// A quoted key is a string hit, or a code hit where the role rules judge it: an element access, an object literal key.
+const KEY_KINDS: ReadonlySet<HitKind> = new Set<HitKind>([...TEXT_KINDS, ...CODE_KINDS]);
 
-// A string or template hit in held product source acts as a key when it sits in key syntax, or when the checker's
-// contextual type for it is a string-literal union with a member whose dotted segments hold the name: a keyof
-// parameter, a typed registry, a form path. Judged by the type, never by the callee's name; copy text is neither.
+// The hits in held product source that are a key use: a string whose whole text is the name, as an `in` operand, an
+// element access's argument or a property name (quoted, or a computed name from a literal). A string in a value
+// position, such as a returned value, a call argument or a JSX attribute value, is copy or data, never a key use, even
+// where the checker types its slot as a literal union that holds the name; so is a key that only contains the word. A
+// row with a declaration needs more: the receiver test in ownedHits.
 function keyedHits(world: NativeWorld, hits: readonly LiteralHit[], plugins: PluginSources): ReadonlySet<LiteralHit> {
-  const asked = hits.flatMap((hit) => {
-    const token =
-      hit.graph && hit.offset !== null && TEXT_KINDS.has(hit.kind) && isProduction(hit.file, plugins) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
-    const text = token === undefined ? undefined : textExpression(token);
-    return text === undefined ? [] : [{ hit, text }];
-  });
-  const syntactic = asked.filter(({ text }) => inKeySyntax(text));
-  const typed = asked.filter(({ text }) => !inKeySyntax(text));
-  sendable(
-    "the literal hits' strings",
-    typed.map(({ hit, text }) => ({ node: text, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the string its token sits in` })),
+  return new Set(
+    hits.filter((hit) => {
+      const token =
+        hit.graph && hit.offset !== null && KEY_KINDS.has(hit.kind) && isProduction(hit.file, plugins) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+      return token !== undefined && isWholeKey(token, hit.name);
+    }),
   );
-  const literals = world.batch(typed.map(({ text }) => contextualLiterals(world, text)));
-  return new Set([
-    ...syntactic.map(({ hit }) => hit),
-    ...typed.flatMap(({ hit }, at) => ((literals[at] ?? []).some((value) => value.split(PATH_SEPARATOR).includes(hit.name)) ? [hit] : [])),
-  ]);
 }
 
-const PATH_SEPARATOR = ".";
-
-// The string or template expression a text hit's token sits in: the literal itself, or the template a head, middle or
-// tail belongs to.
-function textExpression(token: Node): Expression | undefined {
-  if (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) {
-    return token;
+// A string or no-substitution template whose text is `name`, sitting where a key goes.
+function isWholeKey(token: Node, name: string): boolean {
+  if (!isWholeText(token, name)) {
+    return false;
   }
-  const template = isTemplateHead(token) ? token.parent : token.parent.parent;
-  return (isTemplateHead(token) || isTemplateSpan(token.parent)) && isTemplateExpression(template) ? template : undefined;
+  const key = keyNode(token);
+  const { parent } = key;
+  return (isElementAccessExpression(parent) && sameNode(parent.argumentExpression, key)) || inKeySyntax(key);
 }
 
-// Key syntax: an `in` operand, a computed name, or a quoted member or property name. An element access's quoted key is
-// no string hit: the role rules read it as a read, held unless the checker resolves it elsewhere.
-function inKeySyntax(text: Expression): boolean {
-  const { parent } = text;
+const isWholeText = (token: Node, name: string): boolean => (isStringLiteral(token) || isNoSubstitutionTemplateLiteral(token)) && token.text === name;
+
+// A key with its parentheses: `x[("k")]` and `("k") in x` key by the parenthesized string.
+function keyNode(token: Node): Node {
+  let key = token;
+  while (isParenthesizedExpression(key.parent)) {
+    key = key.parent;
+  }
+  return key;
+}
+
+// Key syntax: an `in` operand, a computed name, or a quoted member or property name.
+function inKeySyntax(key: Node): boolean {
+  const { parent } = key;
   if (isBinaryExpression(parent)) {
-    return parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, text);
+    return parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, key);
   }
-  return isComputedPropertyName(parent) || (isNamedMember(parent) && sameNode(parent.name, text));
+  return isComputedPropertyName(parent) || (isNamedMember(parent) && sameNode(parent.name, key));
 }
 
 const isNamedMember = (
@@ -568,16 +749,6 @@ const isNamedMember = (
   isPropertyDeclaration(node) ||
   isMethodDeclaration(node) ||
   isMethodSignatureDeclaration(node);
-
-// The string-literal values of the type the checker expects at a text, each member of a union on its own.
-function* contextualLiterals(world: NativeWorld, text: Expression): APIRequestGenerator<readonly string[]> {
-  const type = yield* world.checker.getContextualType.gen(text);
-  if (type === undefined) {
-    return [];
-  }
-  const members = type.isUnionType() ? yield* type.getTypes.gen() : [type];
-  return members.flatMap((member) => (member.isStringLiteralType() ? [member.value] : []));
-}
 
 // The node a held file's hit or known site starts, by its `file:offset`.
 function heldNodeAt(world: NativeWorld, file: string, offset: number): Node | undefined {
@@ -596,11 +767,12 @@ function sendable(query: string, asked: readonly { readonly node: Node; readonly
   }
 }
 
-// What each code hit in a held file resolves to, in one batched lookup.
+// What each code hit in a held file resolves to, in one batched lookup. A shorthand destructuring element resolves to
+// the local it declares, never the member it reads, so it stays unresolved for the receiver test.
 function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): ReadonlyMap<LiteralHit, readonly string[]> {
   const asked = hits.flatMap((hit) => {
     const node = hit.graph && hit.offset !== null && CODE_KINDS.has(hit.kind) ? heldNodeAt(world, hit.file, hit.offset) : undefined;
-    return node === undefined ? [] : [{ hit, node }];
+    return node === undefined || isShorthandBinding(node) ? [] : [{ hit, node }];
   });
   sendable(
     "the literal hits' code reads",
@@ -614,6 +786,76 @@ function resolvedHits(world: NativeWorld, hits: readonly LiteralHit[]): Readonly
       return keys.length === 0 ? [] : [[hit, keys] as const];
     }),
   );
+}
+
+const isShorthandBinding = (token: Node): boolean =>
+  isBindingElement(token.parent) &&
+  token.parent.propertyName === undefined &&
+  sameNode(token.parent.name, token) &&
+  isObjectBindingPattern(token.parent.parent);
+
+// What each read-shaped hit in a held file names through the value it is read off, in one batched lookup: an
+// unresolved property or element read, a destructuring element, and a whole-key string as an `in` operand.
+function ownedHits(
+  world: NativeWorld,
+  hits: readonly LiteralHit[],
+  resolved: ReadonlyMap<LiteralHit, readonly string[]>,
+): ReadonlyMap<LiteralHit, readonly string[]> {
+  const reads = hits.flatMap((hit) => {
+    const asked = (CODE_KINDS.has(hit.kind) && !resolved.has(hit)) || TEXT_KINDS.has(hit.kind);
+    const token = asked && hit.graph && hit.offset !== null ? heldNodeAt(world, hit.file, hit.offset) : undefined;
+    const receiver = token === undefined ? undefined : receiverOf(token, hit.name);
+    return receiver === undefined ? [] : [{ hit, receiver }];
+  });
+  sendable(
+    "the literal hits' owners",
+    reads.map(({ hit, receiver }) => ({ node: receiver, what: `hit ${hit.at} ${hit.kind} of ${hit.name}, the value it is read off` })),
+  );
+  const { checker } = world;
+  const members = world.batch(
+    reads.map(function* ({ hit, receiver }) {
+      return yield* propertiesNamed(checker, yield* checker.getTypeAtLocation.gen(receiver), hit.name);
+    }),
+  );
+  return new Map(reads.map(({ hit }, at) => [hit, (members[at] ?? []).flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol)))] as const));
+}
+
+// The value a read names a member off, with parentheses, casts, `satisfies` and non-null assertions taken off: a
+// property access's object, a destructuring element's declaration initializer, and for a string whose whole text is
+// the name, an element access's object or an `in` operand's right side. `(row as any).id`, `const { id } = row as
+// any`, `(row as any)["id"]` and `"id" in (row as object)` all read `row`.
+function receiverOf(token: Node, name: string): Expression | undefined {
+  const whole = isWholeText(token, name);
+  const key = keyNode(token);
+  const { parent } = key;
+  let value: Expression | undefined;
+  if (isPropertyAccessExpression(token.parent) && sameNode(token.parent.name, token)) {
+    value = token.parent.expression;
+  } else if (isBindingElement(token.parent)) {
+    value = boundFrom(token, whole);
+  } else if (whole && isElementAccessExpression(parent) && sameNode(parent.argumentExpression, key)) {
+    value = parent.expression;
+  } else if (whole && isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.InKeyword && sameNode(parent.left, key)) {
+    value = parent.right;
+  }
+  while (
+    value !== undefined &&
+    (isParenthesizedExpression(value) || isAsExpression(value) || isSatisfiesExpression(value) || isNonNullExpression(value) || isTypeAssertion(value))
+  ) {
+    value = value.expression;
+  }
+  return value;
+}
+
+// The initializer a destructuring element reads its key off: `{ id }` and `{ id: local }` and `{ "id": local }` of a
+// variable declaration's object pattern. A pattern with no initializer of its own reads no receiver here.
+function boundFrom(token: Node, whole: boolean): Expression | undefined {
+  const element = token.parent;
+  if (!(isBindingElement(element) && isObjectBindingPattern(element.parent) && sameNode(element.propertyName ?? element.name, token))) {
+    return undefined;
+  }
+  const declaration = element.parent.parent;
+  return (whole || isIdentifier(token)) && isVariableDeclaration(declaration) ? declaration.initializer : undefined;
 }
 
 // An object literal key, a shorthand's included, writes the member its contextual type names, while the checker's
@@ -836,8 +1078,9 @@ export interface LiteralEvidence {
   readonly own: number;
   /** Code hits left out because the checker resolves them to another declaration of the same name. */
   readonly elsewhere: number;
-  /** Some saving hit sits in parsed product source or loaded product data, so it can stand for a product read; any
-   *  other hit only annotates. Those hits lead {@link LiteralEvidence.hits}. */
+  /** Some saving hit sits in loaded product data, or in parsed product source as a key or a read of the row's own
+   *  declaration, so it can stand for a product read; any other hit only annotates. Those hits lead
+   *  {@link LiteralEvidence.hits}. */
   readonly productRead: boolean;
 }
 
@@ -896,11 +1139,15 @@ function judged(
 ): readonly { readonly hits: readonly LiteralHit[]; readonly literal: LiteralEvidence }[] {
   const declarations = rowDeclarations(world, rows);
   return rows.map((row, at) => {
-    const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: declarations[at] ?? new Set() });
-    return {
-      hits,
-      literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, keyed: search.keyed, plugins: search.plugins }, search.files),
-    };
+    const mine = declarations[at] ?? new Set<string>();
+    const { hits, own, elsewhere } = searched(search, row.member, { known: new Set(row.known), declarations: mine });
+    // A row with no declaration the program holds cannot be told from another member of its name, so any code hit,
+    // whole key or loaded data key can be its read, as `searched` keeps every hit for it.
+    const names = (hit: LiteralHit): boolean =>
+      mine.size === 0
+        ? CODE_KINDS.has(hit.kind) || search.keyed.has(hit) || search.productData.has(hit.file)
+        : [...(search.resolved.get(hit) ?? []), ...(search.owned.get(hit) ?? [])].some((key) => mine.has(key));
+    return { hits, literal: evidenceOf(row, hits, { own, elsewhere, productData: search.productData, names, plugins: search.plugins }, search.files) };
   });
 }
 
@@ -917,21 +1164,21 @@ function evidenceOf(
     own,
     elsewhere,
     productData,
-    keyed,
+    names,
     plugins,
   }: {
     readonly own: number;
     readonly elsewhere: number;
     readonly productData: ReadonlySet<string>;
-    readonly keyed: ReadonlySet<LiteralHit>;
+    /** Whether a hit names the row's own declaration: the checker resolves it there, or it is a read or a data key
+     *  whose receiver's type has the row's member of that name. */
+    readonly names: (hit: LiteralHit) => boolean;
     readonly plugins: PluginSources;
   },
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
-  const holding = saving.filter(
-    (hit) => (hit.offset !== null && isProduction(hit.file, plugins) && (!TEXT_KINDS.has(hit.kind) || keyed.has(hit))) || productData.has(hit.file),
-  );
+  const holding = saving.filter((hit) => ((hit.offset !== null && isProduction(hit.file, plugins)) || productData.has(hit.file)) && names(hit));
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
   return {

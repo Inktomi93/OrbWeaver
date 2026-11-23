@@ -9,6 +9,8 @@
 // - A row is searched by the word it is read by (literal-hits.ts searchedWord), never its label: a computed member by
 //   its key's value, a quoted one by its text. A private member is never searched, since no string reaches it.
 // - A member the plugin SDK publishes is received by guests, never judged (analyse.ts lists it apart).
+// - A member the product sends to a provider request and never reads is received by the provider where a law, ADR or
+//   README line names it (field-sort.ts providerCite); with no such line it stays a judged row.
 // - A tRPC mutation's one-member output is the procedure's whole answer: its unread member is acknowledged, never judged.
 import type { JsxAttribute, Node, PropertyAssignment, PropertyDeclaration, SourceFile } from "@typescript/native/ast";
 import {
@@ -33,6 +35,7 @@ import {
   skipTrivia,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
+import type { SendDestination } from "../boundaries.ts";
 import type { DeliberateEntry } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { FieldPromise, PromiseField, SortEvidence, Verdict } from "../field-sort.ts";
@@ -46,6 +49,7 @@ import { isProduction } from "../worlds.ts";
 import type { Analysis, Finding, MemberBucket } from "./analyse.ts";
 import { isMember, MEMBER_BUCKETS, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
+import { declaredNameOf } from "./declared.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -54,7 +58,6 @@ import type { DeclInfo } from "./sites.ts";
 import { isDeclKey } from "./sites.ts";
 import type { GraphFacts, RoleSite } from "./state.ts";
 import { productReader } from "./state.ts";
-import { declaredNameOf } from "./verify.ts";
 import { siteLine } from "./why.ts";
 
 /** The lists a member row is judged by. */
@@ -71,7 +74,7 @@ const MEMBER_ORIGINS = ["type", "schema"] as const;
 type MemberOrigin = (typeof MEMBER_ORIGINS)[number];
 
 /** One member finding as a row the lists can name, with its sort, its sends and its literal search. */
-interface MemberRow {
+export interface MemberRow {
   readonly key: string;
   readonly bucket: MemberBucket;
   readonly file: string;
@@ -92,8 +95,8 @@ interface MemberRow {
   readonly literal: LiteralEvidence | null;
 }
 
-const RECEIVERS = ["plugin-sdk"] as const;
-/** `plugin-sdk`: the published SDK declares it for guests. */
+const RECEIVERS = ["plugin-sdk", "provider"] as const;
+/** `plugin-sdk`: the published SDK declares it for guests. `provider`: it rides a provider request and a doc names it. */
 type Receiver = (typeof RECEIVERS)[number];
 
 /** A member no production code reads that a receiver outside the tree reads. */
@@ -104,7 +107,7 @@ interface ReceivedRow {
   readonly home: string;
   readonly member: string;
   readonly receiver: Receiver;
-  /** The SDK declaration that publishes it, `file:line`. */
+  /** The SDK declaration that publishes it, or the doc line that names the provider field, `file:line`. */
   readonly cite: string;
 }
 
@@ -126,6 +129,7 @@ const NEVER_READ: ReadonlySet<MemberBucket> = new Set<MemberBucket>(["member-wri
 // The roles a site outside the product gives that the row's `tests` count: a use of the data, never a key or a send.
 const USES: ReadonlySet<Role> = new Set<Role>([...READS, "write"]);
 const SAMPLE = 3;
+const PROVIDER: SendDestination = "provider";
 
 // A row before its literal search, with what the search needs: the word it is searched by, null for a private name.
 type Sorted = Omit<MemberRow, "literal"> & { readonly known: readonly string[]; readonly neverWritten: boolean; readonly word: string | null };
@@ -221,9 +225,10 @@ function carriesInto(facts: GraphFacts): ReadonlyMap<string, ReadonlySet<string>
   return into;
 }
 
-// Every member the graph declares, as the promise test and the sibling test read it. Union options name one member
-// under one home, each its own row: they are numbered in source order, the first keeping the bare key.
-function declaredMembers(facts: GraphFacts): readonly (PromiseField & { readonly decl: DeclKey })[] {
+/** Every member the graph declares with its row key, as the promise test, the sibling test and the member scan read it.
+ *  Union options name one member under one home, each its own row: they are numbered in source order, the first keeping
+ *  the bare key. */
+export function declaredMembers(facts: GraphFacts): readonly (PromiseField & { readonly decl: DeclKey })[] {
   const members = [...facts.decls]
     .flatMap(([decl, info]) => (isMember(info) ? [{ decl, info, pos: declKeyParts(decl).pos }] : []))
     .sort((a, b) => a.info.file.localeCompare(b.info.file) || a.pos - b.pos);
@@ -357,18 +362,28 @@ export function judgeMembers(
     found.map(({ row }) => ({ key: row.key, home: row.home, member: row.member, onlyHome: promised.get(row.key)?.onlyHome ?? false })),
     aliases,
   );
-  const received: readonly ReceivedRow[] = published.flatMap(({ row, cite }) =>
+  const sdkReceived: readonly ReceivedRow[] = published.flatMap(({ row, cite }) =>
     cite === null ? [] : [{ key: row.key, file: row.file, line: row.line, home: row.home, member: row.member, receiver: "plugin-sdk", cite }],
   );
-  const judged = found.map((entry) => ({
+  const facted = found.map((entry) => ({
     ...entry,
     promise: promised.get(entry.row.key) ?? { onlyHome: false, siblings: [], setting: null, namedSetting: null },
     ...siteFacts(facts, entry.decl),
     name: sources.name(entry.decl),
   }));
+  // A read-only row's question is its writer, which no outside reader answers.
+  const providerReceived = facted.flatMap(({ row, promise, product }): ReceivedRow[] => {
+    const sentThere = row.bucket !== READ_ONLY && product.some((site) => site.role === "escape" && site.destination === PROVIDER);
+    const cite = sentThere ? sorter.providerCite({ ...row, ...promise }) : null;
+    return cite === null ? [] : [{ key: row.key, file: row.file, line: row.line, home: row.home, member: row.member, receiver: "provider", cite }];
+  });
+  const providerKeys = new Set(providerReceived.map(({ key }) => key));
+  const received = [...sdkReceived, ...providerReceived];
+  const judged = facted.filter(({ row }) => !providerKeys.has(row.key));
   const words = world.batch(judged.map(({ name }) => searchedWord(world, name)));
   const sorted = judged.map(({ info, row, name, promise, product, tests }, at): Sorted => {
-    const sent = product.flatMap((site) => sendLine(site, sources));
+    // two walks can send one value from one site to one destination
+    const sent = [...new Set(product.flatMap((site) => sendLine(site, sources)))];
     const handAuthored = product.some(({ role, file, at: site }) => role === "write" && sources.handWritten(file, site));
     const { verdict, evidence } = sorter.sort({ ...row, ...promise, handAuthored, siblingsUsed: wiredHomes.has(`${row.file}:${row.home}`), sent });
     const known = [sources.offset(info.file, name.pos), ...product.map((site) => sources.offset(site.file, site.at))];
@@ -402,4 +417,16 @@ export function judgeMembers(
     received,
     literalStage: staged.stage,
   };
+}
+
+/** The sort's verdict of each member declaration a judge under {@link NO_RULINGS} kept, whichever list holds its row. A
+ *  member the judge sets apart as received has no verdict and is absent. */
+export function verdictsByDecl(graph: Graph, members: JudgedMembers): ReadonlyMap<DeclKey, Verdict> {
+  const declOf = new Map(declaredMembers(graph.facts).map(({ decl, key }) => [key, decl]));
+  return new Map(
+    [...members.unwired, ...members.validated, ...members.acknowledged].flatMap(({ key, verdict }) => {
+      const decl = declOf.get(key);
+      return decl === undefined ? [] : [[decl, verdict] as const];
+    }),
+  );
 }

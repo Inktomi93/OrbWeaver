@@ -23,6 +23,7 @@ import { DATABASE_URL_KEY } from "#server/foundation/data-layout/contract.ts";
 const ENTRY = fileURLToPath(new URL("../../../../../packages/server/src/entry/index.ts", import.meta.url));
 const LISTENING = "boot: listening";
 const NOT_JSON = '{"theme": {"selectedThemeId": tr';
+const PLANTED_AT = 1_750_000_000_000;
 const SETTINGS_READ = "/api/trpc/settings.getUserSettings";
 const SETTINGS_RESET = "/api/trpc/settings.resetUserConfig";
 
@@ -90,7 +91,7 @@ test("a settings row holding text that is not JSON passes every boot step untouc
     const [owner] = await owned.db.select({ id: users.id }).from(users).where(eq(users.role, "owner"));
     expect(owner).toBeDefined();
     await owned.db.run(
-      sql`insert into user_settings (user_id, config) values (${owner?.id}, ${NOT_JSON}) on conflict(user_id) do update set config = excluded.config`,
+      sql`insert into user_settings (user_id, config, updated_at) values (${owner?.id}, ${NOT_JSON}, ${PLANTED_AT}) on conflict(user_id) do update set config = excluded.config`,
     );
   }
   {

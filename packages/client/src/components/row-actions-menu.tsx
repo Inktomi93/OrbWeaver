@@ -17,7 +17,7 @@ import { Ellipsis, Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement, ReactNode, Ref } from "react";
+import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
 import { useState } from "react";
 import { ROW_DELETE_NAME } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
@@ -57,7 +57,7 @@ export interface RowActionsMenuProps {
   /** The trigger glyph. @defaultValue Ellipsis */
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
-  readonly align?: "center" | "end" | "start";
+  readonly align?: ComponentProps<typeof MenuPopup>["align"];
   /** Trigger button size — this composite's OWN vocabulary, resolved to a button-family box by
    *  `TRIGGER_BOX` below, never a passthrough. `"inline"` is the HintTrigger-parity box (the
    *  config setting row pairs the ⋯ with the tiny `i` and must not inflate the row); `"sm"` is the

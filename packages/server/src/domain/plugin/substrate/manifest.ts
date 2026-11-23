@@ -58,7 +58,7 @@ import {
   pluginManifestSchema,
   storedPluginManifestSchema,
 } from "@orb/contracts/plugin";
-import { sniffMime } from "@orb/kit/image-sniff";
+import { SNIFFED_IMAGE_MIMES, sniffMime } from "@orb/kit/image-sniff";
 import { compareSemver } from "@orb/kit/semver";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
@@ -85,11 +85,6 @@ const UI_ENTRY = PLUGIN_UI_ENTRY;
  *  {@link isBundleAssetEntry} instead. */
 const ALLOWED_ENTRIES: readonly string[] = [MANIFEST_ENTRY, MAIN_ENTRY, UI_ENTRY];
 
-/** The MIMEs a bundle asset may sniff to — the four raster formats `@orb/kit`'s `sniffMime` recognizes.
- *  Derived from what the sniff can PROVE rather than from a wish list: an entry whose bytes carry no
- *  recognized signature (an SVG, a script, a renamed zip) yields the `application/octet-stream` sentinel and
- *  is refused, so this set and the sniff's own vocabulary cannot drift apart. */
-const ALLOWED_ASSET_MIMES: readonly string[] = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 /** How many unexpected entry NAMES a refusal message repeats. A 1 MiB zip can carry tens of thousands of
  *  central-directory records, and echoing every one back builds a multi-hundred-KiB error string out of
  *  attacker-chosen text — the refusal names enough to debug an honest bundle and no more. */
@@ -164,11 +159,12 @@ function collectBundleAssets(files: Record<string, Uint8Array>): PluginBundleAss
     }
     // THE FORMAT WALL. The mime comes from the bytes and from nothing else — the extension is untrusted
     // input. An unrecognized signature is the sentinel `application/octet-stream`, which is where an SVG,
-    // a script, or a renamed archive lands.
+    // a script, or a renamed archive lands. The admitted set is exactly what the sniff can prove: its own
+    // recognized vocabulary, so the two cannot drift apart.
     const mime = sniffMime(bytes);
-    if (!ALLOWED_ASSET_MIMES.includes(mime)) {
+    if (!SNIFFED_IMAGE_MIMES.some((admitted) => admitted === mime)) {
       throw new ManifestInvalidError(
-        `bundle entry ${path} is not one of the admitted image formats (${ALLOWED_ASSET_MIMES.join(", ")}) — its magic bytes sniffed as ${mime}. SVG is refused outright: it is a script carrier, and a bundle-shipped document served from this app's own origin is exactly what the isolated \`ui.frame\` hatch exists for.`,
+        `bundle entry ${path} is not one of the admitted image formats (${SNIFFED_IMAGE_MIMES.join(", ")}) — its magic bytes sniffed as ${mime}. SVG is refused outright: it is a script carrier, and a bundle-shipped document served from this app's own origin is exactly what the isolated \`ui.frame\` hatch exists for.`,
       );
     }
     assets.push({ path, bytes, mime });

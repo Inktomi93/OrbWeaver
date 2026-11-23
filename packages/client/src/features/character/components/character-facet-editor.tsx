@@ -208,7 +208,7 @@ function SpoilerMacroField({
   suggestions,
 }: {
   readonly form: CardForm;
-  readonly name: "description" | "personality" | "scenario" | "systemPrompt" | "postHistoryInstructions";
+  readonly name: Extract<keyof CharacterCardFormValues, "description" | "personality" | "scenario" | "systemPrompt" | "postHistoryInstructions">;
   readonly label: string;
   readonly hint: string;
   readonly spoilerBlur: boolean;

@@ -51,7 +51,7 @@ export const userSettings = sqliteTable("user_settings", {
   // The UserSettings blob. Parsed (with this row's `schema_version` as `storedVersion`) at the read seam
   // via `parseUserSettings`; a never-touched account reads defaults from `{}` with NO row written.
   config: storedJsonText("config").$type<UserSettings | UnreadableJsonText>().notNull(),
-  updatedAt: stampColumn("updated_at"),
+  updatedAt: integer("updated_at").notNull(),
 });
 
 // `user_seed_ledger` (D263) — one row per seed-manifest item an account has been given. The seeder skips a

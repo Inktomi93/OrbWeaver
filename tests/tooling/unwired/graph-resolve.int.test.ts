@@ -75,8 +75,10 @@ test("a class handed into a typed slot fills it with its statics", { timeout: 12
       "export const factory: Factory = Impl;",
     ]),
   );
-  // whoever holds the slot calls through it: the static that fills it is used, the one that fills nothing is not
-  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Impl.spare", "Factory.make"]);
+  // whoever holds the slot calls through it: the static that fills it is used, the one that fills nothing is not; the
+  // filled member is supplied by the static and called by nothing
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Impl.spare"]);
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["Factory.make"]);
 });
 
 test("a lazy import uses its module whole; a destructured one only the names it binds", { timeout: 120_000 }, async ({ plantedTree }) => {

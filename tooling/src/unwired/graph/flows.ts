@@ -10,12 +10,18 @@
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
 // - A spread into an object literal copies; it never escapes.
+// - A slot with a string index signature pairs the members it names; the value's other members escape with it. A
+//   literal key read through such a slot's type in the same file (`line["done"]`) reads the handed values' members of
+//   that name, at any depth: it cannot tell two values handed into one type apart.
 // - Two instances of one generic pair their type arguments by each type parameter's variance (variance.ts): a parameter
 //   used only where a value comes out (`Box<T>`'s `value: T`) pairs forward, one used only where a value goes in
 //   (`Options<V>`'s `mutationFn: (vars: V) => …`) pairs backward, one used both ways pairs both ways, and one never used
 //   (a phantom `Token<A>`) pairs forward.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
 //   whole, its function members' returns walked too.
+// - An escape names where the value goes, chased from the value at the site that handed it on, at any depth of the walk
+//   (open-sends.ts sendDestinations). Inside the provider backends a value no destination takes is a provider send only
+//   when it reaches a request the backends make (open-sends.ts providerReach); elsewhere it is unclassified.
 //
 // A call zod declares takes schema input, not a send: a builder's arguments are shapes (the schema itself, whose keys
 // are the members of the type it satisfies, build.ts zodTwins), and a validator hands its input to no receiver but the
@@ -27,16 +33,19 @@ import {
   isModuleDeclaration,
   isNewExpression,
   isObjectLiteralExpression,
+  isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isSatisfiesExpression,
   isSpreadElement,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
-import { TypeFlags } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
+import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
-import type { Destination } from "../open-sends.ts";
-import { identitySlot, sendDestinations } from "../open-sends.ts";
+import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
+import { assertedDestination, identitySlot, providerReach, sendChase } from "../open-sends.ts";
+import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
@@ -100,7 +109,13 @@ export function* opaqueSlot(state: GraphState, type: Type): APIRequestGenerator<
     if (opaqueFlag(arm)) {
       return true;
     }
-    if (!isPrimitive(arm) && (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0 && (yield* arm.getCallSignatures.gen()).length === 0) {
+    // a table typed by its index signature's value, as `Record<string, Copy>` is, names its entries' members
+    if (
+      !isPrimitive(arm) &&
+      (yield* state.world.checker.getPropertiesOfType.gen(arm)).length === 0 &&
+      (yield* arm.getCallSignatures.gen()).length === 0 &&
+      (yield* indexValueTypes(state, arm)).length === 0
+    ) {
       return true;
     }
   }
@@ -116,6 +131,62 @@ export interface HeldSends {
 
 const NO_HELD_TYPES: ReadonlySet<number> = new Set();
 const NO_CHECK_SITES: ReadonlySet<number> = new Set();
+const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
+const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
+const UNFOLLOWED: Chase = { to: [], dropped: false, read: false };
+
+// What a chase decides for an escaping value: `read` where some path reads it whole, and where it is sent, or null
+// where nothing receives it.
+interface Outcome {
+  readonly read: boolean;
+  readonly send: Destination | null;
+}
+
+const UNCLASSIFIED_OUTCOME: Outcome = { read: false, send: UNCLASSIFIED };
+
+// The ids of a slot's arms that carry a string index signature.
+function* stringIndexedArms(checker: Checker, slot: Type): APIRequestGenerator<readonly number[]> {
+  const out: number[] = [];
+  for (const arm of yield* constituentsOf(slot)) {
+    if (!isPrimitive(arm) && (yield* checker.getIndexInfoOfType.gen(arm, IndexKind.String)) !== undefined) {
+      out.push(arm.id);
+    }
+  }
+  return out;
+}
+
+// The value types of a slot's string index signatures that hold members: an entry filling one is a value of that type.
+function* indexValueTypes(state: GraphState, slot: Type): APIRequestGenerator<readonly Type[]> {
+  const out: Type[] = [];
+  for (const arm of yield* constituentsOf(slot)) {
+    const info = isPrimitive(arm) ? undefined : yield* state.world.checker.getIndexInfoOfType.gen(arm, IndexKind.String);
+    if (info !== undefined && !isPrimitive(info.valueType) && (yield* state.membersOf(info.valueType)).length > 0) {
+      out.push(info.valueType);
+    }
+  }
+  return out;
+}
+
+// The value node behind each site position a file's pairs carry: a hand-off, a flow site, a type pair, a checked value.
+function siteNodesOf(sites: FileSites): ReadonlyMap<number, Node> {
+  const out = new Map<number, Node>();
+  const add = (at: number, node: Node): void => {
+    if (!out.has(at)) {
+      out.set(at, node);
+    }
+  };
+  for (const { node } of sites.handedWhole) {
+    const value = isSpreadElement(node) ? node.expression : node;
+    add(value.pos, value);
+  }
+  for (const { value } of [...sites.flowSites, ...sites.typePairs]) {
+    add(value.pos, value);
+  }
+  for (const { value, type } of sites.checkedValues) {
+    add(type.pos, value);
+  }
+  return out;
+}
 const CHECKED_MARK = "!checked";
 
 export class Flows {
@@ -131,6 +202,13 @@ export class Flows {
   #heldTypes: ReadonlySet<number> = NO_HELD_TYPES;
   // The sites of the file's `satisfies` checks, each at its type node: a pair made there also carries reads to the slot.
   #checkSites: ReadonlySet<number> = NO_CHECK_SITES;
+  // The value each of the file's flow sites hands on, by the site's position: an escape found deeper in the walk is
+  // chased from there.
+  #siteNodes: ReadonlyMap<number, Node> = NO_SITE_NODES;
+  #reach: ProviderReach | undefined;
+  // The value types handed into each string-indexed slot type, by `file|type id`: a literal key read through that type in
+  // the same file reads the values' members of the key's name (keys.ts).
+  readonly #sinks = new Map<string, Type[]>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -142,14 +220,57 @@ export class Flows {
    *  message door's send, paired later (message-doors.ts). */
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
+    this.#siteNodes = siteNodesOf(sites);
     const handed = this.#handedWhole(sites, held.node);
     // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
     const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
     const checked = this.#checkedPairs(sites);
     this.#checkSites = new Set(checked.map(({ site }) => site));
     this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites), ...checked], sites.file);
+    this.#assertions(sites);
     this.#heldTypes = NO_HELD_TYPES;
     this.#checkSites = NO_CHECK_SITES;
+    this.#siteNodes = NO_SITE_NODES;
+  }
+
+  // An assertion hands its operand to the asserted type. Of a parameter a library typed (or a returned closure's
+  // `unknown` parameter), the asserted type's members go to that library (or the closure's unseen caller), which hands
+  // the object in and reads it back (open-sends.ts assertedDestination). Into an opaque type the operand is handed on
+  // and escapes only where the chase names a receiver or a provider request: an unfollowed cast is no send.
+  #assertions(sites: FileSites): void {
+    const { state } = this;
+    const { assertions } = sites;
+    if (assertions.length === 0) {
+      return;
+    }
+    const asserted = state.world.typesAt(assertions);
+    const operands = state.world.typesAt(assertions.map(({ expression }) => expression));
+    const libraries = state.batch(assertions.map((assertion) => assertedDestination(state.world, assertion)));
+    this.#opaqueOf(asserted);
+    const handedOn = assertions.flatMap((assertion, at) => {
+      const [type, operand] = [asserted[at], operands[at]];
+      return libraries[at] === null &&
+        type !== undefined &&
+        operand !== undefined &&
+        this.#opaque.get(type.id) === true &&
+        !isPrimitive(operand) &&
+        !opaqueFlag(operand)
+        ? [{ assertion, operand }]
+        : [];
+    });
+    const chases = state.batch(handedOn.map(({ assertion }) => sendChase(state.world, assertion)));
+    for (const [at, assertion] of assertions.entries()) {
+      const [library, type] = [libraries[at], asserted[at]];
+      if (library !== null && library !== undefined && type !== undefined) {
+        this.escape(type, false, { file: sites.file, at: assertion.pos }, library);
+      }
+    }
+    for (const [y, { assertion, operand }] of handedOn.entries()) {
+      const send = chases[y]?.to[0] ?? (this.#providerReach().has(assertion) ? PROVIDER_SEND : undefined);
+      if (send !== undefined) {
+        this.escape(operand, false, { file: sites.file, at: assertion.pos }, send);
+      }
+    }
   }
 
   // `defs satisfies Record<Task, TaskFields>`: the checked type is the value's slot, made at the type node.
@@ -326,21 +447,108 @@ export class Flows {
         pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos });
       }
     }
-    const sends = this.#destinations(escaping.map(({ at }) => nodes[at]));
-    for (const [y, { at, value, door }] of escaping.entries()) {
-      this.escape(value, door, { file: sites.file, at: nodes[at]?.pos ?? 0 }, sends[y] ?? UNCLASSIFIED);
-    }
+    this.#escapeHanded(
+      escaping.map(({ at, value, door }) => ({ node: nodes[at], value, door })),
+      sites.file,
+    );
+    this.#recordSinks(
+      sites.file,
+      escaping.flatMap(({ at, value }) => {
+        const slot = slots.get(at);
+        return slot === undefined ? [] : [{ slot, value }];
+      }),
+    );
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
   }
 
-  // Where each escaping value goes, asked only when the build keeps role sites to carry the answer.
-  #destinations(nodes: readonly (Node | undefined)[]): readonly Destination[] {
-    const { state } = this;
-    if (!(state.session.memberSites || state.session.siteFiles.length > 0)) {
-      return [];
+  // Values handed whole into opaque slots: each goes where its chase leads, with the type a `satisfies` holds it to.
+  #escapeHanded(escaping: readonly { readonly node: Node | undefined; readonly value: Type; readonly door: boolean }[], file: string): void {
+    const outcomes = this.#destinations(escaping.map(({ node }) => node));
+    const checked = this.#checkedTypes(escaping.map(({ node }) => node));
+    for (const [y, { node, value, door }] of escaping.entries()) {
+      const site = { file, at: node?.pos ?? 0 };
+      for (const type of [value, ...(checked[y] === undefined ? [] : [checked[y]])]) {
+        this.#settle(type, door, site, outcomes[y]);
+      }
     }
-    const found = state.batch(nodes.map((node) => (node === undefined ? answer<readonly Destination[]>([]) : sendDestinations(state.world, node))));
-    return found.map((list) => list[0] ?? UNCLASSIFIED);
+  }
+
+  // What a chase decides for the members a value holds: a read where some path reads the whole value, a send where some
+  // path sends it on, nothing where an in-tree body drops it. Without an outcome the value is sent unclassified.
+  #settle(value: Type, door: boolean, site: { readonly file: string; readonly at: number }, outcome: Outcome | undefined): void {
+    const { read, send } = outcome ?? UNCLASSIFIED_OUTCOME;
+    if (read) {
+      this.#state.roleAll(this.deepMembers(value, door), "read", site.file, site.at);
+    }
+    if (send !== null) {
+      this.escape(value, door, site, send);
+    }
+  }
+
+  // What each escaping value's chase decides (Outcome). The chase runs whether or not the build keeps role sites, since a
+  // drop or a read decides a bucket. The call a site's value is handed to takes everything inside it, but the request
+  // reach marks expressions one by one, so only a value that is the site's own (`whole`) can be a provider send.
+  #destinations(nodes: readonly (Node | undefined)[], whole: (at: number) => boolean = () => true): readonly Outcome[] {
+    const { state } = this;
+    const found = state.batch(nodes.map((node) => (node === undefined ? answer<Chase>(UNFOLLOWED) : sendChase(state.world, node))));
+    return found.map(({ to, dropped, read }, at) => {
+      const node = nodes[at];
+      if (dropped || (read && to.length === 0)) {
+        return { read, send: null };
+      }
+      return { read, send: to[0] ?? (node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED) };
+    });
+  }
+
+  // The type a `satisfies` holds each escaping value to, through parentheses: whoever takes the value takes that shape,
+  // so its members are sent too.
+  #checkedTypes(nodes: readonly (Node | undefined)[]): readonly (Type | undefined)[] {
+    const checks = nodes.map((node) => {
+      let at = node;
+      while (at !== undefined && isParenthesizedExpression(at)) {
+        at = at.expression;
+      }
+      return at !== undefined && isSatisfiesExpression(at) ? at.type : undefined;
+    });
+    const present = checks.flatMap((type) => (type === undefined ? [] : [type]));
+    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
+    return checks.map((type) => (type === undefined ? undefined : types.get(type)));
+  }
+
+  // Where a value a pair hands on goes, chased from the value at the pair's site; the pair's value is that site's own
+  // when their types are one.
+  #pairDestinations(pairs: readonly FlowPair[]): readonly Outcome[] {
+    const nodes = pairs.map(({ site }) => this.#siteNodes.get(site));
+    const present = nodes.flatMap((node) => (node === undefined ? [] : [node]));
+    const types = new Map(this.#state.world.typesAt(present).map((type, at) => [present[at], type] as const));
+    return this.#destinations(nodes, (at) => {
+      const node = nodes[at];
+      return node !== undefined && types.get(node)?.id === pairs[at]?.value.id;
+    });
+  }
+
+  // Note each value handed into a slot type that carries a string index signature, by the file it was handed in.
+  #recordSinks(file: string, handed: readonly TypePair[]): void {
+    const { state } = this;
+    const arms = state.batch(handed.map(({ slot }) => stringIndexedArms(state.world.checker, slot)));
+    for (const [at, { value }] of handed.entries()) {
+      for (const id of arms[at] ?? []) {
+        const key = `${file}|${String(id)}`;
+        this.#sinks.set(key, [...(this.#sinks.get(key) ?? []), value]);
+      }
+    }
+  }
+
+  /** The value types handed in `file` into any of the string-indexed slot types `ids`. */
+  sunkInto(file: string, ids: readonly number[]): readonly Type[] {
+    return ids.flatMap((id) => this.#sinks.get(`${file}|${String(id)}`) ?? []);
+  }
+
+  // The backends' request reach over the program's production files, made once.
+  #providerReach(): ProviderReach {
+    const { world } = this.#state;
+    this.#reach ??= providerReach(world, new Set(world.files.map((source) => world.fileOfSource(source)).filter(isProduction)));
+    return this.#reach;
   }
 
   // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
@@ -667,12 +875,18 @@ export class Flows {
     // a value landing, after unwrapping, in a slot that names none of its members escapes whole, as an opaque argument does
     this.#opaqueOf(unwrapped.map(({ slot }) => slot));
     const pairs: FlowPair[] = [];
+    const escaping: FlowPair[] = [];
     for (const pair of unwrapped) {
       if (this.#opaque.get(pair.slot.id) !== true) {
         pairs.push(pair);
       } else if (!(isPrimitive(pair.value) || this.#heldTypes.has(pair.value.id))) {
-        this.escape(pair.value, false, { file, at: pair.site }, UNCLASSIFIED);
+        escaping.push(pair);
       }
+    }
+    const outcomes = this.#pairDestinations(escaping);
+    this.#recordSinks(file, escaping);
+    for (const [y, pair] of escaping.entries()) {
+      this.#settle(pair.value, false, { file, at: pair.site }, outcomes[y]);
     }
     // a union value fills the slot arm by arm: each object arm pairs its own members with the slot's
     const unions = pairs.filter(({ value }) => value.isUnionType());
@@ -729,10 +943,48 @@ export class Flows {
     return slot.id !== value.id && !isPrimitive(slot) && !isPrimitive(value) && !this.#done.has(this.#pairKey(pair));
   }
 
+  // A slot with a string index signature takes the value's members it does not name as entries. An index signature whose
+  // value type holds members, as `Record<string, Copy>` does, types each entry: the entry's value pairs with that type,
+  // returned for the next level. Any other entry is open: whoever reads the slot reads it by no name, so it escapes with
+  // everything it holds, chased from the value at the pair's site.
+  #indexedEscapes(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[], file: string): readonly FlowPair[] {
+    const { state } = this;
+    const { checker } = state.world;
+    const indexed = state.batch(fresh.map(({ slot }) => stringIndexedArms(checker, slot)));
+    const open = fresh.flatMap((pair, x) => ((indexed[x]?.length ?? 0) > 0 ? [{ pair, named: new Set((slotMembers[x] ?? []).map(({ name }) => name)) }] : []));
+    const values = state.batch(open.map(({ pair }) => state.membersOf(pair.value)));
+    const unnamed = open.map(({ named }, y) => (values[y] ?? []).filter(({ name }) => !named.has(name)));
+    const types = state.batch(unnamed.map((members) => allOf(members.map((member) => checker.getTypeOfSymbol.gen(member)))));
+    const entryTypes = state.batch(open.map(({ pair }) => indexValueTypes(state, pair.slot)));
+    const typed = open.flatMap(({ pair }, y) =>
+      (entryTypes[y] ?? []).flatMap((slot) => (types[y] ?? []).filter((value) => !isPrimitive(value)).map((value) => ({ slot, value, site: pair.site }))),
+    );
+    const decls = unnamed.map((members) => state.declarations(members).flat());
+    const escaping = open.flatMap(({ pair }, y) => ((decls[y]?.length ?? 0) === 0 || (entryTypes[y]?.length ?? 0) > 0 ? [] : [{ pair, y }]));
+    const outcomes = this.#pairDestinations(escaping.map(({ pair }) => pair));
+    this.#recordSinks(
+      file,
+      open.map(({ pair }) => pair),
+    );
+    for (const [z, { pair, y }] of escaping.entries()) {
+      const held = (types[y] ?? []).filter((type) => !isPrimitive(type)).flatMap((type) => this.deepMembers(type, false));
+      const { read, send } = outcomes[z] ?? UNCLASSIFIED_OUTCOME;
+      const members = [...(decls[y] ?? []), ...held];
+      if (read) {
+        state.roleAll(members, "read", file, pair.site);
+      }
+      if (send !== null) {
+        state.escapeAll(members, { file, at: pair.site }, send);
+      }
+    }
+    return typed;
+  }
+
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
+    const entries = this.#indexedEscapes(fresh, slotMembers, file);
     const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
     const matched = asks.flatMap(({ pair, member, x }, y) => {
@@ -763,11 +1015,14 @@ export class Flows {
       return true;
     });
     const types = state.batch(deeper.flatMap(({ slot, value }) => [checker.getTypeOfSymbol.gen(slot), checker.getTypeOfSymbol.gen(value)]));
-    return deeper.flatMap(({ site }, y) => {
-      const slot = types[2 * y];
-      const value = types[2 * y + 1];
-      return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value, site }] : [];
-    });
+    return [
+      ...entries,
+      ...deeper.flatMap(({ site }, y) => {
+        const slot = types[2 * y];
+        const value = types[2 * y + 1];
+        return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value, site }] : [];
+      }),
+    ];
   }
 }
 

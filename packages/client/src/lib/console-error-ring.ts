@@ -21,6 +21,7 @@
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never re-export
 // from the lib barrel (that would drag it into the prod bundle).
 
+import type { SafeErrorSource } from "./safe-error-ring.ts";
 import { timeLib } from "./time.ts";
 
 const RING_CAP = 128;
@@ -32,7 +33,7 @@ const ARG_MAX = 12;
  *  outside this file spells is not part of the client's surface (#1847). */
 interface ConsoleErrorRecord {
   /** Which surface reported it: a `console.error` call, an uncaught error event, or a rejected promise. */
-  readonly source: "console" | "uncaught" | "rejection";
+  readonly source: SafeErrorSource;
   /** Wall-clock epoch ms at the record ({@link timeLib.now}). */
   readonly at: number;
   /** The formatted message — every argument stringified and joined, capped. */

@@ -143,7 +143,7 @@ function BoundText({
   state,
 }: {
   readonly value: PluginBoundString;
-  readonly voice: "body" | "gloss" | "label" | undefined;
+  readonly voice: PluginTextNode["voice"];
   readonly state: Record<string, unknown>;
 }): ReactElement {
   // Capped at the reading measure so a panel's prose does not run the full width of its card.

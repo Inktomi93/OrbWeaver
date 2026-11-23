@@ -6,6 +6,7 @@ import { Button } from "@orb/ui/button";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import type { Tone } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { StatusChip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -19,7 +20,10 @@ import { ShareProse, ShareWarningText } from "./share-prose.tsx";
 const PORT_MIN = 1;
 const PORT_MAX = 65_535;
 
-const STATE_BADGE: Record<IpCertificateStatus["state"], { readonly label: string; readonly tone: "success" | "info" | "neutral" | "destructive" }> = {
+const STATE_BADGE: Record<
+  IpCertificateStatus["state"],
+  { readonly label: string; readonly tone: Extract<Tone, "success" | "info" | "neutral" | "destructive"> }
+> = {
   off: { label: "Off", tone: "neutral" },
   obtaining: { label: "Getting a certificate", tone: "info" },
   active: { label: "https on", tone: "success" },

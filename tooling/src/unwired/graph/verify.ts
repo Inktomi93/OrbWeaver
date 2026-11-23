@@ -5,14 +5,14 @@
 //   finding is still the graph's claim, and a refuted one is a graph defect to fix.
 // - Find-references joins a union's arms (every `summary` of a `{…} | {…}`): a read counts against a member only where
 //   the checker resolves that occurrence to the member's own declaration, so a narrowed sibling arm's read is not its.
-import type { Node, SourceFile } from "@typescript/native/ast";
+import type { Node } from "@typescript/native/ast";
 import { isSourceFile, SyntaxKind } from "@typescript/native/ast";
 import type { NativeWorld } from "../native.ts";
 import type { Finding } from "./analyse.ts";
-import type { DeclKey } from "./resolve.ts";
-import { declKeyParts, Resolver } from "./resolve.ts";
+import { declaredNameOf } from "./declared.ts";
+import { Resolver } from "./resolve.ts";
 import { occurrenceRoles, READS } from "./roles.ts";
-import { declarationNameOf, isDeclKey } from "./sites.ts";
+import { isDeclKey } from "./sites.ts";
 import { productReader } from "./state.ts";
 
 export const VERDICTS = ["confirmed", "refuted", "unresolved"] as const;
@@ -111,31 +111,6 @@ function verdictOf(resolved: boolean, read: boolean): Verdict {
 function* noReferences(): ReturnType<NativeWorld["referencedSymbolsOf"]> {
   yield* [];
   return [];
-}
-
-/** The name node of the declaration a key names, found by its span in its file. */
-export function declaredNameOf(world: NativeWorld, key: DeclKey): Node | undefined {
-  const { file, pos, end, kind } = declKeyParts(key);
-  const source = world.source(file);
-  const node = source === undefined ? undefined : nodeAt(source, { pos, end, kind });
-  return node === undefined ? undefined : declarationNameOf(node);
-}
-
-/** The node of `kind` that spans exactly `pos` to `end` in `source`. */
-export function nodeAt(source: SourceFile, { pos, end, kind }: { readonly pos: number; readonly end: number; readonly kind: SyntaxKind }): Node | undefined {
-  let found: Node | undefined;
-  const visit = (node: Node): void => {
-    if (found !== undefined || node.pos > pos || node.end < end) {
-      return;
-    }
-    if (node.pos === pos && node.end === end && node.kind === kind) {
-      found = node;
-      return;
-    }
-    node.forEachChild(visit);
-  };
-  source.forEachChild(visit);
-  return found;
 }
 
 function insideOwnName(node: Node, own: Node | undefined): boolean {

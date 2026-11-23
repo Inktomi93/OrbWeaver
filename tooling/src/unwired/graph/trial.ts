@@ -1,9 +1,11 @@
 // The delete trial: each candidate of the named buckets is removed in a throwaway snapshot, with every export
 // specifier and re-export that names it, and every error the removal adds to the files that can break is a reader the
-// graph missed, named by file and line. Those files are the ones find-references ties to the candidate (Trials
-// #checkedFor); --reach=imports checks every file the import graph says an edit reaches instead, the wider set the
-// narrowed one is proven against.
+// graph missed, named by file and line.
 //
+// - The files that can break are the edited files and every file the import graph says an edit of them reaches
+//   (Trials #checkedFor). Only a file that sees an edited file's declarations can gain an error, and it sees them only
+//   through an import chain, an augmentation, a global or a script file: the graph's reach covers each. A file that
+//   names the member, its holder or a computed member's key without such a chain cannot see the delete.
 // - The import graph, the global and augmentation reach and the same-error key are the shared ones in
 //   tooling/src/floor/typescript/import-graph.ts.
 // - An error inside an import or export declaration only names the candidate, so a delete removes or rewrites that
@@ -19,28 +21,27 @@
 //   delete removes and the occurrence spans that attribute a group's errors, ahead of the base-symbol owner.
 // - tsc's own unused verdict, a reportsUnnecessary diagnostic at the candidate's name in the base program, is recorded
 //   beside each trial and never decides it.
-// - A compile-clean candidate whose name has a hit in product source outside its own sites that can be a read (a
-//   string key, a JSON key, a call by name) is confirmed-literal, through the fields literal stage's own judge
-//   (../literal-hits.ts). A hit in a test, the tooling or a config only annotates, and a code hit the checker resolves
-//   to another declaration of the name is no hit. A name is searched by the word it is read by (a computed member by
-//   its key's value); a private name is never searched, and a name that is not one word keeps confirmed with a note.
-// - Reads under snap count as the product's (D357, ./state.ts productReader), in the trial and in the control.
+// - A compile-clean candidate is confirmed-literal when a hit of its name outside its own sites, in product source or
+//   loaded product data, names its own declaration, through the fields literal stage's own judge (../literal-hits.ts):
+//   the checker resolves it there, or it is a read or a data key off a value whose type carries the member. A hit in a
+//   test, the tooling or a config only annotates, and a code hit the checker resolves to another declaration of the
+//   name is no hit. A name is searched by the word it is read by (a computed member by its key's value); a private name
+//   is never searched, and a name that is not one word keeps confirmed with a note.
+// - A compile error under snap counts as a product read (D357, ./state.ts productReader), in the trial and in the
+//   control. A literal hit under snap only annotates: the literal judge holds a hit in product source alone.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
-import { mkdirSync } from "node:fs";
 import { relative } from "node:path";
 import type { Declaration, Expression, Node, SourceFile } from "@typescript/native/ast";
 import {
   getCombinedModifierFlags,
   isClassDeclaration,
   isClassExpression,
-  isComputedPropertyName,
   isEnumDeclaration,
   isExportAssignment,
   isExportDeclaration,
   isExportSpecifier,
-  isIdentifier,
   isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
@@ -49,7 +50,6 @@ import {
   isNamespaceImport,
   isObjectLiteralExpression,
   isPrivateIdentifier,
-  isPropertyAccessExpression,
   isPropertyAssignment,
   isShorthandPropertyAssignment,
   isSourceFile,
@@ -60,10 +60,10 @@ import {
   ModifierFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Diagnostic, NodeHandle, ProjectId, ReferencedSymbolEntry } from "@typescript/native/sync";
-import { SymbolFlags } from "@typescript/native/sync";
+import type { Diagnostic, ProjectId } from "@typescript/native/sync";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
+import type { Verdict } from "../field-sort.ts";
 import type { LiteralEvidence } from "../literal-hits.ts";
 import { isLiteralName, ownSiteKey, rowsEvidence, searchedWord, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
@@ -71,13 +71,15 @@ import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
+import { nodeAt } from "./declared.ts";
+import { judgeMembers, NO_RULINGS, verdictsByDecl } from "./judge.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
 import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
 import { productReader } from "./state.ts";
 import type { FindingReferences } from "./verify.ts";
-import { evenSample, nodeAt, referencesOf } from "./verify.ts";
+import { evenSample, referencesOf } from "./verify.ts";
 
 /** The buckets whose findings name a declaration a delete can remove. */
 export const TRIAL_BUCKETS = [
@@ -123,7 +125,7 @@ interface Removal {
 
 // One candidate's trial: the product reads find-references named (`file:line`), what the delete removed, the files it
 // checked, the errors it added, how many snapshots held it and whether tsc reports it unused.
-interface Trial {
+export interface Trial {
   readonly bucket: TrialBucket;
   readonly label: string;
   readonly verdict: TrialVerdict;
@@ -139,10 +141,11 @@ interface Trial {
   readonly literal: LiteralEvidence["hits"];
 }
 
-/** Which files a snapshot checks: those find-references ties to the candidate (`references`), or every file the import
- *  graph says an edit of its file can break (`imports`), the wider set the narrowed one is proven against. */
-export const TRIAL_REACHES = ["references", "imports"] as const;
-export type TrialReach = (typeof TRIAL_REACHES)[number];
+/** Where a run keeps each trial as it lands, and the trials an earlier run of the same tree already kept. */
+export interface TrialLedger {
+  readonly recorded: (bucket: TrialBucket, key: DeclKey) => Trial | undefined;
+  readonly record: (bucket: TrialBucket, key: DeclKey, trial: Trial) => void;
+}
 
 /** The trial's phases, in run order. */
 export const TRIAL_PHASES = ["references", "unused", ...TRIAL_STEPS, "attribution", "literal"] as const;
@@ -171,8 +174,7 @@ interface ControlRow {
   readonly graph: string;
 }
 
-/** The trials of every named bucket's findings, the unused-diagnostics control, each phase's cost, and the path of the
- *  compiler CPU profile of one group when one was asked for. */
+/** The trials of every named bucket's findings, the unused-diagnostics control, and each phase's cost. */
 export interface TrialReport {
   /** The tracked files the literal pass searched, or null for a root with no git index, where confirmed is the compile's
    *  word alone. */
@@ -180,7 +182,6 @@ export interface TrialReport {
   readonly trials: readonly Trial[];
   readonly control: readonly ControlRow[];
   readonly phases: Readonly<Record<TrialPhase, PhaseCost>>;
-  readonly cpuProfile: string | null;
 }
 
 // An object literal writes a property its type no longer has.
@@ -290,38 +291,7 @@ interface Candidate {
   readonly key: DeclKey;
   readonly edits: Edits;
   readonly occurrences: readonly Node[];
-  readonly holders: readonly Node[];
-  readonly bracket: Bracket;
   readonly tsUnused: boolean;
-}
-
-// What a candidate's computed name adds to the files that can break. A read through the key (`shape[KEY]`, a mapped or
-// constrained `[KEY]`) names the key's symbol, never the member, so a key the tree declares adds every file naming it.
-// A key no tree file declares, a well-known symbol's, or a key that is no name, falls back to every file the import
-// graph says the declaring file reaches.
-type Bracket = { readonly by: "none" } | { readonly by: "key"; readonly name: Node } | { readonly by: "owner" };
-
-// A key's find-references and the declarations of what it names, through an import alias to the declared constant.
-function* keyAnswer(
-  world: NativeWorld,
-  name: Node,
-): APIRequestGenerator<{ readonly groups: readonly ReferencedSymbolEntry[]; readonly declarations: readonly NodeHandle[] }> {
-  const groups = yield* world.referencedSymbolsOf(name);
-  const symbol = yield* world.checker.getSymbolAtLocation.gen(name);
-  const named = symbol !== undefined && hasFlag(symbol.flags, SymbolFlags.Alias) ? yield* world.checker.getAliasedSymbol.gen(symbol) : symbol;
-  return { groups, declarations: named?.declarations ?? [] };
-}
-
-function bracketOf(node: Node): Bracket {
-  const name = declarationNameOf(node);
-  if (name === undefined || !isComputedPropertyName(name)) {
-    return { by: "none" };
-  }
-  const { expression } = name;
-  if (isIdentifier(expression)) {
-    return { by: "key", name: expression };
-  }
-  return isPropertyAccessExpression(expression) ? { by: "key", name: expression.name } : { by: "owner" };
 }
 
 // An added error no single candidate of its group owns.
@@ -334,6 +304,9 @@ const MIN_MINUTES = 1 / 60;
 // of many declaring files share one, and only a group with an error splits. The cap bounds one snapshot's edited and
 // checked files on a whole-tree run.
 const GROUP_CANDIDATES = 256;
+
+/** What each progress line of a trial group starts with, so a failure can name the group it came on. */
+export const TRIAL_GROUP = "trial group";
 
 const unresolvedTrial = (
   { bucket, finding, tsUnused }: { readonly bucket: TrialBucket; readonly finding: Finding; readonly tsUnused: boolean },
@@ -399,18 +372,14 @@ class Trials {
   readonly #compiles = new Map<Candidate, number>();
   #snapshots = 0;
   readonly #phases: Phases;
-  readonly #reach: TrialReach;
-  readonly #holderFiles = new Map<Node, readonly string[]>();
-  readonly #keyReach = new Map<Node, readonly string[] | null>();
   #seen: { readonly checked: number; readonly projects: readonly ProjectId[] }[] = [];
   #resolver: Resolver | null = null;
 
-  constructor(graph: Graph, world: NativeWorld, root: string, { phases, reach }: { readonly phases: Phases; readonly reach: TrialReach }) {
+  constructor(graph: Graph, world: NativeWorld, root: string, phases: Phases) {
     this.#graph = graph;
     this.#world = world;
     this.#root = root;
     this.#phases = phases;
-    this.#reach = reach;
     this.#imports = ImportGraph.build(world.program, (requests) => world.batch(requests), world.files);
   }
 
@@ -528,7 +497,7 @@ class Trials {
   } {
     const edits = mergeEdits(items.map((item) => item.edits));
     const edited = [...edits.keys()];
-    const checked = this.#checkedFor(items, edited);
+    const checked = this.#checkedFor(edited);
     const base = this.#baseErrors(checked);
     const texts = Object.fromEntries(edited.map((file) => [this.#absolute(file), spliced(this.#world.source(file)?.text ?? "", edits.get(file) ?? [])]));
     this.#snapshots += 1;
@@ -560,58 +529,10 @@ class Trials {
     };
   }
 
-  // The files a snapshot of these candidates checks. Under `references`: the edited files, each file that names a
-  // candidate or a declaration holding it (its home type and the declarations up to its file's top level), every
-  // importer of those, directly or through a chain (a re-export, a derived type, an alias of an inferred one), and what
-  // an augmentation among them reaches. A delete breaks a site that names the member, or one that builds, assigns or
-  // constrains a holder through a type that leads back to a file naming it. A computed member adds what its
-  // {@link Bracket} reaches. The edited file is among the named ones, so this set holds every file `imports` checks.
-  #checkedFor(items: readonly Candidate[], edited: readonly string[]): readonly string[] {
-    if (this.#reach === "imports") {
-      return [
-        ...new Set([...edited, ...edited.flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)))]),
-      ].sort();
-    }
-    const named = [
-      ...edited,
-      ...items.flatMap(({ occurrences }) => occurrences.map((node) => this.#world.fileOfSource(node.getSourceFile()))),
-      ...this.#filesNaming(items.flatMap(({ holders }) => holders)),
-      ...this.#keyFiles(items),
-    ];
-    const near = this.#imports.around([...new Set(named)].map((file) => this.#absolute(file))).map((at) => relative(this.#root, at));
-    const owners = items.flatMap(({ key, bracket }) =>
-      bracket.by === "owner" || (bracket.by === "key" && this.#keyReach.get(bracket.name) === null) ? [declKeyParts(key).file] : [],
-    );
-    const reached = [...new Set(owners)].flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)));
-    return [...new Set([...named, ...near, ...reached])].filter((file) => this.#world.has(file)).sort();
-  }
-
-  // The files naming each computed candidate's key symbol, asked once per key. A key whose constant, through an import
-  // alias, is declared outside the world's sources is recorded as null: its readers are the owner fallback's.
-  #keyFiles(items: readonly Candidate[]): readonly string[] {
-    const names = [...new Set(items.flatMap(({ bracket }) => (bracket.by === "key" ? [bracket.name] : [])))];
-    const missing = names.filter((name) => !this.#keyReach.has(name));
-    const world = this.#world;
-    const answers = world.batch(missing.map((name) => keyAnswer(world, name)));
-    for (const [at, name] of missing.entries()) {
-      const { groups, declarations } = answers[at] ?? { groups: [], declarations: [] };
-      const files = groups.flatMap(({ references }) => references.flatMap((handle) => world.fileOf(handle) ?? []));
-      const declared = declarations.some((handle) => world.fileOf(handle) !== null);
-      this.#keyReach.set(name, declared ? [...new Set([world.fileOfSource(name.getSourceFile()), ...files])] : null);
-    }
-    return names.flatMap((name) => this.#keyReach.get(name) ?? []);
-  }
-
-  // The files find-references names each declaration in, asked once per declaration name.
-  #filesNaming(names: readonly Node[]): readonly string[] {
-    const missing = [...new Set(names)].filter((name) => !this.#holderFiles.has(name));
-    const world = this.#world;
-    const groups = world.batch(missing.map((name) => world.referencedSymbolsOf(name)));
-    for (const [at, name] of missing.entries()) {
-      const files = (groups[at] ?? []).flatMap(({ references }) => references.flatMap((handle) => world.fileOf(handle) ?? []));
-      this.#holderFiles.set(name, [...new Set([world.fileOfSource(name.getSourceFile()), ...files])]);
-    }
-    return names.flatMap((name) => this.#holderFiles.get(name) ?? []);
+  // The files a snapshot that edits these files checks: the edited ones and each file an edit of them can break.
+  #checkedFor(edited: readonly string[]): readonly string[] {
+    const readers = edited.flatMap((file) => this.#imports.readers(this.#absolute(file), false).map((at) => relative(this.#root, at)));
+    return [...new Set([...edited, ...readers])].filter((file) => this.#world.has(file)).sort();
   }
 
   // Each snapshot since the last call: its checked-file count and, past the one merged project, every project it built.
@@ -826,7 +747,7 @@ class Trials {
       };
     }
     const edits = this.edits(key, node, isTopLevel(node) ? exportSitesOf(occurrences) : []);
-    return { candidate: { bucket, finding, key, edits, occurrences, holders: holdersOf(node), bracket: bracketOf(node), tsUnused } };
+    return { candidate: { bucket, finding, key, edits, occurrences, tsUnused } };
   }
 
   /** The per-file groups packed into shared snapshots, first fit in order, each holding at most GROUP_CANDIDATES. Two
@@ -837,7 +758,7 @@ class Trials {
     const packs: { items: Candidate[]; edited: Set<string>; checked: Set<string> }[] = [];
     for (const items of groups) {
       const edited = [...mergeEdits(items.map((item) => item.edits)).keys()];
-      const checked = this.#checkedFor(items, edited);
+      const checked = this.#checkedFor(edited);
       const fits = packs.find(
         (pack) =>
           pack.items.length + items.length <= GROUP_CANDIDATES &&
@@ -859,40 +780,32 @@ class Trials {
     return packs.map(({ items }) => items);
   }
 
-  /** Trial every group, logging progress after each; the compiler CPU profile covers the first group with more than
-   *  one candidate when `cpuProfile` names a directory. */
+  /** Trial every group, logging progress before and after each, and keeping each trial in the ledger as its group lands. */
   tryGroups(
     groups: readonly (readonly Candidate[])[],
-    run: { readonly total: number; readonly cpuProfile: string | null },
+    run: { readonly total: number; readonly ledger: TrialLedger | undefined },
     log: (line: string) => void,
-  ): { readonly tried: ReadonlyMap<Finding, Trial>; readonly profiled: string | null } {
+  ): ReadonlyMap<Finding, Trial> {
     const tried = new Map<Finding, Trial>();
     const started = performance.now();
     let done = 0;
-    let profiled: string | null = null;
     for (const [at, items] of groups.entries()) {
-      const dir = profiled === null && items.length > 1 ? run.cpuProfile : null;
-      if (dir !== null) {
-        mkdirSync(dir, { recursive: true });
-        this.#world.debug.startCPUProfile(dir);
-      }
+      log(`${TRIAL_GROUP} ${String(at + 1)}/${String(groups.length)} starting: ${String(items.length)} candidates, first ${items[0]?.finding.label ?? ""}`);
       const outcome = this.group(items);
-      if (dir !== null) {
-        profiled = String(this.#world.debug.stopCPUProfile());
-      }
       for (const [x, item] of items.entries()) {
         const trial = outcome[x];
         if (trial !== undefined) {
           tried.set(item.finding, trial);
+          run.ledger?.record(item.bucket, item.key, trial);
         }
       }
       done += items.length;
       const minutes = (performance.now() - started) / MS_PER_MINUTE;
       log(
-        `trial groups ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
+        `${TRIAL_GROUP}s ${String(at + 1)}/${String(groups.length)} candidates ${String(done)}/${String(run.total)} snapshots ${String(this.#snapshots)} ${this.#takeSeen()} ${(done / Math.max(minutes, MIN_MINUTES)).toFixed(1)}/min`,
       );
     }
-    return { tried, profiled };
+    return tried;
   }
 
   /** The declaration a key names, in the world's parse. */
@@ -948,19 +861,6 @@ function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undef
   const { parent } = found ?? {};
   const named = parent === undefined || found === undefined ? undefined : declarationNameOf(parent);
   return named !== undefined && found !== undefined && sameSpan(named, found) ? parent : found;
-}
-
-// The names of the declarations that hold a declaration, from its parent up to its file's top level: a member's home
-// type and the binding or unit that type sits in.
-function holdersOf(node: Node): readonly Node[] {
-  const names: Node[] = [];
-  for (let at = node.parent; !isSourceFile(at); at = at.parent) {
-    const name = declarationNameOf(at);
-    if (name !== undefined) {
-      names.push(name);
-    }
-  }
-  return names;
 }
 
 // A compile clean only says the compiler needs no site of the name: a string key, a JSON or fixture key or a plugin
@@ -1068,8 +968,9 @@ const siteOf = (world: NativeWorld, node: Node): string =>
   `${world.fileOfSource(node.getSourceFile())}:${String(node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1)}`;
 
 /** Run the delete trial over every finding of the named buckets, or an even sample of `limit` of them, then the
- *  unused-diagnostics control; `cpuProfile` names a directory for the compiler CPU profile of the first group with more
- *  than one candidate. */
+ *  unused-diagnostics control; `verdicts` keeps only the member findings the judge sorted to one of them (the sort needs a
+ *  graph built with member sites); `ledger` keeps each trial as its group lands and supplies the ones an earlier run
+ *  kept. */
 export function runTrials(
   graph: Graph,
   world: NativeWorld,
@@ -1078,14 +979,22 @@ export function runTrials(
     readonly analysis: Analysis;
     readonly buckets: readonly TrialBucket[];
     readonly limit: number | null;
-    readonly cpuProfile: string | null;
-    readonly reach: TrialReach;
+    /** Only the member findings the judge sorted to one of these; every finding when empty. */
+    readonly verdicts?: readonly Verdict[];
+    /** Keeps each trial as its group lands, and supplies the ones an earlier run of the same tree kept, which are not tried again. */
+    readonly ledger?: TrialLedger;
   },
   log: (line: string) => void,
 ): TrialReport {
   const phases = new Phases(world);
-  const trials = new Trials(graph, world, run.root, { phases, reach: run.reach });
-  const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].map((finding) => ({ bucket, finding })));
+  const trials = new Trials(graph, world, run.root, phases);
+  const verdicts = run.verdicts ?? [];
+  const sorted = verdicts.length === 0 ? null : verdictsByDecl(graph, judgeMembers({ root: run.root, graph, analysis: run.analysis, world }, NO_RULINGS));
+  const wanted = ({ key }: Finding): boolean => {
+    const verdict = key !== null && isDeclKey(key) ? sorted?.get(key) : undefined;
+    return sorted === null || (verdict !== undefined && verdicts.includes(verdict));
+  };
+  const all = [...new Set(run.buckets)].flatMap((bucket) => run.analysis[bucket].filter(wanted).map((finding) => ({ bucket, finding })));
   const picked = evenSample(all, run.limit);
   const found = phases.time("references", () =>
     referencesOf(
@@ -1096,20 +1005,30 @@ export function runTrials(
   const tsUnused = phases.time("unused", () => trials.tsUnused(found.map(({ name }) => name)));
   const decided = new Map<Finding, Trial>();
   const groups = new Map<string, Candidate[]>();
+  let resumed = 0;
   for (const [at, pick] of picked.entries()) {
     const outcome = trials.decide(pick, found[at] ?? { occurrences: [], reads: [] }, tsUnused[at] ?? false);
     if ("trial" in outcome) {
       decided.set(pick.finding, outcome.trial);
     } else {
-      const { file } = declKeyParts(outcome.candidate.key);
-      groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
+      const kept = run.ledger?.recorded(pick.bucket, outcome.candidate.key);
+      if (kept === undefined) {
+        const { file } = declKeyParts(outcome.candidate.key);
+        groups.set(file, [...(groups.get(file) ?? []), outcome.candidate]);
+      } else {
+        decided.set(pick.finding, kept);
+        resumed += 1;
+      }
     }
   }
-  const { tried, profiled } = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, cpuProfile: run.cpuProfile }, log);
+  if (resumed > 0) {
+    log(`resumed ${String(resumed)} trials an earlier run of this tree kept`);
+  }
+  const tried = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, ledger: run.ledger }, log);
   const compiled = picked.flatMap(({ finding }, at) => {
     const trial = decided.get(finding) ?? tried.get(finding);
     return trial === undefined ? [] : [{ trial, references: found[at] }];
   });
   const literal = phases.time("literal", () => literalPass(run.root, world, compiled));
-  return { literalFiles: literal.files, trials: literal.trials, control: trials.control(run.analysis), phases: phases.report(), cpuProfile: profiled };
+  return { literalFiles: literal.files, trials: literal.trials, control: trials.control(run.analysis), phases: phases.report() };
 }
