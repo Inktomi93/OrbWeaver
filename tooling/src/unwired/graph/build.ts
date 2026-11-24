@@ -309,7 +309,7 @@ class Builder {
       profile.time("walk", walk);
     }
     const variants = profile === null ? settle() : profile.time("fixpoint", settle);
-    return { facts: state, variants, kept: this.#kept(files), sdk: sdkSurface(state.root), urlSpawns: this.#urlSpawns, files };
+    return { facts: state, variants, kept: this.#kept(files), sdk: sdkSurface(state.root, state.world), urlSpawns: this.#urlSpawns, files };
   }
 
   #walk(files: readonly string[]): void {

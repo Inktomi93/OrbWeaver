@@ -3,9 +3,38 @@
 // where it spells a contract type inline (a function's return or parameter, a member's type).
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import ts from "typescript";
+import type {
+  FunctionTypeNode,
+  Identifier,
+  MethodSignatureDeclaration,
+  Node,
+  PropertySignatureDeclaration,
+  SourceFile,
+  StringLiteral,
+  TypeElement,
+  TypeNode,
+} from "@typescript/native/ast";
+import {
+  isArrayTypeNode,
+  isFunctionTypeNode,
+  isIdentifier,
+  isInterfaceDeclaration,
+  isMethodSignatureDeclaration,
+  isParenthesizedTypeNode,
+  isPropertySignatureDeclaration,
+  isStringLiteral,
+  isTypeAliasDeclaration,
+  isTypeLiteralNode,
+  isTypeOperatorNode,
+  isTypeReferenceNode,
+  isUnionTypeNode,
+} from "@typescript/native/ast";
+import type { RetainedSourceFile } from "@typescript/native/sync";
 import { z } from "zod";
 import { editorLineOf } from "../floor/typescript/editor-lines.ts";
+import type { WorldFiles } from "./native.ts";
+import { NativeWorld } from "./native.ts";
+import { isProduction as isAppSource } from "./worlds.ts";
 
 /** The guest-facing plugin contract the SDK mirrors: the wire types it publishes are declared here. */
 export const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
@@ -47,31 +76,31 @@ export interface SdkSurface {
   readonly names: ReadonlySet<string>;
 }
 
-type NamedMember = (ts.PropertySignature | ts.MethodSignature) & { readonly name: ts.Identifier | ts.StringLiteral };
+type NamedMember = (PropertySignatureDeclaration | MethodSignatureDeclaration) & { readonly name: Identifier | StringLiteral };
 
-const isNamedMember = (member: ts.TypeElement): member is NamedMember =>
-  (ts.isPropertySignature(member) || ts.isMethodSignature(member)) && (ts.isIdentifier(member.name) || ts.isStringLiteral(member.name));
+const isNamedMember = (member: TypeElement): member is NamedMember =>
+  (isPropertySignatureDeclaration(member) || isMethodSignatureDeclaration(member)) && (isIdentifier(member.name) || isStringLiteral(member.name));
 
 // The types a slot holds, through parentheses, unions, `readonly`, arrays and the holder generics.
-function heldTypes(type: ts.TypeNode): readonly ts.TypeNode[] {
-  if (ts.isParenthesizedTypeNode(type) || ts.isTypeOperatorNode(type)) {
+function heldTypes(type: TypeNode): readonly TypeNode[] {
+  if (isParenthesizedTypeNode(type) || isTypeOperatorNode(type)) {
     return heldTypes(type.type);
   }
-  if (ts.isUnionTypeNode(type)) {
+  if (isUnionTypeNode(type)) {
     return type.types.flatMap(heldTypes);
   }
-  if (ts.isArrayTypeNode(type)) {
+  if (isArrayTypeNode(type)) {
     return heldTypes(type.elementType);
   }
-  if (ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName) && HOLDERS.has(type.typeName.text)) {
+  if (isTypeReferenceNode(type) && isIdentifier(type.typeName) && HOLDERS.has(type.typeName.text)) {
     return (type.typeArguments ?? []).flatMap(heldTypes);
   }
   return [type];
 }
 
-type SlotVisitor = (slot: string, type: ts.TypeNode) => void;
+type SlotVisitor = (slot: string, type: TypeNode) => void;
 
-function walkSignature(slot: string, signature: ts.SignatureDeclarationBase, visit: SlotVisitor): void {
+function walkSignature(slot: string, signature: MethodSignatureDeclaration | FunctionTypeNode, visit: SlotVisitor): void {
   if (signature.type !== undefined) {
     walkSlot(`${slot}()`, signature.type, visit);
   }
@@ -82,9 +111,9 @@ function walkSignature(slot: string, signature: ts.SignatureDeclarationBase, vis
   }
 }
 
-function walkSlot(slot: string, type: ts.TypeNode, visit: SlotVisitor): void {
+function walkSlot(slot: string, type: TypeNode, visit: SlotVisitor): void {
   for (const held of heldTypes(type)) {
-    if (ts.isFunctionTypeNode(held)) {
+    if (isFunctionTypeNode(held)) {
       walkSignature(slot, held, visit);
     } else {
       visit(slot, held);
@@ -93,79 +122,105 @@ function walkSlot(slot: string, type: ts.TypeNode, visit: SlotVisitor): void {
 }
 
 // Each named member of a home, then the slots its type and signature hold.
-function walkMembers(home: string, members: ts.NodeArray<ts.TypeElement>, onMember: (key: string, member: NamedMember) => void, visit: SlotVisitor): void {
+function walkMembers(home: string, members: readonly TypeElement[], onMember: (key: string, member: NamedMember) => void, visit: SlotVisitor): void {
   for (const member of members.filter(isNamedMember)) {
     const key = `${home}.${member.name.text}`;
     onMember(key, member);
-    if (ts.isMethodSignature(member)) {
+    if (isMethodSignatureDeclaration(member)) {
       walkSignature(key, member, visit);
-    } else if (member.type !== undefined) {
+    } else if (isPropertySignatureDeclaration(member)) {
       walkSlot(key, member.type, visit);
     }
   }
 }
 
 // Every interface and object type alias of a file, by name.
-function walkHomes(source: ts.SourceFile, walk: (home: string, members: ts.NodeArray<ts.TypeElement>) => void): void {
-  const visit = (node: ts.Node): void => {
-    if (ts.isInterfaceDeclaration(node)) {
+function walkHomes(source: SourceFile, walk: (home: string, members: readonly TypeElement[]) => void): void {
+  const visit = (node: Node): void => {
+    if (isInterfaceDeclaration(node)) {
       walk(node.name.text, node.members);
-    } else if (ts.isTypeAliasDeclaration(node) && ts.isTypeLiteralNode(node.type)) {
+    } else if (isTypeAliasDeclaration(node) && isTypeLiteralNode(node.type)) {
       walk(node.name.text, node.type.members);
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   };
-  visit(source);
+  source.forEachChild(visit);
 }
 
-const parse = (root: string, file: string): ts.SourceFile => ts.createSourceFile(file, readFileSync(join(root, file), "utf8"), ts.ScriptTarget.Latest, true);
+interface PublishedFile {
+  readonly members: readonly (readonly [string, string])[];
+  readonly names: readonly string[];
+}
 
-function published(root: string): { readonly members: ReadonlyMap<string, string>; readonly names: ReadonlySet<string> } {
-  const surface = new Map<string, string>();
-  const names = new Set<string>();
-  const declared = (node: ts.Node): void => {
-    if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) {
-      names.add(node.name.text);
+// One SDK declaration file's members, each with its `file:line`, and its declared type names.
+function publishedIn(file: string, source: SourceFile): PublishedFile {
+  const found: (readonly [string, string])[] = [];
+  const names: string[] = [];
+  const declared = (node: Node): void => {
+    if (isInterfaceDeclaration(node) || isTypeAliasDeclaration(node)) {
+      names.push(node.name.text);
     }
-    ts.forEachChild(node, declared);
+    node.forEachChild(declared);
   };
-  for (const file of publishedSdkSources(root)) {
-    const source = parse(root, file);
-    declared(source);
-    const onMember = (key: string, member: NamedMember): void => {
-      surface.set(key, surface.get(key) ?? `${file}:${String(editorLineOf(source, member.name.getStart(source)))}`);
-    };
-    const visit: SlotVisitor = (slot, type) => {
-      if (ts.isTypeLiteralNode(type)) {
-        walkMembers(slot, type.members, onMember, visit);
-      }
-    };
-    walkHomes(source, (home, members) => walkMembers(home, members, onMember, visit));
-  }
-  return { members: surface, names };
+  source.forEachChild(declared);
+  const onMember = (key: string, member: NamedMember): void => {
+    found.push([key, `${file}:${String(editorLineOf(source, member.name.getStart(source)))}`]);
+  };
+  const visit: SlotVisitor = (slot, type) => {
+    if (isTypeLiteralNode(type)) {
+      walkMembers(slot, type.members, onMember, visit);
+    }
+  };
+  walkHomes(source, (home, members) => walkMembers(home, members, onMember, visit));
+  return { members: found, names };
 }
 
-function contractSlots(root: string): ReadonlyMap<string, readonly string[]> {
-  const slots = new Map<string, string[]>();
+// One contract file's slots that hold a named type, by the type's name.
+function slotsIn(source: SourceFile): readonly (readonly [string, string])[] {
+  const slots: (readonly [string, string])[] = [];
   const visit: SlotVisitor = (slot, type) => {
-    if (ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName)) {
-      const list = slots.get(type.typeName.text) ?? [];
-      list.push(slot);
-      slots.set(type.typeName.text, list);
-    } else if (ts.isTypeLiteralNode(type)) {
+    if (isTypeReferenceNode(type) && isIdentifier(type.typeName)) {
+      slots.push([type.typeName.text, slot]);
+    } else if (isTypeLiteralNode(type)) {
       walkMembers(slot, type.members, () => undefined, visit);
     }
   };
-  for (const file of globSync(`${PLUGIN_CONTRACT}*.ts`, { cwd: root }).sort()) {
-    walkHomes(parse(root, file), (home, members) => walkMembers(home, members, () => undefined, visit));
-  }
+  walkHomes(source, (home, members) => walkMembers(home, members, () => undefined, visit));
   return slots;
 }
 
-/** Every member the SDK publishes, and every slot of the plugin contract that holds a named type. */
-export function sdkSurface(root: string): SdkSurface {
-  const { members, names } = published(root);
-  return { published: members, slots: contractSlots(root), names };
+/** Every member the SDK publishes, and every slot of the plugin contract that holds a named type. Each file is parsed
+ *  on its own through the world's compiler: the SDK is the text guests compile against, never part of the walked program.
+ *  Every parse is one batch (`NativeWorld.parseAlone`), released once read. */
+export function sdkSurface(root: string, world: NativeWorld): SdkSurface {
+  const sdk = [...publishedSdkSources(root)];
+  const contract = globSync(`${PLUGIN_CONTRACT}*.ts`, { cwd: root }).sort();
+  const leases = world.parseAlone([...sdk, ...contract]);
+  const published = new Map<string, string>();
+  const names = new Set<string>();
+  const slots = new Map<string, string[]>();
+  try {
+    // The manifest's file order holds, so the first SDK file to publish a key keeps it.
+    for (const [at, file] of sdk.entries()) {
+      const found = publishedIn(file, (leases[at] as RetainedSourceFile).sourceFile);
+      for (const [key, line] of found.members) {
+        published.set(key, published.get(key) ?? line);
+      }
+      for (const name of found.names) {
+        names.add(name);
+      }
+    }
+    for (const lease of leases.slice(sdk.length)) {
+      for (const [type, slot] of slotsIn(lease.sourceFile)) {
+        slots.getOrInsert(type, []).push(slot);
+      }
+    }
+  } finally {
+    for (const lease of leases) {
+      lease[Symbol.dispose]();
+    }
+  }
+  return { published, slots, names };
 }
 
 /** Where the SDK publishes a plugin contract field, by its type name or by a slot that holds its home, or null when
@@ -177,4 +232,43 @@ export function publishedAt(surface: SdkSurface, field: { readonly file: string;
   const [head = "", ...rest] = typeNameOf(field.home).split(".");
   const paths = [head, ...(surface.slots.get(head) ?? [])].map((path) => [path, ...rest, field.member].join("."));
   return paths.map((path) => surface.published.get(path)).find((at) => at !== undefined) ?? null;
+}
+
+// Authored plugin programs exercise the published ambient SDK. Neither lives under a package's src directory, so the
+// author tsconfigs' programs say which files are which, never a path pattern: the author files are the own sources a
+// program holds, and the SDK's are the declaration files it keeps (the published SDK's, which the world keeps by
+// `NativeWorld`'s declaration filter).
+const AUTHOR_WORLDS = "packages/showcase-plugins/tsconfig.author-*.json";
+
+/** The plugin author source and the published SDK's declarations, repository-relative. */
+export interface PluginSources {
+  readonly author: ReadonlySet<string>;
+  readonly sdk: ReadonlySet<string>;
+}
+
+const NO_PLUGIN_SOURCES: PluginSources = { author: new Set(), sdk: new Set() };
+
+/** Whether a file is product source, plugin author source or an SDK declaration. */
+export function isPluginProduction(file: string, plugins: PluginSources): boolean {
+  return isAppSource(file) || plugins.author.has(file) || plugins.sdk.has(file);
+}
+
+export function pluginAuthorWorlds(root: string): string[] {
+  return globSync(AUTHOR_WORLDS, { cwd: root }).sort();
+}
+
+/** The plugin sources the programs of `authorWorlds` hold, from the file lists of `lists` (a world's own files, its
+ *  declaration files kept only where {@link NativeWorld.fileLists} was asked to keep them). */
+export function pluginSources(lists: ReadonlyMap<string, WorldFiles>, authorWorlds: readonly string[]): PluginSources {
+  const held = authorWorlds.flatMap((config) => [...(lists.get(config)?.held ?? [])]);
+  return {
+    author: new Set(held.filter((file) => !file.endsWith(DECLARATION))),
+    sdk: new Set(held.filter((file) => file.endsWith(DECLARATION))),
+  };
+}
+
+/** The plugin sources of `root`'s author worlds, read from their programs; empty for a tree with no author world. */
+export function readPluginSources(root: string): PluginSources {
+  const worlds = pluginAuthorWorlds(root);
+  return worlds.length === 0 ? NO_PLUGIN_SOURCES : pluginSources(NativeWorld.fileLists(root, worlds, publishedSdkSources(root)), worlds);
 }

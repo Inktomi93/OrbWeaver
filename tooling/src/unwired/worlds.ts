@@ -3,9 +3,9 @@
 // solution config's worlds; no tsconfig file holds it, and every other tool keeps the per-world split.
 import { globSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import ts from "typescript";
 import { z } from "zod";
-import { loadWorld } from "../floor/testing/test-worlds.ts";
+import type { ParsedWorld } from "../floor/testing/test-worlds.ts";
+import { loadWorld, readConfigJson, resolveWorldType } from "../floor/testing/test-worlds.ts";
 
 /** The package worlds, which hold every production file. */
 export function packageWorlds(root: string): readonly string[] {
@@ -17,7 +17,7 @@ export function packageWorlds(root: string): readonly string[] {
 const SOURCE_BRIDGE: Readonly<Record<string, string>> = { "@orb/server": "packages/server/src/index.ts" };
 
 /** A world's `paths` with {@link SOURCE_BRIDGE} added, every target absolute. A `paths` target is relative to the config. */
-function bridgedPaths(root: string, config: string, parsed: ts.ParsedCommandLine): Record<string, string[]> {
+function bridgedPaths(root: string, config: string, parsed: ParsedWorld): Record<string, string[]> {
   const base = dirname(join(root, config));
   const own = Object.entries(parsed.options.paths ?? {}).map(([name, targets]): [string, string[]] => [name, targets.map((target) => resolve(base, target))]);
   const bridge = Object.entries(SOURCE_BRIDGE).map(([name, target]): [string, string[]] => [name, [join(root, target)]]);
@@ -29,12 +29,7 @@ const WorldConfig = z.looseObject({ compilerOptions: z.looseObject({}).optional(
 
 /** The text of a world's config with the source bridge written into its `paths`, for a compiler that reads files. */
 export function bridgedConfigText(root: string, config: string): string {
-  const path = join(root, config);
-  const read = ts.readConfigFile(path, ts.sys.readFile);
-  if (read.error !== undefined) {
-    throw new Error(`${config}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
-  }
-  const json = WorldConfig.parse(read.config);
+  const json = WorldConfig.parse(readConfigJson(root, config));
   return JSON.stringify({ ...json, compilerOptions: { ...json.compilerOptions, paths: bridgedPaths(root, config, loadWorld(root, config)) } });
 }
 
@@ -78,11 +73,7 @@ export const MERGED_CONFIG = "tsconfig.unwired-merged.json";
 
 // The solution config's references: every typecheck world.
 function solutionWorlds(root: string): readonly string[] {
-  const read = ts.readConfigFile(join(root, SOLUTION), ts.sys.readFile);
-  if (read.error !== undefined) {
-    throw new Error(`${SOLUTION}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
-  }
-  const { references = [] } = SolutionConfig.parse(read.config);
+  const { references = [] } = SolutionConfig.parse(readConfigJson(root, SOLUTION));
   return references.map(({ path }) => {
     const config = relative(root, resolve(root, path));
     return config.endsWith(".json") ? config : join(config, "tsconfig.json");
@@ -94,7 +85,7 @@ export const mergedWorlds = (root: string): readonly string[] => solutionWorlds(
 
 interface LoadedWorld {
   readonly config: string;
-  readonly parsed: ts.ParsedCommandLine;
+  readonly parsed: ParsedWorld;
 }
 
 const loadMergedWorlds = (root: string): readonly LoadedWorld[] => mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
@@ -108,7 +99,7 @@ function worldTypes(root: string, worlds: readonly LoadedWorld[]): { readonly fi
   const unresolved = new Set<string>();
   for (const { config, parsed } of worlds) {
     for (const name of parsed.options.types ?? []) {
-      const found = ts.resolveTypeReferenceDirective(name, join(root, config), parsed.options, ts.sys).resolvedTypeReferenceDirective?.resolvedFileName;
+      const found = resolveWorldType(root, config, parsed, name);
       if (found === undefined) {
         unresolved.add(name);
       } else {
@@ -174,16 +165,6 @@ export function browserFiles(root: string): ReadonlySet<string> {
     }
   }
   return files;
-}
-
-// The host's realpath, so a workspace package keeps its source path.
-const realpath = (path: string): string => ts.sys.realpath?.(path) ?? path;
-
-export function createWorldProgram(root: string, config: string): ts.Program {
-  const parsed = loadWorld(root, config);
-  const host = ts.createCompilerHost(parsed.options);
-  host.realpath = realpath;
-  return ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options, host });
 }
 
 const PRODUCTION = /^packages\/[^/]+\/src\//u;

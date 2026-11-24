@@ -14,6 +14,7 @@ import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Verdict } from "../field-sort.ts";
 import type { NativeWorld } from "../native.ts";
+import type { PluginSources } from "../plugin-surface.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -39,6 +40,8 @@ import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
 import type { MemberScanReport } from "./members.ts";
 import { memberScanOf } from "./members.ts";
+import type { OptionalInventory } from "./optional-pairs.ts";
+import { optionalPairsOf } from "./optional-pairs.ts";
 import type { Ablation, GraphLog, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, profiling, tracing } from "./options.ts";
 import type { ParamsLists, ParamsReport } from "./params.ts";
@@ -389,6 +392,11 @@ export function scanGraph(
 /** Build and analyse the graph, then report its judged member rows as the fields report: dead data split by `rulings`. */
 export function fieldsGraph(root: string, rulings: MemberRulings, log: GraphLog): Promise<WithSession<FieldsReport>> {
   return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => fieldsOf(work.graph.facts, scanOf(root, work, rulings).members));
+}
+
+/** Build the graph, then read the optional fields production supplies at separate constructions (`pnpm brand-flow`). */
+export function optionalPairsGraph(root: string, log: GraphLog, plugins: PluginSources): Promise<WithSession<OptionalInventory>> {
+  return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => optionalPairsOf(work.graph.facts, work.world(), plugins));
 }
 
 /** Build and analyse the graph, then report its judged rows of callable members as the member scan, split by `rulings`. */

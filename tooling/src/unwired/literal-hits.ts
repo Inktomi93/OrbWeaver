@@ -141,8 +141,8 @@ import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import { SNAP_SOURCE } from "./graph/state.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, deepestAt, hasFlag, nameAt, nodePlace, propertiesNamed } from "./native.ts";
-import type { PluginSources } from "./optional-population.ts";
-import { isProduction, readPluginSources } from "./optional-population.ts";
+import type { PluginSources } from "./plugin-surface.ts";
+import { isPluginProduction as isProduction, readPluginSources } from "./plugin-surface.ts";
 
 const DEAD: Verdict = "dead";
 const ASK: Verdict = "ask";

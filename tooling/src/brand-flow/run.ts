@@ -6,6 +6,7 @@ import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import type { OptionalInventory } from "../unwired/index.ts";
+import { optionalPairsGraph } from "../unwired/index.ts";
 import { rank, renderReport } from "./report.ts";
 import type { BrandFlowReport } from "./scan.ts";
 import { scanBrandFlow } from "./scan.ts";
@@ -17,7 +18,7 @@ const DEFAULT_OUT = "reports/brand-flow";
 const BRAND_FLOW_LIMITS: readonly string[] = [
   "A widen is a brand handed to a slot whose type carries no brand; the receiver is not followed. A widen at a boundary is fine only where the receiver re-brands the string or reads it as that id, and the scan tells neither apart from a receiver that drops the id's meaning, except a re-brand by castId or a compare that the re-narrow pass links back to the widen. Judge a boundary widen by its receiver.",
   "A missing row is an id-named declaration typed string matched to a brand by its name (heuristic); a name no brand claims is listed as a generic id, not a defect.",
-  "An optional pair lists two fields seen at separate production constructions with no observed production co-set. A spread, a computed name, a later mutation or input constructed outside the program can supply both. A test co-set is positive evidence to review. Inherited and mapped slots are grouped by the contextual type at their construction; unresolved union arms and program-local type identities remain uncertain.",
+  "An optional pair lists two fields seen at separate production constructions with no observed production co-set. A spread, a computed name, a later mutation or input constructed outside the program can supply both. A test co-set is positive evidence to review. Inherited and mapped slots are grouped by the contextual type at their construction; unresolved union arms remain uncertain. The pairs come from the reference graph over the merged program (`pnpm unwired`), so a world walked apart from it has no constructions here.",
   "Each world scans only the files it is home to; a file in no tsconfig world (a codemod fixture, a script outside every world) is not scanned.",
   "A slot a library declares is the library layer; what the library does with the string is not followed.",
 ];
@@ -112,9 +113,11 @@ function writeReport(out: string, report: BrandFlowReport, ranked: ReturnType<ty
   return statSync(target).size;
 }
 
-export function runBrandFlow(argv: readonly string[]): number {
+export async function runBrandFlow(argv: readonly string[]): Promise<number> {
   const { root, out } = parseArgs(argv);
-  const report = scanBrandFlow({ root, log });
+  const { plugins, ...edges } = scanBrandFlow({ root, log });
+  const { optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets } = await optionalPairsGraph(root, log, plugins);
+  const report: BrandFlowReport = { ...edges, optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets };
   const ranked = rank(report);
   mkdirSync(out, { recursive: true });
   const summary = summaryOf(report);

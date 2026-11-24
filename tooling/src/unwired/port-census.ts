@@ -32,6 +32,7 @@ import {
   rulingKeysOf,
   tierRank,
 } from "../eslint/index.ts";
+import { loadWorld } from "../floor/testing/test-worlds.ts";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import { ImportGraph } from "./doors.ts";
@@ -53,7 +54,18 @@ import {
   SPLIT_RULING,
   sharedHomeOf,
 } from "./port-targets.ts";
-import { createWorldProgram, isProduction, packageWorlds } from "./worlds.ts";
+import { isProduction, packageWorlds } from "./worlds.ts";
+
+// The host's realpath, so a workspace package keeps its source path.
+const realpath = (path: string): string => ts.sys.realpath?.(path) ?? path;
+
+// One package world as a TypeScript 6 program: the port-ownership helpers in tooling/src/eslint/ read its checker.
+function createWorldProgram(root: string, config: string): ts.Program {
+  const parsed = loadWorld(root, config);
+  const host = ts.createCompilerHost(parsed.options);
+  host.realpath = realpath;
+  return ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options, host });
+}
 
 interface WorldCount {
   readonly config: string;

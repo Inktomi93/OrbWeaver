@@ -8,11 +8,9 @@ import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { OptionalInventory, PluginSources } from "../unwired/index.ts";
 import {
   homeFiles,
-  isOptionalProduction,
+  isPluginProduction,
   isProduction,
-  joinOptionalConstructions,
   NativeWorld,
-  optionalConstructionFacts,
   packageWorlds,
   pluginAuthorWorlds,
   pluginSources,
@@ -36,6 +34,10 @@ export function brandFlowWorlds(root: string): readonly string[] {
   const configs = [...packageWorlds(root), ...pluginAuthorWorlds(root), "tooling/tsconfig.json", ...TEST_WORLDS];
   return configs.filter((config) => existsSync(join(root, config)));
 }
+
+/** What the per-world brand scan reports, with the plugin sources its worlds hold; the optional inventory joins it
+ *  from the reference graph, which counts those sources as production. */
+export type BrandEdgeReport = Omit<BrandFlowReport, keyof OptionalInventory> & { readonly plugins: PluginSources };
 
 export interface BrandFlowReport extends OptionalInventory {
   readonly worlds: readonly { readonly config: string; readonly files: number; readonly brandless: boolean }[];
@@ -326,7 +328,7 @@ export function scanBrandEdgesAt(root: string, config: string, files: readonly s
 }
 
 /** Scan the worlds of `options.root`, one TypeScript 7.1 process at a time. */
-export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
+export function scanBrandFlow(options: BrandFlowOptions): BrandEdgeReport {
   const configs = options.worlds ?? brandFlowWorlds(options.root);
   const sdk = publishedSdkSources(options.root);
   const lists = NativeWorld.fileLists(options.root, configs, sdk);
@@ -337,13 +339,10 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     configs.filter((config) => authorWorlds.includes(config)),
   );
   const worlds: WorldRecords[] = [];
-  const constructions: ReturnType<typeof optionalConstructionFacts>[] = [];
-  const contextualTypes = new Map<string, number>();
   for (const config of configs) {
     using world = NativeWorld.open(options.root, config, sdk);
     const home = homes.get(config) ?? new Set<string>();
     const records = collectWorld(world, home);
-    constructions.push(optionalConstructionFacts(world, home, contextualTypes, plugins));
     options.log(`${config}: files=${records.files} mints=${records.mints.length} widens=${records.widens.length} declarations=${records.declarations.length}`);
     worlds.push(records);
   }
@@ -367,6 +366,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
   }
   const homed = [...homes.values()].flatMap((files) => [...files]);
   return {
+    plugins,
     worlds: worlds.map(({ config, files, brandless }) => ({ config, files, brandless })),
     scanned: {
       ...scannedFiles(homed, plugins),
@@ -386,7 +386,6 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     generic,
     crossBrand,
     brandAnswers: { agree: answers.agree, unnamed: answers.unnamed, disagreements: answers.disagreements },
-    ...joinOptionalConstructions(options.root, constructions, plugins),
     vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
   };
 }
@@ -395,7 +394,7 @@ function scannedFiles(homed: readonly string[], plugins: PluginSources): Omit<Br
   return {
     files: homed.length,
     production: homed.filter(isProduction).length,
-    optionalProduction: homed.filter((file) => isOptionalProduction(file, plugins)).length,
+    optionalProduction: homed.filter((file) => isPluginProduction(file, plugins)).length,
     byPackage: count(
       homed.map((file) =>
         file
