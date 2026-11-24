@@ -140,7 +140,8 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
     "Chip.data.zqTag ask dependency mdast",
     "Dice.data.zqDiceTag ask unclassified caller of zqDicePlugin",
     "Dropped.zqDropped dead",
-    "Parsed.zqExtra ask provider",
+    // the helper's return goes where its caller hands it: the request the provider library takes
+    "Parsed.zqExtra ask provider @ai-sdk/provider",
     "Reply.zqUnread ask unclassified",
     // a logger-named port nothing fills is no log line
     "Sampling.zqHeat ask unclassified",

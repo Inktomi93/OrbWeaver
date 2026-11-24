@@ -345,9 +345,9 @@ test("a value an in-tree body drops on every path is not sent; one it passes on 
 });
 
 // An assertion of a parameter a library typed hands the object to that library, which reads it back as the asserted
-// type; on a returned closure's `unknown` parameter the reader is the closure's unseen caller. A cast nothing follows
-// further, into a binding, sends nothing.
-test("an assertion of a library's parameter sends the asserted type to that library; a bare cast sends nothing", { timeout: 120_000 }, async ({
+// type; on a returned closure's `unknown` parameter the reader is the closure's unseen caller. A cast into a binding
+// goes where the binding's reads take it: here a return no product code calls, which is unclassified.
+test("an assertion of a library's parameter sends the asserted type to that library; a bare cast goes where its binding goes", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
   const scan = await graphScan(plantedTree, {
@@ -365,12 +365,12 @@ test("an assertion of a library's parameter sends the asserted type to that libr
     ]),
   });
   expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
-    ["Cast.kept", "member-write-only", []],
     ["Chip.type", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
     ["Chip.data", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
     ["Chip.data.tag", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
     ["Dice.data", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
     ["Dice.data.face", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
+    ["Cast.kept", "member-sent-only", [`unclassified ${FILE}:9`]],
   ]);
 });
 

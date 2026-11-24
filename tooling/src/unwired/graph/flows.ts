@@ -355,9 +355,10 @@ export class Flows {
     }
   }
 
-  // Where a cast's operand goes: every place its chase names, else a provider request it reaches, else nowhere.
+  // Where a cast's operand goes: every place its chase names, else a provider request it reaches, else nowhere. A path
+  // the depth bound stopped is unclassified.
   #assertionSends(assertion: Node, chase: Chase | undefined): readonly Destination[] {
-    const chased = distinctSends(chase?.to ?? []);
+    const chased = distinctSends([...(chase?.to ?? []), ...(chase?.stopped === true ? [UNCLASSIFIED] : [])]);
     if (chased.length > 0) {
       return chased;
     }
@@ -605,13 +606,14 @@ export class Flows {
     const { state } = this;
     const found = state.batch(nodes.map((node) => (node === undefined ? answer<Chase>(UNFOLLOWED) : sendChase(state.world, node))));
     this.#countStops(found);
-    return found.map(({ to, dropped, read }, at) => {
+    return found.map(({ to, dropped, read, stopped }, at) => {
       const node = nodes[at];
-      if (dropped || (read && to.length === 0)) {
+      if (dropped || (read && to.length === 0 && !stopped)) {
         return { read, sends: [] };
       }
+      // a path the depth bound stopped is unclassified even beside the places other paths reach
       if (to.length > 0) {
-        return { read, sends: distinctSends(to) };
+        return { read, sends: distinctSends(stopped ? [...to, UNCLASSIFIED] : to) };
       }
       return { read, sends: [node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED] };
     });
