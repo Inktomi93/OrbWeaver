@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-24
 priority: P2
 area: tooling
-lane: wt/agent-a3d884e64c98c584c
+lane: wt/agent-adfe6219dd9b27d07
 plan: unwired-code
 ---
 
