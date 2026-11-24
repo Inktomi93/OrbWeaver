@@ -200,6 +200,7 @@ export class Keys {
     const state = this.#state;
     const keys = [
       ...sites.keyArguments,
+      ...sites.templatePaths,
       ...sites.jsxAttributes.flatMap(({ name, value }) => (name === FORM_NAME && value !== undefined ? [value] : [])),
     ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key) || isTemplateExpression(key));
     const paths = state.batch(keys.map((key) => formPath(state.world.checker, key)));

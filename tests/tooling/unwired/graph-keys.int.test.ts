@@ -631,6 +631,44 @@ test("a field bound by a template path writes the member the path names, resolve
   }).toEqual({ readOnly: [], untouched: ["Macro.spare", "Macro.ghost"], writeOnly: [] });
 });
 
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template path
+const WRITE_PATH = "  form.setFieldValue(`macros[${INDEX}].MEMBER`, 'x');";
+const writePath = (index: string, member: string): string => WRITE_PATH.replace("INDEX", index).replace("MEMBER", member);
+
+// A form write method takes a template path as a bound field does: `setFieldValue(`macros[${index}].description`, v)`
+// writes the member each segment names. The same two controls hold: `ghostly` is a member the type lacks, and a bracket
+// substitution that is a string names no segment, so neither writes anything. `strict` is named by no path.
+test("a form write method's template path writes the member it names, resolved through the form's value type", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const form = `${GRAPH_SOURCE}/writes.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      ...FORM_API,
+      [form]: [
+        'import { useForm } from "./form-api.ts";',
+        "export interface Macro { readonly description?: string; readonly strict?: boolean; readonly spare?: string; readonly ghost?: string }",
+        "export interface Values { readonly macros: readonly Macro[] }",
+        "export function Editor({ index, label }: { readonly index: number; readonly label: string }): void {",
+        "  const form = useForm<Values>({ defaultValues: { macros: [] } });",
+        "  const shown = form.getFieldValue('macros');",
+        "  void shown;",
+        writePath("index", "description"),
+        writePath("index", "ghostly"),
+        writePath("label", "spare"),
+        "}",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect({
+    readOnly: labelsIn(scan, "member-read-only", form),
+    untouched: labelsIn(scan, "member-untouched", form),
+    writeOnly: labelsIn(scan, "member-write-only", form),
+  }).toEqual({ readOnly: [], untouched: ["Macro.strict", "Macro.spare", "Macro.ghost"], writeOnly: ["Macro.description"] });
+});
+
 // The user macro editor takes its form as a prop typed `Omit<AppFormInstance<T>, "reset">` through a generic overload,
 // where `AppFormInstance` is a project alias over the installed TanStack hook's return, and its value type is
 // `z.infer` of an installed zod schema. The form's type carries the project's alias, not the hook's own, so its data
