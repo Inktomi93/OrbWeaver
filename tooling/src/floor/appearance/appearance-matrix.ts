@@ -1,6 +1,7 @@
 // Live Appearance/theme inputs shared by the representative-matrix consumers. The browser bridge owns
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
 import type { AppearanceMatrixBridgeContract } from "@orb/client/agent-bridge-contract";
+import { appearanceMatrixContract } from "@orb/client/appearance-carrier-manifest";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
@@ -10,11 +11,6 @@ import type { VariantAssignment, VariantAxis } from "../variant-matrix/variant-m
 import type { ThemeEntry } from "./theme.ts";
 import { themeCatalogCapabilities } from "./theme.ts";
 
-// The live bridge must report the manifest's shape exactly; a drift here is a stale bundle, not a new axis.
-const EXPECTED_DECLARED_APPEARANCE = 42;
-const EXPECTED_EXECUTABLE_APPEARANCE = 38;
-const EXPECTED_DEPENDENCIES = 4;
-const EXPECTED_HISTORICAL_ROWS = 7;
 /** The app's reduced-motion setting is `system | on | off`; the matrices exercise `on` against `system`, the manifest's two arms. */
 export const APP_REDUCED_MOTION_ON = "on";
 export const APP_REDUCED_MOTION_SYSTEM = "system";
@@ -192,24 +188,28 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
   if (new Set(keys).size !== keys.length) {
     instrumentRefusal("Appearance contract contains duplicate keys");
   }
+  // The live bridge must report the checked-in manifest's population exactly; a drift here is a stale bundle, not a new axis.
+  const manifest = appearanceMatrixContract();
+  const manifestKeys = new Set<string>(manifest.rows.map((row) => row.key));
   if (
     contract.declared !== contract.rows.length ||
     contract.executable !== executable.length ||
     contract.dependencies !== dependencies.length ||
-    contract.declared !== EXPECTED_DECLARED_APPEARANCE ||
-    contract.executable !== EXPECTED_EXECUTABLE_APPEARANCE ||
-    contract.dependencies !== EXPECTED_DEPENDENCIES
+    contract.declared !== manifest.declared ||
+    contract.executable !== manifest.executable ||
+    contract.dependencies !== manifest.dependencies ||
+    keys.some((key) => !manifestKeys.has(key))
   ) {
     instrumentRefusal(
-      `Appearance contract population drift: declared=${contract.declared}/${contract.rows.length}, executable=${contract.executable}/${executable.length}, dependencies=${contract.dependencies}/${dependencies.length}`,
+      `Appearance contract population drift: declared=${contract.declared}/${contract.rows.length}/${manifest.declared}, executable=${contract.executable}/${executable.length}/${manifest.executable}, dependencies=${contract.dependencies}/${dependencies.length}/${manifest.dependencies} (reported/rows/manifest)`,
     );
   }
   if (Object.keys(contract.themeObservables).length === 0) {
     instrumentRefusal("Appearance contract has no theme observables");
   }
   if (
-    contract.historicalRows.length !== EXPECTED_HISTORICAL_ROWS ||
-    new Set(contract.historicalRows.map((row) => row.id)).size !== EXPECTED_HISTORICAL_ROWS ||
+    contract.historicalRows.length !== manifest.historicalRows.length ||
+    new Set(contract.historicalRows.map((row) => row.id)).size !== manifest.historicalRows.length ||
     contract.historicalRows.some(
       (row) =>
         row.subjects.length === 0 ||
@@ -234,7 +234,7 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
         !row.subjects.some((subject) => subject.selector === row.merge.selector),
     )
   ) {
-    instrumentRefusal(`Appearance contract historical-row population drift: rows=${contract.historicalRows.length}`);
+    instrumentRefusal(`Appearance contract historical-row population drift: rows=${contract.historicalRows.length}/${manifest.historicalRows.length}`);
   }
   return { axes: executable.map(appearanceAxis), dependencies, historicalRows: contract.historicalRows };
 }
