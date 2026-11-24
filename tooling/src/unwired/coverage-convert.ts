@@ -25,6 +25,18 @@ const readJsonFiles = (dir: string): readonly unknown[] =>
     .filter((name) => name.endsWith(".json"))
     .map((name): unknown => JSON.parse(readFileSync(join(dir, name), "utf8")));
 
+// The arrows the bundler writes around source code that has no arrow there: vite wraps each dynamic `import()` in
+// `__vitePreload(() => import(...))`, and rolldown reads a CommonJS module's default through
+// `.then((m) => __toESM(m.default, 1))`. Their source-map positions land on the import expression, so they match no
+// source function and a hit on one would read as unmatched.
+const SYNTHETIC_ARROW = /__vitePreload\(\s*(?=(?:async\s*)?\()|\.then\(\s*(?=\(\w+\)\s*=>\s*(?:\/\*[^*]*\*\/\s*)?__toESM\()/gu;
+const nodeStartSchema = z.object({ start: z.number() });
+
+/** Offsets where {@link SYNTHETIC_ARROW}'s arrows start in `code`. */
+function syntheticArrowStarts(code: string): ReadonlySet<number> {
+  return new Set([...code.matchAll(SYNTHETIC_ARROW)].map((match) => match.index + match[0].length));
+}
+
 /** Converts one executed script's hits; `url` names the file the converter reports when no source map does. */
 export async function istanbulOf(url: string, code: string, segments: HitSegments, sourceMap?: z.infer<typeof sourceMapSchema>): Promise<IstanbulMap> {
   // One function whose flat segments carry every count: the converter reads an offset's count the same way.
@@ -34,7 +46,14 @@ export async function istanbulOf(url: string, code: string, segments: HitSegment
   if (failure !== undefined) {
     throw new Error(`${url}: the executed code does not parse: ${failure.message}`);
   }
-  const map = await convert({ code, ast: parsed.program, coverage: { url, functions }, ...(sourceMap === undefined ? {} : { sourceMap }) });
+  const synthetic = sourceMap === undefined ? new Set<number>() : syntheticArrowStarts(code);
+  const map = await convert({
+    code,
+    ast: parsed.program,
+    coverage: { url, functions },
+    ignoreNode: (node, type) => type === "function" && synthetic.size > 0 && synthetic.has(nodeStartSchema.parse(node).start),
+    ...(sourceMap === undefined ? {} : { sourceMap }),
+  });
   return istanbulMapSchema.parse(JSON.parse(JSON.stringify(map)));
 }
 
