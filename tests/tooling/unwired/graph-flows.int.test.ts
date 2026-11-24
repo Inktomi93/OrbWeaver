@@ -517,7 +517,8 @@ test("a writable slot member assigned through writes the object its caller reads
       "export const ctx: Ctx = { onSettled: (info) => { console.log(info.id, info.outcome, info.reason); } };",
       "const inner = (round: { readonly settle: { outcome: string; reason: string | null } }): void => {",
       '  round.settle.outcome = "w";',
-      '  round.settle.reason = "r";',
+      "  const { settle } = round;",
+      '  settle.reason = "r";',
       "};",
       "const looks = (round: { readonly settle: { outcome: string; note: string | null } }): string => round.settle.outcome;",
       "const fixed = (round: { readonly settle: { readonly outcome: string; readonly tag: string | null } }): string => round.settle.outcome;",
@@ -536,6 +537,29 @@ test("a writable slot member assigned through writes the object its caller reads
     ]),
   );
   expect(bucketsIn(scan)).toEqual(["member-write-only looks.settle.note", "member-write-only fixed.settle.tag"]);
+});
+
+// `reset` assigns `Settle.note` through its own parameter, on `own`, whose note nothing reads; `kept` is handed to
+// `looks`, which assigns nothing. The caller's read of `kept.note` reaches nothing of `Settle`, so its `note` stays
+// written and never read.
+test("an assignment through another call's parameter flows nothing back", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Settle { outcome: string; note: string | null }",
+      "const looks = (s: Settle): string => s.outcome;",
+      "const reset = (s: Settle): void => {",
+      "  s.note = null;",
+      "};",
+      "export const viewed = (): string => {",
+      '  const kept: { outcome: string; note: string | null } = { outcome: "f", note: "n" };',
+      '  const own: Settle = { outcome: "o", note: "n" };',
+      "  reset(own);",
+      "  return looks(kept) + own.outcome + String(kept.note);",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Settle.note"]);
 });
 
 // A worker's local host and the process host both carry a `readLog`, but only the process host's literal fills the port
