@@ -350,6 +350,26 @@ test("a writable slot member assigned through writes the object its caller reads
   expect(bucketsIn(scan)).toEqual(["member-write-only looks.settle.note", "member-write-only fixed.settle.tag"]);
 });
 
+// A worker's local host and the process host both carry a `readLog`, but only the process host's literal fills the port
+// the domain reads through; the worker runs only `invoke` on its local host. The local `readLog` takes no read from
+// the port's, which shares its name and nothing else, and the port's `drop`, which nothing reads, stays written.
+test("a host literal's method fills only the port its literal is typed by", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Port { readonly readLog: (id: string) => readonly string[]; readonly drop: (id: string) => void }",
+      "export function localHost(): { readonly readLog: (id: string) => readonly string[]; readonly invoke: (id: string) => string } {",
+      "  return { readLog: (id) => [id], invoke: (id) => id };",
+      "}",
+      "const local = localHost();",
+      'export const ran = (): string => local.invoke("a");',
+      "export const processHost = (): Port => ({ readLog: (id) => [id], drop: (id) => { void id; } });",
+      'export const read = (port: Port): readonly string[] => port.readLog("a");',
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Port.drop", "member-write-only localHost.readLog"]);
+});
+
 // The reader's file is walked before the file that widens the row, so the carried pair is found after the reader's
 // slot was filled, and is linked once every file is walked.
 test("a carried member reaches a slot named in a file walked earlier", { timeout: 120_000 }, async ({ plantedTree }) => {
