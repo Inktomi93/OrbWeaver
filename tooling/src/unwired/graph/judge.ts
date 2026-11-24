@@ -12,6 +12,9 @@
 // - A member the product sends to a provider request and never reads is received by the provider where a law, ADR or
 //   README line names it (field-sort.ts providerCite); with no such line it stays a judged row.
 // - A tRPC mutation's one-member output is the procedure's whole answer: its unread member is acknowledged, never judged.
+// - A member the product never reads and sends only to an observability sink (boundaries.ts OBSERVABILITY_SINKS: a log
+//   line, the observability home's declarations, the dev bridge) is observed by the operator, never judged. The sink is
+//   each send's resolved target, never the member's or the value's name.
 import type { JsxAttribute, Node, PropertyAssignment, PropertyDeclaration, SourceFile } from "@typescript/native/ast";
 import {
   getTokenAtPosition,
@@ -36,6 +39,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import type { SendDestination } from "../boundaries.ts";
+import { OBSERVABILITY_SINKS } from "../boundaries.ts";
 import type { DeliberateEntry } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { FieldPromise, PromiseField, SortEvidence, Verdict } from "../field-sort.ts";
@@ -117,6 +121,8 @@ export type JudgedMembers = JudgedSplit<MemberRow> & {
   readonly deliberate: readonly (MemberRow & { readonly reason: string })[];
   readonly validated: readonly MemberRow[];
   readonly acknowledged: readonly MemberRow[];
+  /** Never-read members whose every send is an observability sink. */
+  readonly observed: readonly MemberRow[];
   readonly received: readonly ReceivedRow[];
   /** The literal search over every dead row, or null for a root with no git index or no wired member to control it. */
   readonly literalStage: LiteralStage | null;
@@ -330,6 +336,12 @@ function siteFacts(facts: GraphFacts, decl: DeclKey): { readonly product: readon
   };
 }
 
+// A row's product sends, when it has some and each one reaches an observability sink.
+function onlyObserved(product: readonly RoleSite[]): boolean {
+  const sends = product.flatMap((site) => (site.role === "escape" ? [site.destination] : []));
+  return sends.length > 0 && sends.every((destination) => OBSERVABILITY_SINKS.has(destination));
+}
+
 const sampleOf = (sites: readonly RoleSite[], sources: Sources): readonly string[] =>
   [...sites.filter(({ role }) => role === "write"), ...sites.filter(({ role }) => READS.has(role))]
     .slice(0, SAMPLE)
@@ -404,9 +416,12 @@ export function judgeMembers(
   });
   const acknowledging = acknowledgements(world, facts);
   const acknowledgedKeys = new Set(judged.filter(({ decl, row }) => NEVER_READ.has(row.bucket) && acknowledging.has(decl)).map(({ row }) => row.key));
+  const observedKeys = new Set(
+    judged.filter(({ row, product }) => !acknowledgedKeys.has(row.key) && NEVER_READ.has(row.bucket) && onlyObserved(product)).map(({ row }) => row.key),
+  );
   const { unwired, deliberate } = sortDeliberate(rows, rulings.deliberate);
   const split = sortJudged(
-    unwired.filter(({ bucket, key }) => bucket !== VALIDATED && !acknowledgedKeys.has(key)),
+    unwired.filter(({ bucket, key }) => bucket !== VALIDATED && !acknowledgedKeys.has(key) && !observedKeys.has(key)),
     { root, judged: rulings.judged },
   );
   return {
@@ -414,6 +429,7 @@ export function judgeMembers(
     deliberate,
     validated: unwired.filter(({ bucket }) => bucket === VALIDATED),
     acknowledged: unwired.filter(({ key }) => acknowledgedKeys.has(key)),
+    observed: unwired.filter(({ key }) => observedKeys.has(key)),
     received,
     literalStage: staged.stage,
   };
@@ -424,7 +440,7 @@ export function judgeMembers(
 export function verdictsByDecl(graph: Graph, members: JudgedMembers): ReadonlyMap<DeclKey, Verdict> {
   const declOf = new Map(declaredMembers(graph.facts).map(({ decl, key }) => [key, decl]));
   return new Map(
-    [...members.unwired, ...members.validated, ...members.acknowledged].flatMap(({ key, verdict }) => {
+    [...members.unwired, ...members.validated, ...members.acknowledged, ...members.observed].flatMap(({ key, verdict }) => {
       const decl = declOf.get(key);
       return decl === undefined ? [] : [[decl, verdict] as const];
     }),

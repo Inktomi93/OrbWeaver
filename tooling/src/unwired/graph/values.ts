@@ -55,6 +55,8 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { IndexKind } from "@typescript/native/sync";
+import type { ListResult } from "../list-methods.ts";
+import { methodCallOf, RESULTS } from "../list-methods.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import { answer, keyText } from "./resolve.ts";
 import type { GraphState } from "./state.ts";
@@ -88,15 +90,6 @@ const ELEMENT_PARAMETERS: ReadonlyMap<string, readonly number[]> = new Map<strin
   ]),
   ...["reduce", "reduceRight"].map((name): [string, readonly number[]] => [name, [1]]),
   ...["sort", "toSorted"].map((name): [string, readonly number[]] => [name, [0, 1]]),
-]);
-// What an array method returns, against its receiver: the receiver's own elements, one of them, or the callback's returns.
-const LIST_RESULTS = ["same", "element", "mapped", "flat"] as const;
-type ListResult = (typeof LIST_RESULTS)[number];
-const RESULTS: ReadonlyMap<string, ListResult> = new Map([
-  ...["filter", "slice", "toSorted", "toReversed", "sort", "reverse"].map((name) => [name, "same"] as const),
-  ...["find", "findLast", "at"].map((name) => [name, "element"] as const),
-  ["map", "mapped"],
-  ["flatMap", "flat"],
 ]);
 
 const pathKey = (path: Path): string => path.map((step) => (step.kind === "element" ? "[]" : `.${step.name}`)).join("");
@@ -144,16 +137,6 @@ function returnsOf(fn: Node): readonly Expression[] {
   };
   body.forEachChild(visit);
   return out;
-}
-
-// The array method a callback is handed to, with the receiver and the callback's argument index.
-function methodCallOf(fn: Node): { readonly call: CallExpression; readonly method: string; readonly receiver: Expression; readonly index: number } | undefined {
-  const call = fn.parent;
-  if (!(isCallExpression(call) && isPropertyAccessExpression(call.expression))) {
-    return undefined;
-  }
-  const index = call.arguments.findIndex((argument) => argument.pos === fn.pos && argument.end === fn.end);
-  return index < 0 ? undefined : { call, method: call.expression.name.text, receiver: call.expression.expression, index };
 }
 
 // One request's walk: the hops it took, the steps it has seen and the origins it found. `halted` marks a walk the hop

@@ -323,6 +323,19 @@ export const libraryModule = (lines: readonly string[], name = "lib"): Record<st
   [`node_modules/${name}/index.d.ts`]: lines.join("\n"),
 });
 
+/** Hono's request context with Node's types: `json` answers the platform `Response`, as the real member does, and `set`
+ *  answers nothing. A planted source declares `c: Context` to send through it. */
+export const HONO_CONTEXT = {
+  ...NODE_TYPES,
+  ...libraryModule(
+    [
+      '/// <reference types="node" />',
+      "export declare class Context { json<T>(object: T): Response & { readonly typed: T }; set(key: string, value: object): void }",
+    ],
+    "hono",
+  ),
+};
+
 // The ui package owns tailwind-variants; a planted tree takes the installed declarations whole, since the variant pass
 // follows a selection through tailwind-variants' own prop types.
 const UI_MANIFEST = join(import.meta.dirname, "../../../packages/ui/package.json");

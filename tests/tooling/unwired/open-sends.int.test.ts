@@ -124,11 +124,15 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
   });
   const row = ({ home, member, verdict, sent }: FieldsReport["unwired"][number]): string =>
     [`${home}.${member}`, verdict, ...sent.map((send) => send.split(" ").toSpliced(1, 1).join(" "))].join(" ");
+  // a pino line is an observability sink, so its rows are observed rather than reported
+  expect(report.observed.map(row).toSorted()).toEqual([
+    "Bare.zqBare ask log pino",
+    "Direct.zqDirect ask log pino",
+    "Entry.zqTrace ask log pino",
+    "Trace.zqBuilt ask log pino",
+  ]);
   const found = new Set(report.unwired.map(row));
   for (const expected of [
-    "Trace.zqBuilt ask log pino",
-    "Direct.zqDirect ask log pino",
-    "Bare.zqBare ask log pino",
     "View.zqShown ask dependency render",
     "Checked.zqChecked dead",
     "Memo.zqMemo dead",
@@ -136,9 +140,11 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
     "Chip.data.zqTag ask dependency mdast",
     "Dice.data.zqDiceTag ask unclassified caller of zqDicePlugin",
     "Dropped.zqDropped dead",
-    "Parsed.zqExtra ask provider",
+    // the helper's return goes where its caller hands it: the request the provider library takes
+    "Parsed.zqExtra ask provider @ai-sdk/provider",
     "Reply.zqUnread ask unclassified",
-    "Sampling.zqHeat ask log log.emit",
+    // a logger-named port nothing fills is no log line
+    "Sampling.zqHeat ask unclassified",
     "Knobs.zqTopK ask provider",
     "Extras.zqKeyed ask provider",
     "Answer.zqCode ask unclassified",

@@ -3,7 +3,7 @@
 // member pairs it, and a library slot naming a field is a receiver reading it.
 import { expect, plantedTsconfig, plantLink, test } from "@orb/testkit/tooling";
 import { NativeWorld, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB, labelsIn, libraryModule, NODE_TYPES, WORLD } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, HONO_CONTEXT, JSX_NAMESPACE, LIB, labelsIn, libraryModule, NODE_TYPES, WORLD } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/sends.ts`;
 const JSX_FILE = `${GRAPH_SOURCE}/card.tsx`;
@@ -345,9 +345,9 @@ test("a value an in-tree body drops on every path is not sent; one it passes on 
 });
 
 // An assertion of a parameter a library typed hands the object to that library, which reads it back as the asserted
-// type; on a returned closure's `unknown` parameter the reader is the closure's unseen caller. A cast nothing follows
-// further, into a binding, sends nothing.
-test("an assertion of a library's parameter sends the asserted type to that library; a bare cast sends nothing", { timeout: 120_000 }, async ({
+// type; on a returned closure's `unknown` parameter the reader is the closure's unseen caller. A cast into a binding
+// goes where the binding's reads take it: here a return no product code calls, which is unclassified.
+test("an assertion of a library's parameter sends the asserted type to that library; a bare cast goes where its binding goes", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
   const scan = await graphScan(plantedTree, {
@@ -365,12 +365,12 @@ test("an assertion of a library's parameter sends the asserted type to that libr
     ]),
   });
   expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
-    ["Cast.kept", "member-write-only", []],
     ["Chip.type", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
     ["Chip.data", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
     ["Chip.data.tag", "member-sent-only", [`dependency ${FILE}:6 mdast`]],
     ["Dice.data", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
     ["Dice.data.face", "member-sent-only", [`unclassified ${FILE}:8 caller of dicePlugin`]],
+    ["Cast.kept", "member-sent-only", [`unclassified ${FILE}:9`]],
   ]);
 });
 
@@ -380,9 +380,11 @@ test("an assertion of a library's parameter sends the asserted type to that libr
 test("a dotted-path read and a compared serialization read a value's members; a response or a throw only sends them", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
-  const scan = await graphScan(
-    plantedTree,
-    source([
+  const scan = await graphScan(plantedTree, {
+    ...HONO_CONTEXT,
+    ...source([
+      '/// <reference types="node" />',
+      'import type { Context } from "hono";',
       "export interface Snapshot { readonly mode: string; readonly deep: { readonly leaf: string } }",
       "export interface Detail { readonly note: string }",
       "export interface View { readonly status: string; readonly details: readonly Detail[] }",
@@ -391,7 +393,7 @@ test("a dotted-path read and a compared serialization read a value's members; a 
       "export interface Failed { readonly code: string }",
       "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
       "const log = (value: unknown): void => { void value; };",
-      "const c = { json: (value: unknown): unknown => value };",
+      "declare const c: Context;",
       'const snapshot: Snapshot = { mode: "m", deep: { leaf: "l" } };',
       'const view: View = { status: "ok", details: [{ note: "n" }] };',
       'const passed: Passed = { unread: "u" };',
@@ -403,7 +405,7 @@ test("a dotted-path read and a compared serialization read a value's members; a 
       'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
       "log(passed);",
     ]),
-  );
+  });
   expect({
     sent: labelsIn(scan, "member-sent-only", FILE),
     written: labelsIn(scan, "member-write-only", FILE),
@@ -432,8 +434,8 @@ test("a literal key read through a string-indexed type reads the handed value's 
 });
 
 // A slot with a string index signature names some members and takes the rest as open entries: the members it does not
-// name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
-// it names pairs, so a read of the slot's member reads it.
+// name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too, so they
+// are observed. The member it names pairs, so a read of the slot's member reads it.
 test("a value's members a string-index slot does not name are sent where the slot's value goes", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...libraryModule(["export interface Logger { debug<T extends object>(obj: T, msg?: string): void }"], "pino"),
@@ -449,7 +451,8 @@ test("a value's members a string-index slot does not name are sent where the slo
       "};",
     ]),
   });
-  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+  expect(scan.members.unwired).toEqual([]);
+  expect(scan.members.observed.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
     ["Trace.built", "member-sent-only", [`log ${FILE}:7 pino`]],
     ["Entry.trace", "member-sent-only", [`log ${FILE}:7 pino`]],
   ]);
