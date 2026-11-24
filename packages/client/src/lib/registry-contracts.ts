@@ -64,10 +64,6 @@ export interface ContextTabDef<S> {
    *  / `false` / `0` ⇒ no badge. Resolved at resolve-time against `S` (same as `when`). Never rendered on
    *  the active tab (the strip suppresses it). */
   readonly badge?: (state: S) => number | boolean | null;
-  /** PHASE disable-with-reason (§4.6), resolved against `S` like `when` — the REASON, never a rendering: the
-   *  GENERIC panel renders it `aria-disabled` + `title` + lock glyph (focusable, never `disabled`); a CLAIMED
-   *  pane renders lock + `title` and NOT `aria-disabled` — its locked cell OPENS (HUD-1 §3.6b). `null` ⇒ enabled. */
-  readonly disabledReason?: (state: S) => string | null;
   /** Preferred-default marker — when TRUE and no stored `contextTab` is visible,
    *  the panel lands on THIS tab instead of the declared-order first (a game chat lands on `rpg.status`, not
    *  the roster's Members). Resolved at resolve-time against `S` (same as `when`). A stored, still-visible
@@ -77,8 +73,8 @@ export interface ContextTabDef<S> {
 }
 
 /** What the shell renders for one tab — `S` already applied. `strip` is always present (defaulted to
- *  `"meta"` at resolve time); `badge`/`disabledReason` carry the RESOLVED values (`badge(state)` /
- *  `disabledReason(state)` already called), so the renderer is state-blind. */
+ *  `"meta"` at resolve time); `badge` carries the RESOLVED value (`badge(state)`
+ *  already called), so the renderer is state-blind. */
 export interface ResolvedContextTab {
   readonly id: string;
   readonly label: string;
@@ -90,7 +86,6 @@ export interface ResolvedContextTab {
   /** RESOLVED opaque-surface marker, defaulted to `false`. */
   readonly opaque: boolean;
   readonly badge: number | boolean | null;
-  readonly disabledReason: string | null;
   /** RESOLVED preferred-default flag: `true` ⇒ the panel lands here when no
    *  stored `contextTab` is visible. First `true` tab wins; all-`false` ⇒ the declared-order first (today). */
   readonly defaultTab: boolean;
@@ -222,7 +217,6 @@ function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): ResolvedCont
     crown: tab.crown ?? false,
     opaque: tab.opaque ?? false,
     badge: tab.badge?.(state) ?? null,
-    disabledReason: tab.disabledReason?.(state) ?? null,
     defaultTab: tab.defaultTab?.(state) ?? false,
     ...(tab.icon === undefined ? {} : { icon: tab.icon }),
   }));

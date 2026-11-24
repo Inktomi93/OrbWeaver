@@ -189,9 +189,6 @@ export interface CollectionContribution {
   /** The zero-member group's dashed one-liner ("No tags yet."). Collection-owned for the same reason the
    *  `none` context copy is: a host-generic "nothing here" reads as unbuilt (empty states are load-bearing). */
   readonly emptyText: string;
-  /** Live CAPABILITY gate, called UNCONDITIONALLY over the door-frozen list (the `ChromeEntry.useVisible`
-   *  contract). `false` ⇒ the whole group renders NOTHING. Never a BUILD fact. */
-  readonly useVisible?: () => boolean;
   /** The group count for the band ("TAGS · 412") — a cache-first hook, same call discipline. It also drives
    *  the host's filter affordance at {@link COLLECTION_LARGE_GROUP}.
    *

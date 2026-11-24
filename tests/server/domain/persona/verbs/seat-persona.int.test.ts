@@ -36,6 +36,22 @@ test("switching the seat's persona reaches the room's live channel as personaSwi
   }
 });
 
+test("the wire seat flip refuses a target user and seats only the caller", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const persona = await root.services.persona.create({ principal, input: createPersonaSchema.parse({ name: "Alex", description: "Alex description." }) });
+  const { chat } = await caller.chat.startChat({ characterIds: [], opening: "none" });
+
+  // A non-fresh object: typecheck admits the retired key, as a hand-declared client payload type does.
+  const withTarget = { chatId: chat.id, personaId: persona.id, targetUserId: root.ownerId };
+  await expect(caller.persona.setActivePersona(withTarget)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  expect((await caller.chat.getChat({ chatId: chat.id })).viewerActivePersonaId).toBeNull();
+
+  await caller.persona.setActivePersona({ chatId: chat.id, personaId: persona.id });
+  expect((await caller.chat.getChat({ chatId: chat.id })).viewerActivePersonaId).toBe(persona.id);
+});
+
 test("a member who left a room is no longer a seat there, and removing their persona re-seats the room they are still in", async () => {
   await using root = await createServerHarness({ env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" } });
   const host = await root.principalFor(root.ownerId);

@@ -76,14 +76,16 @@ export interface MacroTextareaProps extends Pick<ComponentProps<typeof Textarea>
 
 // Keyed by array identity: every field sharing the same registry reference shares one fuzzy index,
 // and an unmounted feature's array is GC-able.
-const indexCache = new WeakMap<readonly MacroSuggestion[], MiniSearch<MacroSuggestion & { id: string }>>();
+const indexCache = new WeakMap<readonly MacroSuggestion[], MiniSearch<MacroSuggestion>>();
 
-function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<MacroSuggestion & { id: string }> {
+function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<MacroSuggestion> {
   const cached = indexCache.get(suggestions);
   if (cached) {
     return cached;
   }
-  const index = new MiniSearch<MacroSuggestion & { id: string }>({
+  const index = new MiniSearch<MacroSuggestion>({
+    // A macro's name is already unique, so it is the document id.
+    idField: "name",
     fields: ["name", "description"],
     // `insertTemplate` is stored (never indexed): the picked row is reconstructed from the STORED fields,
     // so a block macro reached through search must carry its insertion with it or it inserts a bare call.
@@ -94,7 +96,7 @@ function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<Mac
       boost: { name: 4 },
     },
   });
-  index.addAll(suggestions.map((s) => ({ ...s, id: s.name })));
+  index.addAll(suggestions);
   indexCache.set(suggestions, index);
   return index;
 }

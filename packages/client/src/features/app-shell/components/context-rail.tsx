@@ -15,7 +15,7 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { ChevronDown, ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
+import { ChevronDown, ChevronLeft, ChevronRight, Crown, Icon } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Corner, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
@@ -307,25 +307,14 @@ function ContextTab({
   readonly isActive: boolean;
   readonly activeRef: RefObject<HTMLButtonElement | null>;
 }): ReactElement {
-  const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   return (
-    <TabsTab
-      ref={isActive ? activeRef : undefined}
-      value={tab.id}
-      id={cellDomId(tab.id)}
-      // The lock is in the name (Base UI emits `aria-disabled="false"` here, so a glyph-only lock was
-      // imperceptible to AT); the visible caption stays the prefix of the accessible name.
-      aria-label={locked ? `${tab.label}, locked` : tab.label}
-      data-crown={tab.crown}
-      className="shrink-0"
-    >
-      {renderCellIcon(tab, isActive, locked)}
+    <TabsTab ref={isActive ? activeRef : undefined} value={tab.id} id={cellDomId(tab.id)} aria-label={tab.label} data-crown={tab.crown} className="shrink-0">
+      {renderCellIcon(tab, isActive)}
       <Text as="span" voice="label" data-slot="context-cell-caption" truncate={true} ink="inherit">
         {tab.label}
       </Text>
-      {locked ? <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} /> : null}
-      {locked ? null : <ContextTabBadge count={count} dot={tab.badge === true} />}
+      <ContextTabBadge count={count} dot={tab.badge === true} />
     </TabsTab>
   );
 }
@@ -344,17 +333,7 @@ function ContextTabBadge({ count, dot }: { readonly count: number; readonly dot:
 /** One cell: glyph + caption, ALWAYS both, in a cell whose height follows its content. The caption is the accessible name AND visible; `title` is NOT the
  *  caption's understudy (the word is on screen and `aria-label` carries the full name when it truncates).
  *
- *  ACTIVE: the ember fill + foreground ink + the 2px primary bar on the bottom edge (the mock's `.cell.on`).
- *  PHASE-locked (the Map): a LOCK glyph and "locked" in the name — deliberately NOT `aria-disabled`: the
- *  locked cell OPENS onto a body that states the reason and when the feature arrives, and a control announcing
- *  "unavailable" while Enter opens it is two stories. One story, in every pane: a real cell wearing a lock,
- *  where mouse, keyboard and AT all get the same answer.
- *
- *  AND THE DIM OBEYS THAT SAME STORY. The mock's `.cell.lock { opacity: 0.6 }` on the cell ROOT would put the
- *  caption under contrast — and because this cell renounces `aria-disabled`, 1.4.3's disabled exemption does
- *  not apply to it. (axe does not composite ancestor `opacity`, so it cannot catch this.) The dim lands on the
- *  ORNAMENTS — the glyph and the padlock, non-text content — and the CAPTION keeps the rail's own ink, so
- *  the "unavailable" signal is carried by the lock, which is the thing that means it. */
+ *  ACTIVE: the ember fill + foreground ink + the 2px primary bar on the bottom edge (the mock's `.cell.on`). */
 function ContextCell({
   tab,
   isActive,
@@ -364,7 +343,6 @@ function ContextCell({
   readonly isActive: boolean;
   readonly ownership: "owning" | "receded";
 }): ReactElement {
-  const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   return (
     <TabsTab
@@ -379,16 +357,13 @@ function ContextCell({
       // the rail that is not holding the view.
       {...CELL_ARIA_STRIP}
       aria-current={isActive ? true : undefined}
-      // THE LOCK IS IN THE NAME: Base UI emits `aria-disabled="false"` on this cell (it is genuinely not
-      // disabled), so a glyph-only lock would be one AT could not perceive. The visible
-      // caption stays the prefix of the accessible name (WCAG 2.5.3 Label-in-Name).
-      aria-label={locked ? `${tab.label}, locked` : tab.label}
+      aria-label={tab.label}
       data-crown={tab.crown}
       // NO `min-w-0` HERE, EVER: with the spacing scale registered in tailwind-merge a call-site `min-w-0` wins
       // outright and deletes the touch floor the primitive's `min-w-touch-target` carries.
       className="relative"
     >
-      {renderCellIcon(tab, isActive, locked)}
+      {renderCellIcon(tab, isActive)}
       {/* voice=LABEL, not `gloss`: this caption is the pane's PRIMARY NAVIGATION, and `gloss` is
           the 10.5px `micro` step — under the 11px readable floor. The mock draws its captions at 10.5px and is
           NOT followed on this axis: the readable-floor ruling stands. text-inherit so the cell's own state
@@ -396,26 +371,19 @@ function ContextCell({
       <Text as="span" voice="label" data-slot="context-cell-caption" cap="fit" truncate={true} ink="inherit">
         {tab.label}
       </Text>
-      {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER: the rail is full-bleed, so the LAST
-          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped. */}
-      {locked ? (
-        <Corner>
-          <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} />
-        </Corner>
-      ) : null}
-      {locked || isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
+      {isActive ? null : <ContextCellBadge count={count} dot={tab.badge === true} />}
     </TabsTab>
   );
 }
 
-function renderCellIcon(tab: ResolvedContextTab, isActive: boolean, locked: boolean): ReactElement | null {
+function renderCellIcon(tab: ResolvedContextTab, isActive: boolean): ReactElement | null {
   if (tab.icon === undefined) {
     return null;
   }
   if (tab.icon === Crown) {
-    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} receded={locked} />;
+    return <Icon icon={Crown} size="sm" fill={isActive ? "solid" : "none"} />;
   }
-  return <Icon icon={tab.icon} size="sm" receded={locked} />;
+  return <Icon icon={tab.icon} size="sm" />;
 }
 
 function ContextCellBadge({ count, dot }: { readonly count: number; readonly dot: boolean }): ReactElement | null {
