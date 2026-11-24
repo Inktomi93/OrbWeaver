@@ -64,5 +64,5 @@ export { publishedSdkSources } from "./plugin-surface.ts";
 export type { PortCensus } from "./port-census.ts";
 export { portCensus } from "./port-census.ts";
 export type { PortTarget, TargetKind } from "./port-targets.ts";
-export { runUnwired, TRIAL_VERB } from "./run.ts";
+export { runUnwired } from "./run.ts";
 export { isProduction, packageWorlds } from "./worlds.ts";

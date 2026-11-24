@@ -31,8 +31,9 @@ import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
 import { ABLATIONS, FRESH_BUILD, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
+import type { PprofSummary } from "./graph/pprof.ts";
 import { outsideTable } from "./graph/procedures.ts";
-import type { GraphProfileReport } from "./graph/profile.ts";
+import type { GraphProfileReport, MemoryPeaks } from "./graph/profile.ts";
 import { PROFILE_PHASES } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
@@ -78,7 +79,7 @@ const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
-export const TRIAL_VERB = "graph-trial";
+const TRIAL_VERB = "graph-trial";
 const TRIAL_SYNOPSIS = `pnpm unwired ${TRIAL_VERB} --bucket=<${TRIAL_BUCKETS.join("|")}> [--bucket=<name>]... [--verdict=<${SORT_VERDICTS.join("|")}>]... [--limit=<n>] [--profile=<${PROFILES.join("|")}>[,...]] [--root=<dir>] [--out=<file>]`;
 const HITS_VERB = "hits";
 /** The reference-graph verbs: the buckets, a member bucket's find-references check, the custom-property pass, the
@@ -527,10 +528,9 @@ function logProfile(profile: GraphProfileReport): void {
   log(`profile phases ${PROFILE_PHASES.map((phase) => `${phase}=${ms(profile.phases[phase])}`).join(" ")} (resolve, origin and fixpoint overlap walk)`);
   if (profile.world !== null) {
     const { batches, rounds, sent, memoHits } = profile.world;
-    log(
-      `profile requests batches=${String(batches)} rounds=${String(rounds)} sent=${String(sent)} memo-hits=${String(memoHits)} rss-peak=${String(profile.rssPeakMb)}MB`,
-    );
+    log(`profile requests batches=${String(batches)} rounds=${String(rounds)} sent=${String(sent)} memo-hits=${String(memoHits)}`);
   }
+  logMemory(profile.memory);
   if (profile.timing !== null) {
     const { requestCount, roundTripMs, serverTimeMs, transportOverheadMs } = profile.timing;
     log(`profile checker requests=${String(requestCount)} round-trip=${ms(roundTripMs)} server=${ms(serverTimeMs)} transport=${ms(transportOverheadMs)}`);
@@ -554,15 +554,45 @@ function logProfile(profile: GraphProfileReport): void {
   logCompilers(profile);
 }
 
-// Each compiler profile the run wrote, its top functions shown; the report keeps every one.
+const UNMEASURED = `unmeasured on ${process.platform}`;
+const mb = (value: number | null): string => (value === null ? UNMEASURED : `${String(value)}MB`);
+
+// Node's and every compiler's peak, and the run's combined peak between what a sample saw and what no moment exceeded.
+function logMemory(memory: MemoryPeaks): void {
+  const compilers = memory.compilers.map(({ config, pid, startedIn, peakMb }) => `${config}(pid ${String(pid)}, ${startedIn ?? "session"})=${mb(peakMb)}`);
+  log(
+    `profile memory node-peak=${mb(memory.nodePeakMb)} compiler-peaks ${compilers.join(" ") || "none"} combined sampled=${mb(memory.combinedSampledMb)} bound=${mb(memory.combinedBoundMb)}`,
+  );
+}
+
+// The Go collector's mark worker, and its idle mode: a worker in idle mode marks on a core the compiler had no other work
+// for, as it waits on Node between requests, so only the rest of the marking competes with the compiler's own work.
+const GC_WORKER = "runtime.gcBgMarkWorker";
+const GC_IDLE_WORKER = "runtime.gcDrainMarkWorkerIdle";
+const PERCENT = 100;
+
+// One profile's top functions shown; the report keeps every one.
+function logSummary(label: string, summary: PprofSummary): void {
+  log(
+    `profile ${label}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
+  );
+  for (const { name, flat, cumulative } of summary.entries.slice(0, SHOWN_PROFILE_ENTRIES)) {
+    log(`  cum=${String(cumulative)}\tflat=${String(flat)}\t${name}`);
+  }
+}
+
+// Each compiler profile the run wrote, a CPU profile with its collector share, and Node's heap profile.
 function logCompilers(profile: GraphProfileReport): void {
   for (const { kind, path, summary } of profile.compilers) {
-    log(
-      `profile ${kind} ${path}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
-    );
-    for (const { name, flat, cumulative } of summary.entries.slice(0, SHOWN_PROFILE_ENTRIES)) {
-      log(`  cum=${String(cumulative)}\tflat=${String(flat)}\t${name}`);
+    logSummary(`${kind} ${path}`, summary);
+    if (kind === "cpu" && summary.total > 0) {
+      const share = (name: string): string =>
+        `${String(Math.round((PERCENT * (summary.entries.find((entry) => entry.name === name)?.cumulative ?? 0)) / summary.total))}%`;
+      log(`profile cpu gc-share=${share(GC_WORKER)} of compiler cpu, idle-core marking=${share(GC_IDLE_WORKER)}`);
     }
+  }
+  if (profile.nodeHeap !== null) {
+    logSummary(`node heap ${profile.nodeHeap.path}`, profile.nodeHeap.summary);
   }
 }
 

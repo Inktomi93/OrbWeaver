@@ -1,7 +1,7 @@
 // tooling-subprocess-import-owner confines direct runtime subprocess imports to this module, not its callers.
 // Niced doors lower the child's priority, never this process's; full-priority doors retain the caller's priority.
 // Environment reads and injected transcript teardown stay separate to avoid the platform/process import cycle.
-import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { ChildProcess, execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import process from "node:process";
 import { toError } from "@orb/kit/error-message";
@@ -48,6 +48,11 @@ export type {
   TranscriptOptions,
   TranscriptResult,
 } from "./proc-contract.ts";
+
+/** The process a `child_process` diagnostics-channel message carries: Node publishes every spawn there as `{ process }`,
+ *  so a caller can watch a child a library spawned without the library handing it over. */
+export const spawnedChild = (message: unknown): ChildProcess | undefined =>
+  typeof message === "object" && message !== null && "process" in message && message.process instanceof ChildProcess ? message.process : undefined;
 
 function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;

@@ -9,8 +9,10 @@
 // - The import graph, the global and augmentation reach and the same-error key are the shared ones in
 //   tooling/src/floor/typescript/import-graph.ts.
 // - An error inside an import or export declaration only names the candidate, so a delete removes or rewrites that
-//   site with it: a binding. An excess-property error is the object literal that writes the member. Bindings and
-//   writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
+//   site with it: a binding. An excess-property error is the object literal that writes the member, and any other error
+//   inside that literal member (a method parameter that lost its contextual type) is part of the same write. An error
+//   at a target the graph's roles judge stored into and not read (`=`, a discarded `+=` or bump, ./roles.ts) is a
+//   write too. Bindings and writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
 //   failed import types its uses without an error.
 // - An unused-code diagnostic (reportsUnnecessary) the delete adds is a declaration only the candidate read, not a
 //   reader of the candidate, so it refutes nothing and is dropped.
@@ -21,14 +23,14 @@
 //   delete removes and the occurrence spans that attribute a group's errors, ahead of the base-symbol owner.
 // - tsc's own unused verdict, a reportsUnnecessary diagnostic at the candidate's name in the base program, is recorded
 //   beside each trial and never decides it.
-// - A compile-clean candidate is confirmed-literal when a hit of its name outside its own sites, in product source or
-//   loaded product data, names its own declaration, through the fields literal stage's own judge (../literal-hits.ts):
+// - A compile-clean candidate is confirmed-literal when a hit of its name outside its own sites, in product source, snap
+//   or loaded product data, names its own declaration, through the fields literal stage's own judge (../literal-hits.ts):
 //   the checker resolves it there, or it is a read or a data key off a value whose type carries the member. A hit in a
-//   test, the tooling or a config only annotates, and a code hit the checker resolves to another declaration of the
-//   name is no hit. A name is searched by the word it is read by (a computed member by its key's value); a private name
-//   is never searched, and a name that is not one word keeps confirmed with a note.
-// - A compile error under snap counts as a product read (D357, ./state.ts productReader), in the trial and in the
-//   control. A literal hit under snap only annotates: the literal judge holds a hit in product source alone.
+//   test, the rest of the tooling or a config only annotates, and a code hit the checker resolves to another declaration
+//   of the name is no hit. A name is searched by the text it is read by (a computed member by its key's value, a quoted
+//   key by its text); a private name is never searched, and a name that spans lines keeps confirmed with a note.
+// - Snap drives the real app as its user does (D357, ./state.ts productReader), so a compile error and a literal hit
+//   under snap both count as a product read, in the trial and in the control.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
@@ -75,6 +77,7 @@ import { nodeAt } from "./declared.ts";
 import { judgeMembers, NO_RULINGS, verdictsByDecl } from "./judge.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
+import { READS, referenceRoles } from "./roles.ts";
 import type { GraphKey } from "./sites.ts";
 import { declarationNameOf, isDeclKey } from "./sites.ts";
 import { productReader } from "./state.ts";
@@ -280,6 +283,10 @@ function touching(source: SourceFile, pos: number): Node | undefined {
 
 const firstLine = (text: string): string => text.split("\n")[0] ?? text;
 
+// An error's site that only stores into the member, by the graph's own roles: the target of `=`, of a discarded `+=`
+// or bump, or a destructuring slot. A logical `??=` or a bump whose value is used also reads.
+const storesOnly = (name: Node): boolean => !referenceRoles(name).some((role) => READS.has(role));
+
 // The edits a delete makes, by repository-relative file.
 type Edits = ReadonlyMap<string, readonly Splice[]>;
 
@@ -457,7 +464,18 @@ class Trials {
       const half = Math.ceil(items.length / 2);
       return [...this.group(items.slice(0, half)), ...this.group(items.slice(half))];
     }
-    const errorsOf = (at: number): readonly TrialError[] => outcome.added.filter((_, x) => outcome.owners[x] === at).map((error) => this.#error(error));
+    const written = this.#writtenMembers(outcome.added, outcome.owners);
+    const errorsOf = (at: number): readonly TrialError[] =>
+      outcome.added.flatMap((error, x) =>
+        outcome.owners[x] === at
+          ? [
+              this.#error(
+                error,
+                written.some((member) => member.owner === at && member.holds(error)),
+              ),
+            ]
+          : [],
+      );
     const quiet = items.filter((_, at) => errorsOf(at).length === 0);
     const again = outcome.added.length > 0 && quiet.length > 0 ? new Map(this.group(quiet).map((trial, at) => [quiet[at], trial])) : null;
     return items.map((item, at) => {
@@ -621,15 +639,40 @@ class Trials {
     return edits;
   }
 
-  // A new error, placed at the reader when an import's own file reads the binding it breaks.
-  #error({ diagnostic, pos }: AddedError): TrialError {
+  // The object literal members an excess-property error says write a deleted member, each with its owner: an error
+  // inside one of them, such as a method parameter that lost its contextual type, is part of that write.
+  #writtenMembers(
+    added: readonly AddedError[],
+    owners: readonly number[],
+  ): readonly { readonly owner: number; readonly holds: (error: AddedError) => boolean }[] {
+    return added.flatMap(({ diagnostic, pos }, x) => {
+      const file = this.#relative(diagnostic);
+      const source = WRITE_CODES.has(diagnostic.code) ? this.#world.source(file) : undefined;
+      let member = source === undefined ? undefined : touching(source, pos);
+      while (member !== undefined && !isSourceFile(member) && !isObjectLiteralExpression(member.parent)) {
+        member = member.parent;
+      }
+      if (member === undefined || isSourceFile(member)) {
+        return [];
+      }
+      const { pos: start, end } = member;
+      return [
+        { owner: owners[x] ?? UNOWNED, holds: (error: AddedError) => this.#relative(error.diagnostic) === file && start <= error.pos && error.pos < end },
+      ];
+    });
+  }
+
+  // A new error, placed at the reader when an import's own file reads the binding it breaks; `inWrite` says it sits in a
+  // literal member that writes the deleted member.
+  #error({ diagnostic, pos }: AddedError, inWrite: boolean): TrialError {
     const file = this.#relative(diagnostic);
     const base = { code: diagnostic.code, product: productReader(file), text: firstLine(diagnostic.text) };
     const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
     const source = this.#world.source(file);
-    const site = source === undefined ? undefined : moduleSite(touching(source, pos));
+    const named = source === undefined ? undefined : touching(source, pos);
+    const site = moduleSite(named);
     if (site === undefined) {
-      return { ...base, at, kind: WRITE_CODES.has(diagnostic.code) ? "write" : "read" };
+      return { ...base, at, kind: inWrite || WRITE_CODES.has(diagnostic.code) || (named !== undefined && storesOnly(named)) ? "write" : "read" };
     }
     const reader = source === undefined ? undefined : this.#bindingReader(source, site, pos);
     return reader === undefined
@@ -906,7 +949,7 @@ function literalPass(
   const trials = compiled.map(({ trial }) => {
     const word = unsearchable.get(trial);
     if (word !== undefined) {
-      return { ...trial, note: `${JSON.stringify(word)} is not one word, so no literal search could look for a read by name` };
+      return { ...trial, note: `${JSON.stringify(word)} spans lines, so no literal search could look for a read by name` };
     }
     const literal = evidence.get(trial);
     if (literal === undefined || !literal.saved) {
