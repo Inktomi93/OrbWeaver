@@ -30,11 +30,9 @@ import { CSS_BUCKETS } from "./graph/css.ts";
 import { DOM_BUCKETS } from "./graph/dom.ts";
 import type { LostBreakdown } from "./graph/lost.ts";
 import type { GraphOptions, ProfileKind } from "./graph/options.ts";
-import { ABLATIONS, FRESH_BUILD, PROFILES, traceOf, whyTarget } from "./graph/options.ts";
-import type { PprofSummary } from "./graph/pprof.ts";
+import { ABLATIONS, FRESH_BUILD, PROFILES, profileKinds, traceOf, whyTarget } from "./graph/options.ts";
 import { outsideTable } from "./graph/procedures.ts";
-import type { GraphProfileReport, MemoryPeaks } from "./graph/profile.ts";
-import { PROFILE_PHASES } from "./graph/profile.ts";
+import { compilerProfileLines, profileLines } from "./graph/profile.ts";
 import type { Query, QueryAnswer } from "./graph/query.ts";
 import type { GraphSessionReport } from "./graph/scan.ts";
 import {
@@ -404,23 +402,6 @@ const PROFILE_DIR_SUFFIX = ".profile";
 // The profiles the compiler writes while it builds the graph: a run from a dump builds none.
 const COMPILER_PROFILES: ReadonlySet<ProfileKind> = new Set<ProfileKind>(["cpu", "heap"]);
 
-// `--profile` takes a comma-separated list of kinds, each one of the PROFILES tuple, in every verb that profiles.
-const PROFILE_SEPARATOR = ",";
-
-function profileKinds(value: string | null): readonly ProfileKind[] | null {
-  if (value === null) {
-    return null;
-  }
-  const kinds = new Set<ProfileKind>();
-  for (const kind of value.split(PROFILE_SEPARATOR)) {
-    const found = oneOf(PROFILE_FLAG, kind, PROFILES);
-    if (found !== null) {
-      kinds.add(found);
-    }
-  }
-  return [...kinds];
-}
-
 // A flag's value when it is given bare: `--profile` profiles wall time, `--explain-lost` takes none.
 const BARE_VALUES: ReadonlyMap<string, string> = new Map([
   [PROFILE_FLAG, PROFILES[0]],
@@ -519,82 +500,7 @@ function parseGraphArgs(verb: GraphVerb, argv: readonly string[]): GraphArgs {
   };
 }
 
-// A compiler profile's functions shown on stderr; the report keeps every one.
-const SHOWN_PROFILE_ENTRIES = 20;
-
 const ms = (value: number): string => `${String(Math.round(value))}ms`;
-
-function logProfile(profile: GraphProfileReport): void {
-  log(`profile phases ${PROFILE_PHASES.map((phase) => `${phase}=${ms(profile.phases[phase])}`).join(" ")} (resolve, origin and fixpoint overlap walk)`);
-  if (profile.world !== null) {
-    const { batches, rounds, sent, memoHits } = profile.world;
-    log(`profile requests batches=${String(batches)} rounds=${String(rounds)} sent=${String(sent)} memo-hits=${String(memoHits)}`);
-  }
-  logMemory(profile.memory);
-  if (profile.timing !== null) {
-    const { requestCount, roundTripMs, serverTimeMs, transportOverheadMs } = profile.timing;
-    log(`profile checker requests=${String(requestCount)} round-trip=${ms(roundTripMs)} server=${ms(serverTimeMs)} transport=${ms(transportOverheadMs)}`);
-  }
-  const { p50, p95, p99, max } = profile.fileQuantiles;
-  log(`profile files=${String(profile.files.length)} p50=${ms(p50)} p95=${ms(p95)} p99=${ms(p99)} max=${ms(max)}; above p99:`);
-  for (const { file, ms: took } of profile.files.filter((entry) => entry.ms > p99)) {
-    log(`  ${ms(took)}\t${file}`);
-  }
-  log(
-    `profile counts ${Object.entries({
-      ...profile.counts,
-      ...Object.fromEntries(Object.entries(profile.peaks).map(([name, value]) => [`peak ${name}`, value])),
-    })
-      .map(([name, value]) => `${name}=${String(value)}`)
-      .join("; ")}`,
-  );
-  for (const { axis, file, causes } of profile.dynamicAxes) {
-    log(`profile dynamic axis ${file}:${axis} <- ${causes.join(", ")}`);
-  }
-  logCompilers(profile);
-}
-
-const UNMEASURED = `unmeasured on ${process.platform}`;
-const mb = (value: number | null): string => (value === null ? UNMEASURED : `${String(value)}MB`);
-
-// Node's and every compiler's peak, and the run's combined peak between what a sample saw and what no moment exceeded.
-function logMemory(memory: MemoryPeaks): void {
-  const compilers = memory.compilers.map(({ config, pid, startedIn, peakMb }) => `${config}(pid ${String(pid)}, ${startedIn ?? "session"})=${mb(peakMb)}`);
-  log(
-    `profile memory node-peak=${mb(memory.nodePeakMb)} compiler-peaks ${compilers.join(" ") || "none"} combined sampled=${mb(memory.combinedSampledMb)} bound=${mb(memory.combinedBoundMb)}`,
-  );
-}
-
-// The Go collector's mark worker, and its idle mode: a worker in idle mode marks on a core the compiler had no other work
-// for, as it waits on Node between requests, so only the rest of the marking competes with the compiler's own work.
-const GC_WORKER = "runtime.gcBgMarkWorker";
-const GC_IDLE_WORKER = "runtime.gcDrainMarkWorkerIdle";
-const PERCENT = 100;
-
-// One profile's top functions shown; the report keeps every one.
-function logSummary(label: string, summary: PprofSummary): void {
-  log(
-    `profile ${label}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
-  );
-  for (const { name, flat, cumulative } of summary.entries.slice(0, SHOWN_PROFILE_ENTRIES)) {
-    log(`  cum=${String(cumulative)}\tflat=${String(flat)}\t${name}`);
-  }
-}
-
-// Each compiler profile the run wrote, a CPU profile with its collector share, and Node's heap profile.
-function logCompilers(profile: GraphProfileReport): void {
-  for (const { kind, path, summary } of profile.compilers) {
-    logSummary(`${kind} ${path}`, summary);
-    if (kind === "cpu" && summary.total > 0) {
-      const share = (name: string): string =>
-        `${String(Math.round((PERCENT * (summary.entries.find((entry) => entry.name === name)?.cumulative ?? 0)) / summary.total))}%`;
-      log(`profile cpu gc-share=${share(GC_WORKER)} of compiler cpu, idle-core marking=${share(GC_IDLE_WORKER)}`);
-    }
-  }
-  if (profile.nodeHeap !== null) {
-    logSummary(`node heap ${profile.nodeHeap.path}`, profile.nodeHeap.summary);
-  }
-}
 
 // What the run ran under, before its tallies: a narrowed, ablated or dumped run says so.
 function logSession(session: GraphSessionReport): void {
@@ -614,7 +520,7 @@ function logSession(session: GraphSessionReport): void {
     logLost(session.lost);
   }
   if (session.profile !== null) {
-    logProfile(session.profile);
+    profileLines(session.profile).forEach(log);
   }
 }
 
@@ -983,7 +889,7 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
     }).join(" ")}`,
   );
   if (report.session.profile !== null) {
-    logCompilers(report.session.profile);
+    compilerProfileLines(report.session.profile).forEach(log);
   }
   const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
   log(

@@ -5,13 +5,20 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
-import type { OptionalInventory } from "../unwired/index.ts";
+import type { OptionalInventory, ProfileKind } from "../unwired/index.ts";
+import { PROFILES, profileKinds, profileLines } from "../unwired/index.ts";
+import { BrandFlowProfile } from "./profile.ts";
 import { rank, renderReport } from "./report.ts";
 import type { BrandFlowReport } from "./scan.ts";
 import { scanBrandFlow } from "./scan.ts";
 
-const USAGE = "usage: pnpm brand-flow [--root=<dir>] [--out=<dir>]";
+const USAGE = `usage: pnpm brand-flow [--root=<dir>] [--out=<dir>] [--world=<tsconfig>]... [--profile[=<${PROFILES.join("|")}>[,...]]]`;
 const DEFAULT_OUT = "reports/brand-flow";
+// Where the compiler and Node profiles of a profiled run are written, under the run's output directory.
+const PROFILE_DIR = "profile";
+const FLAG = /^--(root|out|world|profile)(?:=(.+))?$/u;
+// `--profile` alone measures wall time, as it does for the unwired graph verbs.
+const BARE_PROFILE = PROFILES[0];
 
 /** What the brand-flow scan cannot see, written into both reports and printed with every run. */
 const BRAND_FLOW_LIMITS: readonly string[] = [
@@ -26,17 +33,45 @@ const log = (line: string): void => {
   process.stderr.write(`${line}\n`);
 };
 
-function parseArgs(argv: readonly string[]): { readonly root: string; readonly out: string } {
+interface BrandFlowArgs {
+  readonly root: string;
+  readonly out: string;
+  /** The worlds to scan; every world when absent. A narrowed run's report is not the tree's. */
+  readonly worlds: readonly string[] | undefined;
+  readonly profile: readonly ProfileKind[] | null;
+}
+
+// One argument's flag name and value; only `--profile` may go bare.
+function flagOf(arg: string): { readonly name: string; readonly given: string } {
+  const [, name, value] = FLAG.exec(arg) ?? [];
+  const given = value ?? (name === "profile" ? BARE_PROFILE : undefined);
+  if (name === undefined || given === undefined) {
+    throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
+  }
+  return { name, given };
+}
+
+function parseArgs(argv: readonly string[]): BrandFlowArgs {
   const flags = new Map<string, string>();
+  const worlds: string[] = [];
   for (const arg of argv) {
-    const match = /^--(root|out)=(.+)$/u.exec(arg);
-    if (match === null) {
-      throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
+    const { name, given } = flagOf(arg);
+    if (name !== "world" && flags.has(name)) {
+      throw new UsageError(`${arg}: --${name} given twice\n${USAGE}`);
     }
-    flags.set(match[1] ?? "", match[2] ?? "");
+    if (name === "world") {
+      worlds.push(given);
+    } else {
+      flags.set(name, given);
+    }
   }
   const root = resolve(flags.get("root") ?? process.cwd());
-  return { root, out: resolve(root, flags.get("out") ?? DEFAULT_OUT) };
+  return {
+    root,
+    out: resolve(root, flags.get("out") ?? DEFAULT_OUT),
+    worlds: worlds.length === 0 ? undefined : worlds,
+    profile: profileKinds(flags.get("profile") ?? null),
+  };
 }
 
 const TOP_GROUPS = 12;
@@ -112,9 +147,24 @@ function writeReport(out: string, report: BrandFlowReport, ranked: ReturnType<ty
   return statSync(target).size;
 }
 
-export function runBrandFlow(argv: readonly string[]): number {
-  const { root, out } = parseArgs(argv);
-  const report = scanBrandFlow({ root, log });
+export async function runBrandFlow(argv: readonly string[]): Promise<number> {
+  const { root, out, worlds, profile: kinds } = parseArgs(argv);
+  using profile = kinds === null ? null : await BrandFlowProfile.start(kinds, join(out, PROFILE_DIR), root);
+  if (worlds !== undefined) {
+    log(`scan narrowed to ${worlds.join(", ")}: this report is not the tree's`);
+  }
+  const report = scanBrandFlow({ root, log, profile, ...(worlds === undefined ? {} : { worlds }) });
+  if (profile !== null) {
+    const counts = new Map([
+      ["worlds", report.worlds.length],
+      ["files", report.scanned.files],
+      ["mints", report.mints.length],
+      ["widens", report.widens.length],
+    ]);
+    for (const line of profileLines(await profile.report(counts))) {
+      log(line);
+    }
+  }
   const ranked = rank(report);
   mkdirSync(out, { recursive: true });
   const summary = summaryOf(report);

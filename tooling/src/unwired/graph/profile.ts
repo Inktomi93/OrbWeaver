@@ -8,6 +8,8 @@
 // kernel's high-water mark for its process, read under /proc on Linux at every sample and before the report; other
 // platforms leave it unmeasured and never fail. A run's combined peak lies between the largest sampled sum of the live
 // processes' resident memory and the sum of every process's own peak, so the report gives both.
+//
+// `pnpm brand-flow --profile` measures with the same class and prints the same lines (../../brand-flow/profile.ts).
 import type { ChildProcess } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import type { HeapProfiler } from "node:inspector";
@@ -314,4 +316,83 @@ export class GraphProfile {
       ...profiles,
     };
   }
+}
+
+// A compiler profile's functions shown on stderr; the report keeps every one.
+const SHOWN_PROFILE_ENTRIES = 20;
+
+const inMs = (value: number): string => `${String(Math.round(value))}ms`;
+const UNMEASURED = `unmeasured on ${process.platform}`;
+const mb = (value: number | null): string => (value === null ? UNMEASURED : `${String(value)}MB`);
+
+/** The stderr lines of a profile report, in the order every profiling verb prints them. */
+export function profileLines(profile: GraphProfileReport): readonly string[] {
+  const lines = [
+    `profile phases ${PROFILE_PHASES.map((phase) => `${phase}=${inMs(profile.phases[phase])}`).join(" ")} (resolve, origin and fixpoint overlap walk)`,
+  ];
+  if (profile.world !== null) {
+    const { batches, rounds, sent, memoHits } = profile.world;
+    lines.push(`profile requests batches=${String(batches)} rounds=${String(rounds)} sent=${String(sent)} memo-hits=${String(memoHits)}`);
+  }
+  lines.push(memoryLine(profile.memory));
+  if (profile.timing !== null) {
+    const { requestCount, roundTripMs, serverTimeMs, transportOverheadMs } = profile.timing;
+    lines.push(
+      `profile checker requests=${String(requestCount)} round-trip=${inMs(roundTripMs)} server=${inMs(serverTimeMs)} transport=${inMs(transportOverheadMs)}`,
+    );
+  }
+  const { p50, p95, p99, max } = profile.fileQuantiles;
+  lines.push(`profile files=${String(profile.files.length)} p50=${inMs(p50)} p95=${inMs(p95)} p99=${inMs(p99)} max=${inMs(max)}; above p99:`);
+  for (const { file, ms: took } of profile.files.filter((entry) => entry.ms > p99)) {
+    lines.push(`  ${inMs(took)}\t${file}`);
+  }
+  lines.push(
+    `profile counts ${Object.entries({
+      ...profile.counts,
+      ...Object.fromEntries(Object.entries(profile.peaks).map(([name, value]) => [`peak ${name}`, value])),
+    })
+      .map(([name, value]) => `${name}=${String(value)}`)
+      .join("; ")}`,
+  );
+  for (const { axis, file, causes } of profile.dynamicAxes) {
+    lines.push(`profile dynamic axis ${file}:${axis} <- ${causes.join(", ")}`);
+  }
+  return [...lines, ...compilerProfileLines(profile)];
+}
+
+// Node's and every compiler's peak, and the run's combined peak between what a sample saw and what no moment exceeded.
+function memoryLine(memory: MemoryPeaks): string {
+  const compilers = memory.compilers.map(({ config, pid, startedIn, peakMb }) => `${config}(pid ${String(pid)}, ${startedIn ?? "session"})=${mb(peakMb)}`);
+  return `profile memory node-peak=${mb(memory.nodePeakMb)} compiler-peaks ${compilers.join(" ") || "none"} combined sampled=${mb(memory.combinedSampledMb)} bound=${mb(memory.combinedBoundMb)}`;
+}
+
+// The Go collector's mark worker, and its idle mode: a worker in idle mode marks on a core the compiler had no other work
+// for, as it waits on Node between requests, so only the rest of the marking competes with the compiler's own work.
+const GC_WORKER = "runtime.gcBgMarkWorker";
+const GC_IDLE_WORKER = "runtime.gcDrainMarkWorkerIdle";
+const PERCENT = 100;
+
+// One profile's top functions shown; the report keeps every one.
+function summaryLines(label: string, summary: PprofSummary): readonly string[] {
+  return [
+    `profile ${label}: ${summary.sampleType} total=${String(summary.total)}; top ${String(SHOWN_PROFILE_ENTRIES)} of ${String(summary.entries.length)} by cumulative (a display cut; the report keeps every function)`,
+    ...summary.entries.slice(0, SHOWN_PROFILE_ENTRIES).map(({ name, flat, cumulative }) => `  cum=${String(cumulative)}\tflat=${String(flat)}\t${name}`),
+  ];
+}
+
+/** The lines of each compiler profile the run wrote, a CPU profile with its collector share, and Node's heap profile. */
+export function compilerProfileLines(profile: Pick<GraphProfileReport, "compilers" | "nodeHeap">): readonly string[] {
+  const lines: string[] = [];
+  for (const { kind, path, summary } of profile.compilers) {
+    lines.push(...summaryLines(`${kind} ${path}`, summary));
+    if (kind === "cpu" && summary.total > 0) {
+      const share = (name: string): string =>
+        `${String(Math.round((PERCENT * (summary.entries.find((entry) => entry.name === name)?.cumulative ?? 0)) / summary.total))}%`;
+      lines.push(`profile cpu gc-share=${share(GC_WORKER)} of compiler cpu, idle-core marking=${share(GC_IDLE_WORKER)}`);
+    }
+  }
+  if (profile.nodeHeap !== null) {
+    lines.push(...summaryLines(`node heap ${profile.nodeHeap.path}`, profile.nodeHeap.summary));
+  }
+  return lines;
 }

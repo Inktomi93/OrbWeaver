@@ -270,8 +270,10 @@ export class NativeWorld implements Disposable {
   }
 
   // The world config is overlaid with the source bridge, so a world resolves workspace imports to their sources.
-  static open(root: string, config: string, declarations: ReadonlySet<string> = new Set()): NativeWorld {
-    return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, startAPI({ cwd: root }, config), (file) => declarations.has(file));
+  static open(root: string, config: string, declarations: ReadonlySet<string> = new Set(), timing = false): NativeWorld {
+    return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, startAPI({ cwd: root, collectTiming: timing }, config), (file) =>
+      declarations.has(file),
+    );
   }
 
   /** The merged program over every world (`mergedConfigText`), with the declaration files `declaration` keeps. */

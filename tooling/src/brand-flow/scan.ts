@@ -20,6 +20,7 @@ import {
 } from "../unwired/index.ts";
 import type { BrandedDeclaration, CompareCandidate, DeclarationCandidate, PlainFeed, WorldRecords } from "./collect.ts";
 import { collectWorld } from "./collect.ts";
+import type { BrandFlowProfile } from "./profile.ts";
 import { layerOf } from "./slots.ts";
 import type { BrandDisagreement, CrossBrandSite, GenericId, MintSite, MissingSite, RenarrowSite, VocabField, Where, WidenSite } from "./types.ts";
 import { joinVocab } from "./vocab.ts";
@@ -29,6 +30,8 @@ export interface BrandFlowOptions {
   /** The worlds to scan; defaults to every package world, the tooling world and the test worlds. */
   readonly worlds?: readonly string[];
   readonly log: (line: string) => void;
+  /** Measures the run under `--profile`. */
+  readonly profile?: BrandFlowProfile | null;
 }
 
 /** The worlds that hold repository code: every package, the tooling program, and the test programs. */
@@ -327,9 +330,11 @@ export function scanBrandEdgesAt(root: string, config: string, files: readonly s
 
 /** Scan the worlds of `options.root`, one TypeScript 7.1 process at a time. */
 export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
+  const profile = options.profile ?? null;
+  const time = <T>(phase: "open" | "walk" | "analyse", work: () => T): T => (profile === null ? work() : profile.time(phase, work));
   const configs = options.worlds ?? brandFlowWorlds(options.root);
   const sdk = publishedSdkSources(options.root);
-  const lists = NativeWorld.fileLists(options.root, configs, sdk);
+  const lists = time("open", () => NativeWorld.fileLists(options.root, configs, sdk));
   const homes = homeFiles(configs, lists);
   const authorWorlds = pluginAuthorWorlds(options.root);
   const plugins = pluginSources(
@@ -340,13 +345,41 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
   const constructions: ReturnType<typeof optionalConstructionFacts>[] = [];
   const contextualTypes = new Map<string, number>();
   for (const config of configs) {
-    using world = NativeWorld.open(options.root, config, sdk);
-    const home = homes.get(config) ?? new Set<string>();
-    const records = collectWorld(world, home);
-    constructions.push(optionalConstructionFacts(world, home, contextualTypes, plugins));
-    options.log(`${config}: files=${records.files} mints=${records.mints.length} widens=${records.widens.length} declarations=${records.declarations.length}`);
-    worlds.push(records);
+    {
+      using world = time("open", () => NativeWorld.open(options.root, config, sdk, profile !== null));
+      profile?.opened(world);
+      const home = homes.get(config) ?? new Set<string>();
+      const records = time("walk", () => collectWorld(world, home));
+      constructions.push(optionalConstructionFacts(world, home, contextualTypes, plugins));
+      profile?.closing(world);
+      options.log(
+        `${config}: files=${records.files} mints=${records.mints.length} widens=${records.widens.length} declarations=${records.declarations.length}`,
+      );
+      worlds.push(records);
+    }
+    if (profile !== null) {
+      options.log(`${config}: node heap after close=${String(profile.closed(config))}MB`);
+    }
   }
+  return time("analyse", () => joinWorlds(options.root, { worlds, constructions, homes, plugins }));
+}
+
+// Every world's records joined into the report: the name table, the inflow each declaration receives, and the rows
+// that need more than one world's records.
+function joinWorlds(
+  root: string,
+  {
+    worlds,
+    constructions,
+    homes,
+    plugins,
+  }: {
+    readonly worlds: readonly WorldRecords[];
+    readonly constructions: readonly ReturnType<typeof optionalConstructionFacts>[];
+    readonly homes: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly plugins: PluginSources;
+  },
+): BrandFlowReport {
   const table = new BrandTable(worlds.flatMap((world) => world.seen));
   const mints = worlds.flatMap((world) => world.mints);
   const declarations = worlds.flatMap((world) => world.declarations);
@@ -386,7 +419,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     generic,
     crossBrand,
     brandAnswers: { agree: answers.agree, unnamed: answers.unnamed, disagreements: answers.disagreements },
-    ...joinOptionalConstructions(options.root, constructions, plugins),
+    ...joinOptionalConstructions(root, constructions, plugins),
     vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
   };
 }
