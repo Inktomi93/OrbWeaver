@@ -180,7 +180,10 @@ const STORES = tree(
     'export const page = (): void => { storePage({ title: "t", body: "b" }); };',
     "const local = { insert: (table: unknown) => ({ values: (value: unknown): unknown => [table, value] }) };",
     'export const ghost = (): unknown => local.insert(schema.ghosts).values({ title: "t", body: "b" });',
-    "export const shown = [schema.posts, schema.drafts, schema.pages, schema.ghosts].flatMap((table) => db.select().from(table)).map((row) => [row.title, row.body]);",
+    // each table's rows are read apart: the checker reduces an array of same-shaped tables to the first one's type
+    ...["posts", "drafts", "pages", "ghosts"].map(
+      (table) => `export const ${table}Shown = db.select().from(schema.${table}).map((row) => [row.title, row.body]);`,
+    ),
   ],
 );
 
