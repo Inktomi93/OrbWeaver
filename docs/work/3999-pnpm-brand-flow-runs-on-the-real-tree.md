@@ -10,15 +10,15 @@ area: tooling
 
 ## What
 
-A whole-tree pnpm brand-flow run aborted with a Node heap out-of-memory at the 16 GB heap (exit 134) during the cb-misc lane, so the brand sweep in 3913 cannot be measured.
+A whole-tree pnpm brand-flow run aborted with a Node heap out-of-memory at the 16 GB heap (exit 134), so the brand sweep in 3913 cannot be measured. brand-flow has no profiler: the unwired verbs' --profile (wall, cpu, heap, both processes' peaks, Node heap by allocating function) does not reach it.
 
 ## Why
 
-A tool that cannot finish on the real tree gives no verdict, and the owner's bar is one run under 16 GB for tools other than unwired.
+The owner set 32 GB as the bar for this tool too and wants every run measured with the TypeScript 7.1 profiler and heap profile, so a crash names what grew.
 
 ## Done when
 
-A profiled whole-tree brand-flow run on main finishes under the bar with both processes' peaks reported, the retainer that grew is named, and 3913's done criterion can be measured.
+pnpm brand-flow takes the shared --profile option, its compiler runs under the 32 GiB limit, a profiled whole-tree run on main finishes with both processes' combined peak under 32 GB, the retainer that grew is named from the heap profile, and 3913's done criterion can be measured.
 
 ## Evidence
 
