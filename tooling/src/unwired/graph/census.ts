@@ -17,6 +17,7 @@
 import type { CallExpression, Node, NonNullExpression, TypeReferenceNode } from "@typescript/native/ast";
 import { formatSyntaxKind, isSourceFile, isStatement, SyntaxKind } from "@typescript/native/ast";
 import type { ReferencedSymbolEntry } from "@typescript/native/sync";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket } from "./analyse.ts";
@@ -423,7 +424,7 @@ class Census {
     const signature = context.steps.join(STEP_JOIN);
     tally.variants.set(signature, (tally.variants.get(signature) ?? 0) + 1);
     const source = node.getSourceFile();
-    const line = `${file}:${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)}`;
+    const line = `${file}:${String(editorLineOf(source, node.getStart(source)))}`;
     if (product) {
       tally.productGaps += 1;
       tally.productPlaces.push(`${line} ${label}`);

@@ -7,6 +7,7 @@
 //   the checker resolves that occurrence to the member's own declaration, so a narrowed sibling arm's read is not its.
 import type { Node } from "@typescript/native/ast";
 import { isSourceFile, SyntaxKind } from "@typescript/native/ast";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { NativeWorld } from "../native.ts";
 import type { Finding } from "./analyse.ts";
 import { declaredNameOf } from "./declared.ts";
@@ -117,4 +118,4 @@ function insideOwnName(node: Node, own: Node | undefined): boolean {
   return own !== undefined && node.pos >= own.pos && node.end <= own.end && node.getSourceFile().fileName === own.getSourceFile().fileName;
 }
 
-const lineOf = (node: Node): number => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1;
+const lineOf = (node: Node): number => editorLineOf(node.getSourceFile(), node.getStart(node.getSourceFile()));

@@ -19,6 +19,7 @@ import {
   unwrap,
   visit,
 } from "../eslint/index.ts";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 import type { Cell, Cohort, KeptRead, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 
@@ -613,7 +614,7 @@ function contextBodiesIn(facts: FileFacts, sources: SourcesByPath): readonly Con
     return [];
   }
   const found: ContextBody[] = [];
-  const line = (node: ts.Node): number => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  const line = (node: ts.Node): number => editorLineOf(sf, node.getStart(sf));
   visit(sf, (node) => {
     if (!ts.isObjectLiteralExpression(node)) {
       return;

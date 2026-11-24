@@ -1,10 +1,15 @@
 // graph-worlds-check proves the merged program against each world's own: two planted worlds map one alias to two
 // targets, so the merged program, where the first world keeps the alias, resolves the second world's import elsewhere.
 // Each merged-program error is matched in a world, explained, or left unexplained, and an unexplained one fails the run.
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import type { CliResult, ToolFixtures } from "@orb/testkit/tooling";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import { checkWorldsWatched, OPTIONS_PROBE_STEP } from "../../../tooling/src/unwired/graph/worlds-check.ts";
+import { COMPILER_CHANNEL, compilerStartOf } from "../../../tooling/src/unwired/native.ts";
 import { LIB } from "./_planted.ts";
 
 const ALIAS = "@shared/*";
@@ -155,4 +160,51 @@ test("the merged program resolves a world's types entry from the world's own fol
   const summary = run.stderr.split("\n").find((line) => line.startsWith("merged-errors=")) ?? "";
   expect(summary.split(" ").slice(0, 5)).toEqual(["merged-errors=1", "matched=1", "explained=0", "unexplained=0", "world-only=0"]);
   await expect(run).toExitWith(EXIT.clean);
+});
+
+// Every compiler the check starts, the options probe's included, goes through native.ts startAPI, which publishes it for
+// a watcher; one that dies mid-run is named with its signal and the step the run was in.
+test("a compiler the check starts is watched, and one killed mid-run is named with its signal and step", { timeout: 240_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree({ ...TREE });
+  const started: string[] = [];
+  const watch = (message: unknown): void => {
+    const start = compilerStartOf(message);
+    if (start !== undefined) {
+      started.push(start.config);
+    }
+  };
+  subscribe(COMPILER_CHANNEL, watch);
+  try {
+    await checkWorldsWatched(root, () => undefined);
+  } finally {
+    unsubscribe(COMPILER_CHANNEL, watch);
+  }
+  expect(started).toContain(OPTIONS_PROBE_STEP);
+
+  const lines: string[] = [];
+  let killed = false;
+  const failed = await checkWorldsWatched(root, (line) => {
+    lines.push(line);
+    if (!killed && line.startsWith(`${WORLD_A}:`)) {
+      killed = true;
+      for (const pid of readFileSync(`/proc/${String(process.pid)}/task/${String(process.pid)}/children`, "utf8")
+        .split(" ")
+        .filter(Boolean)) {
+        process.kill(Number(pid), "SIGKILL");
+      }
+    }
+  }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(killed).toBe(true);
+  expect(failed).toBeInstanceOf(Error);
+  expect(lines.filter((line) => line.startsWith("the compiler for "))).toEqual([
+    expect.stringMatching(
+      new RegExp(
+        `^the compiler for ${WORLD_A.replaceAll(".", String.raw`\.`)} \\(pid \\d+, started in world ${WORLD_A.replaceAll(".", String.raw`\.`)}\\) ended by signal SIGKILL; the run failed at \\d{4}-\\S+Z in world ${WORLD_A.replaceAll(".", String.raw`\.`)}$`,
+        "u",
+      ),
+    ),
+  ]);
 });

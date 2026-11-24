@@ -51,6 +51,35 @@ test("a binding nothing reads is unread; one read, typed, re-exported or left ou
   ]);
 });
 
+// tsc's noUnusedLocals reports a local function and a local class nothing reads, one only its own body calls included.
+test("a local function or class nothing reads is unread; one read, exported, an overload and a top-level one are not", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const source = [
+    "export const run = (value: number): number => {",
+    "  function unusedHelper(): number { return 1; }",
+    "  function usedHelper(): number { return value; }",
+    "  function selfOnly(depth: number): number { return depth > 0 ? selfOnly(depth - 1) : 0; }",
+    "  function overloaded(a: number): number;",
+    "  function overloaded(a: string): number;",
+    "  function overloaded(a: number | string): number { return Number(a); }",
+    "  class UnusedLocal {}",
+    "  class UsedLocal { readonly n = 1; }",
+    "  class SelfOnlyLocal { make(): SelfOnlyLocal { return new SelfOnlyLocal(); } }",
+    "  return usedHelper() + new UsedLocal().n + overloaded(1);",
+    "};",
+    "function topUnused(): number { return 1; }",
+    "class TopUnused {}",
+  ].join("\n");
+  const scan = await graphScan(plantedTree, { [FILE]: source });
+  expect(inFile(scan.analysis["binding-unread"])).toEqual([
+    [`${String(lineOf(source, "unusedHelper"))} unusedHelper`, "local"],
+    [`${String(lineOf(source, "function selfOnly"))} selfOnly`, "local"],
+    [`${String(lineOf(source, "class UnusedLocal"))} UnusedLocal`, "local"],
+    [`${String(lineOf(source, "class SelfOnlyLocal"))} SelfOnlyLocal`, "local"],
+  ]);
+});
+
 test("a binding read only by code nothing reaches names the dead reader; one a live reader reads is not reported", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {

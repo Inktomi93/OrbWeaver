@@ -14,6 +14,8 @@
 //   it carries.
 // - A primary-key column production never reads is listed apart: the key is the row's identity.
 // - A product reader is a product file or snap (state.ts `productReader`, D357).
+
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { SendDestination } from "../boundaries.ts";
 import type { DeliberateEntry } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
@@ -141,7 +143,7 @@ function lineAt(world: NativeWorld, file: string, at: number): number {
     return 0;
   }
   const start = at + (/^\s*/u.exec(source.text.slice(at))?.[0].length ?? 0);
-  return source.getLineAndCharacterOfPosition(start).line + 1;
+  return editorLineOf(source, start);
 }
 
 /** The column query over a built graph and its world. */

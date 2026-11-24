@@ -4,6 +4,7 @@
 import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import { posixPath } from "../syntax.ts";
 
 const UI_SCAN_ROOT = "packages/ui/src";
@@ -65,7 +66,7 @@ export function loadUiSources(root: string): readonly Source[] {
   return FILE_KINDS.flatMap((kind) => sourcesUnder(root, UI_SCAN_ROOT, kind));
 }
 
-export const lineOf = (sf: ts.SourceFile, node: ts.Node): number => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+export const lineOf = (sf: ts.SourceFile, node: ts.Node): number => editorLineOf(sf, node.getStart(sf));
 
 export function visit(node: ts.Node, each: (node: ts.Node) => void): void {
   each(node);

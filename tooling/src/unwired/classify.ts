@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 
 /** One reference: a repository-relative file and the 0-based offset where the name starts. */
 export interface Site {
@@ -37,7 +38,7 @@ export class Sources {
 
   /** The 1-based line of a site. */
   line(site: Site): number {
-    return this.get(site.file).getLineAndCharacterOfPosition(site.position).line + 1;
+    return editorLineOf(this.get(site.file), site.position);
   }
 }
 

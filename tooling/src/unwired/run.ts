@@ -56,11 +56,11 @@ import {
   verifyGraph,
 } from "./graph/scan.ts";
 import type { TrialBucket } from "./graph/trial.ts";
-import { CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_GROUP, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
+import { BLIND_SHAPES, CONTROL_SIDES, TRIAL_BUCKETS, TRIAL_GROUP, TRIAL_PHASES, TRIAL_VERDICTS } from "./graph/trial.ts";
 import { FileLedger } from "./graph/trial-ledger.ts";
 import { VERDICTS } from "./graph/verify.ts";
 import type { WorldsCheck } from "./graph/worlds-check.ts";
-import { checkWorlds } from "./graph/worlds-check.ts";
+import { checkWorldsWatched } from "./graph/worlds-check.ts";
 import type { JudgedEntry, StaleJudged } from "./judged.ts";
 import { JUDGED_FIELDS } from "./judged-fields.ts";
 import type { LiteralStage } from "./literal-hits.ts";
@@ -814,8 +814,8 @@ function writeDifferences({ config, differences, libraries }: WorldsCheck["world
   }
 }
 
-function runGraphWorldsCheck(args: GraphArgs): number {
-  const check = checkWorlds(args.root, log);
+async function runGraphWorldsCheck(args: GraphArgs): Promise<number> {
+  const check = await checkWorldsWatched(args.root, log);
   const path = write(args.root, args.out, check);
   for (const world of check.worlds) {
     writeDifferences(world);
@@ -849,7 +849,7 @@ async function runGraph(args: GraphArgs): Promise<number> {
     return await runGraphCodes(args);
   }
   if (args.verb === "graph-worlds-check") {
-    return runGraphWorldsCheck(args);
+    return await runGraphWorldsCheck(args);
   }
   if (args.verb === "graph-dom") {
     return await runGraphDom(args);
@@ -960,7 +960,10 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
   for (const trial of report.trials) {
     const errors = trial.errors.map(({ at, code, kind, product }) => `${at} TS${String(code)} ${kind}${product ? "" : " outside-product"}`);
     const literal = trial.literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`);
-    process.stdout.write(`${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors, ...literal].join(",")}\n`);
+    const blind = trial.blind.map(({ at, shape }) => `${at} ${shape}`);
+    process.stdout.write(
+      `${trial.verdict}\t${trial.bucket}\t${trial.label}\t${trial.note ?? [...trial.references, ...errors, ...literal, ...blind].join(",")}\n`,
+    );
   }
   for (const row of report.control.filter(({ side }) => side !== "agree")) {
     process.stdout.write(`control-${row.side}\t${row.at}\t${row.name}\t${row.code === null ? "" : `TS${String(row.code)}`}\t${row.graph}\n`);
@@ -969,6 +972,9 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
     const mine = report.trials.filter((trial) => trial.bucket === bucket);
     log(
       `${bucket} trials=${String(mine.length)} ${TRIAL_VERDICTS.map((verdict) => `${verdict}=${String(mine.filter((trial) => trial.verdict === verdict).length)}`).join(" ")}`,
+    );
+    log(
+      `${bucket} blind=${String(mine.filter((trial) => trial.verdict === "blind").length)}: a delete cannot test a read on another type's declaration of a member's name (${BLIND_SHAPES.join(", ")}), so the refuted counts above undercount the graph's false deletes by up to this many`,
     );
     const unused = mine.filter(({ tsUnused }) => tsUnused);
     const compiles = mine.reduce((sum, trial) => sum + trial.compiles, 0);
@@ -988,7 +994,7 @@ async function runGraphTrial(args: TrialArgs): Promise<number> {
   const sides = CONTROL_SIDES.map((side) => `${side}=${String(report.control.filter((row) => row.side === side).length)}`);
   log(
     report.literalFiles === null
-      ? "literal search: no git index, so confirmed is the compile's word alone"
+      ? "literal search: no git index, so confirmed is the compile's word alone and no blind read is looked for"
       : `literal search scanned=${String(report.literalFiles)} tracked files`,
   );
   log(`control ${sides.join(" ")} written to ${path}`);
