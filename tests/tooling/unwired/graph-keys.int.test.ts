@@ -556,6 +556,38 @@ test("a form field path reads or writes each member along its segments", { timeo
   }).toEqual({ readOnly: ["Values.note"], untouched: ["Values.params.dead", "Values.gone"], writeOnly: [] });
 });
 
+// A form is an object that holds its data at `state.values` and stores through `setFieldValue` and `getFieldValue`. A
+// store that only holds `state.values`, with a `Field` component and a reading method of its own, is no form: its string
+// arguments name no member. `Real.alpha` is the control a real form's field binds.
+test("a string path on an object that holds state.values but is no form writes and reads nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const file = `${GRAPH_SOURCE}/store.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      ...FORM_API,
+      [file]: [
+        'import { useForm } from "./form-api.ts";',
+        "export interface Real { readonly alpha?: string }",
+        "export interface Fake { readonly beta?: string; readonly gamma?: string }",
+        "interface Store { readonly state: { readonly values: Fake }; readonly Field: (props: { readonly name: string }) => JSX.Element; read(name: string): unknown }",
+        "declare const store: Store;",
+        "export function Panel(): JSX.Element {",
+        "  const form = useForm<Real>({ defaultValues: {} });",
+        "  const seen = store.read('gamma');",
+        "  return (",
+        "    <>",
+        "      <form.Field name='alpha'>{seen}</form.Field>",
+        "      <store.Field name='beta' />",
+        "    </>",
+        "  );",
+        "}",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect(labelsIn(scan, "member-untouched", file)).toEqual(["Fake.beta", "Fake.gamma", "Store.state.values"]);
+});
+
 // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template path
 const BOUND_FIELD = "      <form.AppField name={`macros[${INDEX}].MEMBER`}>{shown}</form.AppField>";
 const boundField = (index: string, member: string): string => BOUND_FIELD.replace("INDEX", index).replace("MEMBER", member);

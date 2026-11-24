@@ -301,6 +301,8 @@ function rootOf(at: Node, parent: Node): SlotRoot | null {
 // A TanStack form instance holds its data at `state.values`: the type its field paths walk.
 const FORM_STATE = "state";
 const FORM_VALUES = "values";
+// The field methods every form instance has beside its state.
+const FORM_IDENTITY: readonly string[] = ["setFieldValue", "getFieldValue"];
 // The JSX components a form instance carries whose `name` attribute is a field path.
 const FORM_FIELDS: ReadonlySet<string> = new Set(["Field", "AppField"]);
 const FORM_NAME = "name";
@@ -346,12 +348,18 @@ function formPathOf(slot: Slot): FormPath | null {
 
 // The form data type a form instance carries: `state.values`. A form's type is read by its members, never by the alias
 // it is spelled under, because a project alias over the hook's return (`AppFormInstance<T>`) or an `Omit` of it hides
-// the form type's own alias.
+// the form type's own alias. An object is a form only when it also stores and reads fields as a form does, so a store
+// that merely holds `state.values` takes no path.
 function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | undefined> {
   const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
   const state = yield* checker.getPropertyOfType.gen(type, FORM_STATE);
   if (state === undefined) {
     return undefined;
+  }
+  for (const name of FORM_IDENTITY) {
+    if ((yield* checker.getPropertyOfType.gen(type, name)) === undefined) {
+      return undefined;
+    }
   }
   const values = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(state)), FORM_VALUES);
   return values === undefined ? undefined : yield* checker.getTypeOfSymbol.gen(values);
