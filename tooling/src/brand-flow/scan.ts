@@ -35,8 +35,9 @@ export function brandFlowWorlds(root: string): readonly string[] {
   return configs.filter((config) => existsSync(join(root, config)));
 }
 
-/** What the per-world brand scan reports; the optional inventory joins it from the reference graph. */
-export type BrandEdgeReport = Omit<BrandFlowReport, keyof OptionalInventory>;
+/** What the per-world brand scan reports, with the plugin sources its worlds hold; the optional inventory joins it
+ *  from the reference graph, which counts those sources as production. */
+export type BrandEdgeReport = Omit<BrandFlowReport, keyof OptionalInventory> & { readonly plugins: PluginSources };
 
 export interface BrandFlowReport extends OptionalInventory {
   readonly worlds: readonly { readonly config: string; readonly files: number; readonly brandless: boolean }[];
@@ -365,6 +366,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandEdgeReport {
   }
   const homed = [...homes.values()].flatMap((files) => [...files]);
   return {
+    plugins,
     worlds: worlds.map(({ config, files, brandless }) => ({ config, files, brandless })),
     scanned: {
       ...scannedFiles(homed, plugins),

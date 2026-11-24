@@ -19,6 +19,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Verdict } from "../field-sort.ts";
 import type { CompilerStart, NativeWorld } from "../native.ts";
 import { COMPILER_CHANNEL, compilerStartOf } from "../native.ts";
+import type { PluginSources } from "../plugin-surface.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -439,8 +440,8 @@ export function fieldsGraph(root: string, rulings: MemberRulings, log: GraphLog)
 }
 
 /** Build the graph, then read the optional fields production supplies at separate constructions (`pnpm brand-flow`). */
-export function optionalPairsGraph(root: string, log: GraphLog): Promise<WithSession<OptionalInventory>> {
-  return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => optionalPairsOf(work.graph.facts, work.world()));
+export function optionalPairsGraph(root: string, log: GraphLog, plugins: PluginSources): Promise<WithSession<OptionalInventory>> {
+  return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => optionalPairsOf(work.graph.facts, work.world(), plugins));
 }
 
 /** Build and analyse the graph, then report its judged rows of callable members as the member scan, split by `rulings`. */

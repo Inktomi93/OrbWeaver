@@ -52,7 +52,7 @@ A component handed on through a dynamic import's namespace, as `lazy(() => impor
 
 ## One engine
 
-tooling/src/unwired/graph/ is the one core (D357). Every verb is a query over one graph build of the merged program, and the ports census is the one unwired module on TypeScript 6. The optional-pair inventory `pnpm brand-flow` reports is a graph query too (tooling/src/unwired/graph/optional-pairs.ts). Its fields are the graph's optional member declarations and its writes are the graph's role sites. Its population is knip's project files, so a plugin bundle outside every project writes nothing there.
+tooling/src/unwired/graph/ is the one core (D357). Every verb is a query over one graph build of the merged program, and the ports census is the one unwired module on TypeScript 6. The optional-pair inventory `pnpm brand-flow` reports is a graph query too (tooling/src/unwired/graph/optional-pairs.ts). Its fields are the graph's optional member declarations and its writes are the graph's role sites. Production there is product source plus the plugin author and SDK sources the author programs hold. The graph does not walk a bundle, so the query reads a bundle's constructions itself, and a bundle that sets both fields cancels a pair.
 
 ## One pass for the member scan
 

@@ -6,9 +6,9 @@
 // - A spread, a computed key or a write the graph credits away from any literal leaves its production write unknown.
 // - An inherited or mapped option belongs to the type expected at its construction, so those writes group by that
 //   contextual type, never by the field declarations alone, which would mix unrelated derived types or instantiations.
-// - The population is the graph's, knip's project files (graph/roots.ts): a file outside every project writes nothing
-//   here. Production is product source; a world walked apart from the merged program has no parse here, so its
-//   constructions are unknown.
+// - Production is product source and the plugin author and SDK sources the author programs hold: a bundle that sets
+//   both fields cancels a pair. A world walked apart from the merged program has no parse here, so its constructions
+//   are unknown.
 import type { Expression, Identifier, JsxAttributes, Node, ObjectLiteralExpression, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
 import {
   isAsExpression,
@@ -51,7 +51,9 @@ import type { Site } from "../classify.ts";
 import { siteKey } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, declarationKeys, hasFlag, nameAt } from "../native.ts";
-import { isProduction } from "../worlds.ts";
+import type { PluginSources } from "../plugin-surface.ts";
+import { isPluginProduction } from "../plugin-surface.ts";
+import { isProduction as isAppSource } from "../worlds.ts";
 import { nodeAt } from "./declared.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
@@ -128,11 +130,15 @@ class OptionalEvidence {
   }
 }
 
-/** What one query reads: the graph and the merged program it was built from. */
+/** What one query reads: the graph, the merged program it was built from, and the plugin sources that count as
+ *  production beside the product's own. */
 interface Scope {
   readonly facts: GraphFacts;
   readonly world: NativeWorld;
+  readonly plugins: PluginSources;
 }
+
+const production = (scope: Scope, file: string): boolean => isPluginProduction(file, scope.plugins);
 
 const TEST_SOURCE = "tests/";
 
@@ -213,7 +219,7 @@ function writesOf(scope: Scope, sites: readonly Site[]): Writes {
   const unknown = new Set<string>();
   for (const site of sites) {
     const evidence = construction(scope.world, site);
-    const ours = isProduction(site.file);
+    const ours = production(scope, site.file);
     if (ours && (evidence === undefined || evidence.uncertain)) {
       unknown.add(siteKey(site));
     }
@@ -286,7 +292,7 @@ function declaredFields(scope: Scope): ReadonlyMap<string, Field[]> {
   const owners = new Map<string, Field[]>();
   for (const [key, info] of scope.facts.decls) {
     const parts = declKeyParts(key);
-    const source = info.optional && FIELD_KINDS.has(parts.kind) && isProduction(info.file) ? scope.world.source(info.file) : undefined;
+    const source = info.optional && FIELD_KINDS.has(parts.kind) && production(scope, info.file) ? scope.world.source(info.file) : undefined;
     const node = source === undefined ? undefined : nodeAt(source, parts);
     if (
       source === undefined ||
@@ -306,14 +312,40 @@ function declaredFields(scope: Scope): ReadonlyMap<string, Field[]> {
   return owners;
 }
 
-// A role site is a name's full start, its leading trivia included; a site here is where the name itself starts.
-const writeSites = (scope: Scope, keys: readonly DeclKey[]): readonly Site[] =>
-  keys.flatMap((key) =>
-    (scope.facts.roleSites.get(key) ?? []).flatMap(({ role, file, at }) => {
+// A role site is a name's full start, its leading trivia included; a site here is where the name itself starts. A
+// plugin write sits outside the graph's population, so it comes from the plugin constructions instead.
+const writeSites = (scope: Scope, keys: readonly DeclKey[], plugin: ReadonlyMap<DeclKey, readonly Site[]>): readonly Site[] =>
+  keys.flatMap((key) => [
+    ...(scope.facts.roleSites.get(key) ?? []).flatMap(({ role, file, at }) => {
       const text = scope.world.source(file)?.text;
       return role === "write" ? [{ file, position: text === undefined ? at : skipTrivia(text, at) }] : [];
     }),
-  );
+    ...(plugin.get(key) ?? []),
+  ]);
+
+// The member each key of a plugin construction writes: the graph walks only knip's project files, so a bundle's
+// literals are read here, their contextual types and the members they name each one batch.
+function pluginWrites(scope: Scope, resolver: Resolver, containers: readonly Container[]): ReadonlyMap<DeclKey, readonly Site[]> {
+  const { world } = scope;
+  const contextual = world.contextualTypes(containers);
+  const named = containers.flatMap((literal, at) => {
+    const type = contextual[at];
+    return type === undefined ? [] : namesOf(literal).map((entry) => ({ ...entry, type }));
+  });
+  const members = world.batch(named.map(({ type, name }) => world.checker.getPropertyOfType.gen(type, name)));
+  const found = named.flatMap((entry, at) => {
+    const member = members[at];
+    return member === undefined ? [] : [{ site: world.siteOf(entry.node), member }];
+  });
+  const keys = resolver.declarations(found.map(({ member }) => member));
+  const out = new Map<DeclKey, Site[]>();
+  for (const [at, { site }] of found.entries()) {
+    for (const key of keys[at] ?? []) {
+      out.getOrInsert(key, []).push(site);
+    }
+  }
+  return out;
+}
 
 // --- Contexts --------------------------------------------------------------------------------------------------------
 
@@ -337,7 +369,7 @@ function* contextIdentity(scope: Scope, type: Type): APIRequestGenerator<Context
     return;
   }
   const properties = yield* world.checker.getPropertiesOfType.gen(type);
-  const ours = handle !== undefined && isProduction(world.fileOf(handle) ?? "");
+  const ours = handle !== undefined && production(scope, world.fileOf(handle) ?? "");
   return {
     id: String(type.id),
     optionalNames: new Set(properties.filter((prop) => hasFlag(prop.flags, SymbolFlags.Optional)).map((prop) => prop.name)),
@@ -375,7 +407,7 @@ function* contextWrite(
   if (value === undefined || (yield* constituents(value)).every((part) => hasFlag(part.flags, TypeFlags.Undefined) || hasFlag(part.flags, TypeFlags.Never))) {
     return;
   }
-  const handle = prop.declarations.find((origin) => isProduction(world.fileOf(origin) ?? ""));
+  const handle = prop.declarations.find((origin) => production(scope, world.fileOf(origin) ?? ""));
   if (handle === undefined && context.site === undefined && prop.declarations.length > 0) {
     return;
   }
@@ -656,7 +688,7 @@ function contextualAlternatives(scope: Scope, contexts: Contexts, readers: Reado
       return [{ field: { keys, home: first.owner, member: name, site: first.site, line: lineOf(scope.world, first.site) }, writes, parent: first.parent }];
     });
     const representative = observations
-      .filter((entry) => isProduction(entry.writer.file))
+      .filter((entry) => production(scope, entry.writer.file))
       .sort((a, b) => a.writer.file.localeCompare(b.writer.file) || a.writer.position - b.writer.position)[0];
     if (representative !== undefined) {
       const uncertain = (unknown.get(id) ?? []).map((entry) => entry.site);
@@ -666,16 +698,22 @@ function contextualAlternatives(scope: Scope, contexts: Contexts, readers: Reado
 }
 
 /** The optional-pair inventory of a built graph over the merged program it was built from. */
-export function optionalPairsOf(facts: GraphFacts, world: NativeWorld): OptionalInventory {
-  const scope: Scope = { facts, world };
+export function optionalPairsOf(facts: GraphFacts, world: NativeWorld, plugins: PluginSources): OptionalInventory {
+  const scope: Scope = { facts, world, plugins };
   const resolver = new Resolver(world);
   const containers: Container[] = [];
+  const pluginContainers: Container[] = [];
   const groups: ReadGroup[] = [];
   for (const source of world.files) {
-    const ours = isProduction(world.fileOfSource(source));
+    const file = world.fileOfSource(source);
+    const ours = production(scope, file);
+    const plugin = ours && !isAppSource(file);
     const visit = (node: Node): void => {
       if (isObjectLiteralExpression(node) || isJsxAttributes(node)) {
         containers.push(node);
+        if (plugin) {
+          pluginContainers.push(node);
+        }
       }
       const group = ours ? readGroup(node) : undefined;
       if (group !== undefined) {
@@ -691,10 +729,11 @@ export function optionalPairsOf(facts: GraphFacts, world: NativeWorld): Optional
       readers.getOrInsert(key, []).push(reader);
     }
   }
+  const plugin = pluginWrites(scope, resolver, pluginContainers);
   const output = new OptionalEvidence();
   for (const [owner, fields] of declaredFields(scope)) {
     const observed = fields.flatMap((field) => {
-      const writes = writesOf(scope, writeSites(scope, field.keys));
+      const writes = writesOf(scope, writeSites(scope, field.keys, plugin));
       return writes.sites.size > 0 ? [{ field, writes }] : [];
     });
     alternatives(observed, readers, { id: `declaration:${owner}` }, output);

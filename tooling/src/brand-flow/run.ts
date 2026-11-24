@@ -115,8 +115,9 @@ function writeReport(out: string, report: BrandFlowReport, ranked: ReturnType<ty
 
 export async function runBrandFlow(argv: readonly string[]): Promise<number> {
   const { root, out } = parseArgs(argv);
-  const { optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets } = await optionalPairsGraph(root, log);
-  const report: BrandFlowReport = { ...scanBrandFlow({ root, log }), optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets };
+  const { plugins, ...edges } = scanBrandFlow({ root, log });
+  const { optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets } = await optionalPairsGraph(root, log, plugins);
+  const report: BrandFlowReport = { ...edges, optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets };
   const ranked = rank(report);
   mkdirSync(out, { recursive: true });
   const summary = summaryOf(report);
