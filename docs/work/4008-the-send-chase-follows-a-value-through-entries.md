@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Rows the hand review ruled as read by a log, trace or bug bundle stay in fields unwired where the chase cannot reach the sink: the bug report and request trace chains pass values through Object.entries and Object.fromEntries and more hops than the depth bound, and the InferenceLog lines reach the main process over the local-light worker's MessagePort (model-worker.ts:79), which the chase does not cross.
+Rows the hand review ruled as read by a log, trace or bug bundle stay in fields unwired where the send chase cannot reach the sink: the bug report and request trace chains pass values through Object.entries and Object.fromEntries and more hops than the depth bound, and the InferenceLog lines reach the main process over the local-light worker's MessagePort (model-worker.ts:79). The graph already pairs a worker door's sends with their receivers (graph/message-doors.ts); the send chase in open-sends.ts does not use those pairs.
 
 ## Why
 
@@ -19,7 +19,7 @@ Each such row reads as unwired although the product sends it to a sink, so the f
 
 ## Done when
 
-The chase follows entries and fromEntries rebuilds and a worker port's postMessage to its receiver, each with a planted case and a twin, and the rerun on main shows those rows out of unwired or each one named in the fields limits.
+The send chase crosses a message door through graph/message-doors.ts's pairs instead of a second door reader, and follows entries and fromEntries rebuilds, each with a planted case and a twin; the rerun on main shows those rows out of unwired or each one named in the fields limits.
 
 ## Evidence
 
