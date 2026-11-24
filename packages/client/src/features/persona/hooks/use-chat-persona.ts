@@ -11,9 +11,8 @@ interface ChatScoped {
   readonly chatId: ChatId;
 }
 
-/** `persona.setActivePersona` scoped to THIS chat — `targetUserId` omitted (the verb defaults to the
- *  caller; the panel never targets someone else's persona — that's a host list control, not built here). */
-export const useSetChatActivePersona = createEntityMutation<Omit<inferInput<Trpc["persona"]["setActivePersona"]>, "targetUserId"> & ChatScoped, unknown>({
+/** `persona.setActivePersona` scoped to THIS chat — always the caller's own seat. */
+export const useSetChatActivePersona = createEntityMutation<inferInput<Trpc["persona"]["setActivePersona"]> & ChatScoped, unknown>({
   options: (trpc) => trpc.persona.setActivePersona.mutationOptions(),
   invalidates: (trpc, { chatId }) => personaWriteReads(trpc, chatId),
   errorToast: "Couldn't switch your persona for this chat.",

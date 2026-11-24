@@ -271,7 +271,7 @@ A membership change that moves a surface between the rail and Settings does this
 `ContextTabDef<S>` carries `id`, `label`, `body: (state: S) => ReactNode`, and a set of optional
 resolve-time fields, each read at the same point `when` is (§15 names the code header for the exact
 list): `when: (state: S) => boolean` (absent = always visible), `icon`, `strip` (rail membership,
-absent = the meta rail), `crown` (a host-only presentation marker), `badge`, `disabledReason`, and
+absent = the meta rail), `crown` (a host-only presentation marker), `badge`, and
 `opaque` (the tab body sits on an opaque panel surface), and
 `defaultTab: (state: S) => boolean` (a preferred-default marker — see below). `ContextDefinition` is
 non-generic, with three cases, each carrying an optional `empty` no-selection slot (§11):
