@@ -20,7 +20,7 @@ Two engines double the run time and memory and keep a second opinion the scans n
 
 ## Done when
 
-A --cross-check run of each scan on main shows zero disagreements before removal, engine two and the --cross-check flag are deleted with their tests, no file under tooling/src/unwired imports typescript, the unwired suite passes, and the design's engine sections describe one engine.
+A --cross-check run of each scan on main shows zero disagreements before removal, engine two and the --cross-check flag are deleted with their tests, no file under tooling/src/unwired imports typescript except the ports census D357 names, the unwired suite passes, and the design's engine sections describe one engine.
 
 ## Evidence
 
