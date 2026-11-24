@@ -14,6 +14,9 @@
 //   fills pairs with the value too, at any number of such hops, so a member reaches the first slot that names it. Each
 //   hop is a pair the walk made; a member of the same name on a value never handed through the narrower type gains
 //   nothing.
+// - A writable slot member that some code assigns through (`round.settle.reason = r`) writes the object the value
+//   handed in, so it also flows back: the value's holder reads, after the call, what the callee wrote. A readonly member
+//   and a writable one nothing assigns through pair one way.
 // - A slot with a string index signature pairs the members it names; the value's other members escape with it. A
 //   literal key read through such a slot's type in the same file (`line["done"]`) reads the handed values' members of
 //   that name, at any depth: it cannot tell two values handed into one type apart.
@@ -45,7 +48,7 @@ import {
   isSpreadElement,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
-import { IndexKind, TypeFlags } from "@typescript/native/sync";
+import { IndexKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
@@ -234,6 +237,10 @@ export class Flows {
   readonly #carriedPairs = new Set<string>();
   // Carried pairs found while another file was walked, linked under their own file by settle.
   #late: Filled[] = [];
+  // The member pairs whose slot member is a writable property, and the members assigned through a property access:
+  // settle flows each such pair back when its slot member is assigned.
+  readonly #writable: { readonly slots: readonly DeclKey[]; readonly values: readonly DeclKey[] }[] = [];
+  readonly #assigned = new Set<DeclKey>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -246,6 +253,7 @@ export class Flows {
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
     this.#siteNodes = siteNodesOf(sites);
+    this.#assignedThrough(sites);
     const handed = this.#handedWhole(sites, held.node);
     // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
     const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
@@ -965,6 +973,38 @@ export class Flows {
     }
   }
 
+  // The matched pairs whose slot member is a writable property, kept for settle: one assigned through anywhere writes
+  // the object the value handed in, which its holder reads after the call.
+  #writableSlots(
+    matched: readonly { readonly slot: NativeSymbol }[],
+    slotDecls: readonly (readonly DeclKey[])[],
+    valueDecls: readonly (readonly DeclKey[])[],
+  ): void {
+    const { state } = this;
+    const asks = matched.flatMap(({ slot }, y) =>
+      hasFlag(slot.flags, SymbolFlags.Property) && (slotDecls[y]?.length ?? 0) > 0 && (valueDecls[y]?.length ?? 0) > 0 ? [{ slot, y }] : [],
+    );
+    const readonly = state.batch(asks.map(({ slot }) => state.world.checker.isReadonlySymbol.gen(slot)));
+    for (const [x, { y }] of asks.entries()) {
+      if (readonly[x] === false) {
+        this.#writable.push({ slots: slotDecls[y] ?? [], values: valueDecls[y] ?? [] });
+      }
+    }
+  }
+
+  // The members a file assigns through a property access (`round.settle.reason = r`, `count += 1`, `x.n++`).
+  #assignedThrough(sites: FileSites): void {
+    const { state } = this;
+    const targets = sites.names.filter(
+      ({ node, roles }) => roles.includes("write") && isPropertyAccessExpression(node.parent) && node.parent.name.pos === node.pos,
+    );
+    for (const decls of state.declarations(state.world.symbolsAt(targets.map(({ node }) => node)))) {
+      for (const decl of decls) {
+        this.#assigned.add(decl);
+      }
+    }
+  }
+
   // A Drizzle row's members have no declaration: each such member stands for its table's column, so the slot member it
   // fills flows from the column, and a read of the slot reads the column.
   #withRowColumns(
@@ -1025,7 +1065,8 @@ export class Flows {
     return typed;
   }
 
-  /** Link the carried pairs found while other files were walked, under their own files, until none is new. */
+  /** Link the carried pairs found while other files were walked, under their own files, until none is new; then flow
+   *  each writable slot member some code assigns through back into the value members that filled it. */
   settle(): void {
     for (let late = this.#late; late.length > 0; late = this.#late) {
       this.#late = [];
@@ -1038,6 +1079,16 @@ export class Flows {
         );
       }
     }
+    const back = new Set<string>();
+    for (const { slots, values } of this.#writable) {
+      for (const slot of slots.filter((key) => this.#assigned.has(key))) {
+        for (const value of values.filter((key) => key !== slot && !back.has(`${slot}<${key}`))) {
+          back.add(`${slot}<${value}`);
+          this.#state.flow(value, slot);
+        }
+      }
+    }
+    this.#state.count("backward flows", back.size);
   }
 
   // A value keeps every member it holds when a slot type that names fewer takes it, so each pair records the slot the
@@ -1122,6 +1173,7 @@ export class Flows {
     for (const y of matched.keys()) {
       this.#memberFlow(slotDecls[y] ?? [], valueDecls[y] ?? [], file, matched[y]?.site ?? 0);
     }
+    this.#writableSlots(matched, slotDecls, valueDecls);
     // a pair goes deeper when either member is declared in the tree: the walk follows the value's own members, a library
     // slot names its nested fields as it names its top ones (an SDK block's `source.data`), and a library value filling
     // our slot runs the library's code behind each of our function members, so their parameters pair with the library's

@@ -316,6 +316,40 @@ test("a member a narrower slot type does not name rides the value to a slot that
   ]);
 });
 
+// `inner` records its verdict on the ledger object the caller handed in, and the caller spreads that same object into
+// the settle event after the call: the writes through the parameter's writable members are what the spread reads.
+// `looks` takes a writable member it never assigns, so the caller's read of `note` reaches nothing of its; `fixed`'s
+// members are readonly. Both stay written and never read.
+test("a writable slot member assigned through writes the object its caller reads after the call", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Info { readonly id: string; readonly outcome: string; readonly reason: string | null }",
+      "export interface Ctx { readonly onSettled: (info: Info) => void }",
+      "export const ctx: Ctx = { onSettled: (info) => { console.log(info.id, info.outcome, info.reason); } };",
+      "const inner = (round: { readonly settle: { outcome: string; reason: string | null } }): void => {",
+      '  round.settle.outcome = "w";',
+      '  round.settle.reason = "r";',
+      "};",
+      "const looks = (round: { readonly settle: { outcome: string; note: string | null } }): string => round.settle.outcome;",
+      "const fixed = (round: { readonly settle: { readonly outcome: string; readonly tag: string | null } }): string => round.settle.outcome;",
+      "export const outer = (): void => {",
+      '  const settle: { outcome: string; reason: string | null } = { outcome: "f", reason: null };',
+      "  try {",
+      "    inner({ settle });",
+      "  } finally {",
+      '    ctx.onSettled({ id: "i", ...settle });',
+      "  }",
+      "};",
+      "export const viewed = (): string => {",
+      '  const kept: { outcome: string; note: string | null; tag: string | null } = { outcome: "f", note: null, tag: null };',
+      "  return looks({ settle: kept }) + fixed({ settle: kept }) + String(kept.note) + String(kept.tag);",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only looks.settle.note", "member-write-only fixed.settle.tag"]);
+});
+
 // The reader's file is walked before the file that widens the row, so the carried pair is found after the reader's
 // slot was filled, and is linked once every file is walked.
 test("a carried member reaches a slot named in a file walked earlier", { timeout: 120_000 }, async ({ plantedTree }) => {
