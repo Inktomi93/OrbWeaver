@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { appendedBy, PUBLIC_PEER_ADDRESS, present } from "@orb/testkit/iso";
 import { createServerHarness, SECRET_BOX_TEST_KEY, servePhysicalPeer } from "@orb/testkit/node/composed";
 import { expect, test } from "@orb/testkit/tooling";
@@ -36,7 +37,9 @@ const ENGINE_MODEL = "stgkey-engine-model";
 const CHAT_TASK = "chat";
 const LOOPBACK = "127.0.0.1";
 
-function chatConnectionId(bindings: readonly { readonly task: string; readonly binding: { readonly connectionId: string | null } | null }[]): string | null {
+function chatConnectionId(
+  bindings: readonly { readonly task: string; readonly binding: { readonly connectionId: UserConnectionId | null } | null }[],
+): UserConnectionId | null {
   return bindings.find((row) => row.task === CHAT_TASK)?.binding?.connectionId ?? null;
 }
 
@@ -62,8 +65,8 @@ test("a named key becomes the owner's chat connection, and its value reaches onl
   const seeded = await seedStageConnection(api, seed);
 
   const connections = await api.connection.list.query();
-  const chatId = chatConnectionId(await api.connection.listBindings.query());
-  const chat = connections.find((connection) => connection.id === chatId);
+  const boundConnectionId = chatConnectionId(await api.connection.listBindings.query());
+  const chat = connections.find((connection) => connection.id === boundConnectionId);
   const expected = { label: `${STAGE_CONNECTION_LABEL_PREFIX} ${KEY_NAME}`, ...STAGE_HOSTED_CONNECTIONS[KEY_NAME] };
   expect([earlier, seeded]).toEqual([expected, expected]);
   expect(chat).toMatchObject(expected);
@@ -199,7 +202,7 @@ test("the local engine is admitted at its own host and port on a stage whose all
 
   const after = (await api.settings.getAppSettingsWithOverrides.query()).resolved.privateEndpointAllowlist;
   expect(after).toEqual([...before, new URL(engine.origin).host]);
-  const chatId = chatConnectionId(await api.connection.listBindings.query());
-  const chat = (await api.connection.list.query()).find((connection) => connection.id === chatId);
+  const boundConnectionId = chatConnectionId(await api.connection.listBindings.query());
+  const chat = (await api.connection.list.query()).find((connection) => connection.id === boundConnectionId);
   expect(chat).toMatchObject({ label: seeded.label, providerId: "vllm", baseUrl, model: ENGINE_MODEL });
 });

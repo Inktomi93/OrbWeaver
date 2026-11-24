@@ -4,8 +4,8 @@
 import type { Db, rpgCheckpoints } from "@orb/db";
 import { characters, chats, messages, messageVariants, rpgSnapshots, sessionEntries, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
-import type { CharacterHandle, ChatId, Handle, IdSource, MessageVariantId, UserConnectionId } from "@orb/kit/ids";
-import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { ChatId, IdSource, MessageVariantId, UserConnectionId } from "@orb/kit/ids";
+import { brandedId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { cardTokenSize } from "@orb/server/domain/character";
 import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { and, eq, getTableColumns, getTableName, sql } from "drizzle-orm";
@@ -24,11 +24,13 @@ export type SdkSessionEntryRow = typeof sessionEntries.$inferSelect;
 type RpgSnapshotRow = typeof rpgSnapshots.$inferSelect;
 
 const ids = createIdSource(createSeededIds().next);
+const handleSchema = brandedId("Handle");
+const characterHandleSchema = brandedId("CharacterHandle");
 
-/** A fully-valid human user row; `handle` defaults to the id so both stay unique per counter. */
+/** A fully-valid human user row; `handle` defaults to the id's text so both stay unique per counter without a second mint. */
 export function makeUser(overrides: Partial<UserRow> = {}, source: IdSource = ids): UserRow {
   const id = overrides.id ?? source.userId();
-  const handle = overrides.handle ?? castId<Handle>(id);
+  const handle = overrides.handle ?? handleSchema.parse(String(id));
   return {
     id,
     handle,
@@ -64,8 +66,8 @@ export async function seedCharacterRow(
   const id = overrides.id ?? source.typeId(ID_PREFIX.character);
   const card = {
     id,
-    // The handle is the id, not a slug of the name: `(ownerId, handle)` is unique and the name default is fixed.
-    handle: castId<CharacterHandle>(id),
+    // The id's text, parsed as a handle, not a slug of the name: `(ownerId, handle)` is unique and the name default is fixed.
+    handle: characterHandleSchema.parse(String(id)),
     starred: false,
     archived: false,
     synthetic: false,
