@@ -101,9 +101,15 @@ interface MergedFile {
   readonly named: Map<string, MergedFunction>;
   /** Anonymous functions per `loc` line, in column order: the fallback when a transform shifts columns on the line. */
   readonly anonymous: Map<string, MergedFunction[]>;
-  readonly branches: Map<string, MergedBranch>;
-  /** Branches per type and line, in column order, for the same fallback. */
+  /** Every branch, so two that start at the same point both count. */
+  readonly branches: MergedBranch[];
+  /** Branches per type and start point: nested branches of one type can start together. */
+  readonly branchStarts: Map<string, MergedBranch[]>;
+  /** Branches per type and start line, in column order, for the same fallback. */
   readonly branchLines: Map<string, MergedBranch[]>;
+  /** Branches per type and end line: a bundler that inlines a single-use `const` moves a branch's start to the
+   *  initializer's, but the branch still ends where the source's does. */
+  readonly branchEnds: Map<string, MergedBranch[]>;
 }
 
 type Range = z.infer<typeof rangeSchema>;
@@ -111,6 +117,7 @@ type Range = z.infer<typeof rangeSchema>;
 const at = (range: Range): string => `${String(range.start.line)}:${String(range.start.column ?? 0)}`;
 const branchKey = (type: string, range: Range): string => `${type}@${at(range)}`;
 const branchLine = (type: string, range: Range): string => `${type}@${String(range.start.line)}`;
+const branchEnd = (type: string, range: Range): string => `${type}@end${String(range.end.line)}`;
 const anonymousLine = (range: Range): string => String(range.start.line);
 
 // istanbul numbers an anonymous function by its order in the file, which a transform changes.
@@ -152,10 +159,20 @@ function anonymousOrdinals(file: IstanbulFile): ReadonlyMap<string, LineOrdinal>
   );
 }
 
-function branchOrdinals(file: IstanbulFile): ReadonlyMap<string, LineOrdinal> {
-  return lineOrdinals(
-    Object.entries(file.branchMap).map(([id, branch]) => ({ id, group: branchLine(branch.type, branch.loc), column: branch.loc.start.column ?? 0 })),
-  );
+/** How a file's branches are grouped, finest to coarsest: by start point, start line and end line. */
+const BRANCH_GROUPINGS = {
+  start: branchKey,
+  line: branchLine,
+  end: branchEnd,
+} as const satisfies Record<string, (type: string, range: Range) => string>;
+type BranchGrouping = keyof typeof BRANCH_GROUPINGS;
+
+/** Each branch's place in its group, per grouping. */
+function branchOrdinals(file: IstanbulFile): Readonly<Record<BranchGrouping, ReadonlyMap<string, LineOrdinal>>> {
+  const entries = Object.entries(file.branchMap);
+  const ordinalsOf = (grouping: BranchGrouping): ReadonlyMap<string, LineOrdinal> =>
+    lineOrdinals(entries.map(([id, branch]) => ({ id, group: BRANCH_GROUPINGS[grouping](branch.type, branch.loc), column: branch.loc.start.column ?? 0 })));
+  return { start: ordinalsOf("start"), line: ordinalsOf("line"), end: ordinalsOf("end") };
 }
 
 // Places each entry at its ordinal in its group's list.
@@ -184,21 +201,25 @@ function seed(file: IstanbulFile): MergedFile {
       named.set(namedKey(fn.name, fn.decl.start.line), entry);
     }
   }
-  const branches = new Map<string, MergedBranch>();
-  const branchEntries: (readonly [string, string, MergedBranch])[] = [];
-  for (const [id, branch] of Object.entries(file.branchMap)) {
+  const branches = Object.entries(file.branchMap).map(([id, branch]) => {
     const counts = file.b[id] ?? [];
-    const entry = { type: branch.type, line: branch.loc.start.line, arms: branch.locations.map((_, arm) => (counts[arm] ?? 0) > 0) };
-    branches.set(branchKey(branch.type, branch.loc), entry);
-    branchEntries.push([id, branchLine(branch.type, branch.loc), entry]);
-  }
+    return { id, branch, entry: { type: branch.type, line: branch.loc.start.line, arms: branch.locations.map((_, arm) => (counts[arm] ?? 0) > 0) } };
+  });
+  const ordinals = branchOrdinals(file);
+  const groupedBy = (grouping: BranchGrouping): Map<string, MergedBranch[]> =>
+    grouped(
+      branches.map(({ id, branch, entry }) => [id, BRANCH_GROUPINGS[grouping](branch.type, branch.loc), entry] as const),
+      ordinals[grouping],
+    );
   return {
     functions,
     byLoc,
     named,
     anonymous: grouped(anonymousEntries, anonymousOrdinals(file)),
-    branches,
-    branchLines: grouped(branchEntries, branchOrdinals(file)),
+    branches: branches.map(({ entry }) => entry),
+    branchStarts: groupedBy("start"),
+    branchLines: groupedBy("line"),
+    branchEnds: groupedBy("end"),
   };
 }
 
@@ -291,16 +312,31 @@ function projectFunctions(into: MergedFile, file: IstanbulFile, rel: string, pro
   }
 }
 
-// The universe branch at this branch's start, else at its ordinal on its line; only one with the same arm count.
-function branchTarget(into: MergedFile, branch: IstanbulFile["branchMap"][string], ordinal: LineOrdinal | undefined): MergedBranch | undefined {
-  const found = into.branches.get(branchKey(branch.type, branch.loc)) ?? atOrdinal(into.branchLines.get(branchLine(branch.type, branch.loc)), ordinal);
-  return found !== undefined && found.arms.length === branch.locations.length ? found : undefined;
+// The universe branch of the same type and arm count at this branch's start point, else at its place among the branches
+// of its start line, else of its end line. A transform keeps where a branch ends but not always where it starts: the
+// bundler inlines a single-use `const` into its one use, so a conditional that tests it starts at the initializer.
+// Several branches of one type can share a start point (`a || b` and `a || b || c` over one test), so a start point
+// names a branch alone only when one holds that arm count.
+function branchTarget(
+  into: MergedFile,
+  branch: IstanbulFile["branchMap"][string],
+  ordinals: Readonly<Record<BranchGrouping, LineOrdinal | undefined>>,
+): MergedBranch | undefined {
+  const arms = branch.locations.length;
+  const sameStart = into.branchStarts.get(branchKey(branch.type, branch.loc)) ?? [];
+  const sameArms = sameStart.filter((candidate) => candidate.arms.length === arms);
+  const found =
+    (sameArms.length === 1 ? sameArms[0] : undefined) ??
+    atOrdinal(sameStart, ordinals.start) ??
+    atOrdinal(into.branchLines.get(branchLine(branch.type, branch.loc)), ordinals.line) ??
+    atOrdinal(into.branchEnds.get(branchEnd(branch.type, branch.loc)), ordinals.end);
+  return found !== undefined && found.arms.length === arms ? found : undefined;
 }
 
 function projectBranches(into: MergedFile, file: IstanbulFile, rel: string, projection: Projection): void {
   const ordinals = branchOrdinals(file);
   for (const [id, branch] of Object.entries(file.branchMap)) {
-    const target = branchTarget(into, branch, ordinals.get(id));
+    const target = branchTarget(into, branch, { start: ordinals.start.get(id), line: ordinals.line.get(id), end: ordinals.end.get(id) });
     for (const [arm, count] of (file.b[id] ?? []).entries()) {
       if (count > 0 && target === undefined) {
         note(projection, "unmatchedArms", `${rel} ${branchKey(branch.type, branch.loc)} arm ${String(arm)}`);
@@ -377,10 +413,10 @@ function summarize(files: ReadonlyMap<string, MergedFile>): Pick<MergedCoverage,
   const totals = { files: files.size, functions: 0, functionsUnexecuted: 0, branchArms: 0, branchArmsUnexecuted: 0 };
   for (const [file, merged] of [...files].sort(([a], [b]) => a.localeCompare(b))) {
     const deadFunctions = [...merged.functions.values()].filter((fn) => !fn.hit).map(({ name, line }) => ({ name, line }));
-    const deadArms = [...merged.branches.values()].flatMap(({ type, line, arms }) => arms.flatMap((hit, arm) => (hit ? [] : [{ type, line, arm }])));
+    const deadArms = merged.branches.flatMap(({ type, line, arms }) => arms.flatMap((hit, arm) => (hit ? [] : [{ type, line, arm }])));
     totals.functions += merged.functions.size;
     totals.functionsUnexecuted += deadFunctions.length;
-    totals.branchArms += [...merged.branches.values()].reduce((sum, branch) => sum + branch.arms.length, 0);
+    totals.branchArms += merged.branches.reduce((sum, branch) => sum + branch.arms.length, 0);
     totals.branchArmsUnexecuted += deadArms.length;
     if (deadFunctions.length > 0 || deadArms.length > 0) {
       unexecuted.push({
