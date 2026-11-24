@@ -12,7 +12,7 @@ export function createDeleteSchema(ctx: RefineryContext): RefineryService["delet
   return async ({ principal, schemaId }) => {
     const row = await loadOwnedSchemaRow(ctx.db, principal.userId, schemaId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery schema", schemaId);
+      throw new DomainNotFoundError({ kind: "refinery_schema", id: schemaId });
     }
     // The owner rides the WHERE: a non-owner's delete moves 0 rows even if
     // the load-belt above ever drifted.

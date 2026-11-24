@@ -9,7 +9,7 @@ export function createGetSession(ctx: RefineryContext): RefineryService["getSess
   return async ({ principal, sessionId }) => {
     const row = await loadOwnedSessionRow(ctx.db, principal.userId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     return sessionViewOf(row);
   };

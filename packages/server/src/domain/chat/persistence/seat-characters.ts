@@ -34,6 +34,6 @@ export async function assertSeatableCharacters(db: Db, ownerId: UserId, characte
   const seatable = await seatableCharacterIds(db, ownerId, characterIds);
   const refused = characterIds.find((characterId) => !seatable.has(characterId));
   if (refused !== undefined) {
-    throw new DomainNotFoundError("character", refused);
+    throw new DomainNotFoundError({ kind: "character", id: refused });
   }
 }

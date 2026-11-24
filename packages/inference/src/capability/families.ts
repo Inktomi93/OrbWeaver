@@ -4,6 +4,7 @@
 // `some-org/claude-fork`, so an alien backend whose id merely contains "claude" never receives Anthropic-only
 // directives (cache_control) or the Claude family floor.
 
+import type { ModelId } from "@orb/kit/ids";
 import type { ModelFamily } from "../contract/runtime.ts";
 
 const FAMILY_ANCHORS: readonly (readonly [Exclude<ModelFamily, "other">, RegExp])[] = [
@@ -18,7 +19,7 @@ const FAMILY_ANCHORS: readonly (readonly [Exclude<ModelFamily, "other">, RegExp]
 ];
 
 /** Detect a model's family from its id (bare or provider-prefixed); each arm is independently `^`-anchored. */
-export function detectModelFamily(id: string): ModelFamily {
+export function detectModelFamily(id: ModelId): ModelFamily {
   for (const [family, anchor] of FAMILY_ANCHORS) {
     if (anchor.test(id)) {
       return family;

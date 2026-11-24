@@ -1,7 +1,7 @@
 // Connection authoring; selected saved keys stay metadata-only and catalog answers name their exact draft.
 
 import type { CredentialView } from "@orb/contracts/credentials";
-import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCheck, ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Stack } from "@orb/ui/layout";
@@ -57,7 +57,8 @@ export interface AddConnectionFormBodyProps {
   /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
   readonly keyStorage: boolean;
   readonly pickerItems: SelectItems;
-  readonly providerOf: (id: string) => ProviderDef | undefined;
+  /** The form holds the picked provider, or `""` before a pick. */
+  readonly providerOf: (id: ProviderId | "") => ProviderDef | undefined;
 }
 
 type CreateConnectionInput = inferInput<Trpc["connection"]["create"]>;
@@ -230,7 +231,7 @@ export function AddConnectionFormBody({
     return values;
   };
 
-  const { form } = useAddConnectionForm({ entityId: "add-connection", serverValues: undefined, save });
+  const { form } = useAddConnectionForm({ mountKey: "add-connection", serverValues: undefined, save });
   const formId = useId();
   const submitDraft = (): void => {
     form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err, values: form.state.values }));
@@ -318,7 +319,9 @@ export function AddConnectionFormBody({
           </form.Subscribe>
         </Stack>
       </form>
-      <form.Subscribe selector={(state): readonly [string, boolean, boolean] => [state.values.providerId, state.canSubmit, state.isSubmitting] as const}>
+      <form.Subscribe
+        selector={(state): readonly [ProviderId | "", boolean, boolean] => [state.values.providerId, state.canSubmit, state.isSubmitting] as const}
+      >
         {([providerId, canSubmit, isSubmitting]): ReactElement | null => {
           const provider = providerOf(providerId);
           // A blocked pick's notice carries its own Close; this footer would only repeat it.

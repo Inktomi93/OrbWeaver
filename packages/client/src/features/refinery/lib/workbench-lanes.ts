@@ -73,7 +73,7 @@ type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
 /** The pins a sibling pane or the user's own walk put on the ledger. */
 export interface LanePins {
   /** The CONTEXT Runs tab's view-back pin (a run id at any stage). */
-  readonly viewedRunId: string | null;
+  readonly viewedRunId: RefineryRunId | null;
   /** The armed rewrite the accept work targets (operate-back), when one is armed. */
   readonly armedRewriteId: RefineryRunId | null;
 }

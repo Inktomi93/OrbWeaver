@@ -3,12 +3,13 @@
 // @subject packages/kit/src/content/index.ts
 
 import { ASSET_SCHEME, assetIdsInContent, relinkContentAssets } from "@orb/kit/content";
+import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 
 test("an image ref the relink names moves to its new id and nothing else in the body changes", ({ ids }) => {
   const [carried, held, untouched] = [mintTypeId(ID_PREFIX.asset, ids.next), mintTypeId(ID_PREFIX.asset, ids.next), mintTypeId(ID_PREFIX.asset, ids.next)];
-  const body = (id: string): string =>
+  const body = (id: AssetId): string =>
     [
       `Dusk over the ledger: ![plate](${ASSET_SCHEME}${id}) and ![other](${ASSET_SCHEME}${untouched})`,
       `A titled image is prose: ![t](${ASSET_SCHEME}${carried} "title"), and so is ${ASSET_SCHEME}${carried} on its own.`,

@@ -18,6 +18,7 @@
 // row you are already on re-scrolls it into view) and the CONTENT host's effect keys on it, never on the
 // active group — a later user click can never re-fire a stale jump (#549's rule).
 
+import type { PluginId } from "@orb/kit/ids";
 import { clearConfigFocus } from "./config-focus-store.ts";
 import type { ConfigGroupId } from "./config-group-ids.ts";
 import { isConfigGroupId } from "./config-group-ids.ts";
@@ -28,11 +29,13 @@ import { setActiveSection } from "./shell-store.ts";
 
 /** A deep-link / click LANDING request the CONTENT host performs once: scroll `sub`'s anchor into view (or
  *  the top of the group when `null`), flash it, and — when `setting` names a leaf — remember the match
- *  for the LIST/CONTENT marks. */
+ *  for the LIST/CONTENT marks. `plugin` names an installed plugin's card, which is keyed by its id and not by a
+ *  leaf slug, so the id keeps its brand from the door that names it to the control it focuses. */
 export interface ConfigTarget {
   readonly group: ConfigGroupId;
   readonly sub: string | null;
   readonly setting: string | null;
+  readonly plugin: PluginId | null;
   /** Monotonic per request — the effect key. */
   readonly nonce: number;
 }
@@ -61,13 +64,13 @@ const useConfigNavStore = createGatedStore<ConfigNavState>("config-nav", (): Con
 
 let nonce = 0;
 
-function land(group: ConfigGroupId, sub: string | null, setting: string | null, action: string): void {
+function land({ group, sub, setting, plugin }: Omit<ConfigTarget, "nonce">, action: string): void {
   nonce += 1;
   // A navigation resets the TEACHER's focus (keep-last has a group horizon:
   // a lesson about a row that just left the screen would be a lie). The landed target re-focuses when it
   // names a setting.
   clearConfigFocus();
-  useConfigNavStore.setState({ activeGroup: group, activeSub: sub, target: { group, sub, setting, nonce } }, false, action);
+  useConfigNavStore.setState({ activeGroup: group, activeSub: sub, target: { group, sub, setting, plugin, nonce } }, false, action);
 }
 
 /** The cross-section deep link: "take me to this group (and this section, and this knob)". Replaces both
@@ -77,7 +80,16 @@ function land(group: ConfigGroupId, sub: string | null, setting: string | null, 
 export function openConfigTo(group: ConfigGroupId, sub?: string, setting?: string): void {
   clearCollectionSelection();
   openConfigGroup(group);
-  land(group, sub ?? null, setting ?? null, "configNav/openConfigTo");
+  land({ group, sub: sub ?? null, setting: setting ?? null, plugin: null }, "configNav/openConfigTo");
+  setActiveSection("config");
+}
+
+/** The deep link to one installed plugin's card, named by its id: the Plugins group's `sub` section lands on that
+ *  card rather than on whichever installed row sorts first. */
+export function openConfigToPlugin(sub: string, plugin: PluginId): void {
+  clearCollectionSelection();
+  openConfigGroup("plugins");
+  land({ group: "plugins", sub, setting: null, plugin }, "configNav/openConfigToPlugin");
   setActiveSection("config");
 }
 
@@ -100,7 +112,7 @@ function landOnGroup(group: ConfigGroupId, firstSub: string | null, remember: bo
   if (remember) {
     openConfigGroup(group);
   }
-  land(group, null, null, remember ? "configNav/selectGroup" : "configNav/arriveAtGroup");
+  land({ group, sub: null, setting: null, plugin: null }, remember ? "configNav/selectGroup" : "configNav/arriveAtGroup");
   if (firstSub !== null) {
     useConfigNavStore.setState({ activeSub: firstSub }, false, "configNav/selectGroup/firstSub");
   }
@@ -110,7 +122,7 @@ function landOnGroup(group: ConfigGroupId, firstSub: string | null, remember: bo
 export function selectConfigSub(group: ConfigGroupId, sub: string): void {
   clearCollectionSelection();
   openConfigGroup(group);
-  land(group, sub, null, "configNav/selectSub");
+  land({ group, sub, setting: null, plugin: null }, "configNav/selectSub");
 }
 
 /**

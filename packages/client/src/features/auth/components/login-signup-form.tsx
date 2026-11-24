@@ -81,7 +81,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
   }, [attempts]);
 
   const { form } = useSignupForm({
-    entityId: token,
+    mountKey: token,
     serverValues: undefined,
     save: async (values): Promise<typeof values> => {
       const request = signupRequestSchema.parse({

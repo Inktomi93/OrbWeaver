@@ -60,7 +60,7 @@ async function resolveCloneParams(
 async function assertCloneDependenciesAvailable(ctx: WorkloadServiceContext, original: WorkloadRowAnyKind): Promise<void> {
   const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, original.dependsOn ?? [], original.ownerId);
   if (unavailableDependency !== undefined) {
-    throw new DomainNotFoundError(ENTITY, unavailableDependency);
+    throw new DomainNotFoundError({ kind: ENTITY, id: unavailableDependency });
   }
 }
 
@@ -71,7 +71,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       canCloneRow(ctx, params.caller, access),
     );
     if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     await assertCloneDependenciesAvailable(ctx, original);
     const clone = await resolveCloneParams(ctx, contributions, original);
@@ -107,7 +107,7 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       });
     } catch (err) {
       if (isWorkloadForeignKeyViolation(err)) {
-        const unavailable = new DomainNotFoundError(ENTITY, original.id);
+        const unavailable = new DomainNotFoundError({ kind: ENTITY, id: original.id });
         unavailable.cause = err;
         throw unavailable;
       }

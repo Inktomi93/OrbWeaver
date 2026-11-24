@@ -50,7 +50,7 @@ export function useRegexBulkActive(): boolean {
 }
 
 /** Reactive: is this script currently selected? A boolean selector (no fresh object per render). */
-export function useIsRegexScriptSelected(scriptId: string): boolean {
+export function useIsRegexScriptSelected(scriptId: RegexScriptId): boolean {
   return useRegexBulkStore((s) => s.selectedIds[scriptId] === true);
 }
 

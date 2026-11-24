@@ -11,7 +11,7 @@ export function createListRuns(ctx: RefineryContext): RefineryService["listRuns"
   return async ({ principal, sessionId }) => {
     const row = await loadOwnedSessionRow(ctx.db, principal.userId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     const runs = await listRunRowsOf(ctx.db, sessionId);
     return runs.map(runViewOf).filter((r) => r !== null);

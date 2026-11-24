@@ -126,7 +126,7 @@ function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): vo
   for (const m of ci.messages) {
     const named = namedSpeaker(m);
     if (named !== null && !seated.has(named)) {
-      throw new DomainNotFoundError("chat_participant", named);
+      throw new DomainNotFoundError({ kind: "chat seat", id: named });
     }
   }
 }
@@ -142,7 +142,7 @@ function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void 
   const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const knob of ci.seatKnobs) {
     if (!seated.has(knob.characterId)) {
-      throw new DomainNotFoundError("chat_participant", knob.characterId);
+      throw new DomainNotFoundError({ kind: "chat seat", id: knob.characterId });
     }
   }
 }

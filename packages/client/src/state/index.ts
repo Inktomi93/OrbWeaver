@@ -156,6 +156,7 @@ export {
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
   arriveAtConfigGroup,
+  type ConfigTarget,
   type ConfigVisibleSetting,
   clearActiveConfigGroup,
   getActiveConfigGroup,

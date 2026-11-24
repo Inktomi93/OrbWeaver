@@ -39,13 +39,13 @@ export async function resolveApplyBasis(
   const { ownerId, sessionId, rewriteRunId, accepts } = args;
   const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
   if (row === undefined) {
-    throw new DomainNotFoundError("refinery session", sessionId);
+    throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
   }
   const session = sessionViewOf(row);
   const rewriteRow =
     rewriteRunId === undefined ? await latestRunRowOf(ctx.db, sessionId, "rewrite") : await loadSessionRewriteRunRow(ctx.db, sessionId, rewriteRunId);
   if (rewriteRunId !== undefined && rewriteRow === undefined) {
-    throw new DomainNotFoundError("refinery run", rewriteRunId);
+    throw new DomainNotFoundError({ kind: "refinery_run", id: rewriteRunId });
   }
   if (rewriteRow === undefined) {
     throw new RefineryStageNotReadyError("There is no rewrite to apply yet — run the rewrite stage first.");
@@ -58,7 +58,7 @@ export async function resolveApplyBasis(
   // deleted since session start must not be re-created by index; §1 gap 3's verb-tier ruling).
   const liveCard = await ctx.loadOwnedCard({ ownerId, characterId: session.characterId });
   if (liveCard === undefined) {
-    throw new DomainNotFoundError("character", session.characterId);
+    throw new DomainNotFoundError({ kind: "character", id: session.characterId });
   }
   const { applied, dropped, chosen } = partitionAccepts(accepts, {
     rewriteFields: rewrite.data.fields,

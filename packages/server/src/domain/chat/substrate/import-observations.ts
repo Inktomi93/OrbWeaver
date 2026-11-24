@@ -4,6 +4,25 @@ import type { chatGenerationObservations } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatTurnId, UserId } from "@orb/kit/ids";
 
+type ImportedObservation = ReturnType<typeof pendingGenerationObservationsSchema.parse>[number];
+
+/** The minted ids a row's positional source names; both null for a row that names no source message. */
+function sourceIdsOf(
+  row: ImportedObservation,
+  identity: ImportedChatIdentity,
+): Pick<typeof chatGenerationObservations.$inferInsert, "sourceMessageId" | "sourceVariantId"> {
+  const index = row.sourceMessageIndex;
+  if (index === null) {
+    return { sourceMessageId: null, sourceVariantId: null };
+  }
+  const sourceMessageId = identity.messageIds[index];
+  const sourceVariantId = row.sourceVariantIdx === null ? null : identity.variantIds[index]?.[row.sourceVariantIdx];
+  if (sourceMessageId === undefined || sourceVariantId === undefined) {
+    throw new DomainNotFoundError({ kind: "imported message", index });
+  }
+  return { sourceMessageId, sourceVariantId };
+}
+
 /** Remint private operation groups once while preserving native positional source identity. */
 export function importedObservationRows(
   newChatTurnId: () => ChatTurnId,
@@ -13,12 +32,7 @@ export function importedObservationRows(
 ): (typeof chatGenerationObservations.$inferInsert)[] {
   const turns = new Map<number, ChatTurnId>();
   return pendingGenerationObservationsSchema.parse(ci.pendingGenerationObservations ?? []).map((row) => {
-    const sourceMessageId = row.sourceMessageIndex === null ? null : identity.messageIds[row.sourceMessageIndex];
-    const sourceVariantId =
-      row.sourceMessageIndex === null || row.sourceVariantIdx === null ? null : identity.variantIds[row.sourceMessageIndex]?.[row.sourceVariantIdx];
-    if (sourceMessageId === undefined || sourceVariantId === undefined) {
-      throw new DomainNotFoundError("message", String(row.sourceMessageIndex));
-    }
+    const { sourceMessageId, sourceVariantId } = sourceIdsOf(row, identity);
     const turnId = turns.get(row.turnIndex) ?? newChatTurnId();
     turns.set(row.turnIndex, turnId);
     return {

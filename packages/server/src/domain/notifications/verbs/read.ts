@@ -21,7 +21,7 @@ export function createRead(ctx: NotificationsContext): Pick<NotificationsService
   async function dismiss(params: DismissParams): Promise<InboxView> {
     const row = await dismissScoped(ctx.db, params.principal.userId, params.notificationId, ctx.now());
     if (row === undefined) {
-      throw new DomainNotFoundError(ENTITY, params.notificationId);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.notificationId });
     }
     // Dismissed = settled: the row has left the inbox, so it asks nothing of anyone.
     return asSettled(row);

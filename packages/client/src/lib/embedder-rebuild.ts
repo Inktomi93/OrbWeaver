@@ -5,6 +5,7 @@ import type { Capability, EmbedSpaceChangePreview, EmbedTargetRefusal, RoutableT
 import { CONNECTION_OP_CODES, SMALL_EMBED_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, EMBEDDER_REBUILD_KINDS } from "@orb/contracts/workloads";
+import type { UserId } from "@orb/kit/ids";
 import { groupThousands } from "@orb/kit/strings";
 import { trpcErrorDetailFlag, trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
 
@@ -183,7 +184,7 @@ type RebuildState = keyof typeof REBUILD_STATUS_COPY;
 interface RebuildRow {
   readonly kind: WorkloadKind;
   readonly status: WorkloadStatus;
-  readonly ownerId: string | null;
+  readonly ownerId: UserId | null;
   readonly createdAt: number;
   readonly params: unknown;
 }
@@ -208,7 +209,7 @@ function isEmbedderRebuild(row: RebuildRow): boolean {
  */
 export function embedderRebuildState(
   rows: readonly RebuildRow[],
-  viewerId: string | null,
+  viewerId: UserId | null,
   space: { readonly paused: boolean } | undefined,
 ): RebuildState | null {
   if (space?.paused !== true) {

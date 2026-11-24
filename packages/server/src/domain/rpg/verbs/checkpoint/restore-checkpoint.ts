@@ -21,12 +21,12 @@ export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "rest
     const snapshotId = await ctx.handWrites.run(game.id, async () => {
       const checkpoint = await findCheckpoint(ctx.db, params.checkpointId);
       if (checkpoint === undefined || checkpoint.gameId !== game.id) {
-        throw new DomainNotFoundError("checkpoint", params.checkpointId);
+        throw new DomainNotFoundError({ kind: "rpg_checkpoint", id: params.checkpointId });
       }
       // The checkpointed snapshot IS the restore base — read it by its durable id.
       const base = await findSnapshotById(ctx.db, checkpoint.snapshotId);
       if (base === undefined) {
-        throw new DomainNotFoundError("snapshot", checkpoint.snapshotId);
+        throw new DomainNotFoundError({ kind: "rpg_snapshot", id: checkpoint.snapshotId });
       }
       await ctx.claimChat(admission);
       const restoredId = ctx.ids.snapshot();

@@ -68,7 +68,7 @@ export class BudgetValidationError extends DomainOperationError {
 export class RuleNotFoundError extends DomainNotFoundError {
   public readonly ruleId: AutomationRuleId;
   constructor(ruleId: AutomationRuleId) {
-    super("automation_rule", ruleId);
+    super({ kind: "automation_rule", id: ruleId });
     this.ruleId = ruleId;
     this.name = this.constructor.name;
   }
@@ -81,7 +81,7 @@ export class RuleNotFoundError extends DomainNotFoundError {
 export class SuggestionNotFoundError extends DomainNotFoundError {
   public readonly suggestionId: AutomationSuggestionId;
   constructor(suggestionId: AutomationSuggestionId) {
-    super("automation_suggestion", suggestionId);
+    super({ kind: "automation_suggestion", id: suggestionId });
     this.suggestionId = suggestionId;
     this.name = this.constructor.name;
   }
@@ -103,7 +103,7 @@ export class SuggestionRefusedError extends DomainOperationError {
 export class AutomationChatNotFoundError extends DomainNotFoundError {
   public readonly chatId: ChatId;
   constructor(chatId: ChatId) {
-    super("automation_chat", chatId);
+    super({ kind: "chat", id: chatId });
     this.chatId = chatId;
     this.name = this.constructor.name;
   }

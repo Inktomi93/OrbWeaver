@@ -18,7 +18,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { CachePolicy, Dialect } from "@orb/contracts/inference";
+import type { CachePolicy, Dialect, ProviderId } from "@orb/contracts/inference";
 import { SETTABLE_WINDOW_FLOOR } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { wrapLanguageModel } from "ai";
@@ -93,7 +93,7 @@ function fetchArgs(call: ModelCall, shapeBody: WrapFetchArgs["shapeBody"]): Wrap
  *  raw form differs and is the one present (`warnIfDeprecatedProviderOptionsKey`,
  *  `@ai-sdk/openai-compatible@3.0.75`) — and our provider ids are hyphenated (`custom-openai`, `lm-studio`). The camel form is
  *  the non-deprecated spelling, so it is the only one we write. */
-export function providerOptionsKey(providerId: string): string {
+export function providerOptionsKey(providerId: ProviderId): string {
   return providerId.replace(/[_-]([a-z])/gu, (_match, letter: string) => letter.toUpperCase());
 }
 

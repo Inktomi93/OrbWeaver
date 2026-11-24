@@ -17,7 +17,7 @@ export class ToolNameCollisionError extends DomainConflictError {
 export class ToolNotFoundError extends DomainNotFoundError {
   public readonly toolName: string;
   constructor(toolName: string) {
-    super("tool", toolName);
+    super({ kind: "tool", key: toolName });
     this.toolName = toolName;
     this.name = this.constructor.name;
   }

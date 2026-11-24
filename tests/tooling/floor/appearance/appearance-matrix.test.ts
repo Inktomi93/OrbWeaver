@@ -30,13 +30,14 @@ test("Appearance reach reconciles mounted registry instances and actual samples"
   expect(appearanceReachReceipt(runtimeContract())).toEqual({ rows: 1, subjects: 1 });
 });
 
-test("Appearance reach refuses stale and unregistered messages and a row whose samples are short, undefined or omitted", () => {
+test("Appearance reach refuses stale and unregistered messages and a row whose samples are short, undefined or omitted", ({ ids }) => {
+  const messageId = ids.typeId(ID_PREFIX.message);
   expect(() =>
-    appearanceReachReceipt(runtimeContract({ messageRegistry: { mounted: 0, registered: 1, matched: 0, missingIds: [], staleIds: ["message-a"] } })),
-  ).toThrow("stale=message-a");
+    appearanceReachReceipt(runtimeContract({ messageRegistry: { mounted: 0, registered: 1, matched: 0, missingIds: [], staleIds: [messageId] } })),
+  ).toThrow(`stale=${messageId}`);
   expect(() =>
-    appearanceReachReceipt(runtimeContract({ messageRegistry: { mounted: 1, registered: 0, matched: 0, missingIds: ["message-a"], staleIds: [] } })),
-  ).toThrow("missing=message-a");
+    appearanceReachReceipt(runtimeContract({ messageRegistry: { mounted: 1, registered: 0, matched: 0, missingIds: [messageId], staleIds: [] } })),
+  ).toThrow(`missing=${messageId}`);
   const baseRow = runtimeContract().rows[0];
   if (baseRow === undefined) {
     throw new Error("appearance reach fixture lost its subject row");

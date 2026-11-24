@@ -12,7 +12,7 @@ export function createEmbed(ctx: AdminContext): Pick<AdminService, "embedCharact
     requireAdmin(params.principal);
     const embedded = await ctx.embed.embedCharacterCard(params.principal, params.characterId, params.signal);
     if (!embedded) {
-      throw new DomainNotFoundError("character", params.characterId);
+      throw new DomainNotFoundError({ kind: "character", id: params.characterId });
     }
     await ctx.audit(
       {

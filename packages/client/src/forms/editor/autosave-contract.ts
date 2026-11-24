@@ -38,14 +38,14 @@ export interface AutosaveSession<TValues extends object> {
 }
 
 /** Everything a mint config carries EXCEPT the persistence seam — the seam decides the arm (below). */
-interface AutosaveEntityBoundaryConfigBase<TValues extends object> {
+interface AutosaveEntityBoundaryConfigBase<TValues extends object, TKey extends string = string> {
   readonly defaultValues: TValues;
   /** Exclude draft-local metadata from saved truth, equality and baseline identity. */
   readonly canonicalValues?: (values: TValues) => object;
   /** Admit a seed or replacement. Previous values exist only for an accepted clean external rebase. */
   readonly admitValues?: (values: TValues, previousAdmitted: TValues | undefined) => TValues;
   /** The crash-survival mirror. Omit only for genuinely ephemeral panels. */
-  readonly draft?: EntityDraftStore<TValues>;
+  readonly draft?: EntityDraftStore<TValues, TKey>;
   /** @defaultValue 500 */
   readonly debounceMs?: number;
   readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
@@ -53,26 +53,28 @@ interface AutosaveEntityBoundaryConfigBase<TValues extends object> {
 
 /** A config that carries the persistence seam at MINT time — the per-instance `save` prop is then an
  *  optional OVERRIDE (it still wins). */
-export interface AutosaveEntityBoundaryConfigWithSave<TValues extends object> extends AutosaveEntityBoundaryConfigBase<TValues> {
+export interface AutosaveEntityBoundaryConfigWithSave<TValues extends object, TKey extends string = string>
+  extends AutosaveEntityBoundaryConfigBase<TValues, TKey> {
   /** Persist the values (fire-and-forget from the save driver). */
   readonly save: (values: TValues) => Promise<unknown>;
 }
 
 /** A config that does NOT carry the seam — the overwhelmingly common shape, because a module-scope
  *  factory can't reach the runtime tRPC client. The returned boundary then REQUIRES a declared arm. */
-export interface AutosaveEntityBoundaryConfigWithoutSave<TValues extends object> extends AutosaveEntityBoundaryConfigBase<TValues> {
+export interface AutosaveEntityBoundaryConfigWithoutSave<TValues extends object, TKey extends string = string>
+  extends AutosaveEntityBoundaryConfigBase<TValues, TKey> {
   readonly save?: never;
 }
 
 /** The mint config, either arm. Its `save` PRESENCE decides the returned boundary's props (the overloads
  *  on `createAutosaveEntityForm`), which is how "the seam is declared exactly once" became a compile fact. */
-export type AutosaveEntityBoundaryConfig<TValues extends object> =
-  | AutosaveEntityBoundaryConfigWithSave<TValues>
-  | AutosaveEntityBoundaryConfigWithoutSave<TValues>;
+export type AutosaveEntityBoundaryConfig<TValues extends object, TKey extends string = string> =
+  | AutosaveEntityBoundaryConfigWithSave<TValues, TKey>
+  | AutosaveEntityBoundaryConfigWithoutSave<TValues, TKey>;
 
-interface AutosaveBoundaryPropsBase<TValues extends object> {
+interface AutosaveBoundaryPropsBase<TValues extends object, TKey extends string = string> {
   /** The entity under edit — keys the Session; a change is a full teardown/remount seeded from server. */
-  readonly entityId: string;
+  readonly entityId: TKey;
   /** The server row (undefined while loading). A structural change while clean re-baselines (§5). */
   readonly serverValues: TValues | undefined;
   /** The body — a render prop given the live session (form + saveState + retrySave + reseed). */
@@ -80,7 +82,7 @@ interface AutosaveBoundaryPropsBase<TValues extends object> {
 }
 
 /** Props of a boundary minted WITH `config.save`: the per-instance seam is an optional override. */
-export interface AutosaveBoundaryProps<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
+export interface AutosaveBoundaryProps<TValues extends object, TKey extends string = string> extends AutosaveBoundaryPropsBase<TValues, TKey> {
   /**
    * Per-instance persist fn closing over the live tRPC client the surface holds. Wins over `config.save`.
    */
@@ -88,24 +90,26 @@ export interface AutosaveBoundaryProps<TValues extends object> extends AutosaveB
 }
 
 // A writable boundary without a factory save must receive its persistence seam.
-interface AutosaveBoundaryPropsPersisting<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
+interface AutosaveBoundaryPropsPersisting<TValues extends object, TKey extends string = string> extends AutosaveBoundaryPropsBase<TValues, TKey> {
   /** Per-instance persist fn closing over the live tRPC client the surface holds. */
   readonly save: (values: TValues) => Promise<unknown>;
   readonly readOnly?: never;
 }
 
 // Read-only boundaries cannot carry a persistence seam.
-interface AutosaveBoundaryPropsReadOnly<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
+interface AutosaveBoundaryPropsReadOnly<TValues extends object, TKey extends string = string> extends AutosaveBoundaryPropsBase<TValues, TKey> {
   readonly save?: never;
   readonly readOnly: true;
 }
 
 /** The props of a boundary minted WITHOUT `config.save` — persist or explicitly read-only, no third state. */
-export type AutosaveBoundaryPropsSeamRequired<TValues extends object> = AutosaveBoundaryPropsPersisting<TValues> | AutosaveBoundaryPropsReadOnly<TValues>;
+export type AutosaveBoundaryPropsSeamRequired<TValues extends object, TKey extends string = string> =
+  | AutosaveBoundaryPropsPersisting<TValues, TKey>
+  | AutosaveBoundaryPropsReadOnly<TValues, TKey>;
 
 /** The implementation-side widening of every public arm — what the closure component destructures. A
  *  consumer never sees it: the overloads hand out the arms above, which is where the seam law is spelled. */
-export interface AutosaveBoundaryImplProps<TValues extends object> extends AutosaveBoundaryPropsBase<TValues> {
+export interface AutosaveBoundaryImplProps<TValues extends object, TKey extends string = string> extends AutosaveBoundaryPropsBase<TValues, TKey> {
   readonly save?: ((values: TValues) => Promise<unknown>) | undefined;
   readonly readOnly?: boolean | undefined;
 }

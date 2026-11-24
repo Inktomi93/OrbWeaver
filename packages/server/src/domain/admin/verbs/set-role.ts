@@ -26,7 +26,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
 
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
-      throw new DomainNotFoundError("user", userId);
+      throw new DomainNotFoundError({ kind: "user", id: userId });
     }
     if (isBootstrapOwnerRole(target.role)) {
       if (isBootstrapOwnerRoleCode(role)) {

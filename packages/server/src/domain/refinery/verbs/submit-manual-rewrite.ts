@@ -52,7 +52,7 @@ export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     const session = sessionViewOf(row);
     // The internal-boundary parse (the wire parse does not cover a future internal caller) — the SAME

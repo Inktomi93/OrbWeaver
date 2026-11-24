@@ -31,7 +31,7 @@ export async function resolveStageResolution(
   const row = await loadOwnedSchemaRow(ctx.db, ownerId, custom.data.schemaId);
   if (row === undefined) {
     // The session points at a deleted/foreign schema — leak-free NOT_FOUND; the Setup tab re-points it.
-    throw new DomainNotFoundError("refinery schema", custom.data.schemaId);
+    throw new DomainNotFoundError({ kind: "refinery_schema", id: custom.data.schemaId });
   }
   // WIRE-CLOSURE IS ENFORCED HERE, NOT IN THE STORED BLOB. A stored custom schema is OPEN by
   // construction (the transpiler mints objects without `additionalProperties`, and the lift subset accepts an

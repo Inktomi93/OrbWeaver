@@ -20,7 +20,7 @@ export function createGet(ctx: WorkloadServiceContext): Pick<WorkloadService, "g
   async function get(params: GetWorkloadParams): Promise<WorkloadRowAnyKind> {
     const row = await loadWorkload(ctx.db, workloadReads(ctx), params.id, (access) => isVisibleToCaller(ctx.isAdmin, params.caller, access.ownerId));
     if (row === null) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     return row;
   }

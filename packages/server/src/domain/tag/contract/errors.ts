@@ -11,6 +11,6 @@ import type { TagId } from "@orb/kit/ids";
  *  never another user's row). */
 export class TagNotFoundError extends DomainNotFoundError {
   constructor(id: TagId) {
-    super("tag", id);
+    super({ kind: "tag", id });
   }
 }

@@ -55,6 +55,7 @@ export type {
   CollectionCount,
   CollectionInsight,
   CollectionListView,
+  CollectionMemberId,
   CollectionMemberView,
   DrillBack,
 } from "./collection-contracts.ts";

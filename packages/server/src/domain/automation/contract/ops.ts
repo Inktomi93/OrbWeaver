@@ -26,6 +26,7 @@ import type { IsToolDrivableByOp } from "@orb/contracts/tool-use";
 import type { UpsertEntriesOp } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
 import type {
+  AssetId,
   AutomationRuleCreationId,
   AutomationRuleId,
   AutomationSuggestionId,
@@ -33,8 +34,10 @@ import type {
   ChatId,
   MessageId,
   MessageVariantId,
+  PersonaId,
   PluginId,
   UserId,
+  WorldBookId,
 } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
@@ -329,12 +332,17 @@ export interface AutomationOps {
 export const DOMAIN_ROW_KINDS = ["character", "asset", "persona", "worldBook"] as const;
 export type DomainRowKind = (typeof DOMAIN_ROW_KINDS)[number];
 
-/** The domain row one chat-less fact references — the `(kind, id)` pair an ownership read takes
- *  (`engine/fact-scope.ts` resolves it; both gates consume it). */
-export interface FactSubject {
-  readonly kind: DomainRowKind;
-  readonly id: string;
+/** The id each {@link DomainRowKind} carries. A kind with no entry here fails `tsc` at {@link FactSubject}. */
+interface DomainRowIdByKind {
+  readonly character: CharacterId;
+  readonly asset: AssetId;
+  readonly persona: PersonaId;
+  readonly worldBook: WorldBookId;
 }
+
+/** The domain row one chat-less fact references — the kind-keyed ref an ownership read takes
+ *  (`engine/fact-scope.ts` resolves it; both gates consume it), so an id of the wrong brand cannot compile. */
+export type FactSubject = { readonly [K in DomainRowKind]: { readonly kind: K; readonly id: DomainRowIdByKind[K] } }[DomainRowKind];
 
 /** The in-process pre-check index — chats with ≥1 enabled rule + whether any enabled DOMAIN-trigger
  *  rule exists. `ASSUMES(single-replica)`: the sets are per-process, reloaded at boot + on every lifecycle

@@ -1,3 +1,4 @@
+import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { appearanceChannelName } from "#client/lib/appearance-carrier-manifest.ts";
@@ -180,7 +181,7 @@ function result(checks: ReturnType<typeof buildAppearanceInvariantChecks>, id: s
 }
 
 describe("#953 literal appearance semantic checks", () => {
-  test("R4 consumes the live MessageRow registry and the content region rather than count-only DOM stand-ins", () => {
+  test("R4 consumes the live MessageRow registry and the content region rather than count-only DOM stand-ins", ({ ids }) => {
     const clean = snapshot([
       subject("html", facts({ style: { ...BASE_STYLE, [appearanceChannelName("fontScale")]: "1.25" } })),
       subject("common-scope", facts({ attributes: { "data-density": "compact" } })),
@@ -203,7 +204,7 @@ describe("#953 literal appearance semantic checks", () => {
     expect(result(buildAppearanceInvariantChecks(row("mobile-compact-large-document"), sameCountWrongValue), "root-scale-density-layout")).toBe(false);
     const staleRegistry = {
       ...cleanContext,
-      messageCarrier: { registry: { ...registry, registered: 3, staleIds: ["stale-row"] }, chatStyles: ["document", "document"] },
+      messageCarrier: { registry: { ...registry, registered: 3, staleIds: [ids.typeId(ID_PREFIX.message)] }, chatStyles: ["document", "document"] },
     };
     expect(result(buildAppearanceInvariantChecks(row("mobile-compact-large-document"), staleRegistry), "root-scale-density-layout")).toBe(false);
 

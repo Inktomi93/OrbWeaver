@@ -18,7 +18,7 @@ export type RefineryWorkbenchDoor = (typeof REFINERY_WORKBENCH_DOORS)[number];
 
 interface RefineryViewState {
   /** The run id CONTENT's viewer is pinned to; null = the latest of the active stage. */
-  readonly viewedRunId: string | null;
+  readonly viewedRunId: RefineryRunId | null;
   /** The operate-back arm: the rewrite run the NEXT apply/analyze targets; null = latest. */
   readonly armedRewriteRunId: RefineryRunId | null;
   /** A pending {@link RefineryWorkbenchDoor} request; null = nothing asked for. */
@@ -31,7 +31,7 @@ const useRefineryViewStore = createGatedStore<RefineryViewState>("refinery-view"
   requestedDoor: null,
 }));
 
-export const useRefineryViewedRunId = (): string | null => useRefineryViewStore((s) => s.viewedRunId);
+export const useRefineryViewedRunId = (): RefineryRunId | null => useRefineryViewStore((s) => s.viewedRunId);
 export const useRefineryArmedRewriteId = (): RefineryRunId | null => useRefineryViewStore((s) => s.armedRewriteRunId);
 export const useRefineryRequestedDoor = (): RefineryWorkbenchDoor | null => useRefineryViewStore((s) => s.requestedDoor);
 
@@ -46,7 +46,7 @@ export function clearRefineryWorkbenchDoor(): void {
   useRefineryViewStore.setState({ requestedDoor: null }, false, "refinery-view/clear-door");
 }
 
-export function setRefineryViewedRun(runId: string | null): void {
+export function setRefineryViewedRun(runId: RefineryRunId | null): void {
   useRefineryViewStore.setState({ viewedRunId: runId }, false, "refinery-view/view-run");
 }
 

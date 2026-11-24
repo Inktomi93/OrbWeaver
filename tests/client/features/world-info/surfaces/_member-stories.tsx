@@ -2,14 +2,14 @@ import { ContentPane, QueryBoundary } from "@orb/client/components";
 import { worldInfoGroup } from "@orb/client/features/world-info";
 import { sectionBackName } from "@orb/client/lib";
 import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, setMobileViewport, useMobileViewport } from "@orb/client/state";
-import type { WorldEntryId } from "@orb/kit/ids";
+import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { CtClientProviders, storyTestId } from "@orb/testkit/browser";
 import { Container, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
 
 interface MemberProps {
-  readonly bookId: string;
+  readonly bookId: WorldBookId;
   readonly entryId?: WorldEntryId;
   readonly context: boolean;
   readonly phone?: boolean;

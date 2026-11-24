@@ -38,10 +38,10 @@ export function createEditQuestObjective(ctx: RpgContext): Pick<RpgService, "edi
     });
     if (!written.ok) {
       if (written.reason === "quest not found") {
-        throw new DomainNotFoundError("quest", params.questId);
+        throw new DomainNotFoundError({ kind: "quest", id: params.questId });
       }
       if (written.reason === "quest objective not found" && op.kind !== "add") {
-        throw new DomainNotFoundError("quest objective", op.objectiveId);
+        throw new DomainNotFoundError({ kind: "quest objective", key: op.objectiveId });
       }
       throw new DomainOperationError(RPG_OP_CODES.snapshotStateInvalid, written.reason);
     }

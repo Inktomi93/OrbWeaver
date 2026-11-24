@@ -50,12 +50,12 @@ export function createUpdateSchedule(ctx: WorkloadServiceContext): Pick<Workload
   async function updateSchedule(params: UpdateScheduleParams): Promise<WorkloadScheduleRow> {
     const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
     if (existing === null || !(await mayActOnRow(ctx, params.caller, existing))) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     const patch = await resolveUpdatePatch(ctx, existing, params);
     const updated = await updateScheduleFields(ctx.db, params.id, patch, ctx.now());
     if (updated === null) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     return updated;
   }

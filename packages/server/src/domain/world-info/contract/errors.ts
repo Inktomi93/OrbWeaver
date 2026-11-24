@@ -2,7 +2,7 @@
 // foreign attachment target (character/persona) missing or not the caller's all collapse into ONE
 // answer (no foreign-existence leak).
 
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, notFoundIdRef } from "@orb/kit/errors";
 import type { TypeIdOf } from "@orb/kit/ids";
 
 const WORLD_INFO_ENTITY_KINDS = ["world_book", "world_entry", "character", "persona"] as const;
@@ -12,10 +12,10 @@ type WorldInfoEntity = { [Kind in WorldInfoEntityKind]: [kind: Kind, id: TypeIdO
 export class WorldInfoNotFoundError extends DomainNotFoundError {
   public readonly entityKind: WorldInfoEntityKind;
   public readonly entityId: WorldInfoEntity[1];
-  constructor(...[entityKind, entityId]: WorldInfoEntity) {
-    super(entityKind, entityId);
-    this.entityKind = entityKind;
-    this.entityId = entityId;
+  constructor(...entity: WorldInfoEntity) {
+    super(notFoundIdRef(...entity));
+    this.entityKind = entity[0];
+    this.entityId = entity[1];
     this.name = this.constructor.name;
   }
 }

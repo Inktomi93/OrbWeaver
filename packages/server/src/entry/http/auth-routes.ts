@@ -35,7 +35,7 @@ import { externalIdSchema, handleSchema, MIN_PASSWORD_LENGTH, OIDC_LOGOUT_TOKEN_
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
-import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
+import type { ChatInviteId, ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { parseJsonText } from "@orb/kit/json";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
@@ -792,7 +792,7 @@ function signupRefusal(c: Context, code: SignupErrorCode, status: typeof BAD_REQ
 }
 
 /** D259 — one point on the per-invite axis, keyed on the invite id the pre-check resolved; 429 when over. */
-async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string, edge: AuthEdge): Promise<Response | null> {
+async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: ChatInviteId, edge: AuthEdge): Promise<Response | null> {
   try {
     await limiter.consume(inviteId);
     return null;

@@ -2,13 +2,14 @@
 // can land mid-sweep: the switch purges what the sweep wrote and refuses its terminal, so only a round no move raced
 // has re-derived the scope.
 
+import type { UserId } from "@orb/kit/ids";
 import { isAborted } from "#primitives/abort";
 
 /** A sweep's owner moved to a new target generation while the sweep ran: what it already wrote went with the old
  *  index. Not a failure of the run: {@link runUntilSettled} runs the round again on the new target. */
 export class GenerationSupersededError extends Error {
-  readonly ownerId: string;
-  constructor(ownerId: string, scope: "card" | "image" | "memory") {
+  readonly ownerId: UserId;
+  constructor(ownerId: UserId, scope: "card" | "image" | "memory") {
     super(`embedding generation changed during ${scope} sweep for owner ${ownerId}`);
     this.name = "GenerationSupersededError";
     this.ownerId = ownerId;

@@ -126,7 +126,7 @@ function ScheduleFormBody({
   };
 
   const { form } = useCreateScheduleForm({
-    entityId: isEdit ? schedule.id : "create-schedule",
+    mountKey: isEdit ? `schedule:${schedule.id}` : "create-schedule",
     serverValues: schedule === undefined ? undefined : scheduleFormValuesFromRow(schedule),
     save,
   });

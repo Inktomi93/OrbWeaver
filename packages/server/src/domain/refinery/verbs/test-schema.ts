@@ -21,7 +21,7 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     // Ownership belt FIRST (existence-oracle ordering) — then the draft belt, then the drill.
     const card = await ctx.loadOwnedCard({ ownerId, characterId });
     if (card === undefined) {
-      throw new DomainNotFoundError("character", characterId);
+      throw new DomainNotFoundError({ kind: "character", id: characterId });
     }
     const doc = parseSchemaDocument({ name: "draft_preview", description: "", stage, schema });
     // `projectJsonSchema` is what CLOSES the object tree (`additionalProperties:false`) for the wire — the

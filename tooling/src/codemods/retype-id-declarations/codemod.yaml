@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "retype-id-declarations"
+version: "0.1.0"
+description: "Retype id-named plain string declarations as the brand pnpm brand-flow saw flow into them, at the rows it listed."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -126,7 +126,7 @@ export function createExecuteStage(ctx: RefineryContext): ExecuteStage {
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
       // Foreign and absent collapse (leak-free NOT_FOUND — the cross-tenant sweep's required shape).
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     const session = sessionViewOf(row);
     if (rewriteRunId !== undefined && stage !== "analyze") {
@@ -138,7 +138,7 @@ export function createExecuteStage(ctx: RefineryContext): ExecuteStage {
       const named = await loadSessionRewriteRunRow(ctx.db, sessionId, rewriteRunId);
       const parsed = named === undefined ? null : priorRunOf(named, REFINERY_STAGE_PAYLOADS.rewrite);
       if (parsed === null) {
-        throw new DomainNotFoundError("refinery run", rewriteRunId);
+        throw new DomainNotFoundError({ kind: "refinery_run", id: rewriteRunId });
       }
       return executeResolved(ctx, { ownerId, stage, isRefinement, prior: { ...prior, rewrite: parsed }, session, sessionId, signal });
     }

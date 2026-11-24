@@ -63,7 +63,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { CountText, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
-import type { CollectionContribution, CollectionInsight } from "#lib";
+import type { CollectionContribution, CollectionInsight, CollectionMemberId } from "#lib";
 import { CLEAR_FILTER_NAME, DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
@@ -331,7 +331,7 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
 }
 
 /** A door draws once per member. Two facts about one member share its id, and the second would repeat the first door's text on the next line. */
-function isFirstDoorTo(insights: readonly CollectionInsight[], memberId: string, at: number): boolean {
+function isFirstDoorTo(insights: readonly CollectionInsight[], memberId: CollectionMemberId, at: number): boolean {
   return insights.findIndex((other) => other.open?.memberId === memberId) === at;
 }
 

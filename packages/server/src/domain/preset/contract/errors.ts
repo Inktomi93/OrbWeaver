@@ -13,7 +13,7 @@ export type PresetOpCode = (typeof PRESET_OP_CODES)[keyof typeof PRESET_OP_CODES
 
 export class PresetNotFoundError extends DomainNotFoundError {
   constructor(id: PresetId) {
-    super("preset", id);
+    super({ kind: "preset", id });
   }
 }
 

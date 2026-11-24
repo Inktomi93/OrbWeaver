@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "domain-not-found-ref"
+version: "0.1.0"
+description: "Rewrite DomainNotFoundError constructions and subclass super calls to the kind-keyed ref the constructor takes."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

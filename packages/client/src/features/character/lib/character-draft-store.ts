@@ -4,10 +4,11 @@
 // so a stale-shape draft is caught by `schemaVersion` alone — bump it whenever the form's field set
 // changes shape. Instantiated ONCE at module scope (the store THROWS on a duplicate `name`).
 
+import type { CharacterId } from "@orb/kit/ids";
 import { createEntityDraftStore } from "#state";
 import type { CharacterCardFormValues } from "./character-card-form-model.ts";
 
-export const characterDraftStore = createEntityDraftStore<CharacterCardFormValues>({
+export const characterDraftStore = createEntityDraftStore<CharacterCardFormValues, CharacterId>({
   name: "character-card",
   schemaVersion: 1,
 });

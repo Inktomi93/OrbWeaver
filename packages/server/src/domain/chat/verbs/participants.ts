@@ -780,7 +780,7 @@ function createAddCharacterToChat(
     await assertSeatableCharacters(ctx.db, principal.userId, [characterId]);
     const card = await ctx.getCard({ ownerId: principal.userId, characterId });
     if (card === null) {
-      throw new DomainNotFoundError("character", characterId);
+      throw new DomainNotFoundError({ kind: "character", id: characterId });
     }
     // Present-seat floor: return the live seat instead of minting a duplicate row. `loadParticipants` is present-only
     // (`leftSeq IS NULL`), so a previously-left character re-adds a fresh row (era-per-row, F8) as before.

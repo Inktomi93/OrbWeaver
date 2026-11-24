@@ -390,7 +390,7 @@ function useLinkArm({ onLanded, destination, active }: ArmProps & { readonly act
     return values;
   };
 
-  const { form } = useScrapeForm({ entityId: "databank-scrape", serverValues: undefined, save });
+  const { form } = useScrapeForm({ mountKey: "databank-scrape", serverValues: undefined, save });
   // The submit is drawn by the host, outside this form's subscriptions, so the link's emptiness is mirrored here by its field listener.
   const [urlEmpty, setUrlEmpty] = useState(() => form.state.values.url.trim() === "");
   const failureId = useId();

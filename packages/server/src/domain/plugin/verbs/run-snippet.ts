@@ -32,7 +32,7 @@ export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams)
   return async ({ caller, chatId, code }): Promise<SnippetResult> => {
     const authority = await ctx.resolveChatAuthority(caller, chatId);
     if (!authority.canRead) {
-      throw new DomainNotFoundError("chat", chatId);
+      throw new DomainNotFoundError({ kind: "chat", id: chatId });
     }
     const grants: PluginCapability[] = ["chat.read", "global_vars", ...(authority.canWrite ? (["chat.variables.write"] as const) : [])];
     // CLAIM A CONCURRENCY SLOT — after the authority gate (a caller who may not read the chat must be refused as

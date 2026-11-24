@@ -136,7 +136,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
     }
   };
 
-  const { form } = useInviteForm({ entityId: `invite:${chatId}`, serverValues: undefined, save });
+  const { form } = useInviteForm({ mountKey: `invite:${chatId}`, serverValues: undefined, save });
 
   // Moves expiry and use limit inside the sign-up caps and names what moved. The writes skip the field listeners,
   // which clear the line on a manual edit.

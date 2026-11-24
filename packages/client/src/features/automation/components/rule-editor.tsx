@@ -25,7 +25,7 @@ import { RuleEditorSettings } from "./rule-editor-settings.tsx";
 
 type Rule = inferOutput<Trpc["automation"]["listRules"]>[number];
 
-const RuleForm = createAutosaveEntityForm<RuleEditorValues>({
+const RuleForm = createAutosaveEntityForm<RuleEditorValues, AutomationRuleCreationId | AutomationRuleId>({
   defaultValues: emptyRuleEditor(null),
   draft: ruleEditorDrafts,
   options: { validators: { onMount: ruleEditorCommitSchema, onChange: ruleEditorCommitSchema, onSubmit: ruleEditorCommitSchema } },

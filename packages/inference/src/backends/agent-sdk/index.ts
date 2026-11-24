@@ -5,6 +5,7 @@
 
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type {
   AgentToolServer,
@@ -33,6 +34,7 @@ import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
 
 const CLAUDE_TOOL = "claude";
+const CLAUDE_SUB_PROVIDER_ID = providerIdSchema.parse("claude-sub");
 
 function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
   return value !== null && typeof value === "object" && "append" in value && "load" in value;
@@ -73,7 +75,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     childEnv,
   };
   const logFor = (connection: Pick<Resolved, "providerId">): ReturnType<typeof createAgentSdkLog> => createAgentSdkLog(deps.log, connection.providerId);
-  const catalogLog = createAgentSdkLog(deps.log, "claude-sub");
+  const catalogLog = createAgentSdkLog(deps.log, CLAUDE_SUB_PROVIDER_ID);
   const chatTurn = (req: ChatRequest): Promise<ChatResult> => {
     if (req.api !== "agent-sdk") {
       return Promise.reject(

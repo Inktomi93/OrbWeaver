@@ -53,7 +53,7 @@ async function admitChat(ctx: PluginContext, caller: InvokeUiActionParams["calle
   }
   const authority = await ctx.resolveChatAuthority(caller, chatId);
   if (!authority.canRead) {
-    throw new DomainNotFoundError("chat", chatId);
+    throw new DomainNotFoundError({ kind: "chat", id: chatId });
   }
   return { chatId, canWrite: authority.canWrite, automationDepth: 0 };
 }

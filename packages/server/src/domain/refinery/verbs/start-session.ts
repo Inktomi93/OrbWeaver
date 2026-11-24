@@ -15,7 +15,7 @@ export function createStartSession(ctx: RefineryContext): RefineryService["start
     const ownerId = principal.userId;
     const card = await ctx.loadOwnedCard({ ownerId, characterId });
     if (card === undefined) {
-      throw new DomainNotFoundError("character", characterId);
+      throw new DomainNotFoundError({ kind: "character", id: characterId });
     }
     // The internal-boundary parse (the wire parse does not cover a future internal caller).
     const parsedName = name === undefined || name === null ? null : refinerySessionNameSchema.parse(name);

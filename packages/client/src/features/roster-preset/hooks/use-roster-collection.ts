@@ -6,7 +6,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useCollectionCount, useTRPC } from "#data";
-import type { CollectionCount, CollectionInsight } from "#lib";
+import type { CollectionCount, CollectionInsight, CollectionMemberId } from "#lib";
 import { timeLib } from "#lib";
 import { openModal, selectCollectionMember } from "#state";
 import { ROSTER_COLLECTION_ID } from "../lib/roster-model.ts";
@@ -61,7 +61,7 @@ export function useRosterInsights(): readonly CollectionInsight[] | undefined {
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (`useMemberTitle`) — the same cached list. */
-export function useRosterMemberTitle(memberId: string): string | undefined {
+export function useRosterMemberTitle(memberId: CollectionMemberId | null): string | undefined {
   const trpc = useTRPC();
   const rows = useQuery(trpc.rosterPreset.list.queryOptions()).data;
   return rows?.find((row) => row.id === memberId)?.name;

@@ -2,6 +2,7 @@
 // renderer; the machine owns the tail-fetch guard, placeholder-keep on param change, and selection
 // state. The hook is the logic half; the feature renders `items` via <VirtualList>/<MediaGrid>.
 
+import type { Branded } from "@orb/kit/ids";
 import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -24,13 +25,21 @@ type BaseInfiniteOptions<TPage, TPageParam, TError = DefaultError, TKey extends 
  *  reader's choice; the list verbs clamp a larger request anyway. */
 export const COLLECTION_FETCH_BATCH = 30;
 
-export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError = DefaultError, TKey extends QueryKey = QueryKey> {
+export interface CollectionSurfaceConfig<
+  TItem,
+  TPage,
+  TParams,
+  TPageParam,
+  TError = DefaultError,
+  TKey extends QueryKey = QueryKey,
+  TId extends Branded<string> = Branded<string>,
+> {
   /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam })`. */
   readonly query: (trpc: Trpc, params: TParams) => BaseInfiniteOptions<TPage, TPageParam, TError, TKey>;
   /** Flatten one page into rows. */
   readonly itemsOf: (page: TPage) => readonly TItem[];
   /** Stable id per row (selection + the virtualizer key — id-based, NEVER the index). */
-  readonly idOf: (item: TItem) => string;
+  readonly idOf: (item: TItem) => TId;
   /** The server CENSUS off a page, when the read serves one (`page.totalCount`). Omitted for reads that do
    *  not: a keyset surface's `items.length` is "loaded so far", and a readout that prints that number while
    *  meaning "how many there are" is the lie this seam exists to prevent — so the absence is `null`, never
@@ -38,17 +47,17 @@ export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TErr
   readonly totalOf?: (page: TPage) => number;
 }
 
-interface CollectionSelection {
-  readonly selected: ReadonlySet<string>;
-  readonly isSelected: (id: string) => boolean;
-  readonly toggle: (id: string) => void;
+interface CollectionSelection<TId extends Branded<string>> {
+  readonly selected: ReadonlySet<TId>;
+  readonly isSelected: (id: TId) => boolean;
+  readonly toggle: (id: TId) => void;
   /** Remove only these members from the CURRENT selection — for delayed bulk completions that own their
    *  submitted ids but must preserve anything selected while the write was in flight. */
-  readonly remove: (ids: readonly string[]) => void;
+  readonly remove: (ids: readonly TId[]) => void;
   readonly clear: () => void;
 }
 
-export interface CollectionSurface<TItem> {
+export interface CollectionSurface<TItem, TId extends Branded<string> = Branded<string>> {
   readonly items: readonly TItem[];
   /** How many rows match the query's scope on the SERVER — `null` when the read serves no census (or before
    *  the first page lands). Read off the FIRST page: every page of one keyset run counts the same scope. */
@@ -77,7 +86,7 @@ export interface CollectionSurface<TItem> {
   /** The last {@link CollectionSurface.loadMore} press failed. Only a press moves this; `error` also tracks
    *  background refetches, which say nothing about the page the reader asked for. */
   readonly loadMoreFailed: boolean;
-  readonly selection: CollectionSelection;
+  readonly selection: CollectionSelection<TId>;
   /** Spread into `<VirtualList>`: the id-keyed row key + the guarded tail-fetch. */
   readonly listProps: {
     readonly getItemKey: (item: TItem, index: number) => string;
@@ -89,17 +98,25 @@ export interface CollectionSurface<TItem> {
 /** Rows-from-the-tail threshold that triggers the next-page fetch. */
 const END_APPROACH_ROWS = 12;
 
-export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown, TError = DefaultError, TKey extends QueryKey = QueryKey>(
-  config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
-): (deps: { trpc: Trpc }, params: TParams) => CollectionSurface<TItem> {
+export function createCollectionSurface<
+  TItem,
+  TPage,
+  TParams,
+  TPageParam = unknown,
+  TError = DefaultError,
+  TKey extends QueryKey = QueryKey,
+  TId extends Branded<string> = Branded<string>,
+>(
+  config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey, TId>,
+): (deps: { trpc: Trpc }, params: TParams) => CollectionSurface<TItem, TId> {
   // biome-ignore lint/correctness/noComponentHookFactories: factories run at module scope, so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
-  return function useCollectionSurface({ trpc }, params): CollectionSurface<TItem> {
+  return function useCollectionSurface({ trpc }, params): CollectionSurface<TItem, TId> {
     const query = useInfiniteQuery({
       ...config.query(trpc, params),
       placeholderData: keepPreviousData,
     });
 
-    const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set<string>());
+    const [selected, setSelected] = useState<ReadonlySet<TId>>(() => new Set<TId>());
     const [loadMoreFailed, setLoadMoreFailed] = useState(false);
     const press = useRef<Promise<boolean> | null>(null);
 

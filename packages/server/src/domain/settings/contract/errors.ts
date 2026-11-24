@@ -29,6 +29,6 @@ export const SETTINGS_OP_CODES = {
  *  tRPC NOT_FOUND. */
 export class ThemeNotFoundError extends DomainNotFoundError {
   constructor(id: ThemeId) {
-    super("theme", id);
+    super({ kind: "theme", id });
   }
 }

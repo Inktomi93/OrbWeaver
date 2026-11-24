@@ -48,7 +48,7 @@ function refusalFor(settled: UnclaimedLinkOutcome, userId: UserId): Error | unde
       return;
     // The row vanished between loadUser and the claim (concurrent delete) — surface as not-found.
     case "not-found":
-      return new DomainNotFoundError("user", userId);
+      return new DomainNotFoundError({ kind: "user", id: userId });
     case "target-bound":
       return new DomainOperationError(
         ADMIN_OP_CODES.ssoRowBound,
@@ -66,7 +66,7 @@ export function createLinkSsoIdentity(ctx: AdminContext): AdminService["linkSsoI
 
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
-      throw new DomainNotFoundError("user", userId);
+      throw new DomainNotFoundError({ kind: "user", id: userId });
     }
     // The owner is never admin-linked — its SSO binding is the automatic owner-flip adoption, and choosing
     // the owner's subject here would be box takeover.
@@ -108,7 +108,7 @@ export function createLinkSsoIdentity(ctx: AdminContext): AdminService["linkSsoI
     // Return the fresh view (the externalId now reflects the link; ownerHandle unchanged for a human).
     const linked = await loadUser(ctx.db, userId);
     if (linked === undefined) {
-      throw new DomainNotFoundError("user", userId);
+      throw new DomainNotFoundError({ kind: "user", id: userId });
     }
     return linked;
   };

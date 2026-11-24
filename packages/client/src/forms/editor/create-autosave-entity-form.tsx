@@ -43,15 +43,15 @@ import { useAppForm } from "./use-app-form.ts";
  * `readOnly` arm for the display-only member views. `tsc` is the enforcer; the onSubmit refusal below is
  * the runtime backstop for a caller that erases the type.
  */
-export function createAutosaveEntityForm<TValues extends object>(
-  config: AutosaveEntityBoundaryConfigWithSave<TValues>,
-): (props: AutosaveBoundaryProps<TValues>) => ReactElement;
-export function createAutosaveEntityForm<TValues extends object>(
-  config: AutosaveEntityBoundaryConfigWithoutSave<TValues>,
-): (props: AutosaveBoundaryPropsSeamRequired<TValues>) => ReactElement;
-export function createAutosaveEntityForm<TValues extends object>(
-  config: AutosaveEntityBoundaryConfig<TValues>,
-): (props: AutosaveBoundaryImplProps<TValues>) => ReactElement {
+export function createAutosaveEntityForm<TValues extends object, TKey extends string = string>(
+  config: AutosaveEntityBoundaryConfigWithSave<TValues, TKey>,
+): (props: AutosaveBoundaryProps<TValues, TKey>) => ReactElement;
+export function createAutosaveEntityForm<TValues extends object, TKey extends string = string>(
+  config: AutosaveEntityBoundaryConfigWithoutSave<TValues, TKey>,
+): (props: AutosaveBoundaryPropsSeamRequired<TValues, TKey>) => ReactElement;
+export function createAutosaveEntityForm<TValues extends object, TKey extends string = string>(
+  config: AutosaveEntityBoundaryConfig<TValues, TKey>,
+): (props: AutosaveBoundaryImplProps<TValues, TKey>) => ReactElement {
   const debounceMs = config.debounceMs ?? DEFAULT_DEBOUNCE_MS;
   const canonical = (values: TValues): object => config.canonicalValues?.(values) ?? values;
   const equal = (left: TValues | undefined, right: TValues | undefined): boolean =>
@@ -66,7 +66,7 @@ export function createAutosaveEntityForm<TValues extends object>(
   };
 
   interface SessionProps {
-    readonly entityId: string;
+    readonly entityId: TKey;
     readonly serverValues: TValues | undefined;
     readonly save: ((values: TValues) => Promise<unknown>) | undefined;
     /** The declared read-only arm (props.readOnly) — the save driver never arms and nothing mirrors. */
@@ -414,7 +414,7 @@ export function createAutosaveEntityForm<TValues extends object>(
   }
 
   // biome-ignore lint/correctness/noComponentHookFactories: the same module-scope mint gives AutosaveBoundary one identity across renders.
-  return function AutosaveBoundary({ entityId, serverValues, save: callTimeSave, readOnly, children }: AutosaveBoundaryImplProps<TValues>): ReactElement {
+  return function AutosaveBoundary({ entityId, serverValues, save: callTimeSave, readOnly, children }: AutosaveBoundaryImplProps<TValues, TKey>): ReactElement {
     // A DECLARED read-only mount never persists, even if the mint config carried a seam — the arm the
     // surface declared at the mount site is the stronger statement about this instance.
     const save = readOnly === true ? undefined : (callTimeSave ?? config.save);

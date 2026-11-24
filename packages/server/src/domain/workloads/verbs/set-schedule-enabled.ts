@@ -15,11 +15,11 @@ export function createSetScheduleEnabled(ctx: WorkloadServiceContext): Pick<Work
   async function setScheduleEnabled(params: SetScheduleEnabledParams): Promise<WorkloadScheduleRow> {
     const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
     if (existing === null || !(await mayActOnRow(ctx, params.caller, existing))) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     const updated = await setScheduleEnabledQuery(ctx.db, params.id, params.enabled, ctx.now());
     if (updated === null) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     return updated;
   }

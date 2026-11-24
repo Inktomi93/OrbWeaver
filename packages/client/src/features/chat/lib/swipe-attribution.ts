@@ -4,7 +4,7 @@
 // `recorded` is a deleted connection, `unrecorded` is a missing record. A lookup miss never proves deletion.
 
 import type { ConnectionAttributionProvenance, MessageView } from "@orb/contracts/chat";
-import type { ConnectionView } from "@orb/contracts/inference";
+import type { ConnectionView, ProviderId } from "@orb/contracts/inference";
 import { builtinProvider, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
@@ -19,7 +19,7 @@ export interface CreditConnections {
 
 // The provider's shown name: the viewer's own row wins (it knows plugin and admin rows), then the shipped
 //  registry, then the raw id — a runtime provider the client has no registry for still names itself.
-function providerName(providerId: string, row: CreditConnectionRow | undefined): string {
+function providerName(providerId: ProviderId, row: CreditConnectionRow | undefined): string {
   if (row !== undefined) {
     return row.providerLabel;
   }

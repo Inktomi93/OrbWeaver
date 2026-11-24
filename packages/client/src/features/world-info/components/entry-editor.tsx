@@ -64,7 +64,7 @@ const KEYS_MAX = 500;
 // have stable identities; the boundary owns the entity key (keyed by entry id), so an entry switch remounts
 // the form. No module `config.save`: the persist fn closes over the live tRPC client (a React-context value
 // unreachable at module scope) — the surface supplies `save` per-instance.
-const EntryForm = createAutosaveEntityForm<EntryFormValues>({ defaultValues: NEW_ENTRY_FORM, draft: entryDraftStore });
+const EntryForm = createAutosaveEntityForm<EntryFormValues, WorldEntryId>({ defaultValues: NEW_ENTRY_FORM, draft: entryDraftStore });
 
 const SCOPE_MODE_LABELS: Record<(typeof ENTRY_SCOPE_MODES)[number], string> = {
   auto: "Auto: keyword if it has keys, always if not",

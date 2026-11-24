@@ -113,7 +113,10 @@ function declaredStyle(attribute: string | null | undefined, property: string): 
  *  into `#root`, in order, from before the document's first script. Registered before the first navigation. */
 async function recordBoot(page: Page, hint: AppearanceBootHintState | null): Promise<void> {
   // The script runs in the page, so it cannot close over the production key builder; its source travels with it.
-  const install = ({ stored, name, version, rootId, trailName, activeUserKey, prefix }: BootScriptArgs, storageKey: typeof durableLocalStorageKey): void => {
+  const install = (
+    { stored, name, version, rootId, trailName, activeUserKey, prefix }: BootScriptArgs,
+    storageKey: (prefix: string, userId: string | null, name: string) => string,
+  ): void => {
     // The store mints on the last-bound user's namespace when the device has met one, as the `page` fixture's visit does.
     const key = storageKey(prefix, localStorage.getItem(activeUserKey), name);
     if (stored === null) {

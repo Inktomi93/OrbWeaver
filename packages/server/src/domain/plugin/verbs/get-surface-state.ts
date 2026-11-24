@@ -30,7 +30,7 @@ export function createGetSurfaceState(ctx: PluginContext): PluginService["getSur
       throw new PluginNotFoundError(pluginId);
     }
     if (chatId !== undefined && !(await ctx.resolveChatAuthority(caller, chatId)).canRead) {
-      throw new DomainNotFoundError("chat", chatId);
+      throw new DomainNotFoundError({ kind: "chat", id: chatId });
     }
     return ctx.surfaceState.get(pluginId, surfaceId, chatId ?? null);
   };

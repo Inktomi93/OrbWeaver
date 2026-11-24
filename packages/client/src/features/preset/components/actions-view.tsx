@@ -32,7 +32,7 @@
 // width now feeds the fires gloss, the cell that tells rows apart. The drill-in header keeps the chip: there
 // the list context is gone and the taxonomy datum earns its ink.
 
-import type { PromptConfig, TemplateClusterId } from "@orb/contracts/preset";
+import type { PromptConfig, PromptSectionId, TemplateClusterId } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -90,7 +90,7 @@ export interface ActionsViewProps {
   readonly presetId: PresetId;
   /** Reveal + select a rack section — the `guided_instruction` cross-link's target (§16 row 19: one
    *  selection writer, the same one the rack uses). */
-  readonly onSelectSection: (sectionId: string) => void;
+  readonly onSelectSection: (sectionId: PromptSectionId) => void;
 }
 
 export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProps): ReactElement {
@@ -386,7 +386,7 @@ function MarkerCrossLink({
 }: {
   readonly health: MarkerHealth;
   readonly form: PresetForm;
-  readonly onSelectSection: (sectionId: string) => void;
+  readonly onSelectSection: (sectionId: PromptSectionId) => void;
 }): ReactElement {
   const onClick = (): void => {
     const marker = form.state.values.sections.find((s) => s.type === "marker" && s.marker === "guided_instruction");

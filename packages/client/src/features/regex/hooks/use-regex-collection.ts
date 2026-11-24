@@ -5,7 +5,7 @@
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { useQuery } from "@tanstack/react-query";
 import { useCollectionCount, useInvalidation, useTRPC } from "#data";
-import type { CollectionCount, CollectionInsight } from "#lib";
+import type { CollectionCount, CollectionInsight, CollectionMemberId } from "#lib";
 import { notify, readTextWithin, regexScriptTitle, timeLib } from "#lib";
 import { selectCollectionMember, toggleRegexBulkMode, useRegexBulkActive } from "#state";
 import { REGEX_COLLECTION_ID } from "../lib/regex-model.ts";
@@ -73,7 +73,7 @@ export function useRegexInsights(): readonly CollectionInsight[] | undefined {
 
 /** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME
  *  cached list the census and the rows read, so this is a cache hit and never a second request. */
-export function useRegexMemberTitle(memberId: string): string | undefined {
+export function useRegexMemberTitle(memberId: CollectionMemberId | null): string | undefined {
   const trpc = useTRPC();
   const rows = useQuery(trpc.regex.listScripts.queryOptions()).data;
   return rows?.find((row) => row.id === memberId)?.name;

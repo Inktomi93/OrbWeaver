@@ -18,8 +18,14 @@
 import type { TriggerFact } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { FactSubject } from "../contract/ops.ts";
 import { isDomainRowOwnedBy } from "../persistence/canon-reads.ts";
+
+const CHARACTER_ID = typeIdSchema(ID_PREFIX.character);
+const ASSET_ID = typeIdSchema(ID_PREFIX.asset);
+const PERSONA_ID = typeIdSchema(ID_PREFIX.persona);
+const WORLD_BOOK_ID = typeIdSchema(ID_PREFIX.worldBook);
 
 /** The row this fact names, or `null` when it names none (a chat-scoped fact, or a domain event whose
  *  payload carries no owned row).
@@ -32,17 +38,23 @@ function chatLessFactSubject(fact: TriggerFact): FactSubject | null {
   if (fact.chatId !== null) {
     return null;
   }
+  // The fact's ids are unbranded wire text, so each is parsed into its brand here, the boundary. A malformed id names
+  // no row, so the fact names no subject and both consumers fail closed.
   if (fact.character !== undefined) {
-    return { kind: "character", id: fact.character.id };
+    const parsed = CHARACTER_ID.safeParse(fact.character.id);
+    return parsed.success ? { kind: "character", id: parsed.data } : null;
   }
   if (fact.assetId !== undefined) {
-    return { kind: "asset", id: fact.assetId };
+    const parsed = ASSET_ID.safeParse(fact.assetId);
+    return parsed.success ? { kind: "asset", id: parsed.data } : null;
   }
   if (fact.personaId !== undefined) {
-    return { kind: "persona", id: fact.personaId };
+    const parsed = PERSONA_ID.safeParse(fact.personaId);
+    return parsed.success ? { kind: "persona", id: parsed.data } : null;
   }
   if (fact.worldBookId !== undefined) {
-    return { kind: "worldBook", id: fact.worldBookId };
+    const parsed = WORLD_BOOK_ID.safeParse(fact.worldBookId);
+    return parsed.success ? { kind: "worldBook", id: parsed.data } : null;
   }
   return null;
 }
@@ -55,5 +67,5 @@ export async function ownsFactSubject(db: Db, fact: TriggerFact, userId: UserId)
   if (subject === null) {
     return false;
   }
-  return await isDomainRowOwnedBy(db, subject.kind, subject.id, userId);
+  return await isDomainRowOwnedBy(db, subject, userId);
 }

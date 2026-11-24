@@ -12,6 +12,7 @@
 // `goToCollection(kind)` — the cross-section deep link this store used to carry — is `openConfigTo(group)`
 // in `config-nav-store.ts` now: one intent for every kind of group, not one per family.
 
+import type { CollectionMemberId } from "#lib";
 import type { ConfigGroupId } from "./config-group-ids.ts";
 import { openConfigGroup } from "./config-group-open-store.ts";
 import { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
@@ -27,12 +28,12 @@ const configSelection = createKindedSelectionStore("config-selection");
  *  (side-eye 2026-08-03 P3). Selection and disclosure are one act: a selected member the LIST cannot show is
  *  a selection the user cannot see. The member's group is the EFFECTIVE active group by derivation
  *  (`useActiveConfigGroup`), so no second write is needed here. */
-export function selectCollectionMember(kind: ConfigGroupId, memberId: string): void {
+export function selectCollectionMember(kind: ConfigGroupId, memberId: CollectionMemberId): void {
   openConfigGroup(kind);
   configSelection.select(kind, memberId);
 }
 /** Open a member from the LIST AND close any open LIST slide-over (no-op when the LIST is docked). */
-export function selectCollectionMemberFromList(kind: ConfigGroupId, memberId: string): void {
+export function selectCollectionMemberFromList(kind: ConfigGroupId, memberId: CollectionMemberId): void {
   openConfigGroup(kind);
   configSelection.selectFromList(kind, memberId);
 }

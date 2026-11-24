@@ -1,0 +1,12 @@
+[
+  { "file": "a.ts", "line": 3, "name": "chatId", "brand": "ChatId", "module": "@orb/kit/ids" },
+  { "file": "a.ts", "line": 6, "name": "ids", "brand": "CharacterId", "module": "@orb/kit/ids" },
+  { "file": "a.ts", "line": 7, "name": "ownerId", "brand": "UserId", "module": "@orb/kit/ids" },
+  { "file": "a.ts", "line": 8, "name": "id", "brand": "ThemeId", "module": "@orb/kit/ids" },
+  { "file": "a.ts", "line": 12, "name": "providerId", "brand": "ProviderId", "module": "@orb/contracts/inference" },
+  { "file": "a.ts", "line": 17, "name": "chatId", "brand": "ChatId", "module": "@orb/kit/ids" },
+  { "file": "a.ts", "line": 99, "name": "personaId", "brand": "PersonaId", "module": "@orb/kit/ids" },
+  { "file": "a.ts", "line": 23, "name": "ids", "brand": "CharacterId", "module": "@orb/kit/ids" },
+  { "file": "b.ts", "line": 4, "name": "userId", "brand": "UserId", "module": "@orb/kit/ids" },
+  { "file": "other.ts", "line": 3, "name": "chatId", "brand": "ChatId", "module": "@orb/kit/ids" }
+]

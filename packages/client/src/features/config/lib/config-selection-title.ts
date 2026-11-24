@@ -60,7 +60,7 @@ export function useConfigSelectionTitle(groups: ConfigGroupRegistry): string | n
   // No `?.` on the hook itself: `useMemberTitle` is REQUIRED on the contract (#1219) precisely so this
   // call cannot vanish with the contribution. (The `collection?.` guard is the registry's own totality,
   // not a per-contribution capability — see the note above.)
-  const memberTitle = collection?.body.collection.useMemberTitle(selection?.memberId ?? "");
+  const memberTitle = collection?.body.collection.useMemberTitle(selection?.memberId ?? null);
   if (selection !== null) {
     return memberTitle ?? collection?.label ?? null;
   }

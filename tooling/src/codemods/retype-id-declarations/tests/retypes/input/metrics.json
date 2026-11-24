@@ -1,0 +1,22 @@
+{
+  "retype-id-declarations.retyped": [
+    {
+      "cardinality": {},
+      "count": 7
+    }
+  ],
+  "retype-id-declarations.skipped": [
+    {
+      "cardinality": {
+        "reason": "no-declaration"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "reason": "no-string"
+      },
+      "count": 1
+    }
+  ]
+}

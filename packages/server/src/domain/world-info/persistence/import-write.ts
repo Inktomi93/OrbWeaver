@@ -63,7 +63,7 @@ async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: Charac
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
     .limit(1);
   if (owned[0] === undefined) {
-    throw new DomainNotFoundError("character", characterId);
+    throw new DomainNotFoundError({ kind: "character", id: characterId });
   }
 }
 

@@ -31,7 +31,7 @@
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
-import type { RefinerySessionId } from "@orb/kit/ids";
+import type { RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Row, Stack, Surface } from "@orb/ui/layout";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -141,7 +141,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   // The run ids THIS view produced — the hero gauge's arrival signal (`useCountUp`'s `arrived`). Ids, not a
   // boolean: a lane can show an OLDER run (view-back) while a newer one landed.
   const [landedRunIds, setLandedRunIds] = useState<ReadonlySet<string>>(() => new Set());
-  const noteLanded = (...ids: readonly string[]): void => setLandedRunIds((prev) => new Set([...prev, ...ids]));
+  const noteLanded = (...ids: readonly RefineryRunId[]): void => setLandedRunIds((prev) => new Set([...prev, ...ids]));
   const viewedRunId = useRefineryViewedRunId();
   const armedRewriteId = useRefineryArmedRewriteId();
 

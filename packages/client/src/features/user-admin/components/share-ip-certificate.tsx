@@ -135,7 +135,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
     }
     return Promise.resolve(values);
   };
-  const { form } = useIpCertificateForm({ entityId: `ip-certificate:${initial?.address ?? "new"}`, serverValues: initial ?? undefined, save });
+  const { form } = useIpCertificateForm({ mountKey: `ip-certificate:${initial?.address ?? "new"}`, serverValues: initial ?? undefined, save });
   const refusal = ipCertificateRefusal(enable.error);
   const submitLabel = initial === null ? "Get a certificate" : RETRY_NAME;
   return (

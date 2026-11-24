@@ -28,7 +28,7 @@ export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGall
     if (subjectCharacterId !== undefined && ctx.assertCharacterOwned !== undefined) {
       const characterOwned = await ctx.assertCharacterOwned(principal.userId, subjectCharacterId);
       if (!characterOwned) {
-        throw new DomainNotFoundError("character", subjectCharacterId);
+        throw new DomainNotFoundError({ kind: "character", id: subjectCharacterId });
       }
     }
     const galleryItemId = await insertGalleryItem(ctx.db, {

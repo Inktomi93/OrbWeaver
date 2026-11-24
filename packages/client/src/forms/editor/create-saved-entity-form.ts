@@ -18,8 +18,9 @@ export interface SavedEntityFormConfig<TValues extends object> {
 }
 
 export interface SavedEntityFormArgs<TValues extends object> {
-  /** Keys the remount + names the entity for diagnostics. */
-  readonly entityId: string;
+  /** Keys the remount and labels the form for diagnostics. Callers compose it as a slug, a token, or a slug with an id
+   *  appended; none passes a bare id, so the slot holds no id and takes no brand. */
+  readonly mountKey: string;
   /** The server row (undefined while loading / for a create). */
   readonly serverValues: TValues | undefined;
   /**
@@ -37,7 +38,7 @@ export interface SavedEntityFormArgs<TValues extends object> {
 export function createSavedEntityForm<TValues extends object>(config: SavedEntityFormConfig<TValues>) {
   // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterForm = createSavedEntityForm(...)), so the returned hook has a stable identity the Compiler can analyze; a per-render creation is what the rule fears and cannot happen here.
   // biome-ignore lint/nursery/useExplicitReturnType: inference-carried (see the factory header).
-  return function useSavedEntityForm({ entityId, serverValues, save }: SavedEntityFormArgs<TValues>) {
+  return function useSavedEntityForm({ mountKey, serverValues, save }: SavedEntityFormArgs<TValues>) {
     // onSubmit stores the saved row + bumps the tick; the effect below re-baselines outside the submit
     // path (isSubmitSuccessful alone can't carry the saved value).
     const savedRef = useRef<TValues | null>(null);
@@ -94,7 +95,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
 
     return {
       form,
-      mountKey: entityId,
+      mountKey,
       promote: (name: string, value: unknown): void => {
         // Not a branded-id cast: the path and its value are erased to `never` only to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic at this loose public boundary. Ends when promote() takes a typed DeepKeys<TValues> instead of `string`.
         form.setFieldValue(name as never, value as never, {

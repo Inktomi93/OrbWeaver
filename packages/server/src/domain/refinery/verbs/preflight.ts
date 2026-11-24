@@ -78,7 +78,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     const session = sessionViewOf(row);
     const [overrides, presetParams, priorRewriteRow] = await Promise.all([

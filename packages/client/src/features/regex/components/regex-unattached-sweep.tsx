@@ -5,6 +5,7 @@
 //
 // The line is omitted, not emptied, while the read settles and when every script is attached somewhere.
 
+import type { RegexScriptId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
@@ -17,7 +18,7 @@ import { notify, regexScriptTitle } from "#lib";
 import { useRemoveUnattachedRegexScripts } from "../hooks/use-regex-library.ts";
 import { REGEX_DELETE_UNATTACHED_NAME, REGEX_UNATTACHED_LIST_NAME, regexUnattachedDeleteTitle, regexUnattachedLine } from "../lib/regex-names.ts";
 
-export function RegexUnattachedSweep({ onDeleted }: { readonly onDeleted: (ids: readonly string[]) => void }): ReactElement | null {
+export function RegexUnattachedSweep({ onDeleted }: { readonly onDeleted: (ids: readonly RegexScriptId[]) => void }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const scripts = useQuery(trpc.regex.listUnattached.queryOptions()).data;

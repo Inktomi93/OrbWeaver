@@ -1,5 +1,7 @@
 // The words the connection editor, the add dialog and the saved-key rows print and a spec locates them by. A
-// zero-import leaf, so a spec of another feature reads them without the component graph.
+// leaf with no runtime import (its one import is a type), so a spec of another feature reads them without the component graph.
+
+import type { ProviderId } from "@orb/contracts/inference";
 
 /** The Connections config group's label: its rail entry and its heading. */
 export const CONNECTIONS_GROUP_LABEL = "Connections";
@@ -196,7 +198,7 @@ const CONNECTION_LIMITS_WHERE_BY_PROVIDER: ReadonlyMap<string, (asksOutput: bool
   ],
 ]);
 /** What the limits mean and where to find them; `asksOutput` ⇒ the step also asks for the max output. */
-export function connectionLimitsLead(asksOutput: boolean, providerId: string): readonly string[] {
+export function connectionLimitsLead(asksOutput: boolean, providerId: ProviderId): readonly string[] {
   return [
     asksOutput
       ? "A chat that runs past the context window loses its oldest messages, and a reply stops at the max output."

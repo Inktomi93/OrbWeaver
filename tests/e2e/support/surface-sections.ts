@@ -4,7 +4,7 @@ import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import type { StartChatInput } from "@orb/contracts/chat";
 import { HOME_RECENT_CHATS_LIMIT, startChatSchema } from "@orb/contracts/chat";
 import { HOME_RECENT_DOCUMENTS_LIMIT } from "@orb/contracts/databank";
-import type { PromptConfig } from "@orb/contracts/preset";
+import type { PromptConfig, PromptSectionId } from "@orb/contracts/preset";
 import { parsePresetFile, presetDetailSchema, presetImportOutcomeSchema } from "@orb/contracts/preset";
 import type { ApplyAsCopyResult, RefineryRun, RefineryStage } from "@orb/contracts/refinery";
 import { applyAsCopyResultSchema, applyFieldsResultSchema, REFINERY_STAGE_PAYLOADS, REFINERY_STAGES, refineryRunViewSchema } from "@orb/contracts/refinery";
@@ -1568,7 +1568,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
   await expect(addMenu.getByRole("menuitem")).not.toHaveCount(0);
   const options = (await addMenu.getByRole("menuitem").allTextContents()).map((label) => label.trim());
   await journey.page.getByRole("menu").press("Escape");
-  let literalId: string | null = null;
+  let literalId: PromptSectionId | null = null;
   for (const label of options) {
     const before = (await journey.client.preset.get.query({ id: presetId })).config.sections;
     await add.click();

@@ -34,13 +34,14 @@ import { Fragment, useEffect, useId, useState } from "react";
 import { ContentPane, DetailHeader, QueryBoundary, returnFocusToRow, SettingsPane } from "#components";
 import { QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
-import type { DrillBack } from "#lib";
+import type { CollectionMemberId, DrillBack } from "#lib";
 import { sectionBackName, useFocusOnMount } from "#lib";
-import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
+import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigTarget, KindedSelection } from "#state";
 import {
   clearCollectionSelection,
   configSectionNavs,
   configSettingControlId,
+  installedPluginControlId,
   isCollectionGroup,
   isPlaceholderGroup,
   rendersOwnBody,
@@ -69,6 +70,14 @@ import { scrollContentToTop, scrollToAnchor, whenControlMounts } from "../lib/co
  *  `tabindex=-1` stops no reader tabs to. */
 function isShellRescueTarget(element: Element): boolean {
   return element.getAttribute("tabindex") === "-1";
+}
+
+/** The control a landing focuses: an installed plugin's card, or the leaf's own control, or none. */
+function landingControlId({ group, setting, plugin }: ConfigTarget): string | null {
+  if (plugin !== null) {
+    return installedPluginControlId(plugin);
+  }
+  return setting === null ? null : configSettingControlId(group, setting);
 }
 
 export interface ConfigContentSurfaceProps {
@@ -163,11 +172,12 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
     // scrolled into view (a leaf low in a long section sits below the fold once the section's top is in view)
     // and takes keyboard focus, so the reader lands on the thing the link named rather than on the LIST row
     // that holds it. The section may suspend first and mount the control late, so a reader who pressed or typed meanwhile wins over this late one.
+    const controlId = landingControlId(target);
     const landOnControl =
-      setting === null
+      controlId === null
         ? undefined
         : (anchor: HTMLElement): void => {
-            cancelControl = whenControlMounts(anchor, configSettingControlId(target.group, setting), (control): void => {
+            cancelControl = whenControlMounts(anchor, controlId, (control): void => {
               if (superseded) {
                 return;
               }
@@ -308,7 +318,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
  * the member's read is in flight. Pressing it returns focus to the list row the member was opened from, or the list's
  * root when that row is gone.
  */
-function collectionBack(group: ConfigGroupDefinition, memberId: string): DrillBack {
+function collectionBack(group: ConfigGroupDefinition, memberId: CollectionMemberId): DrillBack {
   return {
     label: sectionBackName(group.label),
     onClick: (): void => {
@@ -320,7 +330,15 @@ function collectionBack(group: ConfigGroupDefinition, memberId: string): DrillBa
 
 /** The open member's editor — the owning collection's `detail`, mounted, with the host's Back. A selection can only name a
  *  collection group (its rows are the only writers), so the narrowing is a type fact, not a runtime guess. */
-function MemberBody({ group, memberId, back }: { readonly group: ConfigGroupDefinition; readonly memberId: string; readonly back: DrillBack }): ReactNode {
+function MemberBody({
+  group,
+  memberId,
+  back,
+}: {
+  readonly group: ConfigGroupDefinition;
+  readonly memberId: CollectionMemberId;
+  readonly back: DrillBack;
+}): ReactNode {
   if (!isCollectionGroup(group)) {
     return null;
   }
