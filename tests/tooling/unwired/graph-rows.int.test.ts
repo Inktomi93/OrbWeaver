@@ -3,9 +3,12 @@
 import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { ROW_COUNTS } from "../../../tooling/src/unwired/drizzle-rows.ts";
+import type { Node } from "@typescript/native/ast";
+import { isPropertyAccessExpression } from "@typescript/native/ast";
+import { ROW_COUNTS, rowTablesOf, takeRowTally } from "../../../tooling/src/unwired/drizzle-rows.ts";
 import { FRESH_BUILD, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, graphTree, libraryModule } from "./_planted.ts";
+import { constituents, NativeWorld } from "../../../tooling/src/unwired/native.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, libraryModule, WORLD } from "./_planted.ts";
 
 const SCHEMA = "packages/db/src/schema/tables.ts";
 const FILE = `${GRAPH_SOURCE}/rows.ts`;
@@ -197,9 +200,8 @@ const DRIZZLE_DIR = realpathSync(join(import.meta.dirname, "../../../packages/db
 const REAL_COLUMNS = ["id", "title", "body", "slug", "mood", "tone", "loaded", "aliased", "ghost", "echo", "spare"] as const;
 const REAL_FILE = `${GRAPH_SOURCE}/real-rows.ts`;
 
-test("a stored member is read back only through a row type the checker ties to its table, never by matching names", { timeout: 180_000 }, async ({
-  plantedTree,
-}) => {
+// The planted tree of the real-drizzle cases, with the installed drizzle-orm linked in.
+async function realRowsTree(plantedTree: (tree: Record<string, string>) => Promise<string>): Promise<string> {
   const columns = REAL_COLUMNS.map((name) => `${name}: text("${name}")${name === "id" ? ".primaryKey()" : ".notNull()"}`).join(", ");
   const root = await plantedTree(
     graphTree({
@@ -230,12 +232,19 @@ test("a stored member is read back only through a row type the checker ties to i
         "export const aliased = (note: RowOf<typeof notes>): string => note.aliased;",
         "export const ghost = (look: Lookalike): string => look.ghost;",
         "export const echo = (card: typeof cards.$inferSelect): string => card.echo;",
+        "export const picked = async (): Promise<string | undefined> => (await db.select({ id: notes.id }).from(notes))[0]?.id;",
       ].join("\n"),
     }),
   );
   mkdirSync(join(root, "node_modules"), { recursive: true });
   symlinkSync(DRIZZLE_DIR, join(root, "node_modules/drizzle-orm"));
-  const scan = await scanGraph(root, () => undefined);
+  return root;
+}
+
+test("a stored member is read back only through a row type the checker ties to its table, never by matching names", { timeout: 180_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await scanGraph(await realRowsTree(plantedTree), () => undefined);
   expect({
     unwired: scan.members.unwired.map(({ key, bucket }) => `${key.slice(REAL_FILE.length + 1)} ${bucket}`),
     refused: scan.rowRefusals,
@@ -245,4 +254,26 @@ test("a stored member is read back only through a row type the checker ties to i
     refused: [`${REAL_FILE}\tLookalike`],
     tied: true,
   });
+});
+
+// A partial select's row is drizzle's `SelectResultFields` over the selection, whose template holds a deferred
+// conditional: a walk through that conditional's branches mints a deeper indexed access at every level and never ends.
+// The tie walks it to its end, ties no table and is cut by no bound; the twin table's row still ties to its own table.
+test("a partial select's row ends its tie walk at no table, and a twin table's row ties to its own", { timeout: 180_000 }, async ({ plantedTree }) => {
+  using world = NativeWorld.open(await realRowsTree(plantedTree), WORLD);
+  const file = world.files.find((planted) => world.siteOf(planted).file === REAL_FILE);
+  const receivers: Node[] = [];
+  const visit = (node: Node): void => {
+    if (isPropertyAccessExpression(node) && ["id", "echo"].includes(node.name.text) && node.getText() !== "notes.id") {
+      receivers.push(node.expression);
+    }
+    node.forEachChild(visit);
+  };
+  file?.forEachChild(visit);
+  const types = world.batch(world.typesAt(receivers).map((type) => constituents(type))).flat();
+  const ties = world.batch(types.map((type) => rowTablesOf(world, type)));
+  expect({
+    tables: [...new Set(ties.map((tied) => tied.map(({ binding }) => binding).join(",")))].toSorted(),
+    cut: takeRowTally(world).counts.get(ROW_COUNTS.cut) ?? 0,
+  }).toEqual({ tables: ["", "cards", "notes"], cut: 0 });
 });

@@ -6,11 +6,14 @@
 // - A row type is tied to a table only through the types the checker resolves: the table's `$inferSelect`,
 //   `$inferInsert` and `_.columns` types are its anchors, and a type is that table's row when the types it is built from
 //   (alias arguments, union and intersection members, a mapped type's template and key constraint, an indexed access's
-//   object, a `keyof`'s operand, a conditional's branches, an interface's bases) reach an anchor. Member names never
+//   object, a `keyof`'s operand, a conditional's check type, an interface's bases) reach an anchor. Member names never
 //   tie: a type that spells a table's columns but is built from none of its types is no row, and two tables with the
 //   same columns keep their own rows.
 // - A type reference's arguments are not walked, so `Row[]` and `Promise<Row>` are not rows; a table's own type is not
 //   walked, as a table is not its own row.
+// - A conditional is walked to its check type, never its branches: a conditional left deferred inside a mapped type's
+//   template (drizzle's `SelectResultField<T[Key]>`) has generic branches that recurse into a deeper indexed access at
+//   every level, so a walk through them never runs out of new types, while its check type is the input it was built from.
 // - Each world counts the ties made, the types whose member names spell a table's columns but that the checker ties to
 //   none (listed with their file), and the walks the depth bound cut, so a real-tree run shows any column read lost.
 import type { CallExpression, Node } from "@typescript/native/ast";
@@ -130,9 +133,10 @@ const INSERT_ROW = "$inferInsert";
 const TABLE_META = "_";
 const TABLE_COLUMNS = "columns";
 
-// The deepest real-drizzle shape found reaches its anchor at level 9 (`Pick<InferSelectModel<typeof t>, "k"> & {…}`); the
-// bound is far past it and only stops a walk through an unrelated deep type, which the cut counter shows.
-const ROW_DEPTH = 16;
+// The deepest real-drizzle row reaches its anchor at level 9 (`Pick<InferSelectModel<typeof t>, "k"> & {…}`), and the
+// deepest non-row closure in the server and client worlds (a `z.infer` over a nested zod schema) ends by level 32. The
+// bound stops only a walk that keeps minting new types, which the cut counter shows.
+const ROW_DEPTH = 32;
 
 // A settled tie: the tables, and whether the bound cut the walk (a cut answer never prunes another walk).
 interface Tie {
@@ -182,7 +186,7 @@ function* builtFrom(type: Type): APIRequestGenerator<readonly Type[]> {
     asks.push(oneOf(type.getTarget.gen()));
   }
   if (type.isConditionalType()) {
-    asks.push(oneOf(type.getTrueType.gen()), oneOf(type.getFalseType.gen()));
+    asks.push(oneOf(type.getCheckType.gen()));
   }
   if (type.isClassOrInterface()) {
     asks.push(listOf(type.getBaseTypes.gen()));
