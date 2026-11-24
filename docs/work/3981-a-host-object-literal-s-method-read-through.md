@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-23
+status: doing
+updated: 2026-11-24
 priority: P1
 area: tooling
+lane: wt/agent-a8188e6e4871fd1c3
 plan: unwired-code
 ---
 
