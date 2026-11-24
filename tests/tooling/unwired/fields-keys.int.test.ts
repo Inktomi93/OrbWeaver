@@ -92,6 +92,7 @@ const FORM = {
   [`${GRAPH_SOURCE}/form-api.ts`]: [
     "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
     "export type ReactFormExtendedApi<TFormData> = {",
+    "  readonly state: { readonly values: TFormData };",
     "  setFieldValue(name: string, value: unknown): void;",
     "  getFieldValue(name: string): unknown;",
     "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",

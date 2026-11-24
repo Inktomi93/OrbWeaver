@@ -173,7 +173,7 @@ It tries these steps in order, and a later step sees only what earlier steps lef
 3. The mapped-template walk, for a symbol with no declarations: a non-homomorphic mapped type creates its properties without declarations.
 4. A contextual `keyof X` type, which names `X`.
 5. A generic call: the target signature's `K extends keyof T` names the parameter whose argument type gives `T`.
-6. A TanStack form path: the form type's first alias type argument is the data type, and the dotted path walks it segment by segment.
+6. A TanStack form path: the form's `state.values` type is the data type, read from the form's members so a project alias over the hook's return or an `Omit` of it resolves, and the dotted path walks it segment by segment.
 
 A key it cannot place is `unresolved` and reports in its own list. A key that lands in an index signature is `open`. An open object that flows into a tRPC procedure input or one of the server's HTTP routes is a loose sender, so removed-keys checks its keys. Only a body sent outside the repository is exempt.
 

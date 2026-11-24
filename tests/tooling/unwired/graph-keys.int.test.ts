@@ -2,6 +2,8 @@
 // its callers pass, a zod schema's keys are its checked type's members (an inline union's arms, an `extend` literal's and
 // a `z.lazy` arrow's too), a reflective platform call reads every member, a redeclared member shares its reads, a
 // function filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
+import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
@@ -517,6 +519,7 @@ const FORM_API = {
   [`${GRAPH_SOURCE}/form-api.ts`]: [
     "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
     "export type ReactFormExtendedApi<TFormData> = {",
+    "  readonly state: { readonly values: TFormData };",
     "  setFieldValue(name: string, value: unknown): void;",
     "  getFieldValue(name: string): unknown;",
     "  reset(): void;",
@@ -596,114 +599,73 @@ test("a field bound by a template path writes the member the path names, resolve
   }).toEqual({ readOnly: [], untouched: ["Macro.spare", "Macro.ghost"], writeOnly: [] });
 });
 
-// The editor takes its form as a prop typed `Omit<AppFormInstance<T>, "reset">` through a generic overload, so the form's
-// type is an `Omit` of the instance, not the instance: the value type is found through the `Omit`.
-test("a field on a form typed as an Omit of the form instance resolves its path through the instance's value type", { timeout: 120_000 }, async ({
-  plantedTree,
-}) => {
-  const dialog = `${GRAPH_SOURCE}/dialog.tsx`;
-  const scan = await graphScan(
-    plantedTree,
-    {
-      ...FORM_API,
-      [dialog]: [
-        'import type { ReactFormExtendedApi } from "./form-api.ts";',
-        "export interface Macro { readonly description?: string; readonly strict?: boolean; readonly spare?: string }",
-        "export interface Values { readonly macros: Macro[] }",
-        'const initial: Values = { macros: [{ spare: "s" }] };',
-        "export const count = initial.macros.length;",
-        "declare function useAppForm<T, Extra>(options?: Extra): ReactFormExtendedApi<T>;",
-        "type AppFormInstance<T extends object> = ReturnType<typeof useAppForm<T, any>>;",
-        "export interface Props<T extends Values = Values> { readonly form: Omit<AppFormInstance<T>, 'reset'>; readonly index: number }",
-        "export function Dialog<T extends Values>(props: Props<T>): JSX.Element;",
-        "export function Dialog({ form, index }: Props): JSX.Element {",
-        "  return (",
-        "    <>",
-        boundField("index", "description"),
-        boundField("index", "strict"),
-        "    </>",
-        "  );",
-        "}",
-      ]
-        .join("\n")
-        .replaceAll("{shown}", "{null}"),
-    },
-    { jsx: true },
-  );
-  expect({
-    sent: labelsIn(scan, "member-sent-only", dialog),
-    readOnly: labelsIn(scan, "member-read-only", dialog),
-    untouched: labelsIn(scan, "member-untouched", dialog),
-    writeOnly: labelsIn(scan, "member-write-only", dialog),
-  }).toEqual({ sent: [], readOnly: [], untouched: [], writeOnly: ["Macro.spare"] });
-});
+// The user macro editor takes its form as a prop typed `Omit<AppFormInstance<T>, "reset">` through a generic overload,
+// where `AppFormInstance` is a project alias over the installed TanStack hook's return, and its value type is
+// `z.infer` of an installed zod schema. The form's type carries the project's alias, not the hook's own, so its data
+// type is read from `state.values`, and the form's path then reaches the schema's key through zod's mapped output type.
+// The installed packages are linked into the planted tree. `spare` is the control a second scan binds alone.
+const INSTALLED = join(import.meta.dirname, "../../../packages");
+const REACT_FORM_DIR = realpathSync(join(INSTALLED, "client/node_modules/@tanstack/react-form"));
+const ZOD_DIR = realpathSync(join(INSTALLED, "contracts/node_modules/zod"));
+const MACRO_MODEL = `${GRAPH_SOURCE}/macro-model.ts`;
+const DIALOG_FILE = `${GRAPH_SOURCE}/dialog.tsx`;
 
-// zod's own object output type: the shape's keys pass through two filtering mapped types and a homomorphic `Prettify`
-// over their intersection, so a member's declarations reach the schema key only through that chain.
-const ZOD_OUTPUT_MODULE = {
-  ...ZOD_MODULE,
-  "node_modules/zod/v4/classic/index.d.ts": [
-    'type OptionalOut = { readonly _zod: { readonly optout: "optional" } };',
-    "type Prettify<T> = { [K in keyof T]: T[K] } & {};",
-    "type ObjectOutput<T extends Record<string, Node>> = Prettify<",
-    "  { -readonly [k in keyof T as T[k] extends OptionalOut ? never : k]: T[k]['_zod']['output'] } &",
-    "  { -readonly [k in keyof T as T[k] extends OptionalOut ? k : never]?: T[k]['_zod']['output'] }",
-    ">;",
-    'interface Node<O = unknown, P extends "optional" | undefined = "optional" | undefined> {',
-    "  readonly _zod: { readonly output: O; readonly optout: P };",
-    "  default(value: Exclude<O, undefined>): Node<O, undefined>;",
-    '  optional(): Node<O | undefined, "optional">;',
-    "  strip(): this;",
-    "  superRefine(check: (value: O) => void): this;",
-    "}",
-    "export declare namespace z {",
-    "  type infer<S> = S extends Node<infer O> ? O : never;",
-    "}",
-    "export declare const z: {",
-    "  object<S extends Record<string, Node>>(shape: S): Node<ObjectOutput<S>, undefined> & { readonly shape: S };",
-    "  string(): Node<string, undefined>;",
-    "  boolean(): Node<boolean, undefined>;",
-    "};",
-  ].join("\n"),
-};
-
-// The macro editor's value type is `z.infer` of a schema, so its members are the schema's keys through zod's mapped
-// output type: a field bound to one of them writes that schema key. `spare` is the control no field binds.
-test("a field path through a schema-inferred value type writes the schema key the member was inferred from", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const editor = `${GRAPH_SOURCE}/inferred.tsx`;
-  const scan = await graphScan(
-    plantedTree,
-    {
-      ...FORM_API,
-      ...ZOD_OUTPUT_MODULE,
-      [editor]: [
-        'import { z } from "zod";',
-        'import { useForm } from "./form-api.ts";',
-        'export const macroSchema = z.object({ description: z.string().default(""), strict: z.boolean().default(false), spare: z.string().default("") }).strip().superRefine(() => undefined);',
-        "export type Macro = z.infer<typeof macroSchema>;",
-        "export interface Values { readonly macros: Macro[] }",
-        "export const shown = (macro: Macro): readonly (string | boolean)[] => [macro.description, macro.strict, macro.spare];",
-        "export function Editor({ index }: { readonly index: number }): JSX.Element {",
-        "  const form = useForm<Values>({ defaultValues: { macros: [] } });",
-        "  return (",
-        "    <>",
-        boundField("index", "description"),
-        boundField("index", "strict"),
-        "    </>",
-        "  );",
-        "}",
-      ]
-        .join("\n")
-        .replaceAll("{shown}", "{null}"),
-    },
-    { jsx: true },
+async function validatedKeys(plantedTree: (tree: Record<string, string>) => Promise<string>, bound: readonly string[]): Promise<readonly string[]> {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
+        [MACRO_MODEL]: [
+          'import { z } from "zod";',
+          "export const macroSchema = z",
+          "  .object({",
+          "    name: z.string(),",
+          '    description: z.string().default(""),',
+          "    strict: z.boolean().default(false),",
+          '    spare: z.string().default(""),',
+          "  })",
+          "  .strip()",
+          "  .superRefine(() => undefined);",
+          "export type Spec = z.infer<typeof macroSchema>;",
+          "export interface Values { readonly macros: Spec[]; readonly macroRowIds: string[] }",
+          "export const parsed = (raw: unknown): Spec => macroSchema.parse(raw);",
+          "export const shownName = (spec: Spec): string => spec.name;",
+        ].join("\n"),
+        [`${GRAPH_SOURCE}/macro-form.ts`]: [
+          'import { createFormHook, createFormHookContexts } from "@tanstack/react-form";',
+          "const { fieldContext, formContext } = createFormHookContexts();",
+          "export const { useAppForm } = createFormHook({ fieldContext, formContext, fieldComponents: {}, formComponents: {} });",
+          "type Wildcard = any;",
+          "export type AppFormInstance<T extends object> = ReturnType<typeof useAppForm<T, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard>>;",
+        ].join("\n"),
+        [DIALOG_FILE]: [
+          'import type { AppFormInstance } from "./macro-form.ts";',
+          'import type { Values } from "./macro-model.ts";',
+          "export interface Props<T extends Values = Values> { readonly form: Omit<AppFormInstance<T>, 'reset'>; readonly index: number }",
+          "export function Dialog<T extends Values>(props: Props<T>): JSX.Element;",
+          "export function Dialog({ form, index }: Props): JSX.Element {",
+          "  return (",
+          "    <>",
+          ...bound.map((member) => boundField("index", member)),
+          "    </>",
+          "  );",
+          "}",
+        ]
+          .join("\n")
+          .replaceAll("{shown}", "{null}"),
+      },
+      { jsx: true },
+    ),
   );
-  expect({
-    readOnly: labelsIn(scan, "member-read-only", editor),
-    validated: labelsIn(scan, "member-validated", editor),
-    untouched: labelsIn(scan, "member-untouched", editor),
-    writeOnly: labelsIn(scan, "member-write-only", editor),
-  }).toEqual({ readOnly: ["macroSchema.spare"], validated: [], untouched: [], writeOnly: [] });
+  mkdirSync(join(root, "node_modules/@tanstack"), { recursive: true });
+  symlinkSync(ZOD_DIR, join(root, "node_modules/zod"));
+  symlinkSync(REACT_FORM_DIR, join(root, "node_modules/@tanstack/react-form"));
+  return labelsIn(await scanGraph(root, () => undefined), "member-validated", MACRO_MODEL);
+}
+
+test("a field on a project-aliased, Omit-narrowed form writes the schema key its inferred member came from", { timeout: 180_000 }, async ({ plantedTree }) => {
+  expect(await validatedKeys(plantedTree, ["spare"])).toEqual(["macroSchema.description", "macroSchema.strict"]);
+  expect(await validatedKeys(plantedTree, ["description", "strict"])).toEqual(["macroSchema.spare"]);
 });
 
 // `Spec` bans `when` by `?: undefined` beside the `when` of the node type it intersects. A `z.ZodType<Spec>` binding over

@@ -298,8 +298,9 @@ function rootOf(at: Node, parent: Node): SlotRoot | null {
   return null;
 }
 
-// TanStack Form's form instance types: their first alias type argument is the form data type its field paths walk.
-const FORM_APIS: ReadonlySet<string> = new Set(["ReactFormExtendedApi", "AppFieldExtendedReactFormApi", "ReactFormApi", "FormApi"]);
+// A TanStack form instance holds its data at `state.values`: the type its field paths walk.
+const FORM_STATE = "state";
+const FORM_VALUES = "values";
 // The JSX components a form instance carries whose `name` attribute is a field path.
 const FORM_FIELDS: ReadonlySet<string> = new Set(["Field", "AppField"]);
 const FORM_NAME = "name";
@@ -343,26 +344,17 @@ function formPathOf(slot: Slot): FormPath | null {
   return tag !== undefined && isPropertyAccessExpression(tag) && FORM_FIELDS.has(tag.name.text) ? { form: tag.expression, role: "read", binds: true } : null;
 }
 
-// A form narrowed by `Omit<Form, "reset">` or `Pick<Form, …>` keeps its value type: the narrowing's first alias argument
-// is the form it narrows.
-const FORM_NARROWINGS: ReadonlySet<string> = new Set(["Omit", "Pick"]);
-
+// The form data type a form instance carries: `state.values`. A form's type is read by its members, never by the alias
+// it is spelled under, because a project alias over the hook's return (`AppFormInstance<T>`) or an `Omit` of it hides
+// the form type's own alias.
 function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | undefined> {
-  let type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
-  for (;;) {
-    const alias = yield* type.getAliasSymbol.gen();
-    if (alias === undefined) {
-      return undefined;
-    }
-    const [first] = yield* type.getAliasTypeArguments.gen();
-    if (FORM_APIS.has(alias.name)) {
-      return first;
-    }
-    if (!FORM_NARROWINGS.has(alias.name) || first === undefined) {
-      return undefined;
-    }
-    type = yield* checker.getNonNullableType.gen(first);
+  const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
+  const state = yield* checker.getPropertyOfType.gen(type, FORM_STATE);
+  if (state === undefined) {
+    return undefined;
   }
+  const values = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(state)), FORM_VALUES);
+  return values === undefined ? undefined : yield* checker.getTypeOfSymbol.gen(values);
 }
 
 // A template path's text with each index substitution spelled `0`: `macros[${index}].name`. A substitution is an index
