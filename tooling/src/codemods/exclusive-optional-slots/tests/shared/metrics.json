@@ -1,0 +1,10 @@
+{
+  "exclusive prop interfaces": [
+    {
+      "cardinality": {
+        "owner": "TitleRevealProps"
+      },
+      "count": 1
+    }
+  ]
+}

@@ -46,7 +46,7 @@ test("a dry run names what each kind would bring and what it would skip, writes 
   const preview = await dryRun(root, files);
 
   expect(names(preview, "characters")).toEqual(["Aria"]);
-  expect(preview.kinds.characters.items[0]?.inLibrary).toBeUndefined();
+  expect(preview.kinds.characters.items[0]?.reuse).toBeUndefined();
   expect(preview.kinds.chats.total).toBe(1);
   expect(names(preview, "personas")).toEqual(["Bob"]);
   expect(names(preview, "worlds")).toEqual(["Eldoria"]);
@@ -65,7 +65,7 @@ test("a dry run names what each kind would bring and what it would skip, writes 
   expect(await storedBlobs(root)).not.toEqual(blobsBefore);
 
   const again = await dryRun(root, files);
-  expect(again.kinds.characters.items[0]).toMatchObject({ name: "Aria", inLibrary: true });
+  expect(again.kinds.characters.items[0]).toMatchObject({ name: "Aria", reuse: "library" });
 });
 
 // A prompt with an empty identifier cannot key a section; the bad preset is one skip, never the whole profile.
@@ -126,9 +126,9 @@ test("a persona whose avatar the store refuses previews as importing without art
   expect(landed.filter((persona) => persona.name === "Ann").map((persona) => persona.avatarAssetId)).toEqual([expect.any(String)]);
 
   const again = await dryRun(root, files);
-  expect(again.kinds.personas.items.map((item) => ({ name: item.name, inLibrary: item.inLibrary }))).toEqual([
-    { name: "Bob", inLibrary: true },
-    { name: "Ann", inLibrary: true },
+  expect(again.kinds.personas.items.map((item) => ({ name: item.name, reuse: item.reuse }))).toEqual([
+    { name: "Bob", reuse: "library" },
+    { name: "Ann", reuse: "library" },
   ]);
 });
 

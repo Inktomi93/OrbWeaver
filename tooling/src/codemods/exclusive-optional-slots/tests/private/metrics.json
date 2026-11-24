@@ -1,0 +1,10 @@
+{
+  "exclusive prop interfaces": [
+    {
+      "cardinality": {
+        "owner": "ModalTitleProps"
+      },
+      "count": 1
+    }
+  ]
+}
