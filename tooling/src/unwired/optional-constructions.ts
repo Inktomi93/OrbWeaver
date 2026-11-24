@@ -1,26 +1,37 @@
 // Two optional keys supplied at separate constructions may represent alternatives. Unwired's joined writer
 // credits retain hand-offs, while a spread, later mutation or external input leaves coexistence undecided.
-import type { Identifier, Node, StringLiteral } from "@typescript/native/ast";
+import { readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import type { Expression, Identifier, JsxAttributes, Node, ObjectLiteralExpression, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
+  isAsExpression,
+  isBinaryExpression,
+  isComputedPropertyName,
+  isConditionalExpression,
   isFunctionDeclaration,
   isIdentifier,
   isInterfaceDeclaration,
+  isJsxAttributes,
+  isJsxSpreadAttribute,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
+  isObjectLiteralExpression,
   isParameterDeclaration,
+  isParenthesizedExpression,
   isPropertyDeclaration,
   isPropertySignatureDeclaration,
+  isSatisfiesExpression,
+  isSourceFile,
+  isSpreadAssignment,
   isStringLiteral,
   isTypeAliasDeclaration,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
-import ts from "typescript";
 import type { Site } from "./classify.ts";
-import { nameAt, Sources, siteKey } from "./classify.ts";
+import { siteKey } from "./classify.ts";
 import { fieldDeclarations } from "./field-declarations.ts";
-import type { NativeWorld } from "./native.ts";
-import { declarationKeys } from "./native.ts";
+import { declarationKeys, NativeWorld, nameAt } from "./native.ts";
 import { constructionWrites, joinConstructionWrites } from "./occurrences.ts";
 import type { ContextRecords } from "./optional-contexts.ts";
 import type { ConstructionSite, OptionalInventory } from "./optional-inventory.ts";
@@ -114,77 +125,126 @@ interface Writes {
   readonly tests: Map<string, ConstructionSite>;
 }
 
-type Container = ts.ObjectLiteralExpression | ts.JsxAttributes;
+type Container = ObjectLiteralExpression | JsxAttributes;
 
-const isContainer = (node: ts.Node | undefined): node is Container => node !== undefined && (ts.isObjectLiteralExpression(node) || ts.isJsxAttributes(node));
+const isContainer = (node: Node | undefined): node is Container => node !== undefined && (isObjectLiteralExpression(node) || isJsxAttributes(node));
 
-function closedSpread(node: ts.Expression): boolean {
-  if (ts.isObjectLiteralExpression(node)) {
+function closedSpread(node: Expression): boolean {
+  if (isObjectLiteralExpression(node)) {
     return !uncertainKeys(node);
   }
-  if (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node)) {
+  if (isParenthesizedExpression(node) || isAsExpression(node) || isSatisfiesExpression(node)) {
     return closedSpread(node.expression);
   }
-  if (ts.isConditionalExpression(node)) {
+  if (isConditionalExpression(node)) {
     return closedSpread(node.whenTrue) && closedSpread(node.whenFalse);
   }
-  return ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && closedSpread(node.right);
+  return isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.AmpersandAmpersandToken && closedSpread(node.right);
 }
 
 function uncertainKeys(node: Container): boolean {
   return node.properties.some((prop) =>
-    ts.isSpreadAssignment(prop) || ts.isJsxSpreadAttribute(prop) ? !closedSpread(prop.expression) : ts.isComputedPropertyName(prop.name),
+    isSpreadAssignment(prop) || isJsxSpreadAttribute(prop) ? !closedSpread(prop.expression) : isComputedPropertyName(prop.name),
   );
 }
 
-function spreadBranch(node: ts.Node, parent: ts.Node): Branch | undefined {
-  if (ts.isConditionalExpression(parent) && (parent.whenTrue === node || parent.whenFalse === node)) {
-    return { condition: parent.condition.getStart(), positive: parent.whenTrue === node };
+function spreadBranch(source: SourceFile, node: Node, parent: Node): Branch | undefined {
+  if (isConditionalExpression(parent) && (parent.whenTrue === node || parent.whenFalse === node)) {
+    return { condition: parent.condition.getStart(source), positive: parent.whenTrue === node };
   }
-  return ts.isBinaryExpression(parent) && node === parent.right && parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
-    ? { condition: parent.left.getStart(), positive: true }
+  return isBinaryExpression(parent) && node === parent.right && parent.operatorToken.kind === SyntaxKind.AmpersandAmpersandToken
+    ? { condition: parent.left.getStart(source), positive: true }
     : undefined;
+}
+
+interface Construction {
+  readonly site: ConstructionSite;
+  readonly uncertain: boolean;
 }
 
 // The object receiving a spread is the construction. Spreads in opposite arms of one conditional
 // cannot coexist, while two independently guarded spreads can both contribute to the same object.
-function construction(sources: Sources, site: Site): { readonly site: ConstructionSite; readonly uncertain: boolean } | undefined {
-  const key = nameAt(sources.get(site.file), site.position);
-  const start = key?.parent.parent;
+function construction(source: SourceFile, site: Site): Construction | undefined {
+  const start = nameAt(source, site.position)?.parent.parent;
   if (!isContainer(start)) {
     return;
   }
   let owner = start;
   const branches: Branch[] = [];
-  for (let node: ts.Node = start; !ts.isSourceFile(node); node = node.parent) {
+  for (let node: Node = start; !isSourceFile(node); node = node.parent) {
     const parent = node.parent;
-    const branch = spreadBranch(node, parent);
+    const branch = spreadBranch(source, node, parent);
     if (branch !== undefined) {
       branches.push(branch);
-    } else if (ts.isSpreadAssignment(parent) || ts.isJsxSpreadAttribute(parent)) {
+    } else if (isSpreadAssignment(parent) || isJsxSpreadAttribute(parent)) {
       if (isContainer(parent.parent)) {
         owner = parent.parent;
         node = parent;
       }
-    } else if (!(ts.isParenthesizedExpression(parent) || ts.isAsExpression(parent) || ts.isSatisfiesExpression(parent))) {
+    } else if (!(isParenthesizedExpression(parent) || isAsExpression(parent) || isSatisfiesExpression(parent))) {
       break;
     }
   }
-  return { site: { file: site.file, position: owner.getStart(), branches }, uncertain: uncertainKeys(owner) };
+  return { site: { file: site.file, position: owner.getStart(source), branches }, uncertain: uncertainKeys(owner) };
 }
 
-/** What a join reads a site's construction and its population from: the parsed sources and the plugin sources. */
+/** What the join reads at one site of a file parsed on its own: its line, the construction a write builds, and for a
+ *  field's name where its declaring type starts (undefined for a name no node starts at or a field typed `never`). */
+interface SiteParse {
+  readonly line: number;
+  readonly construction: Construction | undefined;
+  readonly owner?: number | undefined;
+}
+
+function fieldOwner(source: SourceFile, site: Site): number | undefined {
+  const node = nameAt(source, site.position);
+  const never = node !== undefined && isPropertySignatureDeclaration(node.parent) && node.parent.type.kind === SyntaxKind.NeverKeyword;
+  return node === undefined || never ? undefined : node.parent.parent.getStart(source);
+}
+
+/** Every site the join asks about, each file parsed once outside any world: the worlds are closed by the time their
+ *  facts join. */
+class ParsedSites {
+  readonly #bySite: ReadonlyMap<string, SiteParse>;
+
+  constructor(root: string, asked: { readonly fields: readonly Site[]; readonly sites: readonly Site[] }) {
+    const fields = new Set(asked.fields.map(siteKey));
+    const byFile = Map.groupBy([...asked.fields, ...asked.sites], (site) => site.file);
+    const texts = new Map([...byFile.keys()].map((file) => [file, readFileSync(join(root, file), "utf8")]));
+    const parsed = NativeWorld.readTexts(root, texts, (source) =>
+      (byFile.get(relative(root, source.fileName)) ?? []).map((site): readonly [string, SiteParse] => [
+        siteKey(site),
+        {
+          line: source.getLineAndCharacterOfPosition(site.position).line + 1,
+          construction: construction(source, site),
+          ...(fields.has(siteKey(site)) ? { owner: fieldOwner(source, site) } : {}),
+        },
+      ]),
+    );
+    this.#bySite = new Map([...parsed.values()].flat());
+  }
+
+  get(site: Site): SiteParse {
+    const found = this.#bySite.get(siteKey(site));
+    if (found === undefined) {
+      throw new Error(`${siteKey(site)}: a site the join did not parse`);
+    }
+    return found;
+  }
+}
+
+/** What a join reads a site's construction and its population from: the parsed sites and the plugin sources. */
 interface Scope {
-  readonly sources: Sources;
+  readonly sites: ParsedSites;
   readonly plugins: PluginSources;
 }
 
-function writesOf({ sources, plugins }: Scope, sites: readonly Site[]): Writes {
+function writesOf({ sites: parsed, plugins }: Scope, sites: readonly Site[]): Writes {
   const built = new Map<string, ConstructionSite>();
   const tests = new Map<string, ConstructionSite>();
   const unknown = new Set<string>();
   for (const site of sites) {
-    const evidence = construction(sources, site);
+    const evidence = parsed.get(site).construction;
     if (isProduction(site.file, plugins) && (evidence === undefined || evidence.uncertain)) {
       unknown.add(siteKey(site));
     }
@@ -344,7 +404,7 @@ function contextualAlternatives(
             home: first.owner,
             member: name,
             site: first.site,
-            line: scope.sources.line(first.site),
+            line: scope.sites.get(first.site).line,
           },
           writes,
           parent: first.parent,
@@ -365,13 +425,20 @@ function contextualAlternatives(
 }
 
 export function joinOptionalConstructions(root: string, facts: readonly ConstructionFacts[], plugins: PluginSources): OptionalInventory {
-  const scope: Scope = { sources: new Sources(root), plugins };
-  const parts = facts.map((part) => part.properties);
-  const direct = joinConstructionWrites(parts);
+  const direct = joinConstructionWrites(facts.map((part) => part.properties));
+  const declared = facts.flatMap((part) => part.fields);
+  const contextWritten = facts.flatMap((part) => part.contexts.writes);
+  const scope: Scope = {
+    sites: new ParsedSites(root, {
+      fields: declared.map(({ site }) => site),
+      sites: [...[...direct.values()].flat(), ...contextWritten.flatMap(({ site, writer }) => [site, writer])],
+    }),
+    plugins,
+  };
   const owners = new Map<string, ObservedField[]>();
-  for (const field of facts.flatMap((part) => part.fields)) {
-    const node = nameAt(scope.sources.get(field.site.file), field.site.position);
-    if (node === undefined || (ts.isPropertySignature(node.parent) && node.parent.type?.kind === ts.SyntaxKind.NeverKeyword)) {
+  for (const field of declared) {
+    const position = scope.sites.get(field.site).owner;
+    if (position === undefined) {
       continue;
     }
     const writes = writesOf(
@@ -379,7 +446,7 @@ export function joinOptionalConstructions(root: string, facts: readonly Construc
       field.keys.flatMap((key) => direct.get(key) ?? []),
     );
     if (writes.sites.size > 0) {
-      const owner = siteKey({ file: field.site.file, position: node.parent.parent.getStart() });
+      const owner = siteKey({ file: field.site.file, position });
       owners.getOrInsert(owner, []).push({ field, writes });
     }
   }

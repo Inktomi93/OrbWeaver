@@ -1,5 +1,6 @@
-// Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
-// freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
+// The TypeScript 7.1 API (`@typescript/native/sync`) as the reference graph, brand-flow and the mutation runner open it:
+// one API process per program, the graph's merged one or a single world's. Every query goes through a batch: one IPC
+// round trip per query is ~500x slower.
 //
 // The API's compiler process is private to it, and its socket mode is refused by the sync client, so the process is
 // read from Node's `child_process` diagnostics channel while the API's constructor spawns it, and published on
