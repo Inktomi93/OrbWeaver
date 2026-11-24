@@ -16,27 +16,43 @@ export type Link = (typeof LINKS)[number];
 /** Where each link keeps the package: a workspace package directory, or a store directory pnpm links in. */
 export const PACKAGE_DIR: Readonly<Record<Link, string>> = { workspace: "packages/linked", dependency: "store/linked" };
 
-/** A package by its manifest name and its files, relative to the package root; its types sit in `types`, `index.d.ts` by default. */
+/** A package by its manifest name and its files, relative to the package root; its types sit in `types`, `index.d.ts` by default.
+ *  It sits in `directory`, which defaults to where its link keeps a package. */
 export interface LinkedPackage {
   readonly name: string;
   readonly files: Readonly<Record<string, string>>;
   readonly types?: string;
+  readonly directory?: string;
 }
 
 type PlantedTree = (files: Readonly<Record<string, string>>) => Promise<string>;
 
-/** Plant `tree` and `pkg`, linked into `node_modules/<name>` from where `link` keeps it. */
-export async function plantLinked(plantedTree: PlantedTree, link: Link, pkg: LinkedPackage, tree: Readonly<Record<string, string>>): Promise<string> {
-  const dir = PACKAGE_DIR[link];
+/** Plant `tree` and each package, linked into `node_modules/<name>` from where its `link` keeps it. */
+export async function plantLinkedPackages(
+  plantedTree: PlantedTree,
+  packages: readonly { readonly link: Link; readonly pkg: LinkedPackage }[],
+  tree: Readonly<Record<string, string>>,
+): Promise<string> {
+  const placed = packages.map(({ link, pkg }) => ({ pkg, dir: pkg.directory ?? PACKAGE_DIR[link] }));
   const root = await plantedTree({
     [WORKSPACE_MANIFEST]: "packages:\n  - packages/*\n",
-    [`${dir}/package.json`]: JSON.stringify({ name: pkg.name, types: `./${pkg.types ?? "index.d.ts"}` }),
-    ...Object.fromEntries(Object.entries(pkg.files).map(([path, text]) => [`${dir}/${path}`, text])),
+    ...Object.fromEntries(
+      placed.flatMap(({ pkg, dir }) => [
+        [`${dir}/package.json`, JSON.stringify({ name: pkg.name, types: `./${pkg.types ?? "index.d.ts"}` })],
+        ...Object.entries(pkg.files).map(([path, text]) => [`${dir}/${path}`, text] as const),
+      ]),
+    ),
     ...tree,
   });
-  plantLink(root, `node_modules/${pkg.name}`, join(root, dir), "dir");
+  for (const { pkg, dir } of placed) {
+    plantLink(root, `node_modules/${pkg.name}`, join(root, dir), "dir");
+  }
   return root;
 }
+
+/** Plant `tree` and one `pkg`, linked into `node_modules/<name>` from where `link` keeps it. */
+export const plantLinked = (plantedTree: PlantedTree, link: Link, pkg: LinkedPackage, tree: Readonly<Record<string, string>>): Promise<string> =>
+  plantLinkedPackages(plantedTree, [{ link, pkg }], tree);
 
 const OPTIONS: ts.CompilerOptions = {
   strict: true,
