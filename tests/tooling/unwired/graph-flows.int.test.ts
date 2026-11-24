@@ -64,6 +64,44 @@ test("a value a method keeps fills the instance it was set on; a comparing metho
   ]);
 });
 
+// `fill` pushes into the list it takes as `Wide[]`, and the list is the caller's `Leaf[]`, whose reads read the push.
+// A readonly list only hands its elements out, and nothing writes into the mutable list `peek` takes, so what `look`
+// takes as `View` and `peek` as `Peeked` stays written and never read.
+test("a value pushed through a wider element type writes the narrower element", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Leaf { readonly label: string; readonly note?: string }",
+      "export interface Wide { readonly label: string; readonly note?: string; readonly spare?: string }",
+      "export interface Shown { readonly label: string; readonly note?: string }",
+      "export interface View { readonly label: string; readonly note?: string }",
+      'const fill = (into: Wide[]): void => { into.push({ label: "l", note: "n" }); };',
+      "export interface Peeked { readonly label: string; readonly note?: string }",
+      "const look = (from: readonly View[]): number => from.length;",
+      "const peek = (from: Peeked[]): number => from.length;",
+      "export const shown = (): string => {",
+      "  const leaves: Leaf[] = [];",
+      "  fill(leaves);",
+      '  return leaves.map((leaf) => leaf.label + (leaf.note ?? "")).join();',
+      "};",
+      "export const viewed = (): string => {",
+      '  const kept: Shown[] = [{ label: "k", note: "n" }];',
+      "  look(kept);",
+      "  peek(kept);",
+      "  return kept.map((one) => one.label).join();",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only Shown.note",
+    "member-write-only View.label",
+    "member-write-only View.note",
+    "member-write-only Peeked.label",
+    "member-write-only Peeked.note",
+    "member-untouched Wide.spare",
+  ]);
+});
+
 // The walk of `Options` runs once for each pair that meets it in one batch; a declared `out` wins in every one of them,
 // so `V` pairs forward only and the client's vars stay written and never read. A declared `in` wins over a value the
 // walk sees coming out, so `Box<Leaf>` handed as `Box<Shown>` reads nothing of `Leaf`.
@@ -175,6 +213,24 @@ test("a value held under a library's unconstrained type parameter is sent", { ti
   expect(bucketsIn(scan)).toEqual(["member-write-only Kept.unread", "member-sent-only Stashed.unread", "member-sent-only Held.unread"]);
 });
 
+// A property typed by a union of the library's own type parameters names nothing either. One typed by a type parameter
+// or an object type names that object's members, so the value pairs with the instantiation and is not sent.
+test("a value held under a union of a library's type parameters is sent", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export declare function stash<V, W>(entry: { readonly value?: V | W }): void;",
+      "export declare function keep<V>(entry: { readonly value?: V | { readonly fixed: string } }): void;",
+    ]),
+    ...source([
+      'import { keep, stash } from "lib";',
+      "export interface Two { readonly unread: string }",
+      "export interface Mixed { readonly unread: string }",
+      "export const held = (item: Two, mixed: Mixed): void => { stash({ value: item }); keep({ value: mixed }); };",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-sent-only Two.unread", "member-untouched Mixed.unread"]);
+});
+
 // A debug probe labels an unreadable value with a checked literal and returns it as `unknown`: each branch of the
 // conditional fills the return, so the checked view's members are sent where the probe's reply goes. The same literal
 // returned into a typed slot only pairs, and its members stay written and never read. A literal of constant or computed
@@ -207,6 +263,26 @@ test("a checked literal returned as unknown from a conditional sends its checked
     "member-sent-only ComputedView.b",
     "member-sent-only BareView.c",
   ]);
+});
+
+// An unknown left operand makes `??` and `||` unknown, so the checked literal on the right reaches the `unknown` return
+// and its view is sent where the reply goes. The same literal returned into a typed slot only pairs.
+test("a checked literal on the right of ?? or || returned as unknown sends its checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface NullishView { readonly a: string }",
+      "export interface OrView { readonly b: string }",
+      "export interface TypedView { readonly c: string; readonly d: string }",
+      "declare const raw: unknown;",
+      'const nullish = (value: unknown): unknown => value ?? ({ a: "a" } satisfies NullishView);',
+      'const or = (value: unknown): unknown => value || ({ b: "b" } satisfies OrView);',
+      'const typed = (value: TypedView | undefined): TypedView => value ?? ({ c: "c", d: "d" } satisfies TypedView);',
+      "const reply = { json: (value: unknown): unknown => value };",
+      "export const probe = (): unknown => reply.json({ a: nullish(raw), b: or(raw), c: typed(undefined).c });",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only TypedView.d", "member-sent-only NullishView.a", "member-sent-only OrView.b"]);
 });
 
 // `Object.values` and `structuredClone` read every member of the value they take; a value no reflective call takes keeps

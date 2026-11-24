@@ -17,6 +17,10 @@
 // - A writable slot member that some code assigns through (`round.settle.reason = r`) writes the object the value
 //   handed in, so it also flows back: the value's holder reads, after the call, what the callee wrote. A readonly member
 //   and a writable one nothing assigns through pair one way.
+// - A list handed into a mutable `Array` slot pairs its element back too when code writes into a list of that slot's
+//   type (`into.push(row)`): the write lands in the caller's list. A readonly list, a tuple and an unwritten list pair
+//   forward only.
+// - The operands of `??` and `||` each fill the slot, as a conditional's branches do.
 // - A slot with a string index signature pairs the members it names; the value's other members escape with it. A
 //   literal key read through such a slot's type in the same file (`line["done"]`) reads the handed values' members of
 //   that name, at any depth: it cannot tell two values handed into one type apart.
@@ -36,6 +40,7 @@
 // (ZOD_OUTPUT_VALUES): that value fills the output slot like any hand-off.
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
+  isBinaryExpression,
   isCallExpression,
   isConditionalExpression,
   isModuleDeclaration,
@@ -46,8 +51,9 @@ import {
   isPropertyAssignment,
   isSatisfiesExpression,
   isSpreadElement,
+  SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeReference } from "@typescript/native/sync";
 import { IndexKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
@@ -82,7 +88,8 @@ interface Filled extends FlowPair {
 
 // The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
 // of the type it came from), or through a member, a parameter or a return (each able to reach a new instantiation).
-const STEP_KINDS = ["root", "argument", "element", "arm", "member", "parameter", "return"] as const;
+// A `pushed` step is a list element's way back, named by the list type's id, kept for settle.
+const STEP_KINDS = ["root", "argument", "element", "arm", "member", "parameter", "return", "pushed"] as const;
 type StepKind = (typeof STEP_KINDS)[number];
 const SUBTERM_STEPS: ReadonlySet<StepKind> = new Set<StepKind>(["root", "argument", "element", "arm"]);
 
@@ -104,6 +111,10 @@ function* declarationOf(type: Type): APIRequestGenerator<string> {
 }
 
 const GLOBAL_SCOPE = "global";
+// The platform's mutable list, whose `push` and index writes land in the list a slot of it holds.
+const MUTABLE_ARRAY = "Array";
+// The methods of a mutable list that put a value the caller hands in into the list.
+const LIST_WRITES: ReadonlySet<string> = new Set(["push", "unshift", "splice", "fill"]);
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
 // zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
 const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
@@ -241,6 +252,10 @@ export class Flows {
   // settle flows each such pair back when its slot member is assigned.
   readonly #writable: { readonly slots: readonly DeclKey[]; readonly values: readonly DeclKey[] }[] = [];
   readonly #assigned = new Set<DeclKey>();
+  // The element pairs back from each mutable list slot, by the list type's id, and the list types something writes into
+  // (`into.push(row)`): settle links each pair back whose list is written.
+  readonly #pushedInto: (Filled & { readonly list: number })[] = [];
+  readonly #writtenLists = new Set<number>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -254,6 +269,7 @@ export class Flows {
     this.#heldTypes = held.types;
     this.#siteNodes = siteNodesOf(sites);
     this.#assignedThrough(sites);
+    this.#listWrites(sites);
     const handed = this.#handedWhole(sites, held.node);
     // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
     const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
@@ -696,8 +712,8 @@ export class Flows {
   }
 
   // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder. A
-  // conditional's branches each fill the slot: their union can collapse (`checked ? view : value` into `unknown` is
-  // `unknown`), which would hide a branch's members from the walk.
+  // conditional's branches, and the operands of `??` and `||`, each fill the slot: their union can collapse (`checked ?
+  // view : value` into `unknown` is `unknown`), which would hide a branch's members from the walk.
   #flowSites(all: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
     const { state } = this;
     const sites = {
@@ -769,12 +785,23 @@ export class Flows {
       if (inner === null) {
         out.push({ slot: a, value: b, site, whole: b.id === own });
       } else {
-        work.push(...inner);
+        work.push(...this.#walked(inner, site, file));
       }
       widest = Math.max(widest, work.length);
     }
     this.#traceWalk(file, seen.size, widest, visits);
     return out;
+  }
+
+  // The steps a walk takes now; a list element's way back is kept for settle.
+  #walked(steps: readonly Step[], site: number, file: string): readonly Step[] {
+    return steps.filter((step) => {
+      if (step.at.kind !== "pushed") {
+        return true;
+      }
+      this.#pushedInto.push({ list: Number(step.at.name), slot: step.slot, value: step.value, site, file });
+      return false;
+    });
   }
 
   // The flow-walk trace logs each walk that visits more pairs than any before it, with the declarations it met most.
@@ -799,7 +826,14 @@ export class Flows {
     if (a.isTypeReference() && b.isTypeReference() && (yield* checker.isArrayLikeType.gen(a)) && (yield* checker.isArrayLikeType.gen(b))) {
       const [elementA] = yield* checker.getTypeArguments.gen(a);
       const [elementB] = yield* checker.getTypeArguments.gen(b);
-      return elementA !== undefined && elementB !== undefined ? [{ slot: elementA, value: elementB, at: { kind: "element", name: "" } }] : [];
+      if (elementA === undefined || elementB === undefined) {
+        return [];
+      }
+      const step = { kind: "element", name: "" } as const;
+      const forward = { slot: elementA, value: elementB, at: step };
+      // the element's way back holds only where something writes into a list of the slot's type, known once every
+      // file is walked (settle)
+      return (yield* this.#mutableArray(a)) ? [forward, { slot: elementB, value: elementA, at: { kind: "pushed", name: String(a.id) } }] : [forward];
     }
     const instances = yield* this.#sameGeneric(a, b);
     if (instances !== null) {
@@ -826,6 +860,13 @@ export class Flows {
     const [slotSignature] = yield* a.getCallSignatures.gen();
     const [valueSignature] = yield* b.getCallSignatures.gen();
     return slotSignature !== undefined && valueSignature !== undefined ? yield* this.#signatureOperands(slotSignature, valueSignature) : null;
+  }
+
+  // Whether a list slot is the platform's mutable `Array`: what is pushed through it lands in the list handed in, so its
+  // element pairs both ways. A readonly list or a tuple only hands its elements out.
+  *#mutableArray(slot: TypeReference): APIRequestGenerator<boolean> {
+    const symbol = yield* (yield* slot.getTarget.gen()).getSymbol.gen();
+    return symbol?.name === MUTABLE_ARRAY && !symbol.declarations.some((handle) => this.#state.resolver.ours(handle));
   }
 
   // A union slot (`string | Block[]`) is filled by whichever of its object arms the value lands in; null when the slot
@@ -992,6 +1033,30 @@ export class Flows {
     }
   }
 
+  // The mutable list types a file writes into through a method that adds elements (`into.push(row)`).
+  #listWrites(sites: FileSites): void {
+    const { state } = this;
+    const receivers = sites.names.flatMap(({ node }) => {
+      const access = node.parent;
+      return "text" in node &&
+        typeof node.text === "string" &&
+        LIST_WRITES.has(node.text) &&
+        isPropertyAccessExpression(access) &&
+        access.name.pos === node.pos &&
+        isCallExpression(access.parent) &&
+        access.parent.expression.pos === access.pos
+        ? [access.expression]
+        : [];
+    });
+    const types = state.world.typesAt(receivers);
+    const mutable = state.batch(types.map((type) => (type?.isTypeReference() === true ? this.#mutableArray(type) : answer(false))));
+    for (const [at, type] of types.entries()) {
+      if (type !== undefined && mutable[at] === true) {
+        this.#writtenLists.add(type.id);
+      }
+    }
+  }
+
   // The members a file assigns through a property access (`round.settle.reason = r`, `count += 1`, `x.n++`).
   #assignedThrough(sites: FileSites): void {
     const { state } = this;
@@ -1068,6 +1133,9 @@ export class Flows {
   /** Link the carried pairs found while other files were walked, under their own files, until none is new; then flow
    *  each writable slot member some code assigns through back into the value members that filled it. */
   settle(): void {
+    const pushed = this.#pushedInto.filter(({ list }) => this.#writtenLists.has(list));
+    this.#state.count("pushed element pairs", pushed.length);
+    this.#late.push(...pushed);
     for (let late = this.#late; late.length > 0; late = this.#late) {
       this.#late = [];
       this.#state.count("carried settle passes");
@@ -1203,11 +1271,12 @@ function* ownTypeParameter(state: GraphState, signature: Signature, index: numbe
   return yield* ownedTypeParameter(signature, declaredParameterType(state, signature, index));
 }
 
-// Whether a declared type is a type parameter the signature declares itself.
+// Whether a declared type is a type parameter the signature declares itself, or a union of them (`V | W`).
 function* ownedTypeParameter(signature: Signature, declaredType: APIRequestGenerator<Type | undefined>): APIRequestGenerator<boolean> {
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const declared = yield* declaredType;
-  return declared?.isTypeParameter() === true && (target.typeParameters ?? []).includes(declared.id);
+  const arms = declared === undefined ? null : yield* typeParameterArms(declared);
+  return arms?.every(({ id }) => (target.typeParameters ?? []).includes(id)) === true;
 }
 
 /** A value a literal argument holds: the call, the argument's index and the property names down to the value. */
@@ -1243,7 +1312,7 @@ function* declaredPropertyType(state: GraphState, signature: Signature, { index,
   const { checker } = state.world;
   let at = yield* declaredParameterType(state, signature, index);
   for (const name of path) {
-    if (at === undefined || at.isTypeParameter()) {
+    if (at === undefined || (yield* typeParameterArms(at)) !== null) {
       return at;
     }
     const property = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(at), name);
@@ -1252,12 +1321,21 @@ function* declaredPropertyType(state: GraphState, signature: Signature, { index,
   return at;
 }
 
-// A declared type without its `null` and `undefined` arms. An unconstrained type parameter is kept as itself, where the
-// checker's non-nullable form (`V & {}`) would no longer read as a type parameter.
-function* withoutNullish(checker: Checker, type: Type): APIRequestGenerator<Type> {
+// A type's arms besides `null` and `undefined` when every one is a type parameter, else null.
+function* typeParameterArms(type: Type): APIRequestGenerator<readonly Type[] | null> {
   const arms = (yield* constituentsOf(type)).filter((arm) => !(hasFlag(arm.flags, TypeFlags.Undefined) || hasFlag(arm.flags, TypeFlags.Null)));
+  return arms.length > 0 && arms.every((arm) => arm.isTypeParameter()) ? arms : null;
+}
+
+// A declared type without its `null` and `undefined` arms. A type typed only by unconstrained type parameters is kept
+// as it is, where the checker's non-nullable form (`V & {}`) would no longer read as a type parameter.
+function* withoutNullish(checker: Checker, type: Type): APIRequestGenerator<Type> {
+  const arms = yield* typeParameterArms(type);
+  if (arms === null) {
+    return yield* checker.getNonNullableType.gen(type);
+  }
   const [only] = arms;
-  return arms.length === 1 && only?.isTypeParameter() === true ? only : yield* checker.getNonNullableType.gen(type);
+  return arms.length === 1 && only !== undefined ? only : type;
 }
 
 // The type a signature's declaration gives its parameter at `index`, before instantiation.
@@ -1267,13 +1345,20 @@ function* declaredParameterType(state: GraphState, signature: Signature, index: 
   return parameter === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(parameter);
 }
 
-// The values an expression can be: each branch of a conditional, through parentheses, else the expression itself.
+// The operators whose result is one operand or the other, as a conditional's is one branch or the other.
+const EITHER_OPERAND: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
+
+// The values an expression can be, through parentheses: each branch of a conditional, each operand of `??` and `||`,
+// else the expression itself.
 function branchesOf(value: Expression): readonly Expression[] {
   let at = value;
   while (isParenthesizedExpression(at)) {
     at = at.expression;
   }
-  return isConditionalExpression(at) ? [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)] : [value];
+  if (isConditionalExpression(at)) {
+    return [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)];
+  }
+  return isBinaryExpression(at) && EITHER_OPERAND.has(at.operatorToken.kind) ? [...branchesOf(at.left), ...branchesOf(at.right)] : [value];
 }
 
 const calleeName = (call: Node | undefined): Node | undefined => {
