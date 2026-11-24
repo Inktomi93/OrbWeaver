@@ -2,9 +2,9 @@
 // message-prop carriers: agent-bridge.ts retains the only global install and exhaustive registries, while
 // this module joins mounted DOM owners to the existing carrier/registry authorities.
 
+import type { AppearanceCarrierObservable } from "@orb/kit/appearance-manifest";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { AppearanceMatrixBridgeContract } from "./agent-bridge-contract.ts";
-import type { AppearanceCarrierObservable } from "./appearance-carrier-manifest.ts";
 import { appearanceMatrixContract } from "./appearance-carrier-manifest.ts";
 import { readAppearanceMessageSnapshots } from "./appearance-message-registry.ts";
 

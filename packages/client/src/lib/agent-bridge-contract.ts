@@ -3,12 +3,11 @@
 // `import type`, and their compiler worlds carry no DOM lib (docs/law/Spine-TypeScript-and-Patterns.md §10), so no DOM
 // name may enter this file or any module it imports: a record that holds an Element or an Event stays in its DOM-side home.
 
-import type { MessageId } from "@orb/kit/ids";
+import type { AppearanceMatrixContract, AppearanceMatrixContractRow, AppearanceMessageRegistryReceipt } from "@orb/kit/appearance-manifest";
 import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
 import type { InputBorderFallback } from "@orb/ui/theme-scope/derive-vars";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import type { OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridge.ts";
-import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import type { renderHeatmap } from "./render-stats.ts";
 import type { SafeErrorSource } from "./safe-error-ring.ts";
@@ -210,14 +209,6 @@ export interface ThemeFallbackRing {
 export interface MotionFlaggerDrainReceipt {
   readonly requestedGeneration: number;
   readonly completedGeneration: number;
-}
-
-interface AppearanceMessageRegistryReceipt {
-  readonly mounted: number;
-  readonly registered: number;
-  readonly matched: number;
-  readonly missingIds: readonly MessageId[];
-  readonly staleIds: readonly MessageId[];
 }
 
 export interface AppearanceMatrixBridgeContract extends Omit<AppearanceMatrixContract, "rows"> {

@@ -1,9 +1,9 @@
 // Live browser owner for #953's literal row receipts: reach the named surface, take checkpoint-scoped
 // subject/pixel/cascade/merge evidence, then hand the complete receipt to the pure strict reconciler.
 
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import { instrumentRefusal, navResultShape } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
 import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../floor/appearance/appearance-matrix.ts";
 import { readAppearancePrepaintEvidence } from "../../floor/appearance/appearance-prepaint.ts";
 import { settle } from "../../floor/browser/browser.ts";
@@ -85,7 +85,7 @@ async function readMessageCarrierEvidence(page: Page): Promise<NonNullable<Appea
   return { registry, chatStyles: chatStyle.samples };
 }
 
-async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {
+async function openPortalDialog(page: Page, row: AppearanceHistoricalRow): Promise<void> {
   // #866 retired the settings overlay. The registered command dialog is the real current popup carrier;
   // R6 closes/reopens it around the real sizing control so popup tokens cannot inherit the draft preview.
   const result = navResultShape(await evaluateNav(page, "goto", "modal:command"), "nav goto modal:command");
@@ -108,7 +108,7 @@ async function closePortalDialogIfOpen(page: Page): Promise<void> {
   }
 }
 
-async function revealHoverPointer(page: Page, row: RuntimeAppearanceHistoricalRow, coarse: boolean): Promise<void> {
+async function revealHoverPointer(page: Page, row: AppearanceHistoricalRow, coarse: boolean): Promise<void> {
   const bubbleSelector = row.subjects.find((subject) => subject.id === "bubble")?.selector;
   const actionSelector = row.subjects.find((subject) => subject.id === "action-buttons")?.selector;
   if (bubbleSelector === undefined || actionSelector === undefined) {
@@ -123,7 +123,7 @@ async function revealHoverPointer(page: Page, row: RuntimeAppearanceHistoricalRo
   await settle(page, HOVER_REVEAL_MS);
 }
 
-function expectedSource(row: RuntimeAppearanceHistoricalRow, selector: string, property: string): string {
+function expectedSource(row: AppearanceHistoricalRow, selector: string, property: string): string {
   if (property === "--orb-matrix-fixture-ink") {
     return "owner-custom-css";
   }
@@ -145,7 +145,7 @@ function expectedSource(row: RuntimeAppearanceHistoricalRow, selector: string, p
   return "inline";
 }
 
-function cascadeExpectations(row: RuntimeAppearanceHistoricalRow, snapshot: AppearanceDomSnapshot): readonly AppearanceCascadeExpectation[] {
+function cascadeExpectations(row: AppearanceHistoricalRow, snapshot: AppearanceDomSnapshot): readonly AppearanceCascadeExpectation[] {
   return row.cascade.map((query) => {
     const subject = snapshot.subjects.find((candidate) => candidate.selector === query.selector);
     const expectedValue = subject?.facts?.style[query.property] ?? "";
@@ -172,7 +172,7 @@ function cascadeExpectations(row: RuntimeAppearanceHistoricalRow, snapshot: Appe
   });
 }
 
-function mergeExpectation(row: RuntimeAppearanceHistoricalRow, snapshot: AppearanceDomSnapshot): AppearanceMergeExpectation {
+function mergeExpectation(row: AppearanceHistoricalRow, snapshot: AppearanceDomSnapshot): AppearanceMergeExpectation {
   if (row.merge.mechanism === "merge-not-applicable") {
     return row.merge;
   }
@@ -183,13 +183,13 @@ function mergeExpectation(row: RuntimeAppearanceHistoricalRow, snapshot: Appeara
   return { ...row.merge, expectedOutput };
 }
 
-function pixelSelectors(row: RuntimeAppearanceHistoricalRow): readonly string[] {
+function pixelSelectors(row: AppearanceHistoricalRow): readonly string[] {
   return row.subjects.filter((subject) => subject.sample === "pixel").map((subject) => subject.selector);
 }
 
 async function pixelEvidence(
   page: Page,
-  row: RuntimeAppearanceHistoricalRow,
+  row: AppearanceHistoricalRow,
   opts: Args,
 ): Promise<{
   readonly summary: Readonly<Record<string, { sampled: number; passed: boolean; actual: string }>>;
@@ -239,7 +239,7 @@ async function prepaintEvidence(page: Page, snapshot: AppearanceDomSnapshot): Pr
 
 async function captureRowSnapshots(
   page: Page,
-  row: RuntimeAppearanceHistoricalRow,
+  row: AppearanceHistoricalRow,
   coarsePointer: boolean,
   chatRoom: string | null,
 ): Promise<{
@@ -284,7 +284,7 @@ async function captureRowSnapshots(
 async function captureAppearanceInvariantRow(
   session: ProbeSession,
   opts: Args,
-  row: RuntimeAppearanceHistoricalRow,
+  row: AppearanceHistoricalRow,
   chatRoom: string | null,
 ): Promise<AppearanceInvariantReceipt> {
   const page = session.page;

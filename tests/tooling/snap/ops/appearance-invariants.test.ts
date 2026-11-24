@@ -1,7 +1,7 @@
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
-import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { AppearanceInvariantReceipt } from "../../../../tooling/src/snap/contract/appearance-invariants.ts";
 import { evaluateAppearanceInvariantCell, sameAppearanceReceiptPopulation } from "../../../../tooling/src/snap/ops/appearance-invariants.ts";
 
@@ -12,7 +12,7 @@ const requiredMerge = {
   owner: "packages/ui/src/primitives/dialog/dialog.tsx#DialogPopup",
   conflict: { axis: "tailwind-core", loser: "relative", winner: "relative" },
 } as const;
-const policy: RuntimeAppearanceHistoricalRow = {
+const policy: AppearanceHistoricalRow = {
   id: "compact-portal-carried",
   surface: "config-sizing",
   subjects: [{ id: "popup", selector, population: "one", sample: "geometry" }],
@@ -161,7 +161,7 @@ describe("#953 appearance invariant receipt", () => {
   });
 
   test("counts direct-carrier N/A without accepting a fabricated merge requirement", () => {
-    const directPolicy: RuntimeAppearanceHistoricalRow = {
+    const directPolicy: AppearanceHistoricalRow = {
       ...policy,
       merge: { mechanism: "merge-not-applicable", reason: "direct-carrier", selector, owner: "owner#direct" },
     };
@@ -201,7 +201,7 @@ describe("#953 appearance invariant receipt", () => {
   });
 
   test("requires a real composited pixel sample and rejects same-count counterfeit membership", () => {
-    const pixelPolicy: RuntimeAppearanceHistoricalRow = {
+    const pixelPolicy: AppearanceHistoricalRow = {
       ...policy,
       subjects: [{ id: "popup", selector, population: "one", sample: "pixel" }],
     };

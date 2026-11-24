@@ -2,7 +2,7 @@
 // or `surface:build` refuses to regenerate. The injection path rewrites each `name` to `to` before a theme's CSS
 // reaches the document, so a theme written against the old name keeps working. Keep `to` on a current name:
 // chains are not followed. A row with no `to` only warns, because the old value has no one-to-one new form.
-import { APPEARANCE_CHANNEL_ROWS, appearanceChannelName } from "../lib/appearance-carrier-manifest.ts";
+import { APPEARANCE_CHANNEL_ROWS, appearanceChannelName } from "@orb/kit/appearance-manifest";
 import type { OwnerCssRename } from "./hook.ts";
 
 type AppearanceKey = Parameters<typeof appearanceChannelName>[0];

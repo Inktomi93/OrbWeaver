@@ -1,14 +1,8 @@
 // Reconcile the Appearance manifest with settings leaves, editor ownership and observable carrier arms.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { APPEARANCE_CARRIER_PLANES, APPEARANCE_CHANNEL_ROWS, APPEARANCE_EDITOR_OWNERS } from "@orb/kit/appearance-manifest";
 import { expect, test } from "@orb/testkit/node";
-import {
-  APPEARANCE_CARRIER_MANIFEST,
-  APPEARANCE_CARRIER_OBSERVABLES,
-  APPEARANCE_CARRIER_PLANES,
-  APPEARANCE_CHANNEL_ROWS,
-  APPEARANCE_EDITOR_OWNERS,
-  APPEARANCE_OWNER_KEYS,
-} from "#client/lib/appearance-carrier-manifest.ts";
+import { APPEARANCE_CARRIER_MANIFEST, APPEARANCE_CARRIER_OBSERVABLES, APPEARANCE_OWNER_KEYS } from "#client/lib/appearance-carrier-manifest.ts";
 
 const MANIFEST_ROWS = Object.entries(APPEARANCE_CARRIER_MANIFEST);
 // The axes the first frame replays before React mounts; density is seeded into React's first commit instead.

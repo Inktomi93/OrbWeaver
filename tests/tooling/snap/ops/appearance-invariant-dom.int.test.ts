@@ -1,16 +1,16 @@
 // #953 instrument plant: a `many` subject's representative must come from the sampled population, not
 // the first virtualized/off-viewport sibling that happened to match the same client-owned selector.
 
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { probeAppearanceDom } from "../../../../tooling/src/snap/ops/appearance-invariant-dom.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 const VIEWPORT = { width: 400, height: 240 } as const;
 
-const ROW: RuntimeAppearanceHistoricalRow = {
+const ROW: AppearanceHistoricalRow = {
   id: "hover-pointer",
   surface: "chat",
   subjects: [{ id: "sample", selector: ".sample", population: "many", sample: "geometry" }],
@@ -63,7 +63,7 @@ test("an opacity-zero control retains withheld facts without entering the sample
 // `light-art-scrim-glass-elevation` read `rgba(0, 0, 0, 0)/none` off a pane whose glass has lived on
 // `::before` since #1154. The subject below is shaped exactly like that row's: the HOST paints nothing and
 // the carrier paints the glass, so a reader still addressing the host cannot pass by accident.
-const CARRIER_ROW: RuntimeAppearanceHistoricalRow = {
+const CARRIER_ROW: AppearanceHistoricalRow = {
   id: "light-art-scrim-glass-elevation",
   surface: "shell",
   subjects: [{ id: "glass", selector: ".sample::before", population: "one", sample: "carrier" }],

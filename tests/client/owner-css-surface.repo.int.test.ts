@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { APPEARANCE_CHANNEL_ROWS } from "@orb/kit/appearance-manifest";
 import { expect, test } from "@orb/testkit/node";
 import { compile } from "tailwindcss";
 import type { SurfaceInput } from "../../packages/client/owner-css-surface.build.ts";
@@ -19,7 +20,6 @@ import {
   OWNER_CSS_THEME_SCOPE_VARS,
   OWNER_CSS_TOKEN_VARS,
 } from "../../packages/client/owner-css-surface.ts";
-import { APPEARANCE_CHANNEL_ROWS } from "../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { OWNER_CSS_RENAMES } from "../../packages/client/src/owner-css/renames.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
