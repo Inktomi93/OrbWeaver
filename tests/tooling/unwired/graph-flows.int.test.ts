@@ -4,12 +4,12 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
 import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, JSX_NAMESPACE, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/flows.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
-const bucketsIn = (scan: GraphScan): readonly string[] =>
-  MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label.split("  ")[0] ?? ""}`));
+const bucketsIn = (scan: GraphScan, file = FILE): readonly string[] =>
+  MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, file).map((label) => `${bucket} ${label.split("  ")[0] ?? ""}`));
 
 // A router's mutation options and a client's vars twin of its input, joined through `Options<V>`: the client writes
 // `NominateVars` and the router reads `Input`, so the write reaches the read only when `V` pairs backwards.
@@ -62,6 +62,147 @@ test("a value a method keeps fills the instance it was set on; a comparing metho
     "member-untouched Pool.first",
     "member-read-only Stored.label",
   ]);
+});
+
+// `fill` pushes into its own `into` and `collect` into its context's `rows`, so only the lists handed to those reads
+// the push. `Lost`'s list fills `hold`'s
+// `Row[]`, which nothing writes into, so its unwritten `note` stays read and never written. `Runner` pushes into its own
+// `events`; the stamps handed to `count` as `Event[]` never reach that list, so their read of `at` reads no event and
+// `Event.at` stays written and never read.
+test("a push writes only the list its own binding holds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Row { readonly label: string; readonly note?: string }",
+      "export interface Kept { readonly label: string; readonly note?: string }",
+      "export interface Lost { readonly label: string; readonly note?: string }",
+      'const fill = (into: Row[]): void => { into.push({ label: "l", note: "n" }); };',
+      "const hold = (from: Row[]): number => from.length;",
+      "export const kept = (): string => {",
+      "  const rows: Kept[] = [];",
+      "  fill(rows);",
+      '  return rows.map((row) => row.label + (row.note ?? "")).join();',
+      "};",
+      "export const lost = (): string => {",
+      '  const rows: Lost[] = [{ label: "l" }];',
+      "  hold(rows);",
+      '  return rows.map((row) => row.label + (row.note ?? "")).join();',
+      "};",
+      "export interface Got { readonly label: string; readonly note?: string }",
+      "export interface Boxed { readonly label: string; readonly note?: string }",
+      'const collect = (ctx: { readonly rows: Boxed[] }): void => { ctx.rows.push({ label: "c", note: "n" }); };',
+      "export const got = (): string => {",
+      "  const rows: Got[] = [];",
+      "  collect({ rows });",
+      '  return rows.map((row) => row.label + (row.note ?? "")).join();',
+      "};",
+      "export interface Event { readonly kind: string; readonly at: number }",
+      "export interface Stamp { readonly kind: string; readonly at: number }",
+      "export class Runner {",
+      "  readonly events: Event[] = [];",
+      "  emit(kind: string): void {",
+      "    this.events.push({ kind, at: 1 });",
+      "  }",
+      "}",
+      "const count = (events: Event[]): number => events.length;",
+      "export const stamped = (runner: Runner): number => {",
+      '  runner.emit("e");',
+      '  const stamps: Stamp[] = [{ kind: "s", at: 2 }];',
+      "  count(stamps);",
+      "  return stamps.map((stamp) => stamp.at + stamp.kind.length).length + runner.events.map((event) => event.kind).length;",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Event.at", "member-read-only Lost.note"]);
+});
+
+// `fill` pushes into the list it takes as `Wide[]`, and the list is the caller's `Leaf[]`, whose reads read the push.
+// A readonly list only hands its elements out, and nothing writes into the mutable list `peek` takes, so what `look`
+// takes as `View` and `peek` as `Peeked` stays written and never read.
+test("a value pushed through a wider element type writes the narrower element", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Leaf { readonly label: string; readonly note?: string }",
+      "export interface Wide { readonly label: string; readonly note?: string; readonly spare?: string }",
+      "export interface Shown { readonly label: string; readonly note?: string }",
+      "export interface View { readonly label: string; readonly note?: string }",
+      'const fill = (into: Wide[]): void => { into.push({ label: "l", note: "n" }); };',
+      "export interface Peeked { readonly label: string; readonly note?: string }",
+      "const look = (from: readonly View[]): number => from.length;",
+      "const peek = (from: Peeked[]): number => from.length;",
+      "export const shown = (): string => {",
+      "  const leaves: Leaf[] = [];",
+      "  fill(leaves);",
+      '  return leaves.map((leaf) => leaf.label + (leaf.note ?? "")).join();',
+      "};",
+      "export const viewed = (): string => {",
+      '  const kept: Shown[] = [{ label: "k", note: "n" }];',
+      "  look(kept);",
+      "  peek(kept);",
+      "  return kept.map((one) => one.label).join();",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only Shown.note",
+    "member-write-only View.label",
+    "member-write-only View.note",
+    "member-write-only Peeked.label",
+    "member-write-only Peeked.note",
+    "member-untouched Wide.spare",
+  ]);
+});
+
+// A tree generic's `push` stores its argument in the instance and answers a count, so `Stack<Leaf>` handed as
+// `Stack<Wide>` pairs both ways and the caller's reads of `Leaf` read the push. `has` only compares its argument, so the
+// probe it takes as `Probe` fills nothing of `Stored`, whose `label` stays read and never written.
+test("a tree generic's method that stores its argument pairs both ways; one that compares does not", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Leaf { readonly label: string; readonly note?: string }",
+      "export interface Wide { readonly label: string; readonly note?: string; readonly spare?: string }",
+      "export interface Stored { readonly label?: string; readonly kept: string }",
+      "export interface Probe { readonly label?: string }",
+      "export class Stack<T> {",
+      "  readonly #items: T[] = [];",
+      "  push(value: T): number {",
+      "    this.#items.push(value);",
+      "    return this.#items.length;",
+      "  }",
+      "  has(value: T): boolean {",
+      "    return this.#items.includes(value);",
+      "  }",
+      "  peek(): T | undefined {",
+      "    return this.#items.at(-1);",
+      "  }",
+      "}",
+      "export class Pool<T> {",
+      "  readonly #items: T[] = [];",
+      "  has(value: T): boolean {",
+      "    return this.#items.includes(value);",
+      "  }",
+      "  first(): T | undefined {",
+      "    return this.#items[0];",
+      "  }",
+      "}",
+      'const fill = (stack: Stack<Wide>): void => { stack.push({ label: "l", note: "n" }); };',
+      'const look = (pool: Pool<Probe>): boolean => pool.has({ label: "p" });',
+      "export const shown = (): string => {",
+      "  const leaves = new Stack<Leaf>();",
+      "  fill(leaves);",
+      "  const top = leaves.peek();",
+      '  return (top?.label ?? "") + (top?.note ?? "") + String(leaves.has({ label: "h" }));',
+      "};",
+      "export const looked = (): string => {",
+      "  const pool = new Pool<Stored>();",
+      '  const one: Stored = { kept: "k" };',
+      '  return String(look(pool)) + (pool.first()?.label ?? "") + one.kept;',
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Probe.label", "member-untouched Wide.spare", "member-read-only Stored.label"]);
 });
 
 // The walk of `Options` runs once for each pair that meets it in one batch; a declared `out` wins in every one of them,
@@ -175,6 +316,24 @@ test("a value held under a library's unconstrained type parameter is sent", { ti
   expect(bucketsIn(scan)).toEqual(["member-write-only Kept.unread", "member-sent-only Stashed.unread", "member-sent-only Held.unread"]);
 });
 
+// A property typed by a union of the library's own type parameters names nothing either. One typed by a type parameter
+// or an object type names that object's members, so the value pairs with the instantiation and is not sent.
+test("a value held under a union of a library's type parameters is sent", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export declare function stash<V, W>(entry: { readonly value?: V | W }): void;",
+      "export declare function keep<V>(entry: { readonly value?: V | { readonly fixed: string } }): void;",
+    ]),
+    ...source([
+      'import { keep, stash } from "lib";',
+      "export interface Two { readonly unread: string }",
+      "export interface Mixed { readonly unread: string }",
+      "export const held = (item: Two, mixed: Mixed): void => { stash({ value: item }); keep({ value: mixed }); };",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-sent-only Two.unread", "member-untouched Mixed.unread"]);
+});
+
 // A debug probe labels an unreadable value with a checked literal and returns it as `unknown`: each branch of the
 // conditional fills the return, so the checked view's members are sent where the probe's reply goes. The same literal
 // returned into a typed slot only pairs, and its members stay written and never read. A literal of constant or computed
@@ -207,6 +366,51 @@ test("a checked literal returned as unknown from a conditional sends its checked
     "member-sent-only ComputedView.b",
     "member-sent-only BareView.c",
   ]);
+});
+
+// An unknown left operand makes `??` and `||` unknown, so the checked literal on the right reaches the `unknown` return
+// and its view is sent where the reply goes. The same literal returned into a typed slot only pairs.
+test("a checked literal on the right of ?? or || returned as unknown sends its checked type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface NullishView { readonly a: string }",
+      "export interface OrView { readonly b: string }",
+      "export interface TypedView { readonly c: string; readonly d: string }",
+      "declare const raw: unknown;",
+      'const nullish = (value: unknown): unknown => value ?? ({ a: "a" } satisfies NullishView);',
+      'const or = (value: unknown): unknown => value || ({ b: "b" } satisfies OrView);',
+      'const typed = (value: TypedView | undefined): TypedView => value ?? ({ c: "c", d: "d" } satisfies TypedView);',
+      "const reply = { json: (value: unknown): unknown => value };",
+      "export const probe = (): unknown => reply.json({ a: nullish(raw), b: or(raw), c: typed(undefined).c });",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only TypedView.d", "member-sent-only NullishView.a", "member-sent-only OrView.b"]);
+});
+
+// The optional page's rows on the left of `??` fill the prop only when the page is there, so they fill it as rows and
+// not as rows-or-undefined: the strip's read of `characterId` reaches `Seat`. Nothing reads `name`.
+test("the left of ?? fills a prop without its undefined", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const view = `${GRAPH_SOURCE}/strip.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      [view]: [
+        JSX_NAMESPACE,
+        "export interface Seat { readonly characterId: string; readonly name: string }",
+        "export interface Page { readonly items: readonly { readonly seats: readonly Seat[] }[] }",
+        "declare const page: Page | undefined;",
+        "const faces = (chats: readonly { readonly seats: readonly { readonly characterId: string; readonly name: string }[] }[]): number =>",
+        "  chats.flatMap((chat) => chat.seats.map((seat) => seat.characterId)).length;",
+        "function Strip({ chats }: { readonly chats: Parameters<typeof faces>[0] }): JSX.Element {",
+        "  return <div>{faces(chats)}</div>;",
+        "}",
+        "export const view = (): JSX.Element => <Strip chats={page?.items ?? []} />;",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect(bucketsIn(scan, view)).toEqual(["member-untouched faces.seats.name"]);
 });
 
 // `Object.values` and `structuredClone` read every member of the value they take; a value no reflective call takes keeps
@@ -281,4 +485,189 @@ test("each zod validator's literal writes the schema input keys it holds", { tim
     ]),
   });
   expect(bucketsIn(scan)).toEqual(["member-read-only In.c"]);
+});
+
+// A checked schema's record and map values are held to the declared value types, so each value key twins with the
+// declared member of its name: the parsed reads of `label` and `title` read `Entry` and `Keyed`. The keys nothing reads,
+// `note` and `memo`, end as one untouched member each.
+test("a checked zod schema's record and map values pair with the declared values", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Entry { readonly label: string; readonly note?: string }",
+      "export interface Keyed { readonly title: string; readonly memo?: string }",
+      "export interface Book { readonly byId: Record<string, Entry>; readonly byKey: Map<string, Keyed> }",
+      "const entrySchema = z.object({ label: z.string(), note: z.string().optional() });",
+      "const keyedSchema = z.object({ title: z.string(), memo: z.string().optional() });",
+      "const bookSchema = z.object({ byId: z.record(z.string(), entrySchema), byKey: z.map(z.string(), keyedSchema) }) satisfies z.ZodType<Book>;",
+      "declare const raw: unknown;",
+      "export const parsed = (): string => {",
+      "  const book = bookSchema.parse(raw);",
+      '  return (book.byId["a"]?.label ?? "") + (book.byKey.get("a")?.title ?? "");',
+      "};",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-untouched Entry.note", "member-untouched Keyed.memo"]);
+});
+
+// A validated literal's key that arrives by a spread (`Outer.b`), sits in a nested literal (`Inner.y`) or in a list
+// element (`Item.q`): parse takes each, so each writes its schema key. `Outer.c`, `Inner.z` and `Item.r`, which no
+// literal or spread holds, stay read and never written.
+const VALIDATED_PARTS = [
+  'import { z } from "zod";',
+  "export interface Inner { readonly x: string; readonly y?: string; readonly z?: string }",
+  "export interface Item { readonly p: string; readonly q?: string; readonly r?: string }",
+  "export interface Outer { readonly a: string; readonly b?: string; readonly c?: string; readonly inner: Inner; readonly items: readonly Item[] }",
+  "const innerSchema = z.object({ x: z.string(), y: z.string().optional(), z: z.string().optional() }) satisfies z.ZodType<Inner>;",
+  "const itemSchema = z.object({ p: z.string(), q: z.string().optional(), r: z.string().optional() }) satisfies z.ZodType<Item>;",
+  "const outerSchema = z.object({",
+  "  a: z.string(),",
+  "  b: z.string().optional(),",
+  "  c: z.string().optional(),",
+  "  inner: innerSchema,",
+  "  items: z.array(itemSchema),",
+  "}) satisfies z.ZodType<Outer>;",
+  "declare const base: { readonly b: string };",
+  'const seed: Outer = { a: "s", inner: { x: "s" }, items: [{ p: "s" }] };',
+  "export const read = (): string =>",
+  '  [seed.b, seed.c, seed.inner.y, seed.inner.z, seed.items[0]?.q, seed.items[0]?.r, seed.a, seed.inner.x, seed.items[0]?.p].join("");',
+];
+// Each case holds one part: its member is written and the others' stay read and never written.
+const READ_ONLY = (held: string): readonly string[] =>
+  ["Inner.y", "Inner.z", "Item.q", "Item.r", "Outer.b", "Outer.c"].filter((member) => member !== held).map((member) => `member-read-only ${member}`);
+const VALIDATED_SHAPES = [
+  { shape: "spread", held: "Outer.b", call: 'outerSchema.parse({ ...base, a: "a", inner: { x: "x" }, items: [] })', sent: ["member-sent-only base.b"] },
+  { shape: "nested", held: "Inner.y", call: 'outerSchema.parse({ a: "a", inner: { x: "x", y: "y" }, items: [] })', sent: [] },
+  { shape: "list element", held: "Item.q", call: 'outerSchema.parse({ a: "a", inner: { x: "x" }, items: [{ p: "p", q: "q" }] })', sent: [] },
+] as const;
+for (const { shape, held, call, sent } of VALIDATED_SHAPES) {
+  test(`a zod-validated literal's ${shape} key writes the schema key`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    const scan = await graphScan(plantedTree, { ...ZOD_MODULE, ...source([...VALIDATED_PARTS, `export const run = (): unknown => ${call};`]) });
+    expect(bucketsIn(scan)).toEqual([...sent, ...READ_ONLY(held)]);
+  });
+}
+
+// `Wire` and `Lost` each hand a cost of `Base & { extra }` on as `Base`, and only `Wire`'s reaches `turnCost`, which reads
+// `extra`. No type on either path names `extra`, so the graph cannot tell the two apart by type: it credits neither.
+// `Lost.cost.extra` must stay written and never read, as nothing reads it. `Wire.cost.extra` and `turnCost.extra` stay
+// write-only and read-only until a value tracer follows the cost row itself. `sink` reads only the list's length.
+test("a member a narrower slot type drops is credited to no slot it never reaches", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Base { readonly content: string }",
+      "export interface Turn { readonly content: string; readonly id?: string }",
+      "export interface Wire { readonly cost: Base & { readonly extra?: number } }",
+      "export interface Lost { readonly cost: Base & { readonly extra?: number } }",
+      "const turnCost = (turn: { readonly content: string; readonly extra?: number }): number =>",
+      "  turn.content.length + (turn.extra ?? 0);",
+      "declare const base: Base;",
+      'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      'const lost: Lost[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      "const costs = (rows: readonly { readonly cost: Base }[]): Base[] => rows.map((w) => w.cost);",
+      "const sink = (rows: readonly { readonly cost: Base }[]): number => rows.length;",
+      "const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
+      "export const total = (): number => fit(costs(wires)) + sink(lost);",
+      "export const other = (b: Base): number => b.content.length;",
+      "export const lostOnly = (): number => lost.map((l) => other(l.cost)).length;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only Wire.cost.extra",
+    "member-write-only Lost.cost.extra",
+    "member-write-only sink.cost",
+    "member-untouched Turn.id",
+    "member-read-only turnCost.extra",
+  ]);
+});
+
+// `inner` records its verdict on the ledger object the caller handed in, and the caller spreads that same object into
+// the settle event after the call: the writes through the parameter's writable members are what the spread reads.
+// `looks` takes a writable member it never assigns, so the caller's read of `note` reaches nothing of its; `fixed`'s
+// members are readonly. Both stay written and never read.
+test("a writable slot member assigned through writes the object its caller reads after the call", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Info { readonly id: string; readonly outcome: string; readonly reason: string | null }",
+      "export interface Ctx { readonly onSettled: (info: Info) => void }",
+      "export const ctx: Ctx = { onSettled: (info) => { console.log(info.id, info.outcome, info.reason); } };",
+      "const inner = (round: { readonly settle: { outcome: string; reason: string | null } }): void => {",
+      '  round.settle.outcome = "w";',
+      "  const { settle } = round;",
+      '  settle.reason = "r";',
+      "};",
+      "const looks = (round: { readonly settle: { outcome: string; note: string | null } }): string => round.settle.outcome;",
+      "const fixed = (round: { readonly settle: { readonly outcome: string; readonly tag: string | null } }): string => round.settle.outcome;",
+      "export const outer = (): void => {",
+      '  const settle: { outcome: string; reason: string | null } = { outcome: "f", reason: null };',
+      "  try {",
+      "    inner({ settle });",
+      "  } finally {",
+      '    ctx.onSettled({ id: "i", ...settle });',
+      "  }",
+      "};",
+      "export const viewed = (): string => {",
+      '  const kept: { outcome: string; note: string | null; tag: string | null } = { outcome: "f", note: null, tag: null };',
+      "  return looks({ settle: kept }) + fixed({ settle: kept }) + String(kept.note) + String(kept.tag);",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only looks.settle.note", "member-write-only fixed.settle.tag"]);
+});
+
+// `reset` assigns `Settle.note` through its own parameter, on `own`, whose note nothing reads; `kept` is handed to
+// `looks`, which assigns nothing. The caller's read of `kept.note` reaches nothing of `Settle`, so its `note` stays
+// written and never read.
+test("an assignment through another call's parameter flows nothing back", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Settle { outcome: string; note: string | null }",
+      "const looks = (s: Settle): string => s.outcome;",
+      "const reset = (s: Settle): void => {",
+      "  s.note = null;",
+      "};",
+      "export const viewed = (): string => {",
+      '  const kept: { outcome: string; note: string | null } = { outcome: "f", note: "n" };',
+      '  const own: Settle = { outcome: "o", note: "n" };',
+      "  reset(own);",
+      "  return looks(kept) + own.outcome + String(kept.note);",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Settle.note"]);
+});
+
+// A worker's local host and the process host both carry a `readLog`, but only the process host's literal fills the port
+// the domain reads through; the worker runs only `invoke` on its local host. The local `readLog` takes no read from
+// the port's, which shares its name and nothing else, and the port's `drop`, which nothing reads, stays written.
+test("a host literal's method fills only the port its literal is typed by", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Port { readonly readLog: (id: string) => readonly string[]; readonly drop: (id: string) => void }",
+      "export function localHost(): { readonly readLog: (id: string) => readonly string[]; readonly invoke: (id: string) => string } {",
+      "  return { readLog: (id) => [id], invoke: (id) => id };",
+      "}",
+      "const local = localHost();",
+      'export const ran = (): string => local.invoke("a");',
+      "export const processHost = (): Port => ({ readLog: (id) => [id], drop: (id) => { void id; } });",
+      'export const read = (port: Port): readonly string[] => port.readLog("a");',
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Port.drop", "member-write-only localHost.readLog"]);
+});
+
+// A getter or setter in a literal no slot types is code, as a method key is: unread, each is untouched, never written.
+test("an untyped literal's unread accessor is untouched, as a method key is", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export const table = { get unread(): string { return "u"; }, set stored(value: string) { void value; }, method(): string { return "m"; }, kept: "k" };',
+      "export const used = (): string => table.kept;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-untouched table.unread", "member-untouched table.stored", "member-untouched table.method"]);
 });

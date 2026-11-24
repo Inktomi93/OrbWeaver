@@ -300,6 +300,7 @@ class Builder {
       this.#keys.finish(this.#flows);
       this.#settleTwins();
       this.#links.settle();
+      this.#flows.settle();
       return this.#variants.finish();
     };
     if (profile === null) {
@@ -762,7 +763,8 @@ class Builder {
   }
 
   // A checked schema's output members beside the declared type's same-named members, at every depth: through null and
-  // undefined, a list's elements and each union arm of the declared type.
+  // undefined, a list's elements, a record's index values, a library generic's type arguments (a `z.map` output's
+  // `Map<K, V>`) and each union arm of the declared type.
   *#outputPairs(schema: Type, declared: Type): APIRequestGenerator<readonly (readonly [NativeSymbol, NativeSymbol])[]> {
     const state = this.#state;
     const { checker } = state.world;
@@ -772,6 +774,26 @@ class Builder {
     }
     const out: (readonly [NativeSymbol, NativeSymbol])[] = [];
     const seen = new Set<string>();
+    // the values a list's or a record's index signature or a library generic's type arguments hold, beside the declared type's
+    const heldValues = function* (from: Type, to: Type): APIRequestGenerator<readonly (readonly [Type, Type])[]> {
+      const pairs: (readonly [Type, Type])[] = [];
+      const fromIndexes = yield* checker.getIndexInfosOfType.gen(from);
+      for (const info of yield* checker.getIndexInfosOfType.gen(to)) {
+        const match = fromIndexes.find(({ keyType }) => keyType.id === info.keyType.id);
+        if (match !== undefined) {
+          pairs.push([match.valueType, info.valueType]);
+        }
+      }
+      if (from.isTypeReference() && to.isTypeReference()) {
+        const [fromTarget, toTarget] = [yield* from.getTarget.gen(), yield* to.getTarget.gen()];
+        const symbol = yield* toTarget.getSymbol.gen();
+        if (fromTarget.id === toTarget.id && symbol !== undefined && !symbol.declarations.some((handle) => state.resolver.ours(handle))) {
+          const [fromArguments, toArguments] = [yield* checker.getTypeArguments.gen(from), yield* checker.getTypeArguments.gen(to)];
+          pairs.push(...toArguments.flatMap((argument, at) => (fromArguments[at] === undefined ? [] : [[fromArguments[at], argument] as const])));
+        }
+      }
+      return pairs;
+    };
     const walk = function* (value: Type, target: Type, depth: number): APIRequestGenerator<void> {
       const [from, to] = [yield* checker.getNonNullableType.gen(value), yield* checker.getNonNullableType.gen(target)];
       const pair = `${String(from.id)}>${String(to.id)}`;
@@ -779,11 +801,11 @@ class Builder {
         return;
       }
       seen.add(pair);
+      for (const [fromHeld, toHeld] of yield* heldValues(from, to)) {
+        yield* walk(fromHeld, toHeld, depth + 1);
+      }
+      // a list holds its elements and nothing of ours beside them
       if ((yield* checker.isArrayLikeType.gen(from)) && (yield* checker.isArrayLikeType.gen(to))) {
-        const [fromElement, toElement] = [yield* from.getNumberIndexType.gen(), yield* to.getNumberIndexType.gen()];
-        if (fromElement !== undefined && toElement !== undefined) {
-          yield* walk(fromElement, toElement, depth + 1);
-        }
         return;
       }
       for (const member of yield* state.membersOf(to)) {

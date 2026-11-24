@@ -113,6 +113,18 @@ The `docs` MCP server indexes the catalog's current documentation (Node, TypeScr
 - Run scoped Biome as `pnpm exec biome check <paths> --diagnostic-level=error`. A scoped `--write` is fine.
 - Pass a worker flag only to go below the values in `tooling/concurrency-profile.json`.
 
+### Real-tree unwired runs
+
+A real-tree `pnpm unwired` run is the orchestrator's, but every brief, merge recipe and done note that names one follows this section.
+
+- Run each graph verb with `--profile=wall,heap`. Add `cpu` when the run is slow.
+- Report the phase times from the `profile phases` line.
+- Report the request counts from the `profile requests` and `profile checker` lines.
+- Report the top retainers from the compiler's `profile heap` list and the `profile node heap` list.
+- Report the `profile memory` line: Node's peak, each compiler's peak, and the combined sampled peak and bound.
+- Read memory only from the profile. A process timer sees one of the two processes.
+- With `cpu`, report the `profile cpu gc-share` line: the compiler's collector share, and the part on idle cores.
+
 ### Typecheck
 
 - Run `pnpm typecheck <tsconfig paths...>` for affected TypeScript programs. Native compiler checks include `.test-d.ts` assertions.

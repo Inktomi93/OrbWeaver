@@ -1,5 +1,11 @@
 // Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
 // freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
+//
+// The API's compiler process is private to it, and its socket mode is refused by the sync client, so the process is
+// read from Node's `child_process` diagnostics channel while the API's constructor spawns it, and published on
+// COMPILER_CHANNEL for whoever measures or watches the run.
+import type { ChildProcess } from "node:child_process";
+import { channel, subscribe, unsubscribe } from "node:diagnostics_channel";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
@@ -38,6 +44,7 @@ import type {
 import { API, all, isRemoteNode, SymbolFlags } from "@typescript/native/sync";
 import { z } from "zod";
 import { isLibrarySource } from "../brand-names/index.ts";
+import { spawnedChild } from "../floor/process/proc.ts";
 import { workspacePackageRoots } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
 import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
@@ -48,6 +55,50 @@ const BATCH = 5000;
 // A list in pieces of at most BATCH, for the wire's array-form requests.
 const chunked = <T>(items: readonly T[]): readonly (readonly T[])[] =>
   Array.from({ length: Math.ceil(items.length / BATCH) }, (_, at) => items.slice(at * BATCH, (at + 1) * BATCH));
+
+/** The diagnostics channel every compiler process a world starts is published on, as a {@link CompilerStart}. */
+export const COMPILER_CHANNEL = "orbweaver:unwired:compiler";
+
+/** One compiler process a world started, and the config its program serves. */
+export interface CompilerStart {
+  readonly process: ChildProcess;
+  readonly config: string;
+}
+
+const compilerStarts = channel(COMPILER_CHANNEL);
+// What a compiler that parses texts outside any program serves.
+const PARSE_ALONE = "(texts parsed alone)";
+// Node publishes each spawned process here, as `{ process }`, synchronously inside the spawn.
+const CHILD_PROCESS_CHANNEL = "child_process";
+
+/** A message read off {@link COMPILER_CHANNEL} as the compiler start it is. */
+export function compilerStartOf(message: unknown): CompilerStart | undefined {
+  const child = spawnedChild(message);
+  return child !== undefined && typeof message === "object" && message !== null && "config" in message && typeof message.config === "string"
+    ? { process: child, config: message.config }
+    : undefined;
+}
+
+/** An API whose compiler process is published on {@link COMPILER_CHANNEL}: the constructor spawns it synchronously, so
+ *  every process spawned meanwhile is the API's. */
+function startAPI(options: ConstructorParameters<typeof API>[0], config: string): API {
+  const spawned: ChildProcess[] = [];
+  const take = (message: unknown): void => {
+    const child = spawnedChild(message);
+    if (child !== undefined) {
+      spawned.push(child);
+    }
+  };
+  subscribe(CHILD_PROCESS_CHANNEL, take);
+  try {
+    return new API(options);
+  } finally {
+    unsubscribe(CHILD_PROCESS_CHANNEL, take);
+    for (const child of spawned) {
+      compilerStarts.publish({ process: child, config } satisfies CompilerStart);
+    }
+  }
+}
 
 /** The two steps of a throwaway trial: making its snapshot and asking its program. */
 export const TRIAL_STEPS = ["snapshot", "diagnostics"] as const;
@@ -220,12 +271,17 @@ export class NativeWorld implements Disposable {
 
   // The world config is overlaid with the source bridge, so a world resolves workspace imports to their sources.
   static open(root: string, config: string, declarations: ReadonlySet<string> = new Set()): NativeWorld {
-    return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, new API({ cwd: root }), (file) => declarations.has(file));
+    return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, startAPI({ cwd: root }, config), (file) => declarations.has(file));
   }
 
   /** The merged program over every world (`mergedConfigText`), with the declaration files `declaration` keeps. */
   static openMerged(root: string, declaration: (file: string) => boolean, timing = false): NativeWorld {
-    return new NativeWorld(root, { config: MERGED_CONFIG, text: mergedConfigText(root) }, new API({ cwd: root, collectTiming: timing }), declaration);
+    return new NativeWorld(
+      root,
+      { config: MERGED_CONFIG, text: mergedConfigText(root) },
+      startAPI({ cwd: root, collectTiming: timing }, MERGED_CONFIG),
+      declaration,
+    );
   }
 
   get stats(): WorldStats {
@@ -245,7 +301,7 @@ export class NativeWorld implements Disposable {
   /** The repository-relative source files and root files of every world, listed in one session rather than one
    *  process per world. */
   static fileLists(root: string, configs: readonly string[], declarations: ReadonlySet<string> = new Set()): ReadonlyMap<string, WorldFiles> {
-    using api = new API({ cwd: root });
+    using api = startAPI({ cwd: root }, configs.join(","));
     const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
     const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
     const keep = (name: string): boolean => declarations.has(relative(root, name));
@@ -484,7 +540,7 @@ export class NativeWorld implements Disposable {
   /** Parse each text on its own, outside any program, by its repository-relative file name, and read each parse with
    *  `read` before its lease ends. */
   static readTexts<T>(root: string, texts: ReadonlyMap<string, string>, read: (source: SourceFile) => T): ReadonlyMap<string, T> {
-    using api = new API({ cwd: root });
+    using api = startAPI({ cwd: root }, PARSE_ALONE);
     const parsed = api.batch(
       ...[...texts].map(function* ([file, text]): APIRequestGenerator<readonly [string, RetainedSourceFile]> {
         return [file, yield* api.createSourceFile.gen(resolve(root, file), text)];

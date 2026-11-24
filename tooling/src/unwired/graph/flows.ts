@@ -10,6 +10,16 @@
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
 // - A spread into an object literal copies; it never escapes.
+// - A callee that assigns a member through its parameter (`round.settle.reason = r`, or through a binding destructured
+//   from it) writes the object each caller handed in, so the argument's member at that path flows back from the
+//   assigned member: the caller reads, after the call, what the callee wrote. An assignment through another binding
+//   flows nothing back, and a member nothing assigns through pairs one way.
+// - A list handed into a mutable `Array` slot pairs its element back too when code writes through the binding that
+//   holds that slot (`into.push(row)` on the parameter `into`, `ctx.rows.push(row)` on the member `rows`): the write
+//   lands in the caller's list. A push into another binding of the same list type pairs nothing back, and a readonly
+//   list, a tuple and an unwritten list pair forward only.
+// - The operands of `??` and `||` each fill the slot, as a conditional's branches do; the left one without its null
+//   and undefined, as it fills the slot only when it holds a value.
 // - A slot with a string index signature pairs the members it names; the value's other members escape with it. A
 //   literal key read through such a slot's type in the same file (`line["done"]`) reads the handed values' members of
 //   that name, at any depth: it cannot tell two values handed into one type apart.
@@ -29,18 +39,24 @@
 // (ZOD_OUTPUT_VALUES): that value fills the output slot like any hand-off.
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
+  isBinaryExpression,
+  isBindingElement,
   isCallExpression,
   isConditionalExpression,
+  isIdentifier,
   isModuleDeclaration,
   isNewExpression,
   isObjectLiteralExpression,
+  isParameterDeclaration,
   isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isSatisfiesExpression,
   isSpreadElement,
+  isVariableDeclaration,
+  SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeReference } from "@typescript/native/sync";
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns, signatureOf } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
@@ -66,17 +82,33 @@ interface TypePair {
 export interface FlowPair extends TypePair {
   readonly site: number;
   readonly whole?: boolean;
+  /** The declarations of the binding the slot is: the parameter an argument lands in, the variable an initializer fills,
+   *  the member a member pair fills. */
+  readonly holder?: readonly DeclKey[];
+}
+
+// A member path assigned through a parameter, and the declarations of the member assigned.
+interface AssignedPath {
+  readonly path: readonly string[];
+  readonly slots: readonly DeclKey[];
+}
+
+// A flow pair at its site in its file, linked by settle once every file is walked.
+interface Filled extends FlowPair {
+  readonly file: string;
 }
 
 // The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
 // of the type it came from), or through a member, a parameter or a return (each able to reach a new instantiation).
-const STEP_KINDS = ["root", "argument", "element", "arm", "member", "parameter", "return"] as const;
+// A `pushed` step is a list element's way back, kept for settle with the binding that holds the list.
+const STEP_KINDS = ["root", "argument", "element", "arm", "member", "parameter", "return", "pushed"] as const;
 type StepKind = (typeof STEP_KINDS)[number];
 const SUBTERM_STEPS: ReadonlySet<StepKind> = new Set<StepKind>(["root", "argument", "element", "arm"]);
 
 // A pair on the flow walk's worklist and the step that reached it, named by its index or member name.
 interface Step extends TypePair {
   readonly at: { readonly kind: StepKind; readonly name: string };
+  readonly holder?: readonly DeclKey[];
 }
 
 const ROOT_STEP: Step["at"] = { kind: "root", name: "" };
@@ -92,6 +124,10 @@ function* declarationOf(type: Type): APIRequestGenerator<string> {
 }
 
 const GLOBAL_SCOPE = "global";
+// The platform's mutable list, whose `push` and index writes land in the list a slot of it holds.
+const MUTABLE_ARRAY = "Array";
+// The methods of a mutable list that put a value the caller hands in into the list.
+const LIST_WRITES: ReadonlySet<string> = new Set(["push", "unshift", "splice", "fill"]);
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
 // zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
 const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
@@ -215,6 +251,15 @@ export class Flows {
   // The value types handed into each string-indexed slot type, by `file|type id`: a literal key read through that type in
   // the same file reads the values' members of the key's name (keys.ts).
   readonly #sinks = new Map<string, Type[]>();
+  // The member paths each parameter is assigned through (`round.settle.reason = r`), by the parameter's declaration, and
+  // each argument our calls hand a parameter: settle flows the argument's member at an assigned path back from the
+  // assigned member.
+  readonly #assignedPaths = new Map<string, AssignedPath[]>();
+  readonly #arguments: { readonly parameter: string; readonly value: Type }[] = [];
+  // The element pairs back from each mutable list slot, with the declarations of the binding that holds the list, and
+  // the bindings something writes into (`into.push(row)`): settle links each pair back whose binding is written.
+  readonly #pushedInto: (Filled & { readonly holder: readonly DeclKey[] })[] = [];
+  readonly #writtenLists = new Set<DeclKey>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -227,6 +272,9 @@ export class Flows {
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
     this.#siteNodes = siteNodesOf(sites);
+    this.#assignedThrough(sites);
+    this.#parameterArguments(sites);
+    this.#listWrites(sites);
     const handed = this.#handedWhole(sites, held.node);
     // a literal a library takes by identity holds values nothing reads, so its elements fill no slot either
     const taken = (node: Node): boolean => held.node(node) || handed.taken.some((whole) => node.pos >= whole.pos && node.end <= whole.end);
@@ -439,6 +487,7 @@ export class Flows {
     const identity = state.batch(identityAsks.map(({ slot }) => identitySlot(state.world, slot)));
     const taken = new Set(identityAsks.flatMap(({ at }, y) => (identity[y] === true ? [at] : [])));
     const spreads = this.#spreadPairs(handed, values);
+    const holders = this.#parameterHolders(handed);
     const pairs: FlowPair[] = [];
     const escaping: { readonly at: number; readonly value: Type; readonly door: boolean }[] = [];
     for (const [at, entry] of handed.entries()) {
@@ -450,7 +499,7 @@ export class Flows {
       if (entry.spread || entry.door || calls.generic.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
         escaping.push({ at, value, door: entry.door });
       } else if (slot !== undefined) {
-        pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos });
+        pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos, holder: holders[at] ?? [] });
       }
     }
     this.#escapeHanded(
@@ -465,6 +514,17 @@ export class Flows {
       }),
     );
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
+  }
+
+  // The declarations of the parameter each handed argument lands in, empty for a spread or a value no call takes.
+  #parameterHolders(handed: readonly HandedWhole[]): readonly (readonly DeclKey[])[] {
+    const { state } = this;
+    const parameters = state.batch(
+      handed.map(({ call, spread }) =>
+        call === undefined || spread ? answer<NativeSymbol | undefined>(undefined) : parameterOf(state, call.node, call.index),
+      ),
+    );
+    return state.declarations(parameters);
   }
 
   // Values handed whole into opaque slots: each goes where its chase leads, with the type a `satisfies` holds it to.
@@ -669,14 +729,15 @@ export class Flows {
   }
 
   // Values flowing into typed slots: a variable's annotation, or the contextual type of the value or of its holder. A
-  // conditional's branches each fill the slot: their union can collapse (`checked ? view : value` into `unknown` is
-  // `unknown`), which would hide a branch's members from the walk.
+  // conditional's branches, and the operands of `??` and `||`, each fill the slot: their union can collapse (`checked ?
+  // view : value` into `unknown` is `unknown`), which would hide a branch's members from the walk.
   #flowSites(all: FileSites, held: (node: Node) => boolean): readonly FlowPair[] {
     const { state } = this;
     const sites = {
       flowSites: all.flowSites.flatMap((site) => (held(site.value) ? [] : branchesOf(site.value).map((value) => ({ ...site, value, whole: site.value })))),
     };
-    const values = state.world.typesAt(sites.flowSites.map(({ value }) => value));
+    // the left of `??` or `||` fills the slot only when it holds a value, so it fills it without null and undefined
+    const values = state.slotTypes(state.world.typesAt(sites.flowSites.map(({ value }) => value)));
     const declared = sites.flowSites.flatMap((site, at) => (site.slot === "declared" ? [{ at, node: site.holder }] : []));
     const declaredTypes = state.world.typesAt(declared.map(({ node }) => node));
     const contextual = sites.flowSites.flatMap((site, at) => {
@@ -694,6 +755,8 @@ export class Flows {
     // takes its contextual type from its own inference, so its slot is itself: the library takes it whole, as a value
     // handed straight to that parameter does
     const inferred = this.#libraryInferred(sites.flowSites.map((site) => (site.slot === "contextual" ? argumentHolding(site.whole) : undefined)));
+    const variables = state.declarations(state.world.symbolsAt(declared.map(({ node }) => node)));
+    const holders = new Map(declared.map(({ at }, y) => [at, variables[y] ?? []]));
     return sites.flowSites.flatMap((site, at) => {
       const slot = slots.get(at);
       const value = values[at];
@@ -701,7 +764,7 @@ export class Flows {
         this.escape(value, false, { file: all.file, at: site.value.pos }, UNCLASSIFIED);
         return [];
       }
-      return slot === undefined || value === undefined ? [] : [{ slot, value, site: site.value.pos }];
+      return slot === undefined || value === undefined ? [] : [{ slot, value, site: site.value.pos, holder: holders.get(at) ?? [] }];
     });
   }
 
@@ -711,7 +774,7 @@ export class Flows {
   // The walk is a worklist that ends on its seen-set, keyed by the declarations of the slot and the value and the step
   // that reached them, never by type: a recursive generic instantiates a new type at every level (`Deep<Box<T>>`), so a
   // type key never repeats, while its declarations do.
-  *#operands({ slot, value, site, whole }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
+  *#operands({ slot, value, site, whole, holder }: FlowPair, file: string): APIRequestGenerator<readonly FlowPair[]> {
     const { checker } = this.#state.world;
     // a step that keeps the value (a slot's arm) leaves it the site's own; any other step reaches a part of it
     const own = whole === true ? ((yield* checker.getAwaitedType.gen(value)) ?? value).id : undefined;
@@ -738,16 +801,29 @@ export class Flows {
       }
       seen.add(pair);
       visits.set(slotDeclaration, (visits.get(slotDeclaration) ?? 0) + 1);
-      const inner = yield* this.#innerOperands(a, b);
+      // the binding holds the list only while the walk stays on the value itself: a list reached through an element or a
+      // member is held by something else
+      const inner = yield* this.#innerOperands(a, b, heldBy(next.at.kind, holder));
       if (inner === null) {
         out.push({ slot: a, value: b, site, whole: b.id === own });
       } else {
-        work.push(...inner);
+        work.push(...this.#walked(inner, site, file));
       }
       widest = Math.max(widest, work.length);
     }
     this.#traceWalk(file, seen.size, widest, visits);
     return out;
+  }
+
+  // The steps a walk takes now; a list element's way back is kept for settle.
+  #walked(steps: readonly Step[], site: number, file: string): readonly Step[] {
+    return steps.filter((step) => {
+      if (step.at.kind !== "pushed") {
+        return true;
+      }
+      this.#pushedInto.push({ holder: step.holder ?? [], slot: step.slot, value: step.value, site, file });
+      return false;
+    });
   }
 
   // The flow-walk trace logs each walk that visits more pairs than any before it, with the declarations it met most.
@@ -763,7 +839,7 @@ export class Flows {
   }
 
   // The steps one slot and value pair flows through, or null when the pair is itself a leaf.
-  *#innerOperands(a: Type, b: Type): APIRequestGenerator<readonly Step[] | null> {
+  *#innerOperands(a: Type, b: Type, holder: readonly DeclKey[] | undefined): APIRequestGenerator<readonly Step[] | null> {
     const { checker } = this.#state.world;
     const slotArms = yield* this.#objectArms(a, b);
     if (slotArms !== null) {
@@ -772,7 +848,16 @@ export class Flows {
     if (a.isTypeReference() && b.isTypeReference() && (yield* checker.isArrayLikeType.gen(a)) && (yield* checker.isArrayLikeType.gen(b))) {
       const [elementA] = yield* checker.getTypeArguments.gen(a);
       const [elementB] = yield* checker.getTypeArguments.gen(b);
-      return elementA !== undefined && elementB !== undefined ? [{ slot: elementA, value: elementB, at: { kind: "element", name: "" } }] : [];
+      if (elementA === undefined || elementB === undefined) {
+        return [];
+      }
+      const step = { kind: "element", name: "" } as const;
+      const forward = { slot: elementA, value: elementB, at: step };
+      // the element's way back holds only where something writes into the binding that holds this list, known once every
+      // file is walked (settle)
+      return holder !== undefined && holder.length > 0 && (yield* this.#mutableArray(a))
+        ? [forward, { slot: elementB, value: elementA, at: { kind: "pushed", name: "" }, holder }]
+        : [forward];
     }
     const instances = yield* this.#sameGeneric(a, b);
     if (instances !== null) {
@@ -799,6 +884,13 @@ export class Flows {
     const [slotSignature] = yield* a.getCallSignatures.gen();
     const [valueSignature] = yield* b.getCallSignatures.gen();
     return slotSignature !== undefined && valueSignature !== undefined ? yield* this.#signatureOperands(slotSignature, valueSignature) : null;
+  }
+
+  // Whether a list slot is the platform's mutable `Array`: what is pushed through it lands in the list handed in, so its
+  // element pairs both ways. A readonly list or a tuple only hands its elements out.
+  *#mutableArray(slot: TypeReference): APIRequestGenerator<boolean> {
+    const symbol = yield* (yield* slot.getTarget.gen()).getSymbol.gen();
+    return symbol?.name === MUTABLE_ARRAY && !symbol.declarations.some((handle) => this.#state.resolver.ours(handle));
   }
 
   // A union slot (`string | Block[]`) is filled by whichever of its object arms the value lands in; null when the slot
@@ -919,7 +1011,9 @@ export class Flows {
     const arms = state.batch(unions.map(({ value }) => constituentsOf(value)));
     const expanded = [
       ...pairs.filter(({ value }) => !value.isUnionType()),
-      ...unions.flatMap(({ slot, site }, y) => (arms[y] ?? []).filter((arm) => !isPrimitive(arm)).map((value) => ({ slot, value, site }))),
+      ...unions.flatMap(({ slot, site, holder }, y) =>
+        (arms[y] ?? []).filter((arm) => !isPrimitive(arm)).map((value) => ({ slot, value, site, ...(holder === undefined ? {} : { holder }) })),
+      ),
     ];
     const fresh = [...new Map(expanded.filter((pair) => this.#isFresh(pair)).map((pair) => [this.#pairKey(pair), pair])).values()];
     for (const pair of fresh) {
@@ -944,6 +1038,118 @@ export class Flows {
     if (slots.length === 0) {
       this.#state.roleAll(values, "read", file, site);
     }
+  }
+
+  // The bindings of the mutable lists a file writes into through a method that adds elements (`into.push(row)`,
+  // `ctx.rows.push(row)`, `this.rows.push(row)`).
+  #listWrites(sites: FileSites): void {
+    const { state } = this;
+    const receivers = sites.names.flatMap(({ node }) => {
+      const access = node.parent;
+      return "text" in node &&
+        typeof node.text === "string" &&
+        LIST_WRITES.has(node.text) &&
+        isPropertyAccessExpression(access) &&
+        access.name.pos === node.pos &&
+        isCallExpression(access.parent) &&
+        access.parent.expression.pos === access.pos
+        ? [access.expression]
+        : [];
+    });
+    const types = state.world.typesAt(receivers);
+    const mutable = state.batch(types.map((type) => (type.isTypeReference() ? this.#mutableArray(type) : answer(false))));
+    const written = receivers.flatMap((receiver, at) => {
+      if (mutable[at] !== true) {
+        return [];
+      }
+      const name = isPropertyAccessExpression(receiver) ? receiver.name : receiver;
+      return isIdentifier(name) ? [name] : [];
+    });
+    for (const decls of state.declarations(state.world.symbolsAt(written))) {
+      for (const decl of decls) {
+        this.#writtenLists.add(decl);
+      }
+    }
+  }
+
+  // The member paths a file assigns through a parameter (`round.settle.reason = r`, `settle.outcome = o` after
+  // `const { settle } = round`), keyed by the parameter's declaration.
+  #assignedThrough(sites: FileSites): void {
+    const { state } = this;
+    const targets = sites.names.flatMap(({ node, roles }) => {
+      const access = node.parent;
+      if (!(roles.includes("write") && isPropertyAccessExpression(access) && access.name.pos === node.pos)) {
+        return [];
+      }
+      const path: string[] = [];
+      let at: Node = access;
+      for (; isPropertyAccessExpression(at); at = at.expression) {
+        path.unshift(at.name.text);
+      }
+      return isIdentifier(at) ? [{ node, root: at, path }] : [];
+    });
+    const slots = state.declarations(state.world.symbolsAt(targets.map(({ node }) => node)));
+    const roots = state.batch(targets.map(({ root }) => parameterRoot(state, root)));
+    for (const [at, { path }] of targets.entries()) {
+      const root = roots[at];
+      if (root === undefined) {
+        continue;
+      }
+      const assigned = this.#assignedPaths.get(root.parameter) ?? [];
+      assigned.push({ path: [...root.prefix, ...path], slots: slots[at] ?? [] });
+      this.#assignedPaths.set(root.parameter, assigned);
+    }
+  }
+
+  // Each argument a file hands one of our functions, with the declaration of the parameter it lands in.
+  #parameterArguments(sites: FileSites): void {
+    const { state } = this;
+    const handed = new Map<number, { readonly node: Expression; readonly call: CallExpression | NewExpression; readonly index: number }>();
+    for (const { node, call, spread } of sites.handedWhole) {
+      if (call !== undefined && !spread) {
+        handed.set(node.pos, { node, call: call.node, index: call.index });
+      }
+    }
+    for (const { value } of sites.flowSites) {
+      const argument = callArgument(value);
+      if (argument !== undefined) {
+        handed.set(value.pos, { node: value, ...argument });
+      }
+    }
+    const entries = [...handed.values()];
+    const parameters = state.batch(entries.map(({ call, index }) => this.#parameterAt(call, index)));
+    const values = state.world.typesAt(entries.map(({ node }) => node));
+    for (const [at, parameter] of parameters.entries()) {
+      const value = values[at];
+      if (parameter !== undefined && value !== undefined) {
+        this.#arguments.push({ parameter, value });
+      }
+    }
+  }
+
+  // The declaration of the parameter of one of our signatures an argument at `index` lands in.
+  *#parameterAt(call: CallExpression | NewExpression, index: number): APIRequestGenerator<string | undefined> {
+    const parameter = yield* parameterOf(this.#state, call, index);
+    return parameter === undefined ? undefined : declarationKeys(parameter).join(",");
+  }
+
+  // Each argument's member at a path its parameter is assigned through flows back from the assigned member: the
+  // callee wrote the object the caller handed in.
+  #flowAssignedBack(): void {
+    const { state } = this;
+    const asks = this.#arguments.flatMap(({ parameter, value }) => (this.#assignedPaths.get(parameter) ?? []).map((assigned) => ({ value, assigned })));
+    const members = state.batch(asks.map(({ value, assigned }) => memberAtPath(state, value, assigned.path)));
+    const values = state.declarations(members);
+    const back = new Set<string>();
+    for (const [at, { assigned }] of asks.entries()) {
+      for (const slot of assigned.slots) {
+        for (const value of (values[at] ?? []).filter((key) => key !== slot && !back.has(`${slot}<${key}`))) {
+          back.add(`${slot}<${value}`);
+          state.flow(value, slot);
+        }
+      }
+    }
+    state.count("backward flows", back.size);
   }
 
   // A Drizzle row's members have no declaration: each such member stands for its table's column, so the slot member it
@@ -1006,6 +1212,23 @@ export class Flows {
     return typed;
   }
 
+  /** Link the list element pairs back whose list something writes into, under their own files, until a pass finds
+   *  none new; then flow each member a callee assigns through its parameter back into the argument member at that path. */
+  settle(): void {
+    for (let at = 0; at < this.#pushedInto.length; ) {
+      const pushed = this.#pushedInto.slice(at).filter(({ holder }) => holder.some((decl) => this.#writtenLists.has(decl)));
+      at = this.#pushedInto.length;
+      this.#state.count("pushed element pairs", pushed.length);
+      for (const [file, pairs] of Map.groupBy(pushed, ({ file: from }) => from)) {
+        this.link(
+          pairs.map(({ slot, value, site }) => ({ slot, value, site })),
+          file,
+        );
+      }
+    }
+    this.#flowAssignedBack();
+  }
+
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
@@ -1041,15 +1264,74 @@ export class Flows {
       return true;
     });
     const types = state.batch(deeper.flatMap(({ slot, value }) => [checker.getTypeOfSymbol.gen(slot), checker.getTypeOfSymbol.gen(value)]));
+    const holders = new Map(matched.map((entry, y) => [entry, slotDecls[y] ?? []]));
     return [
       ...entries,
-      ...deeper.flatMap(({ site }, y) => {
+      ...deeper.flatMap((entry, y) => {
         const slot = types[2 * y];
         const value = types[2 * y + 1];
-        return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot) ? [{ slot, value, site }] : [];
+        return slot !== undefined && value !== undefined && slot.id !== value.id && !isPrimitive(slot)
+          ? [{ slot, value, site: entry.site, holder: holders.get(entry) ?? [] }]
+          : [];
       }),
     ];
   }
+}
+
+// The parameter a member path's root name stands for, and the path from the parameter to it: the parameter itself, or a
+// binding destructured from it (`const { settle } = round` gives `round` and `settle`).
+function* parameterRoot(state: GraphState, root: Node): APIRequestGenerator<{ readonly parameter: string; readonly prefix: readonly string[] } | undefined> {
+  const symbol = yield* state.world.checker.getSymbolAtLocation.gen(root);
+  const [handle] = symbol?.declarations ?? [];
+  const declaration = handle === undefined ? undefined : yield* handle.resolve.gen();
+  if (symbol !== undefined && declaration !== undefined && isParameterDeclaration(declaration)) {
+    return { parameter: declarationKeys(symbol).join(","), prefix: [] };
+  }
+  if (declaration === undefined || !isBindingElement(declaration) || declaration.dotDotDotToken !== undefined) {
+    return undefined;
+  }
+  const key = keyText(declaration.propertyName ?? declaration.name);
+  const holder = declaration.parent.parent;
+  if (key === undefined || !isVariableDeclaration(holder) || holder.initializer === undefined || !isIdentifier(holder.initializer)) {
+    return undefined;
+  }
+  const outer = yield* parameterRoot(state, holder.initializer);
+  return outer === undefined ? undefined : { parameter: outer.parameter, prefix: [...outer.prefix, key] };
+}
+
+// The parameter of one of our signatures an argument at `index` lands in.
+function* parameterOf(state: GraphState, call: CallExpression | NewExpression, index: number): APIRequestGenerator<NativeSymbol | undefined> {
+  const signature = yield* state.world.checker.getResolvedSignature.gen(call);
+  if (signature.declaration === undefined || !state.resolver.ours(signature.declaration)) {
+    return undefined;
+  }
+  return (yield* ((yield* signature.getTarget.gen()) ?? signature).getParameters.gen())[index];
+}
+
+// The steps that keep the value itself, so the binding that holds it still holds what they reach.
+const KEEPS_VALUE: ReadonlySet<StepKind> = new Set<StepKind>(["root", "arm"]);
+const heldBy = (step: StepKind, holder: readonly DeclKey[] | undefined): readonly DeclKey[] | undefined => (KEEPS_VALUE.has(step) ? holder : undefined);
+
+// The call a value is a direct argument of, and its index.
+function callArgument(value: Expression): { readonly call: CallExpression | NewExpression; readonly index: number } | undefined {
+  const call = value.parent;
+  if (!(isCallExpression(call) || isNewExpression(call))) {
+    return undefined;
+  }
+  const index = (call.arguments ?? []).findIndex((argument) => argument.pos === value.pos);
+  return index < 0 ? undefined : { call, index };
+}
+
+// The member of a value at a property path, through null and undefined.
+function* memberAtPath(state: GraphState, value: Type, path: readonly string[]): APIRequestGenerator<NativeSymbol | undefined> {
+  const { checker } = state.world;
+  let at: Type | undefined = value;
+  let member: NativeSymbol | undefined;
+  for (const name of path) {
+    member = at === undefined ? undefined : yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(at), name);
+    at = member === undefined ? undefined : yield* checker.getTypeOfSymbol.gen(member);
+  }
+  return member;
 }
 
 // Whether a signature's parameter at `index` is typed by a type parameter the signature declares itself, so the call infers it.
@@ -1057,11 +1339,12 @@ function* ownTypeParameter(state: GraphState, signature: Signature, index: numbe
   return yield* ownedTypeParameter(signature, declaredParameterType(state, signature, index));
 }
 
-// Whether a declared type is a type parameter the signature declares itself.
+// Whether a declared type is a type parameter the signature declares itself, or a union of them (`V | W`).
 function* ownedTypeParameter(signature: Signature, declaredType: APIRequestGenerator<Type | undefined>): APIRequestGenerator<boolean> {
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const declared = yield* declaredType;
-  return declared?.isTypeParameter() === true && (target.typeParameters ?? []).includes(declared.id);
+  const arms = declared === undefined ? null : yield* typeParameterArms(declared);
+  return arms?.every(({ id }) => (target.typeParameters ?? []).includes(id)) === true;
 }
 
 /** A value a literal argument holds: the call, the argument's index and the property names down to the value. */
@@ -1097,7 +1380,7 @@ function* declaredPropertyType(state: GraphState, signature: Signature, { index,
   const { checker } = state.world;
   let at = yield* declaredParameterType(state, signature, index);
   for (const name of path) {
-    if (at === undefined || at.isTypeParameter()) {
+    if (at === undefined || (yield* typeParameterArms(at)) !== null) {
       return at;
     }
     const property = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(at), name);
@@ -1106,12 +1389,21 @@ function* declaredPropertyType(state: GraphState, signature: Signature, { index,
   return at;
 }
 
-// A declared type without its `null` and `undefined` arms. An unconstrained type parameter is kept as itself, where the
-// checker's non-nullable form (`V & {}`) would no longer read as a type parameter.
-function* withoutNullish(checker: Checker, type: Type): APIRequestGenerator<Type> {
+// A type's arms besides `null` and `undefined` when every one is a type parameter, else null.
+function* typeParameterArms(type: Type): APIRequestGenerator<readonly Type[] | null> {
   const arms = (yield* constituentsOf(type)).filter((arm) => !(hasFlag(arm.flags, TypeFlags.Undefined) || hasFlag(arm.flags, TypeFlags.Null)));
+  return arms.length > 0 && arms.every((arm) => arm.isTypeParameter()) ? arms : null;
+}
+
+// A declared type without its `null` and `undefined` arms. A type typed only by unconstrained type parameters is kept
+// as it is, where the checker's non-nullable form (`V & {}`) would no longer read as a type parameter.
+function* withoutNullish(checker: Checker, type: Type): APIRequestGenerator<Type> {
+  const arms = yield* typeParameterArms(type);
+  if (arms === null) {
+    return yield* checker.getNonNullableType.gen(type);
+  }
   const [only] = arms;
-  return arms.length === 1 && only?.isTypeParameter() === true ? only : yield* checker.getNonNullableType.gen(type);
+  return arms.length === 1 && only !== undefined ? only : type;
 }
 
 // The type a signature's declaration gives its parameter at `index`, before instantiation.
@@ -1121,13 +1413,20 @@ function* declaredParameterType(state: GraphState, signature: Signature, index: 
   return parameter === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(parameter);
 }
 
-// The values an expression can be: each branch of a conditional, through parentheses, else the expression itself.
+// The operators whose result is one operand or the other, as a conditional's is one branch or the other.
+const EITHER_OPERAND: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
+
+// The values an expression can be, through parentheses: each branch of a conditional, each operand of `??` and `||`,
+// else the expression itself.
 function branchesOf(value: Expression): readonly Expression[] {
   let at = value;
   while (isParenthesizedExpression(at)) {
     at = at.expression;
   }
-  return isConditionalExpression(at) ? [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)] : [value];
+  if (isConditionalExpression(at)) {
+    return [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)];
+  }
+  return isBinaryExpression(at) && EITHER_OPERAND.has(at.operatorToken.kind) ? [...branchesOf(at.left), ...branchesOf(at.right)] : [value];
 }
 
 const calleeName = (call: Node | undefined): Node | undefined => {

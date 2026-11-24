@@ -7,8 +7,10 @@ import process from "node:process";
 import { deserialize, serialize } from "node:v8";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import type { MemoryPeaks, NodeHeapProfile } from "../../../tooling/src/unwired/graph/profile.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
+import { MERGED_CONFIG } from "../../../tooling/src/unwired/worlds.ts";
 import {
   DEAD_CHANNEL_MESSAGES,
   GRAPH_SOURCE,
@@ -276,12 +278,26 @@ test("the axis trace follows one axis's values and the tv trace names each dynam
   expect(await traced([])).toEqual([]);
 });
 
+// Both processes' peaks: Node's own and the merged program's compiler, which the combined bound adds to Node's. These
+// suites run on Linux, where /proc reports another process's memory.
+function expectBothPeaks(memory: MemoryPeaks | undefined): void {
+  expect(memory?.nodePeakMb).toBeGreaterThan(0);
+  const merged = memory?.compilers.find(({ config }) => config === MERGED_CONFIG);
+  expect(merged?.startedIn).toBe("open");
+  expect(merged?.peakMb).toBeGreaterThan(0);
+  // Each figure rounds to a megabyte on its own, so the sum of two rounded peaks can pass the rounded bound by one.
+  expect(memory?.combinedBoundMb).toBeGreaterThanOrEqual((memory?.nodePeakMb ?? 0) + (merged?.peakMb ?? 0) - 1);
+  expect(memory?.combinedSampledMb).toBeGreaterThan(merged?.peakMb ?? 0);
+  expect(memory?.combinedSampledMb).toBeLessThanOrEqual(memory?.combinedBoundMb ?? 0);
+}
+
 test("a compiler profile emits every phase, the world's requests, each walked file and the compiler's own samples", { timeout: 240_000 }, async ({
   plantedTree,
   scratch,
 }) => {
   const root = await plantedTree(graphTree({ [FILE]: SESSION, [OTHER]: OTHER_SOURCE }));
   const compilers = new Map<string, readonly unknown[]>();
+  const nodeHeaps = new Map<string, NodeHeapProfile | null>();
   for (const kind of ["heap", "cpu"] as const) {
     const { session } = await scanGraph(root, quiet, options({ profile: { kinds: [kind], dir: join(scratch, kind) } }));
     const profile = session.profile;
@@ -292,7 +308,13 @@ test("a compiler profile emits every phase, the world's requests, each walked fi
     expect(profile?.compilers.map((compiler) => compiler.kind)).toEqual([kind]);
     expect(existsSync(profile?.compilers[0]?.path ?? "")).toBe(true);
     compilers.set(kind, profile?.compilers[0]?.summary.entries ?? []);
+    nodeHeaps.set(kind, profile?.nodeHeap ?? null);
+    expectBothPeaks(profile?.memory);
   }
+  // Node's heap profile rides with the compiler's: allocation sites of the live heap, this tooling's own code among them.
+  expect(existsSync(nodeHeaps.get("heap")?.path ?? "")).toBe(true);
+  expect(nodeHeaps.get("heap")?.summary.entries.some(({ name }) => name.includes("tooling/src/unwired/"))).toBe(true);
+  expect(nodeHeaps.get("cpu")).toBeNull();
   // a sampled cpu profile of a planted tree can hold no sample, so only the heap's allocators are asserted
   expect(compilers.get("heap")?.length).toBeGreaterThan(0);
   expect((await scanGraph(root, quiet)).session.profile).toBeNull();
@@ -372,6 +394,16 @@ test("a compiler that dies mid-run leaves the run's own error thrown and the fai
   expect(failed).toBeInstanceOf(Error);
   expect(failed).not.toBeInstanceOf(SuppressedError);
   expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
+  // The session names how its compiler ended, when the run failed and the step it was in; the compilers its worlds
+  // closed themselves are no news.
+  expect(lines.filter((line) => line.startsWith("the compiler for "))).toEqual([
+    expect.stringMatching(
+      new RegExp(
+        `^the compiler for ${MERGED_CONFIG.replaceAll(".", String.raw`\.`)} \\(pid \\d+, started in open\\) ended by signal SIGKILL; the run failed at \\d{4}-\\S+Z in work$`,
+        "u",
+      ),
+    ),
+  ]);
   // The run's own error is the dead channel the compiler left, not the disposal's. The next write can hit the broken
   // pipe before the read sees end of input, so either is the first observation of the death; nothing else is.
   expect(DEAD_CHANNEL_MESSAGES.some((prefix) => (failed as Error).message.startsWith(prefix))).toBe(true);

@@ -183,7 +183,7 @@ test("a group with an unowned error bisects to the one member it reads, counting
         [LIB]: "export interface Shape { readonly kept: string; readonly a: string; readonly b: string; readonly c: string }",
         [MAIN]: [
           'import type { Shape } from "./lib.ts";',
-          "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
+          'type Needs<T> = "b" extends keyof T ? true : false;',
           "const shape: Needs<Shape> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(shape);",
@@ -229,7 +229,7 @@ test.for([
       [DOOR]: 'export type { Shape } from "./lib.ts";',
       [MAIN]: [
         'import type { Shape } from "./door.ts";',
-        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
+        'type Needs<T> = "b" extends keyof T ? true : false;',
         "const shape: Needs<Shape> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(shape);",
@@ -248,7 +248,7 @@ test.for([
       ].join("\n"),
       [MAIN]: [
         'import { keptOf, made } from "./door.ts";',
-        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
+        'type Needs<T> = "b" extends keyof T ? true : false;',
         "const view: Needs<typeof made> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(view ? keptOf(made) : undefined);",
@@ -268,7 +268,9 @@ test.for([
       [RELAY]: 'export { keptOf, made } from "./door.ts";',
       [MAIN]: ['import { keptOf, made } from "./relay.ts";', 'made.b = "x";', "keptOf(made);"].join("\n"),
     },
-    errors: [`${MAIN}:2 read`],
+    // The assignment only stores into the member, so the file is reached and the error is a write.
+    verdict: NAMED_ONLY,
+    errors: [`${MAIN}:2 write`],
   },
   {
     site: "a constraint on an inferred alias two imports from every file that names the home type",
@@ -282,7 +284,7 @@ test.for([
       [MID]: ['import { keptOf, made } from "./door.ts";', "export type Made = typeof made;", "export const kept = keptOf(made);"].join("\n"),
       [MAIN]: [
         'import { kept, type Made } from "./mid.ts";',
-        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
+        'type Needs<T> = "b" extends keyof T ? true : false;',
         "const view: Needs<Made> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(view ? kept : undefined);",
@@ -296,7 +298,7 @@ test.for([
       ...RELAYED_SHAPE,
       [MAIN]: [
         'import { relayed } from "./mid.ts";',
-        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
+        'type Needs<T> = "b" extends keyof T ? true : false;',
         "const checked = true satisfies Needs<typeof relayed>;",
         "const use = (value: unknown): unknown => value;",
         "use(checked);",
@@ -310,7 +312,7 @@ test.for([
       ...RELAYED_SHAPE,
       [MAIN]: [
         'import { relayed } from "./mid.ts";',
-        "type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;",
+        'type Needs<T> = "b" extends keyof T ? true : false;',
         "const held: Needs<typeof relayed> = true;",
         "const use = (value: unknown): unknown => value;",
         "use(held);",
@@ -351,14 +353,14 @@ test.for([
     // The main file writes `b` in a literal, so that write is an error too; the augmentation's read refutes.
     errors: [`${AUGMENT}:3 read`, `${MAIN}:4 write`],
   },
-])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, errors: expected }, { plantedTree }) => {
+])("a delete that breaks $site is judged there", { timeout: 120_000 }, async ({ files, verdict: judged = REFUTED, errors: expected }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
   const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.b`)
       .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
-  ).toEqual([[`${LIB}:Shape.b`, REFUTED, expected]]);
+  ).toEqual([[`${LIB}:Shape.b`, judged, expected]]);
   // The checked set holds the breaking file even though it names neither the member nor the file that declares it.
   const [breaking] = expected[0]?.split(":") ?? [];
   expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(breaking);
@@ -455,6 +457,43 @@ test("a computed member a product string spells through its key's value is confi
   ).toEqual([
     [`${LIB}:Shape.zqPlain`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`]],
     [`${LIB}:Shape.[LIT]`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`, `${KEYS}:1 string product`]],
+  ]);
+});
+
+// A quoted key that is not one word is searched by its own text, and snap drives the real app (D357), so a string read
+// off the owner in product source or under snap is confirmed-literal; the same read in a script only annotates.
+const SNAP_KEYS = `${SNAP_SOURCE}zq-keys.ts`;
+
+test("a quoted key read off its owner by its own text, and a read under snap, are confirmed-literal; a script read only annotates", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [WORLD]: plantedTsconfig({ lib: LIBS, include: ["../*/src", `../../${SNAP_SOURCE}`] }),
+        [LIB]: [
+          'export interface Shape { readonly kept: string; readonly "zq-dash"?: string; readonly zqSnapped?: string; readonly zqScripted?: string }',
+          "export const keptOf = (shape: Shape): string => shape.kept;",
+        ].join("\n"),
+        [KEYS]: 'export const has = (o: import("./lib.ts").Shape): boolean => "zq-dash" in (o as object);',
+        [SNAP_KEYS]: 'export const snapped = (o: import("../../../packages/a/src/lib.ts").Shape): boolean => "zqSnapped" in (o as object);',
+        [SCRIPT]: 'export const scripted = (o: import("../packages/a/src/lib.ts").Shape): boolean => "zqScripted" in (o as object);',
+        [MAIN]: ['import { keptOf } from "./lib.ts";', 'keptOf({ kept: "k" });'].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Shape.`) && label !== `${LIB}:Shape.kept`)
+      .map(({ label, verdict, note, literal }) => [label, verdict, note, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zq-dash`, CONFIRMED_LITERAL, null, [`${KEYS}:1 string product`]],
+    [`${LIB}:Shape.zqSnapped`, CONFIRMED_LITERAL, null, [`${SNAP_KEYS}:1 string tooling`]],
+    [`${LIB}:Shape.zqScripted`, CONFIRMED, null, [`${SCRIPT}:1 string tooling`]],
   ]);
 });
 
@@ -715,7 +754,7 @@ const sharedTree = (constrained: number | null): Readonly<Record<string, string>
         reader,
         [
           `import type { S${String(at)} } from "./lib${String(at)}.ts";`,
-          "type Needs<T> = [T] extends [{ readonly spare: string }] ? true : false;",
+          "type Needs<T> = 'spare' extends keyof T ? true : false;",
           at === constrained ? `const value: Needs<S${String(at)}> = true;` : `const value: S${String(at)} | undefined = undefined;`,
           "const use = (seen: unknown): unknown => seen;",
           at === constrained ? "use(value);" : "use(value?.kept);",
@@ -1021,6 +1060,74 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
   ]);
 });
 
+// The delete's error on the left of `=` or a discarded `+=` stores into the member: a write, as the graph's roles judge it.
+test("an error at an assignment or compound-assignment target is a write; the twin a constraint reads stays refuted", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "interface Stat { kept: number; lastMs: number; hits: number; seenMs: number }",
+        "type Needs<T> = [T] extends [{ seenMs: number }] ? true : false;",
+        "export const needs: Needs<Stat> = true;",
+        "const stats: Stat[] = [];",
+        "export const mark = (now: number): number => {",
+        "  const stat: Stat = { kept: now, lastMs: 0, hits: 0, seenMs: 0 };",
+        "  stats.push(stat);",
+        "  stat.lastMs = now;",
+        "  stat.hits += 1;",
+        "  stat.seenMs = now;",
+        "  return stats.length + stat.kept;",
+        "};",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Stat.`))
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Stat.lastMs`, NAMED_ONLY, [`${LIB}:6 write`, `${LIB}:8 write`]],
+    [`${LIB}:Stat.hits`, NAMED_ONLY, [`${LIB}:9 write`]],
+    [`${LIB}:Stat.seenMs`, REFUTED, [`${LIB}:3 read`, `${LIB}:6 write`, `${LIB}:10 write`]],
+  ]);
+});
+
+// A deleted method's literal loses its contextual type, so its parameter turns implicit-any: that error is the write's own.
+test("an error inside the literal member that writes a deleted method is part of that write; the twin a constraint reads stays refuted", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "interface Host { create(): number; readLog(line: string): string; echo(line: string): string }",
+        "type Needs<T> = [T] extends [{ echo(line: string): string }] ? true : false;",
+        "export const needs: Needs<Host> = true;",
+        "const host: Host = {",
+        "  create: () => 1,",
+        "  readLog(line) {",
+        "    return line;",
+        "  },",
+        "  echo(line) {",
+        "    return line;",
+        "  },",
+        "};",
+        "export const made = host.create();",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Host.`))
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Host.readLog`, NAMED_ONLY, [`${LIB}:6 TS2353 write`, `${LIB}:6 TS7006 write`]],
+    [`${LIB}:Host.echo`, REFUTED, [`${LIB}:3 TS2322 read`, `${LIB}:9 TS2353 write`, `${LIB}:9 TS7006 write`]],
+  ]);
+});
+
 test("the control lists where TypeScript's unused-code diagnostics and the graph's dead units and private members disagree", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
@@ -1062,7 +1169,7 @@ const WITH_TESTS = { [WORLD]: plantedTsconfig({ lib: LIBS, include: ["../*/src",
 const TEST_FILE = "tests/a/shape.test.ts";
 const TYPE_TEST_FILE = "tests/a/shape.test-d.ts";
 // A constraint the member must meet: a structural read the graph does not see and the checker does.
-const NEEDS = "type Needs<T> = [T] extends [{ readonly tested: string; readonly used: string }] ? true : false;";
+const NEEDS = "type Needs<T> = 'tested' | 'used' extends keyof T ? true : false;";
 
 test("a reader only outside the product refutes test-only; a product reader keeps the verdict refuted", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
@@ -1072,7 +1179,7 @@ test("a reader only outside the product refutes test-only; a product reader keep
         [LIB]: "export interface Shape { readonly kept: string; readonly tested: string; readonly used: string }",
         [MAIN]: [
           'import type { Shape } from "./lib.ts";',
-          "type Needs<T> = [T] extends [{ readonly used: string }] ? true : false;",
+          "type Needs<T> = 'used' extends keyof T ? true : false;",
           "const product: Needs<Shape> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(product);",
@@ -1106,7 +1213,7 @@ test("a reader under snap refutes the finding as a product read, and the control
         [MAIN]: ['import type { Shape } from "./lib.ts";', "const use = (value: unknown): unknown => value;", "use((shape: Shape) => shape.kept);"].join("\n"),
         [SNAP_READER]: [
           'import type { Shape } from "../../../packages/a/src/lib.ts";',
-          "type Needs<T> = [T] extends [{ readonly snapped: string }] ? true : false;",
+          "type Needs<T> = 'snapped' extends keyof T ? true : false;",
           "export const snapped: Needs<Shape> = true;",
           "function zqSnapUnused(): number { return 1; }",
         ].join("\n"),
@@ -1163,7 +1270,7 @@ const REACH_LIB = [
   "export interface Shape { readonly kept: string; readonly gone: string }",
   "export const keptOf = (shape: Shape): string => shape.kept;",
 ].join("\n");
-const REACH_NEEDS = "type Needs<T> = [T] extends [{ readonly gone: string }] ? true : false;";
+const REACH_NEEDS = "type Needs<T> = 'gone' extends keyof T ? true : false;";
 
 // The augmenting file imports the candidate's file; the reader imports neither, and reads it through what the
 // augmentation declares. A file that neither imports nor spells it is not checked.
@@ -1293,7 +1400,7 @@ test("a computed member a constraint reads only through its key constant is refu
         [MAIN]: [
           'import { KEY } from "./keys.ts";',
           'import { made } from "./relay.ts";',
-          "type Needs<T> = [T] extends [{ readonly [KEY]: string }] ? true : false;",
+          "type Needs<T> = typeof KEY extends keyof T ? true : false;",
           "const needs: Needs<ReturnType<typeof made>> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(made().kept);",
@@ -1324,7 +1431,7 @@ test("a literal-keyed computed member a constraint reads through a relay is refu
         [RELAY]: 'export { made } from "./lib.ts";',
         [MAIN]: [
           'import { made } from "./relay.ts";',
-          "type Needs<T> = [T] extends [{ readonly zqDash: string }] ? true : false;",
+          "type Needs<T> = 'zqDash' extends keyof T ? true : false;",
           "const needs: Needs<ReturnType<typeof made>> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(made().kept);",
@@ -1358,7 +1465,7 @@ test("a computed member keyed by a library constant a constraint reads through a
         [RELAY]: 'export { made } from "./lib.ts";',
         [MAIN]: [
           'import { made } from "./relay.ts";',
-          "type Needs<T> = [T] extends [{ readonly zqLib: string }] ? true : false;",
+          "type Needs<T> = 'zqLib' extends keyof T ? true : false;",
           "const needs: Needs<ReturnType<typeof made>> = true;",
           "const use = (value: unknown): unknown => value;",
           "use(made().kept);",

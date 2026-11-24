@@ -10,7 +10,9 @@
 //   `set(key: K, value: V): this`), unless the method answers with a value computed from it: a primitive result other
 //   than `void` (`includes(x: T): boolean`, `indexOf`, `has`) or a result naming one of the generic's own type
 //   parameters (`reduce(…, initialValue: T): T`, `concat`). Those compare or pass the value through the call, and
-//   counting them would make every library collection pair both ways.
+//   counting them would make every library collection pair both ways. A tree generic's method whose body stores a
+//   parameter in the instance (`this.#items.push(value); return this.#items.length;`, `this.last = value`) keeps it
+//   whatever it answers; a body that only compares (`this.#items.includes(value)`) still does not.
 // - A method keeps its value in the instance it is called on. A generic that holds such an instance in a member or a
 //   return (`ReadonlySet<T>.difference(): Set<T>` hands back a fresh set) receives nothing from it, so a generic a
 //   type argument is handed to lends only the variance its function-typed positions give. Where the flow walk pairs
@@ -24,20 +26,24 @@
 // - A type reference names the generic's parameter by the symbol it resolves to, never by its text: a signature that
 //   declares its own `T` (`map<T>(fn: (x: T) => T)`) uses another type.
 // - A parameter the declaration never uses is `none`.
-import type { Node, TypeParameterDeclaration } from "@typescript/native/ast";
+import type { MethodDeclaration, Node, TypeParameterDeclaration } from "@typescript/native/ast";
 import {
+  isBinaryExpression,
+  isCallExpression,
   isCallSignatureDeclaration,
   isClassDeclaration,
   isConditionalTypeNode,
   isConstructorDeclaration,
   isConstructorTypeNode,
   isConstructSignatureDeclaration,
+  isElementAccessExpression,
   isFunctionTypeNode,
   isIdentifier,
   isInterfaceDeclaration,
   isMappedTypeNode,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
+  isPropertyAccessExpression,
   isQualifiedName,
   isSetAccessorDeclaration,
   isTypeAliasDeclaration,
@@ -252,7 +258,11 @@ export class Variances {
   // result do, and so does any method whose result is neither computed nor handed back (the module header holds why).
   *#keepsWhatItTakes(node: Node, walk: Walk): APIRequestGenerator<boolean> {
     const result = isMethodSignatureDeclaration(node) || isMethodDeclaration(node) ? node.type : undefined;
-    return result === undefined || !(COMPUTED_RESULTS.has(result.kind) || (yield* this.#namesParameter(result, walk)));
+    return (
+      result === undefined ||
+      !(COMPUTED_RESULTS.has(result.kind) || (yield* this.#namesParameter(result, walk))) ||
+      (isMethodDeclaration(node) && storesParameter(node))
+    );
   }
 
   // Whether a type node names one of the walked generic's own type parameters anywhere inside it.
@@ -294,6 +304,41 @@ export class Variances {
       }
     }
   }
+}
+
+// The calls on a member of the instance that put the value they take into it: a list's, a map's or a set's.
+const STORING_CALLS: ReadonlySet<string> = new Set(["push", "unshift", "splice", "fill", "set", "add"]);
+
+// Whether an expression is the instance or a member reached from it (`this`, `this.#items`, `this.byKey[k]`).
+function onInstance(node: Node): boolean {
+  let at = node;
+  while (isPropertyAccessExpression(at) || isElementAccessExpression(at)) {
+    at = at.expression;
+  }
+  return at.kind === SyntaxKind.ThisKeyword;
+}
+
+// Whether a method's body stores one of its parameters in the instance: assigns it to a member reached from `this`, or
+// hands it to a storing call on one.
+function storesParameter(method: MethodDeclaration): boolean {
+  const names = new Set(method.parameters.flatMap(({ name }) => (isIdentifier(name) ? [name.text] : [])));
+  const isParameter = (node: Node | undefined): boolean => node !== undefined && isIdentifier(node) && names.has(node.text);
+  const visit = (node: Node): boolean => {
+    if (isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.EqualsToken && onInstance(node.left) && isParameter(node.right)) {
+      return true;
+    }
+    if (
+      isCallExpression(node) &&
+      isPropertyAccessExpression(node.expression) &&
+      STORING_CALLS.has(node.expression.name.text) &&
+      onInstance(node.expression.expression) &&
+      node.arguments.some(isParameter)
+    ) {
+      return true;
+    }
+    return childrenOf(node).some(visit);
+  };
+  return method.body !== undefined && visit(method.body);
 }
 
 function typeParametersOf(node: Node): readonly TypeParameterDeclaration[] {

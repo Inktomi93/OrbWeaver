@@ -1088,3 +1088,331 @@ test("a judged row reports apart with its open item, and an entry for a done ite
     judgedExpected("KINDS_D.dopen", "KINDS_G.gshared"),
   );
 });
+
+// An array literal's element is read at its position in the type its slot declares: a Map's entry is a key then a value,
+// and a tuple type holds a vocabulary of its own at each index, written inline, through an alias, in a list of them, or
+// as a rest element. Each pair of tuples shares both texts, so a literal read at every position would build the other's
+// member.
+const POSITION_TREE = {
+  "packages/a/src/pairs.ts": [
+    'const KEYS = ["alpha", "beta"] as const;',
+    "type Key = (typeof KEYS)[number];",
+    'const VALS = ["alpha", "beta"] as const;',
+    "type Val = (typeof VALS)[number];",
+    'export const table = new Map<Key, Val>([["alpha", "beta"]]);',
+    'const PACES = ["idle", "busy"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    'const MODES = ["idle", "busy"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'export const pair: readonly [Pace, Mode] = ["idle", "busy"];',
+    'const FASTS = ["a", "b"] as const;',
+    "type Fast = (typeof FASTS)[number];",
+    'const SLOWS = ["a", "b"] as const;',
+    "type Slow = (typeof SLOWS)[number];",
+    "type Step = readonly [Fast, Slow];",
+    'export const steps: readonly Step[] = [["a", "b"]];',
+    'const LEADS = ["x", "y"] as const;',
+    "type Lead = (typeof LEADS)[number];",
+    'const TAILS = ["x", "y"] as const;',
+    "type Tail = (typeof TAILS)[number];",
+    'export const run: readonly [Lead, ...Tail[]] = ["x", "x", "y"];',
+  ].join("\n"),
+};
+
+test("an array literal's element is read at its position in the tuple type or Map entry its slot declares", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, POSITION_TREE))).toEqual([
+    "FASTS.b",
+    "KEYS.beta",
+    "LEADS.y",
+    "MODES.idle",
+    "PACES.busy",
+    "SLOWS.a",
+    "VALS.alpha",
+  ]);
+});
+
+// A functional state updater returns the state's next value: `setStage((prev) => ...)` builds a Stage, and the twin
+// Phase tuple, whose setter takes `() => "open"`, is credited only for its own.
+const UPDATER_TREE = {
+  "packages/a/lib/react.ts": [
+    "export type SetStateAction<S> = S | ((prevState: S) => S);",
+    "export type Dispatch<A> = (value: A) => void;",
+    "export declare function useState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>];",
+  ].join("\n"),
+  "packages/a/src/stage.ts": [
+    'import { useState } from "../lib/react.ts";',
+    'const STAGES = ["enter", "open", "gone"] as const;',
+    "type Stage = (typeof STAGES)[number];",
+    'const PHASES = ["enter", "open", "gone"] as const;',
+    "type Phase = (typeof PHASES)[number];",
+    "export function View(): void {",
+    '  const [stage, setStage] = useState<Stage>("enter");',
+    '  const [phase, setPhase] = useState<Phase>("enter");',
+    '  setStage((prev) => (prev === "enter" ? "open" : "gone"));',
+    '  setPhase(() => "open");',
+    "  void stage;",
+    "  void phase;",
+    "}",
+  ].join("\n"),
+};
+
+test("a functional state updater's returned value is read through the state's type argument", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, UPDATER_TREE))).toEqual(["PHASES.gone"]);
+});
+
+// An assignment to a library ref's `current` reads the library property's declared type under the ref's type argument,
+// whether the ref is annotated or made by `useRef<Presence>(...)`. TWINS shares every text with PRESENCES and is
+// assigned only through its own ref, so the `gone` that `held` writes through an annotated ref is no member of it.
+const REF_TREE = {
+  "packages/a/lib/react.ts": ["export interface RefObject<T> { current: T }", "export declare function useRef<T>(initial: T): RefObject<T>;"].join("\n"),
+  "packages/a/src/dialog.ts": [
+    'import type { RefObject } from "../lib/react.ts";',
+    'import { useRef } from "../lib/react.ts";',
+    'const PRESENCES = ["closed", "open", "gone"] as const;',
+    "type Presence = (typeof PRESENCES)[number];",
+    'const TWINS = ["closed", "open", "gone"] as const;',
+    "type Twin = (typeof TWINS)[number];",
+    "export function dialog(isOpen: boolean): void {",
+    '  const shown = useRef<Presence>("closed");',
+    '  shown.current = isOpen ? "open" : "closed";',
+    '  const other = useRef<Twin>("closed");',
+    '  other.current = "closed";',
+    "}",
+    'export const held = (box: RefObject<Presence>): void => { box.current = "gone"; };',
+  ].join("\n"),
+};
+
+test("an assignment to a library ref's current value is read through the ref's type argument", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, REF_TREE))).toEqual(["TWINS.gone", "TWINS.open"]);
+});
+
+// An indexed access selects every property its index names, written as a union or through an alias of one:
+// `Settings["theme" | "size"]` is a Theme or a Size and never a Mode. THEMES, MODES and SIZES all hold `dark`.
+const keyIndexTree = (slot: string, keys: string): Readonly<Record<string, string>> => ({
+  "packages/a/src/settings.ts": [
+    'const THEMES = ["dark", "light"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dark", "auto"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const SIZES = ["dark", "tiny"] as const;',
+    "type Size = (typeof SIZES)[number];",
+    "interface Settings { theme: Theme; mode: Mode; size: Size }",
+    keys,
+    `export const pick = (value: ${slot}): string => value;`,
+    'export const picked = [pick("dark"), pick("tiny")];',
+  ].join("\n"),
+});
+
+for (const [shape, tree] of Object.entries({
+  union: keyIndexTree('Settings["theme" | "size"]', ""),
+  alias: keyIndexTree("Settings[Keys]", 'type Keys = "theme" | "size";'),
+})) {
+  test(`an indexed access over keys written as a ${shape} reads only the properties it selects`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    expect(sortedRows(await scanUnions(plantedTree, tree))).toEqual(["MODES.auto", "MODES.dark", "THEMES.light"]);
+  });
+}
+
+// A setter keyed by a variable reads the property the variable's declared type selects, as a literal key does: `themeKey`
+// is typed `"theme"` and the key of `retint` is a union that leaves out `mode`, whose MODES holds the `tiny` it writes.
+const KEYED_SETTER_TREE = {
+  "packages/a/src/settings.ts": [
+    'const THEMES = ["dark", "light"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dark", "auto", "tiny"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const SIZES = ["dark", "tiny"] as const;',
+    "type Size = (typeof SIZES)[number];",
+    "interface Settings { theme: Theme; mode: Mode; size: Size }",
+    "export const set = <K extends keyof Settings>(key: K, value: Settings[K]): void => { void key; void value; };",
+    'const themeKey: "theme" = "theme";',
+    'set(themeKey, "dark");',
+    'export const retint = (key: "theme" | "size"): void => set(key, "tiny");',
+  ].join("\n"),
+};
+
+test("a setter keyed by a typed variable reads the property that variable's type selects", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, KEYED_SETTER_TREE))).toEqual(["MODES.auto", "MODES.dark", "MODES.tiny", "SIZES.dark", "THEMES.light"]);
+});
+
+// A shorthand property hands an unannotated constant on to the property it names: `{ state }` reads `Query["state"]`.
+// TWINS holds the same texts and is read by no property.
+const SHORTHAND_TREE = {
+  "packages/a/src/inbox.ts": [
+    'const STATES = ["active", "dismissed"] as const;',
+    "type State = (typeof STATES)[number];",
+    'const TWINS = ["active", "dismissed"] as const;',
+    "export const twin = (value: (typeof TWINS)[number]): string => value;",
+    "interface Params { readonly state?: State }",
+    "interface Query { readonly state: State; readonly limit: number }",
+    "export const select = (query: Query): number => query.limit;",
+    "export function list(params: Params): number {",
+    '  const state = params.state ?? "active";',
+    "  return select({ state, limit: 3 });",
+    "}",
+  ].join("\n"),
+};
+
+test("an unannotated constant handed on through a shorthand property credits that property's tuple", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, SHORTHAND_TREE))).toEqual(["STATES.dismissed", "TWINS.active", "TWINS.dismissed"]);
+});
+
+// An indexed access on a type no written member names reads the property by the declaration the checker finds on the type
+// the access denotes: a schema-inferred type through a generic helper whose body the slot cannot read, and the element of an
+// awaited return type. TWINS holds the same texts in both trees and is reached by neither access.
+const SCHEMA_PROPERTY_TREE = {
+  "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
+  "node_modules/zod/index.d.ts": [
+    "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    "export interface Schema<T = unknown> { readonly _output: T; nullable(): Schema<T | null> }",
+    "export declare namespace z {",
+    "  type output<S> = S extends Schema<infer T> ? T : never;",
+    "  type ZodType<T = unknown> = Schema<T>;",
+    "}",
+    "export declare const z: {",
+    "  object<S>(shape: S): Schema<Shape<S>> & { readonly shape: S };",
+    "  enum<const T extends readonly string[]>(values: T): Schema<T[number]>;",
+    "  string(): Schema<string>;",
+    "};",
+  ].join("\n"),
+  "packages/a/src/view.ts": [
+    'import { z } from "zod";',
+    'const SOURCES = ["url", "git", "showcase"] as const;',
+    'const TWINS = ["url", "git", "showcase"] as const;',
+    "function tagged<T extends string>(tag: T): z.ZodType<T> { void tag; return z.string() as unknown as z.ZodType<T>; }",
+    'const viewSchema = z.object({ id: tagged("x"), updateSource: z.enum(SOURCES) });',
+    "const twinSchema = z.object({ updateSource: z.enum(TWINS) });",
+    "export type View = z.output<typeof viewSchema>;",
+    "export type Twin = z.output<typeof twinSchema>;",
+    'export const sourceFor = (): View["updateSource"] => "git";',
+  ].join("\n"),
+  "packages/a/src/fs.ts": [
+    'const KINDS = ["file", "directory", "other"] as const;',
+    "type Kind = (typeof KINDS)[number];",
+    'const SHAPES = ["file", "directory", "other"] as const;',
+    "type Shape = (typeof SHAPES)[number];",
+    "interface Entry { readonly name: string; readonly kind: Kind }",
+    "interface Dir { readonly list: () => Promise<readonly Entry[]> }",
+    'type FsEntry = Awaited<ReturnType<Dir["list"]>>[number];',
+    "export const shape = (value: Shape): string => value;",
+    'export async function kindOf(path: string, dangling: FsEntry["kind"]): Promise<FsEntry["kind"]> {',
+    '  return path === "x" ? "directory" : dangling;',
+    "}",
+    'export const dir = (path: string): Promise<FsEntry["kind"]> => kindOf(path, "other");',
+  ].join("\n"),
+};
+
+test("an indexed access on a schema-inferred or awaited type reads the property's declaration the checker finds", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await scanUnions(plantedTree, SCHEMA_PROPERTY_TREE);
+  const rows = [...report.unwired, ...report.parsed].map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  expect(rows).toEqual([
+    "KINDS.file",
+    "SHAPES.directory",
+    "SHAPES.file",
+    "SHAPES.other",
+    "SOURCES.showcase",
+    "SOURCES.url",
+    "TWINS.git",
+    "TWINS.showcase",
+    "TWINS.url",
+  ]);
+});
+
+// A property of a mapped type is its template, not the declaration of the property it maps: `Retyped` types every
+// Settings key as a Pace, so `theme: "idle"` builds PACES.idle and no THEMES member, though THEMES holds `idle`.
+const MAPPED_RETYPE_TREE = {
+  "packages/a/src/settings.ts": [
+    'const THEMES = ["idle", "calm"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["busy", "calm"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const PACES = ["idle", "busy"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    "interface Settings { theme: Theme; mode: Mode }",
+    "type Retyped = { readonly [K in keyof Settings]: Pace };",
+    'export const retyped: Retyped = { theme: "idle", mode: "busy" };',
+  ].join("\n"),
+};
+
+test("a property of a mapped type reads the type's template and not the declaration it maps", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, MAPPED_RETYPE_TREE))).toEqual(["MODES.busy", "MODES.calm", "THEMES.calm", "THEMES.idle"]);
+});
+
+// A row type generic in its key reads the property the key names. The registry maps over the keys of `Other`, so the
+// declaration of `theme` there is a string; its rows take their tuples from `Row<K>`, instantiated with each literal key.
+// `dark` is in THEMES, MODES and KINDS, and the rows write it only in the theme's arms.
+const KEYED_ROW_TREE = {
+  "packages/a/src/manifest.ts": [
+    'const THEMES = ["dark", "light", "dim"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dark", "auto", "loud"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const KINDS = ["dark", "other"] as const;',
+    "type Kind = (typeof KINDS)[number];",
+    "interface Settings { theme: Theme; mode: Mode }",
+    "interface Other { theme: string; mode: string }",
+    "type Row<K extends keyof Settings> = { readonly kind: Kind; readonly arms: readonly [Settings[K], Settings[K]] };",
+    "type Manifest = { readonly [K in keyof Other]: Row<K> };",
+    "export const MANIFEST = {",
+    '  theme: { kind: "other", arms: ["dark", "light"] },',
+    '  mode: { kind: "other", arms: ["auto", "loud"] },',
+    "} as const satisfies Manifest;",
+  ].join("\n"),
+};
+
+test("a row type generic in its key reads the property the key names, and credits only that property's tuple", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  expect(sortedRows(await scanUnions(plantedTree, KEYED_ROW_TREE))).toEqual(["KINDS.dark", "MODES.dark", "THEMES.dim"]);
+});
+
+// A mapped key reaches a generic template through its argument: `Solo`'s template names `Single<K>`, whose body indexes
+// `Settings[K]`. THEMES and MODES share `dim`, written once, in the theme property.
+const FORWARDED_KEY_TREE = {
+  "packages/a/src/solo.ts": [
+    'const THEMES = ["dim", "light"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dim", "auto"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    "interface Settings { theme: Theme; mode: Mode }",
+    "interface Other { theme: string; mode: string }",
+    "type Single<K extends keyof Settings> = Settings[K];",
+    "type Solo = { readonly [K in keyof Other]: Single<K> };",
+    'export const SOLO: Solo = { theme: "dim", mode: "auto" };',
+  ].join("\n"),
+};
+
+test("a mapped key reaches a generic template's index through the type argument it is passed as", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, FORWARDED_KEY_TREE))).toEqual(["MODES.dim", "THEMES.light"]);
+});
+
+// `Extract<T, U>` keeps the members of `T` that `U` keeps, so a literal the slot takes is a member of `T` the selector kept,
+// whether `U` writes it as a literal or names the type that holds it; every tuple `T` names credits it. TWINS holds the
+// texts of every case and is in no slot.
+const extractTree = (slot: string, takes: string): Readonly<Record<string, string>> => ({
+  "packages/a/src/extract.ts": [
+    'const PACES = ["idle", "busy"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    'const MODES = ["busy", "on"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const TWINS = ["idle", "busy", "on"] as const;',
+    "export const twin = (value: (typeof TWINS)[number]): string => value;",
+    `export const take = (value: ${slot}): string => value;`,
+    `export const taken = [${takes}];`,
+  ].join("\n"),
+});
+
+for (const [shape, tree, unwired] of [
+  [
+    "a literal and a type",
+    extractTree('Extract<Pace | Mode, Mode | "idle">', 'take("idle"), take("on")'),
+    ["MODES.busy", "PACES.busy", "TWINS.busy", "TWINS.idle", "TWINS.on"],
+  ],
+  ["a literal alone", extractTree('Extract<Pace, "idle">', 'take("idle")'), ["MODES.busy", "MODES.on", "PACES.busy", "TWINS.busy", "TWINS.idle", "TWINS.on"]],
+  ["a type alone", extractTree("Extract<Pace | Mode, Mode>", 'take("busy")'), ["MODES.on", "PACES.idle", "TWINS.busy", "TWINS.idle", "TWINS.on"]],
+] as const) {
+  test(`an Extract whose selector is ${shape} credits the members of its first argument the selector keeps`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    expect(sortedRows(await scanUnions(plantedTree, tree))).toEqual(unwired);
+  });
+}

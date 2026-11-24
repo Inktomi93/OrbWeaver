@@ -14,14 +14,16 @@
 //   does a literal returned where the function's return type is an alias of `keyof T`.
 // - A generic type spelled with type arguments fills its declaration's constraints as a call's type arguments do, and
 //   a list handed to a generic's list parameter fills that parameter's element constraint with its own. An alias whose
-//   body is a conditional that checks one of its parameters bare against a type literal (`Needs<T> = T extends { b } ?
-//   …`) keys the argument's members that literal names, as a constraint does.
+//   body is a conditional that checks one of its parameters against a type literal (`Needs<T> = T extends { b } ? …`)
+//   keys the argument's members that literal names, as a constraint does: checked bare, wrapped (`[T] extends [{ b }]`),
+//   over the argument's list elements (`T extends readonly { b }[]`), or in a conditional nested in a branch.
 // - A value a call's type argument is inferred from (`split(rows)` for `split<Room extends Candidate>(items: Room[])`)
 //   fills the constraint as a flow too: the body reads the value through the constraint's members, so those reads
 //   carry to the value's (inferredPairs). A generic hand-off flows our constraint into the callee's the same way. Only a
 //   generic the tree declares takes the flow.
 import type { CallExpression, Expression, InterfaceDeclaration, Node, TypeAliasDeclaration, TypeNode, TypeReferenceNode } from "@typescript/native/ast";
 import {
+  isArrayTypeNode,
   isCallExpression,
   isCallSignatureDeclaration,
   isConditionalTypeNode,
@@ -31,6 +33,7 @@ import {
   isMethodSignatureDeclaration,
   isPropertyAccessExpression,
   isQualifiedName,
+  isTupleTypeNode,
   isTypeAliasDeclaration,
   isTypeLiteralNode,
   isTypeOperatorNode,
@@ -71,18 +74,62 @@ function keyofOperand(declaration: Node, index: number): TypeNode | undefined {
   return constraint !== undefined && isTypeOperatorNode(constraint) && constraint.operator === SyntaxKind.KeyOfKeyword ? constraint.type : undefined;
 }
 
-// `type Needs<T> = T extends { readonly b: string } ? A : B`: the parameter a conditional alias checks bare and the type
-// literal it checks it against. A wrapped check (`[T] extends [{ … }]`) is not read.
-function checkedPattern(declaration: TypeAliasDeclaration | InterfaceDeclaration): { readonly parameter: string; readonly pattern: TypeNode } | undefined {
-  const body = isTypeAliasDeclaration(declaration) ? unparenType(declaration.type) : undefined;
-  if (body === undefined || !isConditionalTypeNode(body)) {
-    return undefined;
+// A parameter a conditional alias checks, the type literal it checks it against, and whether the check is over the
+// argument's list elements.
+interface CheckedPattern {
+  readonly parameter: string;
+  readonly pattern: TypeNode;
+  readonly list: boolean;
+}
+
+// The type literal a check's extends side names, and whether it names a list of it: `{ … }`, `[{ … }]` for a wrapped
+// check, `{ … }[]` or `readonly { … }[]` for a list check.
+function patternOf(node: TypeNode, wrapped: boolean): { readonly pattern: TypeNode; readonly list: boolean } | undefined {
+  let at = unparenType(node);
+  if (wrapped) {
+    const [only] = isTupleTypeNode(at) && at.elements.length === 1 ? at.elements : [];
+    at = only === undefined ? at : unparenType(only);
   }
-  const { checkType } = body;
-  const pattern = unparenType(body.extendsType);
-  return isTypeReferenceNode(checkType) && isIdentifier(checkType.typeName) && checkType.typeArguments === undefined && isTypeLiteralNode(pattern)
-    ? { parameter: checkType.typeName.text, pattern }
+  if (isTypeOperatorNode(at) && at.operator === SyntaxKind.ReadonlyKeyword) {
+    at = unparenType(at.type);
+  }
+  if (isArrayTypeNode(at)) {
+    const element = unparenType(at.elementType);
+    return isTypeLiteralNode(element) ? { pattern: element, list: true } : undefined;
+  }
+  return isTypeLiteralNode(at) ? { pattern: at, list: false } : undefined;
+}
+
+// The parameter a check names bare, alone or wrapped in a one-element tuple (`[T] extends [{ … }]`).
+function checkedParameter(node: TypeNode): { readonly parameter: string; readonly wrapped: boolean } | undefined {
+  const at = unparenType(node);
+  const [only] = isTupleTypeNode(at) && at.elements.length === 1 ? at.elements : [];
+  const bare = only === undefined ? at : unparenType(only);
+  return isTypeReferenceNode(bare) && isIdentifier(bare.typeName) && bare.typeArguments === undefined
+    ? { parameter: bare.typeName.text, wrapped: only !== undefined }
     : undefined;
+}
+
+// `type Needs<T> = T extends { readonly b: string } ? A : B`: each parameter a conditional alias checks against a type
+// literal, bare, wrapped (`[T] extends [{ … }]`) or over its list (`T extends readonly { … }[]`), in the body or in a
+// conditional nested in one of its branches.
+function checkedPatterns(declaration: TypeAliasDeclaration | InterfaceDeclaration): readonly CheckedPattern[] {
+  const out: CheckedPattern[] = [];
+  const visit = (node: TypeNode | undefined): void => {
+    const body = node === undefined ? undefined : unparenType(node);
+    if (body === undefined || !isConditionalTypeNode(body)) {
+      return;
+    }
+    const checked = checkedParameter(body.checkType);
+    const found = checked === undefined ? undefined : patternOf(body.extendsType, checked.wrapped);
+    if (checked !== undefined && found !== undefined) {
+      out.push({ parameter: checked.parameter, ...found });
+    }
+    visit(body.trueType);
+    visit(body.falseType);
+  };
+  visit(isTypeAliasDeclaration(declaration) ? declaration.type : undefined);
+  return out;
 }
 
 export class Constraints {
@@ -205,10 +252,8 @@ export class Constraints {
       argumentTypes.push(yield* checker.getTypeFromTypeNode.gen(node));
     }
     const out: Named[] = [];
-    const checked = declaration === undefined ? undefined : checkedPattern(declaration);
-    const checkedArgument = checked === undefined ? undefined : argumentTypes[parameters.findIndex((parameter) => parameter.name.text === checked.parameter)];
-    if (checked !== undefined && checkedArgument !== undefined) {
-      out.push(...(yield* this.#filled(yield* checker.getTypeFromTypeNode.gen(checked.pattern), checkedArgument)));
+    for (const checked of declaration === undefined ? [] : checkedPatterns(declaration)) {
+      out.push(...(yield* this.#checked(checked, argumentTypes[parameters.findIndex((parameter) => parameter.name.text === checked.parameter)])));
     }
     for (const [at, parameter] of parameters.entries()) {
       const argument = argumentTypes[at];
@@ -223,6 +268,14 @@ export class Constraints {
       }
     }
     return out;
+  }
+
+  // The members a conditional check names on its argument, or on the argument's elements for a list check. A list
+  // pattern also names its own members, which the walk keys only for a bare pattern (sites.ts).
+  *#checked(checked: CheckedPattern, argument: Type | undefined): APIRequestGenerator<readonly Named[]> {
+    const pattern = yield* this.#state.world.checker.getTypeFromTypeNode.gen(checked.pattern);
+    const held = argument === undefined || !checked.list ? argument : yield* argument.getNumberIndexType.gen();
+    return [...(held === undefined ? [] : yield* this.#filled(pattern, held)), ...(checked.list ? yield* this.#filled(pattern, pattern) : [])];
   }
 
   // The declaration a type reference names, imports followed.

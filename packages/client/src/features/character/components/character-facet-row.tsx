@@ -41,10 +41,9 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
   // after history, just before the reply.") that tells a screen-reader user what the facet DOES, so it is
   // the button's description. A FILLED row's line 2 is a CSS-truncated echo of the field body itself
   // (1283 characters on Description, ~2000 on Example messages): demoting that from the NAME to the
-  // DESCRIPTION would only move the wall, so it drops out of the accessible tree entirely — `ListRow`'s
-  // own `subtitleDecorative` rule for exactly this shape ("a truncated mono preview of a 600-character
-  // template body"). The row announces "Personality, button, Filled, 44 characters" — the label, then the
-  // `fillSummary` state line below; the prose itself is one activation away.
+  // DESCRIPTION would only move the wall, so this row's own preview span is `aria-hidden` and left out
+  // of `aria-describedby` (see `showsPreview` below). The row announces "Personality, button, Filled, 44
+  // characters" — the label, then the `fillSummary` state line below; the prose itself is one activation away.
   const showsPreview = filled;
   useEffect(() => {
     if (focusOnMount) {

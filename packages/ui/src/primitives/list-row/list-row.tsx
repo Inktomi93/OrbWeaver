@@ -65,13 +65,6 @@ interface ListRowPropsBase {
    */
   subtitlePlacement?: "block" | "inline" | "column";
   /**
-   * Drops the subtitle out of the accessible tree (`aria-hidden`, and out of `aria-describedby`). For a
-   * subtitle that is a DECORATIVE echo of content the row already announces or that a screen reader has no
-   * use for — e.g. a truncated mono preview of a 600-character template body, which otherwise gets read out
-   * whole as the row's description. The subtitle stays visible; only the announcement drops.
-   */
-  subtitleDecorative?: boolean;
-  /**
    * Lets a GLOSS subtitle wrap to two clamped lines instead of truncating to one. For rows whose
    * subtitle is a sentence (teaching copy); leave it off for dense
    * list panes, where one scannable line per row is the point.
@@ -387,7 +380,6 @@ export function ListRow({
   subtitleReveal,
   subtitleWrap = false,
   subtitlePlacement = "block",
-  subtitleDecorative = false,
   subtitleStep = "default",
   meta,
   metaQualifiesTitle = false,
@@ -434,7 +426,7 @@ export function ListRow({
   });
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
-  const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
+  const subtitleId = subtitle === undefined ? undefined : `${baseId}-subtitle`;
   const metaId = meta === undefined || metaQualifiesTitle ? undefined : `${baseId}-meta`;
   const markersId = markers === undefined ? undefined : `${baseId}-markers`;
   const detailId = detail === undefined ? undefined : `${baseId}-detail`;
@@ -465,7 +457,6 @@ export function ListRow({
           meta={meta}
           slots={slots}
           subtitle={subtitle}
-          subtitleDecorative={subtitleDecorative}
           subtitleStep={subtitleStep}
           subtitleInline={subtitlePlacement !== "block"}
           subtitleLead={subtitleLead}

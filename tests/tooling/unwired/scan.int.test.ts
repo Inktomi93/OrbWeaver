@@ -17,12 +17,12 @@ const rows = (report: MemberScanReport): readonly string[] =>
 // tests out of the product.
 const WITH_TESTS = {
   "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }, { path: "tsconfig.outside.json" }] }),
-  "tsconfig.outside.json": plantedTsconfig({ lib: LIB, include: ["tests"] }),
+  "tsconfig.outside.json": plantedTsconfig({ lib: LIB, include: ["tests", "tooling"] }),
   "knip.ts": plantedKnip({
     workspaces: {
       "packages/a": { entry: ["src/**/*.ts!"], project: ["src/**/*.ts!"], ignoreIssues: { "src/**/*.ts": ["exports"] } },
       "packages/b": { entry: ["src/**/*.ts!"], project: ["src/**/*.ts!"], ignoreIssues: { "src/**/*.ts": ["exports"] } },
-      ".": { project: ["tests/**/*.ts"] },
+      ".": { project: ["tests/**/*.ts", "tooling/**/*.ts"] },
     },
   }),
 };
@@ -222,4 +222,44 @@ test("a judged row reports apart with its open item, and an entry for a done ite
   expect(judgedOutcome(await memberScan(root, { deliberate: [], judged }), "Copy.unusedLine", "Clock.implementedOnly")).toEqual(
     judgedExpected("Copy.unusedLine", "Clock.implementedOnly"),
   );
+});
+
+// A floor instrument is the probe code snap drives (D357: snap drives the real app, so what it reads is the product's), and
+// it calls the dev bridge through a local alias as a product reader does. Nothing imports either probe here, so only where
+// the file lives decides: the member the instrument calls is wired, the same call from other tooling is a test-style read,
+// and a member nothing calls stays builder-only.
+const BRIDGE = "packages/a/src/bridge.ts";
+const INSTRUMENT = "tooling/src/floor/instrument/probe.ts";
+const ELSEWHERE = "tooling/src/other/probe.ts";
+
+test("a bridge member called through a local alias in a floor instrument is wired; one called in other tooling is not", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await memberScan(
+    await plantedTree(
+      graphTree({
+        ...WITH_TESTS,
+        [BRIDGE]: [
+          "export interface Bridge { readonly aliased: () => string; readonly elsewhere: () => string; readonly unread: () => string }",
+          "declare global {",
+          "  var __orb: Bridge | undefined;",
+          "}",
+          'export const install = (): void => { globalThis.__orb = { aliased: () => "a", elsewhere: () => "e", unread: () => "u" }; };',
+        ].join("\n"),
+        [INSTRUMENT]: [
+          "export const aliasedCall = (): string | undefined => {",
+          "  const bridge = globalThis.__orb;",
+          "  return bridge?.aliased();",
+          "};",
+        ].join("\n"),
+        [ELSEWHERE]: [
+          "export const elsewhereCall = (): string | undefined => {",
+          "  const bridge = globalThis.__orb;",
+          "  return bridge?.elsewhere();",
+          "};",
+        ].join("\n"),
+      }),
+    ),
+  );
+  expect(rows(report)).toEqual(["Bridge.elsewhere test-only 1", "Bridge.unread builder-only 0"]);
 });

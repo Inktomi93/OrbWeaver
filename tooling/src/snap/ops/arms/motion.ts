@@ -70,13 +70,31 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEFAULT_MOTION_WINDOW_MS = 2500;
 const CPU_THROTTLE_METHOD = "Emulation.setCPUThrottlingRate";
-// A string: requestAnimationFrame is a DOM name this program does not carry, and the reset must run inside the second frame.
-const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => requestAnimationFrame(() => requestAnimationFrame(() => {
-  try {
-    if (typeof globalThis.__orb?.resetEvidence !== "function") throw new Error("__orb.resetEvidence is unavailable");
-    globalThis.__orb.resetEvidence(); resolve();
-  } catch (error) { reject(error); }
-})))`;
+// requestAnimationFrame is a DOM name this program carries no lib for: the closure names only the one method it calls.
+interface FrameHost {
+  readonly requestAnimationFrame: (callback: () => void) => number;
+}
+
+// Runs in the page, so it carries no import, and the reset must run inside the second frame. It calls the accessor through
+// `globalThis.__orb`, so the typecheck holds it to the client's handle.
+function resetAfterGeometry(): Promise<void> {
+  const host = globalThis as unknown as FrameHost;
+  return new Promise((resolve, reject) => {
+    host.requestAnimationFrame(() =>
+      host.requestAnimationFrame(() => {
+        try {
+          if (typeof globalThis.__orb?.resetEvidence !== "function") {
+            throw new Error("__orb.resetEvidence is unavailable");
+          }
+          globalThis.__orb.resetEvidence();
+          resolve();
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      }),
+    );
+  });
+}
 
 const MOTION_RECEIPTS = new WeakMap<object, AuditData | null>();
 
@@ -121,7 +139,7 @@ async function settleAndReset(page: ArmActionContext["page"], selector: string |
   }
   const resetPhase = selector === null && actionIndex > 0 ? "post-reach evidence reset" : "pre-measurement evidence reset";
   try {
-    await page.evaluate(RESET_AFTER_GEOMETRY);
+    await page.evaluate(resetAfterGeometry);
   } catch (error) {
     throw new Error(`${resetPhase}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }

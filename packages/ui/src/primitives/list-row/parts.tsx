@@ -121,7 +121,6 @@ export function ListRowContent({
   subtitleLead,
   subtitleReveal,
   subtitleInline,
-  subtitleDecorative,
   subtitleStep,
   meta,
   markers,
@@ -141,7 +140,6 @@ export function ListRowContent({
   subtitleLead: ReactNode;
   subtitleReveal: string | undefined;
   subtitleInline: boolean;
-  subtitleDecorative: boolean;
   subtitleStep: "default" | "label";
   meta: string | undefined;
   markers: ReactNode;
@@ -155,7 +153,6 @@ export function ListRowContent({
   const subtitleSpan =
     subtitle === undefined ? null : (
       <span
-        aria-hidden={subtitleDecorative ? true : undefined}
         className={slots.subtitle({ className: subtitleSwap })}
         data-slot="list-row-subtitle"
         data-subtitle-step={subtitleStepAttribute(subtitleStep)}

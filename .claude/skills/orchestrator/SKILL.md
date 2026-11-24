@@ -226,6 +226,8 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 6. Commit integration changes, confirm HEAD moved, then record the ending HEAD. Keep the tested checkout clean.
 7. Leave whole-tree evidence to pre-push and CI. Run no whole-tree check after a train (D317).
 
+- An owed real-tree `pnpm unwired` run, in a train or a done note, follows "Real-tree unwired runs" in `.claude/skills/lane/SKILL.md`.
+
 - Freeze the batch before the barrier. A merge or edit changes the tested tree and invalidates affected evidence.
 - A merge that combines shared-interface edits needs typechecking. Pre-push covers it; run a separate typecheck only for earlier feedback.
 - A merge touching `packages/server/src/transport/trpc/routers/**` runs the affected native integration tests first. Legacy test files outside the repository are reference-only.

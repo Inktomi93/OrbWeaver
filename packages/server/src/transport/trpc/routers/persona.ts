@@ -14,7 +14,7 @@ import {
 } from "@orb/contracts/persona";
 import { portableTextFileSchema } from "@orb/contracts/portability";
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -55,15 +55,13 @@ export const personaRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.persona.remove({ principal: ctx.auth, personaId: input.personaId })),
 
   // The per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
-  // Auth lives in the verb (`requireChatAuthorOrHost` — self or host); `personaId: null` clears the slot.
-  // `targetUserId` is OPTIONAL — omitted = self (the verb defaults it to the caller); a host targeting
-  // someone else passes it explicitly.
+  // Always the caller's own seat: the wire carries no target, so a host cannot set another participant's
+  // persona here (the verb's `targetUserId` is for server callers). `personaId: null` clears the slot.
   setActivePersona: authedProcedure
     .output(z.void())
     .input(
       z.strictObject({
         chatId: typeIdSchema(ID_PREFIX.chat),
-        targetUserId: brandedId("UserId").optional(),
         personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
       }),
     )
@@ -71,7 +69,6 @@ export const personaRouter = t.router({
       ctx.services.persona.setActivePersona({
         principal: ctx.auth,
         chatId: input.chatId,
-        targetUserId: input.targetUserId,
         personaId: input.personaId,
       }),
     ),

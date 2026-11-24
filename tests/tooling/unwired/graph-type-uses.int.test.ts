@@ -56,6 +56,40 @@ test("a generic alias whose conditional checks its parameter keys each member of
   expect(bucketsIn(scan)).toEqual(["member-untouched Shape.c"]);
 });
 
+// The compiler checks the argument in each of these shapes too: wrapped in a one-element tuple, over the argument's list
+// elements, and in a conditional nested in a branch. Each keys `Shape.b`, and `Shape.c` is the control no pattern names.
+const CHECKS = {
+  wrapped: ["type Needs<T> = [T] extends [{ readonly b: string }] ? true : false;", "export const needs: Needs<Shape> = true;"],
+  list: ["type Needs<T> = T extends readonly { readonly b: string }[] ? true : false;", "export const needs: Needs<readonly Shape[]> = true;"],
+  nested: ["type Needs<T> = T extends object ? (T extends { readonly b: string } ? true : false) : false;", "export const needs: Needs<Shape> = true;"],
+} as const;
+for (const [shape, lines] of Object.entries(CHECKS)) {
+  test(`a ${shape} conditional check keys each member of the argument the pattern names`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    const scan = await graphScan(plantedTree, {
+      [FILE]: [
+        "export interface Shape { readonly kept: string; readonly b: string; readonly c: string }",
+        ...lines,
+        "export const keptOf = (shape: Shape): string => shape.kept;",
+      ].join("\n"),
+    });
+    expect(bucketsIn(scan)).toEqual(["member-untouched Shape.c"]);
+  });
+}
+
+// A key use the graph does not read: `"b" extends keyof T` names the key by its text, so a delete of `Shape.b` breaks the
+// check while the graph calls the member untouched. The delete trial's planted readers rely on this shape.
+test("a key text checked against keyof keys nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    [FILE]: [
+      "export interface Shape { readonly kept: string; readonly b: string }",
+      'type Needs<T> = "b" extends keyof T ? true : false;',
+      "export const needs: Needs<Shape> = true;",
+      "export const keptOf = (shape: Shape): string => shape.kept;",
+    ].join("\n"),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-untouched Shape.b"]);
+});
+
 // A key list typed `keyof T` asserted to `string[]` needs T's constraint to keep a key, so the constraint's one member is
 // a key use (the fuzzy-search index shape). A plain keyof list, a constraint of two members, and an assertion to a
 // readonly list or to `unknown` keep their bucket: a delete of the member leaves each valid.

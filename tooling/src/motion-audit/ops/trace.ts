@@ -12,6 +12,11 @@ import { readAnimations, readFlags, readMotion } from "./drive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 
+// The accessor is called through `globalThis.__orb`, so the typecheck holds it to the client's handle.
+async function pauseDropTracking(page: Page, paused: boolean): Promise<void> {
+  await page.evaluate((value) => globalThis.__orb?.setMotionAuditDropTrackingPaused(value), paused);
+}
+
 export async function runAudit(
   page: Page,
   cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>,
@@ -25,7 +30,7 @@ export async function runAudit(
   cdp.on("Tracing.dataCollected", (e: { value: TraceEvent[] }) => {
     traceEvents.push(...e.value);
   });
-  await page.evaluate("globalThis.__orb?.setMotionAuditDropTrackingPaused(true)");
+  await pauseDropTracking(page, true);
   let stepFailed = opts.selector !== null && measuredClick === null;
   // Set only where the native click actually dispatched — see AuditData.measuredInput (#1071).
   let measuredInput = false;
@@ -59,7 +64,7 @@ export async function runAudit(
     await completed;
   } finally {
     // unpausing in-page drop tracking is best-effort cleanup in a finally: the flag is a module variable that a reload resets, and a dead page fails the readMotion read after this block (the pause call above is not swallowed). Ends if the pause flag gates anything after the window on a live page.
-    await page.evaluate("globalThis.__orb?.setMotionAuditDropTrackingPaused(false)").catch(() => undefined);
+    await pauseDropTracking(page, false).catch(() => undefined);
   }
 
   return {
