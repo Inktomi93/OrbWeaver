@@ -2,10 +2,13 @@
 // message-prop carriers: agent-bridge.ts retains the only global install and exhaustive registries, while
 // this module joins mounted DOM owners to the existing carrier/registry authorities.
 
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { AppearanceMatrixBridgeContract } from "./agent-bridge-contract.ts";
 import type { AppearanceCarrierObservable } from "./appearance-carrier-manifest.ts";
 import { appearanceMatrixContract } from "./appearance-carrier-manifest.ts";
 import { readAppearanceMessageSnapshots } from "./appearance-message-registry.ts";
+
+const MESSAGE_ID = typeIdSchema(ID_PREFIX.message);
 
 function nestedValue(value: unknown, path: string): unknown {
   return path
@@ -25,7 +28,9 @@ export function readAppearanceMatrixBridgeContract(): AppearanceMatrixBridgeCont
   const mountedIds = new Set(
     [...document.querySelectorAll<HTMLElement>('[data-slot="message-row"][data-message-id]')]
       .map((element) => element.dataset["messageId"])
-      .filter((id): id is string => id !== undefined),
+      .filter((id): id is string => id !== undefined)
+      // The attribute is the one place a message id is text again: a row carrying anything else is a defect to surface, not to skip.
+      .map((text) => MESSAGE_ID.parse(text)),
   );
   const messageById = new Map(messageEntries.map((entry) => [entry.instanceId, entry] as const));
   const staleIds = messageEntries.filter((entry) => !mountedIds.has(entry.instanceId)).map((entry) => entry.instanceId);

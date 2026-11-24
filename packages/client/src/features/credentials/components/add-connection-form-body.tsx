@@ -4,7 +4,6 @@ import type { CredentialView } from "@orb/contracts/credentials";
 import type { ModelCheck, ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { LookupText } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -58,8 +57,8 @@ export interface AddConnectionFormBodyProps {
   /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
   readonly keyStorage: boolean;
   readonly pickerItems: SelectItems;
-  /** The form holds the picked provider as field text, so the lookup takes text of the provider-id family. */
-  readonly providerOf: (id: LookupText<ProviderId>) => ProviderDef | undefined;
+  /** The form holds the picked provider, or `""` before a pick. */
+  readonly providerOf: (id: ProviderId | "") => ProviderDef | undefined;
 }
 
 type CreateConnectionInput = inferInput<Trpc["connection"]["create"]>;
@@ -320,7 +319,9 @@ export function AddConnectionFormBody({
           </form.Subscribe>
         </Stack>
       </form>
-      <form.Subscribe selector={(state): readonly [string, boolean, boolean] => [state.values.providerId, state.canSubmit, state.isSubmitting] as const}>
+      <form.Subscribe
+        selector={(state): readonly [ProviderId | "", boolean, boolean] => [state.values.providerId, state.canSubmit, state.isSubmitting] as const}
+      >
         {([providerId, canSubmit, isSubmitting]): ReactElement | null => {
           const provider = providerOf(providerId);
           // A blocked pick's notice carries its own Close; this footer would only repeat it.

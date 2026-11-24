@@ -1,7 +1,8 @@
 // Live Appearance/theme inputs shared by the representative-matrix consumers. The browser bridge owns
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
 import type { AppearanceMatrixBridgeContract } from "@orb/client/agent-bridge-contract";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, MessageId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
 import { instrumentRefusal } from "../browser/page-validate.ts";
@@ -41,8 +42,8 @@ export interface RuntimeMessageRegistryReceipt {
   readonly mounted: number;
   readonly registered: number;
   readonly matched: number;
-  readonly missingIds: readonly string[];
-  readonly staleIds: readonly string[];
+  readonly missingIds: readonly MessageId[];
+  readonly staleIds: readonly MessageId[];
 }
 
 export interface RuntimeAppearanceHistoricalSubject {
@@ -107,8 +108,8 @@ const messageRegistrySchema: z.ZodType<RuntimeMessageRegistryReceipt> = z.object
   mounted: z.number().int().nonnegative(),
   registered: z.number().int().nonnegative(),
   matched: z.number().int().nonnegative(),
-  missingIds: stringArray,
-  staleIds: stringArray,
+  missingIds: z.array(typeIdSchema(ID_PREFIX.message)),
+  staleIds: z.array(typeIdSchema(ID_PREFIX.message)),
 });
 const historicalSubjectSchema: z.ZodType<RuntimeAppearanceHistoricalSubject> = z.object({
   id: z.string(),

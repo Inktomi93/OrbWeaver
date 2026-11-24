@@ -3,6 +3,7 @@
 // `import type`, and their compiler worlds carry no DOM lib (docs/law/Spine-TypeScript-and-Patterns.md §10), so no DOM
 // name may enter this file or any module it imports: a record that holds an Element or an Event stays in its DOM-side home.
 
+import type { MessageId } from "@orb/kit/ids";
 import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
 import type { InputBorderFallback } from "@orb/ui/theme-scope/derive-vars";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
@@ -215,8 +216,8 @@ interface AppearanceMessageRegistryReceipt {
   readonly mounted: number;
   readonly registered: number;
   readonly matched: number;
-  readonly missingIds: readonly string[];
-  readonly staleIds: readonly string[];
+  readonly missingIds: readonly MessageId[];
+  readonly staleIds: readonly MessageId[];
 }
 
 export interface AppearanceMatrixBridgeContract extends Omit<AppearanceMatrixContract, "rows"> {

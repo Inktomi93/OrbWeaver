@@ -2,7 +2,6 @@
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
-import type { LookupText } from "@orb/kit/ids";
 import { WebSpinner } from "@orb/ui/spinner";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
@@ -165,7 +164,7 @@ function AddConnectionGate({ trpc, invalidation, purpose, onSaved, onCancel }: G
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
   // Read once, at open: the list refetches the moment this form's own row lands, and the question is about before.
   const [hadChatModel] = useState(() => connections.some((connection) => connection.tasks.includes("chat")));
-  const providers = new Map<LookupText<ProviderId>, (typeof available)[number]["provider"]>(available.map((row) => [row.provider.id, row.provider]));
+  const providers = new Map<ProviderId | "", (typeof available)[number]["provider"]>(available.map((row) => [row.provider.id, row.provider]));
   return (
     <AddConnectionFormBody
       trpc={trpc}
