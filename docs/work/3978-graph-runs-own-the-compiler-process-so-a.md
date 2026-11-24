@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-When the compiler child of a graph run dies, the TypeScript API reports only an unexpected end of input with an unknown reason, and the API's own child process is private, so the run cannot say whether the compiler exited with a code or was killed by a signal. The 7.1 API exports resolveExePath and getAPIProcessArgs, and its client options accept a socket pipe, so the tool can spawn the compiler itself and connect over the pipe.
+When the compiler child of a graph run dies, the TypeScript API reports only an unexpected end of input with an unknown reason, and the run cannot say whether the compiler exited with a code or was killed by a signal. The 7.1 package does not export its process-argument helpers, and its sync client refuses socket connections, so the tool cannot spawn the compiler itself; Node's public child_process diagnostics channel hands the API's ChildProcess to a subscriber scoped around the API's construction.
 
 ## Why
 
@@ -20,7 +20,7 @@ A dead-row trial crashed mid-run with no out-of-memory record, and without the c
 
 ## Done when
 
-The graph session spawns the compiler through the exported process arguments and connects in socket mode, a compiler that dies mid-run leaves a note naming its exit code or signal, the time and the step, a planted kill case is red without it, and no private API member or unknown cast is used.
+The graph session captures the compiler's ChildProcess through a public route, a compiler that dies mid-run leaves a note naming its exit code or signal, the time and the phase, a planted kill case is red without it, and no private API member or unknown cast is used.
 
 ## Evidence
 
