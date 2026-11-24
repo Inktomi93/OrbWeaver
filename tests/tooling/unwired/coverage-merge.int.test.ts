@@ -407,3 +407,65 @@ test("a moved branch lands by its place among its line's branches of its type, o
     expect(reshaped.projections.ct).toMatchObject({ matchedArms: 0, unmatchedArms: 1 });
   });
 });
+
+type Spot = readonly [line: number, column: number];
+
+// Each branch is [type, start, end, hits per arm]; a branch's arms share its span, which the merge never reads.
+function spans(path: string, shape: readonly (readonly [string, Spot, Spot, readonly number[]])[]): Awaited<ReturnType<typeof istanbulOf>> {
+  const range = ([line, column]: Spot, [endLine, endColumn]: Spot): { start: { line: number; column: number }; end: { line: number; column: number } } => ({
+    start: { line, column },
+    end: { line: endLine, column: endColumn },
+  });
+  return istanbulMapSchema.parse({
+    [path]: {
+      path,
+      fnMap: {},
+      f: {},
+      branchMap: Object.fromEntries(
+        shape.map(([type, start, end, hits], index) => [String(index), { type, loc: range(start, end), locations: hits.map(() => range(start, end)) }]),
+      ),
+      b: Object.fromEntries(shape.map(([, , , hits], index) => [String(index), [...hits]])),
+    },
+  });
+}
+
+test("branches that start at one point are each counted and each matched by its arm count", ({ plantedTree }) => {
+  return plantedTree({ [SOURCE]: TEXT }).then((root) => {
+    const path = join(root, SOURCE);
+    // A two-arm and a three-arm logical branch that start at one point, as `a ?? b` over `a || b || c` does.
+    const universe = spans(path, [
+      ["binary-expr", [2, 22], [2, 90], [0, 0]],
+      ["binary-expr", [2, 22], [2, 60], [0, 0, 0]],
+    ]);
+    const merged = mergeCoverage(root, [
+      { suite: "node", map: universe },
+      { suite: "ct", map: spans(path, [["binary-expr", [2, 22], [2, 90], [1, 0]]]) },
+    ]);
+    expect(merged.totals.branchArms).toBe(5);
+    expect(merged.projections.ct).toMatchObject({ matchedArms: 1, unmatchedArms: 0 });
+    // The two-arm branch lost only its executed first arm; the three-arm one lost none.
+    expect(merged.unexecuted.flatMap((entry) => entry.branches.map((branch) => branch.arm))).toEqual([0, 1, 1, 2]);
+  });
+});
+
+test("a branch whose start moved lands by where it ends, and only with the same arm count", ({ plantedTree }) => {
+  return plantedTree({ [SOURCE]: TEXT }).then((root) => {
+    const path = join(root, SOURCE);
+    // The source tests a `const` declared on line 2 at line 3; the build inlines it, so the conditional starts on line 2.
+    const universe = spans(path, [["cond-expr", [3, 9], [3, 40], [0, 0]]]);
+    const armsOf = (build: ReturnType<typeof spans>): { readonly unexecuted: readonly number[]; readonly unmatchedArms: number | undefined } => {
+      const merged = mergeCoverage(root, [
+        { suite: "node", map: universe },
+        { suite: "ct", map: build },
+      ]);
+      return {
+        unexecuted: merged.unexecuted.flatMap((entry) => entry.branches.map((branch) => branch.arm)),
+        unmatchedArms: merged.projections.ct?.unmatchedArms,
+      };
+    };
+    expect(armsOf(spans(path, [["cond-expr", [2, 20], [3, 40], [1, 0]]]))).toEqual({ unexecuted: [1], unmatchedArms: 0 });
+    // Controls: the same start line but another end line, and another arm count at the same end, are other constructs.
+    expect(armsOf(spans(path, [["cond-expr", [2, 20], [4, 40], [1, 0]]]))).toEqual({ unexecuted: [0, 1], unmatchedArms: 1 });
+    expect(armsOf(spans(path, [["cond-expr", [2, 20], [3, 40], [1, 0, 0]]]))).toEqual({ unexecuted: [0, 1], unmatchedArms: 1 });
+  });
+});
