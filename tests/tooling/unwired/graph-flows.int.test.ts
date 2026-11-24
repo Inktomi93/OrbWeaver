@@ -4,7 +4,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { GraphScan } from "../../../tooling/src/unwired/index.ts";
 import { MEMBER_BUCKETS } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, JSX_NAMESPACE, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/flows.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
@@ -334,6 +334,31 @@ test("a checked literal on the right of ?? or || returned as unknown sends its c
     ]),
   );
   expect(bucketsIn(scan)).toEqual(["member-write-only TypedView.d", "member-sent-only NullishView.a", "member-sent-only OrView.b"]);
+});
+
+// The optional page's rows on the left of `??` fill the prop only when the page is there, so they fill it as rows and
+// not as rows-or-undefined: the strip's read of `characterId` reaches `Seat`. Nothing reads `name`.
+test("the left of ?? fills a prop without its undefined", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const view = `${GRAPH_SOURCE}/strip.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      [view]: [
+        JSX_NAMESPACE,
+        "export interface Seat { readonly characterId: string; readonly name: string }",
+        "export interface Page { readonly items: readonly { readonly seats: readonly Seat[] }[] }",
+        "declare const page: Page | undefined;",
+        "const faces = (chats: readonly { readonly seats: readonly { readonly characterId: string; readonly name: string }[] }[]): number =>",
+        "  chats.flatMap((chat) => chat.seats.map((seat) => seat.characterId)).length;",
+        "function Strip({ chats }: { readonly chats: Parameters<typeof faces>[0] }): JSX.Element {",
+        "  return <div>{faces(chats)}</div>;",
+        "}",
+        "export const view = (): JSX.Element => <Strip chats={page?.items ?? []} />;",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect(bucketsIn(scan, view)).toEqual(["member-untouched faces.seats.name"]);
 });
 
 // `Object.values` and `structuredClone` read every member of the value they take; a value no reflective call takes keeps

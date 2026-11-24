@@ -718,7 +718,8 @@ export class Flows {
     const sites = {
       flowSites: all.flowSites.flatMap((site) => (held(site.value) ? [] : branchesOf(site.value).map((value) => ({ ...site, value, whole: site.value })))),
     };
-    const values = state.world.typesAt(sites.flowSites.map(({ value }) => value));
+    // the left of `??` or `||` fills the slot only when it holds a value, so it fills it without null and undefined
+    const values = state.slotTypes(state.world.typesAt(sites.flowSites.map(({ value }) => value)));
     const declared = sites.flowSites.flatMap((site, at) => (site.slot === "declared" ? [{ at, node: site.holder }] : []));
     const declaredTypes = state.world.typesAt(declared.map(({ node }) => node));
     const contextual = sites.flowSites.flatMap((site, at) => {
