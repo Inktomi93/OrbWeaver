@@ -1,8 +1,8 @@
 // Browser-side subject census for #953. The client supplies the literal selectors; this pass classifies
 // every match as sampled, skipped, occluded, or off-viewport and retains one measured representative.
 
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import type { Page } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
 import { splitPseudoSelector } from "../../floor/browser/css-pseudo-selector.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { OrbBridge } from "../../floor/instrument/orb-bridge.ts";
@@ -335,7 +335,7 @@ function browserAppearanceCensus(input: BrowserProbeInput): AppearanceDomSnapsho
   return { subjects, accounting, cls: typeof rawCls === "number" ? rawCls : null };
 }
 
-export async function probeAppearanceDom(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<AppearanceDomSnapshot> {
+export async function probeAppearanceDom(page: Page, row: AppearanceHistoricalRow): Promise<AppearanceDomSnapshot> {
   const subjects = row.subjects.map((subject) => ({ ...subject, ...splitPseudoSelector(subject.selector) }));
   return await page.evaluate(browserAppearanceCensus, { subjects, properties: row.cascade.map((query) => query.property) });
 }

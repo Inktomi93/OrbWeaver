@@ -35,6 +35,7 @@ import {
   SCHEDULE_EDIT_TITLE,
   SCHEDULE_SAVE_NAME,
   SCHEDULE_UPDATE_FAILED,
+  WORKLOAD_BULK_MODE_NAME,
   WORKLOAD_JOB_FIELD_NAME,
 } from "../lib/workloads-names.ts";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
@@ -170,7 +171,7 @@ function ScheduleFormBody({
             return workloadKindBulkSchedulable(kind) ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
-                  <field.SwitchField label="Bulk mode" description="Owner only. Recurs across every user's data instead of just yours." />
+                  <field.SwitchField label={WORKLOAD_BULK_MODE_NAME} description="Owner only. Recurs across every user's data instead of just yours." />
                 )}
               </form.AppField>
             ) : null;

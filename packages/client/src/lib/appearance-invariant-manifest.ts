@@ -1,59 +1,9 @@
-// The seven historical appearance invariants #953 must reach in the rated browser matrix. Selectors live
-// beside the carrier contract, never in tooling: the client owns which rendered subjects carry its law.
+// The historical appearance invariants the rated browser matrix must reach. Selectors live beside the carrier
+// contract, never in tooling: the client owns which rendered subjects carry its law. The row shape and ids are
+// `@orb/kit/appearance-manifest`'s, which the floor parses the live bridge with.
 // This is deliberately a literal policy, not a generic appearance DSL or a second matrix planner.
 
-const APPEARANCE_HISTORICAL_ROW_IDS = [
-  "compact-portal-carried",
-  "dark-name-time-short-bubble",
-  "light-art-scrim-glass-elevation",
-  "mobile-compact-large-document",
-  "hover-pointer",
-  "density-preview",
-  "opposite-os-app-prepaint",
-] as const;
-
-type AppearanceHistoricalRowId = (typeof APPEARANCE_HISTORICAL_ROW_IDS)[number];
-
-const CASCADE_SOURCES = ["client-global", "dynamic", "generated-theme", "inline", "owner-custom-css", "shell", "ui-global", "ui-tier"] as const;
-type AppearanceExpectedCascadeSource = (typeof CASCADE_SOURCES)[number];
-
-interface AppearanceHistoricalSubject {
-  readonly id: string;
-  readonly selector: string;
-  readonly population: "one" | "many";
-  readonly sample: "carrier" | "geometry" | "interactive" | "pixel";
-}
-
-export interface AppearanceHistoricalCascade {
-  readonly selector: string;
-  readonly property: string;
-  readonly sources: readonly AppearanceExpectedCascadeSource[];
-  readonly overloadedSources?: readonly AppearanceExpectedCascadeSource[];
-}
-
-type AppearanceHistoricalMerge =
-  | {
-      readonly mechanism: "merge-required";
-      readonly selector: string;
-      readonly owner: string;
-      readonly conflict: { readonly axis: string; readonly loser: string; readonly winner: string };
-    }
-  | {
-      readonly mechanism: "merge-not-applicable";
-      readonly reason: "direct-carrier";
-      readonly selector: string;
-      readonly owner: string;
-    };
-
-export interface AppearanceHistoricalRow {
-  readonly id: AppearanceHistoricalRowId;
-  readonly surface: "chat" | "config-sizing" | "shell";
-  readonly subjects: readonly AppearanceHistoricalSubject[];
-  readonly cascade: readonly AppearanceHistoricalCascade[];
-  readonly merge: AppearanceHistoricalMerge;
-  readonly requiredChecks: readonly string[];
-  readonly optionalSubjectIds: readonly string[];
-}
+import type { AppearanceExpectedCascadeSource, AppearanceHistoricalCascade, AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 
 const COMMON_SCOPE = '[data-slot="theme-scope"]:has(.shell-grid)';
 const GRID = ".shell-grid";

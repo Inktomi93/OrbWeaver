@@ -4,6 +4,14 @@ import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifes
 import type { RuntimeAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { appearancePatchForAssignment, appearanceReachReceipt, deriveAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 
+function avatarSizeRow(): RuntimeAppearanceContract["rows"][number] {
+  const row = appearanceMatrixContract().rows.find((candidate) => candidate.key === "avatarSize");
+  if (row === undefined) {
+    throw new Error("the Appearance manifest no longer declares avatarSize");
+  }
+  return { ...row, reached: 1, samples: ["sm"] };
+}
+
 function runtimeContract(overrides: Partial<RuntimeAppearanceContract> = {}): RuntimeAppearanceContract {
   return {
     declared: 1,
@@ -11,17 +19,7 @@ function runtimeContract(overrides: Partial<RuntimeAppearanceContract> = {}): Ru
     executable: 1,
     historicalRows: [],
     messageRegistry: { mounted: 1, registered: 1, matched: 1, missingIds: [], staleIds: [] },
-    rows: [
-      {
-        arms: ["sm", "lg"],
-        dependsOn: [],
-        incompatibleWith: [],
-        key: "avatarSize",
-        observable: { kind: "message-prop", selector: '[data-slot="message-row"]', signal: "avatarSize" },
-        reached: 1,
-        samples: ["sm"],
-      },
-    ],
+    rows: [avatarSizeRow()],
     themeObservables: {},
     ...overrides,
   };

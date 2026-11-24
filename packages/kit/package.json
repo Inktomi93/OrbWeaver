@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./allowed-hosts": "./src/allowed-hosts/index.ts",
+    "./appearance-manifest": "./src/appearance-manifest/index.ts",
     "./assets": "./src/assets/index.ts",
     "./binding": "./src/binding/index.ts",
     "./bounded-ring": "./src/bounded-ring/index.ts",

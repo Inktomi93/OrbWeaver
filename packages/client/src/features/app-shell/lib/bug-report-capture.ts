@@ -18,14 +18,15 @@
 // THIS CAPTURE NEVER RESETS ANYTHING. The flag ring and the motion checkpoint belong to whatever measurement is
 // running; a capture that cleared them would silently void a live motion-audit window.
 
+import type { ThemeObservableRead } from "@orb/kit/appearance-manifest";
+import { THEME_CARRIER_OBSERVABLES } from "@orb/kit/appearance-manifest";
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { isPlainObject } from "@orb/kit/guards";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
 import { postBugReport, readJsonBody } from "#data";
 import { readAgentDebugHandle } from "#src/lib/agent-bridge.ts";
-import type { ThemeObservableRead } from "#src/lib/appearance-carrier-manifest.ts";
-import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "#src/lib/appearance-carrier-manifest.ts";
+import { APPEARANCE_CARRIER_OBSERVABLES } from "#src/lib/appearance-carrier-manifest.ts";
 import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "#src/lib/bug-report-bundle.ts";
 import {
   bugReportRouteFrom,

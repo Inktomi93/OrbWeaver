@@ -1,12 +1,8 @@
 // Snap matrix policy shapes. They live with Snap's other typed contracts so the executable policy
 // module remains an operation rather than becoming a second type home.
 
-import type {
-  BackgroundCapability,
-  RuntimeAppearanceContract,
-  RuntimeAppearanceContractRow,
-  RuntimeAppearanceHistoricalRow,
-} from "../../floor/appearance/appearance-matrix.ts";
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
+import type { BackgroundCapability, RuntimeAppearanceContract, RuntimeAppearanceContractRow } from "../../floor/appearance/appearance-matrix.ts";
 import type { ThemeEntry } from "../../floor/appearance/theme.ts";
 import type { VariantAxis, VariantMatrixPlan } from "../../floor/variant-matrix/variant-matrix.ts";
 
@@ -16,7 +12,7 @@ export interface SnapAppearanceMatrix {
   readonly plan: VariantMatrixPlan;
   readonly appearanceAxes: readonly VariantAxis[];
   readonly dependencies: readonly RuntimeAppearanceContractRow[];
-  readonly historicalRows: readonly RuntimeAppearanceHistoricalRow[];
+  readonly historicalRows: readonly AppearanceHistoricalRow[];
   readonly themes: Readonly<Record<string, ThemeEntry>>;
   /** The live library member every `asset`-arm cell paints with (`null` ⇒ the arm refuses loudly). */
   readonly background: BackgroundCapability | null;

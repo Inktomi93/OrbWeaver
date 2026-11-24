@@ -2,12 +2,12 @@
 // directives declared, the house value allow-lists, and the orb/ rules (client-architecture-lockdown.md §4.4).
 // Biome formats CSS and lints nothing in it, so every CSS check has one owner here.
 import { join } from "node:path";
+import { appearanceChannelName } from "@orb/kit/appearance-manifest";
 import { unsupportedAtFloor } from "@orb/tooling/browser-support";
 import { TOKENS, TONES } from "@orb/ui/tokens";
 import type { Config } from "stylelint";
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED } from "./packages/client/browser-targets.ts";
-import { appearanceChannelName } from "./packages/client/src/lib/appearance-carrier-manifest.ts";
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
 import { browserSupportCssPlugin } from "./stylelint-browser-support.ts";
 import { CUSTOM_PROPERTY_RULES } from "./stylelint-custom-properties.ts";

@@ -1,17 +1,12 @@
 // lib/ front door — the cross-cutting display/util seams. Dev-only modules never ride this barrel.
 
+export { APPEARANCE_ATTRIBUTE_PREFIX, APPEARANCE_CHANNEL_ROWS } from "@orb/kit/appearance-manifest";
 // `cn` is @orb/ui's, re-exported here for client callers (docs/law/UI-Architecture-and-Layout.md, lib/ entry).
 export { cn } from "@orb/ui/lib";
 export { ACCOUNT_HANDLE_FIELD_NAME, ACCOUNT_PASSWORD_FIELD_NAME } from "./account-field-names.ts";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
 export { APP_READY_ATTR } from "./app-ready-attribute.ts";
-export {
-  APPEARANCE_ATTRIBUTE_PREFIX,
-  APPEARANCE_CHANNEL_ROWS,
-  APPEARANCE_OWNER_KEYS,
-  clearAppearanceChannel,
-  writeAppearanceChannel,
-} from "./appearance-carrier-manifest.ts";
+export { APPEARANCE_OWNER_KEYS, clearAppearanceChannel, writeAppearanceChannel } from "./appearance-carrier-manifest.ts";
 export {
   AVATAR_CONTROL_NAME,
   AVATAR_DROP_A_FILE,

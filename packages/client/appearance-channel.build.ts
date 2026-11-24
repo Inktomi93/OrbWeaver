@@ -6,9 +6,9 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import type { AppearanceChannelRow } from "@orb/kit/appearance-manifest";
+import { APPEARANCE_CHANNEL_ROWS } from "@orb/kit/appearance-manifest";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import type { AppearanceChannelRow } from "./src/lib/appearance-carrier-manifest.ts";
-import { APPEARANCE_CHANNEL_ROWS } from "./src/lib/appearance-carrier-manifest.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "../..");

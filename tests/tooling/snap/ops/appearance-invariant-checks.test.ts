@@ -1,8 +1,8 @@
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
+import { appearanceChannelName } from "@orb/kit/appearance-manifest";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
-import { appearanceChannelName } from "#client/lib/appearance-carrier-manifest.ts";
-import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { BrowserEnvironmentEvidence } from "../../../../tooling/src/floor/browser/browser-environment.ts";
 import type { AppearanceCheckContext } from "../../../../tooling/src/snap/contract/appearance-check-context.ts";
 import { buildAppearanceInvariantChecks } from "../../../../tooling/src/snap/ops/appearance-invariant-checks.ts";
@@ -153,7 +153,7 @@ function snapshot(subjects: readonly AppearanceDomSubject[]): AppearanceDomSnaps
   };
 }
 
-function row(id: RuntimeAppearanceHistoricalRow["id"]): RuntimeAppearanceHistoricalRow {
+function row(id: AppearanceHistoricalRow["id"]): AppearanceHistoricalRow {
   return {
     id,
     surface: "chat",

@@ -1,6 +1,7 @@
 // The browser facts the literal R1-R7 appearance checks consume.
+
+import type { AppearanceMessageRegistryReceipt } from "@orb/kit/appearance-manifest";
 import type { SettingsShimEvidence } from "../../floor/appearance/appearance.ts";
-import type { RuntimeMessageRegistryReceipt } from "../../floor/appearance/appearance-matrix.ts";
 import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
 import type { AppearanceDomSnapshot } from "../ops/appearance-invariant-dom.ts";
 
@@ -28,7 +29,7 @@ export interface AppearanceCheckContext {
   readonly pixel: Readonly<Record<string, { readonly sampled: number; readonly passed: boolean; readonly actual: string }>>;
   readonly animations: { readonly total: number; readonly dirty: number; readonly properties: readonly string[] };
   readonly messageCarrier?: {
-    readonly registry: RuntimeMessageRegistryReceipt;
+    readonly registry: AppearanceMessageRegistryReceipt;
     readonly chatStyles: readonly unknown[];
   };
   readonly mutationIsolation?: AppearanceMutationIsolationEvidence;

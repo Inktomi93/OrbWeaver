@@ -4,13 +4,13 @@
 // in the row's own chat style and each subject selector must find a rendered node.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import type { ChatId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { AppearanceHistoricalRow } from "#client/lib/appearance-invariant-manifest.ts";
 import { APPEARANCE_HISTORICAL_ROWS } from "#client/lib/appearance-invariant-manifest.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
