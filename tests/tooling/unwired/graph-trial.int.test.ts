@@ -15,12 +15,17 @@ import type { Verdict } from "../../../tooling/src/unwired/field-sort.ts";
 import { VERDICTS } from "../../../tooling/src/unwired/field-sort.ts";
 import { PROFILES } from "../../../tooling/src/unwired/graph/options.ts";
 import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
-import { TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
+import { BLIND_SHAPES, TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
+import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
 
-const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED] = TRIAL_VERDICTS;
+const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED, BLIND] = TRIAL_VERDICTS;
+const [OPTIONAL_SLOT, REDECLARED_MEMBER] = BLIND_SHAPES;
+// The code points TypeScript's line table breaks a line at beside LF; git and editors do not.
+const CARRIAGE_RETURN = 0x0d;
+const LINE_SEPARATOR = 0x20_28;
+const PARAGRAPH_SEPARATOR = 0x20_29;
 const [DEAD, , , , , , TYPE_ONLY, , MEMBER_WRITE_ONLY, , MEMBER_UNTOUCHED] = TRIAL_BUCKETS;
 const [, KEPT_BY_RULING] = BUCKETS;
 const [DEAD_VERDICT, , ASK_VERDICT] = VERDICTS;
@@ -1481,4 +1486,79 @@ test("a computed member keyed by a library constant a constraint reads through a
       .filter(({ label }) => label === `${LIB}:Shape.[LIB_KEY]`)
       .map(({ verdict, checked, errors }) => ({ verdict, checked, errors: errors.map(({ at, kind }) => `${at} ${kind}`) })),
   ).toEqual([{ verdict: REFUTED, checked: [LIB, MAIN, RELAY], errors: [`${LIB}:3 write`, `${MAIN}:3 read`] }]);
+});
+
+// The delete compiles clean where a read sits on another type's own declaration of the member's name, so the trial
+// cannot say whether a value of the holder reaches that read: the member is blind, with the declaration named.
+test("a member another related type declares and a product reads is blind, by the way the types relate; an unrelated twin stays named-only", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const lines = [
+    "interface Slotted { readonly content: string; readonly note: string; readonly zqSlot?: number }",
+    "const slotOf = (turn: { readonly content: string; readonly zqSlot?: number }): number => turn.content.length + (turn.zqSlot ?? 0);",
+    'export const slotted: Slotted = { content: "a", note: "n", zqSlot: 2 };',
+    "export const slot = (): number => slotOf({ content: slotted.content });",
+    "interface Held { readonly content: string; readonly zqHeld?: number }",
+    "interface Seen { readonly content: string; readonly seat: number; readonly zqHeld: number | undefined }",
+    'export const held: Held = { content: "a", zqHeld: 1 };',
+    "export const seen = (value: Seen): number | undefined => value.zqHeld;",
+    "interface Idle { readonly content: string; readonly note: string; readonly zqIdle?: number }",
+    "const idleOf = (turn: { readonly content: string; readonly zqIdle?: number }): number => turn.content.length + (turn.zqIdle ?? 0);",
+    "export const idle = (value: Idle): number => idleOf({ content: value.content }) + value.note.length;",
+    "interface Lone { readonly content: string; readonly zqLone?: number }",
+    "const loneOf = (turn: { readonly other: string; readonly zqLone?: number }): number => turn.other.length + (turn.zqLone ?? 0);",
+    'export const lone: Lone = { content: "a", zqLone: 2 };',
+    "export const alone = (): number => loneOf({ other: lone.content });",
+  ];
+  const lineOf = (needle: string): string => `${LIB}:${String(lines.findIndex((line) => line.includes(needle)) + 1)}`;
+  const root = await plantedTree(graphTree({ [LIB]: lines.join("\n") }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.includes(".zq"))
+      .map(({ label, verdict, blind }) => [label, verdict, ...blind.map(({ shape, at }) => `${shape} ${at}`)]),
+  ).toEqual([
+    [`${LIB}:Idle.zqIdle`, BLIND, `${OPTIONAL_SLOT} ${lineOf("const idleOf")}`],
+    [`${LIB}:Slotted.zqSlot`, BLIND, `${OPTIONAL_SLOT} ${lineOf("const slotOf")}`],
+    [`${LIB}:Held.zqHeld`, BLIND, `${REDECLARED_MEMBER} ${lineOf("interface Seen")}`],
+    [`${LIB}:Lone.zqLone`, NAMED_ONLY],
+  ]);
+});
+
+// A line label and a literal hit both number lines by LF, as git and editors do, so a raw CR, U+2028 or U+2029 before
+// a site moves neither.
+test("a member's label and a literal hit of its name give the editor's line after a CR and a U+2028", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const lines = [
+    `// before${String.fromCodePoint(LINE_SEPARATOR)}after`,
+    `// before${String.fromCodePoint(CARRIAGE_RETURN)}after`,
+    `/* ${String.fromCodePoint(PARAGRAPH_SEPARATOR)} */ export interface Shape {`,
+    "  readonly kept: string;",
+    "  readonly zqLine: string;",
+    "}",
+    "export declare const made: Shape;",
+    "export const use = (value: unknown): unknown => value;",
+    'export const spelled = "zqLine";',
+    "use(made.kept);",
+  ];
+  const files = { [LIB]: lines.join("\n"), [MAIN]: 'import "./lib.ts";' };
+  // the member scan reads git history, so the labelled scan runs on a tree with no repository and the literal search on one with
+  const scan = await graphScan(plantedTree, files, { entries: [MAIN] });
+  const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  // the editor's line, counted here by LF alone
+  const lineOf = (needle: string): number =>
+    lines
+      .join("\n")
+      .split("\n")
+      .findIndex((line) => line.includes(needle)) + 1;
+  expect(scan.members.unwired.filter(({ member }) => member === "zqLine").map(({ file, line }) => `${file}:${String(line)}`)).toEqual([
+    `${LIB}:${String(lineOf("readonly zqLine"))}`,
+  ]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(report.trials.filter(({ label }) => label === `${LIB}:Shape.zqLine`).map(({ verdict, literal }) => [verdict, literal.map(({ at }) => at)])).toEqual([
+    [CONFIRMED, [`${LIB}:${String(lineOf('"zqLine"'))}`]],
+  ]);
 });

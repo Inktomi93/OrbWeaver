@@ -31,6 +31,13 @@
 //   key by its text); a private name is never searched, and a name that spans lines keeps confirmed with a note.
 // - Snap drives the real app as its user does (D357, ./state.ts productReader), so a compile error and a literal hit
 //   under snap both count as a product read, in the trial and in the control.
+// - A delete cannot see a read that reaches the member through another type's declaration of its name (BLIND_SHAPES). A
+//   member candidate that compiles clean or stays named-only is `blind`, with each such declaration listed, when a
+//   product read resolves to another declaration of the name and that declaration's type relates to the holder by
+//   assignability: the holder's values flow into it with the name optional there (optional-slot, as a spread or a
+//   plain argument), or its values flow into the holder (redeclared-member). Both leave the deleted holder accepted
+//   where the read lives. Whether a value really flows is not known, so the verdict says the trial cannot decide, not
+//   that the member is read; a related type that only spells the same names is flagged too, an unrelated one is not.
 // - The control: TypeScript's reportsUnnecessary diagnostics, from the suggestion and the semantic lists (noUnusedLocals
 //   reports them as errors), against the graph's dead non-exported units and dead private class members. The graph
 //   judges no local, parameter or import, so TypeScript's findings on those list as graph-unjudged.
@@ -47,12 +54,16 @@ import {
   isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
+  isIntersectionTypeNode,
   isMethodDeclaration,
   isNamedExports,
   isNamespaceImport,
   isObjectLiteralExpression,
+  isParenthesizedTypeNode,
   isPrivateIdentifier,
   isPropertyAssignment,
+  isPropertyDeclaration,
+  isPropertySignatureDeclaration,
   isShorthandPropertyAssignment,
   isSourceFile,
   isTypeLiteralNode,
@@ -62,14 +73,15 @@ import {
   ModifierFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { Diagnostic, ProjectId } from "@typescript/native/sync";
+import type { Diagnostic, NodeHandle, ProjectId } from "@typescript/native/sync";
+import { editorLineOf, readEditorText } from "../../floor/typescript/editor-lines.ts";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
 import type { Verdict } from "../field-sort.ts";
-import type { LiteralEvidence } from "../literal-hits.ts";
+import type { LiteralEvidence, LiteralSearch } from "../literal-hits.ts";
 import { isLiteralName, ownSiteKey, rowsEvidence, searchedWord, searchLiterals } from "../literal-hits.ts";
 import type { NativeWorld } from "../native.ts";
-import { hasFlag, propertiesNamed, TRIAL_STEPS } from "../native.ts";
+import { declarationKeys, hasFlag, nameAt, propertiesNamed, TRIAL_STEPS } from "../native.ts";
 import type { Analysis, Bucket, Finding } from "./analyse.ts";
 import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -102,9 +114,29 @@ export type TrialBucket = (typeof TRIAL_BUCKETS)[number];
 
 /** A trial's outcome: no new error and no literal hit of its name; no new error, but a hit of its name outside its own
  *  sites that can be a read the compiler does not see (a string key, a JSON key); only sites the delete removes with it; a product read find-references names, with
- *  no compile; a product reader the compile found; readers outside the product only; or no trial ran. */
-export const TRIAL_VERDICTS = ["confirmed", "confirmed-literal", "named-only", "refuted-references", "refuted", "refuted-test-only", "unresolved"] as const;
+ *  no compile; a product reader the compile found; readers outside the product only; no trial ran; or a member the
+ *  delete cannot decide, a product read of its name sitting on a related type's own declaration (BLIND_SHAPES). */
+export const TRIAL_VERDICTS = [
+  "confirmed",
+  "confirmed-literal",
+  "named-only",
+  "refuted-references",
+  "refuted",
+  "refuted-test-only",
+  "unresolved",
+  "blind",
+] as const;
 type TrialVerdict = (typeof TRIAL_VERDICTS)[number];
+
+/** The shapes of read a delete cannot test, each through another type's declaration of the member's name. */
+export const BLIND_SHAPES = ["optional-slot", "redeclared-member"] as const;
+type BlindShape = (typeof BLIND_SHAPES)[number];
+
+// One such declaration a product read sits on, by `file:line`.
+interface BlindRead {
+  readonly shape: BlindShape;
+  readonly at: string;
+}
 
 // What a new error's site does to the removed declaration.
 const SITE_KINDS = ["write", "binding", "read"] as const;
@@ -142,6 +174,9 @@ export interface Trial {
   /** For a compile-clean candidate, the hits of its name outside its own sites and off other declarations of the name,
    *  the ones that can be a read first: the reason for confirmed-literal, else an annotation on confirmed. */
   readonly literal: LiteralEvidence["hits"];
+  /** The declarations that make a member candidate's trial undecidable: another type's own declaration of its name
+   *  that a product read resolves to and the holder's values flow into or out of. Empty unless the verdict is `blind`. */
+  readonly blind: readonly BlindRead[];
 }
 
 /** Where a run keeps each trial as it lands, and the trials an earlier run of the same tree already kept. */
@@ -301,6 +336,80 @@ interface Candidate {
   readonly tsUnused: boolean;
 }
 
+// One finding's trial with the references its find-references pass gave, its bucket and its graph key.
+interface Compiled {
+  readonly trial: Trial;
+  readonly references: FindingReferences | undefined;
+  readonly bucket: TrialBucket;
+  readonly key: GraphKey | null;
+}
+
+// The type a member belongs to: its interface, class or object literal, or the type literal with the intersection and
+// parentheses it sits in, so `Row & { extra?: number }` is the whole row.
+function holderOf(member: Node): Node | undefined {
+  const { parent } = member;
+  if (isInterfaceDeclaration(parent) || isClassDeclaration(parent) || isClassExpression(parent) || isObjectLiteralExpression(parent)) {
+    return parent;
+  }
+  if (!isTypeLiteralNode(parent)) {
+    return undefined;
+  }
+  let holder: Node = parent;
+  while (isIntersectionTypeNode(holder.parent) || isParenthesizedTypeNode(holder.parent)) {
+    holder = holder.parent;
+  }
+  return holder;
+}
+
+const isOptionalMember = (node: Node): boolean =>
+  (isPropertySignatureDeclaration(node) || isPropertyDeclaration(node)) && node.postfixToken?.kind === SyntaxKind.QuestionToken;
+
+// One product read of `word` for each distinct set of other declarations it resolves to, as the node it names.
+function otherReadSites(world: NativeWorld, search: LiteralSearch, word: string, own: ReadonlySet<string>): readonly Node[] {
+  const sites = new Map<string, Node>();
+  for (const hit of search.hits.get(word) ?? []) {
+    const goes = (search.resolved.get(hit) ?? []).filter((key) => !own.has(key)).join(",");
+    const read = hit.kind === "read" || hit.kind === "call";
+    const source = goes === "" || sites.has(goes) || !read || hit.scope !== "product" ? undefined : world.source(hit.file);
+    const site = source === undefined || hit.offset === null ? undefined : nameAt(source, hit.offset);
+    if (site !== undefined) {
+      sites.set(goes, site);
+    }
+  }
+  return [...sites.values()];
+}
+
+// The member declarations each group of read sites resolves to, other than the member's own, with the type each belongs to.
+function twinMembers(
+  world: NativeWorld,
+  sites: readonly (readonly Node[])[],
+  own: readonly ReadonlySet<string>[],
+): readonly (readonly { readonly node: Node; readonly holder: Node }[])[] {
+  const symbols = world.symbolsAt(sites.flat());
+  let next = 0;
+  const handles = sites.map((group, at) => {
+    const found = new Map<string, NodeHandle>();
+    for (const _site of group) {
+      for (const handle of symbols[next++]?.declarations ?? []) {
+        const key = `${handle.path}#${handle.index}`;
+        if (own[at]?.has(key) !== true) {
+          found.set(key, handle);
+        }
+      }
+    }
+    return [...found.values()];
+  });
+  const nodes = world.batch(handles.flat().map((handle) => handle.resolve.gen()));
+  let taken = 0;
+  return handles.map((group) =>
+    group.flatMap(() => {
+      const node = nodes[taken++];
+      const holder = node === undefined ? undefined : holderOf(node);
+      return node === undefined || holder === undefined ? [] : [{ node, holder }];
+    }),
+  );
+}
+
 // An added error no single candidate of its group owns.
 const UNOWNED = -1;
 const MS_PER_MINUTE = 60_000;
@@ -331,6 +440,7 @@ const unresolvedTrial = (
   tsUnused,
   note,
   literal: [],
+  blind: [],
 });
 
 // Each file's splices from several deletes, overlapping ones joined: two neighbours in a comma list each take the comma
@@ -445,7 +555,8 @@ class Trials {
 
   #line(file: string, pos: number, diagnostic: Diagnostic): number {
     const source = this.#world.source(file);
-    return source === undefined ? (diagnostic.startPosition?.line ?? 0) + 1 : source.getLineAndCharacterOfPosition(pos).line + 1;
+    const held = source ?? (diagnostic.fileName === undefined ? null : readEditorText(diagnostic.fileName));
+    return held === null ? (diagnostic.startPosition?.line ?? 0) + 1 : editorLineOf(held, pos);
   }
 
   /** Trial a group of candidates: all deleted in one snapshot, the files any of them can break checked once, and each
@@ -501,6 +612,7 @@ class Trials {
         tsUnused: item.tsUnused,
         note: null,
         literal: [],
+        blind: [],
       };
     });
   }
@@ -851,6 +963,62 @@ class Trials {
     return tried;
   }
 
+  /** The world the session trials over. */
+  get world(): NativeWorld {
+    return this.#world;
+  }
+
+  /** For each member candidate, the declarations that make its delete undecidable (BLIND_SHAPES): another declaration
+   *  of its name that a product read of the search resolves to, whose type the candidate's holder is assignable to with
+   *  the name optional there, or is assignable from. A candidate with none is absent from the result. */
+  blindReads(
+    search: LiteralSearch,
+    entries: readonly { readonly trial: Trial; readonly key: DeclKey; readonly word: string }[],
+  ): ReadonlyMap<Trial, readonly BlindRead[]> {
+    const world = this.#world;
+    const own = entries.flatMap((entry) => {
+      const node = this.nodeOf(entry.key);
+      const name = node === undefined ? undefined : declarationNameOf(node);
+      const holder = node === undefined ? undefined : holderOf(node);
+      return name === undefined || holder === undefined ? [] : [{ ...entry, name, holder }];
+    });
+    const ownKeys = world.symbolsAt(own.map(({ name }) => name)).map((symbol) => new Set(symbol === undefined ? [] : declarationKeys(symbol)));
+    const twins = twinMembers(
+      world,
+      own.map(({ word }, at) => otherReadSites(world, search, word, ownKeys[at] ?? new Set())),
+      ownKeys,
+    );
+    const types = world.typesAt([...own.map(({ holder }) => holder), ...twins.flatMap((list) => list.map(({ holder }) => holder))]);
+    const pairs = own.flatMap((entry, at) => (twins[at] ?? []).map((twin) => ({ entry, twin, at })));
+    const fits = world.batch(
+      pairs.flatMap(({ at }, x) => {
+        const mine = types[at];
+        const theirs = types[own.length + x];
+        return mine === undefined || theirs === undefined
+          ? []
+          : [world.checker.isTypeAssignableTo.gen(mine, theirs), world.checker.isTypeAssignableTo.gen(theirs, mine)];
+      }),
+    );
+    const found = new Map<Trial, BlindRead[]>();
+    let answered = 0;
+    for (const [x, { entry, twin, at }] of pairs.entries()) {
+      if (types[at] === undefined || types[own.length + x] === undefined) {
+        continue;
+      }
+      const [into = false, from = false] = [fits[answered++], fits[answered++]];
+      const place = siteOf(world, twin.node);
+      const shapes: BlindShape[] = [
+        ...(into && isOptionalMember(twin.node) ? (["optional-slot"] as const) : []),
+        ...(from ? (["redeclared-member"] as const) : []),
+      ];
+      const list = found.get(entry.trial) ?? [];
+      found.set(entry.trial, [
+        ...list,
+        ...shapes.filter((shape) => !list.some((read) => read.shape === shape && read.at === place)).map((shape) => ({ shape, at: place })),
+      ]);
+    }
+    return new Map([...found].filter(([, reads]) => reads.length > 0));
+  }
   /** The declaration a key names, in the world's parse. */
   nodeOf(key: DeclKey): Node | undefined {
     const parts = declKeyParts(key);
@@ -909,22 +1077,24 @@ function declarationAt(source: SourceFile, diagnostic: Diagnostic): Node | undef
 // A compile clean only says the compiler needs no site of the name: a string key, a JSON or fixture key or a plugin
 // reading the member by name can still be one. Each confirmed candidate's name is searched over the tracked tree, its
 // own sites (the occurrences find-references gave) left out as the fields literal stage leaves them out, and a hit
-// that can be a read makes it confirmed-literal.
-function literalPass(
-  root: string,
-  world: NativeWorld,
-  compiled: readonly { readonly trial: Trial; readonly references: FindingReferences | undefined }[],
-): { readonly trials: readonly Trial[]; readonly files: number | null } {
-  const clean = compiled.flatMap(({ trial, references }) =>
-    trial.verdict === "confirmed" && references?.name !== undefined ? [{ trial, name: references.name, occurrences: references.occurrences }] : [],
-  );
-  const words = world.batch(clean.map(({ name }) => searchedWord(world, name)));
-  const named = clean.flatMap((entry, at) => {
+// that can be a read makes it confirmed-literal. The same search finds the reads of a member's name that sit on another
+// type's declaration of it (blindReads), for a member candidate that compiled clean or stayed named-only.
+function literalPass(root: string, session: Trials, compiled: readonly Compiled[]): { readonly trials: readonly Trial[]; readonly files: number | null } {
+  const { world } = session;
+  const searchable = compiled.flatMap(({ trial, references, bucket, key }) => {
+    const clean = trial.verdict === "confirmed";
+    const member = MEMBER_BUCKETS.some((memberBucket) => memberBucket === bucket) && key !== null && isDeclKey(key);
+    return references?.name !== undefined && (clean || (member && trial.verdict === "named-only"))
+      ? [{ trial, name: references.name, occurrences: references.occurrences, clean, key: member ? key : null }]
+      : [];
+  });
+  const words = world.batch(searchable.map(({ name }) => searchedWord(world, name)));
+  const named = searchable.flatMap((entry, at) => {
     const word = words[at];
     return word === undefined || word === null ? [] : [{ ...entry, word }];
   });
   const asked = named.filter(({ word }) => isLiteralName(word));
-  const unsearchable = new Map(named.filter(({ word }) => !isLiteralName(word)).map(({ trial, word }) => [trial, word]));
+  const unsearchable = new Map(named.filter(({ clean, word }) => clean && !isLiteralName(word)).map(({ trial, word }) => [trial, word]));
   const search =
     asked.length === 0
       ? null
@@ -933,20 +1103,28 @@ function literalPass(
           world,
           asked.map(({ word }) => word),
         );
+  const confirmed = asked.filter(({ clean }) => clean);
   const found =
     search === null
       ? []
       : rowsEvidence(
           search,
           world,
-          asked.map(({ word, name, occurrences }) => ({
+          confirmed.map(({ word, name, occurrences }) => ({
             member: word,
             known: [name, ...occurrences].map((node) => ownSiteKey(node.getSourceFile(), world.fileOfSource(node.getSourceFile()), node.pos)),
             neverWritten: false,
           })),
         );
-  const evidence = new Map(asked.flatMap(({ trial }, at) => (found[at] === undefined ? [] : [[trial, found[at]] as const])));
-  const trials = compiled.map(({ trial }) => {
+  const evidence = new Map(confirmed.flatMap(({ trial }, at) => (found[at] === undefined ? [] : [[trial, found[at]] as const])));
+  const blind =
+    search === null
+      ? new Map<Trial, readonly BlindRead[]>()
+      : session.blindReads(
+          search,
+          asked.flatMap(({ trial, key, word }) => (key === null ? [] : [{ trial, key, word }])),
+        );
+  const annotated = compiled.map(({ trial }) => {
     const word = unsearchable.get(trial);
     if (word !== undefined) {
       return { ...trial, note: `${JSON.stringify(word)} spans lines, so no literal search could look for a read by name` };
@@ -958,7 +1136,13 @@ function literalPass(
     // A saving hit outside the product annotates: the row keeps the compile's confirmed and lists the hits.
     return { ...trial, verdict: literal.productRead ? ("confirmed-literal" as const) : trial.verdict, literal: literal.hits };
   });
-  return { trials, files: search?.files ?? (asked.length === 0 ? 0 : null) };
+  const settled = annotated.map((trial, at) => {
+    const reads = blind.get(compiled[at]?.trial ?? trial) ?? [];
+    return reads.length === 0 || (trial.verdict !== "confirmed" && trial.verdict !== "named-only")
+      ? trial
+      : { ...trial, verdict: "blind" as const, blind: reads };
+  });
+  return { trials: settled, files: search?.files ?? (asked.length === 0 ? 0 : null) };
 }
 
 // Each phase's wall time and the compiler requests sent inside it; phases nest only where none is timed twice.
@@ -1008,7 +1192,7 @@ const exportSitesOf = (occurrences: readonly Node[]): readonly Node[] =>
 
 // A `file:line` for a node of the world's parse.
 const siteOf = (world: NativeWorld, node: Node): string =>
-  `${world.fileOfSource(node.getSourceFile())}:${String(node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1)}`;
+  `${world.fileOfSource(node.getSourceFile())}:${String(editorLineOf(node.getSourceFile(), node.getStart(node.getSourceFile())))}`;
 
 /** Run the delete trial over every finding of the named buckets, or an even sample of `limit` of them, then the
  *  unused-diagnostics control; `verdicts` keeps only the member findings the judge sorted to one of them (the sort needs a
@@ -1068,10 +1252,10 @@ export function runTrials(
     log(`resumed ${String(resumed)} trials an earlier run of this tree kept`);
   }
   const tried = trials.tryGroups(trials.pack([...groups.values()]), { total: picked.length, ledger: run.ledger }, log);
-  const compiled = picked.flatMap(({ finding }, at) => {
+  const compiled = picked.flatMap(({ bucket, finding }, at): Compiled[] => {
     const trial = decided.get(finding) ?? tried.get(finding);
-    return trial === undefined ? [] : [{ trial, references: found[at] }];
+    return trial === undefined ? [] : [{ trial, references: found[at], bucket, key: finding.key }];
   });
-  const literal = phases.time("literal", () => literalPass(run.root, world, compiled));
+  const literal = phases.time("literal", () => literalPass(run.root, trials, compiled));
   return { literalFiles: literal.files, trials: literal.trials, control: trials.control(run.analysis), phases: phases.report() };
 }

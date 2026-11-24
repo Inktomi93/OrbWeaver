@@ -29,6 +29,9 @@
 //   (a phantom `Token<A>`) pairs forward.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
 //   whole, its function members' returns walked too.
+// - A whole value handed to a slot naming members of ours its type lacks is traced back to where its type still names
+//   one (values.ts): that type fills the slot too, so a member a narrower type dropped reaches only the slots its own
+//   value reaches.
 // - An escape names where the value goes, chased from the value at the site that handed it on, at any depth of the walk
 //   (open-sends.ts sendDestinations). Inside the provider backends a value no destination takes is a provider send only
 //   when it reaches a request the backends make (open-sends.ts providerReach); elsewhere it is unclassified.
@@ -39,11 +42,15 @@
 // (ZOD_OUTPUT_VALUES): that value fills the output slot like any hand-off.
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
 import {
+  isArrayLiteralExpression,
+  isArrowFunction,
   isBinaryExpression,
   isBindingElement,
   isCallExpression,
   isConditionalExpression,
+  isFunctionExpression,
   isIdentifier,
+  isLiteralExpression,
   isModuleDeclaration,
   isNewExpression,
   isObjectLiteralExpression,
@@ -69,6 +76,8 @@ import { allOf, answer, constituentsOf, keyText, ZOD_PACKAGE } from "./resolve.t
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
+import type { TraceRequest } from "./values.ts";
+import { TRACE_COUNTS, ValueTracer } from "./values.ts";
 import { Variances } from "./variance.ts";
 
 // A slot type and the value type that fills it.
@@ -260,10 +269,17 @@ export class Flows {
   // the bindings something writes into (`into.push(row)`): settle links each pair back whose binding is written.
   readonly #pushedInto: (Filled & { readonly holder: readonly DeclKey[] })[] = [];
   readonly #writtenLists = new Set<DeclKey>();
+  // The hand-offs whose slot names a member of ours the value's type dropped, traced in settle once every call site is
+  // known (values.ts); only a file's own walk records them, while its site nodes are known.
+  readonly #values: ValueTracer;
+  readonly #traceRequests: TraceRequest[] = [];
+  readonly #traced = new Set<string>();
+  #walking = false;
 
   constructor(state: GraphState) {
     this.#state = state;
     this.#variances = new Variances(state);
+    this.#values = new ValueTracer(state);
     this.#walkTrace = tracing(state.session.options, "flow-walk") === undefined ? null : { record: 0 };
   }
 
@@ -272,6 +288,7 @@ export class Flows {
   file(sites: FileSites, held: HeldSends): void {
     this.#heldTypes = held.types;
     this.#siteNodes = siteNodesOf(sites);
+    this.#walking = true;
     this.#assignedThrough(sites);
     this.#parameterArguments(sites);
     this.#listWrites(sites);
@@ -282,6 +299,7 @@ export class Flows {
     this.#checkSites = new Set(checked.map(({ site }) => site));
     this.link([...handed.pairs, ...this.#flowSites(sites, taken), ...this.#typePairs(sites), ...checked], sites.file);
     this.#assertions(sites);
+    this.#walking = false;
     this.#heldTypes = NO_HELD_TYPES;
     this.#checkSites = NO_CHECK_SITES;
     this.#siteNodes = NO_SITE_NODES;
@@ -1121,6 +1139,10 @@ export class Flows {
     const values = state.world.typesAt(entries.map(({ node }) => node));
     for (const [at, parameter] of parameters.entries()) {
       const value = values[at];
+      const entry = entries[at];
+      if (parameter !== undefined && entry !== undefined) {
+        this.#values.argument(parameter, entry.node);
+      }
       if (parameter !== undefined && value !== undefined) {
         this.#arguments.push({ parameter, value });
       }
@@ -1215,6 +1237,7 @@ export class Flows {
   /** Link the list element pairs back whose list something writes into, under their own files, until a pass finds
    *  none new; then flow each member a callee assigns through its parameter back into the argument member at that path. */
   settle(): void {
+    this.#traceValues();
     for (let at = 0; at < this.#pushedInto.length; ) {
       const pushed = this.#pushedInto.slice(at).filter(({ holder }) => holder.some((decl) => this.#writtenLists.has(decl)));
       at = this.#pushedInto.length;
@@ -1229,6 +1252,40 @@ export class Flows {
     this.#flowAssignedBack();
   }
 
+  // A whole hand-off whose slot names members of ours its value's type lacks: the value's trace may still carry them.
+  #recordTraces(missing: readonly { readonly pair: FlowPair; readonly member: NativeSymbol }[], file: string): void {
+    if (!this.#walking) {
+      return;
+    }
+    const ours = missing.filter(({ pair, member }) => pair.whole === true && member.declarations.some((handle) => this.#state.resolver.ours(handle)));
+    for (const [key, group] of Map.groupBy(ours, ({ pair }) => `${file}|${String(pair.site)}|${String(pair.slot.id)}`)) {
+      const pair = group[0]?.pair;
+      const node = pair === undefined ? undefined : this.#siteNodes.get(pair.site);
+      if (pair === undefined || node === undefined || !isTraceable(node) || this.#traced.has(key)) {
+        continue;
+      }
+      this.#traced.add(key);
+      this.#traceRequests.push({ node, slot: pair.slot, missing: [...new Set(group.map(({ member }) => member.name))], file, site: pair.site });
+    }
+  }
+
+  // Each traced hand-off's origins fill its slot as the value itself would have, under the hand-off's file and site; a
+  // trace that reaches no origin, or that a bound stopped, links nothing.
+  #traceValues(): void {
+    const requests = this.#traceRequests.splice(0);
+    this.#state.count(TRACE_COUNTS.requests, requests.length);
+    const origins = this.#values.origins(requests);
+    const linked = requests.flatMap((request, at) => (origins[at] ?? []).map((value) => ({ request, value })));
+    for (const [file, group] of Map.groupBy(linked, ({ request }) => request.file)) {
+      this.#siteNodes = new Map(group.map(({ request }) => [request.site, request.node]));
+      this.link(
+        group.map(({ request, value }) => ({ slot: request.slot, value, site: request.site })),
+        file,
+      );
+    }
+    this.#siteNodes = NO_SITE_NODES;
+  }
+
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
@@ -1236,6 +1293,10 @@ export class Flows {
     const entries = this.#indexedEscapes(fresh, slotMembers, file);
     const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
+    this.#recordTraces(
+      asks.filter((_, y) => valueMembers[y] === undefined),
+      file,
+    );
     const matched = asks.flatMap(({ pair, member, x }, y) => {
       const valueMember = valueMembers[y];
       return valueMember === undefined || valueMember.id === member.id ? [] : [{ holder: pair.value, slot: member, value: valueMember, site: pair.site, x }];
@@ -1307,6 +1368,10 @@ function* parameterOf(state: GraphState, call: CallExpression | NewExpression, i
   }
   return (yield* ((yield* signature.getTarget.gen()) ?? signature).getParameters.gen())[index];
 }
+
+// A value a trace can lead back from: a literal or a function is its own origin.
+const isTraceable = (node: Node): node is Expression =>
+  !(isObjectLiteralExpression(node) || isArrayLiteralExpression(node) || isArrowFunction(node) || isFunctionExpression(node) || isLiteralExpression(node));
 
 // The steps that keep the value itself, so the binding that holds it still holds what they reach.
 const KEEPS_VALUE: ReadonlySet<StepKind> = new Set<StepKind>(["root", "arm"]);

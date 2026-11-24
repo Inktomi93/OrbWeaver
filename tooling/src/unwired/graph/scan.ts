@@ -7,18 +7,14 @@
 // compiler had ended on its own, never closed by its world, the session logs its exit code or signal, when the run
 // failed and the step it was in, so a compiler death is never only a dead pipe.
 
-import type { ChildProcess } from "node:child_process";
-import { subscribe, unsubscribe } from "node:diagnostics_channel";
-import { once } from "node:events";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { Session as InspectorSession } from "node:inspector/promises";
 import { join } from "node:path";
 import process from "node:process";
-import { setTimeout as delay } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Verdict } from "../field-sort.ts";
-import type { CompilerStart, NativeWorld } from "../native.ts";
-import { COMPILER_CHANNEL, compilerStartOf } from "../native.ts";
+import type { NativeWorld } from "../native.ts";
+import type { PluginSources } from "../plugin-surface.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -29,6 +25,7 @@ import type { CodesJudging, CodesReport } from "./codes.ts";
 import { codesPass } from "./codes.ts";
 import type { ColumnsOptions, ColumnsReport } from "./columns.ts";
 import { COLUMN_HOMES, columnsPass } from "./columns.ts";
+import { CompilerWatch } from "./compiler-watch.ts";
 import type { CssReport } from "./css.ts";
 import { cssPass } from "./css.ts";
 import type { DomReport } from "./dom.ts";
@@ -43,6 +40,8 @@ import type { LostBreakdown } from "./lost.ts";
 import { explainLost } from "./lost.ts";
 import type { MemberScanReport } from "./members.ts";
 import { memberScanOf } from "./members.ts";
+import type { OptionalInventory } from "./optional-pairs.ts";
+import { optionalPairsOf } from "./optional-pairs.ts";
 import type { Ablation, GraphLog, GraphOptions } from "./options.ts";
 import { FRESH_BUILD, profiling, tracing } from "./options.ts";
 import type { ParamsLists, ParamsReport } from "./params.ts";
@@ -127,28 +126,11 @@ interface GraphSource {
 
 const HEAP_SAMPLES = "inuse_space";
 const CPU_SAMPLES = "cpu";
-// How long a failed run waits for a compiler it did not close to report its exit: a dead compiler's pipe fails at once,
-// and Node delivers the exit on the next turns of its loop.
-const EXIT_WAIT_MS = 2000;
 // V8's default sampling interval: one sample per 32 KiB allocated on average.
 const NODE_HEAP_INTERVAL = 32_768;
 // The steps outside a profile phase: the build's own work, and what the verb does with the graph after it.
 const BUILD_STEP = "build";
 const WORK_STEP = "work";
-
-// A compiler the session saw start, and the step it started in.
-interface StartedCompiler {
-  readonly start: CompilerStart;
-  readonly step: string;
-}
-
-// How a compiler process ended, or null while it runs.
-const endOf = (child: ChildProcess): string | null => {
-  if (child.signalCode !== null) {
-    return `ended by signal ${child.signalCode}`;
-  }
-  return child.exitCode === null ? null : `exited with code ${String(child.exitCode)}`;
-};
 
 class Session implements Disposable {
   readonly #root: string;
@@ -163,14 +145,7 @@ class Session implements Disposable {
   readonly #steps: string[] = [];
   #failedIn: string | null = null;
   #inspector: InspectorSession | null = null;
-  readonly #started: StartedCompiler[] = [];
-  readonly #onCompiler = (message: unknown): void => {
-    const start = compilerStartOf(message);
-    if (start !== undefined) {
-      this.#started.push({ start, step: this.#step() });
-      this.#profile?.watch(start);
-    }
-  };
+  readonly #compilerWatch: CompilerWatch;
 
   constructor(root: string, log: GraphLog, { options, ...sites }: SessionPlan) {
     this.#root = root;
@@ -178,7 +153,10 @@ class Session implements Disposable {
     this.#log = log;
     this.#sites = sites;
     this.#profile = options.profile === null ? null : new GraphProfile();
-    subscribe(COMPILER_CHANNEL, this.#onCompiler);
+    this.#compilerWatch = new CompilerWatch(
+      () => this.#step(),
+      (start) => this.#profile?.watch(start),
+    );
   }
 
   // The innermost step running: a profiled phase inside the build, else the session's own.
@@ -222,7 +200,7 @@ class Session implements Disposable {
       return await this.#run(use);
     } catch (error) {
       const failedAt = new Date();
-      await this.#noteCompilerEnds(failedAt, this.#failedIn ?? this.#profile?.failedIn ?? this.#step());
+      await this.#compilerWatch.noteEnds(failedAt, this.#failedIn ?? this.#profile?.failedIn ?? this.#step(), this.#log);
       this.#saveProfilesAtFailure();
       throw error;
     }
@@ -238,26 +216,6 @@ class Session implements Disposable {
       throw error;
     } finally {
       this.#steps.pop();
-    }
-  }
-
-  // Each compiler that ended on its own before the run failed, with its exit code or signal. Its world never closed it
-  // (a closed one is `killed`), so its end is the failure's cause or a symptom of it.
-  async #noteCompilerEnds(failedAt: Date, step: string): Promise<void> {
-    const open = this.#started.filter(({ start }) => !start.process.killed);
-    const pending = open.filter(({ start }) => endOf(start.process) === null).map(({ start }) => once(start.process, "exit"));
-    if (pending.length > 0) {
-      const waited = new AbortController();
-      await Promise.race([Promise.all(pending), delay(EXIT_WAIT_MS, undefined, { signal: waited.signal }).catch(() => undefined)]);
-      waited.abort();
-    }
-    for (const { start, step: started } of open) {
-      const end = endOf(start.process);
-      if (end !== null) {
-        this.#log(
-          `the compiler for ${start.config} (pid ${String(start.process.pid)}, started in ${started}) ${end}; the run failed at ${failedAt.toISOString()} in ${step}`,
-        );
-      }
     }
   }
 
@@ -381,7 +339,7 @@ class Session implements Disposable {
   // A compiler process that already exited cannot take the releases its leases and snapshots send (EPIPE), so disposing
   // its world throws; thrown out of `using`, that failure would bury the run's own error as a SuppressedError.
   [Symbol.dispose](): void {
-    unsubscribe(COMPILER_CHANNEL, this.#onCompiler);
+    this.#compilerWatch[Symbol.dispose]();
     this.#inspector?.disconnect();
     try {
       this.#world?.[Symbol.dispose]();
@@ -434,6 +392,16 @@ export function scanGraph(
 /** Build and analyse the graph, then report its judged member rows as the fields report: dead data split by `rulings`. */
 export function fieldsGraph(root: string, rulings: MemberRulings, log: GraphLog): Promise<WithSession<FieldsReport>> {
   return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => fieldsOf(work.graph.facts, scanOf(root, work, rulings).members));
+}
+
+/** Build the graph, then read the optional fields production supplies at separate constructions (`pnpm brand-flow`). */
+export function optionalPairsGraph(
+  root: string,
+  log: GraphLog,
+  plugins: PluginSources,
+  options: GraphOptions = FRESH_BUILD,
+): Promise<WithSession<OptionalInventory>> {
+  return session(root, log, { options, ...MEMBER_SITES }, (work) => optionalPairsOf(work.graph.facts, work.world(), plugins));
 }
 
 /** Build and analyse the graph, then report its judged rows of callable members as the member scan, split by `rulings`. */

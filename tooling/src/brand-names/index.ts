@@ -10,6 +10,7 @@ export {
   isPhantomKey,
   type NameMatch,
   type PhantomKey,
+  packageNameOf,
   type SourceOrigin,
   sharesBrand,
   siteBrand,

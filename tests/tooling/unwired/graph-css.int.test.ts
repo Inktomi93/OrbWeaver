@@ -6,6 +6,8 @@ import { cssGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
 import { graphTree, tailwindcss } from "./_planted.ts";
 
 const THEME = "packages/ui/src/styles/theme.css";
+// Stacked variants that make a utility's token longer than any fixed cap would have kept.
+const LONG_VARIANT_COUNT = 60;
 
 test("each kind of read keeps its property; an unread one and a script-named one are reported", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
@@ -60,4 +62,21 @@ test("a held name is read through a read of its holder, never through a send, in
   expect(report.buckets["css-property-named-in-script-only"]).toEqual([`${THEME}:--held-sent`]);
   expect(report.buckets["css-property-unread"]).toEqual([]);
   expect((await cssGraph(root, () => undefined, { ...FRESH_BUILD, from: dump })).buckets).toEqual(report.buckets);
+});
+
+// A token's length ends no walk: a utility behind many stacked variants still reads the theme property it compiles to.
+test("a class token past any fixed length still reads its property", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const long = `${"[&_a]:".repeat(LONG_VARIANT_COUNT)}bg-brand`;
+  const root = await plantedTree(
+    graphTree({
+      ...tailwindcss(),
+      [THEME]: ["@theme {", "  --color-brand: red;", "}", ":root {", "  --spare: 2px;", "}"].join("\n"),
+      "packages/ui/src/tokens/tokens.json": "{}",
+      "packages/client/owner-css-surface.ts": "export const OWNER = [];",
+      "packages/ui/src/box.ts": `export const box = "${long}";`,
+    }),
+  );
+  const report = await cssGraph(root, () => undefined);
+  // the other property is the positive control: the pass ran and reported what nothing reads
+  expect(report.buckets["css-property-unread"]).toEqual([`${THEME}:--spare`]);
 });

@@ -215,7 +215,7 @@ function buildApart(state: GraphState, config: string, merged: ReadonlySet<strin
   using world = NativeWorld.open(state.root, config);
   state.enter(world);
   const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
-  state.peak(`apart program rss MB ${config}`, Math.round(process.memoryUsage().rss / MB));
+  state.peak(`node rss MB after apart program ${config}`, Math.round(process.memoryUsage().rss / MB));
   return graph;
 }
 
@@ -309,7 +309,7 @@ class Builder {
       profile.time("walk", walk);
     }
     const variants = profile === null ? settle() : profile.time("fixpoint", settle);
-    return { facts: state, variants, kept: this.#kept(files), sdk: sdkSurface(state.root), urlSpawns: this.#urlSpawns, files };
+    return { facts: state, variants, kept: this.#kept(files), sdk: sdkSurface(state.root, state.world), urlSpawns: this.#urlSpawns, files };
   }
 
   #walk(files: readonly string[]): void {

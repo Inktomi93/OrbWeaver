@@ -10,6 +10,7 @@
 import type { CallExpression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import { isIdentifier, isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, isVariableDeclaration, SyntaxKind } from "@typescript/native/ast";
 import type { Signature } from "@typescript/native/sync";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText } from "./resolve.ts";
@@ -58,7 +59,7 @@ function causeOf(value: AxisValue): { readonly cause: string; readonly at: strin
     return { cause: TYPED_WIDE, at: null };
   }
   const source = value.getSourceFile();
-  return { cause: SyntaxKind[value.kind], at: `${source.fileName}:${String(source.getLineAndCharacterOfPosition(value.pos).line + 1)}` };
+  return { cause: SyntaxKind[value.kind], at: `${source.fileName}:${String(editorLineOf(source, value.pos))}` };
 }
 
 const isTyped = (value: AxisValue): value is { readonly typed: readonly string[] | null } => value !== undefined && "typed" in value;

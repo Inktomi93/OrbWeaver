@@ -17,7 +17,9 @@
 //   explained by the first of EXPLANATIONS that holds for a world holding its file. declared-apart is proved by the
 //   diagnostic's own related declarations: no world loads the error's file and all of theirs together.
 // - The options explanation is proved by a program of the world's files on the merged options: the error shows there.
-// - One compiler process at a time: the merged program, then each world, so the peak is one program's.
+// - One compiler process at a time: the merged program, then each world, so the peak is one program's. Every compiler,
+//   the options probe's included, starts through native.ts startAPI, so a run that fails names how each compiler that
+//   ended on its own ended and the step it was in (checkWorldsWatched).
 import { join, relative } from "node:path";
 import type { Identifier, ImportClause, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
@@ -32,11 +34,18 @@ import {
   isStringLiteral,
   isTypeAliasDeclaration,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Diagnostic, Symbol as NativeSymbol, Program, Type } from "@typescript/native/sync";
-import { API, all, DiagnosticCategory, isRemoteNode, SymbolFlags, TypeFormatFlags } from "@typescript/native/sync";
+import type { API, APIRequestGenerator, Checker, Diagnostic, Symbol as NativeSymbol, Program, Type } from "@typescript/native/sync";
+import { all, DiagnosticCategory, isRemoteNode, SymbolFlags, TypeFormatFlags } from "@typescript/native/sync";
 import { loadWorld } from "../../floor/testing/test-worlds.ts";
-import { hasFlag, NativeWorld } from "../native.ts";
+import { editorLineOf, readEditorText } from "../../floor/typescript/editor-lines.ts";
+import { hasFlag, NativeWorld, startAPI } from "../native.ts";
 import { MERGED_CONFIG, mergedOptionsConfigText, mergedWorlds } from "../worlds.ts";
+import { CompilerWatch } from "./compiler-watch.ts";
+
+// The step a run is in while it reads the merged program, before any world.
+const MERGED_STEP = "merged program";
+// The step, and the compiler's name, of the probes that ask a world's files of the merged program's options.
+export const OPTIONS_PROBE_STEP = "options probe";
 
 /** What a world loads or resolves apart from the merged program. */
 const LOAD_KINDS = ["file-only-in-world", "library-only-in-merged", "resolution", "option"] as const;
@@ -185,7 +194,7 @@ const PACKAGE_SOURCE = /^packages\/[^/]+\/src\//u;
 const SHAPE_PAGE = 200;
 
 const isSpecifier = (node: Node): node is StringLiteral | NoSubstitutionTemplateLiteral => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
-const lineOf = (source: SourceFile, node: Node): number => source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+const lineOf = (source: SourceFile, node: Node): number => editorLineOf(source, node.getStart(source));
 // The checker names a private member and a unique-symbol key with a per-program id; the id is not part of the shape.
 const memberName = (name: string): string => name.replace(/@\d+$/u, "").replace(/^__#\d+@/u, "");
 // A program file by its repository path; a file outside the tree, as the compiler's own default libs can be, keeps its
@@ -322,28 +331,44 @@ function resolutionsOf(root: string, world: NativeWorld): ReadonlyMap<string, Re
 const semanticOf = (root: string, program: Program, files: readonly string[]): readonly Diagnostic[] =>
   files.length === 0 ? [] : program.getSemanticDiagnostics(files.map((file) => join(root, file)));
 
+// The editor's line of an error, read from the file's text on disk, which the program read; the program's own line
+// table when the file is not on disk.
+function editorLine(
+  root: string,
+  site: { readonly file: string; readonly pos: number; readonly startLine: number },
+  texts: Map<string, { readonly text: string } | null>,
+): number {
+  if (!texts.has(site.file)) {
+    texts.set(site.file, readEditorText(join(root, site.file)));
+  }
+  const held = texts.get(site.file);
+  return held === null || held === undefined ? site.startLine + 1 : editorLineOf(held, site.pos);
+}
+
 function errorsOf(root: string, program: Program, files?: readonly string[]): readonly ErrorFact[] {
   const semantic = files === undefined ? program.getSemanticDiagnostics() : semanticOf(root, program, files);
   const diagnostics: readonly Diagnostic[] = [...semantic, ...program.getGlobalDiagnostics()];
   const errors = new Map<string, ErrorFact>();
+  const texts = new Map<string, { readonly text: string } | null>();
   for (const { fileName, pos, startPosition, code, text, category, relatedInformation = [] } of diagnostics) {
     if (category !== ERROR) {
       continue;
     }
     const file = fileName === undefined ? null : pathIn(root, fileName);
     const key = `${file ?? GLOBAL}:${String(pos)}:${String(code)}:${text}`;
-    const at = file === null || startPosition === undefined ? GLOBAL : `${file}:${String(startPosition.line + 1)}`;
+    const at =
+      file === null || startPosition === undefined ? GLOBAL : `${file}:${String(editorLine(root, { file, pos, startLine: startPosition.line }, texts))}`;
     const related = [...new Set(relatedInformation.flatMap((info) => (info.fileName === undefined ? [] : [pathIn(root, info.fileName)])))].sort();
     errors.set(key, { key, file, related, pos, at, code, text });
   }
   return [...errors.values()];
 }
 
-// The keys of the errors a world's files have on the merged program's options (worlds.ts mergedOptionsConfigText).
-function optionErrorKeys(root: string, config: string, files: readonly string[]): ReadonlySet<string> {
-  using api = new API({ cwd: root });
+// The keys of the errors a world's files have on the merged program's options (worlds.ts mergedOptionsConfigText). Every
+// world's probe is one snapshot of the one compiler the caller started, released when its keys are read.
+function optionErrorKeys(api: API, root: string, config: string, files: readonly string[]): ReadonlySet<string> {
   const path = join(root, MERGED_CONFIG);
-  const snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: mergedOptionsConfigText(root, config) } } });
+  using snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: mergedOptionsConfigText(root, config) } } });
   const project = snapshot.getConfiguredProject(path);
   if (project === undefined) {
     throw new Error(`${config}: the TypeScript 7.1 API loaded no project on the merged options`);
@@ -647,14 +672,15 @@ function explain(error: ErrorFact, holders: readonly WorldTrace[], mergedSites: 
   return null;
 }
 
-/** Check the merged program of the tree at `root` against each world's own program. */
-export function checkWorlds(root: string, log: (line: string) => void): WorldsCheck {
+// Check the merged program of the tree at `root` against each world's own program, naming each step before it runs.
+function checkWorlds(root: string, log: (line: string) => void, at: (step: string) => void = (): void => undefined): WorldsCheck {
   const configs = mergedWorlds(root);
   const own = ownFiles(root, configs);
   // the program has already set every library apart, so each declaration file left is the tree's own and is kept
   const ownDeclaration = (): boolean => true;
   let merged: Facts;
   let mergedSites: ReadonlyMap<string, Site>;
+  at(MERGED_STEP);
   {
     using world = NativeWorld.openMerged(root, ownDeclaration);
     merged = factsOf(root, world, [...own.values()].flat());
@@ -667,6 +693,7 @@ export function checkWorlds(root: string, log: (line: string) => void): WorldsCh
   const traces: WorldTrace[] = [];
   const worldOnly: CheckedError[] = [];
   for (const config of configs) {
+    at(`world ${config}`);
     using world = NativeWorld.open(root, config, declarations);
     const facts = factsOf(root, world, own.get(config) ?? []);
     const errorKeys = new Set(facts.errors.map(({ key }) => key));
@@ -679,7 +706,22 @@ export function checkWorlds(root: string, log: (line: string) => void): WorldsCh
       `${config}: types=${String(report.types)} differing=${String(report.differing)} differences=${String(report.differences.length)} errors=${String(report.errors)}`,
     );
   }
-  return { worlds: reports, mergedErrors: merged.errors.length, worldOnly, ...judgeErrors(root, merged.errors, traces, mergedSites) };
+  return { worlds: reports, mergedErrors: merged.errors.length, worldOnly, ...judgeErrors(merged.errors, traces, { root, mergedSites, at }) };
+}
+
+/** The worlds check with its compilers watched: a run that fails logs how each compiler that ended on its own ended,
+ *  and the step the failure came on. */
+export async function checkWorldsWatched(root: string, log: (line: string) => void): Promise<WorldsCheck> {
+  let step = MERGED_STEP;
+  using watch = new CompilerWatch(() => step);
+  try {
+    return checkWorlds(root, log, (next) => {
+      step = next;
+    });
+  } catch (error) {
+    await watch.noteEnds(new Date(), step, log);
+    throw error;
+  }
 }
 
 const holdersOf = (error: ErrorFact, traces: readonly WorldTrace[]): readonly WorldTrace[] => {
@@ -690,11 +732,18 @@ const holdersOf = (error: ErrorFact, traces: readonly WorldTrace[]): readonly Wo
 // Each merged-program error matched in a world holding its file, else explained, else left unexplained. An error no site
 // or resolution explains is asked of each holding world's files on the merged options, one program per world.
 function judgeErrors(
-  root: string,
   errors: readonly ErrorFact[],
   traces: readonly WorldTrace[],
-  mergedSites: ReadonlyMap<string, Site>,
+  run: { readonly root: string; readonly mergedSites: ReadonlyMap<string, Site>; readonly at: (step: string) => void },
 ): Pick<WorldsCheck, "matched" | "explained" | "unexplained"> {
+  const { root, mergedSites, at } = run;
+  // one compiler for every world's options probe, started when the first is asked
+  using probes = new DisposableStack();
+  let probeApi: API | undefined;
+  const probe = (): API => {
+    probeApi ??= probes.use(startAPI({ cwd: root }, OPTIONS_PROBE_STEP));
+    return probeApi;
+  };
   const matched: CheckedError[] = [];
   const explained: ExplainedError[] = [];
   let pending: ErrorFact[] = [];
@@ -721,7 +770,8 @@ function judgeErrors(
     if (asked.length === 0) {
       continue;
     }
-    const keys = optionErrorKeys(root, trace.config, [...new Set(asked.flatMap(({ file }) => file ?? []))]);
+    at(`${OPTIONS_PROBE_STEP} ${trace.config}`);
+    const keys = optionErrorKeys(probe(), root, trace.config, [...new Set(asked.flatMap(({ file }) => file ?? []))]);
     const byOptions = asked.filter(({ key }) => keys.has(key));
     explained.push(
       ...byOptions.map(

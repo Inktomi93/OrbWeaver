@@ -20,6 +20,7 @@ import {
   opaqueIn,
   visit,
 } from "../eslint/index.ts";
+import { positionOfEditorLine } from "../floor/typescript/editor-lines.ts";
 import type { MigrationPlan } from "./migration.ts";
 import { readPlan } from "./migration.ts";
 
@@ -68,7 +69,7 @@ function outsideElements(sf: ts.SourceFile, elems: readonly Elem[]): string {
 
 const isPlanned = (elem: Elem, sf: ts.SourceFile, plan: MigrationPlan): boolean =>
   plan.sites.some((site) => {
-    const position = site.path === sf.fileName ? sf.getPositionOfLineAndCharacter(site.line - 1, site.column) : -1;
+    const position = site.path === sf.fileName ? positionOfEditorLine(sf, site.line, site.column) : -1;
     return position >= elem.opening.attributes.pos && position < elem.opening.attributes.end;
   });
 

@@ -131,6 +131,7 @@ import { UsageError } from "../floor/cli/run-tool.ts";
 import { execGit, runGit } from "../floor/git/git.ts";
 import { isGeneratedFile } from "../floor/paths/generated-file.ts";
 import { looksLikeTestFilename } from "../floor/testing/test-kinds.ts";
+import { lineStartsOf } from "../floor/typescript/editor-lines.ts";
 import { moduleSpecifiers } from "../floor/typescript/import-graph.ts";
 import { showcaseSourceDirectory } from "../plugin-author-showcase/index.ts";
 import type { Verdict } from "./field-sort.ts";
@@ -140,8 +141,8 @@ import { occurrenceRoles, sameNode } from "./graph/roles.ts";
 import { SNAP_SOURCE } from "./graph/state.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, deepestAt, hasFlag, nameAt, nodePlace, propertiesNamed } from "./native.ts";
-import type { PluginSources } from "./optional-population.ts";
-import { isProduction, readPluginSources } from "./optional-population.ts";
+import type { PluginSources } from "./plugin-surface.ts";
+import { isPluginProduction as isProduction, readPluginSources } from "./plugin-surface.ts";
 
 const DEAD: Verdict = "dead";
 const ASK: Verdict = "ask";
@@ -624,7 +625,7 @@ type DataStep = string | typeof ITEM;
 
 // The path of each key of a parsed data file, by the key's git line and name.
 function dataPaths(source: SourceFile): ReadonlyMap<string, readonly (readonly DataStep[])[]> {
-  const starts = gitLineStarts(source.text);
+  const starts = lineStartsOf(source.text);
   const paths = new Map<string, DataStep[][]>();
   const visit = (node: Node): void => {
     if (isPropertyAssignment(node) && isStringLiteral(node.name)) {
@@ -1014,14 +1015,6 @@ function unparsedHits(file: string, type: FileType, generated: boolean, found: r
 // git counts lines by LF alone; TypeScript's line table also breaks at CR, U+2028 and U+2029, so a git line number read
 // through getPositionOfLineAndCharacter lands short after any of those. Each hit is placed by git's own line starts over
 // the program's text, both in UTF-16 units, and the text there must spell the word.
-function gitLineStarts(text: string): readonly number[] {
-  const starts = [0];
-  for (let at = text.indexOf("\n"); at !== -1; at = text.indexOf("\n", at + 1)) {
-    starts.push(at + 1);
-  }
-  return starts;
-}
-
 // The program's text drops a leading byte-order mark that git's first line still carries.
 const BYTE_ORDER_MARK = "\u{feff}";
 
@@ -1046,7 +1039,7 @@ function nameStart(source: SourceFile, offset: number): number {
 
 function parsedHits(source: SourceFile, file: string, found: readonly Found[], graph: boolean): readonly LiteralHit[] {
   const scope = scopeOf(file, "parsed");
-  const starts = gitLineStarts(source.text);
+  const starts = lineStartsOf(source.text);
   return found.map((hit) => {
     const { name, line } = hit;
     const offset = hitOffset(source, starts, hit);

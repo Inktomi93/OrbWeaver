@@ -37,6 +37,7 @@ import {
 import type { APIRequestGenerator, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import { catBlobs, execGit } from "../../floor/git/git.ts";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import { TRPC_PACKAGE } from "../boundaries.ts";
 import type { KeyResolution } from "../key-resolver.ts";
 import { resolveKeys } from "../key-resolver.ts";
@@ -493,9 +494,9 @@ function verdictOf(resolution: KeyResolution | null, placed: boolean, loose: str
 
 function hitOf(world: NativeWorld, node: Node, receiver: Receiver): Hit {
   const source = node.getSourceFile();
-  const { line } = source.getLineAndCharacterOfPosition(node.getStart(source));
+  const line = editorLineOf(source, node.getStart(source));
   const site = world.siteOf(node);
-  return { receiver, at: `${site.file}:${String(line + 1)}`, text: (source.text.split("\n")[line] ?? "").trim() };
+  return { receiver, at: `${site.file}:${String(line)}`, text: (source.text.split("\n")[line - 1] ?? "").trim() };
 }
 
 interface Tally {

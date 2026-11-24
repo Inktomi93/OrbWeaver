@@ -6,6 +6,9 @@
 // world, so what it reports live is what the scan still held after every world closed: the retainer that grows with the
 // world count. Every world's Node heap after it closes is a peak of its own, logged as the world ends, so a run the heap
 // limit kills still names the world it reached.
+//
+// The optional-pairs graph session that follows the scan profiles itself under the same kinds (../unwired/graph/scan.ts),
+// so this profile ends first and only one Node heap sampler runs at a time.
 
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -127,8 +130,10 @@ export class BrandFlowProfile implements Disposable {
     return heap;
   }
 
-  /** The run's report, with Node's heap profile stopped and read when it was sampled. */
-  async report(counts: ReadonlyMap<string, number>): Promise<GraphProfileReport> {
+  /** The scan's report, with Node's heap profile stopped and read when it was sampled. The profile watches no compiler
+   *  started after this: the optional-pairs graph session measures its own. */
+  async finish(counts: ReadonlyMap<string, number>): Promise<GraphProfileReport> {
+    unsubscribe(COMPILER_CHANNEL, this.#onCompiler);
     let nodeHeap: GraphProfileReport["nodeHeap"] = null;
     if (this.#inspector !== null) {
       const { profile } = await this.#inspector.post("HeapProfiler.stopSampling");

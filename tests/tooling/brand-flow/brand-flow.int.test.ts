@@ -370,7 +370,9 @@ test("a brand handed to a brand schema field is no contract defect, and a closed
   ]);
 });
 
-test("optional alternatives report separate writes and reject a co-set control", { timeout: 120_000 }, async ({ plantedTree }) => {
+// The construction report is the reference graph's (tests/tooling/unwired/graph-optional-pairs.int.test.ts); the rule
+// proves a pair at a fallback from the receiver's own initializer, and leaves the co-set control alone.
+test("the optional-alternatives rule flags a fallback over fields its receiver's initializer sets apart", { timeout: 120_000 }, async ({ plantedTree }) => {
   const file = "packages/a/src/choice.tsx";
   const source = [
     "export interface Input { readonly file?: string; readonly url?: string; quiet?: boolean }",
@@ -410,22 +412,6 @@ test("optional alternatives report separate writes and reject a co-set control",
     "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
     [file]: source,
   });
-  const report = scanBrandFlow({ root, worlds: [WORLD], log: () => undefined });
-  expect(
-    report.optionalAlternatives.filter((row) => row.fallbackReaders !== 0).map(({ group, left, right }) => [report.optionalGroups[group]?.owner, left, right]),
-  ).toEqual([
-    ["Input", "file", "url"],
-    ["Inherited", "path", "address"],
-    ["Partial<Addresses<string>>", "inline", "remote"],
-    ["WidgetInput", "path", "title"],
-  ]);
-
-  const zodGroups = report.optionalGroups.filter((group) => group.fields.some(({ name }) => name === "onlyFirst" || name === "onlySecond"));
-  expect(zodGroups.map((group) => group.fields.map(({ name }) => name).sort())).toEqual([
-    ["onlyFirst", "shared"],
-    ["onlySecond", "shared"],
-  ]);
-
   const rule = "orb/no-optional-alternatives";
   const messages = new Linter({ cwd: root }).verify(
     source,
@@ -475,10 +461,4 @@ test("plugin author and SDK sources are the files the author tsconfigs' programs
   const { production, optionalProduction } = report.scanned;
   // The two author entries and the SDK declaration; the stray tool file is neither.
   expect(optionalProduction - production).toBe(3);
-  expect(
-    report.optionalAlternatives.filter((row) => row.fallbackReaders !== 0).map(({ group, left, right }) => [report.optionalGroups[group]?.owner, left, right]),
-  ).toEqual([
-    ["ByFile", "file", "url"],
-    ["ByPath", "path", "href"],
-  ]);
 });

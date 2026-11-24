@@ -5,6 +5,7 @@ import { relative } from "node:path";
 import ts from "typescript";
 import type { ForeignTypes } from "../eslint/index.ts";
 import { derivedMembers, foreignTypes, isHandTyped, librarySources, placementOf } from "../eslint/index.ts";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 import type { LoadedWorld } from "./doors.ts";
 import { doorsOf, exportNameOf } from "./doors.ts";
 import { isProduction } from "./worlds.ts";
@@ -30,7 +31,7 @@ export interface ForgottenExport {
 // Interfaces this small match by accident; a copy is a shape with at least this many members.
 const MIN_INTERFACE_MEMBERS = 2;
 
-const lineOf = (node: ts.Node): number => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart()).line + 1;
+const lineOf = (node: ts.Node): number => editorLineOf(node.getSourceFile(), node.getStart());
 
 function signatureKey(checker: ts.TypeChecker, type: ts.Type): string | null {
   const [signature, ...more] = checker.getNonNullableType(type).getCallSignatures();

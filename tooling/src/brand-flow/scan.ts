@@ -8,11 +8,9 @@ import { TEST_WORLDS } from "../floor/testing/test-worlds.ts";
 import type { OptionalInventory, PluginSources } from "../unwired/index.ts";
 import {
   homeFiles,
-  isOptionalProduction,
+  isPluginProduction,
   isProduction,
-  joinOptionalConstructions,
   NativeWorld,
-  optionalConstructionFacts,
   packageWorlds,
   pluginAuthorWorlds,
   pluginSources,
@@ -39,6 +37,10 @@ export function brandFlowWorlds(root: string): readonly string[] {
   const configs = [...packageWorlds(root), ...pluginAuthorWorlds(root), "tooling/tsconfig.json", ...TEST_WORLDS];
   return configs.filter((config) => existsSync(join(root, config)));
 }
+
+/** What the per-world brand scan reports, with the plugin sources its worlds hold; the optional inventory joins it
+ *  from the reference graph, which counts those sources as production. */
+export type BrandEdgeReport = Omit<BrandFlowReport, keyof OptionalInventory> & { readonly plugins: PluginSources };
 
 export interface BrandFlowReport extends OptionalInventory {
   readonly worlds: readonly { readonly config: string; readonly files: number; readonly brandless: boolean }[];
@@ -329,7 +331,7 @@ export function scanBrandEdgesAt(root: string, config: string, files: readonly s
 }
 
 /** Scan the worlds of `options.root`, one TypeScript 7.1 process at a time. */
-export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
+export function scanBrandFlow(options: BrandFlowOptions): BrandEdgeReport {
   const profile = options.profile ?? null;
   const time = <T>(phase: "open" | "walk" | "analyse", work: () => T): T => (profile === null ? work() : profile.time(phase, work));
   const configs = options.worlds ?? brandFlowWorlds(options.root);
@@ -342,15 +344,12 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     configs.filter((config) => authorWorlds.includes(config)),
   );
   const worlds: WorldRecords[] = [];
-  const constructions: ReturnType<typeof optionalConstructionFacts>[] = [];
-  const contextualTypes = new Map<string, number>();
   for (const config of configs) {
     {
       using world = time("open", () => NativeWorld.open(options.root, config, sdk, profile !== null));
       profile?.opened(world);
       const home = homes.get(config) ?? new Set<string>();
       const records = time("walk", () => collectWorld(world, home));
-      constructions.push(optionalConstructionFacts(world, home, contextualTypes, plugins));
       profile?.closing(world);
       options.log(
         `${config}: files=${records.files} mints=${records.mints.length} widens=${records.widens.length} declarations=${records.declarations.length}`,
@@ -361,25 +360,20 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
       options.log(`${config}: node heap after close=${String(profile.closed(config))}MB`);
     }
   }
-  return time("analyse", () => joinWorlds(options.root, { worlds, constructions, homes, plugins }));
+  return time("analyse", () => joinWorlds({ worlds, homes, plugins }));
 }
 
 // Every world's records joined into the report: the name table, the inflow each declaration receives, and the rows
 // that need more than one world's records.
-function joinWorlds(
-  root: string,
-  {
-    worlds,
-    constructions,
-    homes,
-    plugins,
-  }: {
-    readonly worlds: readonly WorldRecords[];
-    readonly constructions: readonly ReturnType<typeof optionalConstructionFacts>[];
-    readonly homes: ReadonlyMap<string, ReadonlySet<string>>;
-    readonly plugins: PluginSources;
-  },
-): BrandFlowReport {
+function joinWorlds({
+  worlds,
+  homes,
+  plugins,
+}: {
+  readonly worlds: readonly WorldRecords[];
+  readonly homes: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly plugins: PluginSources;
+}): BrandEdgeReport {
   const table = new BrandTable(worlds.flatMap((world) => world.seen));
   const mints = worlds.flatMap((world) => world.mints);
   const declarations = worlds.flatMap((world) => world.declarations);
@@ -400,6 +394,7 @@ function joinWorlds(
   }
   const homed = [...homes.values()].flatMap((files) => [...files]);
   return {
+    plugins,
     worlds: worlds.map(({ config, files, brandless }) => ({ config, files, brandless })),
     scanned: {
       ...scannedFiles(homed, plugins),
@@ -419,7 +414,6 @@ function joinWorlds(
     generic,
     crossBrand,
     brandAnswers: { agree: answers.agree, unnamed: answers.unnamed, disagreements: answers.disagreements },
-    ...joinOptionalConstructions(root, constructions, plugins),
     vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
   };
 }
@@ -428,7 +422,7 @@ function scannedFiles(homed: readonly string[], plugins: PluginSources): Omit<Br
   return {
     files: homed.length,
     production: homed.filter(isProduction).length,
-    optionalProduction: homed.filter((file) => isOptionalProduction(file, plugins)).length,
+    optionalProduction: homed.filter((file) => isPluginProduction(file, plugins)).length,
     byPackage: count(
       homed.map((file) =>
         file

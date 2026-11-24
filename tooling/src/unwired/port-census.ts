@@ -32,6 +32,7 @@ import {
   rulingKeysOf,
   tierRank,
 } from "../eslint/index.ts";
+import { loadWorld } from "../floor/testing/test-worlds.ts";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import { ImportGraph } from "./doors.ts";
@@ -53,7 +54,18 @@ import {
   SPLIT_RULING,
   sharedHomeOf,
 } from "./port-targets.ts";
-import { createWorldProgram, isProduction, packageWorlds } from "./worlds.ts";
+import { isProduction, packageWorlds } from "./worlds.ts";
+
+// The host's realpath, so a workspace package keeps its source path.
+const realpath = (path: string): string => ts.sys.realpath?.(path) ?? path;
+
+// One package world as a TypeScript 6 program: the port-ownership helpers in tooling/src/eslint/ read its checker.
+function createWorldProgram(root: string, config: string): ts.Program {
+  const parsed = loadWorld(root, config);
+  const host = ts.createCompilerHost(parsed.options);
+  host.realpath = realpath;
+  return ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options, host });
+}
 
 interface WorldCount {
   readonly config: string;
@@ -118,8 +130,6 @@ interface LinkContext {
   readonly root: string;
   readonly checker: ts.TypeChecker;
   readonly sources: LibrarySources;
-  /** Whether a file is one of the compiler's default library files. */
-  readonly isLibrary: (source: ts.SourceFile) => boolean;
   readonly links: Links;
   readonly slices: Map<string, Slice>;
 }
@@ -136,8 +146,8 @@ const isReference = (type: ts.Type): type is ts.TypeReference =>
 // parameters, in order, are the element types it carries, so an `AsyncGenerator<A>` fed into an `AsyncIterable<B>`
 // flows `A` into `B`. A package's augmentation (`@total-typescript/ts-reset` merges into `Array`) leaves it the
 // library's generic. Two user generics pair their arguments only when they are one generic.
-function isLibraryGeneric({ isLibrary }: LinkContext, type: ts.TypeReference): boolean {
-  return (type.target.getSymbol()?.declarations ?? []).some((declaration) => isLibrary(declaration.getSourceFile()));
+function isLibraryGeneric({ sources }: LinkContext, type: ts.TypeReference): boolean {
+  return (type.target.getSymbol()?.declarations ?? []).some((declaration) => sources.isDefaultLibrary(declaration.getSourceFile()));
 }
 
 function elementPairs(context: LinkContext, slot: ts.Type, value: ts.Type): readonly (readonly [ts.Type, ts.Type])[] {
@@ -429,8 +439,7 @@ function collectNodeFlows(context: LinkContext, node: ts.Node, into: Collected):
 
 function collectFlows(root: string, program: ts.Program, source: ts.SourceFile, into: Collected): void {
   const checker = program.getTypeChecker();
-  const isLibrary = (file: ts.SourceFile): boolean => program.isSourceFileDefaultLibrary(file);
-  const context: LinkContext = { root, checker, sources: librarySources(program, root), isLibrary, links: into.links, slices: into.slices };
+  const context: LinkContext = { root, checker, sources: librarySources(program, root), links: into.links, slices: into.slices };
   const visit = (node: ts.Node): void => {
     if ((ts.isPropertySignature(node) || ts.isMethodSignature(node)) && isHandTyped(node) && conceptOf(node)?.sweep === true) {
       into.concepts.add(keyOf(root, node));

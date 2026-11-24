@@ -31,6 +31,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { DeliberateEntry } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
@@ -253,7 +254,7 @@ interface RouteRecord {
 /** The 1-based line of a node in the world's parse of its file. */
 function lineOf(node: Node): number {
   const source = node.getSourceFile();
-  return source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+  return editorLineOf(source, node.getStart(source));
 }
 
 // Whether a symbol is declared, every declaration of it, in a package the program loaded as a library.
@@ -644,7 +645,10 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
   const sorted = findings.toSorted((x, y) => x.file.localeCompare(y.file) || x.line - y.line || x.member.localeCompare(y.member));
   const { unwired, deliberate, judged, staleJudged } = sortRows(sorted, options);
   const rows = [...outside.values()];
-  const lineAt = (request: Request): number => (world.source(request.site.file)?.getLineAndCharacterOfPosition(request.site.position).line ?? 0) + 1;
+  const lineAt = (request: Request): number => {
+    const source = world.source(request.site.file);
+    return source === undefined ? 1 : editorLineOf(source, request.site.position);
+  };
   return {
     scanned: procedures.length + routes.length,
     procedures: procedures.length,

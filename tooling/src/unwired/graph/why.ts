@@ -4,6 +4,7 @@
 import { basename } from "node:path";
 import { getCallSites } from "node:util";
 import { skipTrivia } from "@typescript/native/ast";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { NativeWorld } from "../native.ts";
 import type { WhyTarget } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -16,7 +17,7 @@ import { isDeclKey } from "./sites.ts";
 /** The line a recorded site names: the node's full start, past its leading trivia, so a comment above the node is not its line. */
 export function siteLine(world: NativeWorld, file: string, at: number): number {
   const source = world.source(file);
-  return (source === undefined ? 0 : source.getLineAndCharacterOfPosition(skipTrivia(source.text, at)).line) + 1;
+  return source === undefined ? 1 : editorLineOf(source, skipTrivia(source.text, at));
 }
 
 /** One role a `--why` target's member was given. */
@@ -178,8 +179,8 @@ export class WhyTracker {
       return false;
     }
     const text = source.text.slice(pos, end);
-    const first = source.getLineAndCharacterOfPosition(pos).line + 1;
-    const last = source.getLineAndCharacterOfPosition(end).line + 1;
+    const first = editorLineOf(source, pos);
+    const last = editorLineOf(source, end);
     return this.#targets.some((target) =>
       target.kind === "member" ? text.includes(target.name) : target.file === file && target.line >= first && target.line <= last,
     );

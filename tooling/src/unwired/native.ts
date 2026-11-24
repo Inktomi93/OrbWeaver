@@ -1,13 +1,13 @@
-// Engine one: the TypeScript 7.1 API (`@typescript/native/sync`), one API process per world so a world's checker is
-// freed before the next loads. Every query goes through a batch: one IPC round trip per query is ~500x slower.
+// The TypeScript 7.1 API (`@typescript/native/sync`) as the reference graph, brand-flow and the mutation runner open it:
+// one API process per program, the graph's merged one or a single world's. Every query goes through a batch: one IPC
+// round trip per query is ~500x slower.
 //
 // The API's compiler process is private to it, and its socket mode is refused by the sync client, so the process is
 // read from Node's `child_process` diagnostics channel while the API's constructor spawns it, and published on
 // COMPILER_CHANNEL for whoever measures or watches the run.
 import type { ChildProcess } from "node:child_process";
 import { channel, subscribe, unsubscribe } from "node:diagnostics_channel";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   isArrowFunction,
@@ -42,8 +42,7 @@ import type {
   Type,
 } from "@typescript/native/sync";
 import { API, all, isRemoteNode, SymbolFlags } from "@typescript/native/sync";
-import { z } from "zod";
-import { isLibrarySource } from "../brand-names/index.ts";
+import { isLibrarySource, packageNameOf } from "../brand-names/index.ts";
 import { spawnedChild } from "../floor/process/proc.ts";
 import { workspacePackageRoots } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
@@ -81,7 +80,7 @@ export function compilerStartOf(message: unknown): CompilerStart | undefined {
 
 /** An API whose compiler process is published on {@link COMPILER_CHANNEL}: the constructor spawns it synchronously, so
  *  every process spawned meanwhile is the API's. */
-function startAPI(options: ConstructorParameters<typeof API>[0], config: string): API {
+export function startAPI(options: ConstructorParameters<typeof API>[0], config: string): API {
   const spawned: ChildProcess[] = [];
   const take = (message: unknown): void => {
     const child = spawnedChild(message);
@@ -154,8 +153,6 @@ export interface WorldFiles {
 }
 
 const DECLARATION_FILE = ".d.ts";
-const PACKAGE_MANIFEST = "package.json";
-const PackageManifest = z.looseObject({ name: z.string().optional() });
 const workspaceDirs = (root: string): ReadonlySet<string> => new Set(workspacePackageRoots(root));
 
 // A file the program loaded from a package that is not the workspace's own, under isLibrarySource.
@@ -240,7 +237,6 @@ export class NativeWorld implements Disposable {
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
   readonly #workspace: ReadonlySet<string>;
-  readonly #packageNames = new Map<string, string | null>();
   readonly #stats = { batches: 0, rounds: 0, sent: 0, memoHits: 0, ms: 0 };
   // True while a batch settles: a generator that re-enters the world would read the outer round's answers around itself.
   #settling = false;
@@ -477,7 +473,7 @@ export class NativeWorld implements Disposable {
    *  of the tree's own. The program decides, so a symlinked dependency and a workspace package are each judged right. */
   *packageOf(handle: NodeHandle): APIRequestGenerator<string | null> {
     const meta = yield* this.program.getSourceFileMetadataByPath.gen(handle.path);
-    return meta !== undefined && fromLibrary(meta, this.#workspace) ? this.#packageName(meta.packageJsonDirectory) : null;
+    return meta !== undefined && fromLibrary(meta, this.#workspace) ? packageNameOf(meta.packageJsonDirectory) : null;
   }
 
   /** Whether a declaration's file is one the compiler supplies, `lib.dom.d.ts` and the rest of the standard library. */
@@ -494,7 +490,7 @@ export class NativeWorld implements Disposable {
       return DEFAULT_LIBRARY;
     }
     return meta?.isFromExternalLibrary === true && !this.#workspace.has(meta.packageJsonDirectory)
-      ? (this.#packageName(meta.packageJsonDirectory) ?? meta.packageJsonDirectory)
+      ? (packageNameOf(meta.packageJsonDirectory) ?? meta.packageJsonDirectory)
       : null;
   }
 
@@ -506,21 +502,6 @@ export class NativeWorld implements Disposable {
   *#anyFrom(handles: readonly NodeHandle[], name: string): APIRequestGenerator<boolean> {
     const packages = yield* all(...handles.map((handle) => this.packageOf(handle)));
     return packages.includes(name);
-  }
-
-  // A package's name sits on its root manifest; a nested scope manifest (zod's `v4/classic/package.json`, which only
-  // sets the module type) names nothing, so the walk goes up to the first manifest that does.
-  #packageName(directory: string): string | null {
-    const known = this.#packageNames.get(directory);
-    if (known !== undefined) {
-      return known;
-    }
-    const manifest = join(directory, PACKAGE_MANIFEST);
-    const own = existsSync(manifest) ? PackageManifest.parse(JSON.parse(readFileSync(manifest, "utf8"))).name : undefined;
-    const parent = dirname(directory);
-    const name = own ?? (parent === directory ? null : this.#packageName(parent));
-    this.#packageNames.set(directory, name);
-    return name;
   }
 
   /** The repository-relative file a declaration lives in, or null for one outside the world's sources. */

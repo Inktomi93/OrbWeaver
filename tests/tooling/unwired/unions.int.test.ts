@@ -1416,3 +1416,137 @@ for (const [shape, tree, unwired] of [
     expect(sortedRows(await scanUnions(plantedTree, tree))).toEqual(unwired);
   });
 }
+
+// A Map or Set typed only by the annotation its result is assigned to infers its type arguments from that annotation, so a
+// literal in its entries is read through the annotation's written type arguments: the Map's key and value, the Set's
+// element, through an alias, an inline `(typeof T)[number]` or a library `Exclude` of one. A twin tuple of the same texts
+// that no annotation names, an annotation that spells an inline union and an unannotated Map stay uncredited.
+const ANNOTATED_TREE = {
+  "packages/a/src/annotated.ts": [
+    'const CAUSES = ["deadline", "budget", "compile"] as const;',
+    "type Cause = (typeof CAUSES)[number];",
+    'const TWIN_CAUSES = ["deadline", "budget", "compile"] as const;',
+    'export const BY_CODE: ReadonlyMap<unknown, Cause> = new Map([["x", "deadline"]]);',
+    'const SORTS = ["asc", "desc", "none"] as const;',
+    'export const BY_NAME: Map<(typeof SORTS)[number], string> = new Map([["asc", "up"]]);',
+    'const LEVELS = ["low", "high", "off"] as const;',
+    "type Level = (typeof LEVELS)[number];",
+    'export const FINAL: ReadonlySet<Level> = new Set(["low"]);',
+    'const SIZES = ["s", "m", "l"] as const;',
+    "type Size = (typeof SIZES)[number];",
+    'export const SOME: ReadonlyMap<number, Exclude<Size, "l">> = new Map([[1, "s"]]);',
+    'const TWIN_SIZES = ["s", "m", "l"] as const;',
+    'const WIDTHS = ["narrow", "wide"] as const;',
+    'export const INLINE: ReadonlyMap<number, "narrow" | "wide"> = new Map([[1, "narrow"]]);',
+    'const PLAINS = ["one", "two"] as const;',
+    'export const PLAIN = new Map([[1, "one"]]);',
+  ].join("\n"),
+};
+
+test("a Map or Set typed by its annotation credits the tuple the annotation's type arguments trace to, and no twin", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, ANNOTATED_TREE))).toEqual([
+    "CAUSES.budget",
+    "CAUSES.compile",
+    "LEVELS.high",
+    "LEVELS.off",
+    "PLAINS.one",
+    "PLAINS.two",
+    "SIZES.l",
+    "SIZES.m",
+    "SORTS.desc",
+    "SORTS.none",
+    "TWIN_CAUSES.budget",
+    "TWIN_CAUSES.compile",
+    "TWIN_CAUSES.deadline",
+    "TWIN_SIZES.l",
+    "TWIN_SIZES.m",
+    "TWIN_SIZES.s",
+    "WIDTHS.narrow",
+    "WIDTHS.wide",
+  ]);
+});
+
+// An inferred generic call reads the descriptor its object fills through the interface reference the callee's parameter
+// writes, not through the checker's instantiation: a one-member tuple's element type is a bare literal, so the
+// instantiation names no tuple, and a twin tuple of the same text would be indistinguishable from it. `ENTITIES` and
+// `SHELVES` are each filled through their own descriptor's written default; `TWINS` holds the same text and is named by
+// nothing, so its row stays unbuilt.
+const WRITTEN_REFERENCE_TREE = {
+  "packages/a/src/presets.ts": [
+    'const ENTITIES = ["book"] as const;',
+    "type Entity = (typeof ENTITIES)[number];",
+    'const SHELVES = ["book"] as const;',
+    "type Shelf = (typeof SHELVES)[number];",
+    'const TWINS = ["book"] as const;',
+    "export const twin = (value: (typeof TWINS)[number]): string => value;",
+    'interface RefKnob<E extends Entity = Entity> { readonly kind: "ref"; readonly entity: E }',
+    'interface ShelfKnob<S extends Shelf = Shelf> { readonly kind: "shelf"; readonly entity: S }',
+    'interface NumberKnob { readonly kind: "number"; readonly min: number }',
+    "interface Descriptors { readonly ref: RefKnob; readonly shelf: ShelfKnob; readonly number: NumberKnob }",
+    "type Descriptor = Descriptors[keyof Descriptors];",
+    "type Schema = Readonly<Record<string, Descriptor>>;",
+    "interface Def<T extends Schema = Schema> { readonly name: string; readonly knobs: T }",
+    "const define = <const T extends Schema>(def: Def<T>): Def<T> => def;",
+    'export const A = define({ name: "a", knobs: { bookId: { kind: "ref", entity: "book" } } });',
+    'export const B = define({ name: "b", knobs: { shelfId: { kind: "shelf", entity: "book" } } });',
+  ].join("\n"),
+};
+
+test("an inferred generic call reads a one-member tuple through the interface reference its parameter writes, and no twin", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, WRITTEN_REFERENCE_TREE))).toEqual(["TWINS.book"]);
+});
+
+// A mapped registry whose row type is a conditional over its key: the key reaches the row as a literal, which selects
+// properties and spells no vocabulary, so a conditional that tests it (`"owner" extends ColumnOf<Name>`) and an `infer`
+// type parameter in the same registry read nothing and rule no tuple out. The row's `scope` slot is spelled from
+// `CLASSES` in the branch that names it; `TWIN_CLASSES` holds the same texts and no slot names it.
+const CONDITIONAL_REGISTRY_TREE = {
+  "packages/a/lib/db.ts": "export declare class Table<TColumns> { readonly _: { readonly name: string; readonly columns: TColumns } }",
+  "packages/a/src/tenancy.ts": [
+    'import type { Table } from "../lib/db.ts";',
+    'const CLASSES = ["owner", "member", "link", "child", "none"] as const;',
+    "type Class = (typeof CLASSES)[number];",
+    'const TWIN_CLASSES = ["owner", "member", "link", "child", "none"] as const;',
+    "export const twin = (value: (typeof TWIN_CLASSES)[number]): string => value;",
+    "interface Schema { readonly users: Table<{ readonly id: 1; readonly owner: 1 }>; readonly rooms: Table<{ readonly id: 1 }>; readonly links: Table<{ readonly id: 1 }> }",
+    "type TableName = { [Name in keyof Schema]: Schema[Name] extends Table<infer Columns> ? Name : never }[keyof Schema];",
+    "type SqlNameOf<Name extends TableName> = Schema[Name] extends { readonly _: { readonly name: infer Sql } } ? Sql : never;",
+    'type ColumnOf<Name extends TableName> = keyof Schema[Name]["_"]["columns"];',
+    'const ROOM = "rooms" satisfies TableName;',
+    'type Admitted<Name extends TableName> = "owner" extends ColumnOf<Name>',
+    '  ? "owner"',
+    '  : "id" extends ColumnOf<Name>',
+    "    ? Name extends typeof ROOM",
+    '      ? "member"',
+    '      : Exclude<Class, "owner" | "member">',
+    "    : never;",
+    'type RowFor<Name extends TableName> = { readonly sqlName: SqlNameOf<Name>; readonly why: string } & (Admitted<Name> extends "owner"',
+    '  ? { readonly scope: "owner"; readonly stamp: string }',
+    "  : { readonly scope: Admitted<Name> });",
+    "type Registry = { readonly [Name in TableName]: RowFor<Name> };",
+    "export const REGISTRY = {",
+    '  users: { sqlName: "users", scope: "owner", stamp: "s", why: "w" },',
+    '  rooms: { sqlName: "rooms", scope: "member", why: "w" },',
+    '  links: { sqlName: "links", scope: "link", why: "w" },',
+    "} as const satisfies Registry;",
+  ].join("\n"),
+};
+
+test("a mapped registry whose row is a conditional over its key credits the tuple its scope slot is spelled from", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, CONDITIONAL_REGISTRY_TREE))).toEqual([
+    "CLASSES.child",
+    "CLASSES.none",
+    "CLASSES.owner",
+    "TWIN_CLASSES.child",
+    "TWIN_CLASSES.link",
+    "TWIN_CLASSES.member",
+    "TWIN_CLASSES.none",
+    "TWIN_CLASSES.owner",
+  ]);
+});

@@ -22,6 +22,22 @@ test("a plugin contract member the SDK manifest's declarations publish is read b
   expect(labelsIn(scan, "member-write-only", contract)).toEqual(["PluginThing.hidden"]);
 });
 
+// The SDK may spell a contract type inline in a slot: the contract type a slot holds publishes the members the SDK
+// spells there, and the ones it leaves out are judged.
+test("a plugin contract member the SDK spells inline in a slot is read by guests", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const contract = "packages/contracts/src/plugin/api.ts";
+  const scan = await graphScan(plantedTree, {
+    [contract]: [
+      "export interface PluginInfo { readonly shown: string; readonly hidden: string }",
+      "export interface PluginApi { readonly info: () => Promise<PluginInfo> }",
+      'export const api: PluginApi = { info: async () => ({ shown: "s", hidden: "h" }) };',
+    ].join("\n"),
+    "packages/plugin-sdk/package.json": JSON.stringify({ name: "@orb/plugin-sdk", files: ["api.d.ts"] }),
+    "packages/plugin-sdk/api.d.ts": "export interface PluginApi { readonly info: () => Promise<{ readonly shown: string }> }",
+  });
+  expect(labelsIn(scan, "member-write-only", contract)).toEqual(["PluginInfo.hidden"]);
+});
+
 test("a state value nothing reads and a setter nothing calls are reported; used ones are not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...REACT_TYPES,

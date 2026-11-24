@@ -5,6 +5,7 @@ import ts from "typescript";
 import dependencyCruiser from "../../../.dependency-cruiser.ts";
 import type { ForeignTypes, PortMember, Restatement } from "../eslint/index.ts";
 import { describeForeignTypes, jointBatchRulingOf, passesDbHandle, placementOf, runtimeTypes } from "../eslint/index.ts";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 
 /** What a target asks its leg to do. The codemod applies {@link APPLIED_KINDS}; {@link INFORMATIONAL_KINDS} ask nothing;
  *  the others are judgment or hand work. */
@@ -230,7 +231,7 @@ export interface Indexed {
 
 export const lineOf = (node: ts.Node): number => {
   const source = node.getSourceFile();
-  return source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+  return editorLineOf(source, node.getStart(source));
 };
 
 export const keyOf = (root: string, member: PortMember): string =>
