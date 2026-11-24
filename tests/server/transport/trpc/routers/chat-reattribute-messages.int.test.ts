@@ -181,7 +181,7 @@ test("the wire refuses a persona id, an unknown key, an empty list and an over-l
   const { h, firstReply, ada, bex } = seeded;
   const persona = h.root.idSource.typeId(ID_PREFIX.persona);
   const input = { chatId: h.chatId, messageIds: [firstReply], characterId: bex };
-  await expect(h.caller.chat.reattributeMessages({ ...input, characterId: castId<CharacterId>(persona) })).toThrowTRPCError("BAD_REQUEST");
+  await expect(h.caller.chat.reattributeMessages({ ...input, characterId: forged<CharacterId>(persona) })).toThrowTRPCError("BAD_REQUEST");
   await expect(h.caller.chat.reattributeMessages(forged<typeof input>({ ...input, personaId: persona }))).toThrowTRPCError("BAD_REQUEST");
   await expect(h.caller.chat.reattributeMessages({ ...input, messageIds: [] })).toThrowTRPCError("BAD_REQUEST");
   const overLong = Array.from({ length: REATTRIBUTE_MESSAGES_MAX + 1 }, () => firstReply);
