@@ -64,6 +64,58 @@ test("a value a method keeps fills the instance it was set on; a comparing metho
   ]);
 });
 
+// `fill` pushes into its own `into` and `collect` into its context's `rows`, so only the lists handed to those reads
+// the push. `Lost`'s list fills `hold`'s
+// `Row[]`, which nothing writes into, so its unwritten `note` stays read and never written. `Runner` pushes into its own
+// `events`; the stamps handed to `count` as `Event[]` never reach that list, so their read of `at` reads no event and
+// `Event.at` stays written and never read.
+test("a push writes only the list its own binding holds", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Row { readonly label: string; readonly note?: string }",
+      "export interface Kept { readonly label: string; readonly note?: string }",
+      "export interface Lost { readonly label: string; readonly note?: string }",
+      'const fill = (into: Row[]): void => { into.push({ label: "l", note: "n" }); };',
+      "const hold = (from: Row[]): number => from.length;",
+      "export const kept = (): string => {",
+      "  const rows: Kept[] = [];",
+      "  fill(rows);",
+      '  return rows.map((row) => row.label + (row.note ?? "")).join();',
+      "};",
+      "export const lost = (): string => {",
+      '  const rows: Lost[] = [{ label: "l" }];',
+      "  hold(rows);",
+      '  return rows.map((row) => row.label + (row.note ?? "")).join();',
+      "};",
+      "export interface Got { readonly label: string; readonly note?: string }",
+      "export interface Boxed { readonly label: string; readonly note?: string }",
+      'const collect = (ctx: { readonly rows: Boxed[] }): void => { ctx.rows.push({ label: "c", note: "n" }); };',
+      "export const got = (): string => {",
+      "  const rows: Got[] = [];",
+      "  collect({ rows });",
+      '  return rows.map((row) => row.label + (row.note ?? "")).join();',
+      "};",
+      "export interface Event { readonly kind: string; readonly at: number }",
+      "export interface Stamp { readonly kind: string; readonly at: number }",
+      "export class Runner {",
+      "  readonly events: Event[] = [];",
+      "  emit(kind: string): void {",
+      "    this.events.push({ kind, at: 1 });",
+      "  }",
+      "}",
+      "const count = (events: Event[]): number => events.length;",
+      "export const stamped = (runner: Runner): number => {",
+      '  runner.emit("e");',
+      '  const stamps: Stamp[] = [{ kind: "s", at: 2 }];',
+      "  count(stamps);",
+      "  return stamps.map((stamp) => stamp.at + stamp.kind.length).length + runner.events.map((event) => event.kind).length;",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Event.at", "member-read-only Lost.note"]);
+});
+
 // `fill` pushes into the list it takes as `Wide[]`, and the list is the caller's `Leaf[]`, whose reads read the push.
 // A readonly list only hands its elements out, and nothing writes into the mutable list `peek` takes, so what `look`
 // takes as `View` and `peek` as `Peeked` stays written and never read.
