@@ -1188,7 +1188,7 @@ test("an assignment to a library ref's current value is read through the ref's t
 
 // An indexed access selects every property its index names, written as a union or through an alias of one:
 // `Settings["theme" | "size"]` is a Theme or a Size and never a Mode. THEMES, MODES and SIZES all hold `dark`.
-const KEY_INDEX_TREE = {
+const keyIndexTree = (slot: string, keys: string): Readonly<Record<string, string>> => ({
   "packages/a/src/settings.ts": [
     'const THEMES = ["dark", "light"] as const;',
     "type Theme = (typeof THEMES)[number];",
@@ -1197,18 +1197,20 @@ const KEY_INDEX_TREE = {
     'const SIZES = ["dark", "tiny"] as const;',
     "type Size = (typeof SIZES)[number];",
     "interface Settings { theme: Theme; mode: Mode; size: Size }",
-    'export const pick = (value: Settings["theme" | "size"]): string => value;',
-    'export const picked = pick("dark");',
-    'type Keys = "theme" | "size";',
-    "export const pickAlias = (value: Settings[Keys]): string => value;",
-    'export const pickedAlias = pickAlias("light");',
-    'export const pickedTiny = pickAlias("tiny");',
+    keys,
+    `export const pick = (value: ${slot}): string => value;`,
+    'export const picked = [pick("dark"), pick("tiny")];',
   ].join("\n"),
-};
-
-test("an indexed access over a union of keys or an alias of one reads only the properties it selects", { timeout: 120_000 }, async ({ plantedTree }) => {
-  expect(sortedRows(await scanUnions(plantedTree, KEY_INDEX_TREE))).toEqual(["MODES.auto", "MODES.dark"]);
 });
+
+for (const [shape, tree] of Object.entries({
+  union: keyIndexTree('Settings["theme" | "size"]', ""),
+  alias: keyIndexTree("Settings[Keys]", 'type Keys = "theme" | "size";'),
+})) {
+  test(`an indexed access over keys written as a ${shape} reads only the properties it selects`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    expect(sortedRows(await scanUnions(plantedTree, tree))).toEqual(["MODES.auto", "MODES.dark", "THEMES.light"]);
+  });
+}
 
 // A setter keyed by a variable reads the property the variable's declared type selects, as a literal key does: `themeKey`
 // is typed `"theme"` and `sizeKey` a union.
@@ -1315,4 +1317,72 @@ test("an indexed access on a schema-inferred or awaited type reads the property'
     "TWINS.showcase",
     "TWINS.url",
   ]);
+});
+
+// A property of a mapped type is its template, not the declaration of the property it maps: `Retyped` types every
+// Settings key as a Pace, so `theme: "idle"` builds PACES.idle and no THEMES member, though THEMES holds `idle`.
+const MAPPED_RETYPE_TREE = {
+  "packages/a/src/settings.ts": [
+    'const THEMES = ["idle", "calm"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["busy", "calm"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const PACES = ["idle", "busy"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    "interface Settings { theme: Theme; mode: Mode }",
+    "type Retyped = { readonly [K in keyof Settings]: Pace };",
+    'export const retyped: Retyped = { theme: "idle", mode: "busy" };',
+  ].join("\n"),
+};
+
+test("a property of a mapped type reads the type's template and not the declaration it maps", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, MAPPED_RETYPE_TREE))).toEqual(["MODES.busy", "MODES.calm", "THEMES.calm", "THEMES.idle"]);
+});
+
+// A row type generic in its key reads the property the key names. The registry maps over the keys of `Other`, so the
+// declaration of `theme` there is a string; its rows take their tuples from `Row<K>`, instantiated with each literal key.
+// `dark` is in THEMES, MODES and KINDS, and the rows write it only in the theme's arms.
+const KEYED_ROW_TREE = {
+  "packages/a/src/manifest.ts": [
+    'const THEMES = ["dark", "light", "dim"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dark", "auto", "loud"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const KINDS = ["dark", "other"] as const;',
+    "type Kind = (typeof KINDS)[number];",
+    "interface Settings { theme: Theme; mode: Mode }",
+    "interface Other { theme: string; mode: string }",
+    "type Row<K extends keyof Settings> = { readonly kind: Kind; readonly arms: readonly [Settings[K], Settings[K]] };",
+    "type Manifest = { readonly [K in keyof Other]: Row<K> };",
+    "export const MANIFEST = {",
+    '  theme: { kind: "other", arms: ["dark", "light"] },',
+    '  mode: { kind: "other", arms: ["auto", "loud"] },',
+    "} as const satisfies Manifest;",
+  ].join("\n"),
+};
+
+test("a row type generic in its key reads the property the key names, and credits only that property's tuple", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  expect(sortedRows(await scanUnions(plantedTree, KEYED_ROW_TREE))).toEqual(["KINDS.dark", "MODES.dark", "THEMES.dim"]);
+});
+
+// A mapped key reaches a generic template through its argument: `Solo`'s template names `Single<K>`, whose body indexes
+// `Settings[K]`. THEMES and MODES share `dim`, written once, in the theme property.
+const FORWARDED_KEY_TREE = {
+  "packages/a/src/solo.ts": [
+    'const THEMES = ["dim", "light"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dim", "auto"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    "interface Settings { theme: Theme; mode: Mode }",
+    "interface Other { theme: string; mode: string }",
+    "type Single<K extends keyof Settings> = Settings[K];",
+    "type Solo = { readonly [K in keyof Other]: Single<K> };",
+    'export const SOLO: Solo = { theme: "dim", mode: "auto" };',
+  ].join("\n"),
+};
+
+test("a mapped key reaches a generic template's index through the type argument it is passed as", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, FORWARDED_KEY_TREE))).toEqual(["MODES.dim", "THEMES.light"]);
 });
