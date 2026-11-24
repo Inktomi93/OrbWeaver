@@ -10,6 +10,10 @@
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
 // - A value a library signature takes as a bare type parameter (`c.json<T>(object: T)`) is sent whole too.
 // - A spread into an object literal copies; it never escapes.
+// - A value handed into a slot type that names fewer members still holds the rest at run time: each slot that type then
+//   fills pairs with the value too, at any number of such hops, so a member reaches the first slot that names it. Each
+//   hop is a pair the walk made; a member of the same name on a value never handed through the narrower type gains
+//   nothing.
 // - A slot with a string index signature pairs the members it names; the value's other members escape with it. A
 //   literal key read through such a slot's type in the same file (`line["done"]`) reads the handed values' members of
 //   that name, at any depth: it cannot tell two values handed into one type apart.
@@ -66,6 +70,11 @@ interface TypePair {
 export interface FlowPair extends TypePair {
   readonly site: number;
   readonly whole?: boolean;
+}
+
+// A slot a value type filled, at the pair's site in its file.
+interface Filled extends FlowPair {
+  readonly file: string;
 }
 
 // The step that put a pair on the flow walk's worklist: into a type argument, a list element or a union arm (each a part
@@ -215,6 +224,16 @@ export class Flows {
   // The value types handed into each string-indexed slot type, by `file|type id`: a literal key read through that type in
   // the same file reads the values' members of the key's name (keys.ts).
   readonly #sinks = new Map<string, Type[]>();
+  // The values widened into each slot type, by its id: each holds members of ours the slot type does not name, which ride
+  // along under the narrower type until a slot it fills names them (`costRow` returned as a row type without
+  // `extraTokens`, then handed to a parameter that reads `extraTokens`).
+  readonly #carried = new Map<number, Map<number, Type>>();
+  // The slots each value type filled, by its id: a value carried into that type later fills them too.
+  readonly #filled = new Map<number, Map<number, Filled>>();
+  // The carried pairs already made, by `slot>value` id.
+  readonly #carriedPairs = new Set<string>();
+  // Carried pairs found while another file was walked, linked under their own file by settle.
+  #late: Filled[] = [];
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -1006,6 +1025,80 @@ export class Flows {
     return typed;
   }
 
+  /** Link the carried pairs found while other files were walked, under their own files, until none is new. */
+  settle(): void {
+    for (let late = this.#late; late.length > 0; late = this.#late) {
+      this.#late = [];
+      this.#state.count("carried settle passes");
+      const byFile = Map.groupBy(late, ({ file }) => file);
+      for (const [file, pairs] of byFile) {
+        this.link(
+          pairs.map(({ slot, value, site }) => ({ slot, value, site })),
+          file,
+        );
+      }
+    }
+  }
+
+  // A value keeps every member it holds when a slot type that names fewer takes it, so each pair records the slot the
+  // value filled and, when the value holds members of ours the slot does not name, the value as carried by the slot
+  // type. A value carried by a type fills every slot that type fills: those carried pairs are returned when they land in
+  // `file` and kept for settle otherwise. A carried pair walks like any pair, so a slot naming a carried member pairs it
+  // and carries it no further, and one naming fewer carries the value on.
+  #carry(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[], file: string): readonly FlowPair[] {
+    const carries = this.#carriesMembers(fresh, slotMembers);
+    const out: FlowPair[] = [];
+    const offer = (pair: Filled): void => {
+      const key = `${String(pair.slot.id)}>${String(pair.value.id)}`;
+      if (this.#carriedPairs.has(key) || pair.slot.id === pair.value.id) {
+        return;
+      }
+      this.#carriedPairs.add(key);
+      this.#state.count("carried pairs");
+      if (pair.file === file) {
+        out.push({ slot: pair.slot, value: pair.value, site: pair.site });
+      } else {
+        this.#late.push(pair);
+      }
+    };
+    for (const [x, { slot, value, site }] of fresh.entries()) {
+      const filled = this.#filled.get(value.id) ?? new Map<number, Filled>();
+      this.#filled.set(value.id, filled);
+      if (!filled.has(slot.id)) {
+        filled.set(slot.id, { slot, value, site, file });
+        for (const carried of this.#carried.get(value.id)?.values() ?? []) {
+          offer({ slot, value: carried, site, file });
+        }
+      }
+      const carriedBy = this.#carried.get(slot.id) ?? new Map<number, Type>();
+      if (carries[x] !== true || carriedBy.has(value.id)) {
+        continue;
+      }
+      this.#carried.set(slot.id, carriedBy.set(value.id, value));
+      for (const target of this.#filled.get(slot.id)?.values() ?? []) {
+        offer({ ...target, value });
+      }
+    }
+    return out;
+  }
+
+  // Whether each pair's value holds a member declared in the tree that its slot does not name.
+  #carriesMembers(fresh: readonly FlowPair[], slotMembers: readonly (readonly NativeSymbol[])[]): readonly boolean[] {
+    const { state } = this;
+    const valueMembers = state.batch(fresh.map(({ value }) => state.membersOf(value)));
+    const excess = fresh.map((_, x) => {
+      const named = new Set((slotMembers[x] ?? []).map(({ name }) => name));
+      return (valueMembers[x] ?? []).filter(({ name }) => !named.has(name));
+    });
+    const ours = state.declarations(excess.flat());
+    let at = 0;
+    return excess.map((members) => {
+      const found = ours.slice(at, at + members.length).some((decls) => decls.length > 0);
+      at += members.length;
+      return found;
+    });
+  }
+
   #memberPairs(fresh: readonly FlowPair[], file: string): readonly FlowPair[] {
     const { state } = this;
     const { checker } = state.world;
@@ -1043,6 +1136,7 @@ export class Flows {
     const types = state.batch(deeper.flatMap(({ slot, value }) => [checker.getTypeOfSymbol.gen(slot), checker.getTypeOfSymbol.gen(value)]));
     return [
       ...entries,
+      ...this.#carry(fresh, slotMembers, file),
       ...deeper.flatMap(({ site }, y) => {
         const slot = types[2 * y];
         const value = types[2 * y + 1];

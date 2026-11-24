@@ -300,6 +300,7 @@ class Builder {
       this.#keys.finish(this.#flows);
       this.#settleTwins();
       this.#links.settle();
+      this.#flows.settle();
       return this.#variants.finish();
     };
     if (profile === null) {

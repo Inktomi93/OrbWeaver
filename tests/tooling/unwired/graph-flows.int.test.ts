@@ -8,8 +8,8 @@ import { GRAPH_SOURCE, graphScan, labelsIn, libraryModule, ZOD_MODULE } from "./
 
 const FILE = `${GRAPH_SOURCE}/flows.ts`;
 const source = (lines: readonly string[]): Record<string, string> => ({ [FILE]: lines.join("\n") });
-const bucketsIn = (scan: GraphScan): readonly string[] =>
-  MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label.split("  ")[0] ?? ""}`));
+const bucketsIn = (scan: GraphScan, file = FILE): readonly string[] =>
+  MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, file).map((label) => `${bucket} ${label.split("  ")[0] ?? ""}`));
 
 // A router's mutation options and a client's vars twin of its input, joined through `Options<V>`: the client writes
 // `NominateVars` and the router reads `Input`, so the write reaches the read only when `V` pairs backwards.
@@ -281,4 +281,61 @@ test("each zod validator's literal writes the schema input keys it holds", { tim
     ]),
   });
   expect(bucketsIn(scan)).toEqual(["member-read-only In.c"]);
+});
+
+// A cost row is returned as a narrower row type, handed on as a turn type that names fewer members still, and only then
+// to a parameter that reads `extra`: no type on the way names `extra`, but the row still holds it, so the write reaches
+// the read. `Lost.cost.hidden` rides the same way and no slot names it, so it stays written and never read; `Side`'s
+// `extra`, never widened into the row type, takes none of the far read; and `turnCost.other` no value holds.
+test("a member a narrower slot type does not name rides the value to a slot that names it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Base { readonly content: string }",
+      "export interface Turn { readonly content: string; readonly id?: string }",
+      "export interface Wire { readonly cost: Base & { readonly extra?: number } }",
+      "export interface Lost { readonly cost: Base & { readonly hidden?: number } }",
+      "export interface Side { readonly cost: Base & { readonly extra?: number } }",
+      "const turnCost = (turn: { readonly content: string; readonly extra?: number; readonly other?: number }): number =>",
+      "  turn.content.length + (turn.extra ?? 0) + (turn.other ?? 0);",
+      "declare const base: Base;",
+      'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      'const lost: Lost[] = [{ cost: { ...base, content: "c", hidden: 1 } }];',
+      'export const side: Side = { cost: { ...base, content: "c", extra: 2 } };',
+      "const costs = (rows: readonly { readonly cost: Base }[]): Base[] => rows.map((w) => w.cost);",
+      "const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
+      "export const total = (): number => fit(costs(wires)) + costs(lost).length;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
+    "member-write-only Lost.cost.hidden",
+    "member-write-only Side.cost",
+    "member-write-only Side.cost.extra",
+    "member-untouched Turn.id",
+    "member-read-only turnCost.other",
+  ]);
+});
+
+// The reader's file is walked before the file that widens the row, so the carried pair is found after the reader's
+// slot was filled, and is linked once every file is walked.
+test("a carried member reaches a slot named in a file walked earlier", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const reader = `${GRAPH_SOURCE}/a-read.ts`;
+  const scan = await graphScan(plantedTree, {
+    [reader]: [
+      "export interface Turn { readonly content: string }",
+      "const turnCost = (turn: { readonly content: string; readonly extra?: number; readonly other?: number }): number =>",
+      "  turn.content.length + (turn.extra ?? 0) + (turn.other ?? 0);",
+      "export const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
+    ].join("\n"),
+    ...source([
+      'import { fit } from "./a-read.ts";',
+      "export interface Base { readonly content: string }",
+      "export interface Wire { readonly cost: Base & { readonly extra?: number } }",
+      "declare const base: Base;",
+      'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      "const costs = (rows: readonly Wire[]): Base[] => rows.map((w) => w.cost);",
+      "export const total = (): number => fit(costs(wires));",
+    ]),
+  });
+  expect([...bucketsIn(scan), ...bucketsIn(scan, reader)]).toEqual(["member-read-only turnCost.other"]);
 });
