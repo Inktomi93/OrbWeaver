@@ -120,6 +120,28 @@ test("a column logged by name is read and a whole-row log dump reads none", { ti
   expect(named(report)).toEqual(["events.detail never-read"]);
 });
 
+// A table is a call whose type is drizzle-orm's table, so a wrapper defines one; a local function spelled
+// `sqliteTable` returns no such type and defines none, so its `fake.label` is no column.
+const WRAPPED = tree(
+  ["const table = <C>(name: string, columns: C) => sqliteTable(name, columns);", 'export const notes = table("notes", { title: text(), body: text() });'],
+  [
+    'export const save = (): void => { db.insert(schema.notes).values({ title: "t", body: "b" }); };',
+    "export const titles = db.select().from(schema.notes).map((row) => row.title);",
+  ],
+  {
+    "packages/db/src/schema/local.ts": [
+      "function sqliteTable<C>(name: string, columns: C): C & { readonly name: string } { return { ...columns, name }; }",
+      'export const fake = sqliteTable("fake", { label: "l" });',
+    ].join("\n"),
+  },
+);
+
+test("a table built through a wrapper has its columns, and a same-named local function builds no table", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scan(await plantedTree(WRAPPED));
+  expect(named(report)).toEqual(["notes.body never-read"]);
+  expect(report.columns.find(({ key }) => key.endsWith("notes.title"))).toMatchObject({ reads: 1, writes: 1 });
+});
+
 // An export serializes whole rows into a file, which reads every column they carry: `profiles.name`, `bio` and `motto`.
 // The same rows serialized into a log read none, so `archive.summary` stays never read. A store of a whole value writes
 // its required members' columns: the import fills `profiles.name` and `bio`. An optional column only the value's type

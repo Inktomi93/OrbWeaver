@@ -29,6 +29,7 @@
 //   (a phantom `Token<A>`) pairs forward.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
 //   whole, its function members' returns walked too, sent to the dev bridge as an observability sink.
+// - A spread fills the literal's slot with its members, less each key the literal sets after it.
 // - An escape names every destination its chase reaches, not only the first: a value one path logs and another returns
 //   unseen is both logged and unclassified.
 // - A whole value handed to a slot naming members of ours its type lacks is traced back to where its type still names
@@ -61,6 +62,7 @@ import {
   isPropertyAccessExpression,
   isPropertyAssignment,
   isSatisfiesExpression,
+  isSpreadAssignment,
   isSpreadElement,
   isVariableDeclaration,
   SyntaxKind,
@@ -221,6 +223,19 @@ function* indexValueTypes(state: GraphState, slot: Type): APIRequestGenerator<re
     }
   }
   return out;
+}
+
+const NO_NAMES: ReadonlySet<string> = new Set();
+
+// The keys an object literal sets after the spread whose value `node` is: each overrides the spread's member of its
+// name, so the spread hands that member to nothing (`{ ...row, body: "b" }` hands on no `row.body`).
+function shadowedBySpread(node: Node | undefined): ReadonlySet<string> {
+  const spread = node?.parent;
+  if (spread === undefined || !isSpreadAssignment(spread) || !isObjectLiteralExpression(spread.parent)) {
+    return NO_NAMES;
+  }
+  const later = spread.parent.properties.filter((property) => property.pos > spread.pos);
+  return new Set(later.flatMap((property) => (isSpreadAssignment(property) ? [] : (keyText(property.name) ?? []))));
 }
 
 // The value node behind each site position a file's pairs carry: a hand-off, a flow site, a type pair, a checked value.
@@ -1332,7 +1347,10 @@ export class Flows {
     const { checker } = state.world;
     const slotMembers = state.batch(fresh.map(({ slot }) => state.membersOf(slot)));
     const entries = this.#indexedEscapes(fresh, slotMembers, file);
-    const asks = fresh.flatMap((pair, x) => (slotMembers[x] ?? []).map((member) => ({ pair, member, x })));
+    const asks = fresh.flatMap((pair, x) => {
+      const shadowed = pair.whole === true ? shadowedBySpread(this.#siteNodes.get(pair.site)) : NO_NAMES;
+      return (slotMembers[x] ?? []).filter((member) => !shadowed.has(member.name)).map((member) => ({ pair, member, x }));
+    });
     const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
     this.#recordTraces(
       asks.filter((_, y) => valueMembers[y] === undefined),

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import type { Node } from "@typescript/native/ast";
 import { isPropertyAccessExpression } from "@typescript/native/ast";
-import { ROW_COUNTS, rowTablesOf, takeRowTally } from "../../../tooling/src/unwired/drizzle-rows.ts";
+import { DRIZZLE_PACKAGE, ROW_COUNTS, rowTablesOf, takeRowTally } from "../../../tooling/src/unwired/drizzle-rows.ts";
 import { FRESH_BUILD, scanGraph } from "../../../tooling/src/unwired/index.ts";
 import { constituents, NativeWorld } from "../../../tooling/src/unwired/native.ts";
 import { GRAPH_SOURCE, graphScan, graphTree, libraryModule, WORLD } from "./_planted.ts";
@@ -13,32 +13,23 @@ import { GRAPH_SOURCE, graphScan, graphTree, libraryModule, WORLD } from "./_pla
 const SCHEMA = "packages/db/src/schema/tables.ts";
 const FILE = `${GRAPH_SOURCE}/rows.ts`;
 
-// drizzle-orm's typing in miniature: a table keeps its column members, and its select row is a mapped type over them
-const DRIZZLE = libraryModule([
-  "export interface Column { readonly name: string }",
-  "export declare const text: () => Column;",
-  "export interface TableConfig<C> { readonly columns: C }",
-  "export type Simplify<T> = { [K in keyof T]: T[K] } & {};",
-  'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: Simplify<{ [K in keyof T["columns"] & string]: string }> }',
-  "export declare function sqliteTable<C>(name: string, columns: C): Table<TableConfig<C>> & C;",
-  'export declare const db: { select(): { from<T extends { readonly $inferSelect: unknown }>(table: T): T["$inferSelect"][] } };',
-]);
-
-const tables = [
-  'import { sqliteTable, text } from "lib";',
-  'export const notes = sqliteTable("notes", { id: text(), title: text(), body: text() });',
-  'export const cards = sqliteTable("cards", { id: text(), blurb: text() });',
-].join("\n");
-
+// A stored member is read only where its column is read back, so each stored member a row read reaches is read: the
+// annotated row's `title`, the selected rows' `id` and `blurb`. `NoteWrite.body` and `CardWrite.id` are read back by
+// nothing and stay write-only.
 test("a row member read finds the column of the table the checker ties its row type to, annotated or selected whole", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
   const scan = await graphScan(plantedTree, {
-    ...DRIZZLE,
-    [SCHEMA]: tables,
+    ...STORES,
+    [SCHEMA]: STORED_TABLES,
     [FILE]: [
-      'import { db } from "lib";',
+      `import { db } from "${STORE_PACKAGE}";`,
       'import { cards, notes } from "../../db/src/schema/tables.ts";',
+      "export interface NoteWrite { readonly id: string; readonly title: string; readonly body: string }",
+      "export interface CardWrite { readonly id: string; readonly blurb: string }",
+      "export const saveNote = (note: NoteWrite): unknown => db.insert(notes).values(note);",
+      "export const saveCard = (card: CardWrite): unknown => db.insert(cards).values(card);",
+      'export const saved = [saveNote({ id: "i", title: "t", body: "b" }), saveCard({ id: "i", blurb: "b" })];',
       "type Note = typeof notes.$inferSelect;",
       "export const titleOf = (note: Note): string => note.title;",
       'export const firstId = (): string => db.select().from(notes)[0]?.id ?? "";',
@@ -47,10 +38,14 @@ test("a row member read finds the column of the table the checker ties its row t
   });
   // a read the type walk cannot place lands here; each of these rows' reads must reach its column instead
   expect(scan.lostReads).toEqual([]);
+  expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(FILE.length + 1), bucket])).toEqual([
+    ["NoteWrite.body", "member-write-only"],
+    ["CardWrite.id", "member-write-only"],
+  ]);
 });
 
 // A store is read as Drizzle's only where its builder methods resolve to this package's declarations.
-const STORE_PACKAGE = "drizzle-orm";
+const STORE_PACKAGE = DRIZZLE_PACKAGE;
 
 // drizzle-orm's write builders in miniature: a stored value's slot is the library's own mapped type, keyed by a remap
 // over the columns, as InferInsertModel is, so the slot declares no member of ours.
@@ -147,6 +142,32 @@ test("a whole row handed to a row-typed slot reads only the columns the slot's h
     ].join("\n"),
   });
   expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(FILE.length + 1), bucket])).toEqual([["NoteWrite.body", "member-write-only"]]);
+});
+
+// A row spread into a literal handed to a function fills the parameter's slot with the row's members, each tied to its
+// column: `title` reaches the view's read. The literal's own `body` overrides the spread, so the stored `body` is read
+// back by nothing.
+test("a spread row handed to a function ties each member it copies to its column, and a key set over the spread ties none", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...STORES,
+    [SCHEMA]: STORED_TABLES,
+    [FILE]: [
+      `import { db } from "${STORE_PACKAGE}";`,
+      'import { notes } from "../../db/src/schema/tables.ts";',
+      "export interface NoteWrite { readonly id: string; readonly title: string; readonly body: string }",
+      "export const saveNote = (note: NoteWrite): unknown => db.insert(notes).values(note);",
+      'export const saved = saveNote({ id: "i", title: "t", body: "b" });',
+      "interface NoteView { readonly title: string; readonly body: string }",
+      "const show = (view: NoteView): string => view.title + view.body;",
+      'export const shown = (): string => { const [row] = db.select().from(notes); return row === undefined ? "" : show({ ...row, body: "b" }); };',
+    ].join("\n"),
+  });
+  expect(scan.members.unwired.map(({ key, bucket }) => [key.slice(FILE.length + 1), bucket])).toEqual([
+    ["NoteWrite.id", "member-write-only"],
+    ["NoteWrite.body", "member-write-only"],
+  ]);
 });
 
 // drizzle-orm's JSON column in miniature: the select row types the column by the value type it was declared with.

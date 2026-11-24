@@ -9,7 +9,7 @@ import type { TestOptions } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, CensusReport, SiteClass } from "../../../tooling/src/unwired/index.ts";
 import { censusGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, libraryModule } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 // Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
 const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
@@ -157,6 +157,54 @@ test("a role on another node of the statement, and a site roles.ts rules does no
   expect(handledAt(report, linked)).toEqual({ shape: linked, sites: 1, classes: counted({ declares: 1 }), roles: [] });
 });
 
+const PARAMETER_BINDING = "Identifier < BindingElement.name < ObjectBindingPattern.elements < Parameter.name";
+
+// Find-references links a rest binding to the source's member of its name, though the binding reads no member by key:
+// the shape of a parsed zod row whose `score` key the rest is named after.
+test("a rest binding named like a member declares, and a plain binding of that member stays the pattern's read", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [FILE]: [
+        'import { z } from "zod";',
+        "const scoreSchema = z.object({ field: z.string(), score: z.number() });",
+        "export const listSchema = z.object({ items: z.array(scoreSchema) });",
+        "export const parsed = listSchema.parse({});",
+        "export const run = { items: parsed.items.map(({ field, ...score }) => ({ ...score, field })) };",
+        "export const scores = { items: parsed.items.map(({ score }) => score) };",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  expect(report.gaps).toEqual([]);
+  expect(handledAt(report, PARAMETER_BINDING)).toEqual({ shape: PARAMETER_BINDING, sites: 3, classes: counted({ enclosing: 2, declares: 1 }), roles: [] });
+});
+
+// The statement of a method's doc link is its class, so a destructuring read anywhere in the class sits beside it.
+test("a doc link beside a role at another node of its statement declares, and that role stays the pattern's", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface A { readonly x: string }",
+        'export const made: A = { x: "1" };',
+        "export class Reader {",
+        "  /** Reads {@link A.x}. */",
+        "  xOf(a: A): string {",
+        "    const { x } = a;",
+        "    return x;",
+        "  }",
+        "}",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  const destructured = "Identifier < BindingElement.name < ObjectBindingPattern.elements < VariableDeclaration.name";
+  const linked = "Identifier < QualifiedName.right < JSDocLink.name < JSDoc.comment";
+  expect(report.elsewhere).toEqual([]);
+  expect(handledAt(report, linked)).toEqual({ shape: linked, sites: 1, classes: counted({ declares: 1 }), roles: [] });
+  expect(handledAt(report, destructured)).toEqual({ shape: destructured, sites: 1, classes: counted({ enclosing: 1 }), roles: [] });
+});
+
 test("a reference in a file the build did not walk is unwalked, not a gap", TIMEOUT, async ({ plantedTree }) => {
   const walked = `${GRAPH_SOURCE}/home/`;
   const home = `${walked}a.ts`;
@@ -217,7 +265,7 @@ const STORES = libraryModule(
     "export interface Column { readonly name: string }",
     "export declare const text: () => Column;",
     "export interface TableConfig<C> { readonly columns: C }",
-    "export interface Table<T extends TableConfig<unknown>> { readonly _: T }",
+    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"]]: string } }',
     "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
     'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
     "export declare const db: { insert<T>(table: T): { values(value: Insert<T>): Promise<void> } };",

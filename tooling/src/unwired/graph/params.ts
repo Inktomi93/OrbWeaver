@@ -14,8 +14,7 @@
 //   write the graph kept for the prop (GraphFacts.roleSites, kept for {@link PARAMS_HOMES}) is judged as a construction too. A construction whose value
 //   reads the same prop only relays it, and a literal that reaches no call or JSX attribute (a callee's own default
 //   fill, a constant nothing passes) supplies nothing.
-// - The buckets are the engine scan's; its `disagreements` list is gone with its second engine, and the verb refuses
-//   `--cross-check`.
+// - The buckets are the engine scan's, less its `disagreements` list: the graph is the one engine.
 import type {
   Expression,
   JsxAttributeLike,

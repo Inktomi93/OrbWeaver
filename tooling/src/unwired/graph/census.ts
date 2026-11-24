@@ -18,6 +18,7 @@ import type { CallExpression, Node, NonNullExpression, TypeReferenceNode } from 
 import { formatSyntaxKind, isSourceFile, isStatement, SyntaxKind } from "@typescript/native/ast";
 import type { ReferencedSymbolEntry } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
+import { tableCalls } from "../drizzle-rows.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket } from "./analyse.ts";
@@ -38,8 +39,9 @@ import { evenSample } from "./verify.ts";
 /**
  * Where a reference site stands against the graph, first match wins: the graph gave the member a role at the site; the
  * graph's only role there is a send with no destination; the graph never walked the site's file; the graph gave the
- * member a role at the start of a node that encloses the site (a destructuring pattern, an indexed access type); the graph gave the member a role elsewhere in the site's statement at a node no reference names; roles.ts
- * rules the site does nothing; a Drizzle store copies the read into a column, where the ruling reads it only if the
+ * member a role at the start of a node that encloses the site (a destructuring pattern, an indexed access type); roles.ts
+ * rules the site does nothing; the graph gave the member a role elsewhere in the site's statement at a node no
+ * reference names; a Drizzle store copies the read into a column, where the ruling reads it only if the
  * product reads the column back; or the compiler has a reference and the graph has nothing.
  */
 export const SITE_CLASSES = ["placed", "unclassified", "unwalked", "enclosing", "elsewhere", "declares", "column", "gap"] as const;
@@ -334,6 +336,7 @@ class Census {
   readonly #resolver: Resolver;
   readonly #walked: ReadonlySet<string>;
   readonly #unread: ReadonlyMap<GraphKey, Bucket>;
+  readonly #isTable: (node: Node) => boolean;
   readonly #slots = new Slots();
   readonly #shapes = new Map<string, Tally>();
   readonly #sites = noCounts();
@@ -348,6 +351,7 @@ class Census {
     this.#resolver = new Resolver(world);
     this.#walked = new Set(graph.files);
     this.#unread = unreadOf(analysis);
+    this.#isTable = tableCalls(world);
   }
 
   /** Ask find-references for one batch of members and count every site it answers. */
@@ -419,12 +423,18 @@ class Census {
     const near = loose.filter((site) => site.file === file && site.at >= statement.pos && site.at < statement.end);
     if (near.length > 0) {
       const edges = enclosingEdges(node, statement);
-      return near.some(({ at }) => edges.has(at)) ? "enclosing" : "elsewhere";
+      if (near.some(({ at }) => edges.has(at))) {
+        return "enclosing";
+      }
     }
+    // A site that does nothing needs no role, so a role beside it in the statement is no question of whose it is.
     if (occurrenceRoles(node).length === 0) {
       return "declares";
     }
-    return handedToColumn(node) ? "column" : "gap";
+    if (near.length > 0) {
+      return "elsewhere";
+    }
+    return handedToColumn(node, this.#isTable) ? "column" : "gap";
   }
 
   #count(site: CountedSite): void {

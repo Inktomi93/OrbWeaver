@@ -147,7 +147,7 @@ import {
 } from "@typescript/native/ast";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { StoreWrite } from "../boundaries.ts";
-import { copiedReads, insertSelectWritesAt, storeWritesAt, tableDefinition } from "../boundaries.ts";
+import { copiedReads, insertSelectWritesAt, storeWritesAt } from "../boundaries.ts";
 import { isParseCall } from "../handoffs.ts";
 import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -685,6 +685,8 @@ export interface WalkSink {
   readonly unseenCall: (key: DeclKey) => void;
   /** A module a `new URL("./x", import.meta.url)` names, if it is one of the tree's code files. */
   readonly urlModule: (fromFile: string, specifier: string) => string | null;
+  /** Whether a node is a Drizzle table definition, by the checker's type of the call (../drizzle-rows.ts). */
+  readonly isTable: (node: Node) => boolean;
 }
 
 const CSS_NAME = /^--[\w-]+$/u;
@@ -1076,7 +1078,7 @@ class Walker {
   // The children, counting the generic functions and the Drizzle table definitions that enclose them.
   #children(node: Node, inType: boolean): void {
     const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0 ? 1 : 0;
-    const table = isCallExpression(node) && tableDefinition(node) !== null ? 1 : 0;
+    const table = this.#sink.isTable(node) ? 1 : 0;
     this.#frame.generic += generic;
     this.#frame.tables += table;
     node.forEachChild((child) => this.visit(child, inType));
@@ -1915,10 +1917,10 @@ const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
 
 /** Whether a Drizzle write copies the name's read into a column, or a table definition holds it: the reads the walk
  *  gives no role (the header's ruling), found from the name up through its enclosing calls. */
-export function handedToColumn(name: Node): boolean {
+export function handedToColumn(name: Node, isTable: (node: Node) => boolean): boolean {
   const inTable = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name);
   for (let at = name.parent; !isSourceFile(at); at = at.parent) {
-    if (copiedBy(storesAt(at)).some((read) => sameNode(read, name)) || (inTable && tableDefinition(at) !== null)) {
+    if (copiedBy(storesAt(at)).some((read) => sameNode(read, name)) || (inTable && isTable(at))) {
       return true;
     }
   }

@@ -17,6 +17,8 @@
 // - A member named in a `typeof a.b` type query takes the key role, as `T["b"]` does: the type reads no data.
 // - A type or interface member's own name declares the member and does nothing; a class member that supplies its value
 //   where it is declared (a field with an initializer, a method, an accessor) writes it. A doc comment does nothing.
+// - A rest binding's name (`score` in `{ a, ...score }`) declares a local and reads no member by key, though
+//   find-references links it to a same-named member of the source.
 
 import type {
   EnumMember,
@@ -347,6 +349,9 @@ export function occurrenceRoles(name: Node): readonly Role[] {
   const declaring = declaringRoles(name);
   if (declaring !== null) {
     return declaring;
+  }
+  if (isBindingElement(parent) && sameNode(parent.name, name) && parent.dotDotDotToken !== undefined) {
+    return NONE;
   }
   if (isBindingElement(parent) && (sameNode(parent.propertyName, name) || (parent.propertyName === undefined && sameNode(parent.name, name)))) {
     return READ;
