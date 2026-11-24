@@ -1,302 +1,31 @@
-// Value flows no name shows: a value handed to a slot of a restated type carries its members across. A compiler-checked
-// hand-off makes same-named members one value, so each pair is a flow, from the handed type's members to the slot's.
-// A slot a library declares is read by the library (`mutate(input, settle)` calls `settle.onError`), so a member handed
-// into one is read at the hand-off. A zod parse copies each key its output names out of the value handed in, so a Drizzle
-// row handed to one, whole or spread into the argument, is read at the parse for exactly those columns.
+// The reads a zod parse makes: it copies each key its output names out of the value handed in, so a Drizzle row handed to
+// one, whole or spread into the argument, is read at the parse for exactly those columns. The reference graph credits
+// those reads (graph/build.ts).
 import type { CallExpression, Expression, Node } from "@typescript/native/ast";
 import {
-  isArrayLiteralExpression,
-  isArrowFunction,
-  isBlock,
   isCallExpression,
   isIdentifier,
-  isJsxExpression,
-  isJsxSpreadAttribute,
-  isNewExpression,
-  isNoSubstitutionTemplateLiteral,
-  isNumericLiteral,
   isObjectLiteralExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
-  isReturnStatement,
   isShorthandPropertyAssignment,
   isSpreadAssignment,
-  isSpreadElement,
-  isStringLiteral,
-  isVariableDeclaration,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { all, SignatureKind, TypeFlags } from "@typescript/native/sync";
-import type { Site } from "./classify.ts";
+import { all, TypeFlags } from "@typescript/native/sync";
 import { rowColumns } from "./drizzle-rows.ts";
 import type { NativeWorld } from "./native.ts";
-import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./native.ts";
-import { isProduction } from "./worlds.ts";
-
-/** A value that moves from `source` members into `sink` members. A use downstream reads the source; a write upstream
- *  fills the sink. Neither holds the other way round. */
-export interface Flow {
-  readonly source: readonly string[];
-  readonly sink: readonly string[];
-  /** A stored row's columns handed whole: a use downstream reads the column, but the column's writes fill no sink.
-   *  The row read fills it, as a parse fills a shape from outside the tree. */
-  readonly readsOnly?: true;
-}
-
-// Enough to cross a function that returns options whose callback takes the twin, and one nested object inside it.
-const MAX_DEPTH = 5;
-
-interface TypePair {
-  readonly source: Type;
-  readonly sink: Type;
-  readonly depth: number;
-  /** The production node that hands the value over. */
-  readonly at: Node;
-}
+import { constituents, hasFlag } from "./native.ts";
 
 /** The schema methods that copy a value's keys into their output, and the library that declares them. */
 const PARSE_METHODS: ReadonlySet<string> = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
 const SAFE_PARSE_DATA = "data";
 const SCHEMA_LIBRARY = "/zod/";
 
-/** A member a library slot receives: the hand-off site reads it. */
-export interface LibraryRead {
-  readonly site: Site;
-  readonly keys: readonly string[];
-}
-
-// An object literal has its keys resolved by name already.
-const isPlainLiteral = (node: Node): boolean =>
-  isObjectLiteralExpression(node) || isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node) || isNumericLiteral(node);
-
-const withoutSpreads = (nodes: Iterable<Node>): readonly Node[] => [...nodes].filter((node) => !isSpreadElement(node));
-
-// The expression a node gives one slot: a returned value, a JSX value, an arrow's body, an annotated initializer or a key's value.
-function givenAt(node: Node): Node | undefined {
-  if (isReturnStatement(node) || isJsxExpression(node)) {
-    return node.expression;
-  }
-  if (isArrowFunction(node)) {
-    return isBlock(node.body) ? undefined : node.body;
-  }
-  if (isVariableDeclaration(node)) {
-    return node.type === undefined ? undefined : node.initializer;
-  }
-  if (isPropertyAssignment(node)) {
-    return node.initializer;
-  }
-  return isShorthandPropertyAssignment(node) ? node.name : undefined;
-}
-
-/** The expressions a node hands to a typed slot: call and `new` arguments, array elements, a returned or JSX value, an
- *  arrow's body, an annotated initializer and a key's value. */
-function handedAt(node: Node): readonly Node[] {
-  if (isCallExpression(node) || isNewExpression(node)) {
-    return withoutSpreads(node.arguments ?? []);
-  }
-  if (isArrayLiteralExpression(node)) {
-    return withoutSpreads(node.elements);
-  }
-  const given = givenAt(node);
-  return given === undefined ? [] : [given];
-}
-
-interface Handed {
-  readonly values: readonly Node[];
-  readonly calls: readonly Node[];
-  /** Object literal and JSX spreads, whose value lands in the literal's contextual type. */
-  readonly spreads: readonly Node[];
-  /** Array literal spreads, `[...offs]`, whose elements land in the array's contextual element type. */
-  readonly elementSpreads: readonly Node[];
-}
-
-// Only production hand-offs prove a production flow; a test world repeats those of its production files.
-function handedValues(world: NativeWorld, home: ReadonlySet<string>): Handed {
-  const values: Node[] = [];
-  const calls: Node[] = [];
-  const spreads: Node[] = [];
-  const elementSpreads: Node[] = [];
-  const visit = (node: Node): void => {
-    values.push(...handedAt(node).filter((handed) => !isPlainLiteral(handed)));
-    if (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) {
-      spreads.push(node);
-    }
-    if (isSpreadElement(node) && isArrayLiteralExpression(node.parent)) {
-      elementSpreads.push(node);
-    }
-    if (isCallExpression(node) || isNewExpression(node)) {
-      calls.push(node);
-    }
-    node.forEachChild(visit);
-  };
-  for (const file of world.files.filter((source) => isProduction(world.siteOf(source).file) && home.has(world.siteOf(source).file))) {
-    file.forEachChild(visit);
-  }
-  return { values, calls, spreads, elementSpreads };
-}
-
-function* pairAt(world: NativeWorld, handed: Node): APIRequestGenerator<TypePair | null> {
-  const sink = yield* world.checker.getContextualType.gen(handed as Expression);
-  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(handed), sink, depth: 0, at: handed };
-}
-
-// A spread hands its whole value to the literal it sits in, so the nested members of both types meet as well.
-function* spreadPair(world: NativeWorld, spread: Node): APIRequestGenerator<TypePair | null> {
-  const { expression } = spread as Node & { readonly expression: Expression };
-  const sink = yield* world.checker.getContextualType.gen(spread.parent as Expression);
-  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0, at: expression };
-}
-
-// An array spread hands the spread array to the literal it sits in: both are arrays, so their elements meet.
-function* elementSpreadPair(world: NativeWorld, spread: Node): APIRequestGenerator<TypePair | null> {
-  const { expression } = spread as Node & { readonly expression: Expression };
-  const sink = yield* world.checker.getContextualType.gen(spread.parent as Expression);
-  return sink === undefined ? null : { source: yield* world.checker.getTypeAtLocation.gen(expression), sink, depth: 0, at: expression };
-}
-
-// At a generic call the contextual type of an argument is already instantiated, so the value and the slot are one type.
-// The generic signature's own parameter types are the slot the callee's body reads: a type parameter there stands for
-// its constraint, which the instantiated argument type meets here.
-function* genericPairs(world: NativeWorld, call: Node): APIRequestGenerator<readonly TypePair[]> {
-  const { checker } = world;
-  const resolved = yield* checker.getResolvedSignature.gen(call);
-  const target = yield* resolved.getTarget.gen();
-  if (target === undefined || (target.typeParameters ?? []).length === 0) {
-    return [];
-  }
-  const [own, generic] = yield* all(resolved.getParameters.gen(), target.getParameters.gen());
-  const shared = Math.min(own.length, generic.length);
-  const [sources, sinks] = yield* all(checker.getTypeOfSymbol.gen(own.slice(0, shared)), checker.getTypeOfSymbol.gen(generic.slice(0, shared)));
-  return sources.map((source, index) => ({ source, sink: sinks[index] as Type, depth: 0, at: call }));
-}
-
 const isObjectLike = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Object) || hasFlag(type.flags, TypeFlags.Intersection);
 
 function* objectMembers(world: NativeWorld, type: Type): APIRequestGenerator<readonly Type[]> {
   return (yield* constituents(yield* world.checker.getNonNullableType.gen(type))).filter(isObjectLike);
-}
-
-// A slot typed by a type parameter takes whatever its constraint allows.
-function* slotMembers(world: NativeWorld, type: Type): APIRequestGenerator<readonly Type[]> {
-  const bound = hasFlag(type.flags, TypeFlags.TypeParameter) ? yield* world.checker.getBaseConstraintOfType.gen(type) : undefined;
-  return yield* objectMembers(world, bound ?? type);
-}
-
-interface Compared {
-  readonly flows: readonly Flow[];
-  /** The keys of each in-tree member handed into a library-declared slot. */
-  readonly libraryReads: readonly (readonly string[])[];
-  readonly next: readonly TypePair[];
-}
-
-const isDeclaredInTree = (world: NativeWorld, symbol: NativeSymbol): boolean => symbol.declarations.some((handle) => world.fileOf(handle) !== null);
-
-// A mapped member such as a `Record` key's carries no declaration, so it is no library's slot.
-const isLibraryDeclared = (world: NativeWorld, symbol: NativeSymbol): boolean => symbol.declarations.length > 0 && !isDeclaredInTree(world, symbol);
-
-// A generic of one library target, `Array<Row>` beside `Array<Twin>`: the element is the value, not its methods.
-function* sameTargetArguments(world: NativeWorld, source: Type, sink: Type): APIRequestGenerator<readonly { readonly from: Type; readonly to: Type }[] | null> {
-  if (!(source.isTypeReference() && sink.isTypeReference())) {
-    return null;
-  }
-  const target = yield* source.getTarget.gen();
-  if (target.id !== (yield* sink.getTarget.gen()).id) {
-    return null;
-  }
-  const symbol = yield* target.getSymbol.gen();
-  if (symbol === undefined || isDeclaredInTree(world, symbol)) {
-    return null;
-  }
-  const into = yield* world.checker.getTypeArguments.gen(sink);
-  return (yield* world.checker.getTypeArguments.gen(source)).flatMap((from, at) => {
-    const to = into[at];
-    return to === undefined ? [] : [{ from, to }];
-  });
-}
-
-// A callable's parameters flow against the hand-off: the caller of the slot supplies them. Its result flows with it.
-function* signaturePairs(world: NativeWorld, { source, sink, depth, at }: TypePair): APIRequestGenerator<readonly TypePair[]> {
-  const { checker } = world;
-  const [[from], [into]] = yield* all(checker.getSignaturesOfType.gen(source, SignatureKind.Call), checker.getSignaturesOfType.gen(sink, SignatureKind.Call));
-  if (from === undefined || into === undefined) {
-    return [];
-  }
-  const [returned, expected, own, theirs] = yield* all(from.getReturnType.gen(), into.getReturnType.gen(), from.getParameters.gen(), into.getParameters.gen());
-  const shared = Math.min(own.length, theirs.length);
-  const [supplied, taken] = yield* all(checker.getTypeOfSymbol.gen(theirs.slice(0, shared)), checker.getTypeOfSymbol.gen(own.slice(0, shared)));
-  const pairs: TypePair[] = [{ source: returned, sink: expected, depth, at }];
-  for (const [index, type] of supplied.entries()) {
-    pairs.push({ source: type, sink: taken[index] as Type, depth, at });
-  }
-  return pairs;
-}
-
-// A member's keys when the tree declares it: its declarations, or for a Drizzle row's declaration-less member the
-// column it stands for, since a whole row carries its columns. Null for a member only a library declares.
-function* treeKeys(world: NativeWorld, holder: Type, member: NativeSymbol): APIRequestGenerator<readonly string[] | null> {
-  if (member.declarations.length > 0) {
-    return isDeclaredInTree(world, member) ? declarationKeys(member) : null;
-  }
-  const columns = (yield* rowColumns(world, holder, member.name)).flatMap(declarationKeys);
-  return columns.length > 0 ? columns : null;
-}
-
-// A row member's flow carries reads only: its column's writes do not fill the shape the row is handed to.
-const flowOf = (property: NativeSymbol, source: readonly string[], sink: readonly string[]): Flow =>
-  property.declarations.length === 0 ? { source, sink, readsOnly: true } : { source, sink };
-
-function* propertyPairs(world: NativeWorld, { source, sink, depth, at }: TypePair): APIRequestGenerator<Compared> {
-  const { checker } = world;
-  const properties = yield* checker.getPropertiesOfType.gen(source);
-  const named = yield* all(...properties.map((property) => propertiesNamed(checker, sink, property.name)));
-  const ownKeys = yield* all(...properties.map((property) => treeKeys(world, source, property)));
-  const flows: Flow[] = [];
-  const libraryReads: (readonly string[])[] = [];
-  const held: (readonly [NativeSymbol, NativeSymbol])[] = [];
-  for (const [index, property] of properties.entries()) {
-    const members = (named[index] ?? []).filter((candidate) => candidate !== undefined);
-    held.push(...members.map((member) => [property, member] as const));
-    const own = ownKeys[index] ?? null;
-    if (own === null) {
-      continue;
-    }
-    for (const member of members) {
-      const into = yield* treeKeys(world, sink, member);
-      // One generic's member under two instantiations is no flow by itself, but its types may still differ.
-      if (into !== null && !into.every((key) => own.includes(key))) {
-        flows.push(flowOf(property, own, into));
-      }
-      if (isLibraryDeclared(world, member)) {
-        libraryReads.push(own);
-      }
-    }
-  }
-  const [sources, sinks] = yield* all(
-    checker.getTypeOfSymbol.gen(held.map(([property]) => property)),
-    checker.getTypeOfSymbol.gen(held.map(([, member]) => member)),
-  );
-  return { flows, libraryReads, next: sources.map((type, index) => ({ source: type, sink: sinks[index] as Type, depth, at })) };
-}
-
-function* comparedMembers(world: NativeWorld, pair: TypePair): APIRequestGenerator<Compared> {
-  const { source: from, sink: into, depth, at } = pair;
-  const elements = from.id === into.id ? [] : yield* sameTargetArguments(world, from, into);
-  if (elements !== null) {
-    return { flows: [], libraryReads: [], next: elements.map(({ from: element, to }) => ({ source: element, sink: to, depth: depth + 1, at })) };
-  }
-  const deeper = { ...pair, depth: depth + 1 };
-  const [signatures, members] = yield* all(signaturePairs(world, deeper), propertyPairs(world, deeper));
-  return { flows: members.flows, libraryReads: members.libraryReads, next: [...signatures, ...members.next] };
-}
-
-function* compared(world: NativeWorld, pair: TypePair): APIRequestGenerator<Compared> {
-  const [froms, intos] = yield* all(objectMembers(world, pair.source), slotMembers(world, pair.sink));
-  const answers = yield* all(...froms.flatMap((from) => intos.map((into) => comparedMembers(world, { ...pair, source: from, sink: into }))));
-  return {
-    flows: answers.flatMap((answer) => answer.flows),
-    libraryReads: answers.flatMap((answer) => answer.libraryReads),
-    next: answers.flatMap((answer) => answer.next),
-  };
 }
 
 /** A call of a schema parse method, by its syntax: {@link schemaParses} confirms zod declares it. */
@@ -366,54 +95,9 @@ export function* parsedColumns(world: NativeWorld, call: CallExpression): APIReq
   return columns;
 }
 
-function* parseReads(world: NativeWorld, call: CallExpression): APIRequestGenerator<readonly LibraryRead[]> {
-  const keys = (yield* parsedColumns(world, call)).flatMap(declarationKeys);
-  return keys.length === 0 || !isPropertyAccessExpression(call.expression) ? [] : [{ site: world.siteOf(call.expression.name), keys }];
-}
-
 /** The parse calls a zod schema answers. */
 export function schemaParses(world: NativeWorld, calls: readonly Node[]): readonly CallExpression[] {
   const parses = calls.filter(isParseCall);
   const symbols = world.symbolsAt(parses.map((call) => (call.expression as Expression & { readonly name: Node }).name));
   return parses.filter((_, at) => (symbols[at]?.declarations ?? []).some((handle) => handle.path.includes(SCHEMA_LIBRARY)));
-}
-
-/** Every member flow the production hand-offs of a world make, each distinct pair of types compared once, and each
- *  in-tree member a library slot receives, read at the first hand-off that pairs those types. */
-export function handoffFlows(world: NativeWorld, home: ReadonlySet<string>): { readonly flows: readonly Flow[]; readonly reads: readonly LibraryRead[] } {
-  const flows: Flow[] = [];
-  const seen = new Set<string>();
-  const { values, calls, spreads, elementSpreads } = handedValues(world, home);
-  const reads: LibraryRead[] = world.batch(schemaParses(world, calls).map((call) => parseReads(world, call))).flat();
-  const handed = [
-    ...world.batch(values.map((value) => pairAt(world, value))),
-    ...world.batch(spreads.map((spread) => spreadPair(world, spread))),
-    ...world.batch(elementSpreads.map((spread) => elementSpreadPair(world, spread))),
-  ];
-  let pending = [...handed.flatMap((pair) => (pair === null ? [] : [pair])), ...world.batch(calls.map((call) => genericPairs(world, call))).flat()];
-  while (pending.length > 0) {
-    const fresh = new Map(
-      pending.filter(({ source, sink, depth }) => depth < MAX_DEPTH && source.id !== sink.id).map((pair) => [`${pair.source.id}|${pair.sink.id}`, pair]),
-    );
-    const unseen = [...fresh].filter(([key]) => !seen.has(key));
-    for (const [key] of unseen) {
-      seen.add(key);
-    }
-    const answers = world.batch(unseen.map(([, pair]) => compared(world, pair)));
-    // One answer can hold more flows than a spread's argument ceiling, so each is pushed alone.
-    for (const [index, answer] of answers.entries()) {
-      for (const flow of answer.flows) {
-        flows.push(flow);
-      }
-      const given = unseen[index]?.[1].at;
-      if (given !== undefined) {
-        const site = world.siteOf(given);
-        for (const keys of answer.libraryReads) {
-          reads.push({ site, keys });
-        }
-      }
-    }
-    pending = answers.flatMap((answer) => answer.next);
-  }
-  return { flows, reads };
 }

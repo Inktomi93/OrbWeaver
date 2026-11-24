@@ -31,7 +31,9 @@ import {
 } from "@typescript/native/ast";
 import type { RetainedSourceFile } from "@typescript/native/sync";
 import { z } from "zod";
-import type { NativeWorld } from "./native.ts";
+import type { WorldFiles } from "./native.ts";
+import { NativeWorld } from "./native.ts";
+import { isProduction as isAppSource } from "./worlds.ts";
 
 /** The guest-facing plugin contract the SDK mirrors: the wire types it publishes are declared here. */
 export const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
@@ -229,4 +231,43 @@ export function publishedAt(surface: SdkSurface, field: { readonly file: string;
   const [head = "", ...rest] = typeNameOf(field.home).split(".");
   const paths = [head, ...(surface.slots.get(head) ?? [])].map((path) => [path, ...rest, field.member].join("."));
   return paths.map((path) => surface.published.get(path)).find((at) => at !== undefined) ?? null;
+}
+
+// Authored plugin programs exercise the published ambient SDK. Neither lives under a package's src directory, so the
+// author tsconfigs' programs say which files are which, never a path pattern: the author files are the own sources a
+// program holds, and the SDK's are the declaration files it keeps (the published SDK's, which the world keeps by
+// `NativeWorld`'s declaration filter).
+const AUTHOR_WORLDS = "packages/showcase-plugins/tsconfig.author-*.json";
+
+/** The plugin author source and the published SDK's declarations, repository-relative. */
+export interface PluginSources {
+  readonly author: ReadonlySet<string>;
+  readonly sdk: ReadonlySet<string>;
+}
+
+const NO_PLUGIN_SOURCES: PluginSources = { author: new Set(), sdk: new Set() };
+
+/** Whether a file is product source, plugin author source or an SDK declaration. */
+export function isPluginProduction(file: string, plugins: PluginSources): boolean {
+  return isAppSource(file) || plugins.author.has(file) || plugins.sdk.has(file);
+}
+
+export function pluginAuthorWorlds(root: string): string[] {
+  return globSync(AUTHOR_WORLDS, { cwd: root }).sort();
+}
+
+/** The plugin sources the programs of `authorWorlds` hold, from the file lists of `lists` (a world's own files, its
+ *  declaration files kept only where {@link NativeWorld.fileLists} was asked to keep them). */
+export function pluginSources(lists: ReadonlyMap<string, WorldFiles>, authorWorlds: readonly string[]): PluginSources {
+  const held = authorWorlds.flatMap((config) => [...(lists.get(config)?.held ?? [])]);
+  return {
+    author: new Set(held.filter((file) => !file.endsWith(DECLARATION))),
+    sdk: new Set(held.filter((file) => file.endsWith(DECLARATION))),
+  };
+}
+
+/** The plugin sources of `root`'s author worlds, read from their programs; empty for a tree with no author world. */
+export function readPluginSources(root: string): PluginSources {
+  const worlds = pluginAuthorWorlds(root);
+  return worlds.length === 0 ? NO_PLUGIN_SOURCES : pluginSources(NativeWorld.fileLists(root, worlds, publishedSdkSources(root)), worlds);
 }

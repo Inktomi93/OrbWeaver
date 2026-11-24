@@ -20,6 +20,7 @@ export { DOM_BUCKETS, WORLDS } from "./graph/dom.ts";
 export { GRAPH_DUMP_FORMAT } from "./graph/dump.ts";
 export type { FieldsReport } from "./graph/fields.ts";
 export type { MemberScanReport } from "./graph/members.ts";
+export type { OptionalInventory } from "./graph/optional-pairs.ts";
 export type { Ablation, GraphOptions, Trace, WhyTarget } from "./graph/options.ts";
 export { ABLATIONS, FRESH_BUILD } from "./graph/options.ts";
 export type { ParamsReport } from "./graph/params.ts";
@@ -39,6 +40,7 @@ export {
   domGraph,
   fieldsGraph,
   memberScanGraph,
+  optionalPairsGraph,
   paramsGraph,
   proceduresGraph,
   queryGraph,
@@ -56,11 +58,8 @@ export type { Verdict, Verified } from "./graph/verify.ts";
 export { VERDICTS } from "./graph/verify.ts";
 export type { JudgedEntry } from "./judged.ts";
 export { constituents, DEFAULT_LIBRARY, hasFlag, homeFiles, NativeWorld, propertiesNamed } from "./native.ts";
-export { joinOptionalConstructions, optionalConstructionFacts } from "./optional-constructions.ts";
-export type { OptionalInventory } from "./optional-inventory.ts";
-export type { PluginSources } from "./optional-population.ts";
-export { isProduction as isOptionalProduction, pluginAuthorWorlds, pluginSources } from "./optional-population.ts";
-export { publishedSdkSources } from "./plugin-surface.ts";
+export type { PluginSources } from "./plugin-surface.ts";
+export { isPluginProduction, pluginAuthorWorlds, pluginSources, publishedSdkSources } from "./plugin-surface.ts";
 export type { PortCensus } from "./port-census.ts";
 export { portCensus } from "./port-census.ts";
 export type { PortTarget, TargetKind } from "./port-targets.ts";
