@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-21
+updated: 2026-11-24
 priority: P3
 area: import
 plan: import-robustness
@@ -11,7 +11,7 @@ plan: import-robustness
 
 ## What
 
-importPreviewItemSchema.regexScripts (packages/contracts/src/import/preview\.ts) has inLibrary, repeat and refused, and the dry run never fills them, while every other kind's are filled.
+importPreviewItemSchema.regexScripts (packages/contracts/src/import/preview\.ts) carries each script's reuse and refused verdict, filled by the dry run from the regex domain's planUploadLift, but the preview shows no per-state counts for regex scripts while every other kind shows them.
 
 ## Why
 
