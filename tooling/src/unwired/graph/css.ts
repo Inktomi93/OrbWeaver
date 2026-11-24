@@ -55,8 +55,6 @@ const APPLY = /@apply\s+([^;]+);/gu;
 const NAMED = /["'`](--[\w-]+)["'`]/gu;
 // printable ASCII, space excluded
 const CLASS_TOKEN = /^[\x21-\x7E]+$/u;
-// A class token longer than this is prose or a URL, never a utility.
-const MAX_TOKEN = 160;
 // candidatesToCss takes a list; pages keep one call's CSS bounded.
 const COMPILE_PAGE = 2000;
 const RANGE = /^(?:max|min)-/u;
@@ -117,7 +115,7 @@ function classTokens(root: string, sources: readonly string[], sheets: readonly 
   const tokens = new Set<string>();
   const add = (text: string): void => {
     for (const token of text.split(/\s+/u)) {
-      if (token !== "" && token.length < MAX_TOKEN && CLASS_TOKEN.test(token)) {
+      if (token !== "" && CLASS_TOKEN.test(token)) {
         tokens.add(token);
       }
     }

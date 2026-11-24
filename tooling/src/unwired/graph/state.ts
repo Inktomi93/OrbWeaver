@@ -160,12 +160,10 @@ export interface DanglingDoc {
   readonly text: string;
 }
 
-/** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
 /** The doors a message can cross (message-doors.ts): the names {@link MessageReceiver.door} reports. */
 const MESSAGE_DOORS = ["worker", "ipc", "broadcast", "emitter", "diagnostics", "window"] as const;
 export type MessageDoor = (typeof MESSAGE_DOORS)[number];
 
-/** A receiver no send reaches through its door. */
 /** A module load no edge follows: `import(x)` or a createRequire function called with a computed path. */
 export interface ComputedLoad {
   readonly file: string;
@@ -181,6 +179,7 @@ export interface RouteParam {
   readonly param: string;
 }
 
+/** A receiver no send reaches through its door. */
 export interface MessageReceiver {
   readonly file: string;
   readonly line: number;
@@ -196,6 +195,7 @@ export interface BindingFact extends LocalBinding {
   readonly written: boolean;
 }
 
+/** The data a built graph hands its analysis: no world and no method, so a dump (./dump.ts) carries it whole. */
 export interface GraphFacts {
   readonly decls: ReadonlyMap<DeclKey, DeclInfo>;
   readonly run: ReadonlyEdges;
