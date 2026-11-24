@@ -133,7 +133,7 @@ export {
 } from "./css/custom-properties.ts";
 export { intentColorRecipe } from "./css/intent-color-recipe.ts";
 export { authorClassIgnores } from "./css-classes.ts";
-export { type LibrarySources, librarySources } from "./library-source.ts";
+export { type LibrarySources, librarySources, packageNameOf } from "./library-source.ts";
 export { baseUiDoors } from "./motion.ts";
 export {
   aliased,

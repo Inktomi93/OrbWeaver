@@ -29,6 +29,7 @@ import { PLUGIN_CONTRACT, PUBLISHED_SDK, publishedAt } from "../plugin-surface.t
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
+import { declKeyParts } from "./resolve.ts";
 import type { CarrySink, CarryStep, ReadCredit, Role } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { RootKind } from "./roots.ts";
@@ -84,6 +85,21 @@ export const MEMBER_BUCKETS = [
   "member-validated",
 ] as const satisfies readonly Bucket[];
 export type MemberBucket = (typeof MEMBER_BUCKETS)[number];
+
+// A function or class read only from inside its own span is unread, as tsc judges it: a recursion keeps nothing alive.
+function outsideSelf(binding: DeclKey, readers: readonly GraphKey[]): readonly GraphKey[] {
+  const own = declKeyParts(binding);
+  if (own.kind !== SyntaxKind.FunctionDeclaration && own.kind !== SyntaxKind.ClassDeclaration) {
+    return readers;
+  }
+  return readers.filter((reader) => {
+    if (!isDeclKey(reader)) {
+      return true;
+    }
+    const at = declKeyParts(reader);
+    return at.file !== own.file || at.pos < own.pos || own.end < at.end;
+  });
+}
 
 /** One reported entry: its label, the graph node it names (null for a file or a doc site) and a reason. */
 export interface Finding {
@@ -428,10 +444,11 @@ class Analyser {
     const dead = (reader: GraphKey): boolean => ![liveTyped, reached.operator, reached.consumer, reached.any].some((set) => set.has(reader));
     for (const binding of this.#state.bindings) {
       const label = `${binding.file}:${String(binding.line)} ${binding.name}`;
-      if (binding.readers.length === 0) {
+      const readers = outsideSelf(binding.key, binding.readers);
+      if (readers.length === 0) {
         this.#push("binding-unread", { label, key: binding.key, note: binding.written ? `${binding.kind}, only written` : binding.kind });
-      } else if (isProduction(binding.file) && liveTyped.has(binding.holder) && binding.readers.every(dead)) {
-        const note = `${binding.kind} read only by ${binding.readers.map((reader) => this.#readerLabel(reader)).join(", ")}`;
+      } else if (isProduction(binding.file) && liveTyped.has(binding.holder) && readers.every(dead)) {
+        const note = `${binding.kind} read only by ${readers.map((reader) => this.#readerLabel(reader)).join(", ")}`;
         this.#push("binding-read-only-by-dead", { label, key: binding.key, note });
       }
     }

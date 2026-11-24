@@ -215,7 +215,7 @@ function buildApart(state: GraphState, config: string, merged: ReadonlySet<strin
   using world = NativeWorld.open(state.root, config);
   state.enter(world);
   const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
-  state.peak(`apart program rss MB ${config}`, Math.round(process.memoryUsage().rss / MB));
+  state.peak(`node rss MB after apart program ${config}`, Math.round(process.memoryUsage().rss / MB));
   return graph;
 }
 

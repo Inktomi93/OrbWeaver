@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-22
+status: blocked
+updated: 2026-11-24
 priority: P3
 area: tooling
+blocked: on 3999
 plan: unwired-code
 ---
 

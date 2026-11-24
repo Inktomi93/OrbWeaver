@@ -42,7 +42,6 @@ const SolutionConfig = z.looseObject({
     .readonly()
     .optional(),
 });
-// Author-time rewrites with their own fixture trees, left out of the merged program as the per-world scans leave them out.
 /** Why a typecheck world stays out of the merged program. */
 const APART_REASONS = ["own-toolchain", "global-collision"] as const;
 type ApartReason = (typeof APART_REASONS)[number];

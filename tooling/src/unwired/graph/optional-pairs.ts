@@ -47,6 +47,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { Site } from "../classify.ts";
 import { siteKey } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
@@ -666,7 +667,10 @@ function alternatives(fields: readonly ObservedField[], readers: ReadonlyMap<Dec
   }
 }
 
-const lineOf = (world: NativeWorld, site: Site): number => (world.source(site.file)?.getLineAndCharacterOfPosition(site.position).line ?? 0) + 1;
+const lineOf = (world: NativeWorld, site: Site): number => {
+  const source = world.source(site.file);
+  return source === undefined ? 1 : editorLineOf(source, site.position);
+};
 
 function contextualAlternatives(scope: Scope, contexts: Contexts, readers: ReadonlyMap<DeclKey, ReaderEvidence[]>, output: OptionalEvidence): void {
   const unknown = Map.groupBy(contexts.unknown, (entry) => entry.id);

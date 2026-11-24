@@ -31,6 +31,7 @@ import {
 } from "@typescript/native/ast";
 import type { RetainedSourceFile } from "@typescript/native/sync";
 import { z } from "zod";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 import type { WorldFiles } from "./native.ts";
 import { NativeWorld } from "./native.ts";
 import { isProduction as isAppSource } from "./worlds.ts";
@@ -163,7 +164,7 @@ function publishedIn(file: string, source: SourceFile): PublishedFile {
   };
   source.forEachChild(declared);
   const onMember = (key: string, member: NamedMember): void => {
-    found.push([key, `${file}:${String(source.getLineAndCharacterOfPosition(member.name.getStart(source)).line + 1)}`]);
+    found.push([key, `${file}:${String(editorLineOf(source, member.name.getStart(source)))}`]);
   };
   const visit: SlotVisitor = (slot, type) => {
     if (isTypeLiteralNode(type)) {

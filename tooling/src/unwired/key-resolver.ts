@@ -369,10 +369,12 @@ function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | und
 // only inside brackets and only when the checker types it a number; any other substitution names no segment the form's
 // type could confirm, so the path is unread.
 function* templateText(checker: Checker, key: TemplateExpression): APIRequestGenerator<string | undefined> {
+  // one array-form request for every substitution's type
+  const types = yield* checker.getTypeAtLocation.gen(key.templateSpans.map((span) => span.expression));
   let text = key.head.text;
-  for (const span of key.templateSpans) {
-    const type = yield* checker.getTypeAtLocation.gen(span.expression);
-    if (!(text.endsWith("[") && span.literal.text.startsWith("]") && hasFlag(type.flags, TypeFlags.NumberLike))) {
+  for (const [at, span] of key.templateSpans.entries()) {
+    const type = types[at];
+    if (!(type !== undefined && text.endsWith("[") && span.literal.text.startsWith("]") && hasFlag(type.flags, TypeFlags.NumberLike))) {
       return undefined;
     }
     text += `0${span.literal.text}`;

@@ -74,6 +74,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator } from "@typescript/native/sync";
 import { kebab, SEALED_NAME } from "../../eslint/index.ts";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import { OWNER_CSS_SURFACE, STRING } from "./css.ts";
@@ -782,7 +783,7 @@ const isExpression = (value: Site["value"]): value is Expression => value !== nu
 
 function atOf(file: string, node: Node): string {
   const source = node.getSourceFile();
-  return `${file}:${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)}`;
+  return `${file}:${String(editorLineOf(source, node.getStart(source)))}`;
 }
 
 // A namespaced JSX name (`xlink:href`) is never a data-* attribute.

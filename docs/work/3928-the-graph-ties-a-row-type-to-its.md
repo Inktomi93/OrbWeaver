@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-23
+updated: 2026-11-24
 priority: P3
 area: tooling
 plan: unwired-code
