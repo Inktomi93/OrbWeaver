@@ -471,36 +471,37 @@ for (const { shape, held, call, sent } of VALIDATED_SHAPES) {
   });
 }
 
-// A cost row is returned as a narrower row type, handed on as a turn type that names fewer members still, and only then
-// to a parameter that reads `extra`: no type on the way names `extra`, but the row still holds it, so the write reaches
-// the read. `Lost.cost.hidden` rides the same way and no slot names it, so it stays written and never read; `Side`'s
-// `extra`, never widened into the row type, takes none of the far read; and `turnCost.other` no value holds.
-test("a member a narrower slot type does not name rides the value to a slot that names it", { timeout: 120_000 }, async ({ plantedTree }) => {
+// `Wire` and `Lost` each hand a cost of `Base & { extra }` on as `Base`, and only `Wire`'s reaches `turnCost`, which reads
+// `extra`. No type on either path names `extra`, so the graph cannot tell the two apart by type: it credits neither.
+// `Lost.cost.extra` must stay written and never read, as nothing reads it. `Wire.cost.extra` and `turnCost.extra` stay
+// write-only and read-only until a value tracer follows the cost row itself. `sink` reads only the list's length.
+test("a member a narrower slot type drops is credited to no slot it never reaches", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
     source([
       "export interface Base { readonly content: string }",
       "export interface Turn { readonly content: string; readonly id?: string }",
       "export interface Wire { readonly cost: Base & { readonly extra?: number } }",
-      "export interface Lost { readonly cost: Base & { readonly hidden?: number } }",
-      "export interface Side { readonly cost: Base & { readonly extra?: number } }",
-      "const turnCost = (turn: { readonly content: string; readonly extra?: number; readonly other?: number }): number =>",
-      "  turn.content.length + (turn.extra ?? 0) + (turn.other ?? 0);",
+      "export interface Lost { readonly cost: Base & { readonly extra?: number } }",
+      "const turnCost = (turn: { readonly content: string; readonly extra?: number }): number =>",
+      "  turn.content.length + (turn.extra ?? 0);",
       "declare const base: Base;",
       'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
-      'const lost: Lost[] = [{ cost: { ...base, content: "c", hidden: 1 } }];',
-      'export const side: Side = { cost: { ...base, content: "c", extra: 2 } };',
+      'const lost: Lost[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
       "const costs = (rows: readonly { readonly cost: Base }[]): Base[] => rows.map((w) => w.cost);",
+      "const sink = (rows: readonly { readonly cost: Base }[]): number => rows.length;",
       "const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
-      "export const total = (): number => fit(costs(wires)) + costs(lost).length;",
+      "export const total = (): number => fit(costs(wires)) + sink(lost);",
+      "export const other = (b: Base): number => b.content.length;",
+      "export const lostOnly = (): number => lost.map((l) => other(l.cost)).length;",
     ]),
   );
   expect(bucketsIn(scan)).toEqual([
-    "member-write-only Lost.cost.hidden",
-    "member-write-only Side.cost",
-    "member-write-only Side.cost.extra",
+    "member-write-only Wire.cost.extra",
+    "member-write-only Lost.cost.extra",
+    "member-write-only sink.cost",
     "member-untouched Turn.id",
-    "member-read-only turnCost.other",
+    "member-read-only turnCost.extra",
   ]);
 });
 
@@ -592,28 +593,4 @@ test("an untyped literal's unread accessor is untouched, as a method key is", { 
     ]),
   );
   expect(bucketsIn(scan)).toEqual(["member-untouched table.unread", "member-untouched table.stored", "member-untouched table.method"]);
-});
-
-// The reader's file is walked before the file that widens the row, so the carried pair is found after the reader's
-// slot was filled, and is linked once every file is walked.
-test("a carried member reaches a slot named in a file walked earlier", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const reader = `${GRAPH_SOURCE}/a-read.ts`;
-  const scan = await graphScan(plantedTree, {
-    [reader]: [
-      "export interface Turn { readonly content: string }",
-      "const turnCost = (turn: { readonly content: string; readonly extra?: number; readonly other?: number }): number =>",
-      "  turn.content.length + (turn.extra ?? 0) + (turn.other ?? 0);",
-      "export const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
-    ].join("\n"),
-    ...source([
-      'import { fit } from "./a-read.ts";',
-      "export interface Base { readonly content: string }",
-      "export interface Wire { readonly cost: Base & { readonly extra?: number } }",
-      "declare const base: Base;",
-      'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
-      "const costs = (rows: readonly Wire[]): Base[] => rows.map((w) => w.cost);",
-      "export const total = (): number => fit(costs(wires));",
-    ]),
-  });
-  expect([...bucketsIn(scan), ...bucketsIn(scan, reader)]).toEqual(["member-read-only turnCost.other"]);
 });
