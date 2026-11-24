@@ -12,13 +12,23 @@ import { useCutPart } from "./use-is-cut.ts";
 /** The part that holds a title's words, so the cut reader measures it and the reveal opens it. */
 type TitleWordsPart = (props: { readonly ref: RefCallback<HTMLElement>; readonly children: string }) => ReactElement;
 
-interface ModalTitleProps {
+interface ModalTitlePropsBase {
   readonly title: string;
-  /** The title holds one line at every height, beside a dialog's header actions. @defaultValue false */
-  readonly truncate?: boolean;
-  /** The words part of a modal that is not a dialog. @defaultValue the dialog's words part */
-  readonly words?: TitleWordsPart;
 }
+
+type ModalTitleProps = ModalTitlePropsBase &
+  (
+    | {
+        /** The title holds one line at every height, beside a dialog's header actions. @defaultValue false */
+        readonly truncate?: boolean;
+        readonly words?: never;
+      }
+    | {
+        readonly truncate?: never;
+        /** The words part of a modal that is not a dialog. @defaultValue the dialog's words part */
+        readonly words?: TitleWordsPart;
+      }
+  );
 
 function TitleWords({ title, truncate = false, words: Words }: ModalTitleProps): ReactElement {
   const cut = useCutPart();

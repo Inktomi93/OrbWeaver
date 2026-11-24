@@ -6,10 +6,21 @@
 // - A spread, a computed key or a write the graph credits away from any literal leaves its production write unknown.
 // - An inherited or mapped option belongs to the type expected at its construction, so those writes group by that
 //   contextual type, never by the field declarations alone, which would mix unrelated derived types or instantiations.
+// - A shape whose types already answer the question leaves the inventory: a union member its sibling arm forbids or
+//   widens, a mapped copy no reader joins, and a Drizzle table's insert row or set value, which takes any column subset.
 // - Production is product source and the plugin author and SDK sources the author programs hold: a bundle that sets
 //   both fields cancels a pair. A world walked apart from the merged program has no parse here, so its constructions
 //   are unknown.
-import type { Expression, Identifier, JsxAttributes, Node, ObjectLiteralExpression, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
+import type {
+  Expression,
+  Identifier,
+  JsxAttributes,
+  Node,
+  ObjectLiteralExpression,
+  PropertyAccessExpression,
+  PropertySignatureDeclaration,
+  SourceFile,
+} from "@typescript/native/ast";
 import {
   isAsExpression,
   isBinaryExpression,
@@ -26,6 +37,7 @@ import {
   isJsxOpeningElement,
   isJsxSelfClosingElement,
   isJsxSpreadAttribute,
+  isLiteralTypeNode,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
   isObjectBindingPattern,
@@ -41,6 +53,8 @@ import {
   isSpreadAssignment,
   isStringLiteral,
   isTypeAliasDeclaration,
+  isTypeLiteralNode,
+  isUnionTypeNode,
   isVariableDeclaration,
   SyntaxKind,
   skipTrivia,
@@ -50,6 +64,8 @@ import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { Site } from "../classify.ts";
 import { siteKey } from "../classify.ts";
+import type { RowTable } from "../drizzle-rows.ts";
+import { rowTables, rowTablesOf } from "../drizzle-rows.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, declarationKeys, hasFlag, nameAt } from "../native.ts";
 import type { PluginSources } from "../plugin-surface.ts";
@@ -287,8 +303,38 @@ const FIELD_KINDS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.PropertyAssignment,
 ]);
 
-// Each production optional member and its declaring home's start, the group key; a member typed `never` is an
-// exclusion marker no construction may set.
+// A member typed `never` or `undefined` forbids a value.
+const forbids = (type: Node): boolean => type.kind === SyntaxKind.NeverKeyword || type.kind === SyntaxKind.UndefinedKeyword;
+
+// A member typed one literal, or literals beside `undefined` (`false | undefined`), pins its arm.
+const pins = (type: Node): boolean =>
+  isLiteralTypeNode(type) || (isUnionTypeNode(type) && type.types.every((part) => isLiteralTypeNode(part) || forbids(part)));
+
+// A member a sibling arm of its union forbids, or one this arm pins that a sibling arm also declares, is already the
+// union's discriminant: the union refuses setting it beside the other arm's fields.
+function unionRuled(member: PropertySignatureDeclaration, name: string): boolean {
+  const arm = member.parent;
+  const union = isTypeLiteralNode(arm) ? arm.parent : undefined;
+  if (union === undefined || !isUnionTypeNode(union)) {
+    return false;
+  }
+  const pinned = pins(member.type);
+  return union.types.some(
+    (other) =>
+      other !== arm &&
+      isTypeLiteralNode(other) &&
+      other.members.some(
+        (sibling) =>
+          isPropertySignatureDeclaration(sibling) &&
+          (isIdentifier(sibling.name) || isStringLiteral(sibling.name)) &&
+          sibling.name.text === name &&
+          (pinned || forbids(sibling.type)),
+      ),
+  );
+}
+
+// Each production optional member and its declaring home's start, the group key; a member typed `never` or `undefined` is
+// an exclusion marker no construction may set, and a member its union already rules on leaves the pairing.
 function declaredFields(scope: Scope): ReadonlyMap<string, Field[]> {
   const owners = new Map<string, Field[]>();
   for (const [key, info] of scope.facts.decls) {
@@ -300,7 +346,7 @@ function declaredFields(scope: Scope): ReadonlyMap<string, Field[]> {
       node === undefined ||
       !(isPropertySignatureDeclaration(node) || isMethodSignatureDeclaration(node) || isPropertyDeclaration(node) || isPropertyAssignment(node)) ||
       !(isIdentifier(node.name) || isStringLiteral(node.name)) ||
-      (isPropertySignatureDeclaration(node) && node.type.kind === SyntaxKind.NeverKeyword)
+      (isPropertySignatureDeclaration(node) && (forbids(node.type) || unionRuled(node, node.name.text)))
     ) {
       continue;
     }
@@ -356,6 +402,7 @@ interface ContextIdentity {
   readonly owner: string;
   readonly site: Site | undefined;
   readonly specialized: boolean;
+  readonly mapped: boolean;
 }
 
 // A context is a type of the one program, so its id is the type's own: two constructions typed alike share it.
@@ -377,6 +424,7 @@ function* contextIdentity(scope: Scope, type: Type): APIRequestGenerator<Context
     owner: yield* world.checker.typeToString.gen(type),
     site: declaration === undefined || !ours ? undefined : world.siteOf(declaration),
     specialized: type.isMappedType() || (generic && ours),
+    mapped: type.isMappedType(),
   };
 }
 
@@ -450,7 +498,14 @@ function contextWrites(scope: Scope, resolver: Resolver, containers: readonly Co
   );
   const types = new Map(arms.flat().map((type) => [type.id, type]));
   const described = world.batch([...types.values()].map((type) => contextIdentity(scope, type)));
-  const identities = new Map([...types.keys()].map((id, at) => [id, described[at]]));
+  // A Drizzle table's insert row or set value takes any subset of the table's columns, so it is never a context.
+  rowTables(world);
+  const tables = world.batch(
+    [...types.values()].map(function* (type, at): APIRequestGenerator<readonly RowTable[]> {
+      return described[at] === undefined ? [] : yield* rowTablesOf(world, type);
+    }),
+  );
+  const identities = new Map([...types.keys()].map((id, at) => [id, (tables[at] ?? []).length > 0 ? undefined : described[at]]));
   const requests: APIRequestGenerator<ContextWrite | undefined>[] = [];
   const unknown: { id: string; site: Site }[] = [];
   for (const [at, literal] of containers.entries()) {
@@ -472,7 +527,7 @@ function contextWrites(scope: Scope, resolver: Resolver, containers: readonly Co
   const writes = world.batch(requests).filter((entry) => entry !== undefined);
   const keys = resolver.declarations(writes.map(({ prop }) => prop));
   return {
-    identities: new Map(described.flatMap((context) => (context === undefined ? [] : [[context.id, context]]))),
+    identities: new Map([...identities.values()].flatMap((context) => (context === undefined ? [] : [[context.id, context]]))),
     writes: writes.map((entry, at) => ({ ...entry, keys: keys[at] ?? [] })),
     unknown,
   };
@@ -619,7 +674,17 @@ interface GroupSource {
   readonly id: string;
   readonly context?: string;
   readonly unknown?: readonly Site[];
+  /** A mapped copy (`Partial`, `Pick`, `Record`) takes any subset of what it maps, so separate writes alone prove no
+   *  alternative: only a reader that takes one field or the other lists its pair. */
+  readonly readerOnly?: boolean;
 }
+
+// The readers in the group's context that read both fields.
+const jointReaders = (field: Field, sibling: Field, readers: ReadonlyMap<DeclKey, ReaderEvidence[]>, context: string | undefined): ReaderEvidence[] =>
+  field.keys
+    .flatMap((key) => readers.get(key) ?? [])
+    .filter((reader) => context === undefined || reader.context === context)
+    .filter((reader) => reader.left.some((key) => sibling.keys.includes(key)) || reader.right.some((key) => sibling.keys.includes(key)));
 
 function alternatives(fields: readonly ObservedField[], readers: ReadonlyMap<DeclKey, ReaderEvidence[]>, group: GroupSource, output: OptionalEvidence): void {
   const before = output.pairs.length;
@@ -630,13 +695,10 @@ function alternatives(fields: readonly ObservedField[], readers: ReadonlyMap<Dec
         continue;
       }
       const overlap = coSets(writes.sites.values(), sibling.writes.sites.values());
-      if (overlap.proven.length > 0) {
+      const evidence = jointReaders(field, sibling.field, readers, group.context);
+      if (overlap.proven.length > 0 || (group.readerOnly === true && evidence.length === 0)) {
         continue;
       }
-      const evidence = field.keys
-        .flatMap((key) => readers.get(key) ?? [])
-        .filter((reader) => group.context === undefined || reader.context === group.context)
-        .filter((reader) => reader.left.some((key) => sibling.field.keys.includes(key)) || reader.right.some((key) => sibling.field.keys.includes(key)));
       output.pairs.push({
         group: index,
         left: field.member,
@@ -696,7 +758,8 @@ function contextualAlternatives(scope: Scope, contexts: Contexts, readers: Reado
       .sort((a, b) => a.writer.file.localeCompare(b.writer.file) || a.writer.position - b.writer.position)[0];
     if (representative !== undefined) {
       const uncertain = (unknown.get(id) ?? []).map((entry) => entry.site);
-      alternatives(fields, readers, { id: `context:${siteKey(representative.writer)}`, context: id, unknown: uncertain }, output);
+      const readerOnly = contexts.identities.get(id)?.mapped === true;
+      alternatives(fields, readers, { id: `context:${siteKey(representative.writer)}`, context: id, unknown: uncertain, readerOnly }, output);
     }
   }
 }

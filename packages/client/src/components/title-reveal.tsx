@@ -29,18 +29,37 @@ interface TitleAction {
   readonly control: (state: { readonly cut: boolean }) => ReactElement;
 }
 
-export interface TitleRevealProps {
+interface TitleRevealPropsBase {
   /** The whole title: what the reveal prints, and what a cut title's control is named by. */
   readonly whole: string;
-  /** The title fills the room its row gives it, so the control that replaces it fills that room too and takes the floor the title carries. */
-  readonly fill?: boolean;
-  readonly action?: TitleAction;
-  /** The control a cut title becomes, where the title is not already one and the row's own layout has to hold under the control. Default: a text-height action that fills the row. */
-  readonly control?: ReactElement;
-  /** What the title sits in while it is not a control, where the row's layout wants a box around it. The control carries that layout itself. */
-  readonly frame?: (children: ReactNode) => ReactElement;
   readonly children: ReactNode;
 }
+
+export type TitleRevealProps = TitleRevealPropsBase &
+  (
+    | {
+        readonly fill?: never;
+        readonly action?: TitleAction;
+        readonly control?: never;
+        readonly frame?: never;
+      }
+    | {
+        readonly fill?: never;
+        readonly action?: never;
+        /** The control a cut title becomes, where the title is not already one and the row's own layout has to hold under the control. Default: a text-height action that fills the row. */
+        readonly control?: ReactElement;
+        /** What the title sits in while it is not a control, where the row's layout wants a box around it. The control carries that layout itself. */
+        readonly frame?: (children: ReactNode) => ReactElement;
+      }
+    | {
+        /** The title fills the room its row gives it, so the control that replaces it fills that room too and takes the floor the title carries. */
+        readonly fill?: boolean;
+        readonly action?: never;
+        readonly control?: never;
+        /** What the title sits in while it is not a control, where the row's layout wants a box around it. The control carries that layout itself. */
+        readonly frame?: (children: ReactNode) => ReactElement;
+      }
+  );
 
 function Reveal({
   whole,

@@ -9,4 +9,10 @@ nodes:
           js_file: scripts/codemod.ts
           language: "tsx"
           base_path: "."
-          include: ["packages/ui/src/primitives/toggle-group/toggle-group.tsx", "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx", "packages/ui/src/primitives/empty-state/empty-state.tsx", "packages/ui/src/primitives/media-grid/media-grid.tsx", "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx", "packages/ui/src/content/sandbox-frame/sandbox-frame.tsx", "packages/ui/src/charts/meter/track-bar.tsx", "packages/ui/src/primitives/list-row/list-row.tsx"]
+          include: ["packages/ui/src/primitives/toggle-group/toggle-group.tsx", "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx", "packages/ui/src/primitives/empty-state/empty-state.tsx", "packages/ui/src/primitives/media-grid/media-grid.tsx", "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx", "packages/ui/src/content/sandbox-frame/sandbox-frame.tsx", "packages/ui/src/charts/meter/track-bar.tsx", "packages/ui/src/primitives/list-row/list-row.tsx", "packages/ui/src/primitives/background-layer/background-layer.tsx", "packages/client/src/components/modal-title.tsx", "packages/client/src/components/title-reveal.tsx"]
+      - name: TypeScript declarations
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          language: "typescript"
+          base_path: "."
+          include: ["packages/server/src/domain/import/loader/profile-directory.ts"]

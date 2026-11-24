@@ -454,7 +454,7 @@ const NO_WAVES: ProfileWaveOutcomes = {
   orphanSkipped: [],
 };
 
-interface ReportArgs {
+interface ReportArgsBase {
   readonly collected: ProfileCollected;
   readonly scanned: number;
   readonly changed: number;
@@ -464,11 +464,21 @@ interface ReportArgs {
   /** What the folder holds, so a rehearsal's structural zeroes never read as "this profile carries none of
    *  these planes". */
   readonly found: ImportKindCounts;
-  /** Present ONLY on a dryRun — the names behind the counts. */
-  readonly preview?: ImportPreview;
-  /** Present ONLY on a real run. */
-  readonly held?: ImportReport["held"];
 }
+
+type ReportArgs = ReportArgsBase &
+  (
+    | {
+        /** Present ONLY on a dryRun — the names behind the counts. */
+        readonly preview?: ImportPreview;
+        readonly held?: never;
+      }
+    | {
+        readonly preview?: never;
+        /** Present ONLY on a real run. */
+        readonly held?: ImportReport["held"];
+      }
+  );
 
 function reportFrom({ collected, scanned, changed, skippedCards, waves, found, dryRun, preview, held }: ReportArgs): ImportReport {
   return {
