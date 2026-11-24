@@ -28,7 +28,9 @@
 //   (`Options<V>`'s `mutationFn: (vars: V) => …`) pairs backward, one used both ways pairs both ways, and one never used
 //   (a phantom `Token<A>`) pairs forward.
 // - A write into a global our own `declare global` declares publishes the value outside the program, so it escapes
-//   whole, its function members' returns walked too.
+//   whole, its function members' returns walked too, sent to the dev bridge as an observability sink.
+// - An escape names every destination its chase reaches, not only the first: a value one path logs and another returns
+//   unseen is both logged and unclassified.
 // - A whole value handed to a slot naming members of ours its type lacks is traced back to where its type still names
 //   one (values.ts): that type fills the slot too, so a member a narrower type dropped reaches only the slots its own
 //   value reaches.
@@ -181,14 +183,22 @@ const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
 const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
 const UNFOLLOWED: Chase = { to: [], dropped: false, read: false, stopped: false };
 
-// What a chase decides for an escaping value: `read` where some path reads it whole, and where it is sent, or null
+// The dev bridge: a global our own `declare global` declares, which snap and agent probes read outside the program.
+const DEV_BRIDGE_SEND: Destination = { destination: "observability", receiver: "dev bridge" };
+
+// What a chase decides for an escaping value: `read` where some path reads it whole, and every place it is sent, none
 // where nothing receives it.
 interface Outcome {
   readonly read: boolean;
-  readonly send: Destination | null;
+  readonly sends: readonly Destination[];
 }
 
-const UNCLASSIFIED_OUTCOME: Outcome = { read: false, send: UNCLASSIFIED };
+const UNCLASSIFIED_OUTCOME: Outcome = { read: false, sends: [UNCLASSIFIED] };
+
+// Each destination once: two paths can reach one receiver.
+const distinctSends = (to: readonly Destination[]): readonly Destination[] => [
+  ...new Map(to.map((send) => [`${send.destination} ${send.receiver ?? ""}`, send] as const)).values(),
+];
 
 // The ids of a slot's arms that carry a string index signature.
 function* stringIndexedArms(checker: Checker, slot: Type): APIRequestGenerator<readonly number[]> {
@@ -339,11 +349,19 @@ export class Flows {
       }
     }
     for (const [y, { assertion, operand }] of handedOn.entries()) {
-      const send = chases[y]?.to[0] ?? (this.#providerReach().has(assertion) ? PROVIDER_SEND : undefined);
-      if (send !== undefined) {
+      for (const send of this.#assertionSends(assertion, chases[y])) {
         this.escape(operand, false, { file: sites.file, at: assertion.pos }, send);
       }
     }
+  }
+
+  // Where a cast's operand goes: every place its chase names, else a provider request it reaches, else nowhere.
+  #assertionSends(assertion: Node, chase: Chase | undefined): readonly Destination[] {
+    const chased = distinctSends(chase?.to ?? []);
+    if (chased.length > 0) {
+      return chased;
+    }
+    return this.#providerReach().has(assertion) ? [PROVIDER_SEND] : [];
   }
 
   // `defs satisfies Record<Task, TaskFields>`: the checked type is the value's slot, made at the type node.
@@ -552,20 +570,22 @@ export class Flows {
     const checked = this.#checkedTypes(escaping.map(({ node }) => node));
     for (const [y, { node, value, door }] of escaping.entries()) {
       const site = { file, at: node?.pos ?? 0 };
+      // a published global's reader is the dev bridge's, whatever the chase from the assignment finds
+      const outcome = door ? { read: false, sends: [DEV_BRIDGE_SEND] } : outcomes[y];
       for (const type of [value, ...(checked[y] === undefined ? [] : [checked[y]])]) {
-        this.#settle(type, door, site, outcomes[y]);
+        this.#settle(type, door, site, outcome);
       }
     }
   }
 
-  // What a chase decides for the members a value holds: a read where some path reads the whole value, a send where some
-  // path sends it on, nothing where an in-tree body drops it. Without an outcome the value is sent unclassified.
+  // What a chase decides for the members a value holds: a read where some path reads the whole value, a send for each
+  // place a path sends it on, nothing where an in-tree body drops it. Without an outcome the value is sent unclassified.
   #settle(value: Type, door: boolean, site: { readonly file: string; readonly at: number }, outcome: Outcome | undefined): void {
-    const { read, send } = outcome ?? UNCLASSIFIED_OUTCOME;
+    const { read, sends } = outcome ?? UNCLASSIFIED_OUTCOME;
     if (read) {
       this.#state.roleAll(this.deepMembers(value, door), "read", site.file, site.at);
     }
-    if (send !== null) {
+    for (const send of sends) {
       this.escape(value, door, site, send);
     }
   }
@@ -588,9 +608,12 @@ export class Flows {
     return found.map(({ to, dropped, read }, at) => {
       const node = nodes[at];
       if (dropped || (read && to.length === 0)) {
-        return { read, send: null };
+        return { read, sends: [] };
       }
-      return { read, send: to[0] ?? (node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED) };
+      if (to.length > 0) {
+        return { read, sends: distinctSends(to) };
+      }
+      return { read, sends: [node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED] };
     });
   }
 
@@ -916,6 +939,12 @@ export class Flows {
 
   // Whether a list slot is the platform's mutable `Array`: what is pushed through it lands in the list handed in, so its
   // element pairs both ways. A readonly list or a tuple only hands its elements out.
+  // A list receiver's type without the `undefined` an optional member adds, as `ctx.rows?.push(row)` reads it.
+  *#mutableList(type: Type): APIRequestGenerator<boolean> {
+    const list = type.isUnionType() ? yield* this.#state.world.checker.getNonNullableType.gen(type) : type;
+    return list.isTypeReference() && (yield* this.#mutableArray(list));
+  }
+
   *#mutableArray(slot: TypeReference): APIRequestGenerator<boolean> {
     const symbol = yield* (yield* slot.getTarget.gen()).getSymbol.gen();
     return symbol?.name === MUTABLE_ARRAY && !symbol.declarations.some((handle) => this.#state.resolver.ours(handle));
@@ -1085,7 +1114,7 @@ export class Flows {
         : [];
     });
     const types = state.world.typesAt(receivers);
-    const mutable = state.batch(types.map((type) => (type.isTypeReference() ? this.#mutableArray(type) : answer(false))));
+    const mutable = state.batch(types.map((type) => this.#mutableList(type)));
     const written = receivers.flatMap((receiver, at) => {
       if (mutable[at] !== true) {
         return [];
@@ -1232,12 +1261,12 @@ export class Flows {
     );
     for (const [z, { pair, y }] of escaping.entries()) {
       const held = (types[y] ?? []).filter((type) => !isPrimitive(type)).flatMap((type) => this.deepMembers(type, false));
-      const { read, send } = outcomes[z] ?? UNCLASSIFIED_OUTCOME;
+      const { read, sends } = outcomes[z] ?? UNCLASSIFIED_OUTCOME;
       const members = [...(decls[y] ?? []), ...held];
       if (read) {
         state.roleAll(members, "read", file, pair.site);
       }
-      if (send !== null) {
+      for (const send of sends) {
         state.escapeAll(members, { file, at: pair.site }, send);
       }
     }

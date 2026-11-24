@@ -11,6 +11,7 @@ import { fieldsScan, GRAPH_SOURCE, graphScan, libraryModule, NODE_TYPES } from "
 const FILE = `${GRAPH_SOURCE}/serialized.ts`;
 
 const DRIZZLE = libraryModule(["export declare function sql(parts: TemplateStringsArray, ...values: unknown[]): unknown;"], "drizzle-orm");
+const PINO = libraryModule(["export interface Logger { info(text: string): void }", "export declare const base: Logger;"], "pino");
 const LIBRARY = libraryModule([
   "export declare const logger: { info(text: string): void };",
   "export declare function encode(text: string): string;",
@@ -26,6 +27,7 @@ const HEAD = [
   'import { writeFileSync } from "node:fs";',
   'import { sql } from "drizzle-orm";',
   'import { encode, logger, writeFileSync as libraryWrite } from "lib";',
+  'import { base } from "pino";',
   "const seen = new Map<string, number>();",
   "class KeyMap { get(key: string): number { return key.length; } }",
   'const digest = (text: string): string => createHash("sha256").update(text).digest("hex");',
@@ -68,7 +70,9 @@ const CASES: Readonly<Record<string, { readonly use: string; readonly sent: Send
   keyNamedBinding: { use: "const cacheKey = JSON.stringify(v); console.log(cacheKey);", sent: "log" },
   keyBinding: { use: "const label = JSON.stringify(v); seen.has(label);", sent: null },
   compared: { use: 'void (JSON.stringify(v) === "x");', sent: null },
-  libraryLogger: { use: "logger.info(JSON.stringify(v));", sent: "log" },
+  // a logger-named member of a library that is no logging package takes the string as any library does
+  libraryLogger: { use: "logger.info(JSON.stringify(v));", sent: "dependency" },
+  loggingLibrary: { use: "base.info(JSON.stringify(v));", sent: "log" },
   library: { use: "encode(JSON.stringify(v));", sent: "dependency" },
 };
 
@@ -81,8 +85,11 @@ const planted = Object.entries(CASES).flatMap(([name, { use }]) => [
 ]);
 
 test("a serialization's string is judged by the declaration it reaches, never by a name", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const report = await fieldsScan(plantedTree, { ...NODE_TYPES, ...DRIZZLE, ...LIBRARY, [FILE]: [...HEAD, ...planted].join("\n") });
-  const rows = new Map(report.unwired.filter(({ file }) => file === FILE).map(({ home, sent }) => [home, sent[0]?.split(" ")[0] ?? "none"]));
+  const report = await fieldsScan(plantedTree, { ...NODE_TYPES, ...DRIZZLE, ...LIBRARY, ...PINO, [FILE]: [...HEAD, ...planted].join("\n") });
+  // a row sent only to a log line is observed rather than reported; its destination is still the one its row names
+  const rows = new Map(
+    [...report.unwired, ...report.observed].filter(({ file }) => file === FILE).map(({ home, sent }) => [home, sent[0]?.split(" ")[0] ?? "none"]),
+  );
   const found = Object.fromEntries(Object.keys(CASES).map((name) => [name, rows.get(`Box_${name}`) ?? null]));
   expect(found).toEqual(Object.fromEntries(Object.entries(CASES).map(([name, { sent }]) => [name, sent])));
 });

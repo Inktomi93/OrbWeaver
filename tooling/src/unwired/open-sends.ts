@@ -8,7 +8,11 @@
 // the whole value; a console, a file module, a platform request, a Drizzle `sql` tag, a platform response or blob and a
 // construction whose type reaches the standard `Error` name a destination; an in-tree callee's body and a binding's
 // uses are followed. A chase the depth bound stops is unclassified and counted, never a guessed destination.
-import type { CallExpression, Expression, Identifier, NewExpression, Node } from "@typescript/native/ast";
+//
+// A log line is decided the same way: a platform `Console` member, a logging library's declaration, or an in-tree port
+// whose product fills all resolve to one. A callee or receiver declared in the observability home is that destination.
+// A callee spelled like a logger decides nothing.
+import type { CallExpression, Expression, Identifier, InterfaceDeclaration, NewExpression, Node } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isArrowFunction,
@@ -21,21 +25,28 @@ import {
   isClassDeclaration,
   isConditionalExpression,
   isElementAccessExpression,
+  isExportSpecifier,
   isExpressionStatement,
   isFunctionDeclaration,
   isFunctionExpression,
   isIdentifier,
   isIfStatement,
+  isImportSpecifier,
+  isIndexedAccessTypeNode,
   isInterfaceDeclaration,
+  isMethodDeclaration,
+  isMethodSignatureDeclaration,
   isModuleDeclaration,
   isNewExpression,
   isNonNullExpression,
   isObjectLiteralExpression,
   isParameterDeclaration,
   isParenthesizedExpression,
+  isParenthesizedTypeNode,
   isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isPropertySignatureDeclaration,
   isReturnStatement,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
@@ -49,17 +60,21 @@ import {
   isThrowStatement,
   isTypeAssertion,
   isTypeOfExpression,
+  isTypeOperatorNode,
+  isTypeReferenceNode,
+  isUnionTypeNode,
   isVariableDeclaration,
   isVoidExpression,
   isWhileStatement,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, SignatureUsage, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
-import { NESTED_READS, PROVIDER_BODIES } from "./boundaries.ts";
+import { NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
 import type { FunctionLike, NativeWorld } from "./native.ts";
 import { constituents, hasFlag, isFunctionLike, isPropertyName, propertiesNamed } from "./native.ts";
+import { isProduction } from "./worlds.ts";
 
 // Helpers a value passes through before it leaves: a sink that wraps a logger that wraps pino.
 const CHASE_DEPTH = 3;
@@ -70,8 +85,9 @@ export interface Destination {
   readonly receiver: string | null;
 }
 
-const LOG_NAME = /^log(?:ger)?(?:$|[A-Z_])|Log(?:ger)?(?:$|[A-Z_])/u;
-const LOG_METHODS: ReadonlySet<string> = new Set(["trace", "debug", "info", "warn", "error", "fatal", "log"]);
+// The logging libraries, by the package that declares the callee: a call into one is a log line.
+const LOG_PACKAGES: ReadonlySet<string> = new Set(["pino"]);
+const CONSOLE_RECEIVER = "console";
 const WIRE_CALLS: ReadonlySet<string> = new Set(["send", "postMessage", "enqueue", "fetch"]);
 // The AI SDK model calls that make a provider request; the rest of the SDK builds models or parses responses.
 const REQUEST_METHODS: ReadonlySet<string> = new Set(["doStream", "doGenerate", "doEmbed"]);
@@ -167,32 +183,24 @@ function calleeOf(call: Invocation): { readonly name: Node | null; readonly text
   return isElementAccessExpression(callee) ? { name: null, text: null, receiver: callee.expression } : { name: null, text: null, receiver: null };
 }
 
-// The last name a receiver goes by: `logger` in `ctx.logger`, `getLog` in `getLog(base)`.
-function lastName(node: Node | null): string | null {
-  if (node === null) {
-    return null;
+// Whether a library declaration is a member of the platform's `Console`.
+function* isConsoleMember(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<boolean> {
+  if (!(yield* isPlatform(world, handle))) {
+    return false;
   }
-  if (isIdentifier(node)) {
-    return node.text;
-  }
-  if (isPropertyAccessExpression(node)) {
-    return node.name.text;
-  }
-  return isCallExpression(node) ? lastName(node.expression) : null;
+  const declaration = yield* resolved(handle);
+  return declaration !== undefined && declarationHome(declaration).container === CONSOLE;
 }
 
-// A call into a logger: its name, its receiver's name or its receiver's type names one.
-function* isLogCall(world: NativeWorld, call: Invocation): APIRequestGenerator<boolean> {
-  const { text, receiver } = calleeOf(call);
-  const receiverText = lastName(receiver);
-  if (receiverText === "console") {
-    return true;
-  }
-  const typeName = receiver === null ? null : (yield* (yield* world.checker.getTypeAtLocation.gen(receiver)).getSymbol.gen())?.name;
-  return (
-    [text, receiverText, typeName ?? null].some((name) => name !== null && LOG_NAME.test(name)) ||
-    (text !== null && LOG_METHODS.has(text) && receiverText !== null && LOG_NAME.test(receiverText))
-  );
+// A callee or its receiver the checker resolves to a declaration in the observability home: the operator reads what it
+// takes. A value merely built there decides nothing; only the target of its send does.
+function* observedTarget(world: NativeWorld, call: Invocation): APIRequestGenerator<Destination | null> {
+  const { name, receiver } = calleeOf(call);
+  const receiverName = receiver !== null && isPropertyAccessExpression(receiver) ? receiver.name : receiver;
+  const asked = [name, receiverName].filter((node): node is Node => node !== null && isIdentifier(node));
+  const symbols = yield* all(...asked.map((node) => symbolOf(world, node)));
+  const observed = symbols.some((symbol) => (symbol?.declarations ?? []).some((handle) => world.fileOf(handle)?.startsWith(OBSERVABILITY_HOME) === true));
+  return observed ? { destination: "observability", receiver: call.expression.getText() } : null;
 }
 
 function* symbolOf(world: NativeWorld, node: Node): APIRequestGenerator<NativeSymbol | undefined> {
@@ -264,9 +272,13 @@ export function* identitySlot(world: NativeWorld, contextual: Type | undefined):
   return hasFlag((element ?? slot).flags, TypeFlags.Unknown);
 }
 
-// A library callee: the AI SDK makes provider requests, a logger logs, any other library that reads keys is a dependency.
-function* libraryDestination(world: NativeWorld, call: Invocation, index: number, path: string): APIRequestGenerator<readonly Destination[]> {
-  const pkg = packageOf(path);
+// A library callee: the platform console and a logging library log, the AI SDK makes provider requests, and any other
+// library that reads keys is a dependency. The console takes `...data: unknown[]`, so it is asked before the identity slot.
+function* libraryDestination(world: NativeWorld, call: Invocation, index: number, handle: NodeHandle): APIRequestGenerator<readonly Destination[]> {
+  if (yield* isConsoleMember(world, handle)) {
+    return [{ destination: "log", receiver: CONSOLE_RECEIVER }];
+  }
+  const pkg = packageOf(handle.path);
   if (pkg === null) {
     return wireCall(call);
   }
@@ -276,7 +288,7 @@ function* libraryDestination(world: NativeWorld, call: Invocation, index: number
   if (pkg === COLUMN_PACKAGE || (yield* isOpaqueSlot(world, (call.arguments ?? [])[index]))) {
     return [];
   }
-  return [{ destination: (yield* isLogCall(world, call)) ? "log" : "dependency", receiver: pkg }];
+  return [{ destination: LOG_PACKAGES.has(pkg) ? "log" : "dependency", receiver: pkg }];
 }
 
 /** Where a chased value goes. `dropped`: it reached an in-tree body that only consumes it, on every path (the value is
@@ -320,15 +332,24 @@ function* namedChase(world: NativeWorld, call: Invocation, index: number, depth:
 function* parameterOf(handle: NodeHandle, index: number): APIRequestGenerator<{ readonly body: Node; readonly name: string } | null> {
   const declaration = yield* resolved(handle);
   const fn = declaration === undefined ? null : functionOf(declaration);
-  const parameter = fn === null ? undefined : (fn.parameters[index] ?? fn.parameters.at(-1));
-  return fn?.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)
+  return fn === null ? null : parameterIn(fn, index);
+}
+
+function parameterIn(fn: FunctionLike, index: number): { readonly body: Node; readonly name: string } | null {
+  const parameter = fn.parameters[index] ?? fn.parameters.at(-1);
+  return fn.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)
     ? { body: fn.body, name: parameter.name.text }
     : null;
 }
 
-// Where a value given to `call` at `index` goes: what its callee alone decides, a library, a logger, or wherever the
-// in-tree callee hands its parameter on.
+// Where a value given to `call` at `index` goes: the observability home when the callee or its receiver is declared
+// there, what its callee alone decides, a library, wherever the in-tree callee hands its parameter on, or what an
+// in-tree port with no body of its own resolves to.
 function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase> {
+  const observed = yield* observedTarget(world, call);
+  if (observed !== null) {
+    return sentTo([observed]);
+  }
   const named = yield* namedChase(world, call, index, depth);
   if (named !== null) {
     return named;
@@ -338,13 +359,14 @@ function* callDestinations(world: NativeWorld, call: Invocation, index: number, 
   const inTree = declarations.find((handle) => world.fileOf(handle) !== null);
   const outside = declarations.find((handle) => world.fileOf(handle) === null);
   if (inTree === undefined && outside !== undefined) {
-    return sentTo(yield* libraryDestination(world, call, index, outside.path));
+    return sentTo(yield* libraryDestination(world, call, index, outside));
   }
   const taken = inTree === undefined ? null : yield* parameterOf(inTree, index);
   if (taken !== null) {
     return depth >= CHASE_DEPTH ? STOPPED_CHASE : yield* bodyChase(world, usesOf(taken.body, taken.name), depth);
   }
-  return sentTo((yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call));
+  const port = depth >= CHASE_DEPTH ? null : yield* portChase(world, call, index, depth);
+  return port ?? sentTo(wireCall(call));
 }
 
 // Where an in-tree body's uses of its parameter take the value: every destination any use reaches, a read where any
@@ -393,6 +415,272 @@ function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIReq
 
 /** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
 export const sendChase = (world: NativeWorld, value: Node): APIRequestGenerator<Chase> => destinationsOf(world, value, 0);
+
+// --- In-tree ports ------------------------------------------------------------------------------------------
+
+/** What fills a port's interface whole: the logging libraries whose values do, and whether some fill is neither one
+ *  nor the port handed on. */
+interface PortFills {
+  readonly logs: readonly string[];
+  readonly unresolved: boolean;
+}
+
+const NO_FILLS: PortFills = { logs: [], unresolved: false };
+const PORT_UNRESOLVED: Destination = { destination: "unclassified", receiver: null };
+// One fill check per port interface and world: the answer is the program's, whichever call asks.
+const portFillMemo = new WeakMap<NativeWorld, Map<string, PortFills>>();
+
+/** A call through a member with no body of its own, an interface's or a type literal's: what takes the value is each
+ *  function a product key-write gives the member, chased as a body, and each value that fills the port's interface
+ *  whole. A logging library's value logs, the port handed on fills nothing new, and any other fill is unclassified.
+ *  Null when the port resolves to nothing, as a member no product code fills. */
+function* portChase(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase | null> {
+  const { name, receiver } = calleeOf(call);
+  const member = name === null ? undefined : yield* bodilessMember(world, name);
+  const port = member?.parent ?? (receiver === null ? undefined : yield* receiverInterface(world, receiver));
+  const written = member === undefined ? { functions: [], unresolved: false } : yield* keyWrites(world, member);
+  const chases = yield* all(...written.functions.map((fn) => functionChase(world, fn, index, depth)));
+  // An element-access call names no one member, so a literal's keys cannot say which function it reaches.
+  const filled = port !== undefined && isInterfaceDeclaration(port) ? yield* portFills(world, port, member === undefined) : NO_FILLS;
+  const to: Destination[] = [
+    ...chases.flatMap((chase) => chase.to),
+    ...filled.logs.map((pkg): Destination => ({ destination: "log", receiver: pkg })),
+    ...(written.unresolved || filled.unresolved ? [PORT_UNRESOLVED] : []),
+  ];
+  const read = chases.some((chase) => chase.read);
+  if (to.length === 0 && !read && chases.length === 0) {
+    return null;
+  }
+  const dropped = to.length === 0 && !read && chases.every((chase) => chase.dropped);
+  return { to, dropped, read, stopped: chases.some((chase) => chase.stopped) };
+}
+
+// The in-tree member a callee name resolves to, when it is a signature with no body: a port some value fills.
+function* bodilessMember(world: NativeWorld, name: Node): APIRequestGenerator<Node | undefined> {
+  const own = (yield* symbolOf(world, name))?.declarations.find((handle) => world.fileOf(handle) !== null);
+  const declaration = own === undefined ? undefined : yield* resolved(own);
+  return declaration !== undefined && (isPropertySignatureDeclaration(declaration) || isMethodSignatureDeclaration(declaration)) ? declaration : undefined;
+}
+
+// The in-tree interface a call's receiver is typed by, as `log[level](...)` calls through it.
+function* receiverInterface(world: NativeWorld, receiver: Node): APIRequestGenerator<Node | undefined> {
+  const symbol = yield* (yield* world.checker.getTypeAtLocation.gen(receiver)).getSymbol.gen();
+  const own = symbol?.declarations.find((handle) => world.fileOf(handle) !== null);
+  return own === undefined ? undefined : yield* resolved(own);
+}
+
+// The production references a find-references at `name` reports, resolved.
+function* productReferences(world: NativeWorld, name: Node): APIRequestGenerator<readonly Node[]> {
+  const groups = yield* world.referencedSymbolsOf(name);
+  const handles = groups.flatMap((group) => group.references).filter((handle) => isProduction(world.fileOf(handle) ?? ""));
+  const nodes = yield* all(...handles.map((handle) => resolved(handle)));
+  return nodes.filter((node): node is Node => node !== undefined);
+}
+
+const sameNode = (a: Node, b: Node): boolean => a.pos === b.pos && a.end === b.end && a.getSourceFile().fileName === b.getSourceFile().fileName;
+
+// The functions product key-writes give a member: `key: fn`, `key: (…) => …`, a shorthand `key` and a method. A write
+// of any other value is unresolved.
+function* keyWrites(
+  world: NativeWorld,
+  member: Node & { readonly name?: Node },
+): APIRequestGenerator<{ readonly functions: readonly FunctionLike[]; readonly unresolved: boolean }> {
+  if (member.name === undefined) {
+    return { functions: [], unresolved: true };
+  }
+  const functions: FunctionLike[] = [];
+  let unresolved = false;
+  for (const reference of yield* productReferences(world, member.name)) {
+    const { parent } = reference;
+    const named = (isPropertyAssignment(parent) || isShorthandPropertyAssignment(parent) || isMethodDeclaration(parent)) && sameNode(parent.name, reference);
+    if (!named) {
+      continue;
+    }
+    const fn = yield* writtenFunction(world, parent);
+    if (fn === null) {
+      unresolved = true;
+    } else {
+      functions.push(fn);
+    }
+  }
+  return { functions, unresolved };
+}
+
+// The function a key-write gives its member: a method, an initializer, or the function a name or shorthand holds.
+function* writtenFunction(world: NativeWorld, write: Node): APIRequestGenerator<FunctionLike | null> {
+  if (isMethodDeclaration(write)) {
+    return isFunctionLike(write) && write.body !== undefined ? write : null;
+  }
+  const direct = functionOf(write);
+  if (direct !== null) {
+    return direct;
+  }
+  let held: NativeSymbol | undefined;
+  if (isShorthandPropertyAssignment(write)) {
+    held = yield* world.checker.getShorthandAssignmentValueSymbol.gen(write);
+  } else if (isPropertyAssignment(write) && isIdentifier(write.initializer)) {
+    held = yield* symbolOf(world, write.initializer);
+  }
+  const handle = held?.valueDeclaration ?? held?.declarations[0];
+  const declaration = handle === undefined || world.fileOf(handle) === null ? undefined : yield* resolved(handle);
+  return declaration === undefined ? null : functionOf(declaration);
+}
+
+// Where a function a port's member holds takes the argument at `index`: a parameter it never declares drops the value.
+function* functionChase(world: NativeWorld, fn: FunctionLike, index: number, depth: number): APIRequestGenerator<Chase> {
+  const last = fn.parameters.at(-1);
+  const rest = last !== undefined && isParameterDeclaration(last) && last.dotDotDotToken !== undefined;
+  if (fn.parameters.length <= index && !rest) {
+    return { to: [], dropped: true, read: false, stopped: false };
+  }
+  const taken = parameterIn(fn, index);
+  return taken === null ? sentTo([PORT_UNRESOLVED]) : yield* bodyChase(world, usesOf(taken.body, taken.name), depth);
+}
+
+/** The values that fill an in-tree interface whole, found from each production place its name types: a member's
+ *  key-writes, a parameter's arguments, a variable's initializer and a function's returns. A type position that hands
+ *  the interface on (an alias, a heritage clause, a type argument) leaves the port unresolved; an indexed access or a
+ *  `keyof` names members and fills nothing. With `literalsUnknown`, an object literal fill is unresolved too. */
+function* portFills(world: NativeWorld, port: InterfaceDeclaration, literalsUnknown: boolean): APIRequestGenerator<PortFills> {
+  const key = `${nodeKey(world, port)}:${String(literalsUnknown)}`;
+  const memo = portFillMemo.get(world) ?? new Map<string, PortFills>();
+  portFillMemo.set(world, memo);
+  const known = memo.get(key);
+  if (known !== undefined) {
+    return known;
+  }
+  const values: Node[] = [];
+  let unresolved = false;
+  for (const reference of yield* productReferences(world, port.name)) {
+    const placed = yield* typedPlaceValues(world, port, reference);
+    if (placed === null) {
+      unresolved = true;
+    } else {
+      values.push(...placed);
+    }
+  }
+  const judged = yield* all(...values.map((value) => fillOf(world, port, value, literalsUnknown)));
+  const logs = judged.flatMap((fill) => (fill === null || fill === PORT_HANDED_ON ? [] : [fill]));
+  const fills: PortFills = { logs: [...new Set(logs)], unresolved: unresolved || judged.includes(null) };
+  memo.set(key, fills);
+  return fills;
+}
+
+const PORT_HANDED_ON = "";
+
+// The values a reference to the port's name puts into it: none for an import, an export or the declaration itself,
+// null where the reference hands the type on unseen.
+function* typedPlaceValues(world: NativeWorld, port: InterfaceDeclaration, reference: Node): APIRequestGenerator<readonly Node[] | null> {
+  const { parent } = reference;
+  if (sameNode(reference, port.name) || isImportSpecifier(parent) || isExportSpecifier(parent)) {
+    return [];
+  }
+  if (!isTypeReferenceNode(parent)) {
+    return null;
+  }
+  let typed: Node = parent;
+  while (isUnionTypeNode(typed.parent) || isParenthesizedTypeNode(typed.parent)) {
+    typed = typed.parent;
+  }
+  return yield* holderValues(world, typed.parent, typed);
+}
+
+// The values the declaration a port's type node annotates takes: see typedPlaceValues.
+function* holderValues(world: NativeWorld, holder: Node, typed: Node): APIRequestGenerator<readonly Node[] | null> {
+  // an indexed access names one member and `keyof` names the keys: neither fills the port
+  if (isIndexedAccessTypeNode(holder) || (isTypeOperatorNode(holder) && holder.operator === SyntaxKind.KeyOfKeyword)) {
+    return [];
+  }
+  if (isPropertySignatureDeclaration(holder) && holder.type === typed) {
+    return yield* memberWrites(world, holder.name);
+  }
+  if (isParameterDeclaration(holder) && holder.type === typed && isFunctionLike(holder.parent)) {
+    return yield* argumentsOf(world, holder.parent, holder.parent.parameters.indexOf(holder));
+  }
+  if (isVariableDeclaration(holder) && holder.type === typed) {
+    return holder.initializer === undefined ? [] : [holder.initializer];
+  }
+  // a type node a function holds that no parameter holds is its return type
+  if (isFunctionLike(holder)) {
+    return returnsOf(holder);
+  }
+  return null;
+}
+
+// The values product key-writes give a member: an initializer, or the name a shorthand reads.
+function* memberWrites(world: NativeWorld, name: Node): APIRequestGenerator<readonly Node[]> {
+  return (yield* productReferences(world, name)).flatMap((reference): readonly Node[] => {
+    const { parent } = reference;
+    if (isPropertyAssignment(parent) && sameNode(parent.name, reference)) {
+      return [parent.initializer];
+    }
+    return isShorthandPropertyAssignment(parent) && sameNode(parent.name, reference) ? [parent.name] : [];
+  });
+}
+
+// The arguments the product's calls hand a function at `index`; null when some reference passes the function on unseen.
+function* argumentsOf(world: NativeWorld, fn: FunctionLike, index: number): APIRequestGenerator<readonly Node[] | null> {
+  const target = (isArrowFunction(fn) || isFunctionExpression(fn)) && (isVariableDeclaration(fn.parent) || isPropertyAssignment(fn.parent)) ? fn.parent : fn;
+  const found: Node[] = [];
+  for (const usage of yield* world.signatureUsage(target)) {
+    const handed = yield* usageArgument(world, usage, target, index);
+    if (handed === null) {
+      return null;
+    }
+    found.push(...handed);
+  }
+  return found;
+}
+
+// The argument one usage of a function hands it at `index`: none for its own declaration, a test's call or an omitted
+// argument, null for a reference that passes the function on.
+function* usageArgument(world: NativeWorld, usage: SignatureUsage, target: Node, index: number): APIRequestGenerator<readonly Node[] | null> {
+  const name = yield* usage.name.resolve.gen();
+  const call = usage.call === undefined ? undefined : yield* usage.call.resolve.gen();
+  if (name === undefined || !isProduction(world.siteOf(name).file) || (call === undefined && sameNode(name.parent, target))) {
+    return [];
+  }
+  if (call === undefined || !(isCallExpression(call) || isNewExpression(call))) {
+    return null;
+  }
+  const argument = (call.arguments ?? [])[index];
+  return argument === undefined ? [] : [argument];
+}
+
+// What one value filling a port is: a logging library's (its package), the port handed on, or null when it is
+// anything else. An absent value fills nothing; an object literal is the port's own keys unless `literalsUnknown`.
+function* fillOf(world: NativeWorld, port: InterfaceDeclaration, value: Node, literalsUnknown: boolean): APIRequestGenerator<string | null> {
+  let at = value;
+  while (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at) || isNonNullExpression(at)) {
+    at = at.expression;
+  }
+  if (isObjectLiteralExpression(at)) {
+    return literalsUnknown ? null : PORT_HANDED_ON;
+  }
+  const type = yield* world.checker.getTypeAtLocation.gen(at);
+  const parts = type.isUnionType() || type.isIntersectionType() ? yield* type.getTypes.gen() : [type];
+  const present = parts.filter((part) => !(hasFlag(part.flags, TypeFlags.Undefined) || hasFlag(part.flags, TypeFlags.Null)));
+  const symbols = (yield* all(...present.map((part) => part.getSymbol.gen()))).filter((symbol) => symbol !== undefined);
+  if (symbols.length === 0) {
+    return present.length === 0 ? PORT_HANDED_ON : null;
+  }
+  return yield* declaredFill(
+    world,
+    port,
+    symbols.flatMap((symbol) => symbol.declarations),
+  );
+}
+
+// A fill by its type's declarations: the port's own is the port handed on, one logging library's all is a log line.
+function* declaredFill(world: NativeWorld, port: InterfaceDeclaration, handles: readonly NodeHandle[]): APIRequestGenerator<string | null> {
+  if (handles.some((handle) => world.fileOf(handle) !== null)) {
+    const own = yield* all(...handles.map((handle) => resolved(handle)));
+    return own.every((node) => node !== undefined && sameNode(node, port)) ? PORT_HANDED_ON : null;
+  }
+  const packages = new Set(handles.map((handle) => packageOf(handle.path) ?? ""));
+  const [pkg = ""] = packages;
+  return packages.size === 1 && LOG_PACKAGES.has(pkg) ? pkg : null;
+}
 
 // --- Serializations -----------------------------------------------------------------------------------------
 
@@ -554,9 +842,13 @@ function* taggedTakes(world: NativeWorld, tag: Node): APIRequestGenerator<Serial
   return pkg === null ? UNPLACED : sent("dependency");
 }
 
-// A call the string is an argument of: an in-tree body is followed through its parameter, a platform declaration is
-// judged by where it sits, and any other library takes the string, as a logger when it is one.
+// A call the string is an argument of: an observability target observes it, an in-tree body is followed through its
+// parameter, an in-tree port by what it resolves to, a platform declaration is judged by where it sits, and any other
+// library takes the string, as a logger when its package is one.
 function* callTakes(world: NativeWorld, call: CallExpression, index: number, depth: number): APIRequestGenerator<Serialized> {
+  if ((yield* observedTarget(world, call)) !== null) {
+    return sent("observability");
+  }
   const { name } = calleeOf(call);
   const symbol = name === null ? undefined : yield* symbolOf(world, name);
   const declarations = symbol?.declarations ?? [];
@@ -564,7 +856,7 @@ function* callTakes(world: NativeWorld, call: CallExpression, index: number, dep
   if (inTree !== undefined) {
     const taken = yield* parameterOf(inTree, index);
     if (taken === null) {
-      return (yield* isLogCall(world, call)) ? sent("log") : UNPLACED;
+      return yield* portTakes(world, call, index, depth);
     }
     if (depth >= CHASE_DEPTH) {
       return STOPPED;
@@ -578,7 +870,15 @@ function* callTakes(world: NativeWorld, call: CallExpression, index: number, dep
   if (yield* isPlatform(world, outside)) {
     return yield* platformTakes(symbol, outside, index);
   }
-  return (yield* isLogCall(world, call)) ? sent("log") : sent("dependency");
+  const pkg = packageOf(outside.path);
+  return sent(pkg !== null && LOG_PACKAGES.has(pkg) ? "log" : "dependency");
+}
+
+// A string handed to an in-tree port: the one destination every way the port resolves agrees on, else unclassified.
+function* portTakes(world: NativeWorld, call: CallExpression, index: number, depth: number): APIRequestGenerator<Serialized> {
+  const port = depth >= CHASE_DEPTH ? null : yield* portChase(world, call, index, depth);
+  const [first, ...rest] = port?.to ?? [];
+  return first === undefined || rest.some(({ destination }) => destination !== first.destination) ? UNPLACED : sent(first.destination);
 }
 
 function* platformTakes(symbol: NativeSymbol, handle: NodeHandle, index: number): APIRequestGenerator<Serialized> {

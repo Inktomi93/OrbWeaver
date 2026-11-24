@@ -49,6 +49,8 @@ export interface FieldsReport {
   readonly validated: readonly FieldRow[];
   /** Never-read members of a tRPC mutation's one-member output: the acknowledgement is the procedure's whole answer. */
   readonly acknowledged: readonly FieldRow[];
+  /** Never-read members sent only to an observability sink, `sent` naming each: the operator reads them, no code does. */
+  readonly observed: readonly FieldRow[];
   readonly received: JudgedMembers["received"];
   /** Product reads off an `any` receiver that spell a reported row's member where the row has no read,
    *  `file:line name slot -> Home.member`. */
@@ -66,7 +68,8 @@ const FIELD_LIMITS: readonly string[] = [
   "A computed key built from runtime strings or a runtime symbol types as string or symbol, so it reads or writes no named member.",
   "A type-position read (Registry[K] in a type) is no data read unless K can be the entry's key.",
   "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible; the literal stage lists such a spelling and moves a dead row to ask.",
-  "A send's receiver outside the tree (an HTTP or wire reader, a log or file reader) is not followed: those rows sort as ask with the destination named. A provider send is received only where a doc names the member (field-sort.ts providerCite).",
+  "A send's receiver outside the tree (an HTTP or wire reader, a file reader) is not followed: those rows sort as ask with the destination named. A provider send is received only where a doc names the member (field-sort.ts providerCite).",
+  "A row sent only to an observability sink (a log line the checker resolves to the console or a logging library, a callee or receiver declared in the observability home, the dev bridge) is observed, not judged. A value that reaches such a sink only through a return or a generic helper's body is unclassified and stays reported.",
   "A plugin contract member the SDK publishes is received, never judged; the SDK surface is matched by home and member name or by slot path (tooling/src/unwired/plugin-surface.ts).",
   "unresolved lists only product reads off an any receiver (state.ts LOST_SLOTS 'any-receiver'), by name. A lost read in another slot is not listed, and the graph records no lost write, so a never-written row lists no candidate writer. No count of unplaced keys by reason is kept.",
   "No second engine audits a row: the query has no --cross-check and no disagreements list.",
@@ -107,7 +110,8 @@ export function fieldsOf(facts: GraphFacts, members: JudgedMembers): FieldsRepor
   const judged = members.judged.map(kinded);
   const validated = members.validated.map(kinded);
   const acknowledged = members.acknowledged.map(kinded);
-  const reported = [...unwired, ...deliberate, ...judged, ...validated, ...acknowledged];
+  const observed = members.observed.map(kinded);
+  const reported = [...unwired, ...deliberate, ...judged, ...validated, ...acknowledged, ...observed];
   return {
     scanned: [...facts.decls.values()].filter((info) => isProduction(info.file) && isMember(info)).length,
     unwired,
@@ -116,6 +120,7 @@ export function fieldsOf(facts: GraphFacts, members: JudgedMembers): FieldsRepor
     staleJudged: members.staleJudged,
     validated,
     acknowledged,
+    observed,
     received: members.received,
     unresolved: deciding(facts, reported),
     sentBy: sentCounts(reported),

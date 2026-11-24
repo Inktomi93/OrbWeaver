@@ -127,6 +127,26 @@ test("a push writes only the list its own binding holds", { timeout: 120_000 }, 
   expect(bucketsIn(scan)).toEqual(["member-write-only Event.at", "member-read-only Lost.note"]);
 });
 
+// An optional list member pushed into through `?.` is the same list the caller handed in: `Staged`'s reads read the
+// push into `Write`. `Staged.spare` is written and read by nothing, so it stays a finding.
+test("a push through an optional list member writes the list the caller handed in", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Write { readonly key: string; readonly value: string }",
+      "export interface Options { readonly writes?: Write[] }",
+      'const collect = (opts: Options): void => { opts.writes?.push({ key: "k", value: "v" }); };',
+      "export interface Staged { readonly key: string; readonly value: string; readonly spare?: string }",
+      "export const staged = (): string => {",
+      "  const writes: Staged[] = [];",
+      "  collect({ writes });",
+      "  return writes.map((write) => write.key + write.value).join();",
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-untouched Staged.spare"]);
+});
+
 // `fill` pushes into the list it takes as `Wide[]`, and the list is the caller's `Leaf[]`, whose reads read the push.
 // A readonly list only hands its elements out, and nothing writes into the mutable list `peek` takes, so what `look`
 // takes as `View` and `peek` as `Peeked` stays written and never read.

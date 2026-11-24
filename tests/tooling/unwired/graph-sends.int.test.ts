@@ -432,8 +432,8 @@ test("a literal key read through a string-indexed type reads the handed value's 
 });
 
 // A slot with a string index signature names some members and takes the rest as open entries: the members it does not
-// name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too. The member
-// it names pairs, so a read of the slot's member reads it.
+// name leave with whatever reads the slot, here a library logger through an in-tree sink, nested members too, so they
+// are observed. The member it names pairs, so a read of the slot's member reads it.
 test("a value's members a string-index slot does not name are sent where the slot's value goes", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...libraryModule(["export interface Logger { debug<T extends object>(obj: T, msg?: string): void }"], "pino"),
@@ -449,7 +449,8 @@ test("a value's members a string-index slot does not name are sent where the slo
       "};",
     ]),
   });
-  expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
+  expect(scan.members.unwired).toEqual([]);
+  expect(scan.members.observed.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
     ["Trace.built", "member-sent-only", [`log ${FILE}:7 pino`]],
     ["Entry.trace", "member-sent-only", [`log ${FILE}:7 pino`]],
   ]);

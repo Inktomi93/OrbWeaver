@@ -62,6 +62,8 @@ export interface MemberScanReport {
   readonly validated: readonly ScanRow[];
   /** Never-called members of a tRPC mutation's one-member output: the acknowledgement is the procedure's whole answer. */
   readonly acknowledged: readonly ScanRow[];
+  /** Never-called members sent only to an observability sink. */
+  readonly observed: readonly ScanRow[];
   readonly received: JudgedMembers["received"];
   readonly limits: readonly string[];
 }
@@ -122,6 +124,7 @@ export function memberScanOf(world: NativeWorld, facts: GraphFacts, members: Jud
     staleJudged: members.staleJudged,
     validated: scanned(members.validated),
     acknowledged: scanned(members.acknowledged),
+    observed: scanned(members.observed),
     received: members.received.filter(({ key }) => decls.has(key)),
     limits: MEMBER_LIMITS,
   };
