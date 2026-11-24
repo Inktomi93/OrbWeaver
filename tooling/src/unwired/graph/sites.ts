@@ -589,6 +589,8 @@ export class FileSites {
   readonly inferredCalls: CallExpression[] = [];
   /** String literal arguments, which name a member where the parameter is `keyof` a type. */
   readonly keyArguments: Expression[] = [];
+  /** A method call's template first argument, which a form write method takes as a field path. */
+  readonly templatePaths: TemplateExpression[] = [];
   /** A returned key literal, or a conditional of them, with its function's declared return type. */
   readonly keyReturns: { readonly value: Expression; readonly type: TypeNode }[] = [];
   /** Declarations whose declared type fills another's: an overload's parameter fills its implementation's. */
@@ -1094,6 +1096,10 @@ class Walker {
       return;
     }
     this.#sites.keyArguments.push(...node.arguments.filter((argument) => isStringLiteral(argument) || isNoSubstitutionTemplateLiteral(argument)));
+    const [first] = node.arguments;
+    if (first !== undefined && isTemplateExpression(first) && isPropertyAccessExpression(node.expression)) {
+      this.#sites.templatePaths.push(first);
+    }
     if (isParseCall(node)) {
       this.#sites.parses.push(node);
     }
