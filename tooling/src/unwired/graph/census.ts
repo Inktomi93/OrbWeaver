@@ -23,10 +23,10 @@ import { isProduction } from "../worlds.ts";
 import type { Analysis, Bucket } from "./analyse.ts";
 import { isMember, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
-import { declaredNameOf } from "./declared.ts";
+import { declaredNameOf, nodeAt } from "./declared.ts";
 import type { GraphLog } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer, Resolver } from "./resolve.ts";
+import { answer, declKeyParts, Resolver } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { occurrenceRoles, READS, sameNode } from "./roles.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
@@ -227,6 +227,10 @@ export interface CensusReport {
   /** The product members asked, those among them an unread bucket holds, and those whose declaration name the merged
    *  program does not hold. */
   readonly members: { readonly asked: number; readonly of: number; readonly unread: number; readonly unresolved: number };
+  /** Every unresolved member, `member at file:line (key): why`, the why naming what the merged program lacks. */
+  readonly unresolved: readonly string[];
+  /** Every elsewhere site, `file:line member`. */
+  readonly elsewhere: readonly string[];
   /** The references find-references answered: in a group of the asked member's own symbol, and in a relative's group. */
   readonly references: { readonly own: number; readonly relative: number };
   readonly sites: Readonly<Record<SiteClass, number>>;
@@ -247,6 +251,21 @@ const CENSUS_LIMITS: readonly string[] = [
   "An elsewhere site has a role for its member in the same statement at a node no reference names (a destructuring pattern, a call that stores a whole value): the role is not proven to be this reference's.",
   "A late-bound member is answered by the checker's per-file references, which leave out a read through the constant that keys it.",
 ];
+
+// Why the merged program holds no name for a member: no source file of that path, no node of the key's kind at its
+// span, or a node there that declares no name.
+const UNRESOLVED_WHY = ["no-source", "no-node", "no-name"] as const;
+type UnresolvedWhy = (typeof UNRESOLVED_WHY)[number];
+
+// Asked only of a key declaredNameOf found no name for, so a node at the span is one that names nothing.
+function unresolvedWhy(world: NativeWorld, key: DeclKey): UnresolvedWhy {
+  const { file, pos, end, kind } = declKeyParts(key);
+  const source = world.source(file);
+  if (source === undefined) {
+    return "no-source";
+  }
+  return nodeAt(source, { pos, end, kind }) === undefined ? "no-node" : "no-name";
+}
 
 // One shape's running counts.
 interface Tally {
@@ -283,6 +302,12 @@ const GAP_CLASSES: ReadonlySet<SiteClass> = new Set<SiteClass>(["gap", "unclassi
 
 const placeOf = (file: string, at: number): string => `${file}:${String(at)}`;
 
+// A site as a reader finds it: its file and the editor line it starts on.
+function lineOf(file: string, node: Node): string {
+  const source = node.getSourceFile();
+  return `${file}:${String(editorLineOf(source, node.getStart(source)))}`;
+}
+
 const isUnclassified = (site: RoleSite): boolean => site.role === "escape" && site.destination === UNCLASSIFIED.destination;
 
 // One reference site with the class the graph's role sites give it, and the roles recorded there.
@@ -314,7 +339,8 @@ class Census {
   readonly #sites = noCounts();
   #own = 0;
   #relative = 0;
-  #unresolved = 0;
+  readonly #unresolved: string[] = [];
+  readonly #elsewhere: string[] = [];
 
   constructor(graph: Graph, world: NativeWorld, analysis: Analysis) {
     this.#graph = graph;
@@ -328,7 +354,9 @@ class Census {
   batch(members: readonly (readonly [DeclKey, DeclInfo])[]): void {
     const world = this.#world;
     const asked: readonly Asked[] = members.map(([key, info]) => ({ key, info, name: declaredNameOf(world, key) }));
-    this.#unresolved += asked.filter(({ name }) => name === undefined).length;
+    for (const { key, info } of asked.filter(({ name }) => name === undefined)) {
+      this.#unresolved.push(`${this.#label(info)} at ${info.file}:${String(info.line)} (${key}): ${unresolvedWhy(world, key)}`);
+    }
     const groups = world.batch(asked.map(({ name }) => (name === undefined ? answer<ReferencedSymbolEntry[]>([]) : world.referencedSymbolsOf(name))));
     const flat = groups.flatMap((entries, x) => entries.map((entry) => ({ x, entry })));
     const declared = this.#resolver.declarations(flat.map(({ entry }) => entry.symbol));
@@ -368,7 +396,7 @@ class Census {
     );
     const named = new Set([...sites.keys(), ...(name === undefined ? [] : [placeOf(info.file, name.pos)])]);
     const loose = roleSites.filter(({ file, at }) => !named.has(placeOf(file, at)));
-    const label = [memberHome(this.#graph.facts.decls, info), info.name].filter((part) => part !== "").join(".");
+    const label = this.#label(info);
     this.#own += sites.size;
     for (const [place, { node, file }] of sites) {
       const context = contextOf(node, this.#slots);
@@ -376,6 +404,10 @@ class Census {
       const found = exact === undefined ? this.#unplaced({ node, file, statement: context.statement }, loose) : exactClass(exact);
       this.#count({ key, label, node, file, context, found, roles: exact?.map(({ role }) => role) ?? [] });
     }
+  }
+
+  #label(info: DeclInfo): string {
+    return [memberHome(this.#graph.facts.decls, info), info.name].filter((part) => part !== "").join(".");
   }
 
   // A site with no role of its own: the member's roles no reference names decide whether the graph read it from a
@@ -410,6 +442,8 @@ class Census {
     }
     if (GAP_CLASSES.has(found)) {
       this.#gap(tally, site);
+    } else if (found === "elsewhere") {
+      this.#elsewhere.push(`${lineOf(site.file, site.node)} ${site.label}`);
     }
   }
 
@@ -423,8 +457,7 @@ class Census {
     }
     const signature = context.steps.join(STEP_JOIN);
     tally.variants.set(signature, (tally.variants.get(signature) ?? 0) + 1);
-    const source = node.getSourceFile();
-    const line = `${file}:${String(editorLineOf(source, node.getStart(source)))}`;
+    const line = lineOf(file, node);
     if (product) {
       tally.productGaps += 1;
       tally.productPlaces.push(`${line} ${label}`);
@@ -449,7 +482,9 @@ class Census {
     const shapes = [...this.#shapes].map(([shape, tally]) => shapeOf(shape, tally));
     const gaps = shapes.filter((shape) => shape.gaps > 0).sort((a, b) => b.gaps - a.gaps || a.shape.localeCompare(b.shape));
     return {
-      members: { ...members, unresolved: this.#unresolved },
+      members: { ...members, unresolved: this.#unresolved.length },
+      unresolved: this.#unresolved,
+      elsewhere: this.#elsewhere,
       references: { own: this.#own, relative: this.#relative },
       sites: this.#sites,
       unknownSlots: this.#slots.unknown,
@@ -576,6 +611,12 @@ export function censusText(report: CensusReport): string {
     "",
     `every gap shape (${String(report.gaps.length)}):`,
     ...report.gaps.flatMap(full),
+    "",
+    `unresolved members (${String(report.unresolved.length)}):`,
+    ...report.unresolved.map((row) => `  ${row}`),
+    "",
+    `elsewhere sites (${String(report.elsewhere.length)}):`,
+    ...report.elsewhere.map((row) => `  ${row}`),
     "",
     `handled shapes (${String(report.handled.length)}): sites, shape`,
     ...report.handled.map(({ sites: count, shape }) => `${String(count)}\t${shape}`),
