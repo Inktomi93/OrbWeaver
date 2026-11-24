@@ -343,10 +343,26 @@ function formPathOf(slot: Slot): FormPath | null {
   return tag !== undefined && isPropertyAccessExpression(tag) && FORM_FIELDS.has(tag.name.text) ? { form: tag.expression, role: "read", binds: true } : null;
 }
 
+// A form narrowed by `Omit<Form, "reset">` or `Pick<Form, …>` keeps its value type: the narrowing's first alias argument
+// is the form it narrows.
+const FORM_NARROWINGS: ReadonlySet<string> = new Set(["Omit", "Pick"]);
+
 function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | undefined> {
-  const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
-  const alias = yield* type.getAliasSymbol.gen();
-  return alias !== undefined && FORM_APIS.has(alias.name) ? (yield* type.getAliasTypeArguments.gen())[0] : undefined;
+  let type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
+  for (;;) {
+    const alias = yield* type.getAliasSymbol.gen();
+    if (alias === undefined) {
+      return undefined;
+    }
+    const [first] = yield* type.getAliasTypeArguments.gen();
+    if (FORM_APIS.has(alias.name)) {
+      return first;
+    }
+    if (!FORM_NARROWINGS.has(alias.name) || first === undefined) {
+      return undefined;
+    }
+    type = yield* checker.getNonNullableType.gen(first);
+  }
 }
 
 // A template path's text with each index substitution spelled `0`: `macros[${index}].name`. A substitution is an index

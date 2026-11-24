@@ -216,7 +216,7 @@ test("a member a typeof query names is touched; a member of the same name on ano
 
 // A getter or setter in an object literal typed as `I` fills `I`'s member as a method does: it writes the member, and a
 // read of the member reads it. `I.unseen` is the control no one reads; it takes the write and no more. A getter in a
-// literal no slot types writes its own key as a field does, and stays unread: `box.spare`.
+// literal no slot types is code, not stored data: it behaves as a method key does and stays untouched: `box.spare`.
 test("a getter or setter in a typed object literal writes the member it fills", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
@@ -246,5 +246,5 @@ test("a getter or setter in a typed object literal writes the member it fills", 
     readOnly: labelsIn(scan, "member-read-only", FILE),
     writeOnly: labelsIn(scan, "member-write-only", FILE),
     untouched: labelsIn(scan, "member-untouched", FILE),
-  }).toEqual({ readOnly: [], writeOnly: ["I.unseen", "I.value", "box.spare"], untouched: [] });
+  }).toEqual({ readOnly: [], writeOnly: ["I.unseen", "I.value"], untouched: ["box.spare"] });
 });
