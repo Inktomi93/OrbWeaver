@@ -13,6 +13,8 @@ const CARD = 'import { Card } from "@orb/ui/card";\n';
 const BUTTON = 'import { Button } from "@orb/ui/button";\n';
 const STACK = 'import { Stack } from "@orb/ui/layout";\n';
 const BOX = 'import { Box } from "@orb/ui/box";\n';
+// The code point TypeScript's line table breaks a line at beside LF; editors do not.
+const LINE_SEPARATOR = 0x20_28;
 
 /** A plan that lists the class strings at the given columns of line 2. */
 const planAt = (...columns: readonly number[]): MigrationPlan => ({
@@ -166,4 +168,15 @@ test("a change outside the planned elements fails", async () => {
   const before = `${ROW}${line};\n`;
   const after = `${ROW}<Row justify="between" />;\nconst extra = 2;\n`;
   await expect(check(planAt(columnOf(line, '"justify-between')), before, after)).resolves.toEqual([`${PATH}: text outside the planned elements changed`]);
+});
+
+// The plan's line is the editor's, counted by LF alone: a U+2028 on an earlier line must not move the site it names.
+test("a plan site is read at its editor line, after a U+2028 on an earlier line", async () => {
+  const separator = String.fromCodePoint(LINE_SEPARATOR);
+  const line = '<Row gap="field" className="justify-between flex-wrap" />';
+  const before = `// before${separator}after\n${ROW}${line};\n`;
+  const after = `// before${separator}after\n${ROW}<Row gap="field" className="flex-wrap" justify="between" />;\n`;
+  const plan = planAt(columnOf(line, '"justify-between'));
+  const atEditorLine = { ...plan, sites: plan.sites.map((site) => ({ ...site, line: 3 })) };
+  await expect(check(atEditorLine, before, after)).resolves.toEqual([]);
 });

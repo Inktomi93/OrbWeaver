@@ -5,6 +5,7 @@ import { existsSync, globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
 import { z } from "zod";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 
 /** The guest-facing plugin contract the SDK mirrors: the wire types it publishes are declared here. */
 export const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
@@ -132,7 +133,7 @@ function published(root: string): { readonly members: ReadonlyMap<string, string
     const source = parse(root, file);
     declared(source);
     const onMember = (key: string, member: NamedMember): void => {
-      surface.set(key, surface.get(key) ?? `${file}:${String(source.getLineAndCharacterOfPosition(member.name.getStart(source)).line + 1)}`);
+      surface.set(key, surface.get(key) ?? `${file}:${String(editorLineOf(source, member.name.getStart(source)))}`);
     };
     const visit: SlotVisitor = (slot, type) => {
       if (ts.isTypeLiteralNode(type)) {

@@ -16,6 +16,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import ts from "typescript";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 import type { Site } from "./classify.ts";
 import { nameAt, Sources, siteKey } from "./classify.ts";
 import { fieldDeclarations } from "./field-declarations.ts";
@@ -77,7 +78,7 @@ function inlineFields(world: NativeWorld, home: ReadonlySet<string>, known: Read
     return {
       keys: symbol === undefined ? [] : declarationKeys(symbol),
       site,
-      line: name.getSourceFile().getLineAndCharacterOfPosition(site.position).line + 1,
+      line: editorLineOf(name.getSourceFile(), site.position),
       home: enclosingName(name.parent.parent),
       member: name.text,
     };

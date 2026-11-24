@@ -145,6 +145,7 @@ import {
   NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { StoreWrite } from "../boundaries.ts";
 import { copiedReads, insertSelectWritesAt, storeWritesAt, tableDefinition } from "../boundaries.ts";
 import { isParseCall } from "../handoffs.ts";
@@ -645,7 +646,7 @@ export class FileSites {
 
   /** The 1-based line a node's own text starts on. */
   lineOf(node: Node): number {
-    return this.#source.getLineAndCharacterOfPosition(node.getStart(this.#source)).line + 1;
+    return editorLineOf(this.#source, node.getStart(this.#source));
   }
 }
 
@@ -1243,7 +1244,7 @@ class Walker {
     const top = this.#frame.stack.length === 1;
     const holder = this.#holder;
     const key = this.#sink.keyOf(node);
-    const line = this.#source.getLineAndCharacterOfPosition(name.getStart(this.#source)).line + 1;
+    const line = editorLineOf(this.#source, name.getStart(this.#source));
     this.#sink.declare(key, {
       file: this.#sites.file,
       kind: node.kind,
@@ -1292,7 +1293,7 @@ class Walker {
       holder,
       surfacePath: "",
       top: false,
-      line: this.#source.getLineAndCharacterOfPosition(node.name.getStart(this.#source)).line + 1,
+      line: editorLineOf(this.#source, node.name.getStart(this.#source)),
       effect: false,
       shapeOnly: null,
       optional: isPropertyAssignment(node) && isOptionalSchema(node.initializer),
@@ -1347,7 +1348,7 @@ class Walker {
     // tsc judges no binding in an ambient context: a declaration file, `declare module`, `declare global`
     const found = hasFlag(node.flags, NodeFlags.Ambient) ? null : bindingOf(node, this.#frame.stack.length === 1);
     if (found !== null && isIdentifier(found.name) && !UNREAD_ON_PURPOSE.test(found.name.text)) {
-      const line = this.#source.getLineAndCharacterOfPosition(found.name.getStart(this.#source)).line + 1;
+      const line = editorLineOf(this.#source, found.name.getStart(this.#source));
       this.#sites.bindings.push({ key: this.#sink.keyOf(node), holder: this.#holder, name: found.name.text, kind: found.kind, line });
     }
   }
@@ -1814,21 +1815,38 @@ function runsOnLoad(initializer: Node | undefined): boolean {
   return at !== undefined && (isCallExpression(at) || isNewExpression(at) || isAwaitExpression(at));
 }
 
+type JudgedBinding = { readonly name: Node; readonly kind: BindingKind } | null;
+
 // The binding a node introduces, if binding-unread judges it.
-function bindingOf(node: Node, top: boolean): { readonly name: Node; readonly kind: BindingKind } | null {
+function bindingOf(node: Node, top: boolean): JudgedBinding {
+  if (isFunctionDeclaration(node) || isClassDeclaration(node)) {
+    return localUnitOf(node, top);
+  }
+  return importOf(node) ?? declaredOf(node, top);
+}
+
+// A named function with a body or a class declared inside another declaration, as tsc's noUnusedLocals judges them; one a
+// module's top level declares is a unit liveness judges, and an exported one belongs to its namespace's readers.
+function localUnitOf(node: FunctionDeclaration | ClassDeclaration, top: boolean): JudgedBinding {
+  const judged = !top && (isClassDeclaration(node) || node.body !== undefined) && !hasFlag(getCombinedModifierFlags(node), ModifierFlags.Export);
+  return judged && node.name !== undefined ? { name: node.name, kind: "local" } : null;
+}
+
+function importOf(node: Node): JudgedBinding {
+  if (isImportSpecifier(node) || isNamespaceImport(node)) {
+    return { name: node.name, kind: "import" };
+  }
+  return isImportClause(node) && node.name !== undefined ? { name: node.name, kind: "import" } : null;
+}
+
+function declaredOf(node: Node, top: boolean): JudgedBinding {
   if (isParameterDeclaration(node)) {
     return judgedParameter(node) ? { name: node.name, kind: "parameter" } : null;
   }
   if (isVariableDeclaration(node)) {
     return top || heldOrCaught(node) ? null : { name: node.name, kind: "local" };
   }
-  if (isBindingElement(node)) {
-    return node.name !== undefined && judgedElement(node) ? { name: node.name, kind: "local" } : null;
-  }
-  if (isImportSpecifier(node) || isNamespaceImport(node)) {
-    return { name: node.name, kind: "import" };
-  }
-  return isImportClause(node) && node.name !== undefined ? { name: node.name, kind: "import" } : null;
+  return isBindingElement(node) && node.name !== undefined && judgedElement(node) ? { name: node.name, kind: "local" } : null;
 }
 
 // A parameter of a function with a body, other than a parameter property or `this`.

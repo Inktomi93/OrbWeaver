@@ -24,6 +24,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { Site } from "../classify.ts";
 import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
@@ -140,7 +141,7 @@ interface Declared {
   readonly form: Form;
 }
 
-const lineOf = (node: Node): number => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1;
+const lineOf = (node: Node): number => editorLineOf(node.getSourceFile(), node.getStart(node.getSourceFile()));
 
 function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): void {
   const step = (node: Node): void => {

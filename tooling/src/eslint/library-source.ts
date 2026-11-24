@@ -2,8 +2,8 @@
 // port reader that asks. A library is the program's answer under isLibrarySource (brand-names.ts), never a path's text:
 // a workspace package pnpm links through node_modules is the tree's own, and a dependency is a library wherever its files
 // sit, a store-linked one outside every node_modules directory included. A library's package is the nearest manifest
-// above its file that carries a name, the manifest module resolution read; the 7.1 side names it the same way
-// (NativeWorld.packageOf in tooling/src/unwired/native.ts).
+// above its file that carries a name, the manifest module resolution read; the 7.1 side names it by the same rule
+// ({@link packageNameOf}, which NativeWorld.packageOf in tooling/src/unwired/native.ts asks).
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
@@ -80,6 +80,10 @@ function namedManifest(directory: string): NamedManifest | null {
   manifestsByDirectory.set(directory, found);
   return found;
 }
+
+/** The name of the package a directory belongs to: the first manifest at or above it that names one. Both compilers name a
+ *  library by this, the TypeScript 6 side from its file's directory and the 7.1 side from the program's package directory. */
+export const packageNameOf = (directory: string): string | null => namedManifest(directory)?.name ?? null;
 
 /** The program's answers for a run rooted at `root`, the directory that holds the workspace manifest. */
 export function librarySources(program: ts.Program, root: string): LibrarySources {

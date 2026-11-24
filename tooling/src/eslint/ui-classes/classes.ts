@@ -1,6 +1,7 @@
 // Tailwind class tokens: which hand-rolled kind a token is, and every class string a source file writes.
 import { posix } from "node:path";
 import ts from "typescript";
+import { editorColumnOf } from "../../floor/typescript/editor-lines.ts";
 import type { ClassExpression } from "./class-expression.ts";
 import { classesIn, opaqueIn, readClassExpression } from "./class-expression.ts";
 import type { Elem, Source } from "./source.ts";
@@ -450,7 +451,7 @@ export function classStringsOf(path: string, sf: ts.SourceFile, constants: Class
     const tokens = tokensOf(node);
     if (tokens.length > 0 && !emitted.has(node)) {
       emitted.add(node);
-      const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
+      const column = editorColumnOf(sf, node.getStart(sf));
       const guarded = conditional || spread?.guarded === true;
       out.push({
         path,
@@ -472,7 +473,7 @@ export function classStringsOf(path: string, sf: ts.SourceFile, constants: Class
       const tokens = tokensOf(node);
       if (tokens.length > 0 && !emitted.has(node)) {
         emitted.add(node);
-        const column = sf.getLineAndCharacterOfPosition(node.getStart(sf)).character;
+        const column = editorColumnOf(sf, node.getStart(sf));
         for (const { elem, beside, guarded } of readers) {
           const rootTokens = [...new Set([...held, ...beside])];
           out.push({ path, line: lineOf(sf, node), column, tokens, elem, conditional: conditional || guarded, plain: false, rootTokens, opaque: null });

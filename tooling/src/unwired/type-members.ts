@@ -10,6 +10,7 @@ import {
   isTypeLiteralNode,
   SyntaxKind,
 } from "@typescript/native/ast";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 import type { Site } from "./classify.ts";
 import type { NativeWorld } from "./native.ts";
 import { declarationKeys } from "./native.ts";
@@ -74,7 +75,7 @@ export function typeMembers(world: NativeWorld): readonly TypeMember[] {
     const symbol = symbols[at];
     return {
       site,
-      line: node.getSourceFile().getLineAndCharacterOfPosition(site.position).line + 1,
+      line: editorLineOf(node.getSourceFile(), site.position),
       home,
       member: node.name.text,
       optional: node.postfixToken?.kind === SyntaxKind.QuestionToken,

@@ -22,6 +22,7 @@ import {
   isTemplateExpression,
   isVariableDeclaration,
 } from "@typescript/native/ast";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import { keyLiterals, ROUTE_METHODS } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { literalValues } from "./state.ts";
@@ -97,7 +98,7 @@ export class RouteParams {
       return;
     }
     const source = call.getSourceFile();
-    const line = source.getLineAndCharacterOfPosition(call.getStart(source)).line + 1;
+    const line = editorLineOf(source, call.getStart(source));
     const spelled = source.text.slice(path.getStart(source), path.end);
     for (const param of segments.filter((segment) => !read.has(segment))) {
       this.#state.unreadRouteParams.push({ file, line, path: spelled, param });

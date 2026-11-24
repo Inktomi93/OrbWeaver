@@ -5,6 +5,7 @@ import type { CssNode } from "@eslint/css-tree";
 import { parse, walk } from "@eslint/css-tree";
 import type { Node, SourceFile } from "@typescript/native/ast";
 import { isNoSubstitutionTemplateLiteral, isStringLiteral } from "@typescript/native/ast";
+import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 
@@ -54,7 +55,7 @@ function stringValueSelectors(file: string, source: SourceFile): readonly ValueS
   const out: ValueSelector[] = [];
   const visit = (node: Node): void => {
     if (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node)) {
-      out.push(...textValueSelectors(node.text, `${file}:${String(source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1)}`));
+      out.push(...textValueSelectors(node.text, `${file}:${String(editorLineOf(source, node.getStart(source)))}`));
     }
     node.forEachChild(visit);
   };

@@ -24,6 +24,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@typescript/native/sync";
+import { editorLineOf } from "../floor/typescript/editor-lines.ts";
 import type { Site } from "./classify.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys } from "./native.ts";
@@ -297,7 +298,7 @@ export function fieldDeclarations(world: NativeWorld): readonly FieldDeclaration
     }
     const field: FieldDeclaration = {
       site,
-      line: node.getSourceFile().getLineAndCharacterOfPosition(site.position).line + 1,
+      line: editorLineOf(node.getSourceFile(), site.position),
       home,
       member: node.name.text,
       optional: isOptionalSchema(node.initializer),
