@@ -34,7 +34,7 @@ import {
   workloadKindItems,
   workloadKindNeedsBulkTarget,
 } from "../lib/workloads-model.ts";
-import { WORKLOAD_JOB_FIELD_NAME, WORKLOAD_RUN_AFTER_NAME } from "../lib/workloads-names.ts";
+import { WORKLOAD_BULK_MODE_NAME, WORKLOAD_BULK_TARGET_NAME, WORKLOAD_JOB_FIELD_NAME, WORKLOAD_RUN_AFTER_NAME } from "../lib/workloads-names.ts";
 import { parseRunAt } from "../lib/workloads-run-model.ts";
 import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
 import { WorkloadParamFields } from "./workload-kind-fields.tsx";
@@ -158,7 +158,7 @@ function RunWorkloadFormBody({
             return isRunnableWorkloadKind(kind) ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
-                  <field.SwitchField label="Bulk mode" description="Owner only. Runs across every user's data instead of just yours." />
+                  <field.SwitchField label={WORKLOAD_BULK_MODE_NAME} description="Owner only. Runs across every user's data instead of just yours." />
                 )}
               </form.AppField>
             ) : null;
@@ -174,7 +174,7 @@ function RunWorkloadFormBody({
               <form.AppField name="targetOwnerId">
                 {(field): ReactElement => (
                   <field.SelectField
-                    label="Import into"
+                    label={WORKLOAD_BULK_TARGET_NAME}
                     description="The user whose library receives the imported entities."
                     items={targetItems}
                     placeholder="Choose a user…"
