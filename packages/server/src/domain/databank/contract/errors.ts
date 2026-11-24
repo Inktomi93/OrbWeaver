@@ -14,7 +14,7 @@ export class DocumentNotFoundError extends DomainNotFoundError {
   public readonly entityKind: DatabankEntityKind;
   public readonly entityId: DocumentId;
   constructor(entityId: DocumentId) {
-    super("document", entityId);
+    super({ kind: "document", id: entityId });
     this.entityKind = "document";
     this.entityId = entityId;
     this.name = this.constructor.name;
@@ -52,7 +52,7 @@ export class ScrapeFailedError extends DomainOperationError {
 export class DatabankCharacterNotFoundError extends DomainNotFoundError {
   public readonly characterId: CharacterId;
   constructor(characterId: CharacterId) {
-    super("character", characterId);
+    super({ kind: "character", id: characterId });
     this.characterId = characterId;
     this.name = this.constructor.name;
   }

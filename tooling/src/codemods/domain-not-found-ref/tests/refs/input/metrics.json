@@ -1,0 +1,30 @@
+{
+  "domain-not-found-ref.rewritten": [
+    {
+      "cardinality": {
+        "arm": "bare"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "arm": "id"
+      },
+      "count": 5
+    },
+    {
+      "cardinality": {
+        "arm": "key"
+      },
+      "count": 2
+    }
+  ],
+  "domain-not-found-ref.skipped": [
+    {
+      "cardinality": {
+        "reason": "string-literal-value"
+      },
+      "count": 1
+    }
+  ]
+}

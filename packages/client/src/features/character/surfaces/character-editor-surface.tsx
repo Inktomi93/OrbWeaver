@@ -62,7 +62,7 @@ import { CHARACTER_EDITOR_NAME, CHARACTER_SAVE_FAILURE } from "../lib/character-
 /** The hero wants her CENSUS, not her rows — the smallest page the server serves still carries it. */
 const COUNT_ONLY_PAGE = 1;
 
-const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues>({
+const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues, CharacterId>({
   defaultValues: DEFAULT_CHARACTER_CARD_FORM,
   draft: characterDraftStore,
 });

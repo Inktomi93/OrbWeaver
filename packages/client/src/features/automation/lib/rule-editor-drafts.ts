@@ -15,7 +15,11 @@ import { ruleEditorDraftSchema } from "./contract/rule-editor.ts";
 
 /** Invalid templates and unfinished actions survive navigation without becoming valid server rows. */
 const MODEL_VERSION = 1;
-const store = createEntityDraftStore<RuleEditorValues>({
+
+/** The editor's form key: a creation request id before the rule exists, the rule id after. */
+type RuleDraftKey = AutomationRuleCreationId | AutomationRuleId;
+
+const store = createEntityDraftStore<RuleEditorValues, RuleDraftKey>({
   name: "automation-rule-editor",
   schemaVersion: MODEL_VERSION,
   validate: (value) => ruleEditorDraftSchema.safeParse(value).data,
@@ -58,11 +62,10 @@ function checkpointValues(checkpoint: NonNullable<RuleCreation["checkpoint"]>): 
   return values;
 }
 
-// `identity` is the editor's form key: a creation request id before the rule exists, the rule id after.
 function recoveryCheckpoint(
-  identity: string,
+  id: RuleDraftKey,
 ): { readonly creation: RuleCreation; readonly checkpoint: NonNullable<RuleCreation["checkpoint"]>; readonly values: RuleEditorValues } | undefined {
-  const creation = readRuleCreation(identity);
+  const creation = readRuleCreation(id);
   if (creation === undefined || creation.checkpoint === null) {
     return;
   }
@@ -128,7 +131,7 @@ export function discardRuleDraft(requestId: AutomationRuleCreationId, owner: Use
 /** Preserve the canonical draft envelope while comparing only server-owned form fields. */
 export const ruleEditorDrafts = {
   ...store,
-  readDraft: (id: string, hash?: string): Readonly<Partial<RuleEditorValues>> | undefined => {
+  readDraft: (id: RuleDraftKey, hash?: string): Readonly<Partial<RuleEditorValues>> | undefined => {
     const baseline = wireBaseline(hash);
     const recovery = recoveryCheckpoint(id);
     if (recovery !== undefined) {
@@ -148,7 +151,7 @@ export const ruleEditorDrafts = {
     }
     return store.readDraft(id, baseline);
   },
-  setDraft: (id: string, values: Partial<RuleEditorValues>, hash?: string): void => {
+  setDraft: (id: RuleDraftKey, values: Partial<RuleEditorValues>, hash?: string): void => {
     const supplied = wireBaseline(hash);
     const recovery = recoveryCheckpoint(id);
     const predecessor = recovery !== undefined && (supplied ?? null) === recovery.checkpoint.predecessor;
@@ -158,7 +161,7 @@ export const ruleEditorDrafts = {
       retireCheckpoint(recovery.creation);
     }
   },
-  clearDraft: (id: string): void => {
+  clearDraft: (id: RuleDraftKey): void => {
     store.clearDraft(id);
     const recovery = recoveryCheckpoint(id);
     if (recovery !== undefined) {

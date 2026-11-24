@@ -232,7 +232,7 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
       // A targeted invite is previewable only by its target (leak-free for everyone else).
       (invite.invitedUserId === null || invite.invitedUserId === principal.userId);
     if (invite === undefined || !usable) {
-      throw new DomainNotFoundError("invite", "");
+      throw new DomainNotFoundError({ kind: "invite" });
     }
     return await deps.assemblePreview(invite.chatId);
   };
@@ -262,11 +262,11 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
       // AND for an already-present member. The already-member case recovers below; otherwise NOT_FOUND.
       const invite = await findInviteByTokenHash(ctx.db, tokenHash);
       if (invite === undefined) {
-        throw new DomainNotFoundError("invite", "");
+        throw new DomainNotFoundError({ kind: "invite" });
       }
       const existing = await loadMemberChat(ctx.db, invite.chatId, principal.userId);
       if (existing === undefined) {
-        throw new DomainNotFoundError("invite", "");
+        throw new DomainNotFoundError({ kind: "invite" });
       }
       chatId = invite.chatId;
     }
@@ -324,11 +324,11 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
       // bound target, so a non-target's probe leaks nothing.
       const invite = await findInviteById(ctx.db, inviteId);
       if (invite === undefined || invite.invitedUserId !== principal.userId) {
-        throw new DomainNotFoundError("invite", "");
+        throw new DomainNotFoundError({ kind: "invite" });
       }
       const existing = await loadMemberChat(ctx.db, invite.chatId, principal.userId);
       if (existing === undefined) {
-        throw new DomainNotFoundError("invite", "");
+        throw new DomainNotFoundError({ kind: "invite" });
       }
       chatId = invite.chatId;
     }

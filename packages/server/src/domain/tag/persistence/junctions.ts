@@ -12,27 +12,31 @@ import type { BulkInsertJunctionParams, DeleteJunctionParams, InsertJunctionPara
 
 /** Gate owned targets by owner and chats by membership; foreign and absent targets share one refusal. */
 export async function ensureTargetAccessible(args: TargetAccessParams): Promise<void> {
-  let owned: boolean;
   switch (args.targetType) {
     case "chat":
       return args.requireParticipant(args.principal, args.targetId);
     case "character":
-      owned = (await fetchOwned(args.db, characters, args.targetId, args.principal.userId)) !== undefined;
-      break;
+      if ((await fetchOwned(args.db, characters, args.targetId, args.principal.userId)) === undefined) {
+        throw new DomainNotFoundError({ kind: "character", id: args.targetId });
+      }
+      return;
     case "worldBook":
-      owned = (await fetchOwned(args.db, worldBooks, args.targetId, args.principal.userId)) !== undefined;
-      break;
+      if ((await fetchOwned(args.db, worldBooks, args.targetId, args.principal.userId)) === undefined) {
+        throw new DomainNotFoundError({ kind: "world_book", id: args.targetId });
+      }
+      return;
     case "persona":
-      owned = (await fetchOwned(args.db, personas, args.targetId, args.principal.userId)) !== undefined;
-      break;
+      if ((await fetchOwned(args.db, personas, args.targetId, args.principal.userId)) === undefined) {
+        throw new DomainNotFoundError({ kind: "persona", id: args.targetId });
+      }
+      return;
     case "preset":
-      owned = (await fetchOwned(args.db, presets, args.targetId, args.principal.userId)) !== undefined;
-      break;
+      if ((await fetchOwned(args.db, presets, args.targetId, args.principal.userId)) === undefined) {
+        throw new DomainNotFoundError({ kind: "preset", id: args.targetId });
+      }
+      return;
     default:
       return args satisfies never;
-  }
-  if (!owned) {
-    throw new DomainNotFoundError(args.targetType, args.targetId);
   }
 }
 

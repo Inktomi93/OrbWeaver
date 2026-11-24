@@ -78,7 +78,7 @@ async function authorize(
   // (5) ROOM — the claim, verified. `undefined` means the guest named no room, which is legal for the seven
   // room-less functions and a typed refusal for the two that need one (the dispatch raises it).
   if (chatId !== undefined && !(await ctx.resolveChatAuthority(caller, chatId)).canRead) {
-    throw new DomainNotFoundError("chat", chatId);
+    throw new DomainNotFoundError({ kind: "chat", id: chatId });
   }
   return { name: existing.name, slug: existing.slug, fn };
 }

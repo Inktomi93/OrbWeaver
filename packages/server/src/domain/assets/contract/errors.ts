@@ -30,7 +30,7 @@ export class AssetContentRejectedError extends DomainOperationError {
 export class AssetNotFoundError extends DomainNotFoundError {
   public readonly assetId: AssetId;
   constructor(assetId: AssetId) {
-    super("asset", assetId);
+    super({ kind: "asset", id: assetId });
     this.assetId = assetId;
     this.name = this.constructor.name;
   }
@@ -41,7 +41,7 @@ export class AssetNotFoundError extends DomainNotFoundError {
 export class GalleryItemNotFoundError extends DomainNotFoundError {
   public readonly galleryItemId: GalleryItemId;
   constructor(galleryItemId: GalleryItemId) {
-    super("gallery_item", galleryItemId);
+    super({ kind: "gallery_item", id: galleryItemId });
     this.galleryItemId = galleryItemId;
     this.name = this.constructor.name;
   }

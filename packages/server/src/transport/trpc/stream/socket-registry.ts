@@ -195,7 +195,7 @@ export function createSocketRegistry(now: () => number, newOpaqueId: () => strin
       return;
     }
     if (cell.userId !== userId) {
-      throw new DomainNotFoundError("socket", socketId);
+      throw new DomainNotFoundError({ kind: "socket", id: socketId });
     }
     return cell;
   }

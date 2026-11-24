@@ -11,7 +11,7 @@ export function createDeleteSession(ctx: RefineryContext): RefineryService["dele
   return async ({ principal, sessionId }) => {
     const row = await loadOwnedSessionRow(ctx.db, principal.userId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     await ctx.db.delete(refinerySessions).where(eq(refinerySessions.id, sessionId));
     // AFTER the delete, deliberately: the user bus is live-only and synchronous, so there is no durable

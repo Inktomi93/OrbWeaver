@@ -214,7 +214,7 @@ export class PluginCardDataUnwritableError extends DomainOperationError {
  *  way). D148 uses the same refusal for unavailable character card data. Maps to NOT_FOUND. */
 export class PluginNotFoundError extends DomainNotFoundError {
   constructor(target: PluginId | { readonly characterId: CharacterId }) {
-    super("plugin", typeof target === "string" ? target : target.characterId);
+    super(typeof target === "string" ? { kind: "plugin", id: target } : { kind: "character", id: target.characterId });
   }
 }
 
@@ -225,7 +225,7 @@ export class PluginNotFoundError extends DomainNotFoundError {
  *  policy the caller is already admin over, not an owned entity whose existence could be oracled. */
 export class PluginNotDistributedError extends DomainNotFoundError {
   constructor(slug: PluginSlug) {
-    super("plugin distribution", slug);
+    super({ kind: "plugin distribution", id: slug });
   }
 }
 

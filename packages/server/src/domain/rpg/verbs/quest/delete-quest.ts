@@ -25,7 +25,7 @@ export function createDeleteQuest(ctx: RpgContext): Pick<RpgService, "deleteQues
     });
     if (!written.ok) {
       if (written.reason === QUEST_NOT_FOUND) {
-        throw new DomainNotFoundError("quest", params.questId);
+        throw new DomainNotFoundError({ kind: "quest", id: params.questId });
       }
       // The F1 write-boundary backstop refused — a removal cannot invalidate a valid base, so the base itself
       // is already contract-invalid. Surface it (no-swallow), never a silent no-op.

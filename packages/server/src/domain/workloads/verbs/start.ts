@@ -77,7 +77,7 @@ async function insertOnce(ctx: WorkloadServiceContext, row: AdmissionRow): Promi
  *  person can act on, an unavailable owner or funder becomes leak-free NOT_FOUND, anything else travels unchanged. */
 function translateInsertFailure(err: unknown, row: AdmissionRow): unknown {
   if (isWorkloadForeignKeyViolation(err)) {
-    const notFound = new DomainNotFoundError("workload admission", "user");
+    const notFound = new DomainNotFoundError({ kind: "workload admission" });
     notFound.cause = err;
     return notFound;
   }
@@ -101,7 +101,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     const dependsOn = params.dependsOn ?? [];
     const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, dependsOn, ownerId);
     if (unavailableDependency !== undefined) {
-      throw new DomainNotFoundError("workload", unavailableDependency);
+      throw new DomainNotFoundError({ kind: "workload", id: unavailableDependency });
     }
     // The OWNING DOMAIN's precondition, asked AFTER the owner is resolved (a per-user precondition needs the
     // row's enumeration scope) and BEFORE a row exists: work that structurally cannot produce anything

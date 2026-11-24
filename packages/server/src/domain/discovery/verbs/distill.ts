@@ -142,7 +142,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     // No `?? ""` fallback: the two-arm narrow makes `onDemand` a real discriminant, so tsc
     // knows the id is present here. The old fallback was reachable-looking dead code that would have named
     // the empty string in the error.
-    throw new DomainNotFoundError("character", opts.characterId);
+    throw new DomainNotFoundError({ kind: "character", id: opts.characterId });
   }
   // THE CONTENT FLOOR (owner ruling). A card with nothing but a name is not distillable: the
   // payload schema REQUIRES genre/tone/setting/pitch/overview/3-8 tags, so the model would invent every facet

@@ -31,7 +31,7 @@ export function createUpdateSession(ctx: RefineryContext): RefineryService["upda
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     await ctx.db
       .update(refinerySessions)
@@ -41,7 +41,7 @@ export function createUpdateSession(ctx: RefineryContext): RefineryService["upda
       .where(eq(refinerySessions.id, sessionId));
     const updated = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (updated === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return sessionViewOf(updated);

@@ -9,7 +9,7 @@ import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 export class RosterPresetNotFoundError extends DomainNotFoundError {
   public readonly presetId: RosterPresetId;
   constructor(presetId: RosterPresetId) {
-    super("roster preset", presetId);
+    super({ kind: "roster_preset", id: presetId });
     this.presetId = presetId;
     this.name = this.constructor.name;
   }
@@ -20,7 +20,7 @@ export class RosterPresetNotFoundError extends DomainNotFoundError {
 export class RosterPresetCharacterNotFoundError extends DomainNotFoundError {
   public readonly characterId: CharacterId;
   constructor(characterId: CharacterId) {
-    super("character", characterId);
+    super({ kind: "character", id: characterId });
     this.characterId = characterId;
     this.name = this.constructor.name;
   }
@@ -30,7 +30,7 @@ export class RosterPresetCharacterNotFoundError extends DomainNotFoundError {
 export class RosterPresetPersonaNotFoundError extends DomainNotFoundError {
   public readonly personaId: PersonaId;
   constructor(personaId: PersonaId) {
-    super("persona", personaId);
+    super({ kind: "persona", id: personaId });
     this.personaId = personaId;
     this.name = this.constructor.name;
   }

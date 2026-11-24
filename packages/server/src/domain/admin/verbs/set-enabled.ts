@@ -46,7 +46,7 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
 
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
-      throw new DomainNotFoundError("user", userId);
+      throw new DomainNotFoundError({ kind: "user", id: userId });
     }
     if (isBootstrapOwnerRole(target.role)) {
       throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be disabled");

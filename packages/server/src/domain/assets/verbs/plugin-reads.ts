@@ -41,7 +41,7 @@ export function createPluginAssetReads(deps: PluginAssetReadDeps): PluginAssetRe
     readBytes: async (_caller, assetId): ReturnType<PluginAssetReads["readBytes"]> => {
       const bytes = await readTornAsMiss(logger, { assetId }, () => assets.loadAssetBytes(assetId));
       if (bytes === null) {
-        throw new DomainNotFoundError("asset", assetId);
+        throw new DomainNotFoundError({ kind: "asset", id: assetId });
       }
       const ref = await assets.assetCasRefById(assetId);
       return { bytes, mime: ref?.mime ?? "application/zip" };
@@ -49,7 +49,7 @@ export function createPluginAssetReads(deps: PluginAssetReadDeps): PluginAssetRe
     readPublishedBundle: async (assetId): Promise<Uint8Array> => {
       const bytes = await readTornAsMiss(logger, { assetId }, () => assets.loadAssetBytes(assetId));
       if (bytes === null) {
-        throw new DomainNotFoundError("asset", assetId);
+        throw new DomainNotFoundError({ kind: "asset", id: assetId });
       }
       return bytes;
     },

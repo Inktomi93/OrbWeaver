@@ -73,7 +73,7 @@ async function resolveCommandChat(ctx: PluginContext, { caller, chatId }: Invoke
   }
   const authority = await ctx.resolveChatAuthority(caller, chatId);
   if (!authority.canRead) {
-    throw new DomainNotFoundError("chat", chatId);
+    throw new DomainNotFoundError({ kind: "chat", id: chatId });
   }
   // A human-initiated command is the cascade root; a turn it triggers stamps depth one.
   return { chatId, canWrite: authority.canWrite, automationDepth: 0 };
@@ -86,7 +86,7 @@ async function revalidateDraftStanding(
   resident: NonNullable<ReturnType<PluginRegistry["get"]>>,
 ): Promise<void> {
   if (chatId !== null && !(await ctx.resolveChatAuthority(caller, chatId)).canRead) {
-    throw new DomainNotFoundError("chat", chatId);
+    throw new DomainNotFoundError({ kind: "chat", id: chatId });
   }
   // The final standing decision must follow every awaited room check.
   const current = await getById(ctx.db, caller.userId, pluginId);

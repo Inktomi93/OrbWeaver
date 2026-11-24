@@ -35,7 +35,7 @@ export function createInvitePreview(ctx: Pick<ChatContext, "db">, deps: { readon
   return async (chatId: ChatId): Promise<InvitePreview> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
-      throw new DomainNotFoundError("invite", "");
+      throw new DomainNotFoundError({ kind: "invite" });
     }
     const participants = await deps.loadParticipantViews(chatId);
     const host = hostSeatOf(participants);

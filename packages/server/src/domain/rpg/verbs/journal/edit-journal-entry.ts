@@ -13,7 +13,7 @@ export function createEditJournalEntry(ctx: RpgContext): Pick<RpgService, "editJ
     const { game, admission } = await resolveHost(ctx, params.principal, params.chatId);
     const claim = await ctx.claimChat(admission);
     if (!(await updateJournalEntry(ctx.db, claim, { gameId: game.id, id: params.entryId }, params.patch))) {
-      throw new DomainNotFoundError("journal", params.entryId);
+      throw new DomainNotFoundError({ kind: "rpg_journal", id: params.entryId });
     }
     // The paged Journal refetches (§4.9).
     ctx.emitBus({ type: "journalChanged", chatId: params.chatId, journalId: params.entryId });

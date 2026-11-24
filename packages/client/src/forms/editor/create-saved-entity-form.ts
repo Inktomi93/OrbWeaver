@@ -18,7 +18,8 @@ export interface SavedEntityFormConfig<TValues extends object> {
 }
 
 export interface SavedEntityFormArgs<TValues extends object> {
-  /** Keys the remount + names the entity for diagnostics: an entity id, or a token or slug for a form with no entity. */
+  /** Keys the remount and labels the form for diagnostics. Callers compose it as a slug, a token, or a slug with an id
+   *  appended; none passes a bare id, so the slot holds no id and takes no brand. */
   readonly mountKey: string;
   /** The server row (undefined while loading / for a create). */
   readonly serverValues: TValues | undefined;

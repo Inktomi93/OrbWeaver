@@ -78,7 +78,7 @@ import { viewContent } from "../lib/preset-view-content.tsx";
 // carrying full free-text literal/templated-marker bodies, comparable in loss-severity to the
 // character card). Same owner exception to the obligation-5 doctrine's autosave-omits-draft default
 // as the character editor — see that surface's header for the full citation.
-const PresetForm = createAutosaveEntityForm<PresetEditorValues>({
+const PresetForm = createAutosaveEntityForm<PresetEditorValues, PresetId>({
   defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
   canonicalValues: canonicalPresetValues,
   admitValues: admitPresetValues,

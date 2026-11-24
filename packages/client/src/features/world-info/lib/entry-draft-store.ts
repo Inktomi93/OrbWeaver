@@ -4,10 +4,11 @@
 // stale-shape draft is caught by `schemaVersion` alone — bump it whenever the form's field set changes
 // shape. Instantiated ONCE at module scope (the store THROWS on a duplicate `name`).
 
+import type { WorldEntryId } from "@orb/kit/ids";
 import { createEntityDraftStore } from "#state";
 import type { EntryFormValues } from "./entry-editor-model.ts";
 
-export const entryDraftStore = createEntityDraftStore<EntryFormValues>({
+export const entryDraftStore = createEntityDraftStore<EntryFormValues, WorldEntryId>({
   name: "world-info-entry",
   schemaVersion: 1,
 });

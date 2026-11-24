@@ -37,7 +37,7 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     // The loop precondition (AFTER the ownership belt): a round refines AGAINST an analysis.
     const latestAnalyze = await latestRunRowOf(ctx.db, sessionId, "analyze");

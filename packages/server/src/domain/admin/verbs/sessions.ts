@@ -42,7 +42,7 @@ export function createSessions(ctx: AdminContext): SessionVerbs {
     requireAdmin(params.principal);
     const userId = await loadSessionUserId(ctx.db, params.sessionId);
     if (userId === undefined || (await ownerTargetRefused(params, userId))) {
-      throw new DomainNotFoundError("session", params.sessionId);
+      throw new DomainNotFoundError({ kind: "session", id: params.sessionId });
     }
     await ctx.sessions.revoke(params.sessionId);
     await ctx.audit(

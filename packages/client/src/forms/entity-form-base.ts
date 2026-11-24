@@ -19,14 +19,14 @@ export function hashServerBaseline(serverValues: unknown): string {
 }
 
 /**
- * The draft-seed read (baseline-gated): the surviving crash draft for `entityId`, but ONLY when it both
+ * The draft-seed read (baseline-gated): the surviving crash draft for `id`, but ONLY when it both
  * validates against the form model AND was begun on the CURRENT server snapshot (`baselineHash`). A stale
  * or unverifiable draft is discarded by the store — server outranks (undefined here). `undefined`
  * `baselineHash` (no server row yet — a create) reads the draft on validity alone.
  */
-export function readDraftSeed<TValues extends object>(
-  draft: EntityDraftStore<TValues> | undefined,
-  entityId: string,
+export function readDraftSeed<TValues extends object, TKey extends string>(
+  draft: EntityDraftStore<TValues, TKey> | undefined,
+  entityId: TKey,
   baselineHash?: string,
 ): Readonly<Partial<TValues>> | undefined {
   return draft?.readDraft(entityId, baselineHash);
@@ -34,9 +34,9 @@ export function readDraftSeed<TValues extends object>(
 
 /** The draft-mirror write: persist the live form values into the crash-survival slot, stamping the server
  *  snapshot (`baselineHash`) this edit is being made against so a later mount can verify freshness. */
-export function mirrorDraft<TValues extends object>(
-  draft: EntityDraftStore<TValues> | undefined,
-  entityId: string,
+export function mirrorDraft<TValues extends object, TKey extends string>(
+  draft: EntityDraftStore<TValues, TKey> | undefined,
+  entityId: TKey,
   values: TValues,
   baselineHash?: string,
 ): void {

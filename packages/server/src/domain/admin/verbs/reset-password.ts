@@ -40,7 +40,7 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
 
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
-      throw new DomainNotFoundError("user", userId);
+      throw new DomainNotFoundError({ kind: "user", id: userId });
     }
     // Only the owner may reset the owner's credential — a delegated admin resetting it is takeover (D17).
     // Scoped to non-owner callers (not the siblings' blanket block) so the owner keeps self-rotation.

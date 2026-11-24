@@ -20,7 +20,7 @@ async function refusalFor(
   const { ownerId, schemaId, observed, name } = args;
   const stillOwned = await loadOwnedSchemaRow(ctx.db, ownerId, schemaId);
   if (stillOwned === undefined) {
-    return new DomainNotFoundError("refinery schema", schemaId);
+    return new DomainNotFoundError({ kind: "refinery_schema", id: schemaId });
   }
   if (stillOwned.version !== observed.version || stillOwned.description !== observed.description) {
     return schemaStalePatchError();
@@ -35,7 +35,7 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
     const ownerId = principal.userId;
     const row = await loadOwnedSchemaRow(ctx.db, ownerId, schemaId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery schema", schemaId);
+      throw new DomainNotFoundError({ kind: "refinery_schema", id: schemaId });
     }
     const doc = parseSchemaDocument({
       name: patch.name ?? row.name,

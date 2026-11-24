@@ -32,7 +32,7 @@ import { findGameByChat } from "./persistence/games.ts";
  *  Exported for the ONE verb that gates on membership WITHOUT the game gate (`detachDanglingPointer` — the game
  *  is gone, so it can't call `resolveMember`, but a non-member must still see the SAME leak-free collapse). */
 export function notFoundGame(chatId: ChatId): never {
-  throw new DomainNotFoundError("game", chatId);
+  throw new DomainNotFoundError({ kind: "chat", id: chatId });
 }
 
 /** Resolve the MEMBER floor: the caller must be a present member of the chat AND the chat must be a game.

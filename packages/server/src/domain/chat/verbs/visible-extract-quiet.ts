@@ -16,7 +16,7 @@ export function createVisibleExtractQuietGate(deps: VisibleExtractQuietGateDeps)
   return async ({ caller, ...params }) => {
     const visibility = await deps.resolveViewerVisibility(params.chatId, caller.userId);
     if (visibility === null) {
-      throw new DomainNotFoundError("chat", params.chatId);
+      throw new DomainNotFoundError({ kind: "chat", id: params.chatId });
     }
     return deps.extractQuiet({ ...params, historyFloorSeq: visibility.historyFloorSeq });
   };

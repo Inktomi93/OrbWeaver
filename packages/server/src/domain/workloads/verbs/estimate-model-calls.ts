@@ -53,7 +53,7 @@ export function createEstimateModelCalls(ctx: WorkloadServiceContext): Pick<Work
       canCloneRow(ctx, params.caller, access),
     );
     if (original === null || !(await mayActOnRow(ctx, params.caller, original))) {
-      throw new DomainNotFoundError(ENTITY, params.id);
+      throw new DomainNotFoundError({ kind: ENTITY, id: params.id });
     }
     if (original.poison) {
       return { calls: null, bound: "exact" };

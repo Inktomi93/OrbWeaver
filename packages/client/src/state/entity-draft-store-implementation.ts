@@ -48,28 +48,27 @@ export interface EntityDraftStoreConfig<TInput> {
   readonly storage?: StateStorage;
 }
 
-/** Every draft slot is keyed by the form's mount key (`entityId` on the editor boundary): an entity id, or a token
- *  or slug for a form with no entity, so the key names no one brand. */
-export interface EntityDraftStore<TInput> {
+/** A draft store is keyed by the id of the entity its form edits, so each store names that brand as `TKey`. */
+export interface EntityDraftStore<TInput, TKey extends string> {
   /** Reactive read — returns the frozen `EMPTY` (stable ref) when no draft exists. Unwraps the envelope
    *  to `values`; does NOT baseline-gate (a live reactive observer, not the mount-seed gate). */
-  readonly useDraft: (key: string) => Readonly<Partial<TInput>>;
-  readonly useHasDraft: (key: string) => boolean;
-  /** Reactive: the keys among `keys`, in order, that hold a draft passing the model validator. A list that numbers
+  readonly useDraft: (id: TKey) => Readonly<Partial<TInput>>;
+  readonly useHasDraft: (id: TKey) => boolean;
+  /** Reactive: the ids among `ids`, in order, that hold a draft passing the model validator. A list that numbers
    *  or counts its drafted rows reads this, so it follows every set and clear. */
-  readonly useDraftedIds: (keys: readonly string[]) => readonly string[];
+  readonly useDraftedIds: (ids: readonly TKey[]) => readonly TKey[];
   /**
    * Non-hook read for factory seeding (the autosave form seeds draft-over-server at mount). Returns the
    * draft ONLY when it validates against the model AND its stamped baseline matches `baselineHash`; a
    * stale/unverifiable draft is DISCARDED (its dead slot cleared) and `undefined` returned.
    */
-  readonly readDraft: (key: string, baselineHash?: string) => Readonly<Partial<TInput>> | undefined;
+  readonly readDraft: (id: TKey, baselineHash?: string) => Readonly<Partial<TInput>> | undefined;
   /** Read provenance only, without clearing/restamping or claiming freshness against a server row. */
-  readonly readDraftBaseline: (key: string) => string | undefined;
-  /** Shallow-merge a patch into the key's draft, stamping the current schema version + `baselineHash`. */
-  readonly setDraft: (key: string, patch: Partial<TInput>, baselineHash?: string) => void;
-  readonly clearDraft: (key: string) => void;
-  readonly hasDraft: (key: string) => boolean;
+  readonly readDraftBaseline: (id: TKey) => string | undefined;
+  /** Shallow-merge a patch into the id's draft, stamping the current schema version + `baselineHash`. */
+  readonly setDraft: (id: TKey, patch: Partial<TInput>, baselineHash?: string) => void;
+  readonly clearDraft: (id: TKey) => void;
+  readonly hasDraft: (id: TKey) => boolean;
 }
 
 /** Any unrecognized/older persisted shape falls back to a fresh empty map — drafts are cache, not canon.
@@ -92,7 +91,7 @@ function migrateDrafts<TInput>(persisted: unknown): DraftsState<TInput> {
   return { drafts: {} };
 }
 
-export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TInput>): EntityDraftStore<TInput> {
+export function createEntityDraftStore<TInput, TKey extends string>(config: EntityDraftStoreConfig<TInput>): EntityDraftStore<TInput, TKey> {
   if (registeredNames.has(config.name)) {
     throw new Error(
       `createEntityDraftStore: duplicate store name "${config.name}" — two stores would clobber ` +
@@ -129,7 +128,7 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     },
   });
 
-  const rawEnvelope = (id: string): DraftEnvelope<TInput> | undefined => store.getState().drafts[id];
+  const rawEnvelope = (id: TKey): DraftEnvelope<TInput> | undefined => store.getState().drafts[id];
 
   // A well-formed envelope at the CURRENT schema version — the reactive reads (useDraft/useHasDraft/
   // hasDraft) gate on this so a bare-values or stale-schema slot that dodged `migrate` (same persist
@@ -146,14 +145,14 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     return config.validate === undefined ? entry.values : config.validate(entry.values);
   };
 
-  const clearDraft = (id: string): void => {
+  const clearDraft = (id: TKey): void => {
     if (!durableLocalWritesAllowed()) {
       return;
     }
     store.setState({ drafts: omitKey(store.getState().drafts, id) }, true, "draft/clear");
   };
 
-  const readDraft = (id: string, baselineHash?: string): Readonly<Partial<TInput>> | undefined => {
+  const readDraft = (id: TKey, baselineHash?: string): Readonly<Partial<TInput>> | undefined => {
     if (!durableLocalWritesAllowed()) {
       return;
     }
@@ -172,7 +171,7 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     return validated;
   };
 
-  const setDraft = (id: string, patch: Partial<TInput>, baselineHash?: string): void => {
+  const setDraft = (id: TKey, patch: Partial<TInput>, baselineHash?: string): void => {
     if (!durableLocalWritesAllowed()) {
       return;
     }
@@ -190,7 +189,7 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     useDraft: (id): Readonly<Partial<TInput>> =>
       useStore(store, (s) => (durableLocalWritesAllowed() && isCurrentEnvelope(s.drafts[id]) ? s.drafts[id].values : empty)),
     useHasDraft: (id): boolean => useStore(store, (s) => durableLocalWritesAllowed() && isCurrentEnvelope(s.drafts[id])),
-    useDraftedIds: (ids): readonly string[] =>
+    useDraftedIds: (ids): readonly TKey[] =>
       useStore(
         store,
         useShallow((s) => (durableLocalWritesAllowed() ? ids.filter((id) => validateEnvelope(s.drafts[id]) !== undefined) : [])),

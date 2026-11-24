@@ -8,6 +8,8 @@
  * `docs/law/Spine-TypeScript-and-Patterns.md` §6).
  */
 
+import type { Branded, RpgQuestId, SocketId, TypeIdOf, TypeIdPrefix, UserId } from "#ids";
+
 /** Capture a clean stack trace where the V8 API is available (Node + Chromium); a
  *  no-op elsewhere (Firefox/Safari) — kit is browser-safe, so this must not assume V8. */
 function captureStack(target: Error, ctor: new (...args: never[]) => Error): void {
@@ -23,12 +25,71 @@ export class DomainError extends Error {
   }
 }
 
-/** The entity the caller asked for does not exist. Maps to tRPC NOT_FOUND.
- *  @remarks `reference` is message text, not an id slot: callers pass any entity's id, an index, or an empty string
- *  when naming the id would be an existence oracle. */
+/** Ids that are not TypeIDs, keyed by the kind that names them in a not-found message. The plugin slug is spelled
+ *  as its brand because `kit` cannot import the contracts' `PluginSlug`; a rename there fails `tsc` at the throw. */
+interface NotFoundOtherIdByKind {
+  readonly user: UserId;
+  readonly socket: SocketId;
+  readonly quest: RpgQuestId;
+  readonly "plugin distribution": Branded<"PluginSlug">;
+}
+
+type NotFoundIdByKind = { readonly [P in TypeIdPrefix]: TypeIdOf<P> } & NotFoundOtherIdByKind;
+
+type NotFoundIdKind = keyof NotFoundIdByKind;
+
+// Generic in the kinds it spans, so a ref built from a kind held as a type parameter keeps its kind and id paired.
+type NotFoundIdRefOf<K extends NotFoundIdKind> = { readonly [P in K]: { readonly kind: P; readonly id: NotFoundIdByKind[P] } }[K];
+
+/** The entity the caller asked for, by the id of its kind: a wrong-brand id cannot compile. */
+type NotFoundIdRef = NotFoundIdRefOf<NotFoundIdKind>;
+
+/** An entity found by a name or an id no brand of ours names: a tool's registry name, and a quest objective's id,
+ *  which is minted inside the snapshot blob as plain text. */
+interface NotFoundKeyRef {
+  readonly kind: "tool" | "quest objective";
+  readonly key: string;
+}
+
+/** A row an import payload names by its place in the payload, never by an id. */
+interface NotFoundPositionRef {
+  readonly kind: "imported message";
+  readonly index: number;
+}
+
+/** An entity whose lookup names nothing the caller may be told: an invite is found by its secret token, and a
+ *  workload admission fails on a funder or owner whose existence is not the caller's to learn. */
+interface NotFoundBareRef {
+  readonly kind: "invite" | "workload admission";
+}
+
+/** What was not found: a kind-keyed ref in the shape of `MacroSourceRef`, plus the three forms an id cannot carry. */
+export type NotFoundRef = NotFoundIdRef | NotFoundKeyRef | NotFoundPositionRef | NotFoundBareRef;
+
+/** A ref for a kind and id that arrive as correlated unions, such as a destructured tuple of kind and id: a plain
+ *  object literal of those unions loses the pairing, and this keeps it. */
+export function notFoundIdRef<K extends NotFoundIdKind>(kind: K, id: NotFoundIdByKind[K]): NotFoundIdRefOf<K> {
+  const ref: NotFoundIdRefOf<K> = { kind, id };
+  return ref;
+}
+
+function describeNotFound(ref: NotFoundRef): string {
+  if ("id" in ref) {
+    return `${ref.kind} ${ref.id} not found`;
+  }
+  if ("key" in ref) {
+    return `${ref.kind} ${ref.key} not found`;
+  }
+  if ("index" in ref) {
+    return `${ref.kind} ${ref.index} not found`;
+  }
+  return `${ref.kind} not found`;
+}
+
+/** The entity the caller asked for does not exist. Maps to tRPC NOT_FOUND. */
 export class DomainNotFoundError extends DomainError {
-  constructor(entityName: string, reference: string) {
-    super(`${entityName} ${reference} not found`);
+  constructor(ref: NotFoundRef) {
+    super(describeNotFound(ref));
     this.name = this.constructor.name;
   }
 }

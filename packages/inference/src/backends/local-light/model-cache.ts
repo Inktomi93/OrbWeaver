@@ -254,26 +254,26 @@ interface MemoEntry<T> {
   disposed: boolean;
 }
 
-// Keyed by a model id or, for a reranker, by a serving key built from the id and its ONNX options, so the key is no id slot.
-interface ModelMemo<T> {
-  (key: string): Promise<T>;
-  withLease: <R>(key: string, use: (value: T) => Promise<R>) => Promise<R>;
+// Keyed by `K`: a model id for the embedder and processor, the composite serving key for the reranker and tokenizer.
+interface ModelMemo<T, K extends string> {
+  (key: K): Promise<T>;
+  withLease: <R>(key: K, use: (value: T) => Promise<R>) => Promise<R>;
   /** Whether the key's most recent load rejected, until a later load of it succeeds. */
-  failed: (key: string) => boolean;
+  failed: (key: K) => boolean;
   /** Record that a loaded entry cannot serve (its outputs do not match its serving) and drop it, so the
    *  availability verdict says so and the next call loads afresh. */
-  markFailed: (key: string) => void;
+  markFailed: (key: K) => void;
 }
 
 /** The lease-counted single-flight memo every model slot below is built from. */
-function createMemo<T>(
-  load: (key: string) => Promise<T>,
+function createMemo<T, K extends string>(
+  load: (key: K) => Promise<T>,
   dispose: (value: T) => Promise<void>,
   detach: ModelCacheConfig["detach"],
   disposeName: string,
-): ModelMemo<T> {
-  const entries = new Map<string, MemoEntry<T>>();
-  const failedIds = new Set<string>();
+): ModelMemo<T, K> {
+  const entries = new Map<K, MemoEntry<T>>();
+  const failedIds = new Set<K>();
   const disposeEntry = (entry: MemoEntry<T>): void => {
     if (entry.disposed || !entry.evictionPending || entry.refs > 0) {
       return;
@@ -283,7 +283,7 @@ function createMemo<T>(
       await dispose(await entry.promise);
     });
   };
-  const getEntry = (key: string): MemoEntry<T> => {
+  const getEntry = (key: K): MemoEntry<T> => {
     const existing = entries.get(key);
     if (existing !== undefined) {
       return existing;
@@ -317,8 +317,8 @@ function createMemo<T>(
     }
     return entry;
   };
-  const memo = ((key: string): Promise<T> => getEntry(key).promise) as ModelMemo<T>;
-  memo.withLease = async <R>(key: string, use: (value: T) => Promise<R>): Promise<R> => {
+  const memo = ((key: K): Promise<T> => getEntry(key).promise) as ModelMemo<T, K>;
+  memo.withLease = async <R>(key: K, use: (value: T) => Promise<R>): Promise<R> => {
     const entry = getEntry(key);
     entry.refs += 1;
     try {
@@ -328,8 +328,8 @@ function createMemo<T>(
       disposeEntry(entry);
     }
   };
-  memo.failed = (key: string): boolean => failedIds.has(key);
-  memo.markFailed = (key: string): void => {
+  memo.failed = (key: K): boolean => failedIds.has(key);
+  memo.markFailed = (key: K): void => {
     failedIds.add(key);
     const entry = entries.get(key);
     if (entry !== undefined) {
@@ -570,7 +570,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const ownLoad = createLoadBelt();
 
   const jinaEmbedder = createMemo(
-    async (id) => {
+    async (id: ModelId) => {
       const { AutoModel } = await transformers();
       return await loadWithCpuFallback(ownLoad, device, log, (dev) =>
         AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, session_options: sessionOptions }),
@@ -646,7 +646,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     "local-light.model.dispose:tokenizer",
   );
   const processor = createMemo(
-    async (id) => {
+    async (id: ModelId) => {
       const { AutoProcessor } = await transformers();
       return await AutoProcessor.from_pretrained(id);
     },
@@ -695,7 +695,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     },
   };
 
-  const modelParts: readonly Pick<ModelMemo<unknown>, "failed">[] = [jinaEmbedder, processor];
+  const modelParts: readonly Pick<ModelMemo<unknown, ModelId>, "failed">[] = [jinaEmbedder, processor];
   const rerankFailed = (modelId: ModelId): boolean =>
     [...servings].some(([key, serving]) => serving.modelId === modelId && (reranker.failed(key) || tokenizer.failed(key)));
 

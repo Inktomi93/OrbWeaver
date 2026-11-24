@@ -30,7 +30,7 @@ import type { ChatId } from "@orb/kit/ids";
 export class ChatNotFoundError extends DomainNotFoundError {
   public readonly chatId: ChatId;
   constructor(chatId: ChatId) {
-    super("chat", chatId);
+    super({ kind: "chat", id: chatId });
     this.chatId = chatId;
     this.name = this.constructor.name;
   }

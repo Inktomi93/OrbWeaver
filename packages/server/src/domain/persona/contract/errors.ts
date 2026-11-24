@@ -9,7 +9,7 @@ import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
 export class PersonaNotFoundError extends DomainNotFoundError {
   public readonly personaId: PersonaId;
   constructor(personaId: PersonaId) {
-    super("persona", personaId);
+    super({ kind: "persona", id: personaId });
     this.personaId = personaId;
     this.name = this.constructor.name;
   }
@@ -18,7 +18,7 @@ export class PersonaNotFoundError extends DomainNotFoundError {
 export class PersonaCharacterNotFoundError extends DomainNotFoundError {
   public readonly characterId: CharacterId;
   constructor(characterId: CharacterId) {
-    super("character", characterId);
+    super({ kind: "character", id: characterId });
     this.characterId = characterId;
     this.name = this.constructor.name;
   }
@@ -28,7 +28,7 @@ export class PersonaCharacterNotFoundError extends DomainNotFoundError {
 export class AssetNotFoundError extends DomainNotFoundError {
   public readonly assetId: AssetId;
   constructor(assetId: AssetId) {
-    super("asset", assetId);
+    super({ kind: "asset", id: assetId });
     this.assetId = assetId;
     this.name = this.constructor.name;
   }

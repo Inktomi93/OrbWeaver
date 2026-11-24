@@ -111,7 +111,7 @@ async function requireFoundingCharacters(ctx: ChatContext, hostUserId: UserId, c
   );
   const missing = cards.find((c) => c.card === null);
   if (missing !== undefined) {
-    throw new DomainNotFoundError("character", missing.characterId);
+    throw new DomainNotFoundError({ kind: "character", id: missing.characterId });
   }
 }
 

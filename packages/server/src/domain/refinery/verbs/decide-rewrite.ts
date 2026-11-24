@@ -14,11 +14,11 @@ export function createDecideRewrite(ctx: RefineryContext): RefineryService["deci
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     // A sheet can only describe a rewrite run of THIS session; anything else collapses to NOT_FOUND (leak-free).
     if ((await loadSessionRewriteRunRow(ctx.db, sessionId, rewriteRunId)) === undefined) {
-      throw new DomainNotFoundError("refinery run", rewriteRunId);
+      throw new DomainNotFoundError({ kind: "refinery_run", id: rewriteRunId });
     }
     const sheet = refineryRewriteDecisionsSchema.parse({ [rewriteRunId]: decisions })[rewriteRunId];
     // `json_set` on the one key, never a whole-column replace: other runs' sheets stay exactly as stored.
@@ -31,7 +31,7 @@ export function createDecideRewrite(ctx: RefineryContext): RefineryService["deci
       .where(eq(refinerySessions.id, sessionId));
     const updated = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (updated === undefined) {
-      throw new DomainNotFoundError("refinery session", sessionId);
+      throw new DomainNotFoundError({ kind: "refinery_session", id: sessionId });
     }
     ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return sessionViewOf(updated);

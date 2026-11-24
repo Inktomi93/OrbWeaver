@@ -32,7 +32,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     // distinguishable "real chat, just not host" oracle.
     const membership = await ctx.getMembership(params.chatId, params.principal.userId);
     if (membership === null) {
-      throw new DomainNotFoundError("game", params.chatId);
+      throw new DomainNotFoundError({ kind: "chat", id: params.chatId });
     }
     assertHostRole(ctx.can, params.principal, membership.role, "host authority required to create a game");
     // One game per chat (the UNIQUE chatId is the belt; this is the friendly refusal).

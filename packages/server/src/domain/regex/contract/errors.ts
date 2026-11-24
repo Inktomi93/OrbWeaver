@@ -3,7 +3,7 @@
 // foreign-existence leak). The CHAT scope is absent by design — its authority is the injected chat guard,
 // which owns its own refusal shape (the world-info precedent).
 
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, notFoundIdRef } from "@orb/kit/errors";
 import type { TypeIdOf } from "@orb/kit/ids";
 
 const REGEX_ENTITY_KINDS = ["regex_script", "character", "preset"] as const;
@@ -17,7 +17,7 @@ export class RegexNotFoundError extends DomainNotFoundError {
   public readonly entityKind: RegexEntityKind;
   public readonly entityId: RegexEntity[1];
   constructor(...[entityKind, entityId]: RegexEntity) {
-    super(entityKind, entityId);
+    super(notFoundIdRef(entityKind, entityId));
     this.entityKind = entityKind;
     this.entityId = entityId;
     this.name = this.constructor.name;
