@@ -25,12 +25,14 @@ import {
   isAsExpression,
   isBindingElement,
   isCallExpression,
+  isGetAccessorDeclaration,
   isIdentifier,
   isMethodDeclaration,
   isObjectBindingPattern,
   isParameterDeclaration,
   isPropertyAccessExpression,
   isSatisfiesExpression,
+  isSetAccessorDeclaration,
   isShorthandPropertyAssignment,
   isSpreadAssignment,
   SyntaxKind,
@@ -156,10 +158,12 @@ function pagedWrites(state: GraphState, sites: FileSites): readonly SlotWrite[] 
 }
 
 // A literal no slot types, such as a local `as const` table handed on later, writes its own keys; the flow from the slot
-// it lands in (./flows.ts) carries each write to the slot's member, at any depth. A method key is called, not written.
+// it lands in (./flows.ts) carries each write to the slot's member, at any depth. A method key is called, not written,
+// and so is a getter or setter: an accessor is code, not stored data.
 function ownKeyWrites(state: GraphState, sites: FileSites, slots: ReadonlyMap<string, Type | undefined>): void {
   for (const { literal, property, at, schema } of sites.literalProperties) {
-    if (!(schema || isMethodDeclaration(property)) && slots.get(spanKey(literal)) === undefined) {
+    const code = isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property);
+    if (!(schema || code) && slots.get(spanKey(literal)) === undefined) {
       state.role(state.resolver.keyOf(property), "write", sites.file, at);
     }
   }

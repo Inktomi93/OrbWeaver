@@ -446,6 +446,18 @@ test("a host literal's method fills only the port its literal is typed by", { ti
   expect(bucketsIn(scan)).toEqual(["member-write-only Port.drop", "member-write-only localHost.readLog"]);
 });
 
+// A getter or setter in a literal no slot types is code, as a method key is: unread, each is untouched, never written.
+test("an untyped literal's unread accessor is untouched, as a method key is", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export const table = { get unread(): string { return "u"; }, set stored(value: string) { void value; }, method(): string { return "m"; }, kept: "k" };',
+      "export const used = (): string => table.kept;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-untouched table.unread", "member-untouched table.stored", "member-untouched table.method"]);
+});
+
 // The reader's file is walked before the file that widens the row, so the carried pair is found after the reader's
 // slot was filled, and is linked once every file is walked.
 test("a carried member reaches a slot named in a file walked earlier", { timeout: 120_000 }, async ({ plantedTree }) => {
