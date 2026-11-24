@@ -9,7 +9,7 @@ import { EXIT } from "../../../floor/cli/exit-contract.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence, RawMapEntry } from "../../contract/map.ts";
 import type { CaptureOutcome } from "../../contract/types.ts";
-import { buildSurfaceMapScript, READ_MAP_BRIDGE_SCRIPT } from "../../lib/map-browser.ts";
+import { buildSurfaceMapScript, readMapBridge, readMapShell } from "../../lib/map-browser.ts";
 import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
@@ -89,7 +89,9 @@ async function captureMapBridge(page: Page): Promise<{
   let raw: RawMapBridgeEvidence;
   // the read failure is returned as atlasError and shellError; the map arm's exit() forces EXIT.toolError through mapInstrumentFailures. Ends if exit() stops counting those errors.
   try {
-    raw = mapBridgePayload(await page.evaluate(READ_MAP_BRIDGE_SCRIPT));
+    const read = await page.evaluate(readMapBridge);
+    const shell = await page.evaluate(readMapShell, { published: read.published, atlasAvailable: read.atlas.status === "available" });
+    raw = mapBridgePayload({ atlas: read.atlas, shell });
   } catch (error) {
     const detail = scrubPlaywrightText(errorMessage(error));
     return { atlas: null, shell: null, atlasError: detail, shellError: detail };

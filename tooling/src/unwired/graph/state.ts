@@ -4,7 +4,8 @@
 // A role is kept by world: what product code does to a member decides the product buckets; what tests, tooling and
 // scripts do only annotates them, so a field only a test reads is still unread by the product.
 // - Owner ruling: snap (tooling/src/snap/) drives the product as its user does, so its read of a member is a product
-//   read, as a dev-bridge read is (analyse.ts); its other roles, and every other tool's, only annotate.
+//   read, as a dev-bridge read is (analyse.ts); its other roles, and every other tool's, only annotate. The floor
+//   instruments (tooling/src/floor/instrument/) are the probe code snap drives, so their reads count the same way.
 import type { Expression } from "@typescript/native/ast";
 import { SyntaxKind } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
@@ -44,6 +45,9 @@ export type RoleSite =
 /** Where snap lives: it drives the product as its user does, so its reads and its requests are the product's. */
 export const SNAP_SOURCE = "tooling/src/snap/";
 const TEST_SOURCE = "tests/";
+
+// Where the floor's browser instruments live: the probe code snap drives, so what it reads off the app it reads as snap does (D357).
+const INSTRUMENT_SOURCE = "tooling/src/floor/instrument/";
 
 /** Whether a read at a repository-relative file counts as the product's: the product's own, or snap's. */
 export const productReader = (file: string): boolean => isProduction(file) || file.startsWith(SNAP_SOURCE);
@@ -430,7 +434,8 @@ export class GraphState implements GraphFacts {
     if (role === "write" && this.product(file)) {
       this.#noteBuild(key, file, at);
     }
-    if (this.product(file) || (READS.has(role) && productReader(file))) {
+    // An instrument's read is the product's here and nowhere else: it makes no module a reach root, as a snap file does.
+    if (this.product(file) || (READS.has(role) && (productReader(file) || file.startsWith(INSTRUMENT_SOURCE)))) {
       roles.product = withRoles(roles.product, [role]);
       if (role === "write" && roles.write === null) {
         roles.write = `${file}:${String(siteLine(this.world, file, at))}`;

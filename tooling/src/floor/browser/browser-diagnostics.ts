@@ -1,5 +1,6 @@
 // Lossless browser diagnostics gathered through the same Playwright page/context lifecycle as every
 // other probe ring. CDP Log/Audits supplement page console/pageerror; they never launch another browser.
+import type { ConsoleErrorRing } from "@orb/client/agent-bridge-contract";
 import { createTimeLib } from "@orb/kit/time";
 import type { CDPSession, Page } from "@playwright/test";
 import { exactScope } from "../artifacts/artifact-scope.ts";
@@ -219,6 +220,33 @@ export function summarizeOrbConsoleCompleteness(rows: readonly OrbConsoleComplet
   };
 }
 
+// The page's DOM names, which this program carries no lib for: the one read the closure below needs of them.
+interface ReadyHost {
+  readonly document: { readonly documentElement: { readonly hasAttribute: (name: string) => boolean } };
+}
+
+type OrbConsoleRead =
+  | { readonly status: "absent"; readonly ready: boolean }
+  | { readonly status: "malformed"; readonly detail: string }
+  | { readonly status: "value"; readonly value: ConsoleErrorRing };
+
+// Runs in the page, so it carries no import. It reads through `globalThis.__orb`, checked against the client's handle: a
+// renamed `consoleErrors` fails the typecheck. A served bundle may still answer a malformed ring, which the typeof arm catches.
+function readOrbConsoleRing(): OrbConsoleRead {
+  const orb = globalThis.__orb;
+  if (!orb) {
+    return { status: "absent", ready: (globalThis as unknown as ReadyHost).document.documentElement.hasAttribute("data-app-ready") };
+  }
+  if (typeof orb.consoleErrors !== "function") {
+    return { status: "malformed", detail: "consoleErrors is not a function" };
+  }
+  try {
+    return { status: "value", value: orb.consoleErrors() };
+  } catch (error) {
+    return { status: "malformed", detail: String(error) };
+  }
+}
+
 export async function collectOrbConsoleDiagnostics(
   page: Page,
   ring: BoundedEvidenceRing<BrowserDiagnostic>,
@@ -229,13 +257,8 @@ export async function collectOrbConsoleDiagnostics(
   if (identity === undefined) {
     return instrumentPageError("orb console ring has no page identity");
   }
-  const read = await page.evaluate(`(() => {
-    const orb = globalThis.__orb;
-    if (!orb) return { status: "absent", ready: document.documentElement.hasAttribute("data-app-ready") };
-    if (typeof orb.consoleErrors !== "function") return { status: "malformed", detail: "consoleErrors is not a function" };
-    try { return { status: "value", value: orb.consoleErrors() }; }
-    catch (error) { return { status: "malformed", detail: String(error) }; }
-  })()`);
+  // The served bundle is the writer here, not this tree: the answer is read as unknown and checked below.
+  const read: unknown = await page.evaluate(readOrbConsoleRing);
   if (typeof read !== "object" || read === null) {
     return instrumentGap(ring, identity, "__orb.consoleErrors() read returned no status", read);
   }

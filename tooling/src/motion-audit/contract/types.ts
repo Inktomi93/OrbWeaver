@@ -1,6 +1,6 @@
-// The run shapes of motion-audit: parsed args, the reach queue, the in-page motion snapshot
-// (mirrors packages/client/src/lib/agent-bridge-contract.ts — the probe reads it via __orb), the CDP trace
-// event shape, and the audit result.
+// The run shapes of motion-audit: parsed args, the reach queue, the in-page motion records (derived from
+// packages/client/src/lib/agent-bridge-contract.ts, the type the probe reads through __orb), the CDP trace event shape,
+// and the audit result.
 //
 // REACH VOCABULARY LIMITATION (#1072): the audit's reach vocabulary is `click` (a measured
 // `page.mouse.click`) and `nav` (a dev-bridge navigation). Gesture-driven motion — drag, swipe,
@@ -13,7 +13,13 @@
 // time and measures frames DURING the interaction, not after a settle. Coverage of gesture-driven
 // surfaces (drawer swipe, drag-reorder release) therefore requires live manual measurement or a
 // purpose-built gesture-audit instrument — it cannot be bolted onto this tool's reach queue.
-import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
+import type {
+  AnimationRecord as BridgeAnimationRecord,
+  LoafRecord as BridgeLoafRecord,
+  MotionFlagRecord as BridgeMotionFlagRecord,
+  MotionSnapshot as BridgeMotionSnapshot,
+  ShiftRecord as BridgeShiftRecord,
+} from "@orb/client/agent-bridge-contract";
 import type { AppearancePatch } from "@orb/tooling/floor/appearance/appearance";
 import type { ThemeRequest } from "@orb/tooling/floor/appearance/theme";
 import type { BrowserEnvironmentEvidence } from "@orb/tooling/floor/browser/browser-environment";
@@ -69,34 +75,20 @@ export interface Args {
   errors: string[];
 }
 
-// ── The in-page motion snapshot shapes (mirror agent-bridge-contract.ts — the probe reads them via __orb) ──
-export interface LoafRecord extends LongAnimationFrameTiming {
-  readonly scripts: ReadonlyArray<{
-    sourceURL: string;
-    duration: number;
-    forcedStyleAndLayoutDuration?: number;
-    invoker?: string;
-    sourceFunctionName?: string;
-  }>;
-  readonly selectEntrance?: {
-    readonly id: number;
-    readonly startedAt: number;
-    readonly confirmedAt?: number;
-    readonly endedAt?: number;
-    readonly firstForTrigger: boolean;
-  };
+// ── The in-page motion records, as the bridge declares them. `--isolated --ref <old sha>` serves a bundle that predates
+// some members, so the ones that postdate an older bundle are optional here and the validators in `ops/page-validate.ts`
+// accept their absence. Each derivation names its members, so a client rename or removal fails the typecheck. ──
+type BridgeLoafScript = BridgeLoafRecord["scripts"][number];
+
+export interface LoafRecord extends Omit<BridgeLoafRecord, "scripts"> {
+  readonly scripts: ReadonlyArray<
+    Pick<BridgeLoafScript, "sourceURL" | "duration"> & Partial<Pick<BridgeLoafScript, "forcedStyleAndLayoutDuration" | "invoker" | "sourceFunctionName">>
+  >;
 }
-/** One attributed layout shift as the collector's ring publishes it (`agent-bridge-contract.ts` `ShiftRecord`).
- *  Diagnostic passthrough: the report names the waves, no budget arm reads it — the ring is CAPPED
- *  (`SHIFT_RING_CAP`), so deriving a total from it would silently under-count. */
-export interface ShiftRecord {
-  readonly startTime: number;
-  readonly value: number;
-  readonly hadRecentInput: boolean;
-  readonly agentNavigation: boolean;
-  readonly virtualized: boolean;
-  readonly sources: readonly string[];
-}
+
+/** One attributed layout shift as the collector's ring publishes it. Diagnostic passthrough: the report names the
+ *  waves, no budget arm reads it — the ring is CAPPED, so deriving a total from it would silently under-count. */
+export type ShiftRecord = BridgeShiftRecord;
 
 /** WHICH CLS total a run's budget is entitled to judge — reported on the RESULT line, never inferred by
  *  a reader. `non-virtualized` is the #109 spec total (an ENTRY/navigation window, where no trusted input
@@ -106,89 +98,33 @@ export interface ShiftRecord {
 const CLS_BUDGET_BASES = ["non-virtualized", "observed-non-virtualized"] as const;
 export type ClsBudgetBasis = (typeof CLS_BUDGET_BASES)[number];
 
-export interface MotionSnapshot {
-  readonly loafs: readonly LoafRecord[];
-  readonly cls: number;
-  /** The share of `cls` the in-page instrument classified as virtual-row reconciliation (issue #109).
-   *  OPTIONAL because this type mirrors whatever bundle is being served: `--isolated --ref <old sha>`
-   *  legitimately answers from a page that predates the split. */
-  readonly virtualizedCls?: number;
-  /** `cls` − `virtualizedCls` — the total an ENTRY/navigation window's budget gates on. Optional for the
-   *  same reason. */
-  readonly nonVirtualizedCls?: number;
-  /** EVERY shift, input-adjacent included. The Layout Instability spec zeroes anything within 500ms of
-   *  real input, and motion-audit's measured click IS real input (`page.mouse.click`) — so for an
-   *  INTERACTION window `cls` is structurally blind to the storm the click caused (#1071; the collector's
-   *  own paid receipt: 0.207 observed, 0.0177 gated, budget PASS while the shell visibly thrashed).
-   *  Optional for the `--ref` reason above — and unlike the #109 fields, absence here CANNOT fall back:
-   *  falling back to `cls` on an interaction run reinstates exactly that false PASS, so `lib/verdicts.ts`
-   *  raises an evidence gap instead (`lib/evidence.ts` `observedClsGap`). */
-  readonly observedCls?: number;
-  /** The virtual-row share of `observedCls`. Required to gate an interaction: the collector accumulates
-   *  `virtualizedCls` only inside the `!hadRecentInput` branch, so `observedCls` alone folds the
-   *  reconciliation #109 removed from the budget back in. */
-  readonly observedVirtualizedCls?: number;
-  /** `observedCls` − `observedVirtualizedCls` — THE INTERACTION BUDGET TOTAL (#1071). */
-  readonly observedNonVirtualizedCls?: number;
-  readonly worstBlocking: number;
-  readonly worstShift: number;
-  /** The recent attributed shifts — "what moved", which no CLS number carries. Diagnostic only. */
-  readonly shifts?: readonly ShiftRecord[];
-}
+/** The members a bundle older than the virtualized split, the observed twin or the shift ring lacks. Absence of
+ *  an observed member CANNOT fall back to `cls`: that reinstates the false PASS the observed total exists to close, so
+ *  `lib/verdicts.ts` raises an evidence gap instead (`lib/evidence.ts` `observedClsGap`). */
+const OLDER_BUNDLE_MOTION_MEMBERS = [
+  "virtualizedCls",
+  "nonVirtualizedCls",
+  "observedCls",
+  "observedVirtualizedCls",
+  "observedNonVirtualizedCls",
+  "shifts",
+] as const;
+type OlderBundleMotionMember = (typeof OLDER_BUNDLE_MOTION_MEMBERS)[number];
 
-export interface AnimationRecord {
-  readonly target: string;
-  readonly properties: readonly string[];
-  readonly compositorClean: boolean;
-  /** Optional only for `--ref` bundles older than #953. Absence is unattributed evidence, never clean. */
-  readonly targetState?: {
-    readonly startingStyle: boolean;
-    readonly endingStyle: boolean;
-  };
-  /** Optional only for old bundles. Null means the launch recorder observed no Base UI lifecycle. */
-  readonly lifecycleState?: {
-    readonly startingStyle: boolean;
-    readonly endingStyle: boolean;
-    readonly observedAt: "transition-run";
-  } | null;
-  /** The browser-observed owner/mechanism. Tooling revalidates Base UI claims before classification. */
-  readonly attribution?: AnimationAttribution;
-  /** The CSS animation's name or the transition's property; the attribution a record with no readable property set has. */
-  readonly name?: string;
-  /** Optional only for old bundles: the document clock, a scroll or view timeline, or none. Absence is never scroll-driven. */
-  readonly timeline?: AnimationTimelineKind;
-}
+export type MotionSnapshot = Omit<BridgeMotionSnapshot, OlderBundleMotionMember | "loafs"> &
+  Partial<Pick<BridgeMotionSnapshot, OlderBundleMotionMember>> & { readonly loafs: readonly LoafRecord[] };
 
-const ANIMATION_OWNERS = ["base-ui", "application", "unattributed"] as const;
-type AnimationOwner = (typeof ANIMATION_OWNERS)[number];
-const ANIMATION_MECHANISMS = ["css-transition", "css-animation", "web-animation", "unknown"] as const;
-type AnimationMechanism = (typeof ANIMATION_MECHANISMS)[number];
-const ANIMATION_PHASES = ["starting-style", "ending-style"] as const;
-type AnimationPhase = (typeof ANIMATION_PHASES)[number];
-const ANIMATION_TIMELINES = ["document", "scroll", "view", "none"] as const;
-type AnimationTimelineKind = (typeof ANIMATION_TIMELINES)[number];
+/** The members an older bundle lacks. Absence is unattributed evidence, never clean. */
+const OLDER_BUNDLE_ANIMATION_MEMBERS = ["targetState", "lifecycleState", "attribution", "timeline"] as const;
+type OlderBundleAnimationMember = (typeof OLDER_BUNDLE_ANIMATION_MEMBERS)[number];
 
-interface AnimationAttribution {
-  readonly owner: AnimationOwner;
-  readonly mechanism: AnimationMechanism;
-  readonly phase?: AnimationPhase;
-}
+export type AnimationRecord = Omit<BridgeAnimationRecord, OlderBundleAnimationMember> & Partial<Pick<BridgeAnimationRecord, OlderBundleAnimationMember>>;
 
-/** One `__orb.flags()` raise (mirrors `packages/client/src/lib/agent-bridge-contract.ts` `MotionFlagRecord`).
- *  motion-audit consumes the `anim` channel ONLY, and consumes the raw `animation` FACTS — never the
- *  channel's own `overBudget` verdict, which is guide §3.7's console policy and not this tool's
- *  (#1069's allowance fork is open; importing that verdict would import the fork with it). */
-export interface MotionFlagRecord {
-  readonly tag: string;
-  readonly at: number;
-  readonly offender: string;
-  readonly detail: string;
-  readonly overBudget: boolean;
-  /** Present on `anim` raises from a bundle that postdates #1070. Absent ⇒ the raise cannot be
-   *  sanctioned and is counted as an ordinary unattributed dirty animation, the same posture
-   *  `lib/animations.ts` already takes for a pre-#953 `AnimationRecord`. */
-  readonly animation?: AnimationRecord;
-}
+/** One `__orb.flags()` raise. motion-audit consumes the `anim` channel ONLY, and consumes the raw `animation` FACTS —
+ *  never the channel's own `overBudget` verdict, which is guide §3.7's console policy and not this tool's.
+ *  `animation` is present on `anim` raises from a bundle that postdates the animation payload; absent, the raise cannot
+ *  be sanctioned and counts as an ordinary unattributed dirty animation. */
+export type MotionFlagRecord = Omit<BridgeMotionFlagRecord, "animation"> & { readonly animation?: AnimationRecord };
 
 export interface TraceEvent {
   readonly name?: string;

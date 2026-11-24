@@ -11,8 +11,10 @@ export type DeliberateEntry =
 
 const AGENT_CALLED =
   "the dev-only `globalThis.__orb` agent bridge: browser-driving agents call this accessor through `--eval` and scenario scripts, and no typed caller in the tree does";
-const AGENT_RESULT =
-  "the dev-only `globalThis.__orb` agent bridge: snap reads this result record off `unknown` through shape validators, so no read resolves to its members";
+const AGENT_READ =
+  "the dev-only `globalThis.__orb` agent bridge: browser-driving agents read this result member through `--eval` and scenario scripts, and no typed reader in the tree does";
+const AGENT_PROJECTION =
+  "the dev-only `globalThis.__orb` agent bridge: the tooling reads this record through its own validated projection of it, whose members the client declaration does not own";
 const SETTLE_SIGNAL = "docs/law/Spine-Testing.md: a suite waits on the composed root's actual settle signal, never a delay";
 const PUBLISHED_API = "D266: the published plugin SDK surface; guest plugins outside the tree read and write it";
 const DORMANT_AGENTS = "D60: the design of record for agent principals; the admin view carries an agent's kind and owner for that rebuild";
@@ -41,10 +43,12 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/contracts/src/identity/index.ts", home: "AdminUserView", member: "kind", reason: DORMANT_AGENTS },
   { file: "packages/contracts/src/identity/index.ts", home: "AdminUserView", member: "ownerHandle", reason: DORMANT_AGENTS },
   { file: "packages/contracts/src/assets/index.ts", home: "AssetListItem", member: "kinds", reason: KIND_PER_USE },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "ThemeFallbackRing", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionSnapshot", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionFlagRecord", member: null, reason: AGENT_RESULT },
-  { file: "packages/ui/src/lib/css-merge-contract.ts", home: "CssMergeReceipt", member: null, reason: AGENT_RESULT },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "ThemeFallbackRing", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionSnapshot", member: "worstBlocking", reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionSnapshot", member: "worstShift", reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionFlagRecord", member: "at", reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "MotionFlagRecord", member: "overBudget", reason: AGENT_READ },
+  { file: "packages/ui/src/lib/css-merge-contract.ts", home: "CssMergeReceipt", member: "input", reason: AGENT_READ },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "isReady", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "themeFallbacks", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "resetFlags", reason: AGENT_CALLED },
@@ -56,25 +60,23 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "seed", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "capabilities", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbDebugHandle", member: "rings", reason: AGENT_CALLED },
-  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "capabilities", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "corpusMode", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavHandle", member: "closeModal", reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbSeedHandle", member: null, reason: AGENT_CALLED },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "SEED_PROFILES", member: null, reason: AGENT_CALLED },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginLogLine", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginPublication", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiHost", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiSurface", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiCommand", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiEntry", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiSnapshot", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "AppearanceMatrixBridgeContract", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "AppearanceMessageRegistryReceipt", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "QuerySummary", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "ShellSnapshot", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavCapabilities", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbRpgSnapshot", member: null, reason: AGENT_RESULT },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbRingMetadata", member: null, reason: AGENT_RESULT },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginLogLine", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginPublication", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiHost", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiSurface", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiCommand", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiEntry", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiSnapshot", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "AppearanceMatrixBridgeContract", member: null, reason: AGENT_PROJECTION },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "AppearanceMessageRegistryReceipt", member: null, reason: AGENT_PROJECTION },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "QuerySummary", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavCapabilities", member: null, reason: AGENT_PROJECTION },
+  { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbRpgSnapshot", member: null, reason: AGENT_READ },
+  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "OrbRingMetadata", member: null, reason: AGENT_READ },
   { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "pluginId", reason: RAW_KV_INSERT },
   { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "ownerId", reason: RAW_KV_INSERT },
   { file: "packages/db/src/schema/plugin.ts", home: "pluginKv", member: "key", reason: RAW_KV_INSERT },

@@ -1,6 +1,7 @@
 // Structured evidence for Snap's three-sheet --map contract: application destinations, rendered shell
 // topology, and the current surface. Browser values cross page validation before these types are trusted.
 import { z } from "zod";
+import type { OrbNav } from "../../floor/instrument/orb-bridge.ts";
 
 export const mapSectionIdSchema = z.string().min(1).brand<"MapSectionId">();
 /** @public Cross-file Snap map evidence contract. */
@@ -54,14 +55,22 @@ export interface MapEntry {
 
 export type RawMapEntry = Omit<MapEntry, "source"> & { readonly fallback: string; readonly semanticFallback: string };
 
-export interface MapNavCapabilities {
-  readonly sections: readonly MapSectionId[];
-  readonly modalSlots: readonly MapModalSlotId[];
-  readonly configGroups: readonly MapConfigGroupId[];
-  readonly contextTabs: readonly MapContextTabId[];
-  readonly contextTabNames: ReadonlyArray<{ readonly id: MapContextTabId; readonly label: string }>;
-  readonly contextTabsPublished: boolean;
-  readonly chatPositions: readonly MapChatPosition[];
+type BridgeNavCapabilities = ReturnType<OrbNav["capabilities"]>;
+// One of the bridge's id lists, with the brand the map carries it under.
+type BrandedIds<
+  Key extends "sections" | "modalSlots" | "configGroups" | "contextTabs" | "chatPositions",
+  Brand extends string,
+> = readonly (BridgeNavCapabilities[Key][number] & Brand)[];
+
+/** The bridge's navigation capabilities with their ids branded. Each field names the client's member, so a rename or
+ *  removal there fails the typecheck. */
+export interface MapNavCapabilities extends Pick<BridgeNavCapabilities, "contextTabsPublished"> {
+  readonly sections: BrandedIds<"sections", MapSectionId>;
+  readonly modalSlots: BrandedIds<"modalSlots", MapModalSlotId>;
+  readonly configGroups: BrandedIds<"configGroups", MapConfigGroupId>;
+  readonly contextTabs: BrandedIds<"contextTabs", MapContextTabId>;
+  readonly contextTabNames: ReadonlyArray<Pick<BridgeNavCapabilities["contextTabNames"][number], "label"> & { readonly id: MapContextTabId }>;
+  readonly chatPositions: BrandedIds<"chatPositions", MapChatPosition>;
 }
 
 interface MapCurrentPlace {
