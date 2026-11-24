@@ -35,7 +35,7 @@ async function personaRows(root: ServerTestHarness): Promise<number> {
 /** Previews the folder under the choices, runs it under the same, and returns both counts of new personas. */
 async function previewedAndWritten(root: ServerTestHarness, files: Files, choices: PersonaCollisionChoices): Promise<{ shown: number; written: number }> {
   const preview = await dryRun(root, files, choices);
-  const shown = preview.kinds.personas.items.filter((item) => item.inLibrary !== true && item.repeat !== true).length;
+  const shown = preview.kinds.personas.items.filter((item) => item.reuse === undefined).length;
   const before = await personaRows(root);
   await finishRun(root, await admit(root, files, [], choices));
   return { shown, written: (await personaRows(root)) - before };

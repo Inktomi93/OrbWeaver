@@ -10,15 +10,7 @@
 // source, which lets the merge count an entry that two uploads of one folder both hold once. A skip's reason is written here, one per
 // kind of skip; the importer's own detail stays in the report and the logs.
 
-import type {
-  ImportAnswer,
-  ImportKindCounts,
-  ImportPreview,
-  ImportPreviewItem,
-  ImportPreviewKind,
-  ImportPreviewSkip,
-  ImportReuse,
-} from "@orb/contracts/import";
+import type { ImportAnswer, ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewSkip } from "@orb/contracts/import";
 import { clipImportText, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewListOf } from "@orb/contracts/import";
 import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedChat, CollectedGroup, CollectedPreset, CollectResult } from "../contract/collection.ts";
@@ -135,17 +127,12 @@ function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
   ];
 }
 
-const REUSE_FLAGS = {
-  library: { inLibrary: true },
-  upload: { repeat: true },
-} as const satisfies Readonly<Record<ImportReuse, Partial<ImportPreviewItem>>>;
-
 /** The item for a collected entry, with its keys and flagged with why a run writes nothing for that very entry, when
  *  it writes none. */
 function listed<Entry>(entry: Entry, judged: ReadonlyMap<Entry, ImportAnswer>, base: ItemBase): ImportPreviewItem {
   const answer = judged.get(entry);
   const keyed = { ...base, identities: keyDigests(answer) };
-  return answer === undefined || answer.reuse === null ? keyed : { ...keyed, ...REUSE_FLAGS[answer.reuse] };
+  return answer === undefined || answer.reuse === null ? keyed : { ...keyed, reuse: answer.reuse };
 }
 
 /** A preset's item with what its run does with its own scripts and the fields it leaves behind, each clipped and
@@ -162,7 +149,7 @@ function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: Imp
     if ("refused" in verdict) {
       return { ...named, refused: clipImportText(verdict.refused) };
     }
-    return verdict.reuse === null ? named : { ...named, ...REUSE_FLAGS[verdict.reuse] };
+    return verdict.reuse === null ? named : { ...named, reuse: verdict.reuse };
   });
   // A script the parse refused is never lifted, so it follows the lifted ones, wherever the preset lands.
   const parseRefused = (owned.presets.get(preset)?.keys.length ?? 0) > 0 ? preset.parsed.refusedScripts : [];

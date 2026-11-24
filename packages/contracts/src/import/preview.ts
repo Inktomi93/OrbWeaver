@@ -52,9 +52,11 @@ export function clipImportText(text: string): string {
 export const importTextSchema = z.string().max(IMPORT_PREVIEW_TEXT_MAX);
 const previewText = importTextSchema;
 
+const IMPORT_REUSES = ["library", "upload"] as const;
 /** Why a run writes nothing for an entry: the owner's library holds equal content, or an earlier entry of the same
  *  upload does. The owning domain's write answers it in dry-run mode, with its own equality rule. */
-export type ImportReuse = "library" | "upload";
+export type ImportReuse = (typeof IMPORT_REUSES)[number];
+const importReuseSchema = z.enum(IMPORT_REUSES);
 
 /** What an owning domain's write answers for one entry of a dry run: why a run writes nothing for it
  *  (`reuse`, null when it writes it) and the content keys of the owner's own equality rule (`keys`: one for most
@@ -79,33 +81,23 @@ const importPreviewItemSchema = z.strictObject({
    *  in two uploads of a split folder is one item, and the merge also tells an unlisted entry by it. */
   sourceDigest: previewText,
   name: previewText,
-  /** Something the owner already has (a character, book, preset, chat and so on); a run adds nothing for it.
-   *  Absent otherwise. */
-  inLibrary: z.literal(true).optional(),
-  /** Equal content to an earlier entry of this upload, or of an earlier upload once the merge has seen both,
-   *  usually another profile's copy: a run reuses that entry's row and adds nothing for it. Absent otherwise, and
-   *  never beside `inLibrary`. */
-  repeat: z.literal(true).optional(),
+  /** Why a run adds nothing for the entry. `library`: the owner already has it (a character, book, preset, chat and so
+   *  on). `upload`: an earlier entry of this upload holds equal content, or of an earlier upload once the merge has
+   *  seen both, usually another profile's copy, and a run reuses that entry's row. Absent when the run writes it. */
+  reuse: importReuseSchema.optional(),
   /** Digests of the content keys the entry's owner compares it by (see {@link ImportAnswer}). Two uploads of a split
    *  folder cannot see each other's entries, so the merge reads equal content off these. Empty when the entry cannot
    *  be compared, which the merge treats as never equal. */
   identities: z.array(previewText).max(IMPORT_PREVIEW_LIST_MAX).readonly(),
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
-  /** A preset's own regex scripts, in its order, flagged as an entry is: `inLibrary` when an owned script holds it,
-   *  `repeat` when an earlier script of this upload lands it, `refused` with the reason when the run refuses it, none
-   *  of them when the run adds it. The scripts the file's parse refuses (malformed, over a length cap) follow the
-   *  others, by name. Absent on another kind, on a preset with none, and on one the run does not land. Each upload
+  /** A preset's own regex scripts, in its order: `reuse` as an entry carries it (`library` when an owned script holds
+   *  it, `upload` when an earlier script of this upload lands it), or `refused` with the reason when the run refuses
+   *  it, and neither when the run adds it. The scripts the file's parse refuses (malformed, over a length cap) follow
+   *  the others, by name. Absent on another kind, on a preset with none, and on one the run does not land. Each upload
    *  judges its own; the merge flags none. */
   regexScripts: z
-    .array(
-      z.strictObject({
-        name: previewText,
-        inLibrary: z.literal(true).optional(),
-        repeat: z.literal(true).optional(),
-        refused: previewText.optional(),
-      }),
-    )
+    .array(z.union([z.strictObject({ name: previewText, reuse: importReuseSchema.optional() }), z.strictObject({ name: previewText, refused: previewText })]))
     .max(IMPORT_PREVIEW_LIST_MAX)
     .readonly()
     .optional(),
@@ -162,8 +154,8 @@ const importPreviewListSchema = z.strictObject({
 export type ImportPreviewList = z.infer<typeof importPreviewListSchema>;
 
 function countedOf(items: readonly ImportPreviewItem[]): Omit<ImportPreviewCounts, "uncompared"> & { readonly total: number } {
-  const inLibrary = items.filter((item) => item.inLibrary === true).length;
-  const repeat = items.filter((item) => item.repeat === true).length;
+  const inLibrary = items.filter((item) => item.reuse === "library").length;
+  const repeat = items.filter((item) => item.reuse === "upload").length;
   return {
     total: items.length,
     inLibrary,
@@ -184,8 +176,8 @@ export function importPreviewListOf(items: readonly ImportPreviewItem[]): Import
     counts: { ...counts, uncompared: 0 },
     items: items.slice(0, IMPORT_PREVIEW_LIST_MAX),
     tail: {
-      inLibrary: digestsOf((item) => item.inLibrary === true),
-      repeat: digestsOf((item) => item.repeat === true),
+      inLibrary: digestsOf((item) => item.reuse === "library"),
+      repeat: digestsOf((item) => item.reuse === "upload"),
       writes: digestsOf((item) => !isReused(item)),
       withoutArt: digestsOf((item) => item.withoutArt === true),
     },
@@ -258,19 +250,19 @@ function skippedOf(lists: readonly ImportPreview["skipped"][]): ImportPreview["s
 }
 
 function isReused(item: ImportPreviewItem): boolean {
-  return item.inLibrary === true || item.repeat === true;
+  return item.reuse !== undefined;
 }
 
 /** An item the run writes nothing for because an earlier item of the merged list holds every one of its identities:
  *  each upload judged it alone and called it new. An item without identities cannot be compared and stays as it was. */
 function flagRepeats(items: readonly ImportPreviewItem[]): ImportPreviewItem[] {
   const held = new Set<string>();
-  return items.map((item) => {
+  return items.map((item): ImportPreviewItem => {
     const repeat = !isReused(item) && item.identities.length > 0 && item.identities.every((identity) => held.has(identity));
     for (const identity of item.identities) {
       held.add(identity);
     }
-    return repeat ? { ...item, repeat: true } : item;
+    return repeat ? { ...item, reuse: "upload" } : item;
   });
 }
 

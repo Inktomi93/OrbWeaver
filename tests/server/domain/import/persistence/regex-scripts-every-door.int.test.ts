@@ -128,8 +128,8 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
 
   const before = await presetsOf();
   const malformed = { name: "extensions.regex_scripts[2]", refused: expect.stringContaining("malformed") };
-  expect(scriptsOf(before, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle" }, { name: "Panel kettle", inLibrary: true }, malformed]);
-  expect(scriptsOf(before, "Birch (OpenAI)")).toEqual([{ name: "Saved whistle", repeat: true }, { name: "Bell" }]);
+  expect(scriptsOf(before, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle" }, { name: "Panel kettle", reuse: "library" }, malformed]);
+  expect(scriptsOf(before, "Birch (OpenAI)")).toEqual([{ name: "Saved whistle", reuse: "upload" }, { name: "Bell" }]);
   expect(before.find((item) => item.name === "Amber (OpenAI)")?.leftOut).toBeUndefined();
   expect(before.find((item) => item.name === "Birch (OpenAI)")?.leftOut).toBeUndefined();
   expect(await caller.regex.listScripts()).toHaveLength(1);
@@ -155,12 +155,12 @@ test("the SillyTavern folder's dry run names each preset script the run adds or 
   const sections = (await caller.preset.get({ id: landed.id })).config.sections.map(({ name }) => name);
   expect(sections).toEqual(expect.arrayContaining([...added]));
   // A second run reuses the preset it made, so it adds no section.
-  expect(after.find((item) => item.name === "Amber (OpenAI)")).toMatchObject({ inLibrary: true });
+  expect(after.find((item) => item.name === "Amber (OpenAI)")).toMatchObject({ reuse: "library" });
   expect(after.find((item) => item.name === "Amber (OpenAI)")?.addedSections).toBeUndefined();
-  expect(scriptsOf(after, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle", inLibrary: true }, { name: "Panel kettle", inLibrary: true }, malformed]);
+  expect(scriptsOf(after, "Amber (OpenAI)")).toEqual([{ name: "Saved whistle", reuse: "library" }, { name: "Panel kettle", reuse: "library" }, malformed]);
   expect(scriptsOf(after, "Birch (OpenAI)")).toEqual([
-    { name: "Saved whistle", inLibrary: true },
-    { name: "Bell", inLibrary: true },
+    { name: "Saved whistle", reuse: "library" },
+    { name: "Bell", reuse: "library" },
   ]);
 });
 

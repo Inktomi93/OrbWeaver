@@ -1,7 +1,7 @@
 // The names the library import section prints. A zero-import leaf, so a spec's node side reads them without loading the
 // component graph.
 
-import type { ProfileZipRefusal } from "@orb/contracts/import";
+import type { ImportReuse, ProfileZipRefusal } from "@orb/contracts/import";
 
 /** The folder picker's visible trigger. */
 export const IMPORT_FOLDER_NAME = "Import a folder…";
@@ -70,9 +70,9 @@ export function importPreviewProfileLabel(profile: string): string {
  *  earlier preset of the same import adds. A refused script's verdict is {@link importPreviewScriptRefused}. */
 export const IMPORT_PREVIEW_SCRIPT_VERDICTS = {
   added: "new",
-  inLibrary: "already in your library",
-  repeat: "added by an earlier preset here",
-} as const;
+  library: "already in your library",
+  upload: "added by an earlier preset here",
+} as const satisfies Readonly<Record<ImportReuse | "added", string>>;
 
 /** The verdict of a script the run refuses, with the write door's reason. */
 export function importPreviewScriptRefused(reason: string): string {

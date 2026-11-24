@@ -10,6 +10,7 @@ import type { ImportPreviewItem } from "@orb/contracts/import";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { PresetId } from "@orb/kit/ids";
 import { MAX_FIND_REGEX_LENGTH } from "@orb/kit/regex";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { admit, dryRun, finishRun, harness, settings } from "./_st-tree-door.ts";
@@ -122,9 +123,9 @@ test("a folder with two presets equal but for their scripts previews and lands t
   const itemOf = (items: readonly ImportPreviewItem[], name: string): ImportPreviewItem | undefined => items.find((item) => item.name === name);
 
   const preview = (await dryRun(root, files)).kinds.presets;
-  expect(itemOf(preview.items, "Sola Full (OpenAI)")?.repeat).toBeUndefined();
-  expect(itemOf(preview.items, "Sola Twenty (OpenAI)")?.repeat).toBeUndefined();
-  expect(itemOf(preview.items, "Sola Twin (OpenAI)")?.repeat).toBe(true);
+  expect(present(itemOf(preview.items, "Sola Full (OpenAI)")).reuse).toBeUndefined();
+  expect(present(itemOf(preview.items, "Sola Twenty (OpenAI)")).reuse).toBeUndefined();
+  expect(itemOf(preview.items, "Sola Twin (OpenAI)")?.reuse).toBe("upload");
   expect(preview.counts).toMatchObject({ repeat: 1 });
 
   await finishRun(root, await admit(root, files));
@@ -140,8 +141,8 @@ test("a folder with two presets equal but for their scripts previews and lands t
 
   // A second run of the same folder reuses both.
   const again = (await dryRun(root, files)).kinds.presets.items;
-  expect(itemOf(again, "Sola Full (OpenAI)")?.inLibrary).toBe(true);
-  expect(itemOf(again, "Sola Twenty (OpenAI)")?.inLibrary).toBe(true);
+  expect(itemOf(again, "Sola Full (OpenAI)")?.reuse).toBe("library");
+  expect(itemOf(again, "Sola Twenty (OpenAI)")?.reuse).toBe("library");
 });
 
 test("a preset script that does not compile imports switched off and one over a length cap is refused, each named by both previews and the run", async () => {

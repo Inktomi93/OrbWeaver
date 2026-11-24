@@ -8,14 +8,14 @@ import { expect, test } from "@orb/testkit/node";
 import { importPreviewUncomparedNote } from "#client/features/workloads/lib/import-library-names.ts";
 import { previewKindLine } from "#client/features/workloads/lib/portability-model.ts";
 
-function entry(path: string, flag: Partial<Pick<ImportPreviewItem, "inLibrary">> = {}): ImportPreviewItem {
+function entry(path: string, flag: Partial<Pick<ImportPreviewItem, "reuse">> = {}): ImportPreviewItem {
   return { source: { profile: "profile", path }, sourceDigest: path, name: path, identities: [path], ...flag };
 }
 
 const OWNED_PAST_THE_CAP = IMPORT_PREVIEW_LIST_MAX + 1;
 
 test("a kind with more owned entries than the list holds says how many the library holds, not how many are listed", () => {
-  const owned = importPreviewListOf(Array.from({ length: OWNED_PAST_THE_CAP }, (_, i) => entry(`p${String(i)}.json`, { inLibrary: true })));
+  const owned = importPreviewListOf(Array.from({ length: OWNED_PAST_THE_CAP }, (_, i) => entry(`p${String(i)}.json`, { reuse: "library" })));
 
   // The control: the list is capped, so a count taken from it would read one short.
   expect(owned.items).toHaveLength(IMPORT_PREVIEW_LIST_MAX);

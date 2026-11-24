@@ -36,7 +36,7 @@ test("a card that takes a held card's handle with other content previews as a wr
   await finishRun(root, await admit(root, other));
 
   expect(preview.kinds.characters.items.map((item) => item.name)).toEqual([NAMESAKE_NAME]);
-  expect(preview.kinds.characters.items.filter((item) => item.inLibrary === true || item.repeat === true)).toEqual([]);
+  expect(preview.kinds.characters.items.filter((item) => item.reuse === "library" || item.reuse === "upload")).toEqual([]);
   expect(await handlesHeld(root)).toEqual(["card", "card-2"]);
 });
 
@@ -48,6 +48,6 @@ test("a card equal to the held card still previews as the owner's, and the run w
   const preview = await dryRun(root, owned);
   await finishRun(root, await admit(root, owned));
 
-  expect(present(preview.kinds.characters.items[0]).inLibrary).toBe(true);
+  expect(present(preview.kinds.characters.items[0]).reuse).toBe("library");
   expect(await handlesHeld(root)).toEqual(["card"]);
 });

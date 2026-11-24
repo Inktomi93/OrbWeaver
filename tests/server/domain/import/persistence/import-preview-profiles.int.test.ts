@@ -128,7 +128,7 @@ forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {
 /** What a run adds for a kind: the entries the preview lists, less the ones it reuses. */
 function willWrite(shown: ImportPreview, kind: ImportPreviewKind): number {
   const { total, items } = shown.kinds[kind];
-  return total - items.filter((item) => item.inLibrary === true || item.repeat === true).length;
+  return total - items.filter((item) => item.reuse === "library" || item.reuse === "upload").length;
 }
 
 const FIXTURES = [
@@ -167,8 +167,8 @@ forEachNonEmpty(IMPORT_PREVIEW_KINDS, "preview kinds", (kind) => {
     expect(items).toHaveLength(inAlice.length + inBob.length);
     expect(inAlice.length).toBeGreaterThan(0);
     expect(inBob).toHaveLength(inAlice.length);
-    expect(inAlice.filter((item) => item.repeat === true)).toEqual([]);
-    expect(nonEmpty(inBob).every((item) => item.repeat === true)).toBe(true);
+    expect(inAlice.filter((item) => item.reuse === "upload")).toEqual([]);
+    expect(nonEmpty(inBob).every((item) => item.reuse === "upload")).toBe(true);
   });
 });
 
@@ -178,7 +178,7 @@ test("two profiles that hold different content at a shared path repeat nothing b
   const shown = await shownFor(root, twoProfiles(root, true));
 
   for (const kind of IMPORT_PREVIEW_KINDS) {
-    expect(shown.kinds[kind].items.filter((item) => item.repeat === true).length, kind).toBe(kind === "orphans" ? 1 : 0);
+    expect(shown.kinds[kind].items.filter((item) => item.reuse === "upload").length, kind).toBe(kind === "orphans" ? 1 : 0);
   }
 });
 
@@ -264,7 +264,7 @@ test("the library's verdict for a card at a shared path follows the profile that
 
   const shown = await shownFor(root, { ...inProfile(ALICE, alice), ...inProfile(BOB, profileFiles(root, BOB, false)) });
 
-  const verdicts = shown.kinds.characters.items.map(({ source, inLibrary }) => [source.profile, inLibrary === true] as const);
+  const verdicts = shown.kinds.characters.items.map(({ source, reuse }) => [source.profile, reuse === "library"] as const);
   expect(verdicts.toSorted(([a], [b]) => a.localeCompare(b))).toEqual([
     [ALICE, true],
     [BOB, false],

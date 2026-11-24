@@ -296,13 +296,10 @@ export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList
 type PreviewScript = NonNullable<ImportPreviewItem["regexScripts"]>[number];
 
 function scriptVerdict(script: PreviewScript): string {
-  if (script.refused !== undefined) {
+  if ("refused" in script) {
     return importPreviewScriptRefused(script.refused);
   }
-  if (script.inLibrary === true) {
-    return IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary;
-  }
-  return script.repeat === true ? IMPORT_PREVIEW_SCRIPT_VERDICTS.repeat : IMPORT_PREVIEW_SCRIPT_VERDICTS.added;
+  return script.reuse === undefined ? IMPORT_PREVIEW_SCRIPT_VERDICTS.added : IMPORT_PREVIEW_SCRIPT_VERDICTS[script.reuse];
 }
 
 /** A preset entry's detail lines in the names panel: its own regex scripts with what the run does with each, then the
