@@ -197,7 +197,7 @@ test("a whole row sent out sends its columns and a JSON column's declared member
 // define the same columns, and `Lookalike` spells them with no drizzle type under it: neither may carry a read to
 // `notes`. `spare` is never read back, the control that a stored member with no read stays write-only.
 const DRIZZLE_DIR = realpathSync(join(import.meta.dirname, "../../../packages/db/node_modules/drizzle-orm"));
-const REAL_COLUMNS = ["id", "title", "body", "slug", "mood", "tone", "loaded", "aliased", "ghost", "echo", "spare"] as const;
+const REAL_COLUMNS = ["id", "title", "body", "slug", "mood", "tone", "loaded", "aliased", "texted", "ghost", "echo", "spare"] as const;
 const REAL_FILE = `${GRAPH_SOURCE}/real-rows.ts`;
 
 // The planted tree of the real-drizzle cases, with the installed drizzle-orm linked in.
@@ -230,6 +230,10 @@ async function realRowsTree(plantedTree: (tree: Record<string, string>) => Promi
         "export const tone = (note: Partial<Note>): string | undefined => note.tone;",
         "export const loaded = (note: Awaited<ReturnType<typeof load>>): string => note.loaded;",
         "export const aliased = (note: RowOf<typeof notes>): string => note.aliased;",
+        // the row is reached only through the conditional's indexed branch: the mapped key set is the resolved literals
+        "type JsonField = keyof Pick<Note, 'body'>;",
+        "type NoteText = { readonly [Field in keyof Note]: Field extends JsonField ? string | null : Note[Field] };",
+        "export const texted = (note: NoteText): string => note.texted;",
         "export const ghost = (look: Lookalike): string => look.ghost;",
         "export const echo = (card: typeof cards.$inferSelect): string => card.echo;",
         "export const picked = async (): Promise<string | undefined> => (await db.select({ id: notes.id }).from(notes))[0]?.id;",

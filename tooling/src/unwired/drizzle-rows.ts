@@ -11,9 +11,10 @@
 //   same columns keep their own rows.
 // - A type reference's arguments are not walked, so `Row[]` and `Promise<Row>` are not rows; a table's own type is not
 //   walked, as a table is not its own row.
-// - A conditional is walked to its check type, never its branches: a conditional left deferred inside a mapped type's
-//   template (drizzle's `SelectResultField<T[Key]>`) has generic branches that recurse into a deeper indexed access at
-//   every level, so a walk through them never runs out of new types, while its check type is the input it was built from.
+// - A conditional is walked to its check type and to the object of a branch that indexes an object type, never into
+//   its branches: a conditional left deferred inside a mapped type's template (drizzle's `SelectResultField<T[Key]>`)
+//   has generic branches that recurse into a deeper indexed access at every level, so a walk through them never runs
+//   out of new types.
 // - Each world counts the ties made, the types whose member names spell a table's columns but that the checker ties to
 //   none (listed with their file), and the walks the depth bound cut, so a real-tree run shows any column read lost.
 import type { CallExpression, Node } from "@typescript/native/ast";
@@ -26,7 +27,7 @@ import {
   isPropertyAssignment,
   isVariableDeclaration,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, ConditionalType, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import { tableDefinition } from "./boundaries.ts";
 import type { NativeWorld, PropertyName } from "./native.ts";
@@ -170,6 +171,16 @@ function* oneOf(request: APIRequestGenerator<Type | undefined>): APIRequestGener
   return type === undefined ? [] : [type];
 }
 
+// The object of each branch of a conditional that indexes an object type (`Row[Field]` in `{ [Field in keyof Row]:
+// Field extends J ? X : Row[Field] }`): a mapped type over a resolved `keyof Row` holds the row's keys as literals, so
+// the row is reached only there. A branch over a generic object (`T["_"]["columns"][Key]`) gives nothing, so the walk
+// never enters the branches themselves.
+function* branchObjects(type: ConditionalType): APIRequestGenerator<readonly Type[]> {
+  const branches = yield* all(type.getTrueType.gen(), type.getFalseType.gen());
+  const objects = yield* all(...branches.flatMap((branch) => (branch.isIndexedAccessType() ? [branch.getObjectType.gen()] : [])));
+  return objects.filter((object) => object.isObjectType());
+}
+
 // The types a type is built from that keep it a row: every relation is asked in one round.
 function* builtFrom(type: Type): APIRequestGenerator<readonly Type[]> {
   const asks: APIRequestGenerator<readonly Type[]>[] = [type.getAliasTypeArguments.gen()];
@@ -186,7 +197,7 @@ function* builtFrom(type: Type): APIRequestGenerator<readonly Type[]> {
     asks.push(oneOf(type.getTarget.gen()));
   }
   if (type.isConditionalType()) {
-    asks.push(oneOf(type.getCheckType.gen()));
+    asks.push(oneOf(type.getCheckType.gen()), branchObjects(type));
   }
   if (type.isClassOrInterface()) {
     asks.push(listOf(type.getBaseTypes.gen()));
