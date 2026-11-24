@@ -7,6 +7,7 @@
 // both wrong on the same page (2026-09-04 §2.2).
 // The map now composes the walker's ONE spec-ordered key through ui-audit's front door; `--aria`
 // (Playwright's `ariaSnapshot`) stays the oracle both were measured against.
+import type { OrbBridge, OrbNav } from "../../floor/instrument/orb-bridge.ts";
 import { WALKER_ACCESSIBLE_NAME } from "../../ui-audit/index.ts";
 
 const MAP_TARGET_SELECTOR = "a,button,[role],input,select,textarea,[tabindex],[aria-label],main,nav,aside,form";
@@ -150,70 +151,188 @@ ${WALKER_ACCESSIBLE_NAME}
   })()`;
 }
 
-export const READ_MAP_BRIDGE_SCRIPT = `(() => {
-  const url = location.href;
-  const orb = globalThis.__orb;
-  let atlas;
-  let published = null;
-  if (!orb || !orb.nav) {
-    if (location.protocol !== "file:") throw new Error("INSTRUMENT ERROR: live page did not publish __orb.nav");
-    atlas = { status: "unavailable", url, reason: "static file has no Orbweaver navigation bridge" };
-  } else {
-    if (typeof orb.nav.capabilities !== "function") throw new Error("INSTRUMENT ERROR: __orb.nav.capabilities is not callable");
-    if (typeof orb.shell !== "function") throw new Error("INSTRUMENT ERROR: __orb.shell is not callable on a page with navigation capabilities");
-    const capabilities = orb.nav.capabilities();
-    published = orb.shell();
-    atlas = {
-      status: "available", url, capabilities,
-      place: { url, section: published?.section, chatOpen: published?.chatOpen }
-    };
-  }
+// The page's DOM names, which this program carries no lib for: only the members the reads below call.
+interface MapRect {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
 
-  const grid = document.querySelector(".shell-grid");
-  if (!grid) {
-    if (atlas.status === "available") throw new Error("INSTRUMENT ERROR: __orb navigation exists but .shell-grid is absent");
-    return { atlas, shell: { status: "unavailable", reason: "this page has no Orbweaver shell" } };
-  }
-  if (published === null) throw new Error("INSTRUMENT ERROR: .shell-grid exists but __orb.shell is unavailable");
-  const visible = (el) => {
-    if (!el) return false;
-    if (el.closest('[hidden],[inert],[aria-hidden="true"]')) return false;
-    const style = getComputedStyle(el);
-    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
-    const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 && (typeof el.checkVisibility !== "function" || el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true }));
+interface MapElement {
+  readonly closest: (selector: string) => MapElement | null;
+  readonly getAttribute: (name: string) => string | null;
+  readonly querySelector: (selector: string) => MapElement | null;
+  readonly getBoundingClientRect: () => MapRect;
+  readonly textContent: string | null;
+  readonly checkVisibility?: (options: {
+    readonly checkOpacity: boolean;
+    readonly checkVisibilityCSS: boolean;
+    readonly contentVisibilityAuto: boolean;
+  }) => boolean;
+}
+
+interface MapHost {
+  readonly location: { readonly href: string; readonly protocol: string };
+  readonly document: { readonly querySelector: (selector: string) => MapElement | null };
+  readonly getComputedStyle: (element: MapElement) => {
+    readonly display: string;
+    readonly visibility: string;
+    readonly opacity: string;
+    readonly position: string;
+    readonly zIndex: string;
   };
-  const identity = (el) => el ? el.getAttribute("aria-label") || el.getAttribute("aria-labelledby") || null : null;
-  const region = (id, selector, panel) => {
-    const el = document.querySelector(selector);
-    if (!el) return { id, mounted: false, visible: false, available: null, mode: null, inert: false, rect: null, position: null, zIndex: null, identity: null };
-    const rect = el.getBoundingClientRect(); const style = getComputedStyle(el);
+  readonly matchMedia: (query: string) => { readonly matches: boolean };
+  readonly innerWidth: number;
+  readonly innerHeight: number;
+  readonly devicePixelRatio: number;
+}
+
+type PublishedShell = ReturnType<OrbBridge["shell"]>;
+
+type MapAtlasRead =
+  | { readonly status: "unavailable"; readonly url: string; readonly reason: string }
+  | {
+      readonly status: "available";
+      readonly url: string;
+      readonly capabilities: ReturnType<OrbNav["capabilities"]>;
+      readonly place: { readonly url: string; readonly section: PublishedShell["section"]; readonly chatOpen: PublishedShell["chatOpen"] };
+    };
+
+export interface MapBridgeRead {
+  readonly atlas: MapAtlasRead;
+  /** `null` when the page publishes no shell: a static file. */
+  readonly published: PublishedShell | null;
+}
+
+interface MapRegionRead {
+  readonly id: string;
+  readonly mounted: boolean;
+  readonly visible: boolean;
+  readonly available: boolean | null;
+  readonly mode: string | null;
+  readonly inert: boolean;
+  readonly rect: MapRect | null;
+  readonly position: string | null;
+  readonly zIndex: string | null;
+  readonly identity: string | null;
+}
+
+export interface MapShellInput {
+  readonly published: PublishedShell | null;
+  readonly atlasAvailable: boolean;
+}
+
+export type MapShellRead =
+  | { readonly status: "unavailable"; readonly reason: string }
+  | {
+      readonly status: "available";
+      readonly regime: "mobile" | "narrow" | "wide";
+      readonly viewport: { readonly width: number; readonly height: number; readonly devicePixelRatio: number };
+      readonly section: string | null;
+      readonly published: PublishedShell;
+      readonly contentIdentity: string | null;
+      readonly activeContextTab: string | null;
+      readonly contextRelation: "unspecified/auxiliary";
+      readonly regions: readonly MapRegionRead[];
+    };
+
+// Runs in the page, so it carries no import. It calls the bridge through `globalThis.__orb`, so a renamed accessor or
+// result member fails the typecheck. Its answer is untrusted until `ops/page-validate.ts` accepts it.
+export function readMapBridge(): MapBridgeRead {
+  const url = (globalThis as unknown as MapHost).location.href;
+  const orb = globalThis.__orb;
+  if (!orb?.nav) {
+    if ((globalThis as unknown as MapHost).location.protocol !== "file:") {
+      throw new Error("INSTRUMENT ERROR: live page did not publish __orb.nav");
+    }
+    return { atlas: { status: "unavailable", url, reason: "static file has no Orbweaver navigation bridge" }, published: null };
+  }
+  if (typeof orb.nav.capabilities !== "function") {
+    throw new Error("INSTRUMENT ERROR: __orb.nav.capabilities is not callable");
+  }
+  if (typeof orb.shell !== "function") {
+    throw new Error("INSTRUMENT ERROR: __orb.shell is not callable on a page with navigation capabilities");
+  }
+  const capabilities = orb.nav.capabilities();
+  const published = orb.shell();
+  return { atlas: { status: "available", url, capabilities, place: { url, section: published.section, chatOpen: published.chatOpen } }, published };
+}
+
+// Runs in the page, so it carries no import: the rendered shell's topology, read against what the bridge published.
+export function readMapShell({ published, atlasAvailable }: MapShellInput): MapShellRead {
+  const host = globalThis as unknown as MapHost;
+  const grid = host.document.querySelector(".shell-grid");
+  if (!grid) {
+    if (atlasAvailable) {
+      throw new Error("INSTRUMENT ERROR: __orb navigation exists but .shell-grid is absent");
+    }
+    return { status: "unavailable", reason: "this page has no Orbweaver shell" };
+  }
+  if (published === null) {
+    throw new Error("INSTRUMENT ERROR: .shell-grid exists but __orb.shell is unavailable");
+  }
+  const visible = (el: MapElement): boolean => {
+    if (el.closest('[hidden],[inert],[aria-hidden="true"]')) {
+      return false;
+    }
+    const style = host.getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    const shown = typeof el.checkVisibility !== "function" || el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true });
+    return rect.width > 0 && rect.height > 0 && shown;
+  };
+  // The first value that is neither absent nor empty: an empty attribute names nothing.
+  const named = (...values: readonly (string | null | undefined)[]): string | null =>
+    values.find((value) => value !== null && value !== undefined && value !== "") ?? null;
+  const identity = (el: MapElement): string | null => named(el.getAttribute("aria-label"), el.getAttribute("aria-labelledby"));
+  const region = (id: string, selector: string, panel: boolean): MapRegionRead => {
+    const el = host.document.querySelector(selector);
+    if (!el) {
+      return { id, mounted: false, visible: false, available: null, mode: null, inert: false, rect: null, position: null, zIndex: null, identity: null };
+    }
+    const rect = el.getBoundingClientRect();
+    const style = host.getComputedStyle(el);
     const availableRaw = panel ? el.getAttribute("data-panel-available") : null;
     return {
-      id, mounted: true, visible: visible(el), available: availableRaw === null ? null : availableRaw === "true",
+      id,
+      mounted: true,
+      visible: visible(el),
+      available: availableRaw === null ? null : availableRaw === "true",
       mode: panel ? el.getAttribute("data-panel-mode") : null,
-      inert: Boolean(el.closest("[inert]")), rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-      position: style.position, zIndex: style.zIndex, identity: identity(el)
+      inert: Boolean(el.closest("[inert]")),
+      rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+      position: style.position,
+      zIndex: style.zIndex,
+      identity: identity(el),
     };
   };
-  const context = document.querySelector('.shell-panel[data-panel-side="context"]');
-  const activeTab = context?.querySelector('[role="tab"][aria-selected="true"], [data-slot="tabs-tab"][data-active]');
-  const activeTabName = activeTab ? activeTab.getAttribute("aria-label") || (activeTab.textContent || "").trim() || null : null;
-  return {
-    atlas,
-    shell: {
-      status: "available",
-      regime: matchMedia("(max-width: 48rem)").matches ? "mobile" : matchMedia("(max-width: 64rem)").matches ? "narrow" : "wide",
-      viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
-      section: grid.getAttribute("data-section"), published,
-      contentIdentity: document.querySelector(".shell-content")?.getAttribute("aria-label") || null,
-      activeContextTab: activeTabName,
-      contextRelation: "unspecified/auxiliary",
-      regions: [
-        region("rail", ".shell-rail", false), region("topbar", ".shell-topbar", false),
-        region("list", '.shell-panel[data-panel-side="list"]', true), region("content", ".shell-content", false),
-        region("context", '.shell-panel[data-panel-side="context"]', true)
-      ]
+  const activeTab = host.document
+    .querySelector('.shell-panel[data-panel-side="context"]')
+    ?.querySelector('[role="tab"][aria-selected="true"], [data-slot="tabs-tab"][data-active]');
+  const regime = (): "mobile" | "narrow" | "wide" => {
+    if (host.matchMedia("(max-width: 48rem)").matches) {
+      return "mobile";
     }
+    return host.matchMedia("(max-width: 64rem)").matches ? "narrow" : "wide";
   };
-})()`;
+  return {
+    status: "available",
+    regime: regime(),
+    viewport: { width: host.innerWidth, height: host.innerHeight, devicePixelRatio: host.devicePixelRatio },
+    section: grid.getAttribute("data-section"),
+    published,
+    contentIdentity: named(host.document.querySelector(".shell-content")?.getAttribute("aria-label")),
+    activeContextTab: activeTab ? named(activeTab.getAttribute("aria-label"), (activeTab.textContent ?? "").trim()) : null,
+    contextRelation: "unspecified/auxiliary",
+    regions: [
+      region("rail", ".shell-rail", false),
+      region("topbar", ".shell-topbar", false),
+      region("list", '.shell-panel[data-panel-side="list"]', true),
+      region("content", ".shell-content", false),
+      region("context", '.shell-panel[data-panel-side="context"]', true),
+    ],
+  };
+}

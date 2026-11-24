@@ -1,5 +1,6 @@
 // Live Appearance/theme inputs shared by the representative-matrix consumers. The browser bridge owns
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
+import type { AppearanceMatrixBridgeContract } from "@orb/client/agent-bridge-contract";
 import type { AssetId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
@@ -16,11 +17,15 @@ const EXPECTED_HISTORICAL_ROWS = 7;
 /** The app's reduced-motion setting is `system | on | off`; the matrices exercise `on` against `system`, the manifest's two arms. */
 export const APP_REDUCED_MOTION_ON = "on";
 export const APP_REDUCED_MOTION_SYSTEM = "system";
-const READ_APPEARANCE_MATRIX_CONTRACT = `(() => {
+
+// Runs in the page, so it carries no import. It reads through `globalThis.__orb`, so a renamed accessor fails the typecheck.
+function readAppearanceMatrixContract(): AppearanceMatrixBridgeContract {
   const read = globalThis.__orb?.appearanceMatrixContract;
-  if (typeof read !== "function") throw new Error("__orb.appearanceMatrixContract is unavailable");
+  if (typeof read !== "function") {
+    throw new Error("__orb.appearanceMatrixContract is unavailable");
+  }
   return read();
-})()`;
+}
 
 export interface RuntimeAppearanceContractRow {
   readonly key: string;
@@ -239,7 +244,8 @@ export async function readRuntimeAppearanceContract(page: Page): Promise<Runtime
   // The contract is the DENOMINATOR for every axis this tool plans, so a malformed read is a
   // silently smaller matrix, not an error. Counts and the two row lists are settled here; the per-row
   // shape is already re-derived and cross-checked by `deriveAppearanceContract` above.
-  return runtimeAppearanceContractSchema.parse(await page.evaluate(READ_APPEARANCE_MATRIX_CONTRACT));
+  // `satisfies` holds the projection to what the client publishes: a client change this projection no longer takes fails the typecheck.
+  return runtimeAppearanceContractSchema.parse((await page.evaluate(readAppearanceMatrixContract)) satisfies RuntimeAppearanceContract);
 }
 
 function assertMessageRegistryReceipt(registry: RuntimeMessageRegistryReceipt | undefined): void {

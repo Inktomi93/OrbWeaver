@@ -89,26 +89,25 @@ export function decodeNavCall(method: NavMethod, target: string): NavInvocation 
  *  module's scope, and it is the one place the nav handle's members are called, so the compiler checks each against
  *  the client's own `OrbNavHandle`. */
 export async function callNavInPage(call: NavInvocation): Promise<NavOutcome> {
-  // Each call reads through `globalThis.__orb` itself, not an alias, because the member scan credits a read through the
-  // global door from any file and a read through a local alias only from a product file.
-  if (globalThis.__orb?.nav === undefined) {
+  const nav = globalThis.__orb?.nav;
+  if (nav === undefined) {
     return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };
   }
   switch (call.method) {
     case "section":
-      return globalThis.__orb.nav.section(...call.args);
+      return nav.section(...call.args);
     case "openModal":
-      return globalThis.__orb.nav.openModal(...call.args);
+      return nav.openModal(...call.args);
     case "openConfig":
-      return globalThis.__orb.nav.openConfig(...call.args);
+      return nav.openConfig(...call.args);
     case "panel":
-      return await globalThis.__orb.nav.panel(...call.args);
+      return await nav.panel(...call.args);
     case "openChat":
-      return await globalThis.__orb.nav.openChat(...call.args);
+      return await nav.openChat(...call.args);
     case "openCharacter":
-      return await globalThis.__orb.nav.openCharacter(...call.args);
+      return await nav.openCharacter(...call.args);
     case "contextTab":
-      return await globalThis.__orb.nav.contextTab(...call.args);
+      return await nav.contextTab(...call.args);
   }
 }
 

@@ -1,7 +1,7 @@
 // Reach + measured-click preparation + the __orb snapshot reads. Reach actions run BEFORE the trace
 // and the in-page evidence is reset after the last one — the numbers describe the interaction being
-// measured, not the trip to it. All __orb evaluates are raw strings (DOM-less tsconfig — see
-// floor/browser/browser.ts).
+// measured, not the trip to it. Every __orb read is a closure over `globalThis.__orb`, so the typecheck holds it to the
+// client's handle.
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/floor/artifacts/artifacts";
 import type { Page } from "@playwright/test";
@@ -15,17 +15,17 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
 /** Is the app's in-page instrument present at all? Checked BEFORE anything is measured: without it every
  *  `__orb` read below answers null/[] and each budget arm reads that as a clean zero (#409). */
 export async function hasOrbBridge(page: Page): Promise<boolean> {
-  return bridgePresence(await page.evaluate("globalThis.__orb !== undefined && globalThis.__orb !== null"));
+  return bridgePresence(await page.evaluate(() => globalThis.__orb !== undefined));
 }
 
 // #1004 — the three bridge reads are VALIDATED at the seam, not cast. Same reason the presence probe
 // above exists: every one of these feeds a budget, and a budget reads missing or wrong-shaped evidence
 // as a pass (`undefined > budget` is false). ops/page-validate.ts carries the full argument.
 export async function readMotion(page: Page): Promise<MotionSnapshot | null> {
-  return motionSnapshot(await page.evaluate("globalThis.__orb ? globalThis.__orb.motion() : null"));
+  return motionSnapshot(await page.evaluate(() => globalThis.__orb?.motion() ?? null));
 }
 export async function readAnimations(page: Page): Promise<readonly AnimationRecord[]> {
-  return animationRecords(await page.evaluate("globalThis.__orb ? globalThis.__orb.animations() : []"));
+  return animationRecords(await page.evaluate(() => globalThis.__orb?.animations() ?? []));
 }
 /** The TRANSIENT half (#1070). `animations()` above is a SAMPLER — a 130–360ms transition launched by the
  *  measured click is finished ~2s before it runs — so the flag ring is what carries the population the
@@ -35,7 +35,7 @@ export async function readFlags(page: Page): Promise<readonly MotionFlagRecord[]
   // `null` where the MEMBER is absent, never `[]`: an unobservable population and an empty one are
   // different facts, and folding them together is how the blindness comes back (lib/evidence.ts owns
   // the consequence). Distinguished on the page side because the node side cannot tell them apart after.
-  return flagRecords(await page.evaluate('globalThis.__orb && typeof globalThis.__orb.flags === "function" ? globalThis.__orb.flags() : null'));
+  return flagRecords(await page.evaluate(() => (typeof globalThis.__orb?.flags === "function" ? globalThis.__orb.flags() : null)));
 }
 
 /** Resolve Playwright's visibility/actionability geometry before the checkpoint. Those reads can run
