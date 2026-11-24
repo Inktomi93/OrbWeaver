@@ -4,7 +4,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { MEMBER_BUCKETS, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, labelsIn, plantJudged, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, labelsIn, NODE_TYPES, plantJudged, ZOD_MODULE } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/row.ts`;
 const quiet = (): undefined => undefined;
@@ -125,8 +125,10 @@ test("an untwinned schema key nothing reads reports as validated, apart from the
 test("a member sent whole into a file names the file destination, to its nested members, and sorts as ask", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({
+      ...NODE_TYPES,
       [RULES]: [
-        "declare function writeFileSync(path: string, data: string): void;",
+        '/// <reference types="node" />',
+        'import { writeFileSync } from "node:fs";',
         "export interface Export { readonly rows: string; readonly inner: { readonly deep: string } }",
         'export const save = (value: Export): void => writeFileSync("out.json", JSON.stringify(',
         "  // the export, whole",
@@ -138,9 +140,9 @@ test("a member sent whole into a file names the file destination, to its nested 
   const scan = await scanGraph(root, quiet);
   const sent = scan.members.unwired.map(({ key, sent: to, verdict }) => [key.slice(RULES.length + 1), to, verdict]);
   expect(sent).toEqual([
-    ["Export.rows", [`file ${RULES}:5`], "ask"],
-    ["Export.inner", [`file ${RULES}:5`], "ask"],
-    ["Export.inner.deep", [`file ${RULES}:5`], "ask"],
+    ["Export.rows", [`file ${RULES}:6`], "ask"],
+    ["Export.inner", [`file ${RULES}:6`], "ask"],
+    ["Export.inner.deep", [`file ${RULES}:6`], "ask"],
   ]);
 });
 

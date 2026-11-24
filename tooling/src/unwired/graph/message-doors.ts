@@ -33,13 +33,10 @@ import {
   isBinaryExpression,
   isBlock,
   isCallExpression,
-  isClassDeclaration,
   isFunctionDeclaration,
   isFunctionExpression,
   isIdentifier,
-  isInterfaceDeclaration,
   isMethodDeclaration,
-  isModuleDeclaration,
   isNewExpression,
   isNonNullExpression,
   isObjectLiteralExpression,
@@ -49,7 +46,6 @@ import {
   isPropertyDeclaration,
   isReturnStatement,
   isSatisfiesExpression,
-  isSourceFile,
   isStringLiteral,
   isVariableDeclaration,
   SyntaxKind,
@@ -58,6 +54,7 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } fr
 import { SymbolFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
 import type { Destination } from "../open-sends.ts";
+import { declarationHome, NODE_TYPES } from "../open-sends.ts";
 import type { FlowPair, Flows, HeldSends } from "./flows.ts";
 import { opaqueSlot } from "./flows.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -70,7 +67,6 @@ import { isPrimitive } from "./state.ts";
 const MESSAGE_SEND: Destination = { destination: "wire", receiver: null };
 
 // Where a door member is declared: an ambient module of `@types/node`, or the compiler's DOM library.
-const NODE_TYPES = "@types/node";
 const DOM = "dom";
 const NODE_MODULES = ["worker_threads", "child_process", "process", "events", "diagnostics_channel"] as const;
 const ORIGINS = [...NODE_MODULES, DOM] as const;
@@ -143,7 +139,6 @@ const MESSAGE_EVENT = "message";
 // A DOM listener receives the event; the message is its `data`.
 const EVENT_DATA = "data";
 const WORKER_DATA_OPTION = "workerData";
-const NODE_MODULE_PREFIX = "node:";
 
 // A module link's end: a parent's sends go down to the modules it loads, a child's go up to its loaders.
 type Link = { readonly kind: "down" | "up" | "data"; readonly file: string } | { readonly kind: "named"; readonly key: string };
@@ -264,7 +259,7 @@ export class MessageDoors {
       return null;
     }
     const { container, module } = declarationHome(node);
-    const origin = dom ? DOM : module;
+    const origin = dom ? DOM : nodeModule(module);
     return DOOR_MEMBERS.find((member) => member.origin === origin && member.container === container && member.member === name) ?? null;
   }
 
@@ -649,22 +644,5 @@ function returnsOf(fn: FunctionLike): readonly Node[] {
   return out;
 }
 
-// Where a library declaration sits: the class or interface that holds it (or is it), and the ambient module around it.
-function declarationHome(node: Node): { readonly container: string | null; readonly module: Origin | null } {
-  let container: string | null = null;
-  let module: Origin | null = null;
-  for (let at = node; module === null && !isSourceFile(at); at = at.parent) {
-    if (container === null && (isClassDeclaration(at) || isInterfaceDeclaration(at))) {
-      container = at.name?.text ?? null;
-    }
-    if (isModuleDeclaration(at) && isStringLiteral(at.name)) {
-      module = nodeModule(at.name.text);
-    }
-  }
-  return { container, module };
-}
-
-function nodeModule(name: string): Origin | null {
-  const bare = name.startsWith(NODE_MODULE_PREFIX) ? name.slice(NODE_MODULE_PREFIX.length) : name;
-  return NODE_MODULES.find((module) => module === bare) ?? null;
-}
+// The door origin of a Node module, by the bare name the shared declaration home reads (../open-sends.ts).
+const nodeModule = (module: string | null): Origin | null => NODE_MODULES.find((known) => known === module) ?? null;

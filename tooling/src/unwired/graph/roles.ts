@@ -363,9 +363,10 @@ const LITERAL_ROLES = ["construct", "compare", "case", "key", "type", "module"] 
 export type LiteralRole = (typeof LITERAL_ROLES)[number];
 
 /** What a reference to a function, a callable member or a tuple does with the value. `define`: an implementation
- *  supplies the member. `test`: a membership method reads it. `parse`: `z.enum` reads it. `escape`: the value
- *  leaves for code a scan cannot follow, so any argument or member may be reached there. */
-const VALUE_USES = ["call", "define", "type", "test", "parse", "escape"] as const;
+ *  supplies the member. `store`: a store into the member replaces its value, by any form {@link storeRoles} names.
+ *  `test`: a membership method reads it. `parse`: `z.enum` reads it. `escape`: the value leaves for code a scan cannot
+ *  follow, so any argument or member may be reached there. */
+const VALUE_USES = ["call", "define", "store", "type", "test", "parse", "escape"] as const;
 export type ValueUse = (typeof VALUE_USES)[number];
 
 const MEMBERSHIP_METHODS: ReadonlySet<string> = new Set(["includes", "has", "indexOf", "lastIndexOf"]);
@@ -441,13 +442,13 @@ const TYPE_PARENTS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.ExpressionWithTypeArguments,
 ]);
 
-const SYNTAX_ROLES = ["read", "write", "type"] as const;
-// Whether a name reads the value it names, stores into it, or only labels a type or declaration. A compound store's
-// read is the store's own, so it is a write.
+const SYNTAX_ROLES = ["read", "write", "store", "type"] as const;
+// Whether a name reads the value it names, gives it a value where it is written (a key, a member declaration), stores
+// into it, or only labels a type or declaration. A store is every form storeRoles names, and a compound store's or a
+// bump's read is the store's own.
 type SyntaxRole = (typeof SYNTAX_ROLES)[number];
 
-const accessRole = (access: Node): SyntaxRole =>
-  isBinaryExpression(access.parent) && sameNode(access.parent.left, access) && isAssignment(access.parent.operatorToken.kind) ? "write" : "read";
+const accessRole = (access: Node): SyntaxRole => (storeRoles(outermost(access)) === null ? "read" : "store");
 
 const isStringLiteralLike = (node: Node): boolean => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
 
@@ -507,8 +508,11 @@ export function valueUse(name: Node): ValueUse {
     return "call";
   }
   const role = syntaxRole(name);
+  if (role === "write") {
+    return "define";
+  }
   if (role !== "read") {
-    return role === "write" ? "define" : "type";
+    return role;
   }
   const value = readValue(name);
   const { parent } = value;

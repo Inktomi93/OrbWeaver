@@ -4,7 +4,7 @@
 // request; a parsed response and a logger field bag are not, and a literal element read of the parsed value is its read.
 import { expect, test } from "@orb/testkit/tooling";
 import type { FieldsReport } from "../../../tooling/src/unwired/index.ts";
-import { fieldsScan } from "./_planted.ts";
+import { fieldsScan, NODE_TYPES } from "./_planted.ts";
 
 const LIBRARIES = {
   "node_modules/pino/package.json": '{ "name": "pino", "types": "index.d.ts" }',
@@ -31,6 +31,7 @@ const LIBRARIES = {
 
 // Member names carry a zq prefix so the literal stage of a real-tree scan never matches this file.
 const OUTSIDE = [
+  '/// <reference types="node" />',
   'import type { Logger } from "pino";',
   'import { render } from "render";',
   'import { parse } from "schema";',
@@ -116,6 +117,8 @@ const BACKEND = [
 test("an open slot sends to the logger, library or file it leads to, and a backend value only to a request", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = await fieldsScan(plantedTree, {
     ...LIBRARIES,
+    // Node declares the global Blob a downloaded file is built from, which OUTSIDE references
+    ...NODE_TYPES,
     "packages/inference/src/other/outside.ts": OUTSIDE,
     "packages/inference/src/backends/chat.ts": BACKEND,
   });

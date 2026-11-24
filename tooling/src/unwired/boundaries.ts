@@ -1,5 +1,6 @@
 // Where a value leaves the process. A send is no read: a field counts as read only where its receiver reads it, so a
-// serialization names its destination and a Drizzle write carries each value into the column a query reads back.
+// send names its destination (./open-sends.ts) and a Drizzle write carries each value into the column a query
+// reads back.
 import type { CallExpression, Expression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
@@ -10,18 +11,12 @@ import {
   isCallExpression,
   isConditionalExpression,
   isIdentifier,
-  isNewExpression,
   isNonNullExpression,
   isObjectLiteralExpression,
   isParenthesizedExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isSatisfiesExpression,
-  isTaggedTemplateExpression,
-  isTemplateExpression,
-  isTemplateSpan,
-  isThrowStatement,
-  isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
 
@@ -41,139 +36,6 @@ export const PROVIDER_BODIES = "packages/inference/src/backends/";
 /** Dotted-path readers by name, `nestedValue(value, "a.b")`: the path is a wide string, so the call may read any nested
  *  member of its first argument. */
 export const NESTED_READS: ReadonlySet<string> = new Set(["nestedValue"]);
-
-/** What a serialization does with its value: consumed whole in the process, or sent to a destination. */
-export type Serialized = { readonly whole: true } | { readonly whole: false; readonly destination: SendDestination };
-
-const WHOLE: Serialized = { whole: true };
-const sent = (destination: SendDestination): Serialized => ({ whole: false, destination });
-
-// Comparing or ordering two serializations reads every field of both.
-const COMPARE_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.EqualsEqualsEqualsToken,
-  SyntaxKind.ExclamationEqualsEqualsToken,
-  SyntaxKind.EqualsEqualsToken,
-  SyntaxKind.ExclamationEqualsToken,
-  SyntaxKind.LessThanToken,
-  SyntaxKind.GreaterThanToken,
-  SyntaxKind.LessThanEqualsToken,
-  SyntaxKind.GreaterThanEqualsToken,
-]);
-
-// A map or set method whose first argument is a key: a serialization there is a cache or identity key.
-const KEYED_METHODS: ReadonlySet<string> = new Set(["get", "set", "has", "delete"]);
-const HASHING = /hash|digest|fingerprint|sha\d*$|^update$/iu;
-const KEY_BINDING = /key$|hash|fingerprint|signature|digest|identity/iu;
-const LOG_METHODS: ReadonlySet<string> = new Set(["trace", "debug", "info", "warn", "error", "fatal", "log"]);
-const FILE_CALLS = /^(?:writeFile|writeFileSync|appendFile|appendFileSync|write|writeSync)$/u;
-const WIRE_CALLS: ReadonlySet<string> = new Set(["send", "postMessage", "enqueue", "fetch"]);
-const BODY_KEYS: ReadonlySet<string> = new Set(["body", "data", "payload"]);
-
-const calleeName = (call: CallExpression | Node): string | null => {
-  const callee = (call as { readonly expression?: Node }).expression;
-  if (callee === undefined) {
-    return null;
-  }
-  if (isIdentifier(callee)) {
-    return callee.text;
-  }
-  return isPropertyAccessExpression(callee) ? callee.name.text : null;
-};
-
-// The receiver a method is called on, by its last name: `logger` in `ctx.logger.info(...)`.
-function receiverName(call: CallExpression): string | null {
-  const callee = call.expression;
-  if (!isPropertyAccessExpression(callee)) {
-    return null;
-  }
-  const target = callee.expression;
-  if (isIdentifier(target)) {
-    return target.text;
-  }
-  return isPropertyAccessExpression(target) ? target.name.text : null;
-}
-
-// The node a serialization's string reaches: through parentheses, assertions, template text, string concatenation and
-// an array of parts, as `new Blob([JSON.stringify(value)])` takes them.
-function consumerOf(start: Node): { readonly node: Node; readonly parent: Node } {
-  let node = start;
-  for (;;) {
-    const { parent } = node;
-    const concatenated = isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.PlusToken;
-    if (
-      isArrayLiteralExpression(parent) ||
-      isParenthesizedExpression(parent) ||
-      isAsExpression(parent) ||
-      isNonNullExpression(parent) ||
-      isTemplateSpan(parent) ||
-      isTemplateExpression(parent) ||
-      concatenated
-    ) {
-      node = parent;
-      continue;
-    }
-    return { node, parent };
-  }
-}
-
-function serializedIntoCall(call: CallExpression, node: Node): Serialized {
-  const name = calleeName(call);
-  if (name === null) {
-    return sent("unclassified");
-  }
-  if (KEYED_METHODS.has(name) && call.arguments[0] === node) {
-    return WHOLE;
-  }
-  if (HASHING.test(name)) {
-    return WHOLE;
-  }
-  const receiver = receiverName(call);
-  if (receiver !== null && (receiver === "console" || /log/iu.test(receiver)) && LOG_METHODS.has(name)) {
-    return sent("log");
-  }
-  if (FILE_CALLS.test(name)) {
-    return sent("file");
-  }
-  return WIRE_CALLS.has(name) ? sent("wire") : sent("unclassified");
-}
-
-function serializedIntoNew(construct: Node): Serialized {
-  const name = calleeName(construct);
-  if (name === "Response") {
-    return sent("http");
-  }
-  if (name === "Blob" || name === "TextEncoder") {
-    return sent("file");
-  }
-  return name?.endsWith("Error") === true ? sent("error") : sent("unclassified");
-}
-
-/** What the `JSON.stringify` call `call` does with its value, read from where its string goes. */
-export function serializedBy(call: CallExpression): Serialized {
-  const { node, parent } = consumerOf(call);
-  if (isBinaryExpression(parent) && COMPARE_OPERATORS.has(parent.operatorToken.kind)) {
-    return WHOLE;
-  }
-  if (isTaggedTemplateExpression(parent) || (isTemplateSpan(node) && isTaggedTemplateExpression(node.parent.parent))) {
-    return sent("stored");
-  }
-  if (isCallExpression(parent)) {
-    return serializedIntoCall(parent, node);
-  }
-  if (isNewExpression(parent)) {
-    return serializedIntoNew(parent);
-  }
-  if (isThrowStatement(parent)) {
-    return sent("error");
-  }
-  if (isPropertyAssignment(parent) && isIdentifier(parent.name) && BODY_KEYS.has(parent.name.text)) {
-    return sent("wire");
-  }
-  if (isVariableDeclaration(parent) && isIdentifier(parent.name) && KEY_BINDING.test(parent.name.text)) {
-    return WHOLE;
-  }
-  return sent("unclassified");
-}
 
 /** A Drizzle write: the table expression, the value it stores (an object literal or any other expression), and the
  *  builder method's name, where the library fills the columns a whole value carries. */

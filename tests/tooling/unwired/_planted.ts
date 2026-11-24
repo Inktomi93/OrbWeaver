@@ -211,11 +211,27 @@ export const REACT_TYPES = {
   ].join("\n"),
 };
 
-/** A minimal `@types/node` at its own path: the message doors' declarations in the ambient modules Node's types
- *  declare them in. A planted source reaches it through `/// <reference types="node" />`. */
+/** A minimal `@types/node` at its own path: the message doors' declarations and the platform a send reaches (the
+ *  crypto and file modules, the console, a socket, fetch and the web bodies) where Node's types declare them. A planted
+ *  source reaches it through `/// <reference types="node" />`. */
 export const NODE_TYPES = {
   "node_modules/@types/node/package.json": JSON.stringify({ name: "@types/node", types: "index.d.ts" }),
   "node_modules/@types/node/index.d.ts": [
+    'declare module "node:crypto" {',
+    "  export class Hash { update(data: string): Hash; digest(encoding: string): string }",
+    "  export function createHash(algorithm: string): Hash;",
+    "}",
+    'declare module "node:fs" {',
+    "  export function writeFileSync(path: string, data: string): void;",
+    "}",
+    // the file is a script: its top level is the global scope, as Node's globals are
+    "interface Console { log(...data: unknown[]): void }",
+    "declare var console: Console;",
+    "declare class WebSocket { send(data: string): void }",
+    "interface RequestInit { body?: string }",
+    "declare function fetch(url: string, init?: RequestInit): Promise<unknown>;",
+    "declare class Response { constructor(body: string) }",
+    "declare class Blob { constructor(parts: readonly string[]) }",
     'declare module "worker_threads" {',
     '  export class MessagePort { postMessage(value: any): void; on(event: "message", listener: (value: any) => void): this; }',
     "  export class Worker {",

@@ -258,7 +258,7 @@ class CodesRun {
 // declaration or a store.
 function readRole(node: Node): LiteralRole | null {
   const use = valueUse(node);
-  return use === "type" || use === "define" ? null : valueRole(accessOf(node));
+  return use === "type" || use === "define" || use === "store" ? null : valueRole(accessOf(node));
 }
 
 // The name a tuple element is read through: a constant, or the property a member access names. A spelled literal has none.

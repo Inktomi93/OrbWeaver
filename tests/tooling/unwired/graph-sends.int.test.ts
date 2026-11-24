@@ -3,7 +3,7 @@
 // member pairs it, and a library slot naming a field is a receiver reading it.
 import { expect, plantedTsconfig, plantLink, test } from "@orb/testkit/tooling";
 import { NativeWorld, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB, labelsIn, libraryModule, WORLD } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB, labelsIn, libraryModule, NODE_TYPES, WORLD } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/sends.ts`;
 const JSX_FILE = `${GRAPH_SOURCE}/card.tsx`;
@@ -297,9 +297,11 @@ test("a written data attribute is sent, a written aria attribute is read, and an
 test("a value checked by satisfies and handed into an opaque slot sends the checked type's members", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...libraryModule(["export declare function render(value: Readonly<Record<string, unknown>>): string;"], "render"),
+    ...NODE_TYPES,
     ...source([
+      '/// <reference types="node" />',
       'import { render } from "render";',
-      "declare function writeFileSync(path: string, data: string): void;",
+      'import { writeFileSync } from "node:fs";',
       "export interface View { readonly shown: string }",
       "export interface Bundle { readonly saved: number }",
       'export const shown = (): string => render({ shown: "s" } satisfies View);',
@@ -308,8 +310,8 @@ test("a value checked by satisfies and handed into an opaque slot sends the chec
     ]),
   });
   expect(scan.members.unwired.map(({ key, bucket, sent }) => [key.slice(FILE.length + 1), bucket, sent])).toEqual([
-    ["View.shown", "member-sent-only", [`dependency ${FILE}:5 render`]],
-    ["Bundle.saved", "member-sent-only", [`file ${FILE}:7`]],
+    ["View.shown", "member-sent-only", [`dependency ${FILE}:6 render`]],
+    ["Bundle.saved", "member-sent-only", [`file ${FILE}:8`]],
   ]);
 });
 
