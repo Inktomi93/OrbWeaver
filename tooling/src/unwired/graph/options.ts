@@ -1,6 +1,7 @@
 // The options of one graph session, parsed once by the `pnpm unwired` graph verbs (tooling/src/unwired/run.ts) and
 // threaded whole through the build, the analysis and the report. An ablated run's buckets are not the tree's: every
-// report names the ablations it ran under.
+// report names the ablations it ran under. The `--profile` reader is shared with `pnpm brand-flow`.
+import { UsageError } from "../../floor/cli/run-tool.ts";
 
 /** Where a graph session reports its progress. */
 export type GraphLog = (line: string) => void;
@@ -12,6 +13,26 @@ export type Ablation = (typeof ABLATIONS)[number];
 /** What `--profile` collects, any of them in one run: phase wall times and counts, the compiler's CPU profile, its heap profile. */
 export const PROFILES = ["wall", "cpu", "heap"] as const;
 export type ProfileKind = (typeof PROFILES)[number];
+
+// `--profile` takes a comma-separated list of kinds, each one of the PROFILES tuple, in every verb that profiles.
+const PROFILE_SEPARATOR = ",";
+
+/** A `--profile` value read as the kinds it names, each once; null when the flag was not given.
+ *  @throws {@link UsageError} When a kind is not one of {@link PROFILES}. */
+export function profileKinds(value: string | null): readonly ProfileKind[] | null {
+  if (value === null) {
+    return null;
+  }
+  const kinds = new Set<ProfileKind>();
+  for (const kind of value.split(PROFILE_SEPARATOR)) {
+    const found = PROFILES.find((candidate) => candidate === kind);
+    if (found === undefined) {
+      throw new UsageError(`--profile=${kind}: expected one of ${PROFILES.join(", ")}`);
+    }
+    kinds.add(found);
+  }
+  return [...kinds];
+}
 
 /** The build sites a run can trace to its log. */
 const TRACES = ["axis", "tv", "param-key", "verify-chain", "flow-walk"] as const;

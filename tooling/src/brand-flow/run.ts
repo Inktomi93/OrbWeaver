@@ -5,14 +5,20 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
-import type { OptionalInventory } from "../unwired/index.ts";
-import { optionalPairsGraph } from "../unwired/index.ts";
+import type { GraphProfileReport, OptionalInventory, ProfileKind } from "../unwired/index.ts";
+import { FRESH_BUILD, optionalPairsGraph, PROFILES, profileKinds, profileLines } from "../unwired/index.ts";
+import { BrandFlowProfile } from "./profile.ts";
 import { rank, renderReport } from "./report.ts";
 import type { BrandFlowReport } from "./scan.ts";
 import { scanBrandFlow } from "./scan.ts";
 
-const USAGE = "usage: pnpm brand-flow [--root=<dir>] [--out=<dir>]";
+const USAGE = `usage: pnpm brand-flow [--root=<dir>] [--out=<dir>] [--world=<tsconfig>]... [--profile[=<${PROFILES.join("|")}>[,...]]]`;
 const DEFAULT_OUT = "reports/brand-flow";
+// Where the compiler and Node profiles of a profiled run are written, under the run's output directory.
+const PROFILE_DIR = "profile";
+const FLAG = /^--(root|out|world|profile)(?:=(.+))?$/u;
+// `--profile` alone measures wall time, as it does for the unwired graph verbs.
+const BARE_PROFILE = PROFILES[0];
 
 /** What the brand-flow scan cannot see, written into both reports and printed with every run. */
 const BRAND_FLOW_LIMITS: readonly string[] = [
@@ -27,17 +33,45 @@ const log = (line: string): void => {
   process.stderr.write(`${line}\n`);
 };
 
-function parseArgs(argv: readonly string[]): { readonly root: string; readonly out: string } {
+interface BrandFlowArgs {
+  readonly root: string;
+  readonly out: string;
+  /** The worlds to scan; every world when absent. A narrowed run's report is not the tree's. */
+  readonly worlds: readonly string[] | undefined;
+  readonly profile: readonly ProfileKind[] | null;
+}
+
+// One argument's flag name and value; only `--profile` may go bare.
+function flagOf(arg: string): { readonly name: string; readonly given: string } {
+  const [, name, value] = FLAG.exec(arg) ?? [];
+  const given = value ?? (name === "profile" ? BARE_PROFILE : undefined);
+  if (name === undefined || given === undefined) {
+    throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
+  }
+  return { name, given };
+}
+
+function parseArgs(argv: readonly string[]): BrandFlowArgs {
   const flags = new Map<string, string>();
+  const worlds: string[] = [];
   for (const arg of argv) {
-    const match = /^--(root|out)=(.+)$/u.exec(arg);
-    if (match === null) {
-      throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
+    const { name, given } = flagOf(arg);
+    if (name !== "world" && flags.has(name)) {
+      throw new UsageError(`${arg}: --${name} given twice\n${USAGE}`);
     }
-    flags.set(match[1] ?? "", match[2] ?? "");
+    if (name === "world") {
+      worlds.push(given);
+    } else {
+      flags.set(name, given);
+    }
   }
   const root = resolve(flags.get("root") ?? process.cwd());
-  return { root, out: resolve(root, flags.get("out") ?? DEFAULT_OUT) };
+  return {
+    root,
+    out: resolve(root, flags.get("out") ?? DEFAULT_OUT),
+    worlds: worlds.length === 0 ? undefined : worlds,
+    profile: profileKinds(flags.get("profile") ?? null),
+  };
 }
 
 const TOP_GROUPS = 12;
@@ -113,10 +147,56 @@ function writeReport(out: string, report: BrandFlowReport, ranked: ReturnType<ty
   return statSync(target).size;
 }
 
+// Where the optional-pairs graph session writes its profiles, under the run's profile directory.
+const OPTIONAL_PAIRS_PROFILE = "optional-pairs";
+
+const edgeCounts = (edges: Pick<BrandFlowReport, "worlds" | "scanned" | "mints" | "widens">): ReadonlyMap<string, number> =>
+  new Map([
+    ["worlds", edges.worlds.length],
+    ["files", edges.scanned.files],
+    ["mints", edges.mints.length],
+    ["widens", edges.widens.length],
+  ]);
+
+// The scan's profile, then the optional-pairs graph session's under its own heading, then the run's bound: the two run
+// one after the other, so no moment held more than the larger of their bounds.
+function logProfiles(scanned: GraphProfileReport, graph: GraphProfileReport | null): void {
+  for (const line of profileLines(scanned)) {
+    log(line);
+  }
+  if (graph === null) {
+    return;
+  }
+  log("profile session optional-pairs graph (the merged program):");
+  for (const line of profileLines(graph)) {
+    log(line);
+  }
+  const bounds = [scanned.memory.combinedBoundMb, graph.memory.combinedBoundMb];
+  const measured = bounds.every((bound) => bound !== null);
+  log(`profile run memory bound=${measured ? `${String(Math.max(...bounds.map(Number)))}MB` : `unmeasured on ${process.platform}`}`);
+}
+
 export async function runBrandFlow(argv: readonly string[]): Promise<number> {
-  const { root, out } = parseArgs(argv);
-  const { plugins, ...edges } = scanBrandFlow({ root, log });
-  const { optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets } = await optionalPairsGraph(root, log, plugins);
+  const { root, out, worlds, profile: kinds } = parseArgs(argv);
+  const profileDir = join(out, PROFILE_DIR);
+  using profile = kinds === null ? null : await BrandFlowProfile.start(kinds, profileDir, root);
+  if (worlds !== undefined) {
+    log(`scan narrowed to ${worlds.join(", ")}: this report is not the tree's`);
+  }
+  const { plugins, ...edges } = scanBrandFlow({ root, log, profile, ...(worlds === undefined ? {} : { worlds }) });
+  // The scan's profile ends before the graph session starts its own: one Node heap sampler at a time, and the graph's
+  // compiler is measured by the session that opens it.
+  const scanned = profile === null ? null : await profile.finish(edgeCounts(edges));
+  const graph = await optionalPairsGraph(
+    root,
+    log,
+    plugins,
+    kinds === null ? FRESH_BUILD : { ...FRESH_BUILD, profile: { kinds, dir: join(profileDir, OPTIONAL_PAIRS_PROFILE) } },
+  );
+  if (scanned !== null) {
+    logProfiles(scanned, graph.session.profile);
+  }
+  const { optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets } = graph;
   const report: BrandFlowReport = { ...edges, optionalGroups, optionalAlternatives, optionalWitnesses, optionalWitnessSets };
   const ranked = rank(report);
   mkdirSync(out, { recursive: true });

@@ -395,8 +395,13 @@ export function fieldsGraph(root: string, rulings: MemberRulings, log: GraphLog)
 }
 
 /** Build the graph, then read the optional fields production supplies at separate constructions (`pnpm brand-flow`). */
-export function optionalPairsGraph(root: string, log: GraphLog, plugins: PluginSources): Promise<WithSession<OptionalInventory>> {
-  return session(root, log, { options: FRESH_BUILD, ...MEMBER_SITES }, (work) => optionalPairsOf(work.graph.facts, work.world(), plugins));
+export function optionalPairsGraph(
+  root: string,
+  log: GraphLog,
+  plugins: PluginSources,
+  options: GraphOptions = FRESH_BUILD,
+): Promise<WithSession<OptionalInventory>> {
+  return session(root, log, { options, ...MEMBER_SITES }, (work) => optionalPairsOf(work.graph.facts, work.world(), plugins));
 }
 
 /** Build and analyse the graph, then report its judged rows of callable members as the member scan, split by `rulings`. */
