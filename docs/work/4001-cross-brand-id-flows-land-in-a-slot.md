@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-24
 priority: P2
 area: server
+lane: wt/agent-a6474383d2e1132bc
 ---
 
 # Cross-brand id flows land in a slot of their own brand
