@@ -2,6 +2,8 @@
 // its callers pass, a zod schema's keys are its checked type's members (an inline union's arms, an `extend` literal's and
 // a `z.lazy` arrow's too), a reflective platform call reads every member, a redeclared member shares its reads, a
 // function filling a function slot pairs its parameters, and a JSX attribute's value fills the prop it is handed to.
+import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
@@ -509,30 +511,38 @@ test("a JSX attribute's value fills the prop it is handed to", { timeout: 120_00
 });
 
 // A TanStack Form field path walks the form data type segment by segment: a write method writes each member on the
-// path, and any other path argument or a field component's `name` reads each. A member no path or code names stays
-// untouched, and an optional member only a path reads reports read-only.
+// path, any other path argument reads each, and a field component's `name` binds the member's input, so it reads and
+// writes each. A member no path or code names stays untouched, and an optional member only a path reads reports
+// read-only.
+const FORM_API = {
+  [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
+  [`${GRAPH_SOURCE}/form-api.ts`]: [
+    "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
+    "export type ReactFormExtendedApi<TFormData> = {",
+    "  readonly state: { readonly values: TFormData };",
+    "  setFieldValue(name: string, value: unknown): void;",
+    "  getFieldValue(name: string): unknown;",
+    "  reset(): void;",
+    "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
+    "  readonly AppField: (props: FieldProps<TFormData>) => JSX.Element;",
+    "};",
+    "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
+  ].join("\n"),
+};
+
 test("a form field path reads or writes each member along its segments", { timeout: 120_000 }, async ({ plantedTree }) => {
   const form = `${GRAPH_SOURCE}/form.tsx`;
   const scan = await graphScan(
     plantedTree,
     {
-      [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
-      [`${GRAPH_SOURCE}/form-api.ts`]: [
-        "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
-        "export type ReactFormExtendedApi<TFormData> = {",
-        "  setFieldValue(name: string, value: unknown): void;",
-        "  getFieldValue(name: string): unknown;",
-        "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
-        "};",
-        "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
-      ].join("\n"),
+      ...FORM_API,
       [form]: [
         'import { useForm } from "./form-api.ts";',
-        "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly gone?: string }",
+        "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly note?: string; readonly gone?: string }",
         "export function Editor(): JSX.Element {",
         "  const form = useForm<Values>({ defaultValues: { params: { fixed: 1 } } });",
         "  form.setFieldValue('params.seed', 3);",
-        "  const seed = [form.getFieldValue('params.seed'), form.getFieldValue('params.fixed')];",
+        "  const seed = [form.getFieldValue('params.seed'), form.getFieldValue('params.fixed'), form.getFieldValue('note')];",
         "  return <form.Field name='title'>{seed}</form.Field>;",
         "}",
       ].join("\n"),
@@ -543,7 +553,179 @@ test("a form field path reads or writes each member along its segments", { timeo
     readOnly: labelsIn(scan, "member-read-only", form),
     untouched: labelsIn(scan, "member-untouched", form),
     writeOnly: labelsIn(scan, "member-write-only", form),
-  }).toEqual({ readOnly: ["Values.title"], untouched: ["Values.params.dead", "Values.gone"], writeOnly: [] });
+  }).toEqual({ readOnly: ["Values.note"], untouched: ["Values.params.dead", "Values.gone"], writeOnly: [] });
+});
+
+// A form is an object that holds its data at `state.values` and stores through `setFieldValue` and `getFieldValue`. A
+// store that only holds `state.values`, with a `Field` component and a reading method of its own, is no form: its string
+// arguments name no member. `Real.alpha` is the control a real form's field binds.
+test("a string path on an object that holds state.values but is no form writes and reads nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const file = `${GRAPH_SOURCE}/store.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      ...FORM_API,
+      [file]: [
+        'import { useForm } from "./form-api.ts";',
+        "export interface Real { readonly alpha?: string }",
+        "export interface Fake { readonly beta?: string; readonly gamma?: string }",
+        "interface Store { readonly state: { readonly values: Fake }; readonly Field: (props: { readonly name: string }) => JSX.Element; read(name: string): unknown }",
+        "declare const store: Store;",
+        "export function Panel(): JSX.Element {",
+        "  const form = useForm<Real>({ defaultValues: {} });",
+        "  const seen = store.read('gamma');",
+        "  return (",
+        "    <>",
+        "      <form.Field name='alpha'>{seen}</form.Field>",
+        "      <store.Field name='beta' />",
+        "    </>",
+        "  );",
+        "}",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect(labelsIn(scan, "member-untouched", file)).toEqual(["Fake.beta", "Fake.gamma", "Store.state.values"]);
+});
+
+// biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template path
+const BOUND_FIELD = "      <form.AppField name={`macros[${INDEX}].MEMBER`}>{shown}</form.AppField>";
+const boundField = (index: string, member: string): string => BOUND_FIELD.replace("INDEX", index).replace("MEMBER", member);
+
+// A template path through an array index, `macros[${index}].description`, resolves through the form's value type: the
+// substitution inside brackets must be a number, and each segment must name a member of the type it walks. `ghost` is
+// named by no path (the path spells `ghostly`, a member the type lacks), and `spare` only by a path whose bracket
+// substitution is a string: neither is guessed.
+test("a field bound by a template path writes the member the path names, resolved through the form's value type", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const form = `${GRAPH_SOURCE}/macros.tsx`;
+  const scan = await graphScan(
+    plantedTree,
+    {
+      ...FORM_API,
+      [form]: [
+        'import { useForm } from "./form-api.ts";',
+        "export interface Macro { readonly description?: string; readonly strict?: boolean; readonly spare?: string; readonly ghost?: string }",
+        "export interface Values { readonly macros: readonly Macro[] }",
+        "export function Editor({ index, label }: { readonly index: number; readonly label: string }): JSX.Element {",
+        "  const form = useForm<Values>({ defaultValues: { macros: [] } });",
+        "  const shown = form.getFieldValue('macros');",
+        "  return (",
+        "    <>",
+        boundField("index", "description"),
+        boundField("index", "strict"),
+        boundField("index", "ghostly"),
+        boundField("label", "spare"),
+        "    </>",
+        "  );",
+        "}",
+      ].join("\n"),
+    },
+    { jsx: true },
+  );
+  expect({
+    readOnly: labelsIn(scan, "member-read-only", form),
+    untouched: labelsIn(scan, "member-untouched", form),
+    writeOnly: labelsIn(scan, "member-write-only", form),
+  }).toEqual({ readOnly: [], untouched: ["Macro.spare", "Macro.ghost"], writeOnly: [] });
+});
+
+// The user macro editor takes its form as a prop typed `Omit<AppFormInstance<T>, "reset">` through a generic overload,
+// where `AppFormInstance` is a project alias over the installed TanStack hook's return, and its value type is
+// `z.infer` of an installed zod schema. The form's type carries the project's alias, not the hook's own, so its data
+// type is read from `state.values`, and the form's path then reaches the schema's key through zod's mapped output type.
+// The installed packages are linked into the planted tree. `spare` is the control a second scan binds alone.
+const INSTALLED = join(import.meta.dirname, "../../../packages");
+const REACT_FORM_DIR = realpathSync(join(INSTALLED, "client/node_modules/@tanstack/react-form"));
+const ZOD_DIR = realpathSync(join(INSTALLED, "contracts/node_modules/zod"));
+const MACRO_MODEL = `${GRAPH_SOURCE}/macro-model.ts`;
+const DIALOG_FILE = `${GRAPH_SOURCE}/dialog.tsx`;
+
+async function validatedKeys(plantedTree: (tree: Record<string, string>) => Promise<string>, bound: readonly string[]): Promise<readonly string[]> {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
+        [MACRO_MODEL]: [
+          'import { z } from "zod";',
+          "export const macroSchema = z",
+          "  .object({",
+          "    name: z.string(),",
+          '    description: z.string().default(""),',
+          "    strict: z.boolean().default(false),",
+          '    spare: z.string().default(""),',
+          "  })",
+          "  .strip()",
+          "  .superRefine(() => undefined);",
+          "export type Spec = z.infer<typeof macroSchema>;",
+          "export interface Values { readonly macros: Spec[]; readonly macroRowIds: string[] }",
+          "export const parsed = (raw: unknown): Spec => macroSchema.parse(raw);",
+          "export const shownName = (spec: Spec): string => spec.name;",
+        ].join("\n"),
+        [`${GRAPH_SOURCE}/macro-form.ts`]: [
+          'import { createFormHook, createFormHookContexts } from "@tanstack/react-form";',
+          "const { fieldContext, formContext } = createFormHookContexts();",
+          "export const { useAppForm } = createFormHook({ fieldContext, formContext, fieldComponents: {}, formComponents: {} });",
+          "type Wildcard = any;",
+          "export type AppFormInstance<T extends object> = ReturnType<typeof useAppForm<T, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard, Wildcard>>;",
+        ].join("\n"),
+        [DIALOG_FILE]: [
+          'import type { AppFormInstance } from "./macro-form.ts";',
+          'import type { Values } from "./macro-model.ts";',
+          "export interface Props<T extends Values = Values> { readonly form: Omit<AppFormInstance<T>, 'reset'>; readonly index: number }",
+          "export function Dialog<T extends Values>(props: Props<T>): JSX.Element;",
+          "export function Dialog({ form, index }: Props): JSX.Element {",
+          "  return (",
+          "    <>",
+          ...bound.map((member) => boundField("index", member)),
+          "    </>",
+          "  );",
+          "}",
+        ]
+          .join("\n")
+          .replaceAll("{shown}", "{null}"),
+      },
+      { jsx: true },
+    ),
+  );
+  mkdirSync(join(root, "node_modules/@tanstack"), { recursive: true });
+  symlinkSync(ZOD_DIR, join(root, "node_modules/zod"));
+  symlinkSync(REACT_FORM_DIR, join(root, "node_modules/@tanstack/react-form"));
+  return labelsIn(await scanGraph(root, () => undefined), "member-validated", MACRO_MODEL);
+}
+
+test("a field on a project-aliased, Omit-narrowed form writes the schema key its inferred member came from", { timeout: 180_000 }, async ({ plantedTree }) => {
+  expect(await validatedKeys(plantedTree, ["spare"])).toEqual(["macroSchema.description", "macroSchema.strict"]);
+  expect(await validatedKeys(plantedTree, ["description", "strict"])).toEqual(["macroSchema.spare"]);
+});
+
+// `Spec` bans `when` by `?: undefined` beside the `when` of the node type it intersects. A `z.ZodType<Spec>` binding over
+// a schema of that node pairs only declarations the output and the declared type do not share, so the node's reads stay
+// on the shared `Visibility.when` and the ban is judged by its own sends: only `Spec.when` is left, as a send.
+test("a ban member typed undefined takes no read from the same-named member of the type it intersects through a ZodType binding", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Visibility { readonly when?: string }",
+      'export type Node = Visibility & { readonly kind: "a" };',
+      "export type Spec = Node & { readonly when?: undefined };",
+      "export const nodeSchema: z.ZodType<Node> = z.object({ kind: z.string(), when: z.string().optional() }) as never;",
+      "export const specSchema: z.ZodType<Spec> = nodeSchema.refine((spec) => spec.when === undefined) as never;",
+      "export const shown = (node: Node): string | undefined => node.when;",
+      'export const made: Node = { kind: "a", when: "yes" };',
+      'export const banned: Spec = { kind: "a" };',
+      "export const kindOf = (spec: Spec): string => spec.kind;",
+      "export const sent = JSON.stringify(banned);",
+    ]),
+  });
+  expect({ sent: bare(labelsIn(scan, "member-sent-only", FILE)), untouched: bare(labelsIn(scan, "member-untouched", FILE)) }).toEqual({
+    sent: ["Spec.when"],
+    untouched: [],
+  });
 });
 
 // A read off a receiver typed `any` names no member, so it credits none: it is a lost read by its name alone, which the

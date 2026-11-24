@@ -17,6 +17,7 @@ import type {
   NoSubstitutionTemplateLiteral,
   ObjectLiteralExpression,
   StringLiteral,
+  TemplateExpression,
   TypeNode,
 } from "@typescript/native/ast";
 import {
@@ -52,6 +53,7 @@ import {
   isPropertySignatureDeclaration,
   isSatisfiesExpression,
   isStringLiteral,
+  isTemplateExpression,
   isTypeLiteralNode,
   isTypeOperatorNode,
   isTypeReferenceNode,
@@ -296,8 +298,11 @@ function rootOf(at: Node, parent: Node): SlotRoot | null {
   return null;
 }
 
-// TanStack Form's form instance types: their first alias type argument is the form data type its field paths walk.
-const FORM_APIS: ReadonlySet<string> = new Set(["ReactFormExtendedApi", "AppFieldExtendedReactFormApi", "ReactFormApi", "FormApi"]);
+// A TanStack form instance holds its data at `state.values`: the type its field paths walk.
+const FORM_STATE = "state";
+const FORM_VALUES = "values";
+// The field methods every form instance has beside its state.
+const FORM_IDENTITY: readonly string[] = ["setFieldValue", "getFieldValue"];
 // The JSX components a form instance carries whose `name` attribute is a field path.
 const FORM_FIELDS: ReadonlySet<string> = new Set(["Field", "AppField"]);
 const FORM_NAME = "name";
@@ -317,10 +322,12 @@ const FORM_WRITES: ReadonlySet<string> = new Set([
 // A dotted path's segments: `items[0].name` is `items`, an element, `name`.
 const PATH_SEGMENT = /[^.[\]]+|\[\d+\]/gu;
 
-/** A form path site: the receiver whose type is the form, and the role the path plays. */
+/** A form path site: the receiver whose type is the form, and the role the path plays. A field component's `name`
+ *  `binds` the member's input: the member is shown and written by the user's edits. */
 interface FormPath {
   readonly form: Node;
   readonly role: SyntaxRole;
+  readonly binds: boolean;
 }
 
 function formPathOf(slot: Slot): FormPath | null {
@@ -329,32 +336,65 @@ function formPathOf(slot: Slot): FormPath | null {
     return null;
   }
   if (root.kind === "argument" && root.index === 0 && isPropertyAccessExpression(root.call.expression)) {
-    return { form: root.call.expression.expression, role: FORM_WRITES.has(root.call.expression.name.text) ? "write" : "read" };
+    return { form: root.call.expression.expression, role: FORM_WRITES.has(root.call.expression.name.text) ? "write" : "read", binds: false };
   }
   if (root.kind !== "attribute" || !isIdentifier(root.attribute.name) || root.attribute.name.text !== FORM_NAME) {
     return null;
   }
   const element = root.attribute.parent.parent;
   const tag = isJsxOpeningElement(element) || isJsxSelfClosingElement(element) ? element.tagName : undefined;
-  return tag !== undefined && isPropertyAccessExpression(tag) && FORM_FIELDS.has(tag.name.text) ? { form: tag.expression, role: "read" } : null;
+  return tag !== undefined && isPropertyAccessExpression(tag) && FORM_FIELDS.has(tag.name.text) ? { form: tag.expression, role: "read", binds: true } : null;
 }
 
+// The form data type a form instance carries: `state.values`. A form's type is read by its members, never by the alias
+// it is spelled under, because a project alias over the hook's return (`AppFormInstance<T>`) or an `Omit` of it hides
+// the form type's own alias. An object is a form only when it also stores and reads fields as a form does, so a store
+// that merely holds `state.values` takes no path.
 function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | undefined> {
   const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
-  const alias = yield* type.getAliasSymbol.gen();
-  return alias !== undefined && FORM_APIS.has(alias.name) ? (yield* type.getAliasTypeArguments.gen())[0] : undefined;
+  const state = yield* checker.getPropertyOfType.gen(type, FORM_STATE);
+  if (state === undefined) {
+    return undefined;
+  }
+  for (const name of FORM_IDENTITY) {
+    if ((yield* checker.getPropertyOfType.gen(type, name)) === undefined) {
+      return undefined;
+    }
+  }
+  const values = yield* checker.getPropertyOfType.gen(yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(state)), FORM_VALUES);
+  return values === undefined ? undefined : yield* checker.getTypeOfSymbol.gen(values);
+}
+
+// A template path's text with each index substitution spelled `0`: `macros[${index}].name`. A substitution is an index
+// only inside brackets and only when the checker types it a number; any other substitution names no segment the form's
+// type could confirm, so the path is unread.
+function* templateText(checker: Checker, key: TemplateExpression): APIRequestGenerator<string | undefined> {
+  let text = key.head.text;
+  for (const span of key.templateSpans) {
+    const type = yield* checker.getTypeAtLocation.gen(span.expression);
+    if (!(text.endsWith("[") && span.literal.text.startsWith("]") && hasFlag(type.flags, TypeFlags.NumberLike))) {
+      return undefined;
+    }
+    text += `0${span.literal.text}`;
+  }
+  return text;
 }
 
 /** A TanStack Form field path: the member each dotted segment of `key` walks, in order, and whether the path stores
- *  into the field (a form write method) or reads it; null for a key in no form path slot. A segment that names no member
- *  ends the walk with what it found. */
+ *  into the field (a form write method), reads it, or binds it (a field component's `name`); null for a key in no form
+ *  path slot. A segment that names no member ends the walk with nothing found. */
 export function* formPath(
   checker: Checker,
-  key: StringLiteral | NoSubstitutionTemplateLiteral,
-): APIRequestGenerator<{ readonly members: readonly NativeSymbol[]; readonly role: SyntaxRole } | null> {
+  key: StringLiteral | NoSubstitutionTemplateLiteral | TemplateExpression,
+): APIRequestGenerator<{ readonly members: readonly NativeSymbol[]; readonly role: SyntaxRole; readonly binds: boolean } | null> {
   const form = formPathOf(slotOf(key));
   const data = form === null ? undefined : yield* formData(checker, form.form);
-  return form === null || data === undefined ? null : { members: (yield* walkPath(checker, data, key.text)) ?? [], role: form.role };
+  if (form === null || data === undefined) {
+    return null;
+  }
+  const text = isTemplateExpression(key) ? yield* templateText(checker, key) : key.text;
+  const members = text === undefined ? null : yield* walkPath(checker, data, text);
+  return { members: members ?? [], role: form.role, binds: form.binds };
 }
 
 // An array's element type, or undefined for a type that is no array.

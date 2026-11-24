@@ -84,13 +84,15 @@ test("a generic call's key slot names the member of the type its argument binds 
 });
 
 // Step six: TanStack Form's paths walk the form data type segment by segment. `setFieldValue` writes `params.seed`,
-// `getFieldValue` reads it, a `Field` reads `title`; `params.dead` and `gone` are named by nobody. The default
-// values write `params.fixed`, so a set path taken as a read would leave `params.seed` never written.
+// `getFieldValue` reads it, a `Field` binds `title` (it reads and writes it) and a `getFieldValue` alone reads `note`;
+// `params.dead` and `gone` are named by nobody. The default values write `params.fixed`, so a set path taken as a read
+// would leave `params.seed` never written.
 const FORM = {
   [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
   [`${GRAPH_SOURCE}/form-api.ts`]: [
     "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
     "export type ReactFormExtendedApi<TFormData> = {",
+    "  readonly state: { readonly values: TFormData };",
     "  setFieldValue(name: string, value: unknown): void;",
     "  getFieldValue(name: string): unknown;",
     "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
@@ -99,11 +101,11 @@ const FORM = {
   ].join("\n"),
   [`${GRAPH_SOURCE}/form.tsx`]: [
     'import { useForm } from "./form-api.ts";',
-    "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly gone?: string }",
+    "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly note?: string; readonly gone?: string }",
     "export function Editor(): JSX.Element {",
     "  const form = useForm<Values>({ defaultValues: { params: { fixed: 1 } } });",
     "  form.setFieldValue('params.seed', 3);",
-    "  const seed = [form.getFieldValue('params.seed'), form.getFieldValue('params.fixed')];",
+    "  const seed = [form.getFieldValue('params.seed'), form.getFieldValue('params.fixed'), form.getFieldValue('note')];",
     "  return <form.Field name='title'>{seed}</form.Field>;",
     "}",
   ].join("\n"),
@@ -112,8 +114,8 @@ const FORM = {
 test("a form field path reads or writes each member along its segments", { timeout: 120_000 }, async ({ plantedTree }) => {
   expect(named((await fieldsScan(plantedTree, FORM, { jsx: true })).unwired, "form.tsx")).toEqual([
     "Values.gone unreferenced",
+    "Values.note never-written",
     "Values.params.dead unreferenced",
-    "Values.title never-written",
   ]);
 });
 

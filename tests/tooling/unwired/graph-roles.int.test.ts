@@ -196,3 +196,55 @@ test("a dev-bridge member read through the global counts as read; one read off i
   expect(judged("member-sent-only").map(([label]) => label)).toEqual(["Bridge.bar", "Bridge.direct"]);
   expect(judged("member-write-only")).toEqual([["Plain.p", expect.stringContaining(OUTSIDE_NOTES.read)]]);
 });
+
+// A `typeof a.x` query names the member by key, as `T["x"]` does: a touch, never a read. `A.y` is the control nothing
+// names, and `B.x` shares `A.x`'s name with no query.
+test("a member a typeof query names is touched; a member of the same name on another type is not", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface A { readonly x: string; readonly y: string }",
+      "export interface B { readonly x: string }",
+      "export declare const a: A;",
+      "export declare const b: B;",
+      "export type Queried = typeof a.x;",
+      "export type Whole = typeof b;",
+    ]),
+  );
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["A.y", "B.x"]);
+});
+
+// A getter or setter in an object literal typed as `I` fills `I`'s member as a method does: it writes the member, and a
+// read of the member reads it. `I.unseen` is the control no one reads; it takes the write and no more. A getter in a
+// literal no slot types is code, not stored data: it behaves as a method key does and stays untouched: `box.spare`.
+test("a getter or setter in a typed object literal writes the member it fills", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface I { readonly seen?: number; readonly unseen?: number; value?: number }",
+      "let stored = 0;",
+      "export const made: I = {",
+      "  get seen(): number {",
+      "    return 1;",
+      "  },",
+      "  get unseen(): number {",
+      "    return 2;",
+      "  },",
+      "  set value(next: number) {",
+      "    stored = next;",
+      "  },",
+      "};",
+      "export const n = made.seen;",
+      "export const box = {",
+      "  get spare(): number {",
+      "    return 3;",
+      "  },",
+      "};",
+    ]),
+  );
+  expect({
+    readOnly: labelsIn(scan, "member-read-only", FILE),
+    writeOnly: labelsIn(scan, "member-write-only", FILE),
+    untouched: labelsIn(scan, "member-untouched", FILE),
+  }).toEqual({ readOnly: [], writeOnly: ["I.unseen", "I.value"], untouched: ["box.spare"] });
+});

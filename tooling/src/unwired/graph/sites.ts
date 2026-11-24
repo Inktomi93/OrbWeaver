@@ -152,7 +152,7 @@ import { hasFlag } from "../native.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
 import type { Role } from "./roles.ts";
-import { accessRoles, inAssignmentPattern, referenceRoles, sameNode } from "./roles.ts";
+import { accessRoles, inAssignmentPattern, referenceRoles, sameNode, typeQueryRoles } from "./roles.ts";
 
 /** A module's node in the graph: a use of it runs the module. */
 export type ModuleKey = `M:${string}`;
@@ -460,7 +460,7 @@ export interface LocalBinding {
  *  zod shape literal's keys, a twinned `extend` literal's too, name the parsed value's members and write nothing. */
 export interface LiteralProperty {
   readonly literal: ObjectLiteralExpression;
-  readonly property: PropertyAssignment | ShorthandPropertyAssignment | MethodDeclaration;
+  readonly property: PropertyAssignment | ShorthandPropertyAssignment | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration;
   readonly name: string;
   readonly at: number;
   readonly value: Node | undefined;
@@ -1427,7 +1427,7 @@ class Walker {
         this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.initializer, schema });
       } else if (isShorthandPropertyAssignment(property)) {
         this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.name, schema });
-      } else if (isMethodDeclaration(property)) {
+      } else if (isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property)) {
         this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: undefined, schema });
       }
     }
@@ -1457,8 +1457,14 @@ class Walker {
   #name(node: Node, inType: boolean): void {
     if ((isIdentifier(node) || isPrivateIdentifier(node)) && !forwards(node.parent)) {
       const declares = declaresName(node);
-      const silent = inType || declares || this.#handedToColumn(node);
-      this.#sites.names.push({ node, from: this.#holder, inType, handed: !inType && handsOn(node), roles: silent ? [] : referenceRoles(node), declares });
+      this.#sites.names.push({
+        node,
+        from: this.#holder,
+        inType,
+        handed: !inType && handsOn(node),
+        roles: declares ? [] : this.#rolesOf(node, inType),
+        declares,
+      });
       if (isShorthandPropertyAssignment(node.parent)) {
         this.#sites.shorthands.push({ node: node.parent, from: this.#holder });
       }
@@ -1623,14 +1629,20 @@ class Walker {
     return [{ name: property.name.text, decl: this.#sink.keyOf(property) }];
   }
 
-  // A name whose read a Drizzle write or a table definition takes over (the header's ruling).
-  #handedToColumn(node: Node): boolean {
-    return this.#frame.copied.has(node) || (this.#frame.tables > 0 && isPropertyAccessExpression(node.parent) && node.parent.name === node);
+  // What a name does: in a type position only a `typeof` query's member is touched; in a value position its syntax decides,
+  // except where a Drizzle write or a table definition takes the read over (the header's ruling; handedToColumn
+  // asks the same rule from the name up, for the census).
+  #rolesOf(node: Node, inType: boolean): readonly Role[] {
+    if (inType) {
+      return typeQueryRoles(node);
+    }
+    const handed = this.#frame.copied.has(node) || (this.#frame.tables > 0 && isPropertyAccessExpression(node.parent) && node.parent.name === node);
+    return handed ? [] : referenceRoles(node);
   }
 
   // A Drizzle write's stored values, the reads its literal keys copy, and the argument it stores (the header's ruling).
   #stores(node: CallExpression): void {
-    const stores = [...storeWritesAt(node), ...insertSelectWritesAt(node)];
+    const stores = storesAt(node);
     if (stores.length === 0) {
       return;
     }
@@ -1639,7 +1651,7 @@ class Walker {
     for (const stored of [...(argument === undefined ? [] : [argument]), ...stores.map(({ value }) => value)]) {
       this.#frame.stored.add(stored);
     }
-    for (const read of stores.flatMap(({ value }) => (isObjectLiteralExpression(value) ? value.properties.flatMap(keyCopiedReads) : []))) {
+    for (const read of copiedBy(stores)) {
       this.#frame.copied.add(read);
     }
   }
@@ -1869,15 +1881,32 @@ function declaredReturnType(node: Node): TypeNode | undefined {
   return isFunctionLikeDeclaration(at) ? at.type : undefined;
 }
 
-// A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
-// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
-// The reads a stored literal's key copies into its column.
-const keyCopiedReads = (property: Node): readonly Node[] => (isPropertyAssignment(property) ? copiedReads(property.initializer) : []);
+const storesAt = (node: Node): readonly StoreWrite[] => [...storeWritesAt(node), ...insertSelectWritesAt(node)];
+
+// The reads the literal keys of stored values copy into their columns.
+const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
+  stores.flatMap(({ value }) =>
+    isObjectLiteralExpression(value) ? value.properties.flatMap((property) => (isPropertyAssignment(property) ? copiedReads(property.initializer) : [])) : [],
+  );
+
+/** Whether a Drizzle write copies the name's read into a column, or a table definition holds it: the reads the walk
+ *  gives no role (the header's ruling), found from the name up through its enclosing calls. */
+export function handedToColumn(name: Node): boolean {
+  const inTable = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name);
+  for (let at = name.parent; !isSourceFile(at); at = at.parent) {
+    if (copiedBy(storesAt(at)).some((read) => sameNode(read, name)) || (inTable && tableDefinition(at) !== null)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // A value a `satisfies` holds to a type: a binding or a literal, never a builder call such as a zod schema.
 const isCheckedValue = (value: Node | undefined): boolean =>
   value !== undefined && (isIdentifier(value) || isObjectLiteralExpression(value) || isArrayLiteralExpression(value));
 
+// A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
+// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {
     return { value: node.initializer, slot: "declared", holder: node.name };

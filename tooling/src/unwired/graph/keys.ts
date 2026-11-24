@@ -25,6 +25,7 @@ import {
   isNoSubstitutionTemplateLiteral,
   isParameterDeclaration,
   isStringLiteral,
+  isTemplateExpression,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
@@ -191,19 +192,24 @@ export class Keys {
     }
   }
 
-  // A TanStack Form field path, `form.setFieldValue("params.seed", v)` or `<form.Field name="title">`: each segment's
-  // member is written by a form write method and read by any other path (../key-resolver.ts formPath).
+  // A TanStack Form field path, `form.setFieldValue("params.seed", v)`, `<form.Field name="title">` or a field bound by
+  // a template over an index, `<form.AppField name={`items[${i}].title`}>`: each segment's member is written by a form
+  // write method, read by any other path, and both read and written by a field component, which binds the member's
+  // input (../key-resolver.ts formPath).
   #formPaths(sites: FileSites): void {
     const state = this.#state;
     const keys = [
       ...sites.keyArguments,
       ...sites.jsxAttributes.flatMap(({ name, value }) => (name === FORM_NAME && value !== undefined ? [value] : [])),
-    ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key));
+    ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key) || isTemplateExpression(key));
     const paths = state.batch(keys.map((key) => formPath(state.world.checker, key)));
     for (const [y, key] of keys.entries()) {
       const path = paths[y];
       if (path !== null && path !== undefined) {
-        state.roleAll(state.declarations(path.members).flat(), path.role === "write" ? "write" : "read", sites.file, key.pos);
+        const roles: readonly Role[] = path.binds ? ["read", "write"] : [path.role === "write" ? "write" : "read"];
+        for (const role of roles) {
+          state.roleAll(state.declarations(path.members).flat(), role, sites.file, key.pos);
+        }
       }
     }
   }
