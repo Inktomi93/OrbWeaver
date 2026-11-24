@@ -6,6 +6,7 @@ import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-prof
 import { createStrykerConfig, MUTATION_WORLD_ENV } from "@orb/tooling/floor/testing/stryker-config";
 import { vi } from "vitest";
 
+const REPO_ROOT = join(import.meta.dirname, "../../../..");
 const ARID_PLUGIN = "./tooling/src/mutation-arid/index.ts";
 const CHECKER_PLUGIN = "./tooling/src/mutation-checker/index.ts";
 
@@ -28,14 +29,24 @@ test("the checker's world comes from the run, so the root solution file is never
   expect(createStrykerConfig().tsconfigFile).toBe("packages/kit/tsconfig.json");
 });
 
-test.for([
-  { path: ARID_PLUGIN, names: "ignorers" },
-  { path: CHECKER_PLUGIN, names: "checkers" },
-] as const)("the plugin path $path exports the $names the config names", async ({ path, names }, { repoRoot }) => {
+// The plugins pull a compiler in at import, which costs seconds; loading them at collection keeps that out of every case's timeout.
+const PLUGINS = await Promise.all(
+  (
+    [
+      { path: ARID_PLUGIN, names: "ignorers" },
+      { path: CHECKER_PLUGIN, names: "checkers" },
+    ] as const
+  ).map(async ({ path, names }) => ({
+    path,
+    names,
+    exported: ((await import(pathToFileURL(join(REPO_ROOT, path)).href)) as { readonly strykerPlugins: readonly { readonly name: string }[] }).strykerPlugins,
+  })),
+);
+
+test.for(PLUGINS)("the plugin path $path exports the $names the config names", ({ path, names, exported }) => {
   const config = createStrykerConfig();
   expect(config.plugins).toContain(path);
-  const plugin = (await import(pathToFileURL(join(repoRoot, path)).href)) as { readonly strykerPlugins: readonly { readonly name: string }[] };
-  expect(plugin.strykerPlugins.map(({ name }) => name)).toEqual(config[names]);
+  expect(exported.map(({ name }) => name)).toEqual(config[names]);
 });
 
 test("each call owns its option branches, because Stryker mutates what it is handed", () => {

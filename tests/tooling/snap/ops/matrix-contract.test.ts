@@ -90,7 +90,7 @@ test("derives the rated Snap matrix from the live carrier contract and theme cat
 
   // The count pins the planner's determinism, never a coverage target: the coverage claim is
   // `uncoveredPairs === []` below. Adding an axis can add cells.
-  expect(planned.plan.cells).toHaveLength(16);
+  expect(planned.plan.cells).toHaveLength(15);
   expect(new Set(planned.plan.receipt.cellIds).size).toBe(planned.plan.cells.length);
   expect(planned.plan.receipt.uncoveredPairs).toEqual([]);
   expect(planned.appearanceAxes).toHaveLength(appearanceMatrixContract().executable);

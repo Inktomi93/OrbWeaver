@@ -16,11 +16,12 @@ const STORY = "tests/client/features/config/surfaces/_list-stories/ConfigPanesSt
 const FONT_SCALE_PROPERTY = channelName("fontScale");
 const SCALES = [2, 3] as const;
 
-/** Each library's census read and its rows read: the two reads one Retry must recover. */
+/** Each library's census read and its rows read: the two reads one Retry must recover. `alongside` names the other reads
+ *  its pane makes on mount, answered from the root so the pane settles; they are never the reads under test. */
 const LIBRARIES = [
-  { group: "worldInfo", label: WORLD_INFO_GROUP_LABEL, census: "worldInfo.countBooks", rows: "worldInfo.listBooksWithUsage" },
-  { group: "regex", label: REGEX_GROUP_LABEL, census: "regex.countScripts", rows: "regex.listScripts" },
-  { group: "rosterPreset", label: ROSTER_GROUP_LABEL, census: "rosterPreset.count", rows: "rosterPreset.list" },
+  { group: "worldInfo", label: WORLD_INFO_GROUP_LABEL, census: "worldInfo.countBooks", rows: "worldInfo.listBooksWithUsage", alongside: [] },
+  { group: "regex", label: REGEX_GROUP_LABEL, census: "regex.countScripts", rows: "regex.listScripts", alongside: ["regex.listUnattached"] },
+  { group: "rosterPreset", label: ROSTER_GROUP_LABEL, census: "rosterPreset.count", rows: "rosterPreset.list", alongside: [] },
 ] as const;
 
 test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
@@ -64,6 +65,7 @@ for (const library of LIBRARIES) {
       "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
       "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpusViewer.userId, corpus.reads["settings.listThemes"]),
       "settings.getAppSettingsWithOverrides": () => trpcHold<"settings.getAppSettingsWithOverrides">(),
+      ...serveCorpusProcedures(caller, library.alongside),
       ...serveCorpusProcedures(caller, [library.rows], failWhileDown),
       ...serveCorpusProcedures(caller, [library.census], failWhileDown),
     });

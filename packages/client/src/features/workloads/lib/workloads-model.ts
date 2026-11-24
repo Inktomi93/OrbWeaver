@@ -14,6 +14,7 @@ import {
   WORKLOAD_KINDS,
   WORKLOAD_LANES,
 } from "@orb/contracts/workloads";
+import type { UserId } from "@orb/kit/ids";
 import { sentenceCase } from "@orb/kit/strings";
 import type { SelectItems } from "@orb/ui/select/items";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
@@ -283,7 +284,7 @@ export interface RunWorkloadFormValues extends WorkloadRunValues {
   /** Owner-only bulk toggle — a non-owner's dialog never renders the field, so it stays `false`. */
   readonly bulk: boolean;
   /** The bulk-create mint target (`""` = unpicked). */
-  readonly targetOwnerId: string;
+  readonly targetOwnerId: UserId | "";
   /** Optional deferred-start datetime (a `datetime-local` string; `""` = run now). */
   readonly runAt: string;
   /** The DAG gate — workload ids this run must wait on; `[]` = no gate. */

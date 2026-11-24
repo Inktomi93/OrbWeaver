@@ -1,7 +1,8 @@
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/tooling";
+import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
 import type { RuntimeAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
-import { appearancePatchForAssignment, appearanceReachReceipt } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
+import { appearancePatchForAssignment, appearanceReachReceipt, deriveAppearanceContract } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 
 function runtimeContract(overrides: Partial<RuntimeAppearanceContract> = {}): RuntimeAppearanceContract {
   return {
@@ -25,6 +26,28 @@ function runtimeContract(overrides: Partial<RuntimeAppearanceContract> = {}): Ru
     ...overrides,
   };
 }
+
+// A bundle that reports a population other than the checked-in manifest's, with its own counts kept consistent.
+function reportedWithRows(rows: RuntimeAppearanceContract["rows"]): RuntimeAppearanceContract {
+  const executable = rows.filter((row) => row.arms !== null).length;
+  return { ...appearanceMatrixContract(), declared: rows.length, executable, dependencies: rows.length - executable, rows };
+}
+
+test("the Appearance population check follows the manifest: the manifest passes, a lost or foreign row and a lost historical row refuse", () => {
+  const manifest = appearanceMatrixContract();
+  const derived = deriveAppearanceContract(manifest);
+  expect(derived.axes).toHaveLength(manifest.executable);
+  expect(derived.dependencies).toHaveLength(manifest.dependencies);
+
+  const [first, ...rest] = manifest.rows;
+  if (first === undefined) {
+    throw new Error("the Appearance manifest declares no rows");
+  }
+  expect(() => deriveAppearanceContract(reportedWithRows(rest))).toThrow("Appearance contract population drift");
+  // A renamed row keeps every count, so only the key comparison sees it.
+  expect(() => deriveAppearanceContract(reportedWithRows([{ ...first, key: "notInTheManifest" }, ...rest]))).toThrow("Appearance contract population drift");
+  expect(() => deriveAppearanceContract({ ...manifest, historicalRows: manifest.historicalRows.slice(1) })).toThrow("historical-row population drift");
+});
 
 test("Appearance reach reconciles mounted registry instances and actual samples", () => {
   expect(appearanceReachReceipt(runtimeContract())).toEqual({ rows: 1, subjects: 1 });
