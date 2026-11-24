@@ -65,7 +65,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeReference } from "@typescript/native/sync";
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
-import { rowColumns, signatureOf } from "../drizzle-rows.ts";
+import { rowColumns } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
 import { assertedDestination, identitySlot, providerReach, sendChase } from "../open-sends.ts";
@@ -1299,15 +1299,19 @@ export class Flows {
     );
     const matched = asks.flatMap(({ pair, member, x }, y) => {
       const valueMember = valueMembers[y];
-      return valueMember === undefined || valueMember.id === member.id ? [] : [{ holder: pair.value, slot: member, value: valueMember, site: pair.site, x }];
+      return valueMember === undefined || valueMember.id === member.id
+        ? []
+        : [{ holder: pair.value, slotType: pair.slot, slot: member, value: valueMember, site: pair.site, x }];
     });
     // a Drizzle row slot's members declare nothing, as the row type remaps its table's columns: each stands for its
-    // column, so a row handed to a row slot hands each column on and reads none (resolve.ts `rows`)
-    const tables = state.resolver.rows();
-    const rowSlots = slotMembers.map((members) => (tables.size === 0 ? undefined : tables.get(signatureOf(members.map(({ name }) => name)))));
-    const slotDecls = state.declarations(matched.map(({ slot }) => slot)).map((decls, y) => {
+    // column, so a row handed to a row slot hands each column on and reads none (resolve.ts `rowHomesOf`)
+    const declared = state.declarations(matched.map(({ slot }) => slot));
+    const rowless = [...new Map(matched.flatMap(({ x, slotType }, y) => ((declared[y]?.length ?? 0) === 0 ? [[x, slotType] as const] : [])))];
+    const tied = state.batch(rowless.map(([, slotType]) => state.resolver.rowHomesOf(slotType)));
+    const rowSlots = new Map(rowless.map(([x], z) => [x, tied[z] ?? []]));
+    const slotDecls = declared.map((decls, y) => {
       const entry = matched[y];
-      return decls.length > 0 || entry === undefined ? decls : [...(rowSlots[entry.x]?.get(entry.slot.name) ?? [])];
+      return decls.length > 0 || entry === undefined ? decls : (rowSlots.get(entry.x) ?? []).flatMap((table) => table.get(entry.slot.name) ?? []);
     });
     const valueDecls = this.#withRowColumns(matched, state.declarations(matched.map(({ value }) => value)));
     for (const y of matched.keys()) {

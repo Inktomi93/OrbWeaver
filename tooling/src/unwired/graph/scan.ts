@@ -79,6 +79,8 @@ export interface GraphScan {
   readonly counts: readonly { readonly name: string; readonly count: number }[];
   /** Property reads no origin walk, declaration or by-design reason placed, as `file:pos .name`. */
   readonly lostReads: readonly string[];
+  /** Types whose member names spell a Drizzle table's columns that the checker ties to no table, as `file\ttype`. */
+  readonly rowRefusals: readonly string[];
 }
 
 /** A member bucket's sampled findings, each with its find-references verdict. */
@@ -376,6 +378,7 @@ const scanOf = (root: string, { graph, carried, time, world }: SessionWork, ruli
     members: time("analyse", () => judgeMembers({ root, graph, analysis, world: world() }, rulings)),
     counts: [...graph.facts.counts].sort(([a], [b]) => a.localeCompare(b)).map(([name, count]) => ({ name, count })),
     lostReads: graph.facts.lostReads,
+    rowRefusals: graph.facts.rowRefusals,
   };
 };
 

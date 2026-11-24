@@ -10,6 +10,7 @@ import type { Expression } from "@typescript/native/ast";
 import { SyntaxKind } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { TypeFlags } from "@typescript/native/sync";
+import { takeRowTally } from "../drizzle-rows.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
 import type { Destination } from "../open-sends.ts";
@@ -250,6 +251,9 @@ export interface GraphFacts {
   readonly lostCauses: readonly LostCause[];
   /** The bare reads whose walk ended at a library's own declaration. */
   readonly libraryLandings: readonly LibraryLanding[];
+  /** Each type whose member names spell a table's columns but that the checker ties to no table, as `file\ttype`
+   *  (../drizzle-rows.ts). */
+  readonly rowRefusals: readonly string[];
 }
 
 /** What one build runs under: the session's options, its log, and its profile when one is asked for. */
@@ -336,6 +340,7 @@ export class GraphState implements GraphFacts {
   readonly serverNames = new Set<string>();
   readonly lostCauses: LostCause[] = [];
   readonly libraryLandings: LibraryLanding[] = [];
+  readonly rowRefusals: string[] = [];
   readonly #product = new Map<string, boolean>();
   readonly #origins = new Map<string, OriginWalk>();
   readonly #members = new Map<number, readonly DeclKey[]>();
@@ -359,8 +364,14 @@ export class GraphState implements GraphFacts {
   }
 
   /** Walk another program into the same facts: a declaration keeps its key across programs, as a key is its file and
-   *  position, while every cache keyed by a type or symbol id belongs to the program that answered it. */
+   *  position, while every cache keyed by a type or symbol id belongs to the program that answered it. The program
+   *  left hands its row ties' counts and refusals to the facts. */
   enter(world: NativeWorld): void {
+    const rows = takeRowTally(this.#world);
+    for (const [name, by] of rows.counts) {
+      this.count(name, by);
+    }
+    this.rowRefusals.push(...rows.refusals);
     this.#world = world;
     this.#resolver = new Resolver(world, { spelling: !this.session.options.ablate.has("spelling") });
     this.#origins.clear();
