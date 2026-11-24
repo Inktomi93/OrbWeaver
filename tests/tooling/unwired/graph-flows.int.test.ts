@@ -359,6 +359,67 @@ test("each zod validator's literal writes the schema input keys it holds", { tim
   expect(bucketsIn(scan)).toEqual(["member-read-only In.c"]);
 });
 
+// A checked schema's record and map values are held to the declared value types, so each value key twins with the
+// declared member of its name: the parsed reads of `label` and `title` read `Entry` and `Keyed`. The keys nothing reads,
+// `note` and `memo`, end as one untouched member each.
+test("a checked zod schema's record and map values pair with the declared values", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    ...source([
+      'import { z } from "zod";',
+      "export interface Entry { readonly label: string; readonly note?: string }",
+      "export interface Keyed { readonly title: string; readonly memo?: string }",
+      "export interface Book { readonly byId: Record<string, Entry>; readonly byKey: Map<string, Keyed> }",
+      "const entrySchema = z.object({ label: z.string(), note: z.string().optional() });",
+      "const keyedSchema = z.object({ title: z.string(), memo: z.string().optional() });",
+      "const bookSchema = z.object({ byId: z.record(z.string(), entrySchema), byKey: z.map(z.string(), keyedSchema) }) satisfies z.ZodType<Book>;",
+      "declare const raw: unknown;",
+      "export const parsed = (): string => {",
+      "  const book = bookSchema.parse(raw);",
+      '  return (book.byId["a"]?.label ?? "") + (book.byKey.get("a")?.title ?? "");',
+      "};",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-untouched Entry.note", "member-untouched Keyed.memo"]);
+});
+
+// A validated literal's key that arrives by a spread (`Outer.b`), sits in a nested literal (`Inner.y`) or in a list
+// element (`Item.q`): parse takes each, so each writes its schema key. `Outer.c`, `Inner.z` and `Item.r`, which no
+// literal or spread holds, stay read and never written.
+const VALIDATED_PARTS = [
+  'import { z } from "zod";',
+  "export interface Inner { readonly x: string; readonly y?: string; readonly z?: string }",
+  "export interface Item { readonly p: string; readonly q?: string; readonly r?: string }",
+  "export interface Outer { readonly a: string; readonly b?: string; readonly c?: string; readonly inner: Inner; readonly items: readonly Item[] }",
+  "const innerSchema = z.object({ x: z.string(), y: z.string().optional(), z: z.string().optional() }) satisfies z.ZodType<Inner>;",
+  "const itemSchema = z.object({ p: z.string(), q: z.string().optional(), r: z.string().optional() }) satisfies z.ZodType<Item>;",
+  "const outerSchema = z.object({",
+  "  a: z.string(),",
+  "  b: z.string().optional(),",
+  "  c: z.string().optional(),",
+  "  inner: innerSchema,",
+  "  items: z.array(itemSchema),",
+  "}) satisfies z.ZodType<Outer>;",
+  "declare const base: { readonly b: string };",
+  'const seed: Outer = { a: "s", inner: { x: "s" }, items: [{ p: "s" }] };',
+  "export const read = (): string =>",
+  '  [seed.b, seed.c, seed.inner.y, seed.inner.z, seed.items[0]?.q, seed.items[0]?.r, seed.a, seed.inner.x, seed.items[0]?.p].join("");',
+];
+// Each case holds one part: its member is written and the others' stay read and never written.
+const READ_ONLY = (held: string): readonly string[] =>
+  ["Inner.y", "Inner.z", "Item.q", "Item.r", "Outer.b", "Outer.c"].filter((member) => member !== held).map((member) => `member-read-only ${member}`);
+const VALIDATED_SHAPES = [
+  { shape: "spread", held: "Outer.b", call: 'outerSchema.parse({ ...base, a: "a", inner: { x: "x" }, items: [] })', sent: ["member-sent-only base.b"] },
+  { shape: "nested", held: "Inner.y", call: 'outerSchema.parse({ a: "a", inner: { x: "x", y: "y" }, items: [] })', sent: [] },
+  { shape: "list element", held: "Item.q", call: 'outerSchema.parse({ a: "a", inner: { x: "x" }, items: [{ p: "p", q: "q" }] })', sent: [] },
+] as const;
+for (const { shape, held, call, sent } of VALIDATED_SHAPES) {
+  test(`a zod-validated literal's ${shape} key writes the schema key`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    const scan = await graphScan(plantedTree, { ...ZOD_MODULE, ...source([...VALIDATED_PARTS, `export const run = (): unknown => ${call};`]) });
+    expect(bucketsIn(scan)).toEqual([...sent, ...READ_ONLY(held)]);
+  });
+}
+
 // A cost row is returned as a narrower row type, handed on as a turn type that names fewer members still, and only then
 // to a parameter that reads `extra`: no type on the way names `extra`, but the row still holds it, so the write reaches
 // the read. `Lost.cost.hidden` rides the same way and no slot names it, so it stays written and never read; `Side`'s

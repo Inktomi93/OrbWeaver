@@ -293,6 +293,9 @@ export const ZOD_MODULE = {
     "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
     "  string(): Schema<string>;",
     "  number(): Schema<number>;",
+    "  array<S extends Schema>(item: S): Schema<S['_output'][]>;",
+    "  record<K extends Schema<string>, V extends Schema>(key: K, value: V): Schema<Record<K['_output'], V['_output']>>;",
+    "  map<K extends Schema, V extends Schema>(key: K, value: V): Schema<Map<K['_output'], V['_output']>>;",
     "};",
   ].join("\n"),
 };
