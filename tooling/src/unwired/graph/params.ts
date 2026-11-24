@@ -78,6 +78,7 @@ import type { Graph } from "./build.ts";
 import { nodeAt } from "./declared.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, keyText, Resolver } from "./resolve.ts";
+import type { ValueUse } from "./roles.ts";
 import { occurrenceRoles, sameNode, valueUse } from "./roles.ts";
 import { declarationNameOf } from "./sites.ts";
 import { unwrapValue } from "./slots.ts";
@@ -389,9 +390,11 @@ function jsxShape(name: Node): CallShape | null {
 
 // Whether a product reference that is no call hands the value on, by the graph's value-use reader (roles.ts valueUse):
 // a type position and a forwarding specifier only label it; a doc comment, which occurrenceRoles gives no role, is
-// not code. An implementation supplying a member (`{ send: () => … }`) never reaches here, since its name resolves to
-// the literal's own member.
-const escapes = (name: Node): boolean => valueUse(name) !== "type" && occurrenceRoles(name).length > 0;
+// not code. A store into the callable's member (`o.send = f`, `[o.send] = list`) replaces its value and hands nothing
+// on. An implementation supplying a member (`{ send: () => … }`) never reaches here, since its name resolves to the
+// literal's own member.
+const LABELLING_USES: ReadonlySet<ValueUse> = new Set<ValueUse>(["type", "store"]);
+const escapes = (name: Node): boolean => !LABELLING_USES.has(valueUse(name)) && occurrenceRoles(name).length > 0;
 
 function* noNode(): APIRequestGenerator<Node | undefined> {
   return yield* answer<Node | undefined>(undefined);

@@ -2,7 +2,13 @@
 // value on, so the chase follows it: into a helper's body, to a logger, a serialization or a library. Inside the
 // provider backends a value with no other destination is a provider send only when it reaches a request the backends
 // make.
-import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
+//
+// A serialization's string is chased as a value is: each place it reaches is judged by the declaration the checker
+// resolves there, never by a spelling. A standard-library collection's key, a node:crypto input and a comparison read
+// the whole value; a console, a file module, a platform request, a Drizzle `sql` tag, a platform response or blob and a
+// construction whose type reaches the standard `Error` name a destination; an in-tree callee's body and a binding's
+// uses are followed. A chase the depth bound stops is unclassified and counted, never a guessed destination.
+import type { CallExpression, Expression, Identifier, NewExpression, Node } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isArrowFunction,
@@ -12,6 +18,7 @@ import {
   isBindingElement,
   isBlock,
   isCallExpression,
+  isClassDeclaration,
   isConditionalExpression,
   isElementAccessExpression,
   isExpressionStatement,
@@ -19,6 +26,8 @@ import {
   isFunctionExpression,
   isIdentifier,
   isIfStatement,
+  isInterfaceDeclaration,
+  isModuleDeclaration,
   isNewExpression,
   isNonNullExpression,
   isObjectLiteralExpression,
@@ -30,8 +39,14 @@ import {
   isReturnStatement,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
+  isSourceFile,
   isSpreadAssignment,
   isSpreadElement,
+  isStringLiteral,
+  isTaggedTemplateExpression,
+  isTemplateExpression,
+  isTemplateSpan,
+  isThrowStatement,
   isTypeAssertion,
   isTypeOfExpression,
   isVariableDeclaration,
@@ -42,9 +57,9 @@ import {
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
-import { NESTED_READS, PROVIDER_BODIES, serializedBy } from "./boundaries.ts";
+import { NESTED_READS, PROVIDER_BODIES } from "./boundaries.ts";
 import type { FunctionLike, NativeWorld } from "./native.ts";
-import { constituents, hasFlag, isFunctionLike } from "./native.ts";
+import { constituents, hasFlag, isFunctionLike, isPropertyName, propertiesNamed } from "./native.ts";
 
 // Helpers a value passes through before it leaves: a sink that wraps a logger that wraps pino.
 const CHASE_DEPTH = 3;
@@ -215,18 +230,15 @@ function* resolved(handle: NodeHandle): APIRequestGenerator<Node | undefined> {
   return yield* handle.resolve.gen();
 }
 
-// A serialization or a constructor whose destination its callee alone names, or null for any other call.
-function namedDestination(call: Invocation): readonly Destination[] | null {
-  const text = call.expression.getText();
-  if (isCallExpression(call) && text === SERIALIZE) {
-    const serialized = serializedBy(call);
-    return serialized.whole ? [] : [{ destination: serialized.destination, receiver: null }];
-  }
-  if (text === "c.json") {
+// A construction or a Hono response whose destination its callee names, or null for any other call.
+function* namedDestination(world: NativeWorld, call: Invocation): APIRequestGenerator<readonly Destination[] | null> {
+  if (call.expression.getText() === "c.json") {
     return [{ destination: "http", receiver: null }];
   }
-  const { text: name } = calleeOf(call);
-  return isNewExpression(call) && name?.endsWith("Error") === true ? [{ destination: "error", receiver: name }] : null;
+  if (isNewExpression(call) && (yield* constructsError(world, call))) {
+    return [{ destination: "error", receiver: calleeOf(call).text }];
+  }
+  return null;
 }
 
 const wireCall = (call: Invocation): readonly Destination[] => {
@@ -275,31 +287,51 @@ export interface Chase {
   readonly to: readonly Destination[];
   readonly dropped: boolean;
   readonly read: boolean;
+  /** Whether the depth bound stopped some path of the chase: that path is unclassified. */
+  readonly stopped: boolean;
 }
 
-const sentTo = (to: readonly Destination[]): Chase => ({ to, dropped: false, read: false });
-const READ_WHOLE: Chase = { to: [], dropped: false, read: true };
-const SERIALIZE = "JSON.stringify";
+const sentTo = (to: readonly Destination[]): Chase => ({ to, dropped: false, read: false, stopped: false });
+const READ_WHOLE: Chase = { to: [], dropped: false, read: true, stopped: false };
+const STOPPED_CHASE: Chase = { to: [], dropped: false, read: false, stopped: true };
 
-// A call that reads every member of the value it takes: a serialization whose string is compared, hashed or keyed, or
-// a dotted-path reader's first argument.
-function readsWhole(call: Invocation, index: number): boolean {
-  if (isCallExpression(call) && call.expression.getText() === SERIALIZE) {
-    return serializedBy(call).whole;
+/** The count a graph build adds for each chase the depth bound stopped. */
+export const CHASE_STOPPED = "send chases stopped by the depth bound";
+
+// What a call does with a value its callee alone decides: a serialization's destination or whole read, a dotted-path
+// reader's whole read of its first argument, a named construction or response; null for any other call.
+function* namedChase(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase | null> {
+  if (isSerialization(call)) {
+    const serialized = yield* serializedBy(world, call, depth);
+    return serialized.whole
+      ? READ_WHOLE
+      : { to: [{ destination: serialized.destination, receiver: null }], dropped: false, read: false, stopped: serialized.stopped };
   }
   const { text } = calleeOf(call);
-  return index === 0 && text !== null && NESTED_READS.has(text);
-}
-
-// Where a value given to `call` at `index` goes: a serialization's destination, a library, a logger, or wherever the
-// in-tree callee hands its parameter on.
-function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase> {
-  if (readsWhole(call, index)) {
+  if (index === 0 && text !== null && NESTED_READS.has(text)) {
     return READ_WHOLE;
   }
-  const named = namedDestination(call);
+  const named = yield* namedDestination(world, call);
+  return named === null ? null : sentTo(named);
+}
+
+// The body an in-tree callee's declaration runs and the name of the parameter that takes argument `index` (a rest
+// parameter takes the arguments past it); null when the declaration holds no body or the parameter is a pattern.
+function* parameterOf(handle: NodeHandle, index: number): APIRequestGenerator<{ readonly body: Node; readonly name: string } | null> {
+  const declaration = yield* resolved(handle);
+  const fn = declaration === undefined ? null : functionOf(declaration);
+  const parameter = fn === null ? undefined : (fn.parameters[index] ?? fn.parameters.at(-1));
+  return fn?.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)
+    ? { body: fn.body, name: parameter.name.text }
+    : null;
+}
+
+// Where a value given to `call` at `index` goes: what its callee alone decides, a library, a logger, or wherever the
+// in-tree callee hands its parameter on.
+function* callDestinations(world: NativeWorld, call: Invocation, index: number, depth: number): APIRequestGenerator<Chase> {
+  const named = yield* namedChase(world, call, index, depth);
   if (named !== null) {
-    return sentTo(named);
+    return named;
   }
   const { name } = calleeOf(call);
   const declarations = (name === null ? undefined : yield* symbolOf(world, name))?.declarations ?? [];
@@ -308,11 +340,9 @@ function* callDestinations(world: NativeWorld, call: Invocation, index: number, 
   if (inTree === undefined && outside !== undefined) {
     return sentTo(yield* libraryDestination(world, call, index, outside.path));
   }
-  const declaration = inTree === undefined ? undefined : yield* resolved(inTree);
-  const fn = declaration === undefined ? null : functionOf(declaration);
-  const parameter = fn === null ? undefined : (fn.parameters[index] ?? fn.parameters.at(-1));
-  if (fn?.body !== undefined && parameter !== undefined && isParameterDeclaration(parameter) && isIdentifier(parameter.name)) {
-    return depth >= CHASE_DEPTH ? sentTo([]) : yield* bodyChase(world, usesOf(fn.body, parameter.name.text), depth);
+  const taken = inTree === undefined ? null : yield* parameterOf(inTree, index);
+  if (taken !== null) {
+    return depth >= CHASE_DEPTH ? STOPPED_CHASE : yield* bodyChase(world, usesOf(taken.body, taken.name), depth);
   }
   return sentTo((yield* isLogCall(world, call)) ? [{ destination: "log", receiver: call.expression.getText() }] : wireCall(call));
 }
@@ -323,7 +353,7 @@ function* bodyChase(world: NativeWorld, uses: readonly Node[], depth: number): A
   const chased = yield* all(...uses.map((use) => destinationsOf(world, use, depth + 1)));
   const to = chased.flatMap((use) => use.to);
   const read = chased.some((use) => use.read);
-  return { to, dropped: to.length === 0 && !read && chased.every((use) => use.dropped), read };
+  return { to, dropped: to.length === 0 && !read && chased.every((use) => use.dropped), read, stopped: chased.some((use) => use.stopped) };
 }
 
 // A use that ends the value where it stands: a test, a `void`, a `typeof` or a bare statement. Any other position with
@@ -356,11 +386,276 @@ const CONSUMING_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
 
 function* destinationsOf(world: NativeWorld, value: Node, depth: number): APIRequestGenerator<Chase> {
   const carrier = carrierOf(value);
-  return carrier === null ? { to: [], dropped: consumedAt(value), read: false } : yield* callDestinations(world, carrier.call, carrier.index, depth);
+  return carrier === null
+    ? { to: [], dropped: consumedAt(value), read: false, stopped: false }
+    : yield* callDestinations(world, carrier.call, carrier.index, depth);
 }
 
 /** Where a value handed on goes: the call it is an argument of, followed into an in-tree callee's body. */
 export const sendChase = (world: NativeWorld, value: Node): APIRequestGenerator<Chase> => destinationsOf(world, value, 0);
+
+// --- Serializations -----------------------------------------------------------------------------------------
+
+/** What a serialization does with its value: consumed whole in the process, or sent to a destination. A chase the depth
+ *  bound stopped is unclassified and says so. */
+type Serialized =
+  | { readonly whole: true; readonly stopped: false }
+  | { readonly whole: false; readonly destination: SendDestination; readonly stopped: boolean };
+
+const WHOLE: Serialized = { whole: true, stopped: false };
+const sent = (destination: SendDestination): Serialized => ({ whole: false, destination, stopped: false });
+const UNPLACED = sent("unclassified");
+const STOPPED: Serialized = { whole: false, destination: "unclassified", stopped: true };
+
+const SERIALIZE = "JSON.stringify";
+const isSerialization = (call: Invocation): call is CallExpression => isCallExpression(call) && call.expression.getText() === SERIALIZE;
+
+// Comparing or ordering two serializations reads every field of both.
+const COMPARE_OPERATORS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.EqualsEqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsEqualsToken,
+  SyntaxKind.EqualsEqualsToken,
+  SyntaxKind.ExclamationEqualsToken,
+  SyntaxKind.LessThanToken,
+  SyntaxKind.GreaterThanToken,
+  SyntaxKind.LessThanEqualsToken,
+  SyntaxKind.GreaterThanEqualsToken,
+]);
+
+// The standard library's collections by the methods whose first argument is a key: a serialization there is an
+// identity key, so the value is read whole.
+const MAP_KEYS: ReadonlySet<string> = new Set(["get", "set", "has", "delete"]);
+const SET_KEYS: ReadonlySet<string> = new Set(["add", "has", "delete"]);
+const KEYED_COLLECTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ["Map", MAP_KEYS],
+  ["ReadonlyMap", MAP_KEYS],
+  ["WeakMap", MAP_KEYS],
+  ["Set", SET_KEYS],
+  ["ReadonlySet", SET_KEYS],
+  ["WeakSet", SET_KEYS],
+]);
+
+/** The package of Node's own types, whose ambient modules declare Node's platform. */
+export const NODE_TYPES = "@types/node";
+// The platform's own declarations: the compiler's default library and Node's types, whose fetch is undici's.
+const PLATFORM_PACKAGES: ReadonlySet<string> = new Set([NODE_TYPES, "undici-types"]);
+const NODE_MODULE_PREFIX = "node:";
+// The Node modules that consume a string's bytes: a hash or a signature reads all of it, a file write stores it.
+const HASH_MODULES: ReadonlySet<string> = new Set(["crypto"]);
+const FILE_MODULES: ReadonlySet<string> = new Set(["fs", "fs/promises"]);
+const CONSOLE = "Console";
+const PLATFORM_ERROR = "Error";
+// The platform constructions a serialized string becomes the body of.
+const PLATFORM_BODIES: ReadonlyMap<string, SendDestination> = new Map([
+  ["Response", "http"],
+  ["Blob", "file"],
+]);
+// A class's base chain is short; the bound only ends a walk the checker should never make cyclic.
+const BASE_DEPTH = 8;
+const SQL_TAG_PACKAGE = "drizzle-orm";
+
+/** Where a library declaration sits: the class or interface that holds it (or is it), and the ambient module around
+ *  it with `node:` dropped, so `node:crypto` and `crypto` are one module. */
+export function declarationHome(node: Node): { readonly container: string | null; readonly module: string | null } {
+  let container: string | null = null;
+  let module: string | null = null;
+  for (let at = node; module === null && !isSourceFile(at); at = at.parent) {
+    if (container === null && (isClassDeclaration(at) || isInterfaceDeclaration(at))) {
+      container = at.name?.text ?? null;
+    }
+    if (isModuleDeclaration(at) && isStringLiteral(at.name)) {
+      module = at.name.text.startsWith(NODE_MODULE_PREFIX) ? at.name.text.slice(NODE_MODULE_PREFIX.length) : at.name.text;
+    }
+  }
+  return { container, module };
+}
+
+// Whether a declaration is the platform's: the compiler's default library or Node's types.
+function* isPlatform(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<boolean> {
+  if (yield* world.isDefaultLibrary(handle)) {
+    return true;
+  }
+  const pkg = yield* world.packageOf(handle);
+  return pkg !== null && PLATFORM_PACKAGES.has(pkg);
+}
+
+// The node a serialization's string reaches: through parentheses, assertions, template text, string concatenation and
+// an array of parts, as `new Blob([JSON.stringify(value)])` takes them.
+function consumerOf(start: Node): { readonly node: Node; readonly parent: Node } {
+  let node = start;
+  for (;;) {
+    const { parent } = node;
+    const concatenated = isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.PlusToken;
+    if (
+      isArrayLiteralExpression(parent) ||
+      isParenthesizedExpression(parent) ||
+      isAsExpression(parent) ||
+      isNonNullExpression(parent) ||
+      isTemplateSpan(parent) ||
+      isTemplateExpression(parent) ||
+      concatenated
+    ) {
+      node = parent;
+      continue;
+    }
+    return { node, parent };
+  }
+}
+
+// Every path's verdict as one: whole where any path reads the string, else the first placed destination, else
+// unclassified, marked stopped where a stopped path left it so.
+function joinedSerialized(paths: readonly Serialized[]): Serialized {
+  if (paths.some((path) => path.whole)) {
+    return WHOLE;
+  }
+  const placed = paths.find((path) => !path.whole && path.destination !== "unclassified");
+  return placed ?? (paths.some((path) => path.stopped) ? STOPPED : UNPLACED);
+}
+
+/** What the `JSON.stringify` call `call` does with its value, read from every place its string goes. */
+function* serializedBy(world: NativeWorld, call: CallExpression, depth: number): APIRequestGenerator<Serialized> {
+  return yield* stringGoes(world, call, depth);
+}
+
+function* stringGoes(world: NativeWorld, start: Node, depth: number): APIRequestGenerator<Serialized> {
+  const { node, parent } = consumerOf(start);
+  if (isBinaryExpression(parent) && COMPARE_OPERATORS.has(parent.operatorToken.kind)) {
+    return WHOLE;
+  }
+  if (isTaggedTemplateExpression(parent)) {
+    return yield* taggedTakes(world, parent.tag);
+  }
+  if (isCallExpression(parent) && parent.expression !== node) {
+    return yield* callTakes(world, parent, [...parent.arguments].indexOf(node as Expression), depth);
+  }
+  if (isNewExpression(parent)) {
+    return yield* constructionTakes(world, parent);
+  }
+  if (isThrowStatement(parent)) {
+    return sent("error");
+  }
+  if (isPropertyAssignment(parent) && parent.initializer === node && isObjectLiteralExpression(parent.parent)) {
+    return yield* keyTakes(world, parent.parent, parent.name);
+  }
+  if (isVariableDeclaration(parent) && isIdentifier(parent.name)) {
+    return yield* bindingTakes(world, parent.name, depth);
+  }
+  return UNPLACED;
+}
+
+// A tag the string is a substitution of: Drizzle's `sql` stores it as a SQL parameter, another library's tag takes it.
+function* taggedTakes(world: NativeWorld, tag: Node): APIRequestGenerator<Serialized> {
+  const symbol = yield* symbolOf(world, isPropertyAccessExpression(tag) ? tag.name : tag);
+  const outside = symbol?.declarations.find((handle) => world.fileOf(handle) === null);
+  const pkg = outside === undefined ? null : yield* world.packageOf(outside);
+  if (pkg === SQL_TAG_PACKAGE) {
+    return sent("stored");
+  }
+  return pkg === null ? UNPLACED : sent("dependency");
+}
+
+// A call the string is an argument of: an in-tree body is followed through its parameter, a platform declaration is
+// judged by where it sits, and any other library takes the string, as a logger when it is one.
+function* callTakes(world: NativeWorld, call: CallExpression, index: number, depth: number): APIRequestGenerator<Serialized> {
+  const { name } = calleeOf(call);
+  const symbol = name === null ? undefined : yield* symbolOf(world, name);
+  const declarations = symbol?.declarations ?? [];
+  const inTree = declarations.find((handle) => world.fileOf(handle) !== null);
+  if (inTree !== undefined) {
+    const taken = yield* parameterOf(inTree, index);
+    if (taken === null) {
+      return (yield* isLogCall(world, call)) ? sent("log") : UNPLACED;
+    }
+    if (depth >= CHASE_DEPTH) {
+      return STOPPED;
+    }
+    return joinedSerialized(yield* all(...usesOf(taken.body, taken.name).map((use) => stringGoes(world, use, depth + 1))));
+  }
+  const [outside] = declarations;
+  if (symbol === undefined || outside === undefined) {
+    return UNPLACED;
+  }
+  if (yield* isPlatform(world, outside)) {
+    return yield* platformTakes(symbol, outside, index);
+  }
+  return (yield* isLogCall(world, call)) ? sent("log") : sent("dependency");
+}
+
+function* platformTakes(symbol: NativeSymbol, handle: NodeHandle, index: number): APIRequestGenerator<Serialized> {
+  const declaration = yield* resolved(handle);
+  const { container, module } = declaration === undefined ? { container: null, module: null } : declarationHome(declaration);
+  if (index === 0 && container !== null && KEYED_COLLECTIONS.get(container)?.has(symbol.name) === true) {
+    return WHOLE;
+  }
+  if (module !== null && HASH_MODULES.has(module)) {
+    return WHOLE;
+  }
+  if (container === CONSOLE) {
+    return sent("log");
+  }
+  if (module !== null && FILE_MODULES.has(module)) {
+    return sent("file");
+  }
+  return WIRE_CALLS.has(symbol.name) ? sent("wire") : UNPLACED;
+}
+
+// A construction the string is an argument of: a platform response or blob is its body, an error is its message.
+function* constructionTakes(world: NativeWorld, construct: NewExpression): APIRequestGenerator<Serialized> {
+  const symbol = yield* symbolOf(world, construct.expression);
+  const [declaration] = symbol?.declarations ?? [];
+  const body = symbol === undefined ? undefined : PLATFORM_BODIES.get(symbol.name);
+  if (body !== undefined && declaration !== undefined && (yield* isPlatform(world, declaration))) {
+    return sent(body);
+  }
+  return (yield* constructsError(world, construct)) ? sent("error") : UNPLACED;
+}
+
+// Whether a construction builds an error: its type, or a base of it, is the standard library's `Error`.
+function* constructsError(world: NativeWorld, construct: NewExpression): APIRequestGenerator<boolean> {
+  let level: readonly Type[] = [yield* world.checker.getTypeAtLocation.gen(construct)];
+  for (let depth = 0; depth < BASE_DEPTH && level.length > 0; depth += 1) {
+    const symbols = yield* all(...level.map((type) => type.getSymbol.gen()));
+    const named = symbols.flatMap((symbol) => (symbol?.name === PLATFORM_ERROR ? symbol.declarations : []));
+    const platform = yield* all(...named.map((handle) => world.isDefaultLibrary(handle)));
+    if (platform.includes(true)) {
+      return true;
+    }
+    const bases = yield* all(...level.flatMap((type) => (type.isClassOrInterface() ? [type.getBaseTypes.gen()] : [])));
+    level = bases.flatMap((list) => list ?? []);
+  }
+  return false;
+}
+
+// A key of an object literal the string is the value of: a platform member (a fetch init's `body`) sends it, a
+// library's member takes it, and a member of the tree's own keeps it out of sight.
+function* keyTakes(world: NativeWorld, literal: Expression, key: Node): APIRequestGenerator<Serialized> {
+  const contextual = yield* world.checker.getContextualType.gen(literal);
+  if (contextual === undefined || !isPropertyName(key)) {
+    return UNPLACED;
+  }
+  const members = yield* propertiesNamed(world.checker, contextual, key.text);
+  const outside = members.flatMap((member) => member?.declarations ?? []).find((handle) => world.fileOf(handle) === null);
+  if (outside === undefined) {
+    return UNPLACED;
+  }
+  return (yield* isPlatform(world, outside)) ? sent("wire") : sent("dependency");
+}
+
+// A binding the string is held in: each use the checker finds in the binding's file is chased, so what the uses do
+// decides, never the binding's name.
+function* bindingTakes(world: NativeWorld, name: Identifier, depth: number): APIRequestGenerator<Serialized> {
+  if (depth >= CHASE_DEPTH) {
+    return STOPPED;
+  }
+  const symbol = yield* world.checker.getSymbolAtLocation.gen(name);
+  if (symbol === undefined) {
+    return UNPLACED;
+  }
+  const handles = yield* world.checker.getReferencesToSymbolInFile.gen(name.getSourceFile().fileName, symbol);
+  const found = yield* all(...handles.map((handle) => resolved(handle)));
+  const uses = found.filter((use): use is Node => use !== undefined && !(use.pos === name.pos && use.end === name.end));
+  return joinedSerialized(yield* all(...uses.map((use) => stringGoes(world, use, depth + 1))));
+}
 
 // --- The provider request reach -----------------------------------------------------------------------------
 

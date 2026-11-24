@@ -68,7 +68,7 @@ import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
-import { assertedDestination, identitySlot, providerReach, sendChase } from "../open-sends.ts";
+import { assertedDestination, CHASE_STOPPED, identitySlot, providerReach, sendChase } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -179,7 +179,7 @@ const NO_HELD_TYPES: ReadonlySet<number> = new Set();
 const NO_CHECK_SITES: ReadonlySet<number> = new Set();
 const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
 const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
-const UNFOLLOWED: Chase = { to: [], dropped: false, read: false };
+const UNFOLLOWED: Chase = { to: [], dropped: false, read: false, stopped: false };
 
 // What a chase decides for an escaping value: `read` where some path reads it whole, and where it is sent, or null
 // where nothing receives it.
@@ -331,6 +331,7 @@ export class Flows {
         : [];
     });
     const chases = state.batch(handedOn.map(({ assertion }) => sendChase(state.world, assertion)));
+    this.#countStops(chases);
     for (const [at, assertion] of assertions.entries()) {
       const [library, type] = [libraries[at], asserted[at]];
       if (library !== null && library !== undefined && type !== undefined) {
@@ -569,12 +570,21 @@ export class Flows {
     }
   }
 
+  // A chase the depth bound stopped left its value unclassified; the count says how often.
+  #countStops(chases: readonly Chase[]): void {
+    const stops = chases.filter(({ stopped }) => stopped).length;
+    if (stops > 0) {
+      this.#state.count(CHASE_STOPPED, stops);
+    }
+  }
+
   // What each escaping value's chase decides (Outcome). The chase runs whether or not the build keeps role sites, since a
   // drop or a read decides a bucket. The call a site's value is handed to takes everything inside it, but the request
   // reach marks expressions one by one, so only a value that is the site's own (`whole`) can be a provider send.
   #destinations(nodes: readonly (Node | undefined)[], whole: (at: number) => boolean = () => true): readonly Outcome[] {
     const { state } = this;
     const found = state.batch(nodes.map((node) => (node === undefined ? answer<Chase>(UNFOLLOWED) : sendChase(state.world, node))));
+    this.#countStops(found);
     return found.map(({ to, dropped, read }, at) => {
       const node = nodes[at];
       if (dropped || (read && to.length === 0)) {

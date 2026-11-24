@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import type { ColumnsReport, JudgedEntry } from "../../../tooling/src/unwired/index.ts";
 import { columnsGraph, runUnwired } from "../../../tooling/src/unwired/index.ts";
-import { fieldsScan, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, plantJudged, WORLD } from "./_planted.ts";
+import { fieldsScan, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, LIB, NODE_TYPES, plantJudged, WORLD } from "./_planted.ts";
 
 const scan = (root: string, judged?: readonly JudgedEntry[]): Promise<ColumnsReport> => columnsGraph({ root, deliberate: [], judged }, () => undefined);
 const named = (report: ColumnsReport): string[] => report.unwired.map(({ home, member, kind }) => `${home}.${member} ${kind}`).toSorted();
@@ -40,7 +40,6 @@ const DRIZZLE = [
   "export declare const rawDb: { run(statement: unknown): void };",
   "export declare function sql(text: TemplateStringsArray, ...values: unknown[]): unknown;",
   "export declare const logger: { info(fields: Record<string, unknown> | string): void };",
-  "export declare function writeFileSync(path: string, data: string): void;",
 ].join("\n");
 const DRIZZLE_PKG = {
   "node_modules/drizzle-orm/package.json": JSON.stringify({ name: "drizzle-orm", types: "index.d.ts" }),
@@ -132,13 +131,14 @@ const PORTED = tree(
     'export const archive = sqliteTable("archive", { title: required(), summary: required(), extra: text() });',
   ],
   [
-    'import { writeFileSync } from "drizzle-orm";',
+    'import { writeFileSync } from "node:fs";',
     "interface ImportedProfile { readonly name: string; readonly bio: string; readonly motto?: string }",
     "export const importProfile = (text: string): void => { db.insert(schema.profiles).values(JSON.parse(text) as ImportedProfile); };",
     "export const exportProfiles = (path: string): void => { writeFileSync(path, JSON.stringify(db.select().from(schema.profiles))); };",
     "export const archived = (draft: typeof schema.archive.$inferInsert): void => { db.insert(schema.archive).values(draft); };",
     "export const dump = (): void => { logger.info(JSON.stringify(db.select().from(schema.archive))); };",
   ],
+  { ...NODE_TYPES, "packages/a/src/platform.ts": '/// <reference types="node" />\nexport {};' },
 );
 
 test("an export to a file reads its columns, an import writes the required ones, and a log dump reads none", { timeout: 120_000 }, async ({ plantedTree }) => {

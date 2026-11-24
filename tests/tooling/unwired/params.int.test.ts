@@ -364,6 +364,34 @@ test("a judged row reports apart with its open item, and an entry for a done ite
   expect(judgedOutcome(await scanParams(root, judged), "greet.prefix", "tag.kind")).toEqual(judgedExpected("greet.prefix", "tag.kind"));
 });
 
+// A store into a callable member, by a destructuring assignment or a for-of target, replaces its value and hands
+// nothing on (roles.ts storeRoles), so `Relay.send` is still judged. `Mirror.send`, put into an array, escapes.
+const STORED_TREE = {
+  "packages/a/src/stored.ts": [
+    "export interface Relay { send(message: string, retries?: number): void }",
+    "export interface Mirror { send(message: string, retries?: number): void }",
+    "declare const senders: ((message: string, retries?: number) => void)[];",
+    "export const relay: Relay = { send: () => undefined };",
+    "export const mirror: Mirror = { send: () => undefined };",
+    "export function rewire(): void {",
+    "  [relay.send] = senders;",
+    "  for (relay.send of senders) {",
+    "    break;",
+    "  }",
+    "}",
+    "export const handed = [mirror.send];",
+    'relay.send("a");',
+    'relay.send("b");',
+    'mirror.send("a");',
+    'mirror.send("b");',
+  ].join("\n"),
+};
+
+test("a store into a callable member hands its value nowhere; an array element of it escapes", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scanParams(await plantedTree(graphTree(STORED_TREE)));
+  expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied Relay.send(retries)"]);
+});
+
 // A component reached only through a dynamic import's namespace, as `lazy(() => import(...).then((m) => ({ default: m.X })))`,
 // escapes into the loader, so its props are never judged, whatever its other callers pass. `Shown`, rendered by name
 // only, is the judged twin.
