@@ -14,6 +14,7 @@
 // - A logical assignment (`??=`, `||=`, `&&=`) reads its target to decide whether to store, so it reads and writes.
 // - A destructuring-assignment target (`({ a: x.n } = o)`, `[x.n] = list`) and a for-of or for-in target write; the
 //   pattern's own keys (`a` above) read the source's member.
+// - A member named in a `typeof a.b` type query takes the key role, as `T["b"]` does: the type reads no data.
 // - A type or interface member's own name declares the member and does nothing; a class member that supplies its value
 //   where it is declared (a field with an initializer, a method, an accessor) writes it. A doc comment does nothing.
 
@@ -71,6 +72,7 @@ import {
   isPropertyAssignment,
   isPropertyDeclaration,
   isPropertySignatureDeclaration,
+  isQualifiedName,
   isSatisfiesExpression,
   isSetAccessorDeclaration,
   isShorthandPropertyAssignment,
@@ -79,6 +81,7 @@ import {
   isSpreadElement,
   isStringLiteral,
   isTaggedTemplateExpression,
+  isTypeQueryNode,
   isVoidExpression,
   SyntaxKind,
 } from "@typescript/native/ast";
@@ -122,6 +125,7 @@ const NONE: readonly Role[] = [];
 const READ: readonly Role[] = ["read"];
 const WRITE: readonly Role[] = ["write"];
 const READ_WRITE: readonly Role[] = ["read", "write"];
+const KEY: readonly Role[] = ["key"];
 
 // `=`, a compound `+=` or a logical `??=`: an operator that stores into its left side.
 const isAssignment = (kind: SyntaxKind): boolean => kind >= SyntaxKind.FirstAssignment && kind <= SyntaxKind.LastAssignment;
@@ -318,9 +322,23 @@ function declaringRoles(name: Node): readonly Role[] | null {
   return suppliesValue(parent) ? WRITE : NONE;
 }
 
+/** The roles of a name in a type position: the member a `typeof a.b` query names is named by key, as `T["b"]` names
+ *  one. The query's root (`a`) and every other type name take none. */
+export function typeQueryRoles(name: Node): readonly Role[] {
+  const { parent } = name;
+  if (!(isQualifiedName(parent) && sameNode(parent.right, name))) {
+    return NONE;
+  }
+  let path: Node = parent;
+  while (isQualifiedName(path.parent)) {
+    path = path.parent;
+  }
+  return isTypeQueryNode(path.parent) && sameNode(path.parent.exprName, path) ? KEY : NONE;
+}
+
 /** The roles of any occurrence of a member's name, as find-references reports it: a doc comment's name and a member
  *  declaration's own name do nothing, an object literal's key writes, a destructuring key (`{ a } = o`, `{ a: x } = o`)
- *  reads, `T["k"]` names the member as a key, and any other occurrence takes {@link referenceRoles}. */
+ *  reads, `T["k"]` and `typeof a.k` name the member as a key, and any other occurrence takes {@link referenceRoles}. */
 export function occurrenceRoles(name: Node): readonly Role[] {
   const { parent } = name;
   if (insideDoc(name)) {
@@ -334,9 +352,10 @@ export function occurrenceRoles(name: Node): readonly Role[] {
     return READ;
   }
   if (isLiteralTypeNode(parent) && isIndexedAccessTypeNode(parent.parent)) {
-    return ["key"];
+    return KEY;
   }
-  return referenceRoles(name);
+  const queried = typeQueryRoles(name);
+  return queried.length > 0 ? queried : referenceRoles(name);
 }
 
 // What a string literal does with its value: builds one, tests one, names a key or a module, or sits in a type.

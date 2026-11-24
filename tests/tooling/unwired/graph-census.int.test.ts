@@ -9,7 +9,7 @@ import type { TestOptions } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, CensusReport, SiteClass } from "../../../tooling/src/unwired/index.ts";
 import { censusGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, libraryModule } from "./_planted.ts";
 
 // Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
 const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
@@ -24,7 +24,7 @@ const KEY_IN_ARROW = "Identifier < PropertyAssignment.name < ObjectLiteralExpres
 const KEY_IN_ASSERTIONS = "Identifier < PropertyAssignment.name < ObjectLiteralExpression.properties < wrap(!,as)";
 const TO_STATEMENT = "VariableDeclarationList.declarations < VariableStatement.declarationList";
 
-const NO_SITES: Readonly<Record<SiteClass, number>> = { placed: 0, unclassified: 0, unwalked: 0, enclosing: 0, elsewhere: 0, declares: 0, gap: 0 };
+const NO_SITES: Readonly<Record<SiteClass, number>> = { placed: 0, unclassified: 0, unwalked: 0, column: 0, enclosing: 0, elsewhere: 0, declares: 0, gap: 0 };
 const counted = (classes: Partial<Record<SiteClass, number>>): Readonly<Record<SiteClass, number>> => ({ ...NO_SITES, ...classes });
 
 const handledAt = (report: CensusReport, shape: string): unknown => report.handled.find((entry) => entry.shape === shape);
@@ -197,7 +197,9 @@ test("pnpm unwired graph-census prints its top gap shapes and writes the report 
   const run = await runCli("unwired", ["graph-census", `--ablate=${KEYS_OFF}`, `--root=${root}`, `--out=${out}`]);
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout).toBe(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n`);
-  expect(run.stderr).toContain("members=2/2 unread=2 unresolved=0 placed=0 unclassified=0 unwalked=0 enclosing=0 elsewhere=0 declares=0 gap=2 gap-shapes=1");
+  expect(run.stderr).toContain(
+    "members=2/2 unread=2 unresolved=0 placed=0 unclassified=0 unwalked=0 enclosing=0 elsewhere=0 declares=0 column=0 gap=2 gap-shapes=1",
+  );
   expect(existsSync(out)).toBe(true);
   expect(readFileSync(join(scratch, "census.txt"), "utf8")).toContain(`2\tproduct 2\tof 2\t${KEY_IN_INITIALIZER}\n  sites placed=0`);
 });
@@ -206,4 +208,88 @@ test("graph-census refuses --from before any build, since its role sites come fr
   const refused = await runCli("unwired", ["graph-census", `--root=${scratch}`, `--from=${join(scratch, "graph.dump")}`]);
   await expect(refused).toExitWith(EXIT.misuse);
   expect(refused.stderr).toContain("graph-census reads the role sites of its own build");
+});
+
+// drizzle-orm's write builders in miniature: `values` takes a slot of the library's own mapped type.
+const STORE_PACKAGE = "drizzle-orm";
+const STORES = libraryModule(
+  [
+    "export interface Column { readonly name: string }",
+    "export declare const text: () => Column;",
+    "export interface TableConfig<C> { readonly columns: C }",
+    "export interface Table<T extends TableConfig<unknown>> { readonly _: T }",
+    "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
+    'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
+    "export declare const db: { insert<T>(table: T): { values(value: Insert<T>): Promise<void> } };",
+  ],
+  STORE_PACKAGE,
+);
+const SCHEMA = "packages/db/src/schema/tables.ts";
+
+// A member copied into a Drizzle column is read only where the column is read back (design.md, the unwired-code
+// ledger), so the walk gives the copy no role of its own. The census counts that ruled silence as carried by the column,
+// never as a gap; a read nested in a call or sitting outside a store is the graph's own.
+test("a member a Drizzle store copies into a column is carried by the column, no gap", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...STORES,
+      [SCHEMA]: [
+        `import { sqliteTable, text } from "${STORE_PACKAGE}";`,
+        'export const notes = sqliteTable("notes", { title: text(), body: text(), id: text() });',
+      ].join("\n"),
+      [FILE]: [
+        `import { db } from "${STORE_PACKAGE}";`,
+        'import { notes } from "../../db/src/schema/tables.ts";',
+        "export interface Src { readonly title: string; readonly body?: string; readonly alt: string; readonly id: number }",
+        "export const store = (src: Src): Promise<void> => db.insert(notes).values({ title: src.title, body: src.body ?? src.alt, id: String(src.id) });",
+        "export const plain = (src: Src): string => src.title;",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  expect(report.gaps).toEqual([]);
+  expect(report.sites).toEqual(counted({ column: 3, placed: 2 }));
+});
+
+// A `typeof a.x` query names the member `x` by key: it takes the key role a `T["x"]` does. `B.x` shares the name and
+// nothing queries it.
+test("a member a typeof query names is a key use, and a same-named member of another type is not", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface A { readonly x: string; readonly y: string }",
+        "export interface B { readonly x: string }",
+        "export declare const a: A;",
+        "export declare const b: B;",
+        "export type Queried = typeof a.x;",
+        "export type Whole = typeof b;",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  const queried = "Identifier < QualifiedName.right < TypeQuery.exprName < TypeAliasDeclaration.type";
+  expect(report.gaps).toEqual([]);
+  expect(handledAt(report, queried)).toEqual({ shape: queried, sites: 1, classes: counted({ placed: 1 }), roles: ["key"] });
+});
+
+// A getter in an object literal typed as `I` fills `I.seen`: the literal's key is a site the graph gives the write a
+// method key gets.
+test("a getter in a typed object literal is a placed write of the member it fills", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface I { readonly seen?: number }",
+        "export const made: I = {",
+        "  get seen(): number {",
+        "    return 1;",
+        "  },",
+        "};",
+        "export const n = made.seen;",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  const getter = "Identifier < GetAccessor.name < ObjectLiteralExpression.properties < VariableDeclaration.initializer";
+  expect(report.gaps).toEqual([]);
+  expect(handledAt(report, getter)).toEqual({ shape: getter, sites: 1, classes: counted({ placed: 1 }), roles: ["write"] });
 });

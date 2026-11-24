@@ -8,6 +8,8 @@
 // - A site counts toward a member only in a find-references group whose symbol declares that member. A base type's
 //   member and a union's sibling arm answer in groups of their own, and each is a row of its own when the product
 //   declares it.
+// - A read a Drizzle store copies into a column has no role of its own by ruling (sites.ts handedToColumn): the column's
+//   read-back reads the member, so the census counts it as carried by the column, never as a gap.
 // - A signature is node kinds and child slots alone, so trivia never reaches it. Parentheses drop out, and a run of
 //   `as`, `satisfies` and `!` around one value is one step naming the kinds it holds.
 // - The tree publishes no table of a node's child slots, so the slot a child sits in is found by reading the node
@@ -27,6 +29,7 @@ import { answer, Resolver } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { occurrenceRoles, READS, sameNode } from "./roles.ts";
 import type { DeclInfo, GraphKey } from "./sites.ts";
+import { handedToColumn } from "./sites.ts";
 import type { RoleSite } from "./state.ts";
 import { productReader, UNCLASSIFIED } from "./state.ts";
 import { evenSample } from "./verify.ts";
@@ -35,9 +38,10 @@ import { evenSample } from "./verify.ts";
  * Where a reference site stands against the graph, first match wins: the graph gave the member a role at the site; the
  * graph's only role there is a send with no destination; the graph never walked the site's file; the graph gave the
  * member a role at the start of a node that encloses the site (a destructuring pattern, an indexed access type); the graph gave the member a role elsewhere in the site's statement at a node no reference names; roles.ts
- * rules the site does nothing; or the compiler has a reference and the graph has nothing.
+ * rules the site does nothing; a Drizzle store copies the read into a column, where the ruling reads it only if the
+ * product reads the column back; or the compiler has a reference and the graph has nothing.
  */
-export const SITE_CLASSES = ["placed", "unclassified", "unwalked", "enclosing", "elsewhere", "declares", "gap"] as const;
+export const SITE_CLASSES = ["placed", "unclassified", "unwalked", "enclosing", "elsewhere", "declares", "column", "gap"] as const;
 export type SiteClass = (typeof SITE_CLASSES)[number];
 
 // The buckets that say nothing in the product reads a declaration: a read the graph missed there is a false finding.
@@ -258,7 +262,7 @@ interface Tally {
   readonly variants: Map<string, number>;
 }
 
-const noCounts = (): Record<SiteClass, number> => ({ placed: 0, unclassified: 0, unwalked: 0, enclosing: 0, elsewhere: 0, declares: 0, gap: 0 });
+const noCounts = (): Record<SiteClass, number> => ({ placed: 0, unclassified: 0, unwalked: 0, enclosing: 0, elsewhere: 0, declares: 0, column: 0, gap: 0 });
 
 const newTally = (): Tally => ({
   sites: 0,
@@ -384,7 +388,10 @@ class Census {
       const edges = enclosingEdges(node, statement);
       return near.some(({ at }) => edges.has(at)) ? "enclosing" : "elsewhere";
     }
-    return occurrenceRoles(node).length === 0 ? "declares" : "gap";
+    if (occurrenceRoles(node).length === 0) {
+      return "declares";
+    }
+    return handedToColumn(node) ? "column" : "gap";
   }
 
   #count(site: CountedSite): void {
