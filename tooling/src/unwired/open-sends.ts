@@ -78,6 +78,7 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, 
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
 import { NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
+import { HONO_PACKAGE } from "./graph/urls.ts";
 import { methodCallOf, RESULTS } from "./list-methods.ts";
 import type { FunctionLike, NativeWorld } from "./native.ts";
 import { constituents, hasFlag, isFunctionLike, isPropertyName, propertiesNamed } from "./native.ts";
@@ -252,15 +253,33 @@ function* resolved(handle: NodeHandle): APIRequestGenerator<Node | undefined> {
   return yield* handle.resolve.gen();
 }
 
-// A construction or a Hono response whose destination its callee names, or null for any other call.
+// A construction or a framework response whose destination its callee declares, or null for any other call.
 function* namedDestination(world: NativeWorld, call: Invocation): APIRequestGenerator<readonly Destination[] | null> {
-  if (call.expression.getText() === "c.json") {
+  if (yield* frameworkResponse(world, call)) {
     return [{ destination: "http", receiver: null }];
   }
   if (isNewExpression(call) && (yield* constructsError(world, call))) {
     return [{ destination: "error", receiver: calleeOf(call).text }];
   }
   return null;
+}
+
+// A response a call builds: a member the HTTP framework declares, called for the platform's `Response`, as the request
+// context's `json`, `text`, `body` and `redirect` are. A framework member that answers no Response, as the context's
+// `set`, is the framework's own.
+function* frameworkResponse(world: NativeWorld, call: Invocation): APIRequestGenerator<boolean> {
+  const { name } = calleeOf(call);
+  const declarations = (name === null ? undefined : yield* symbolOf(world, name))?.declarations ?? [];
+  const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
+  if (packages.length === 0 || !packages.every((pkg) => pkg === HONO_PACKAGE)) {
+    return false;
+  }
+  const result: Type = yield* world.checker.getTypeAtLocation.gen(call);
+  const parts = result.isUnionType() || result.isIntersectionType() ? yield* result.getTypes.gen() : [result];
+  const symbols = yield* all(...parts.map((part) => part.getSymbol.gen()));
+  const responses = symbols.flatMap((symbol) => (symbol?.name === RESPONSE ? symbol.declarations : []));
+  const platform = yield* all(...responses.map((handle) => isPlatform(world, handle)));
+  return platform.some(Boolean);
 }
 
 const wireCall = (call: Invocation): readonly Destination[] => {
@@ -1200,7 +1219,8 @@ function seedsOf(call: Invocation, { pkg }: Callee): readonly Node[] {
   return [body !== undefined && isPropertyAssignment(body) ? body.initializer : init];
 }
 
-// A Fetch `Response` parameter: the function reads what a provider sent back.
+// The platform's Fetch `Response`: a backend function that takes one reads what a provider sent back, and a framework
+// member that returns one answers a request.
 const RESPONSE = "Response";
 
 interface Backends {

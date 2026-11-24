@@ -1,7 +1,7 @@
 // A value handed from one type to a restated twin carries its members across: the sink's reads count for the source
 // and the source's writes count for the sink, never the reverse. Each form has a found case beside its wired control.
 import { expect, test } from "@orb/testkit/tooling";
-import { fieldsScan, GRAPH_SOURCE, ZOD_MODULE } from "./_planted.ts";
+import { fieldsScan, GRAPH_SOURCE, HONO_CONTEXT, ZOD_MODULE } from "./_planted.ts";
 
 const scanned = async (plantedTree: (tree: Record<string, string>) => Promise<string>, file: string, lines: readonly string[]): Promise<readonly string[]> => {
   const report = await fieldsScan(plantedTree, {
@@ -93,7 +93,10 @@ test("a dotted-path read and a compared serialization read a value's members; a 
   plantedTree,
 }) => {
   const report = await fieldsScan(plantedTree, {
+    ...HONO_CONTEXT,
     [`${GRAPH_SOURCE}/reflective.ts`]: [
+      '/// <reference types="node" />',
+      'import type { Context } from "hono";',
       "interface Snapshot { readonly mode: string }",
       "interface Detail { readonly note: string }",
       "interface View { readonly status: string; readonly details: readonly Detail[] }",
@@ -102,7 +105,7 @@ test("a dotted-path read and a compared serialization read a value's members; a 
       "interface Failed { readonly code: string }",
       "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
       "const log = (value: unknown): void => { void value; };",
-      "const c = { json: (value: unknown): unknown => value };",
+      "declare const c: Context;",
       'const snapshot: Snapshot = { mode: "m" };',
       'const view: View = { status: "ok", details: [{ note: "n" }] };',
       'const passed: Passed = { unread: "u" };',

@@ -3,7 +3,7 @@
 // member pairs it, and a library slot naming a field is a receiver reading it.
 import { expect, plantedTsconfig, plantLink, test } from "@orb/testkit/tooling";
 import { NativeWorld, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB, labelsIn, libraryModule, NODE_TYPES, WORLD } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, HONO_CONTEXT, JSX_NAMESPACE, LIB, labelsIn, libraryModule, NODE_TYPES, WORLD } from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/sends.ts`;
 const JSX_FILE = `${GRAPH_SOURCE}/card.tsx`;
@@ -380,9 +380,11 @@ test("an assertion of a library's parameter sends the asserted type to that libr
 test("a dotted-path read and a compared serialization read a value's members; a response or a throw only sends them", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
-  const scan = await graphScan(
-    plantedTree,
-    source([
+  const scan = await graphScan(plantedTree, {
+    ...HONO_CONTEXT,
+    ...source([
+      '/// <reference types="node" />',
+      'import type { Context } from "hono";',
       "export interface Snapshot { readonly mode: string; readonly deep: { readonly leaf: string } }",
       "export interface Detail { readonly note: string }",
       "export interface View { readonly status: string; readonly details: readonly Detail[] }",
@@ -391,7 +393,7 @@ test("a dotted-path read and a compared serialization read a value's members; a 
       "export interface Failed { readonly code: string }",
       "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
       "const log = (value: unknown): void => { void value; };",
-      "const c = { json: (value: unknown): unknown => value };",
+      "declare const c: Context;",
       'const snapshot: Snapshot = { mode: "m", deep: { leaf: "l" } };',
       'const view: View = { status: "ok", details: [{ note: "n" }] };',
       'const passed: Passed = { unread: "u" };',
@@ -403,7 +405,7 @@ test("a dotted-path read and a compared serialization read a value's members; a 
       'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
       "log(passed);",
     ]),
-  );
+  });
   expect({
     sent: labelsIn(scan, "member-sent-only", FILE),
     written: labelsIn(scan, "member-write-only", FILE),

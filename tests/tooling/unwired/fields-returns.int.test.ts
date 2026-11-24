@@ -3,12 +3,11 @@
 // call alone, so an identity helper's callers keep their own sinks. A result every caller drops stays a finding.
 import { expect, test } from "@orb/testkit/tooling";
 import type { FieldsReport } from "../../../tooling/src/unwired/index.ts";
-import { fieldsScan, libraryModule, NODE_TYPES } from "./_planted.ts";
+import { fieldsScan, HONO_CONTEXT, libraryModule } from "./_planted.ts";
 
 const LIBRARIES = {
   ...libraryModule(["export interface Logger { info(obj: object, msg?: string): void }"], "pino"),
-  ...libraryModule(["export interface Context { json<T>(object: T): unknown }"], "hono"),
-  ...NODE_TYPES,
+  ...HONO_CONTEXT,
 };
 
 // Member names carry a zq prefix so the literal stage of a real-tree scan never matches this file.
