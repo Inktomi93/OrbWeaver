@@ -5,16 +5,17 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { configureFixtureGitIdentity, runFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { z } from "zod";
 import { COVERAGE_RUN_DIR, INCOMPLETE_RUN, runCoverage } from "../../../tooling/src/unwired/coverage.ts";
 import { PRODUCTION_COVERAGE_SCOPE } from "../../../tooling/src/unwired/coverage-merge.ts";
 
-// Enough functions that parsing and merging the suite's map raises this process's memory well past where it started.
+// Enough functions that parsing and merging the suite's map raises a fresh process's memory well past a one-function merge.
 const FUNCTIONS = 400_000;
 const MIB = 1024 * 1024;
-// Well under what merging that map adds, and well over what the process grows by before the merge starts.
+// Well under what merging that map adds over a one-function merge in the same fresh process.
 const MERGE_GROWTH_BYTES = 150 * MIB;
 
 // How the stand-in suite ends: it passes, fails a test, crashes, is killed with its runner, or writes no map.
@@ -66,7 +67,7 @@ function alive(pid: number): boolean {
   }
 }
 
-test("one run hands vitest the scope, lists unseen files, reaps the suite's helpers and measures the merge", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("one run hands vitest the scope, lists unseen files and reaps the suite's helpers", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree({
     "package.json": JSON.stringify({ name: "planted", private: true, scripts: { "test:coverage": "node fake-suite.mjs" } }),
     "fake-suite.mjs": fakeSuite(FUNCTIONS),
@@ -76,7 +77,6 @@ test("one run hands vitest the scope, lists unseen files, reaps the suite's help
   expect(runFixtureGit(root, ["init", "--quiet"]).status).toBe(0);
   expect(runFixtureGit(root, ["add", "--all"]).status).toBe(0);
   const lines: string[] = [];
-  const startRss = process.memoryUsage.rss();
   const code = await runCoverage([`--root=${root}`, "--suites=node", "--node=tests/demo.test.ts", "--out=report.json"], (line) => lines.push(line));
   expect(code).toBe(0);
   const argv = z.array(z.string()).parse(JSON.parse(readFileSync(join(root, "argv.json"), "utf8")));
@@ -90,9 +90,27 @@ test("one run hands vitest the scope, lists unseen files, reaps the suite's help
   expect(report.unseenFiles).toEqual(["packages/demo/src/index.ts"]);
   // The helper left the suite's process group, so only the run-marker sweep can reach it.
   expect(alive(Number(readFileSync(join(root, "helper.pid"), "utf8")))).toBe(false);
-  // The merge is synchronous, so only a sample taken after it returns sees what it built; a sample from before the
-  // merge sits near this process's memory at the start of the run.
-  expect(report.mergePeakRssBytes).toBeGreaterThan(startRss + MERGE_GROWTH_BYTES);
+});
+
+// The merge is synchronous, so only a sample taken after it returns sees what it built. Each run is a fresh CLI process,
+// so the gap between a large map's merge peak and a one-function merge's is what the merge itself built: a worker that
+// already holds free heap from earlier cases, or a busy box, moves neither run's start.
+test("the merge's peak holds what the merge built", { timeout: 120_000, tags: ["slow"] }, async ({ plantedTree, runCli }) => {
+  const mergePeak = async (functions: number): Promise<number> => {
+    const root = await plantedTree({
+      "package.json": JSON.stringify({ name: "planted", private: true, scripts: { "test:coverage": "node fake-suite.mjs" } }),
+      "fake-suite.mjs": fakeSuite(functions),
+      "packages/demo/src/a.ts": "export const a = 1;\n",
+    });
+    expect(runFixtureGit(root, ["init", "--quiet"]).status).toBe(0);
+    expect(runFixtureGit(root, ["add", "--all"]).status).toBe(0);
+    const run = await runCli("unwired", ["coverage", `--root=${root}`, "--suites=node", "--node=tests/demo.test.ts", "--out=report.json"]);
+    await expect(run).toExitWith(EXIT.clean);
+    return reportSchema.parse(JSON.parse(readFileSync(join(root, "report.json"), "utf8"))).mergePeakRssBytes;
+  };
+  const small = await mergePeak(1);
+  const large = await mergePeak(FUNCTIONS);
+  expect(large - small).toBeGreaterThan(MERGE_GROWTH_BYTES);
 });
 
 const mergedSchema = z.object({ suites: z.array(z.object({ suite: z.string(), head: z.string().nullable(), tree: z.string() })) });

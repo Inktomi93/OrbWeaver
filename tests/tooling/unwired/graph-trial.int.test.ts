@@ -268,7 +268,9 @@ test.for([
       [RELAY]: 'export { keptOf, made } from "./door.ts";',
       [MAIN]: ['import { keptOf, made } from "./relay.ts";', 'made.b = "x";', "keptOf(made);"].join("\n"),
     },
-    errors: [`${MAIN}:2 read`],
+    // The assignment only stores into the member, so the file is reached and the error is a write.
+    verdict: NAMED_ONLY,
+    errors: [`${MAIN}:2 write`],
   },
   {
     site: "a constraint on an inferred alias two imports from every file that names the home type",
@@ -351,14 +353,14 @@ test.for([
     // The main file writes `b` in a literal, so that write is an error too; the augmentation's read refutes.
     errors: [`${AUGMENT}:3 read`, `${MAIN}:4 write`],
   },
-])("a delete that breaks $site is refuted there", { timeout: 120_000 }, async ({ files, errors: expected }, { plantedTree }) => {
+])("a delete that breaks $site is judged there", { timeout: 120_000 }, async ({ files, verdict: judged = REFUTED, errors: expected }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
   const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED, MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(
     report.trials
       .filter(({ label }) => label === `${LIB}:Shape.b`)
       .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
-  ).toEqual([[`${LIB}:Shape.b`, REFUTED, expected]]);
+  ).toEqual([[`${LIB}:Shape.b`, judged, expected]]);
   // The checked set holds the breaking file even though it names neither the member nor the file that declares it.
   const [breaking] = expected[0]?.split(":") ?? [];
   expect(report.trials.find(({ label }) => label === `${LIB}:Shape.b`)?.checked).toContain(breaking);
@@ -455,6 +457,43 @@ test("a computed member a product string spells through its key's value is confi
   ).toEqual([
     [`${LIB}:Shape.zqPlain`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`]],
     [`${LIB}:Shape.[LIT]`, CONFIRMED_LITERAL, [`${KEYS}:2 string product`, `${KEYS}:1 string product`]],
+  ]);
+});
+
+// A quoted key that is not one word is searched by its own text, and snap drives the real app (D357), so a string read
+// off the owner in product source or under snap is confirmed-literal; the same read in a script only annotates.
+const SNAP_KEYS = `${SNAP_SOURCE}zq-keys.ts`;
+
+test("a quoted key read off its owner by its own text, and a read under snap, are confirmed-literal; a script read only annotates", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree(
+      {
+        [WORLD]: plantedTsconfig({ lib: LIBS, include: ["../*/src", `../../${SNAP_SOURCE}`] }),
+        [LIB]: [
+          'export interface Shape { readonly kept: string; readonly "zq-dash"?: string; readonly zqSnapped?: string; readonly zqScripted?: string }',
+          "export const keptOf = (shape: Shape): string => shape.kept;",
+        ].join("\n"),
+        [KEYS]: 'export const has = (o: import("./lib.ts").Shape): boolean => "zq-dash" in (o as object);',
+        [SNAP_KEYS]: 'export const snapped = (o: import("../../../packages/a/src/lib.ts").Shape): boolean => "zqSnapped" in (o as object);',
+        [SCRIPT]: 'export const scripted = (o: import("../packages/a/src/lib.ts").Shape): boolean => "zqScripted" in (o as object);',
+        [MAIN]: ['import { keptOf } from "./lib.ts";', 'keptOf({ kept: "k" });'].join("\n"),
+      },
+      { entries: [MAIN] },
+    ),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "-A"]);
+  const report = await trialGraph(root, { buckets: [MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Shape.`) && label !== `${LIB}:Shape.kept`)
+      .map(({ label, verdict, note, literal }) => [label, verdict, note, literal.map(({ at, kind, scope }) => `${at} ${kind} ${scope}`)]),
+  ).toEqual([
+    [`${LIB}:Shape.zq-dash`, CONFIRMED_LITERAL, null, [`${KEYS}:1 string product`]],
+    [`${LIB}:Shape.zqSnapped`, CONFIRMED_LITERAL, null, [`${SNAP_KEYS}:1 string tooling`]],
+    [`${LIB}:Shape.zqScripted`, CONFIRMED, null, [`${SCRIPT}:1 string tooling`]],
   ]);
 });
 
@@ -1018,6 +1057,74 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
   const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:2 write`]],
+  ]);
+});
+
+// The delete's error on the left of `=` or a discarded `+=` stores into the member: a write, as the graph's roles judge it.
+test("an error at an assignment or compound-assignment target is a write; the twin a constraint reads stays refuted", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "interface Stat { kept: number; lastMs: number; hits: number; seenMs: number }",
+        "type Needs<T> = [T] extends [{ seenMs: number }] ? true : false;",
+        "export const needs: Needs<Stat> = true;",
+        "const stats: Stat[] = [];",
+        "export const mark = (now: number): number => {",
+        "  const stat: Stat = { kept: now, lastMs: 0, hits: 0, seenMs: 0 };",
+        "  stats.push(stat);",
+        "  stat.lastMs = now;",
+        "  stat.hits += 1;",
+        "  stat.seenMs = now;",
+        "  return stats.length + stat.kept;",
+        "};",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Stat.`))
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Stat.lastMs`, NAMED_ONLY, [`${LIB}:6 write`, `${LIB}:8 write`]],
+    [`${LIB}:Stat.hits`, NAMED_ONLY, [`${LIB}:9 write`]],
+    [`${LIB}:Stat.seenMs`, REFUTED, [`${LIB}:3 read`, `${LIB}:6 write`, `${LIB}:10 write`]],
+  ]);
+});
+
+// A deleted method's literal loses its contextual type, so its parameter turns implicit-any: that error is the write's own.
+test("an error inside the literal member that writes a deleted method is part of that write; the twin a constraint reads stays refuted", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "interface Host { create(): number; readLog(line: string): string; echo(line: string): string }",
+        "type Needs<T> = [T] extends [{ echo(line: string): string }] ? true : false;",
+        "export const needs: Needs<Host> = true;",
+        "const host: Host = {",
+        "  create: () => 1,",
+        "  readLog(line) {",
+        "    return line;",
+        "  },",
+        "  echo(line) {",
+        "    return line;",
+        "  },",
+        "};",
+        "export const made = host.create();",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(
+    report.trials
+      .filter(({ label }) => label.startsWith(`${LIB}:Host.`))
+      .map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, code, kind }) => `${at} TS${String(code)} ${kind}`)]),
+  ).toEqual([
+    [`${LIB}:Host.readLog`, NAMED_ONLY, [`${LIB}:6 TS2353 write`, `${LIB}:6 TS7006 write`]],
+    [`${LIB}:Host.echo`, REFUTED, [`${LIB}:3 TS2322 read`, `${LIB}:9 TS2353 write`, `${LIB}:9 TS7006 write`]],
   ]);
 });
 

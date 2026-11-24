@@ -6,8 +6,10 @@
 // changed here changes the graph's literal evidence too.
 //
 // Rulings:
-// - A searched name is one word (isLiteralName): its text builds the pattern, so any other text is refused, never
-//   matched as something else. A caller searches a member by the word it is read by, never by its bracket text.
+// - A searched name is any text on one line (isLiteralName): its pattern characters are escaped, so a quoted
+//   `"content-type"` key is searched as its own text and never matched as something else, and only a name end that is a
+//   word character takes a word boundary. A name that spans lines no grep line can hold and is refused. A caller
+//   searches a member by the text it is read by, never by its bracket text.
 // - TS and JS files are read on the graph program (D357): the caller hands in the NativeWorld it opened, the program's
 //   own tree serves a file the program holds, and a file outside it is parsed alone through the same process. Every
 //   other file is classified by its type. A literal search sees reads the compiler cannot: a JSON scenario, a
@@ -43,7 +45,8 @@
 // - Only a saving hit in what the product runs or loads can stand for a product read (productRead): product source
 //   the parser reads, the plugin bundles' included, never a migration, stylesheet or markup file beside it; a JSON
 //   file a product module imports; each showcase bundle's manifest, which the release build packs into the shipped
-//   zip. A hit in a test, the tooling (snap's included) or any other config is evidence to list, never to keep a row by.
+//   zip; and source under snap, which drives the real app as its user does (D357, ./graph/state.ts productReader). A
+//   hit in a test, the rest of the tooling or any other config is evidence to list, never to keep a row by.
 import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, join, relative, resolve } from "node:path";
 import process from "node:process";
@@ -134,6 +137,7 @@ import type { Verdict } from "./field-sort.ts";
 import { openGraphWorld } from "./graph/build.ts";
 import type { Role } from "./graph/roles.ts";
 import { occurrenceRoles, sameNode } from "./graph/roles.ts";
+import { SNAP_SOURCE } from "./graph/state.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, deepestAt, hasFlag, nameAt, nodePlace, propertiesNamed } from "./native.ts";
 import type { PluginSources } from "./optional-population.ts";
@@ -281,18 +285,47 @@ function scopeOf(file: string, type: FileType): HitScope {
 
 const isGenerated = (root: string, file: string): boolean => isGeneratedFile(file, () => readFileSync(join(root, file), "utf8"));
 
-const escaped = (name: string): string => name.replaceAll(/\$/gu, String.raw`\$`);
+// The characters both PCRE and a JavaScript `u` pattern read as syntax; each is escaped, and no other may be, since a
+// `u` pattern refuses an escape of anything else.
+const SYNTAX_CHARS = /[\\^$.|?*+()[\]{}]/gu;
+const escaped = (name: string): string => name.replaceAll(SYNTAX_CHARS, (char) => `\\${char}`);
 // ASCII, spelled out: git's PCRE reads a Greek or accented letter as a word character, JavaScript's `\w` does not.
 const WORD_CHAR = "[A-Za-z0-9_$]";
-// A name the search takes: one word of WORD_CHAR, since the match boundaries assume one.
-const NAME = /^[A-Za-z0-9_$]+$/u;
+const IS_WORD_CHAR = new RegExp(`^${WORD_CHAR}$`, "u");
+// A grep line is one line of text, so a name that spans lines can never match one.
+const LINE_BREAK = /[\r\n]/u;
 
-/** Whether {@link searchLiterals} can search a name: one word of ASCII letters, digits, `_` and `$`. */
-export const isLiteralName = (name: string): boolean => NAME.test(name);
+/** Whether {@link searchLiterals} can search a name: any text on one line, its pattern characters escaped. */
+export const isLiteralName = (name: string): boolean => name !== "" && !LINE_BREAK.test(name);
+
+// A name end that is a word character takes a boundary there, so `id` never matches inside `idle`; an end that is not,
+// the quote or dash of a `"content-type"` key, already stops the name. The names sharing both ends' boundaries share
+// one group, so a part's pattern holds each boundary at most once per group.
+const BOUNDARIES = [
+  [true, true],
+  [true, false],
+  [false, true],
+  [false, false],
+] as const;
+
+const endsInWord = (name: string): readonly [boolean, boolean] => [IS_WORD_CHAR.test(name.at(0) ?? ""), IS_WORD_CHAR.test(name.at(-1) ?? "")];
+
 // One pattern for both passes: git grep finds the lines and the JavaScript pass finds each hit on them, so the two
 // agree on every boundary. `git grep -w -F` with many names rescans each candidate and is far slower than one PCRE
-// alternation on a large tree.
-const wordPattern = (names: readonly string[]): string => `(?<!${WORD_CHAR})(?:${names.map(escaped).join("|")})(?!${WORD_CHAR})`;
+// alternation on a large tree. Longer names come first, so one name that starts another never hides it.
+function wordPattern(names: readonly string[]): string {
+  return BOUNDARIES.flatMap(([before, after]) => {
+    const group = names.filter((name) => {
+      const [start, end] = endsInWord(name);
+      return start === before && end === after;
+    });
+    if (group.length === 0) {
+      return [];
+    }
+    const alternatives = group.toSorted((a, b) => b.length - a.length).map(escaped);
+    return [`${before ? `(?<!${WORD_CHAR})` : ""}(?:${alternatives.join("|")})${after ? `(?!${WORD_CHAR})` : ""}`];
+  }).join("|");
+}
 const wordsOf = (names: readonly string[]): RegExp => new RegExp(wordPattern(names), "gu");
 
 // PCRE2 refuses a pattern whose compiled form passes 64 KiB, and git grep then exits with an error. A name compiles to
@@ -483,15 +516,14 @@ interface Found {
   readonly index: number;
 }
 
-/** Search the working tree's tracked files for each name as a whole word, or null for a root with no git index. Parsed
- *  files are read on `world`, the graph program the caller owns.
- *  @throws Error when a name is not one {@link isLiteralName} word, before any search: its text would build a pattern
- *  that is not the word, a `[KEY]` a character class. */
+/** Search the working tree's tracked files for each name as its own text, bounded where it ends in a word character,
+ *  or null for a root with no git index. Parsed files are read on `world`, the graph program the caller owns.
+ *  @throws Error when a name is not {@link isLiteralName} text on one line, before any search. */
 export function searchLiterals(root: string, world: NativeWorld, names: readonly string[]): LiteralSearch | null {
   const wanted = [...new Set(names)];
   const refused = wanted.filter((name) => !isLiteralName(name));
   if (refused.length > 0) {
-    throw new Error(`literal hits: ${refused.map((name) => JSON.stringify(name)).join(", ")} not one word of letters, digits, _ and $`);
+    throw new Error(`literal hits: ${refused.map((name) => JSON.stringify(name)).join(", ")} not text on one line`);
   }
   if (!existsSync(join(root, ".git"))) {
     return null;
@@ -1100,7 +1132,7 @@ export interface LiteralStage {
   readonly ownHits: number;
   /** Never-written rows the stage searched, by where they ended. */
   readonly neverWritten: { readonly ask: number; readonly dead: number };
-  /** Dead rows whose member is not one word: no search can clear them, so they moved to ask unsearched. */
+  /** Dead rows whose member spans lines: no search can clear them, so they moved to ask unsearched. */
   readonly unsearchable: number;
 }
 
@@ -1178,7 +1210,9 @@ function evidenceOf(
   files: number,
 ): LiteralEvidence {
   const saving = hits.filter(savesRow);
-  const holding = saving.filter((hit) => ((hit.offset !== null && isProduction(hit.file, plugins)) || productData.has(hit.file)) && names(hit));
+  const holding = saving.filter(
+    (hit) => ((hit.offset !== null && (isProduction(hit.file, plugins) || hit.file.startsWith(SNAP_SOURCE))) || productData.has(hit.file)) && names(hit),
+  );
   const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
   const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
   return {
@@ -1209,8 +1243,8 @@ function countKinds(hits: readonly LiteralHit[]): Partial<Record<HitKind, number
 }
 
 /** Search every dead row's member name over the tracked tree and move a row with a hit that can be a read to ask. A
- *  row's own known sites are no hit: the stage looks for what the scan missed. A dead row whose member is not one word
- *  (a quoted `"content-type"` key) moves to ask unsearched, since no search can clear it. Null stage for a root with no
+ *  row's own known sites are no hit: the stage looks for what the scan missed. A dead row whose member spans lines
+ *  moves to ask unsearched, since no search can clear it. Null stage for a root with no
  *  git index, which leaves every row as it was. */
 export function literalStage<Row extends StageRow>(
   root: string,
@@ -1271,6 +1305,8 @@ export function literalStage<Row extends StageRow>(
 }
 
 const JSON_FLAG = "--json";
+// An argument that starts like a flag is one, never a name to search.
+const FLAG_PREFIX = "--";
 const ROOT_FLAG = /^--root=(.+)$/u;
 /** The `hits` verb's usage line, which run.ts prints with the others. */
 export const HITS_USAGE = "pnpm unwired hits <name...> [--root=<dir>] [--json]";
@@ -1355,10 +1391,10 @@ function parseHits(argv: readonly string[]): { readonly names: readonly string[]
       json = true;
     } else if (rooted !== undefined) {
       root = rooted;
-    } else if (NAME.test(arg)) {
+    } else if (isLiteralName(arg) && !arg.startsWith(FLAG_PREFIX)) {
       names.push(arg);
     } else {
-      throw new UsageError(`${arg}: not a name (one word of letters, digits, _ and $) or a flag\nusage: ${HITS_USAGE}`);
+      throw new UsageError(`${JSON.stringify(arg)}: not a name (text on one line) or a flag\nusage: ${HITS_USAGE}`);
     }
   }
   if (names.length === 0) {

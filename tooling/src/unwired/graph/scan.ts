@@ -2,11 +2,23 @@
 // find-references check of a member bucket, the delete trial of named buckets, the custom-property pass, the DOM-hook
 // pass, the unions scan, the codes scan, the removed-keys check, the shapes scan, the fields report, the member scan, the columns scan or the reference census over it. Every result carries what
 // the session ran under, so a narrowed, ablated or dumped run is never read as a fresh build of the whole tree.
+//
+// A session watches every compiler process its worlds start (../native.ts COMPILER_CHANNEL). When the run fails and a
+// compiler had ended on its own, never closed by its world, the session logs its exit code or signal, when the run
+// failed and the step it was in, so a compiler death is never only a dead pipe.
 
-import { mkdirSync } from "node:fs";
+import type { ChildProcess } from "node:child_process";
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
+import { once } from "node:events";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { Session as InspectorSession } from "node:inspector/promises";
+import { join } from "node:path";
+import process from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Verdict } from "../field-sort.ts";
-import type { NativeWorld } from "../native.ts";
+import type { CompilerStart, NativeWorld } from "../native.ts";
+import { COMPILER_CHANNEL, compilerStartOf } from "../native.ts";
 import type { Analysis, MemberBucket } from "./analyse.ts";
 import { analyse } from "./analyse.ts";
 import type { Graph } from "./build.ts";
@@ -38,8 +50,8 @@ import { PARAMS_HOMES, paramsPass } from "./params.ts";
 import { readPprof } from "./pprof.ts";
 import type { ProceduresOptions, ProceduresReport } from "./procedures.ts";
 import { PROCEDURE_HOMES, proceduresOf } from "./procedures.ts";
-import type { CompilerProfile, GraphProfileReport, ProfilePhase } from "./profile.ts";
-import { GraphProfile } from "./profile.ts";
+import type { CompilerProfile, GraphProfileReport, NodeHeapProfile, ProfilePhase } from "./profile.ts";
+import { GraphProfile, summarizeNodeHeap } from "./profile.ts";
 import type { Query, QueryAnswer } from "./query.ts";
 import { GraphQueries } from "./query.ts";
 import type { RemovedKeysOptions, RemovedKeysReport } from "./removed-keys.ts";
@@ -115,6 +127,28 @@ interface GraphSource {
 
 const HEAP_SAMPLES = "inuse_space";
 const CPU_SAMPLES = "cpu";
+// How long a failed run waits for a compiler it did not close to report its exit: a dead compiler's pipe fails at once,
+// and Node delivers the exit on the next turns of its loop.
+const EXIT_WAIT_MS = 2000;
+// V8's default sampling interval: one sample per 32 KiB allocated on average.
+const NODE_HEAP_INTERVAL = 32_768;
+// The steps outside a profile phase: the build's own work, and what the verb does with the graph after it.
+const BUILD_STEP = "build";
+const WORK_STEP = "work";
+
+// A compiler the session saw start, and the step it started in.
+interface StartedCompiler {
+  readonly start: CompilerStart;
+  readonly step: string;
+}
+
+// How a compiler process ended, or null while it runs.
+const endOf = (child: ChildProcess): string | null => {
+  if (child.signalCode !== null) {
+    return `ended by signal ${child.signalCode}`;
+  }
+  return child.exitCode === null ? null : `exited with code ${String(child.exitCode)}`;
+};
 
 class Session implements Disposable {
   readonly #root: string;
@@ -124,7 +158,19 @@ class Session implements Disposable {
   readonly #sites: SitePlan;
   #world: NativeWorld | null = null;
   readonly #compilers: CompilerProfile[] = [];
+  #nodeHeap: NodeHeapProfile | null = null;
   #cpuStopped = false;
+  readonly #steps: string[] = [];
+  #failedIn: string | null = null;
+  #inspector: InspectorSession | null = null;
+  readonly #started: StartedCompiler[] = [];
+  readonly #onCompiler = (message: unknown): void => {
+    const start = compilerStartOf(message);
+    if (start !== undefined) {
+      this.#started.push({ start, step: this.#step() });
+      this.#profile?.watch(start);
+    }
+  };
 
   constructor(root: string, log: GraphLog, { options, ...sites }: SessionPlan) {
     this.#root = root;
@@ -132,10 +178,29 @@ class Session implements Disposable {
     this.#log = log;
     this.#sites = sites;
     this.#profile = options.profile === null ? null : new GraphProfile();
+    subscribe(COMPILER_CHANNEL, this.#onCompiler);
+  }
+
+  // The innermost step running: a profiled phase inside the build, else the session's own.
+  #step(): string {
+    return this.#profile?.phase ?? this.#steps.at(-1) ?? WORK_STEP;
+  }
+
+  // The first step to see a failure is the innermost one, so it keeps the place.
+  #within<R>(step: string, work: () => R): R {
+    this.#steps.push(step);
+    try {
+      return work();
+    } catch (error) {
+      this.#failedIn ??= this.#profile?.failedIn ?? step;
+      throw error;
+    } finally {
+      this.#steps.pop();
+    }
   }
 
   time<R>(phase: ProfilePhase, work: () => R): R {
-    return this.#profile === null ? work() : this.#profile.time(phase, work);
+    return this.#within(phase, () => (this.#profile === null ? work() : this.#profile.time(phase, work)));
   }
 
   world(): NativeWorld {
@@ -156,8 +221,43 @@ class Session implements Disposable {
     try {
       return await this.#run(use);
     } catch (error) {
+      const failedAt = new Date();
+      await this.#noteCompilerEnds(failedAt, this.#failedIn ?? this.#profile?.failedIn ?? this.#step());
       this.#saveProfilesAtFailure();
       throw error;
+    }
+  }
+
+  // The verb's own work over the graph, as the step a failure in it names.
+  async #working<T>(work: () => T | Promise<T>): Promise<T> {
+    this.#steps.push(WORK_STEP);
+    try {
+      return await work();
+    } catch (error) {
+      this.#failedIn ??= this.#profile?.failedIn ?? WORK_STEP;
+      throw error;
+    } finally {
+      this.#steps.pop();
+    }
+  }
+
+  // Each compiler that ended on its own before the run failed, with its exit code or signal. Its world never closed it
+  // (a closed one is `killed`), so its end is the failure's cause or a symptom of it.
+  async #noteCompilerEnds(failedAt: Date, step: string): Promise<void> {
+    const open = this.#started.filter(({ start }) => !start.process.killed);
+    const pending = open.filter(({ start }) => endOf(start.process) === null).map(({ start }) => once(start.process, "exit"));
+    if (pending.length > 0) {
+      const waited = new AbortController();
+      await Promise.race([Promise.all(pending), delay(EXIT_WAIT_MS, undefined, { signal: waited.signal }).catch(() => undefined)]);
+      waited.abort();
+    }
+    for (const { start, step: started } of open) {
+      const end = endOf(start.process);
+      if (end !== null) {
+        this.#log(
+          `the compiler for ${start.config} (pid ${String(start.process.pid)}, started in ${started}) ${end}; the run failed at ${failedAt.toISOString()} in ${step}`,
+        );
+      }
     }
   }
 
@@ -201,7 +301,7 @@ class Session implements Disposable {
         : (step): void => {
             steps.push(step);
           };
-    const value = await use({ graph, carried, world: () => this.world(), time: (phase, work) => this.time(phase, work) });
+    const value = await this.#working(() => use({ graph, carried, world: () => this.world(), time: (phase, work) => this.time(phase, work) }));
     this.#stopCpu();
     const measures = {
       counts: graph.facts.counts,
@@ -219,7 +319,11 @@ class Session implements Disposable {
         ...carriedEntries(options.why, graph.facts.decls, steps, { sites: graph.facts.roleSites, product: productReader, world: this.#world }),
       ],
       lost: options.explainLost ? explainLost(graph.facts) : null,
-      profile: this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, this.#compilers) ?? null,
+      profile:
+        this.#profile?.report(measures, world === null ? null : { stats: world.stats, timing: world.timing() }, {
+          compilers: this.#compilers,
+          nodeHeap: this.#nodeHeap,
+        }) ?? null,
     };
     return { ...value, session: report };
   }
@@ -232,16 +336,38 @@ class Session implements Disposable {
 
   async #build(): Promise<GraphSource> {
     const options = this.#options;
+    const heap = options.profile !== null && profiling(options, "heap") ? options.profile.dir : null;
+    if (heap !== null) {
+      this.#inspector = new InspectorSession();
+      this.#inspector.connect();
+      await this.#inspector.post("HeapProfiler.startSampling", { samplingInterval: NODE_HEAP_INTERVAL });
+    }
     const roots = this.#profile === null ? await loadRoots(this.#root) : await this.#profile.timeAsync("open", () => loadRoots(this.#root));
     const world = this.world();
-    const { graph, why } = buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, ...this.#sites });
-    if (options.profile !== null && profiling(options, "heap")) {
-      mkdirSync(options.profile.dir, { recursive: true });
-      const path = String(world.debug.saveHeapProfile(options.profile.dir));
+    const { graph, why } = this.#within(BUILD_STEP, () =>
+      buildGraph(this.#root, world, roots, { options, log: this.#log, profile: this.#profile, ...this.#sites }),
+    );
+    if (heap !== null) {
+      mkdirSync(heap, { recursive: true });
+      const path = String(world.debug.saveHeapProfile(heap));
       this.#compilers.push({ kind: "heap", path, summary: readPprof(path, HEAP_SAMPLES) });
+      this.#nodeHeap = await this.#saveNodeHeap(heap);
     }
     const dumped = options.dump === null ? null : writeDump(options.dump, this.#root, graph, new Date());
     return { graph, why, dumped, from: null };
+  }
+
+  // Node's live heap by allocating function, saved as a .heapprofile DevTools opens.
+  async #saveNodeHeap(dir: string): Promise<NodeHeapProfile | null> {
+    if (this.#inspector === null) {
+      return null;
+    }
+    const { profile } = await this.#inspector.post("HeapProfiler.stopSampling");
+    this.#inspector.disconnect();
+    this.#inspector = null;
+    const path = join(dir, `node-heap-${String(process.pid)}-${String(Math.round(performance.now()))}.heapprofile`);
+    writeFileSync(path, JSON.stringify(profile));
+    return { path, summary: summarizeNodeHeap(profile, this.#root) };
   }
 
   #stopCpu(): void {
@@ -255,6 +381,8 @@ class Session implements Disposable {
   // A compiler process that already exited cannot take the releases its leases and snapshots send (EPIPE), so disposing
   // its world throws; thrown out of `using`, that failure would bury the run's own error as a SuppressedError.
   [Symbol.dispose](): void {
+    unsubscribe(COMPILER_CHANNEL, this.#onCompiler);
+    this.#inspector?.disconnect();
     try {
       this.#world?.[Symbol.dispose]();
     } catch (error) {

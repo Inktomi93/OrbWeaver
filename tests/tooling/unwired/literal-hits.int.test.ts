@@ -386,8 +386,9 @@ test("a CRLF line and a U+2028 line keep their file; a tracked symlink to a dire
   expect(execFixtureGit(root, ["ls-files", "-s", "packages/a/alias"])).toMatch(/^120000 /u);
 });
 
-test("the verb refuses a name that is not one word before it searches", () => {
-  expect(() => runHits(["zq.dotted"], () => undefined)).toThrow(UsageError);
+test("the verb refuses a name that spans lines, or an unknown flag, before it searches", () => {
+  expect(() => runHits(["zq\nline"], () => undefined)).toThrow(UsageError);
+  expect(() => runHits(["--zq-flag"], () => undefined)).toThrow(UsageError);
   expect(() => runHits(["--json"], () => undefined)).toThrow(/at least one name/u);
 });
 
@@ -455,21 +456,40 @@ test("more names than one grep pattern holds are searched in parts, and each hit
   expect(stage?.deadAfter).toBe(members.length - 2);
 });
 
-// A name's text builds the pattern, so a name that is not one word would search for something else: `[LIT]` is a
-// character class. The search refuses it, and the stage moves such a dead row to ask unsearched, never leaves it dead.
-test("a name that is not one word is refused by the search and moves its dead row to ask unsearched", { timeout: TIMEOUT }, async ({ plantedTree }) => {
-  const root = await plantedTree(graphTree({ [DECLARATION]: DECLARED, "packages/a/src/letters.ts": "export const L = 1;\n" }));
+// A name's pattern characters are escaped, so a name that is not one word is searched as its own text: `[L]` never
+// matches `L`, `zq.dot` never matches `zqxdot`, and a quoted `"zq-dash"` key is found on both passes, a word boundary
+// held only at an end that is a word character. Only a name that spans lines, which no grep line holds, is refused, and
+// the stage moves such a dead row to ask unsearched.
+test("a name that is not one word is searched as its own text; only a name that spans lines is refused", { timeout: TIMEOUT }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [DECLARATION]: DECLARED,
+      "packages/a/src/letters.ts": ["export const L = 1;", "export const zqxdot = 2;", 'export const zqdash = "zq-dashed";'].join("\n"),
+      "packages/a/src/keys.ts": [
+        'export const head = { "zq-dash": 1, "[L]": 2, "zq.dot": 3 };',
+        'export const has = (o: object): boolean => "zq-dash" in o;',
+      ].join("\n"),
+    }),
+  );
   execFixtureGit(root, ["init", "-q"]);
   execFixtureGit(root, ["add", "-A"]);
   using world = openGraphWorld(root);
-  expect(() => searchLiterals(root, world, ["zqWord", "[L]"])).toThrow(/"\[L\]" not one word/u);
-  const rows = ["zq-dash", "zqQuietRow"].map((member) => ({ member, verdict: "dead" as const, known: [], neverWritten: false }));
+  expect(() => searchLiterals(root, world, ["zqWord", "zq\nline"])).toThrow(/"zq\\nline" not text on one line/u);
+  const search = searchLiterals(root, world, ["zq-dash", "[L]", "zq.dot"]);
+  const placed = (name: string): readonly string[] => (search?.hits.get(name) ?? []).map((hit) => `${hit.at} ${hit.kind}`);
+  expect([placed("zq-dash"), placed("[L]"), placed("zq.dot")]).toEqual([
+    ["packages/a/src/keys.ts:1 write", "packages/a/src/keys.ts:2 string"],
+    ["packages/a/src/keys.ts:1 write"],
+    ["packages/a/src/keys.ts:1 write"],
+  ]);
+  const rows = ["zq-dash", "zq\nline", "zqQuietRow"].map((member) => ({ member, verdict: "dead" as const, known: [], neverWritten: false }));
   const { rows: staged, stage } = literalStage(root, world, rows, CONTROL);
   expect(staged.map(({ member, verdict, literal }) => [member, verdict, literal === null])).toEqual([
-    ["zq-dash", "ask", true],
+    ["zq-dash", "ask", false],
+    ["zq\nline", "ask", true],
     ["zqQuietRow", "dead", false],
   ]);
-  expect([stage?.unsearchable, stage?.deadBefore, stage?.deadAfter]).toEqual([1, 2, 1]);
+  expect([stage?.unsearchable, stage?.deadBefore, stage?.deadAfter]).toEqual([1, 3, 1]);
 });
 
 // The program reads each file once; a file edited before the search greps it gives lines the program never held, so
