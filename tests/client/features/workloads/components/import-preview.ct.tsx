@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import type { ImportPreview } from "@orb/contracts/import";
+import type { ImportPreview, ImportPreviewItem } from "@orb/contracts/import";
 import {
   IMPORT_PREVIEW_KINDS,
   importStartedSchema,
@@ -86,7 +86,7 @@ function numbersIn(text: string): readonly number[] {
 /** The folder must stage both note kinds the summary adds after a count, or a dropped note could not fail a case. */
 function expectNoteItemsStaged(preview: ImportPreview): void {
   const items = IMPORT_PREVIEW_KINDS.flatMap((kind) => preview.kinds[kind].items);
-  expect(items.filter((item) => item.inLibrary === true).length).toBeGreaterThan(0);
+  expect(items.filter((item) => item.reuse === "library").length).toBeGreaterThan(0);
   expect(items.filter((item) => item.withoutArt === true).length).toBeGreaterThan(0);
 }
 
@@ -144,6 +144,12 @@ async function dryRuns(root: ServerTestHarness): Promise<readonly WorkloadRowAny
 
 async function dryRunPreviews(root: ServerTestHarness): Promise<readonly ImportPreview[]> {
   return (await dryRuns(root)).flatMap((run) => asImportPreview(run.result) ?? []);
+}
+
+// The reason the run refuses a preset's named script, or "" when it does not refuse it.
+function refusalOf(preset: ImportPreviewItem | undefined, name: string): string {
+  const script = preset?.regexScripts?.find((entry) => entry.name === name);
+  return script !== undefined && "refused" in script ? script.refused : "";
 }
 
 // WebKit applies CORS after URL rewriting; the adapter preserves native multipart bytes across the gallery/root origins.
@@ -555,7 +561,7 @@ test("a folder's persona the library already holds is counted as already there, 
 
   // The control: the wire carries the ownership the line reads, for a kind that is not a character.
   const [preview] = nonEmpty(await dryRunPreviews(root));
-  expect(preview.kinds.personas.items.filter((item) => item.inLibrary === true)).toHaveLength(1);
+  expect(preview.kinds.personas.items.filter((item) => item.reuse === "library")).toHaveLength(1);
   expectNoteItemsStaged(preview);
   const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text));
   const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
@@ -748,15 +754,15 @@ test("the names panel lists each preset's regex scripts with what the run does w
   const [preview] = nonEmpty(await dryRunPreviews(root));
   const amber = preview.kinds.presets.items.find((item) => item.name === "Amber (OpenAI)");
   const birch = preview.kinds.presets.items.find((item) => item.name === "Birch (OpenAI)");
-  const heavyReason = amber?.regexScripts?.find((script) => script.name === "Heavy")?.refused ?? "";
+  const heavyReason = refusalOf(amber, "Heavy");
   expect(heavyReason).toMatch(/ms to compile/u);
   // The entry that is not a script has no name, so the run names it by its place in the file's list.
   const notScript = `${ST_PRESET_SCRIPT_LIST_FIELD}[3]`;
-  const notScriptReason = amber?.regexScripts?.find((script) => script.name === notScript)?.refused ?? "";
+  const notScriptReason = refusalOf(amber, notScript);
   expect(notScriptReason).not.toBe("");
   expect([amber?.regexScripts, birch?.regexScripts]).toEqual([
-    [{ name: "Whistle" }, { name: "Kettle", inLibrary: true }, { name: "Heavy", refused: heavyReason }, { name: notScript, refused: notScriptReason }],
-    [{ name: "Whistle", repeat: true }],
+    [{ name: "Whistle" }, { name: "Kettle", reuse: "library" }, { name: "Heavy", refused: heavyReason }, { name: notScript, refused: notScriptReason }],
+    [{ name: "Whistle", reuse: "upload" }],
   ]);
   const leftOut = nonEmpty([...(amber?.leftOut ?? [])]);
   await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
@@ -765,7 +771,7 @@ test("the names panel lists each preset's regex scripts with what the run does w
     report.getByText(
       importPreviewPresetScriptsLine("Amber (OpenAI)", [
         importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.added),
-        importPreviewScriptEntry("Kettle", IMPORT_PREVIEW_SCRIPT_VERDICTS.inLibrary),
+        importPreviewScriptEntry("Kettle", IMPORT_PREVIEW_SCRIPT_VERDICTS.library),
         importPreviewScriptEntry("Heavy", importPreviewScriptRefused(heavyReason)),
         importPreviewScriptEntry(notScript, importPreviewScriptRefused(notScriptReason)),
       ]),
@@ -773,7 +779,7 @@ test("the names panel lists each preset's regex scripts with what the run does w
     ),
   ).toBeVisible();
   await expect(
-    report.getByText(importPreviewPresetScriptsLine("Birch (OpenAI)", [importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.repeat)]), {
+    report.getByText(importPreviewPresetScriptsLine("Birch (OpenAI)", [importPreviewScriptEntry("Whistle", IMPORT_PREVIEW_SCRIPT_VERDICTS.upload)]), {
       exact: true,
     }),
   ).toBeVisible();
@@ -828,7 +834,7 @@ test("a folder of two profiles that hold the same card says the second one adds 
 
   const [preview] = nonEmpty(await dryRunPreviews(root));
   // The control: the server's preview lists the card under both profiles and marks the second as the first's repeat.
-  const verdicts = preview.kinds.characters.items.map(({ source, repeat }) => [source.profile, repeat === true] as const);
+  const verdicts = preview.kinds.characters.items.map(({ source, reuse }) => [source.profile, reuse === "upload"] as const);
   expect(verdicts.toSorted(([a], [b]) => a.localeCompare(b))).toEqual([
     [ALICE, false],
     [BOB, true],

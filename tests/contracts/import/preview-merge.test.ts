@@ -4,17 +4,12 @@
 // @subject packages/contracts/src/import/preview.ts
 
 import type { ImportPreview, ImportPreviewItem, ImportPreviewKind } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_LIST_MAX, importPreviewListOf, mergeImportPreviews } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_LIST_MAX, importPreviewListOf, importPreviewSchema, mergeImportPreviews } from "@orb/contracts/import";
 import { expect, test } from "@orb/testkit/node";
 
 const KIND = "themes" satisfies ImportPreviewKind;
 
-function itemAt(
-  profile: string,
-  path: string,
-  identities: readonly string[],
-  flag: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {},
-): ImportPreviewItem {
+function itemAt(profile: string, path: string, identities: readonly string[], flag: Partial<Pick<ImportPreviewItem, "reuse">> = {}): ImportPreviewItem {
   return { source: { profile, path }, sourceDigest: `${profile}/${path}`, name: path, identities, ...flag };
 }
 
@@ -40,10 +35,10 @@ function uploadOf(...items: readonly ImportPreviewItem[]): ImportPreview {
 }
 
 function verdictOf(item: ImportPreviewItem): "writes" | "repeat" | "library" {
-  if (item.repeat === true) {
+  if (item.reuse === "upload") {
     return "repeat";
   }
-  return item.inLibrary === true ? "library" : "writes";
+  return item.reuse === "library" ? "library" : "writes";
 }
 
 /** What each merged item says of itself: its path and whether a run writes it. */
@@ -98,8 +93,8 @@ test("an entry with no identities cannot be compared and stays a write", () => {
 
 test("an entry the library holds keeps that verdict, and what an upload already marked a repeat stays one", () => {
   const merged = mergeImportPreviews([
-    uploadOf(itemAt("alice", "held.json", ["held"], { inLibrary: true }), itemAt("alice", "first.json", ["first"])),
-    uploadOf(itemAt("bob", "held.json", ["held"], { inLibrary: true }), itemAt("bob", "first.json", ["first"], { repeat: true })),
+    uploadOf(itemAt("alice", "held.json", ["held"], { reuse: "library" }), itemAt("alice", "first.json", ["first"])),
+    uploadOf(itemAt("bob", "held.json", ["held"], { reuse: "library" }), itemAt("bob", "first.json", ["first"], { reuse: "upload" })),
   ]);
 
   expect(verdicts(merged)).toEqual([
@@ -112,7 +107,7 @@ test("an entry the library holds keeps that verdict, and what an upload already 
 
 /** More entries than a preview lists, so the upload sends the first of them and counts the rest. The last entry,
  *  the one past the cap, carries `flagTail`. */
-function tailedUpload(profile: string, flagTail: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {}): ImportPreview {
+function tailedUpload(profile: string, flagTail: Partial<Pick<ImportPreviewItem, "reuse">> = {}): ImportPreview {
   const entries = Array.from({ length: IMPORT_PREVIEW_LIST_MAX + 1 }, (_, i) =>
     itemAt(profile, `${profile}-${String(i)}.json`, [`${profile}-${String(i)}`], i === IMPORT_PREVIEW_LIST_MAX ? flagTail : {}),
   );
@@ -120,7 +115,7 @@ function tailedUpload(profile: string, flagTail: Partial<Pick<ImportPreviewItem,
 }
 
 test("the counts of a kind past the list cap are exact: an owned entry past the cap is not a write", () => {
-  const merged = mergeImportPreviews([tailedUpload("alice", { inLibrary: true })]);
+  const merged = mergeImportPreviews([tailedUpload("alice", { reuse: "library" })]);
 
   // The control: the list really holds fewer entries than the upload has, so a count read off it would be short.
   expect(merged.kinds[KIND].items).toHaveLength(IMPORT_PREVIEW_LIST_MAX);
@@ -129,7 +124,7 @@ test("the counts of a kind past the list cap are exact: an owned entry past the 
 });
 
 test("a split folder whose uploads each have an unlisted tail counts the writes it could not compare with the other upload", () => {
-  const merged = mergeImportPreviews([tailedUpload("alice"), tailedUpload("bob", { repeat: true })]);
+  const merged = mergeImportPreviews([tailedUpload("alice"), tailedUpload("bob", { reuse: "upload" })]);
 
   const { total, counts } = merged.kinds[KIND];
   expect(total).toBe(2 * (IMPORT_PREVIEW_LIST_MAX + 1));
@@ -139,7 +134,7 @@ test("a split folder whose uploads each have an unlisted tail counts the writes 
 
 /** A file every upload of a split folder carries, as many of them as `count`: each upload lists the first of them and
  *  counts the rest, and an entry past the list cap has the same source in every upload. */
-function sharedUpload(count: number, flag: Partial<Pick<ImportPreviewItem, "inLibrary" | "repeat">> = {}): ImportPreview {
+function sharedUpload(count: number, flag: Partial<Pick<ImportPreviewItem, "reuse">> = {}): ImportPreview {
   return uploadOf(...Array.from({ length: count }, (_, i) => itemAt("alice", `shared-${String(i)}.json`, [], flag)));
 }
 
@@ -147,7 +142,7 @@ test("entries every upload of a split folder carries are counted once however ma
   const past = IMPORT_PREVIEW_LIST_MAX + 1;
 
   const fresh = mergeImportPreviews([sharedUpload(past), sharedUpload(past)]).kinds[KIND];
-  const owned = mergeImportPreviews([sharedUpload(past, { inLibrary: true }), sharedUpload(past, { inLibrary: true })]).kinds[KIND];
+  const owned = mergeImportPreviews([sharedUpload(past, { reuse: "library" }), sharedUpload(past, { reuse: "library" })]).kinds[KIND];
 
   // Each upload sends no identities for these, so a write among them is a bound; the entry past the cap is one write.
   expect(fresh.total).toBe(past);
@@ -158,10 +153,10 @@ test("entries every upload of a split folder carries are counted once however ma
 
 test("an entry one upload lists and another leaves in its tail is counted once, whichever upload lists it", () => {
   const past = IMPORT_PREVIEW_LIST_MAX + 1;
-  const last = itemAt("alice", "last.json", ["last"], { inLibrary: true });
+  const last = itemAt("alice", "last.json", ["last"], { reuse: "library" });
   const filler = (profile: string): ImportPreviewItem[] =>
     Array.from({ length: IMPORT_PREVIEW_LIST_MAX }, (_, i) =>
-      itemAt(profile, `${profile}-${String(i)}.json`, [`${profile}-${String(i)}`], { inLibrary: true }),
+      itemAt(profile, `${profile}-${String(i)}.json`, [`${profile}-${String(i)}`], { reuse: "library" }),
     );
 
   const tailFirst = mergeImportPreviews([uploadOf(...filler("alice"), last), uploadOf(last)]).kinds[KIND];
@@ -196,7 +191,7 @@ test("one upload with an unlisted tail has no other upload to be compared with, 
 
 test("in a split folder a listed entry with no identities is uncompared, and an entry the library holds is not", () => {
   const merged = mergeImportPreviews([
-    uploadOf(itemAt("alice", "a.json", []), itemAt("alice", "held.json", [], { inLibrary: true })),
+    uploadOf(itemAt("alice", "a.json", []), itemAt("alice", "held.json", [], { reuse: "library" })),
     uploadOf(itemAt("bob", "b.json", ["b"])),
   ]);
 
@@ -215,4 +210,24 @@ test("an entry that holds several identities is a repeat only when earlier entri
     ["both.json", "repeat"],
     ["partly.json", "writes"],
   ]);
+});
+
+// A preset's script is reused or refused, never both: the wire refuses a script that claims both, and takes either one.
+test("the preview wire refuses a preset script that is both reused and refused", () => {
+  // The scripts go onto the wire value after the list is built, so a shape the type refuses reaches the schema without a cast.
+  const withScripts = (regexScripts: readonly unknown[]): unknown => {
+    const preview = uploadOf();
+    const preset = itemAt("alice", "Amber.json", ["amber"]);
+    const presets = importPreviewListOf([preset]);
+    return { ...preview, kinds: { ...preview.kinds, presets: { ...presets, items: [{ ...preset, regexScripts }] } } };
+  };
+  expect(
+    importPreviewSchema.safeParse(
+      withScripts([
+        { name: "Kettle", reuse: "library" },
+        { name: "Heavy", refused: "too slow" },
+      ]),
+    ).success,
+  ).toBe(true);
+  expect(importPreviewSchema.safeParse(withScripts([{ name: "Kettle", reuse: "library", refused: "too slow" }])).success).toBe(false);
 });

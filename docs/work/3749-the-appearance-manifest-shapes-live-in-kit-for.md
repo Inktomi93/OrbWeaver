@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-21
+status: doing
+updated: 2026-11-24
 priority: P3
 area: tooling
+lane: wt/agent-a8cf6e1a6f93ccf36
 plan: typed-enforcers
 ---
 

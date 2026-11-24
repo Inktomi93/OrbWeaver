@@ -16,15 +16,25 @@ const BACKGROUND_SIZE_BY_FIT: Record<BackgroundFit, string> = {
   center: "auto",
 };
 
-export interface BackgroundLayerProps {
+interface BackgroundLayerPropsBase {
   /** The `data-slot` the layer carries, so a rule or test can address it. */
   readonly slot: string;
-  /** A photo painted as the layer's background; `blur` is the photo's own radius in px, never a backdrop filter. */
-  readonly image?: { readonly url: string; readonly fit: BackgroundFit; readonly blur: number };
-  /** The scrim arm: the polarity-fixed backdrop at this opacity. */
-  readonly scrim?: { readonly dim: number };
   readonly children?: ReactNode;
 }
+
+export type BackgroundLayerProps = BackgroundLayerPropsBase &
+  (
+    | {
+        /** A photo painted as the layer's background; `blur` is the photo's own radius in px, never a backdrop filter. */
+        readonly image?: { readonly url: string; readonly fit: BackgroundFit; readonly blur: number };
+        readonly scrim?: never;
+      }
+    | {
+        readonly image?: never;
+        /** The scrim arm: the polarity-fixed backdrop at this opacity. */
+        readonly scrim?: { readonly dim: number };
+      }
+  );
 
 function layerStyle({ image, scrim }: BackgroundLayerProps): CSSProperties | undefined {
   if (image !== undefined) {

@@ -41,8 +41,8 @@ forEachNonEmpty(OWNED_KINDS, "owned preview kinds", (kind) => {
     const preview = await dryRun(root, both);
 
     const items = preview.kinds[kind].items;
-    expect(items.filter((item) => item.inLibrary === true).map((item) => item.name)).toEqual(names.held[kind]);
-    expect(items.filter((item) => item.inLibrary !== true).map((item) => item.name)).toEqual(names.fresh[kind]);
+    expect(items.filter((item) => item.reuse === "library").map((item) => item.name)).toEqual(names.held[kind]);
+    expect(items.filter((item) => item.reuse !== "library").map((item) => item.name)).toEqual(names.fresh[kind]);
   });
 });
 
@@ -52,12 +52,12 @@ test.for(NAMESAKE_KINDS)("a %s item that shares a held item's name but not its c
   await finish(root, await admit(root, held));
   // The control: the held folder's own item reads as held, so the namesake's verdict is the content's.
   const control = await dryRun(root, held);
-  expect(control.kinds[kind].items.filter((item) => item.inLibrary === true).map((item) => item.name)).toEqual(names.held[kind]);
+  expect(control.kinds[kind].items.filter((item) => item.reuse === "library").map((item) => item.name)).toEqual(names.held[kind]);
 
   const preview = await dryRun(root, namesakeFolder(root));
 
   expect(preview.kinds[kind].items.map((item) => item.name)).toEqual(names.held[kind]);
-  expect(preview.kinds[kind].items.filter((item) => item.inLibrary === true)).toEqual([]);
+  expect(preview.kinds[kind].items.filter((item) => item.reuse === "library")).toEqual([]);
 });
 
 test("a transcript the owner holds under one character is not flagged under another character", async () => {
@@ -78,7 +78,7 @@ test("a transcript the owner holds under one character is not flagged under anot
     "chats/Bram/shared.jsonl": shared,
   });
 
-  const flagged = (held: boolean): string[] => preview.kinds.chats.items.filter((item) => (item.inLibrary === true) === held).map((item) => item.name);
+  const flagged = (held: boolean): string[] => preview.kinds.chats.items.filter((item) => (item.reuse === "library") === held).map((item) => item.name);
   expect(flagged(true)).toEqual(["Aria: shared"]);
   expect(flagged(false)).toEqual(["Bram: shared"]);
 });
@@ -94,7 +94,7 @@ test("two profiles that share a path keep their own verdicts", async () => {
   const preview = await dryRun(root, { ...inProfile("alice", alice), ...inProfile("bob", bob) });
 
   expect(preview.kinds.chats.total).toBe(2);
-  expect(preview.kinds.chats.items.filter((item) => item.inLibrary === true)).toHaveLength(1);
+  expect(preview.kinds.chats.items.filter((item) => item.reuse === "library")).toHaveLength(1);
 });
 
 test("a group the run refuses is a skip, not a new room, and the preview counts what the run counts", async () => {
@@ -161,10 +161,10 @@ test.for(ART_CASES)("same-text PNGs of an owned card, $name: the preview says wh
   await finish(root, await admit(root, files));
 
   const verdictOf = (item: (typeof preview.kinds.characters.items)[number]): Verdict => {
-    if (item.inLibrary === true) {
+    if (item.reuse === "library") {
       return "library";
     }
-    return item.repeat === true ? "repeat" : "write";
+    return item.reuse === "upload" ? "repeat" : "write";
   };
   expect(preview.kinds.characters.items.map((item) => [item.source.path, verdictOf(item)])).toEqual([
     ["first.png", verdicts[0]],
