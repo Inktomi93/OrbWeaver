@@ -448,11 +448,11 @@ test("the left of ?? fills a prop without its undefined", { timeout: 120_000 }, 
 // its member written and never read.
 test("Object.values and structuredClone read every member of their value", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
-    // the platform global, which a node-only planted tree's libs do not declare, from a declaration package
-    "node_modules/@types/clone/package.json": JSON.stringify({ name: "@types/clone", types: "index.d.ts" }),
-    "node_modules/@types/clone/index.d.ts": "declare function structuredClone<T>(value: T): T;",
+    // the platform global, which a node-only planted tree's libs do not declare, from Node's types as a Node world has it
+    "node_modules/@types/node/package.json": JSON.stringify({ name: "@types/node", types: "index.d.ts" }),
+    "node_modules/@types/node/index.d.ts": "declare function structuredClone<T>(value: T): T;",
     ...source([
-      '/// <reference types="clone" />',
+      '/// <reference types="node" />',
       "export interface Valued { readonly a: string }",
       "export interface Cloned { readonly b: string }",
       "export interface Left { readonly c: string }",

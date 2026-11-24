@@ -49,11 +49,12 @@ import { Constraints } from "./constraints.ts";
 import { declaredNameOf } from "./declared.ts";
 import { Flows, insideGlobalScope } from "./flows.ts";
 import { Keys } from "./keys.ts";
+import { libraryNames, ZOD_PACKAGE } from "./library-names.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MemberLinks } from "./member-links.ts";
 import { MessageDoors } from "./message-doors.ts";
 import type { DeclKey } from "./resolve.ts";
-import { addAll, allOf, answer, constituentsOf, declKeyParts, keyText, ZOD_PACKAGE } from "./resolve.ts";
+import { addAll, allOf, answer, constituentsOf, declKeyParts, keyText } from "./resolve.ts";
 import { READS, sameNode } from "./roles.ts";
 import type { RootKind, Roots } from "./roots.ts";
 import { RouteParams } from "./routes.ts";
@@ -184,6 +185,8 @@ export interface BuiltGraph {
 
 /** Build the graph of every judged file in the world under the session's options, logging how far the walk has come. */
 export function buildGraph(root: string, world: NativeWorld, roots: Roots, session: BuildSession): BuiltGraph {
+  // the walk, the resolver and the role readers read library names from any file, so they settle before any of them
+  libraryNames(world);
   const state = new GraphState(root, world, roots, session);
   const merged = new Builder(state).build(judgedFiles(state));
   const apart = (): readonly WorldGraph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
@@ -214,6 +217,7 @@ function judgedFiles(state: GraphState): readonly string[] {
 // the merged program does not hold, so a file both hold is walked once, in the merged program.
 function buildApart(state: GraphState, config: string, merged: ReadonlySet<string>): WorldGraph {
   using world = NativeWorld.open(state.root, config);
+  libraryNames(world);
   state.enter(world);
   const graph = new Builder(state).build(judgedFiles(state).filter((file) => !merged.has(file)));
   state.peak(`node rss MB after apart program ${config}`, Math.round(process.memoryUsage().rss / MB));
@@ -348,6 +352,7 @@ class Builder {
         return CODE_FILE.test(target) && existsSync(join(state.root, target)) ? target : null;
       },
       isTable: tableCalls(state.world),
+      names: libraryNames(state.world),
     };
   }
 

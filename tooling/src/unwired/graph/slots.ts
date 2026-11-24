@@ -45,8 +45,9 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { CheckFlags, TypeFlags } from "@typescript/native/sync";
 import { hasFlag } from "../native.ts";
+import { libraryNames, ZOD_PACKAGE } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
-import { answer, declKeyParts, keyText, unwrapExpression, ZOD_PACKAGE } from "./resolve.ts";
+import { answer, declKeyParts, keyText, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites } from "./sites.ts";
 import { declarationNameOf, isZodShapeKey, PAGE_CURSOR } from "./sites.ts";
@@ -408,7 +409,7 @@ function transformingMapped(state: GraphState, symbols: readonly NativeSymbol[])
   const sources = state.batch(mapped.map(({ source }) => source.resolve.gen()));
   const located = mapped.flatMap((entry, z) => {
     const node = sources[z];
-    return node === undefined || isZodShapeKey(node) ? [] : [{ ...entry, z, node: declarationNameOf(node) ?? node }];
+    return node === undefined || isZodShapeKey(node, libraryNames(state.world)) ? [] : [{ ...entry, z, node: declarationNameOf(node) ?? node }];
   });
   const sourceTypes = state.world.typesAt(located.map(({ node }) => node));
   const fits = state.batch(

@@ -180,6 +180,24 @@ test("a rest binding named like a member declares, and a plain binding of that m
   expect(handledAt(report, PARAMETER_BINDING)).toEqual({ shape: PARAMETER_BINDING, sites: 3, classes: counted({ enclosing: 2, declares: 1 }), roles: [] });
 });
 
+// A shorthand key declares a schema member as a full key does: the census asks it, as it asks the full key beside it.
+test("a shorthand schema key is asked like a full key, never unresolved", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [FILE]: [
+        'import { z } from "zod";',
+        "const id = z.string();",
+        "export const getSchema = z.object({ id });",
+        "export const putSchema = z.object({ id: z.string() });",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  expect(report.unresolved).toEqual([]);
+  expect(report.members).toEqual({ asked: 2, of: 2, unread: 0, unresolved: 0 });
+});
+
 // The statement of a method's doc link is its class, so a destructuring read anywhere in the class sits beside it.
 test("a doc link beside a role at another node of its statement declares, and that role stays the pattern's", TIMEOUT, async ({ plantedTree }) => {
   const root = await plantedTree(
