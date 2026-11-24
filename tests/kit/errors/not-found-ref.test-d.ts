@@ -7,7 +7,9 @@ declare const chatId: ChatId;
 declare const userId: UserId;
 declare const characterId: CharacterId;
 declare const personaId: PersonaId;
-declare const entity: { readonly kind: "character"; readonly id: CharacterId } | { readonly kind: "persona"; readonly id: PersonaId };
+declare const entity: readonly ["character", CharacterId] | readonly ["persona", PersonaId];
+declare const entityKind: "character" | "persona";
+declare const entityId: CharacterId | PersonaId;
 
 test("a not-found ref carries the brand of its kind", () => {
   expectTypeOf<Extract<NotFoundRef, { readonly kind: "chat" }>>().toEqualTypeOf<{ readonly kind: "chat"; readonly id: ChatId }>();
@@ -21,15 +23,22 @@ test("an id of another kind cannot be thrown under a kind", () => {
   const namedInvite = new DomainNotFoundError({ kind: "invite", id: chatId });
   // @ts-expect-error an id kind cannot drop its id
   const missing = new DomainNotFoundError({ kind: "chat" });
-  // @ts-expect-error the old two-string form no longer compiles
+  // @ts-expect-error the old two-string call no longer compiles
   const legacy = new DomainNotFoundError("chat", chatId);
   expectTypeOf([wrongBrand, namedInvite, missing, legacy]).toEqualTypeOf<DomainNotFoundError[]>();
 });
 
-test("a kind and id held as correlated unions keep their pairing", () => {
-  const paired = notFoundIdRef(entity.kind, entity.id);
-  expectTypeOf(paired).toExtend<NotFoundRef>();
+test("a kind and id held as a tuple of correlated unions keep their pairing", () => {
+  expectTypeOf(notFoundIdRef(...entity)).toExtend<NotFoundRef>();
+  expectTypeOf(notFoundIdRef("character", characterId)).toExtend<NotFoundRef>();
+});
+
+test("a union of kinds does not pair an id with a kind it does not belong to", () => {
+  expectTypeOf(notFoundIdRef<"character" | "persona">(...entity)).toExtend<NotFoundRef>();
   // @ts-expect-error a character kind with a persona id is not a pair
   notFoundIdRef("character", personaId);
-  expectTypeOf(notFoundIdRef("character", characterId)).toEqualTypeOf<{ readonly kind: "character"; readonly id: CharacterId }>();
+  // @ts-expect-error naming both kinds still pairs each id with its own kind
+  notFoundIdRef<"character" | "persona">("character", personaId);
+  // @ts-expect-error two separate unions are not a pair: the kind could be persona while the id is a character's
+  notFoundIdRef(entityKind, entityId);
 });

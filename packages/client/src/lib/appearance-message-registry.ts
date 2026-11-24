@@ -29,7 +29,7 @@ export interface AppearanceMessageCarrierSnapshot {
 }
 
 export interface AppearanceMessageCarrierEntry {
-  readonly instanceId: string;
+  readonly instanceId: MessageId;
   readonly snapshot: AppearanceMessageCarrierSnapshot;
 }
 
@@ -37,7 +37,7 @@ interface RegisteredSnapshot extends AppearanceMessageCarrierEntry {
   readonly token: symbol;
 }
 
-const mountedSnapshots = new Map<string, RegisteredSnapshot>();
+const mountedSnapshots = new Map<MessageId, RegisteredSnapshot>();
 let forcedOn = false;
 
 export function appearanceMessageRegistryEnabled(): boolean {

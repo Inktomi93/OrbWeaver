@@ -1,9 +1,10 @@
 // Connection authoring; selected saved keys stay metadata-only and catalog answers name their exact draft.
 
 import type { CredentialView } from "@orb/contracts/credentials";
-import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCheck, ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
+import type { LookupText } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -57,7 +58,8 @@ export interface AddConnectionFormBodyProps {
   /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
   readonly keyStorage: boolean;
   readonly pickerItems: SelectItems;
-  readonly providerOf: (id: string) => ProviderDef | undefined;
+  /** The form holds the picked provider as field text, so the lookup takes text of the provider-id family. */
+  readonly providerOf: (id: LookupText<ProviderId>) => ProviderDef | undefined;
 }
 
 type CreateConnectionInput = inferInput<Trpc["connection"]["create"]>;

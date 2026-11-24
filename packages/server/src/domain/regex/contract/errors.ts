@@ -16,10 +16,10 @@ export const REGEX_FIND_TOO_COSTLY = "regex_find_too_costly";
 export class RegexNotFoundError extends DomainNotFoundError {
   public readonly entityKind: RegexEntityKind;
   public readonly entityId: RegexEntity[1];
-  constructor(...[entityKind, entityId]: RegexEntity) {
-    super(notFoundIdRef(entityKind, entityId));
-    this.entityKind = entityKind;
-    this.entityId = entityId;
+  constructor(...entity: RegexEntity) {
+    super(notFoundIdRef(...entity));
+    this.entityKind = entity[0];
+    this.entityId = entity[1];
     this.name = this.constructor.name;
   }
 }

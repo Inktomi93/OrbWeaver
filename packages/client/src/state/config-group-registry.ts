@@ -22,7 +22,6 @@
 // `SettingsViewerView` keeps its name: it is the projection of who may SEE settings, consumed by a group's
 // and a section's `when`; `#data`'s `useSettingsViewerView` is its ONE derivation home (§5 rule 6).
 
-import type { PluginId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { CollectionContribution, CollectionMemberId, Registry } from "#lib";
@@ -239,10 +238,8 @@ export type ConfigGroupRegistry = Registry<ConfigGroupId, ConfigGroupDefinition>
 
 /** The DOM id of a setting leaf's own control — the element a setting-level landing focuses. A section
  *  stamps it on the control a deep link to that leaf means; a leaf without one keeps focus where it was.
- *  A plugin's installed card is keyed by its {@link PluginId}; every other leaf is keyed by its own slug, or by the
- *  address text a deep link carried, which no brand claims. */
-export function configSettingControlId(groupId: "plugins", pluginId: PluginId): string;
-export function configSettingControlId(groupId: ConfigGroupId, settingKey: string): string;
+ *  A leaf is keyed by its own slug, or by the address text a deep link carried, which no brand claims. An installed
+ *  plugin's card is not a leaf: `installedPluginControlId` keys it by the plugin's id. */
 export function configSettingControlId(groupId: ConfigGroupId, settingKey: string): string {
   return `config-setting-${groupId}-${settingKey}`;
 }

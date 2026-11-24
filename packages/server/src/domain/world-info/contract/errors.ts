@@ -12,10 +12,10 @@ type WorldInfoEntity = { [Kind in WorldInfoEntityKind]: [kind: Kind, id: TypeIdO
 export class WorldInfoNotFoundError extends DomainNotFoundError {
   public readonly entityKind: WorldInfoEntityKind;
   public readonly entityId: WorldInfoEntity[1];
-  constructor(...[entityKind, entityId]: WorldInfoEntity) {
-    super(notFoundIdRef(entityKind, entityId));
-    this.entityKind = entityKind;
-    this.entityId = entityId;
+  constructor(...entity: WorldInfoEntity) {
+    super(notFoundIdRef(...entity));
+    this.entityKind = entity[0];
+    this.entityId = entity[1];
     this.name = this.constructor.name;
   }
 }

@@ -8,7 +8,7 @@
  * `docs/law/Spine-TypeScript-and-Patterns.md` §6).
  */
 
-import type { Branded, RpgQuestId, SocketId, TypeIdOf, TypeIdPrefix, UserId } from "#ids";
+import type { Branded, CharacterId, RpgGameId, RpgQuestId, SocketId, TypeIdOf, TypeIdPrefix, UserId } from "#ids";
 
 /** Capture a clean stack trace where the V8 API is available (Node + Chromium); a
  *  no-op elsewhere (Firefox/Safari) — kit is browser-safe, so this must not assume V8. */
@@ -25,16 +25,52 @@ export class DomainError extends Error {
   }
 }
 
-/** Ids that are not TypeIDs, keyed by the kind that names them in a not-found message. The plugin slug is spelled
- *  as its brand because `kit` cannot import the contracts' `PluginSlug`; a rename there fails `tsc` at the throw. */
+/** The TypeID kinds a verb reports as not found. A kind a verb never throws is not here: a new one is added here and to
+ *  `notFoundLabel`, which `tsc` demands. */
+type NotFoundTypeIdKind = Extract<
+  TypeIdPrefix,
+  | "asset"
+  | "automation_rule"
+  | "automation_suggestion"
+  | "character"
+  | "chat"
+  | "document"
+  | "gallery_item"
+  | "notification"
+  | "persona"
+  | "plugin"
+  | "preset"
+  | "refinery_run"
+  | "refinery_schema"
+  | "refinery_session"
+  | "regex_script"
+  | "roster_preset"
+  | "rpg_checkpoint"
+  | "rpg_journal"
+  | "rpg_snapshot"
+  | "session"
+  | "tag"
+  | "theme"
+  | "workload"
+  | "workload_schedule"
+  | "world_book"
+  | "world_entry"
+>;
+
+/** Ids that are not TypeIDs, and kinds found by the id of the entity they hang on. The plugin slug is spelled as its
+ *  brand because `kit` cannot import the contracts' `PluginSlug`; a rename there fails `tsc` at the throw. */
 interface NotFoundOtherIdByKind {
   readonly user: UserId;
   readonly socket: SocketId;
   readonly quest: RpgQuestId;
   readonly "plugin distribution": Branded<"PluginSlug">;
+  /** The game's current snapshot, found by the game's id: the game exists and has none. */
+  readonly "rpg head snapshot": RpgGameId;
+  /** A character's place in a chat, found by the character's id: the character exists and holds no seat there. */
+  readonly "chat seat": CharacterId;
 }
 
-type NotFoundIdByKind = { readonly [P in TypeIdPrefix]: TypeIdOf<P> } & NotFoundOtherIdByKind;
+type NotFoundIdByKind = { readonly [P in NotFoundTypeIdKind]: TypeIdOf<P> } & NotFoundOtherIdByKind;
 
 type NotFoundIdKind = keyof NotFoundIdByKind;
 
@@ -66,31 +102,118 @@ interface NotFoundBareRef {
 /** What was not found: a kind-keyed ref in the shape of `MacroSourceRef`, plus the three forms an id cannot carry. */
 export type NotFoundRef = NotFoundIdRef | NotFoundKeyRef | NotFoundPositionRef | NotFoundBareRef;
 
-/** A ref for a kind and id that arrive as correlated unions, such as a destructured tuple of kind and id: a plain
- *  object literal of those unions loses the pairing, and this keeps it. */
-export function notFoundIdRef<K extends NotFoundIdKind>(kind: K, id: NotFoundIdByKind[K]): NotFoundIdRefOf<K> {
+/** What a person reads for each kind, as a noun phrase that follows "the". The error's message is built from this and
+ *  carries no kind token; the kind and id stay on the error's `ref`. A new kind fails `tsc` here until it has a label. */
+function notFoundLabel(kind: NotFoundRef["kind"]): string {
+  switch (kind) {
+    case "asset":
+      return "file";
+    case "automation_rule":
+      return "automation rule";
+    case "automation_suggestion":
+      return "automation suggestion";
+    case "character":
+      return "character";
+    case "chat":
+      return "chat";
+    case "document":
+      return "document";
+    case "gallery_item":
+      return "gallery item";
+    case "notification":
+      return "notification";
+    case "persona":
+      return "persona";
+    case "plugin":
+      return "plugin";
+    case "preset":
+      return "preset";
+    case "refinery_run":
+      return "refinery run";
+    case "refinery_schema":
+      return "refinery schema";
+    case "refinery_session":
+      return "refinery session";
+    case "regex_script":
+      return "regex script";
+    case "roster_preset":
+      return "roster preset";
+    case "rpg_checkpoint":
+      return "checkpoint";
+    case "rpg_journal":
+      return "journal entry";
+    case "rpg_snapshot":
+      return "saved game state";
+    case "session":
+      return "session";
+    case "tag":
+      return "tag";
+    case "theme":
+      return "theme";
+    case "workload":
+      return "workload";
+    case "workload_schedule":
+      return "schedule";
+    case "world_book":
+      return "world book";
+    case "world_entry":
+      return "world entry";
+    case "user":
+      return "user";
+    case "socket":
+      return "stream connection";
+    case "quest":
+      return "quest";
+    case "plugin distribution":
+      return "plugin distribution";
+    case "rpg head snapshot":
+      return "current game state";
+    case "chat seat":
+      return "seat for that character in this chat";
+    case "tool":
+      return "tool";
+    case "quest objective":
+      return "quest objective";
+    case "imported message":
+      return "imported message";
+    case "invite":
+      return "invite";
+    case "workload admission":
+      return "owner or funder of this run";
+    default:
+      return kind satisfies never;
+  }
+}
+
+/** A kind and its id as one tuple, so a union of kinds is a union of pairs and an id of another kind cannot ride along. */
+type NotFoundIdEntity<K extends NotFoundIdKind> = { readonly [P in K]: readonly [kind: P, id: NotFoundIdByKind[P]] }[K];
+
+/** A ref for a kind and id that arrive as a tuple of correlated unions: a caller spreads its tuple (`...entity`), which
+ *  keeps the pairing, where two separate arguments of those unions would not. */
+export function notFoundIdRef<K extends NotFoundIdKind>(...[kind, id]: NotFoundIdEntity<K>): NotFoundIdRefOf<K> {
   const ref: NotFoundIdRefOf<K> = { kind, id };
   return ref;
 }
 
 function describeNotFound(ref: NotFoundRef): string {
-  if ("id" in ref) {
-    return `${ref.kind} ${ref.id} not found`;
-  }
+  const label = notFoundLabel(ref.kind);
   if ("key" in ref) {
-    return `${ref.kind} ${ref.key} not found`;
+    return `Could not find the ${label} "${ref.key}".`;
   }
   if ("index" in ref) {
-    return `${ref.kind} ${ref.index} not found`;
+    return `Could not find the ${label} at position ${ref.index}.`;
   }
-  return `${ref.kind} not found`;
+  return `Could not find the ${label}.`;
 }
 
 /** The entity the caller asked for does not exist. Maps to tRPC NOT_FOUND. */
 export class DomainNotFoundError extends DomainError {
+  /** What was not found, as data: the message is copy for a reader, and this is what a handler or a log reads. */
+  readonly ref: NotFoundRef;
   constructor(ref: NotFoundRef) {
     super(describeNotFound(ref));
     this.name = this.constructor.name;
+    this.ref = ref;
   }
 }
 

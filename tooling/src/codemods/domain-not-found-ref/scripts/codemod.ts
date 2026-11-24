@@ -23,8 +23,8 @@ const KIND_OF_LABEL: ReadonlyMap<string, string> = new Map([
   ["snapshot", "rpg_snapshot"],
   // Both sites that spell `game` hold the chat's id: a game is found by its chat.
   ["game", "chat"],
-  // Both sites that spell `chat_participant` hold a character's id, the one an import seats.
-  ["chat_participant", "character"],
+  // Both sites that spell `chat_participant` hold the id of a character an import has not seated: the seat is missing.
+  ["chat_participant", "chat seat"],
 ]);
 
 /** The kinds found by a plain key, not a branded id. */

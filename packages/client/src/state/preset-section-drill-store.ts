@@ -22,9 +22,10 @@
 // section SELECTION (what the CONTEXT readout echoes) is a different axis living in
 // `preset-selection-store.ts` — DRILL implies SELECT, never the reverse (§16 row 19), so one id cannot serve.
 //
-// The section id is a preset-config-local string, carried plainly exactly as the view store carries a view
-// id: state sits BELOW features in the cake. Device-transient, never persisted.
+// The section id is the preset config's own `PromptSectionId`, unique inside one preset, which is why the pair
+// carries the preset. Device-transient, never persisted.
 
+import type { PromptSectionId } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { createGatedStore } from "./create-gated-store.ts";
 
@@ -32,14 +33,14 @@ interface PresetSectionDrillState {
   /** The preset the drill belongs to — the SCOPE stamp. `null` together with `sectionId` = the rack. */
   readonly presetId: PresetId | null;
   /** The drilled section id (`null` = the rack is showing). */
-  readonly sectionId: string | null;
+  readonly sectionId: PromptSectionId | null;
 }
 
 const useDrillStore = createGatedStore<PresetSectionDrillState>("preset-section-drill", () => ({ presetId: null, sectionId: null }));
 
 /** DRILL into a section's consolidated editor (the rack row's chevron / Enter, and the Add flow's auto-drill).
  *  Stamped with the preset it belongs to, so it can never paint over a different preset's rack. */
-export function drillPresetSection(presetId: PresetId, sectionId: string): void {
+export function drillPresetSection(presetId: PresetId, sectionId: PromptSectionId): void {
   useDrillStore.setState({ presetId, sectionId }, false, "presetSectionDrill/drill");
 }
 
@@ -70,6 +71,6 @@ export function retargetPresetSectionDrill(nextPresetId: PresetId): void {
 /** Reactive: the section drilled IN `presetId` (`null` = show the rack). SCOPED BY CONSTRUCTION — a drill
  *  stamped for another preset reads as `null` here, which is what makes a cross-preset leak unrepresentable
  *  rather than merely reset-on-time. A primitive selector (no fresh object). */
-export function useDrilledPresetSectionId(presetId: PresetId): string | null {
+export function useDrilledPresetSectionId(presetId: PresetId): PromptSectionId | null {
   return useDrillStore((s) => (s.presetId === presetId ? s.sectionId : null));
 }

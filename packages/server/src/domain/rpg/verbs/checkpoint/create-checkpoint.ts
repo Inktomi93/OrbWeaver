@@ -15,7 +15,7 @@ export function createCreateCheckpoint(ctx: RpgContext): Pick<RpgService, "creat
     return await ctx.handWrites.run(game.id, async () => {
       const head = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
       if (head === undefined) {
-        throw new DomainNotFoundError({ kind: "rpg_game", id: game.id });
+        throw new DomainNotFoundError({ kind: "rpg head snapshot", id: game.id });
       }
       const claim = await ctx.claimChat(admission);
       const id = ctx.ids.checkpoint();

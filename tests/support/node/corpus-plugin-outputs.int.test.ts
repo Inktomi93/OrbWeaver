@@ -44,10 +44,10 @@ test("native callbacks refuse invalid args and stale scopes, revoke grants and r
   });
   expect(captured.beforeRefusals.state).toEqual({ calls: 3, values: CORPUS_PLUGIN_TYPED_VALUES });
   expect(captured.invalid).toHaveLength(10);
-  for (const refusal of captured.invalid) {
+  for (const refusal of captured.invalid.slice(0, -2)) {
     expect(refusal).toMatchObject({
       status: "rejected",
-      reason: expect.objectContaining({ message: expect.stringMatching(/^plugin host: |not found$/u) }),
+      reason: expect.objectContaining({ message: expect.stringMatching(/^plugin host: /u) }),
     });
   }
   expect(captured.invalid.slice(-2)).toEqual([
