@@ -8,7 +8,7 @@ lane: wt/agent-a928fb0eea0de1b10
 plan: unwired-code
 ---
 
-# An unwired run's peak counts both processes and stays under the memory bar
+# An unwired run's peak counts both processes and stays under its 32 GB bar
 
 ## What
 
