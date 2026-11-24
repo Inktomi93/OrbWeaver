@@ -16,7 +16,7 @@
 // - A `typeof X` key is X's own literal; an interface's key set is its heritage clause's; a generic holder spelled as a
 //   union with null binds through its reference arm; a member none of ours declares has the value its holder's
 //   spelling gives it (`names.held` over `Readonly<Record<…, Names>>` keys by Names).
-// - A Drizzle row member is placed on its column by the row's whole column-name set (./../drizzle-rows.ts).
+// - A Drizzle row member is placed on its column through the table the checker ties its row type to (../drizzle-rows.ts).
 import type {
   CallExpression,
   ExpressionWithTypeArguments,
@@ -77,7 +77,8 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, ObjectFlags, SymbolFlags } from "@typescript/native/sync";
-import { rowColumnsBySignature, signatureOf } from "../drizzle-rows.ts";
+import type { RowTable } from "../drizzle-rows.ts";
+import { rowTables, rowTablesOf } from "../drizzle-rows.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
 
@@ -405,7 +406,7 @@ export class Resolver {
   readonly #spelledByType = new Map<number, Spelled>();
   // Read before any walk, so the origin walk's generators read a settled table; NativeWorld.batch refuses a batch run
   // from inside a generator.
-  readonly #rows: ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>>;
+  readonly #rows: ReadonlyMap<RowTable, ReadonlyMap<string, readonly DeclKey[]>>;
   // False under `--ablate=spelling`: no alias's syntax is read for the keys it spells.
   readonly #spelling: boolean;
 
@@ -496,19 +497,28 @@ export class Resolver {
     return key === undefined || key === null ? [] : [key];
   }
 
-  /** The Drizzle row tables: each table's column declarations by name, keyed by the table's sorted column names. */
-  rows(): ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>> {
-    return this.#rows;
+  /** The column declarations by name of each Drizzle table the checker ties `type` to as its row; none for any other
+   *  type. */
+  *rowHomesOf(type: Type): APIRequestGenerator<readonly ReadonlyMap<string, readonly DeclKey[]>[]> {
+    if (this.#rows.size === 0) {
+      return [];
+    }
+    const tables = yield* rowTablesOf(this.#world, type);
+    return tables.flatMap((table) => {
+      const homes = this.#rows.get(table);
+      return homes === undefined ? [] : [homes];
+    });
   }
 
-  #rowTables(): ReadonlyMap<string, ReadonlyMap<string, readonly DeclKey[]>> {
-    const bySignature = rowColumnsBySignature(this.#world);
-    const columns = [...bySignature.values()].flatMap((table) => [...table.values()].flat());
-    this.handleKeys(columns.flatMap((symbol) => symbol.declarations));
+  #rowTables(): ReadonlyMap<RowTable, ReadonlyMap<string, readonly DeclKey[]>> {
+    const tables = rowTables(this.#world);
+    this.handleKeys(tables.flatMap(({ columns }) => [...columns.values()].flat().flatMap((symbol) => symbol.declarations)));
     return new Map(
-      [...bySignature].map(([signature, table]) => [
-        signature,
-        new Map([...table].map(([name, symbols]) => [name, symbols.flatMap((symbol) => symbol.declarations.flatMap((handle) => this.#cachedKey(handle)))])),
+      tables.map((table) => [
+        table,
+        new Map(
+          [...table.columns].map(([name, symbols]) => [name, symbols.flatMap((symbol) => symbol.declarations.flatMap((handle) => this.#cachedKey(handle)))]),
+        ),
       ]),
     );
   }
@@ -845,21 +855,15 @@ export class Resolver {
     return homes;
   }
 
-  // A type carrying a name whose whole member set is a table's columns is that table's row.
+  // A type carrying a name that the checker ties to a table as its row: the name is that table's column.
   *#rowHomes(level: readonly Type[], homes: LevelHomes): APIRequestGenerator<void> {
-    const rows = this.rows();
-    if (rows.size === 0) {
-      return;
-    }
     const carriers = level.flatMap((type, at) => ((homes.carries[at]?.size ?? 0) > 0 ? [{ type, at }] : []));
-    const members = yield* allOf(carriers.map(({ type }) => this.#world.checker.getPropertiesOfType.gen(type)));
+    const tables = yield* allOf(carriers.map(({ type }) => this.rowHomesOf(type)));
     for (const [x, { at }] of carriers.entries()) {
-      const table = rows.get(signatureOf((members[x] ?? []).map((member) => member.name)));
-      if (table === undefined) {
-        continue;
-      }
-      for (const name of homes.carries[at] ?? []) {
-        addAll(homes.found, name, table.get(name) ?? []);
+      for (const table of tables[x] ?? []) {
+        for (const name of homes.carries[at] ?? []) {
+          addAll(homes.found, name, table.get(name) ?? []);
+        }
       }
     }
   }
