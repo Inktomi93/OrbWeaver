@@ -19,6 +19,10 @@
 //   read whole. A callback handed to a library parameter returns what that parameter's callback type returns
 //   (`setState((prev) => next)`). A library member (`ref.current`) is read off its declared type under the receiver's
 //   type arguments, written in its annotation or spelled by the call that made it.
+// - An indexed access selects the properties its index spells: a literal, a union of them, an alias of either, or a type
+//   parameter whose argument is a literal, a union of them or a variable annotated with one. A property no written type
+//   names (`z.output<typeof schema>["p"]`, `Awaited<ReturnType<F>>[number]["p"]`) is read by the declaration the checker
+//   finds on the type the access denotes. A shorthand property hands its constant on to the property it names.
 // - Remote nodes are materialised per request, so a declaration a symbol names is read back as its site and found
 //   again in the world's own parse of its file, and a walk keys what it has seen by span and kind, never by identity.
 import type {
@@ -43,8 +47,10 @@ import type {
   ObjectLiteralExpression,
   ParameterDeclaration,
   PropertyAccessExpression,
+  PropertyAssignment,
   PropertyName,
   SetAccessorDeclaration,
+  ShorthandPropertyAssignment,
   Statement,
   TupleTypeNode,
   TypeAliasDeclaration,
@@ -116,6 +122,7 @@ import {
   isTupleTypeNode,
   isTypeAliasDeclaration,
   isTypeLiteralNode,
+  isTypeNode,
   isTypeOperatorNode,
   isTypeParameterDeclaration,
   isTypePredicateNode,
@@ -150,7 +157,7 @@ export type Origins = Spelled | null;
 // property it selects (`Settings[K]` at a call whose `key: K` argument is `"theme"`).
 interface Binding {
   readonly spellings: readonly Spelling[];
-  readonly index: string | null;
+  readonly index: readonly string[] | null;
 }
 
 // Type parameters' instantiations, keyed by the site of each parameter's name.
@@ -817,8 +824,8 @@ function* ownBinding(world: NativeWorld, own: OwnParameter, declaration: TypePar
   }
   const argument = yield* inferringArgument(world, own);
   const literal = argument === undefined ? undefined : unwrappedExpression(argument);
-  const index = literal !== undefined && isStringLiteral(literal) ? literal.text : null;
   const inferred = argument === undefined ? null : yield* argumentSpellings(world, argument);
+  const index = literal !== undefined && isStringLiteral(literal) ? [literal.text] : yield* declaredKeys(world, inferred);
   if (inferred !== null) {
     return { spellings: inferred, index };
   }
@@ -826,6 +833,23 @@ function* ownBinding(world: NativeWorld, own: OwnParameter, declaration: TypePar
   const named = constraint === undefined ? null : yield* originsOf(world, [unbound(constraint)]);
   const spellings = constraint !== undefined && named !== null && named.tuples.size === 1 ? [unbound(constraint)] : null;
   return spellings === null && index === null ? undefined : { spellings: spellings ?? [], index };
+}
+
+// The property names the declared type of an argument spells: a variable typed `"theme"` or `Key` selects those
+// properties, as the literal itself does.
+function* declaredKeys(world: NativeWorld, declared: Declared): APIRequestGenerator<readonly string[] | null> {
+  const keys: string[] = [];
+  for (const spelling of declared ?? []) {
+    if (!isTypeNode(spelling.node)) {
+      return null;
+    }
+    const named = yield* keyNames(world, spelling.node);
+    if (named === null) {
+      return null;
+    }
+    keys.push(...named);
+  }
+  return keys.length > 0 ? keys : null;
 }
 
 // The argument a call infers a type parameter from: the one at a parameter typed by it, alone or beside other types.
@@ -1171,7 +1195,7 @@ function* constantSpellings(world: NativeWorld, declaration: VariableDeclaration
   for (const use of referencedNames(declaration.getSourceFile()).filter(
     (name) => name.text === declaration.name.getText() && !sameNode(name, declaration.name),
   )) {
-    const sites = yield* declaredSites(world, use);
+    const sites = yield* referredSites(world, use);
     const { parent } = use;
     const readsPath = path.length > 0 && isPropertyAccessExpression(parent) && sameNode(parent.expression, use) && parent.name.text === path[0];
     if (!sites.some((site) => site.file === home.file && site.position === home.position) || (!readsPath && inspectsOnly(use))) {
@@ -1184,6 +1208,16 @@ function* constantSpellings(world: NativeWorld, declaration: VariableDeclaration
     spellings.push(...declared);
   }
   return spellings;
+}
+
+// Where a name refers to; a shorthand property's name (`{ state }`) is the property and the variable both, and refers to
+// the variable.
+function* referredSites(world: NativeWorld, use: Identifier): APIRequestGenerator<readonly Site[]> {
+  const { parent } = use;
+  if (!(isShorthandPropertyAssignment(parent) && sameNode(parent.name, use))) {
+    return yield* declaredSites(world, use);
+  }
+  return yield* symbolSites(world, yield* targetOf(world.checker, yield* world.checker.getShorthandAssignmentValueSymbol.gen(parent)));
 }
 
 // Where a climb toward a slot stands: the property path from the node down to the value asked about, and whether the
@@ -1305,11 +1339,15 @@ function* functionTypeReturn(world: NativeWorld, node: Node, depth: number): API
   return alias !== undefined && isTypeAliasDeclaration(alias) ? yield* functionTypeReturn(world, alias.type, depth + 1) : undefined;
 }
 
+// A property assignment whose value is the node, or a shorthand one (`{ state }`) whose name is it.
+const writesProperty = (parent: Node, node: Node): parent is PropertyAssignment | ShorthandPropertyAssignment =>
+  (isPropertyAssignment(parent) && sameNode(parent.initializer, node)) || (isShorthandPropertyAssignment(parent) && sameNode(parent.name, node));
+
 // A value written into an object literal: a property's declared spelling, or the object's own slot further up when
 // the property's declaration cannot be read (a library's, or one spelled by a type parameter nothing here binds).
 function* objectStep(world: NativeWorld, node: Node, { path, positions }: Climb): APIRequestGenerator<Step> {
   const { parent } = node;
-  if (isPropertyAssignment(parent) && sameNode(parent.initializer, node) && isObjectLiteralExpression(parent.parent)) {
+  if (writesProperty(parent, node) && isObjectLiteralExpression(parent.parent)) {
     const name = propertyName(parent.name);
     const declared = yield* propertySpellings(world, name, parent.parent);
     const readable = declared !== undefined && declared !== null && (yield* originsOf(world, declared)) !== null;
@@ -1577,18 +1615,52 @@ interface Read {
 // on past it, since a reading that only adds links to a tuple is sound with any part of them.
 type Reading = "slot" | "links";
 
-// The property an indexed access with a string literal index names: `T["p"]` gives `p`.
-function indexedProperty(node: Node): string | null {
-  return isIndexedAccessTypeNode(node) && isLiteralTypeNode(node.indexType) && isStringLiteral(node.indexType.literal) ? node.indexType.literal.text : null;
+// The property names a written index spells: a string literal or a union of them. `T["p" | "q"]` gives `p` and `q`.
+function literalKeys(node: TypeNode): readonly string[] | null {
+  if (isParenthesizedTypeNode(node)) {
+    return literalKeys(node.type);
+  }
+  if (isLiteralTypeNode(node)) {
+    return isStringLiteral(node.literal) ? [node.literal.text] : null;
+  }
+  if (!isUnionTypeNode(node)) {
+    return null;
+  }
+  const keys = node.types.map(literalKeys);
+  return keys.every((key) => key !== null) ? keys.flat() : null;
+}
+
+const KEY_ALIAS_DEPTH = 4;
+
+// The property names an index type spells: its literals, through product aliases of them.
+function* keyNames(world: NativeWorld, node: TypeNode, depth = 0): APIRequestGenerator<readonly string[] | null> {
+  const written = literalKeys(node);
+  if (written !== null || !(isTypeReferenceNode(node) && isIdentifier(node.typeName) && node.typeArguments === undefined) || depth >= KEY_ALIAS_DEPTH) {
+    return written;
+  }
+  const aliases = yield* aliasedTypes(world, node.typeName);
+  const keys: string[] = [];
+  for (const alias of aliases) {
+    const named = yield* keyNames(world, alias, depth + 1);
+    if (named === null) {
+      return null;
+    }
+    keys.push(...named);
+  }
+  return aliases.length === 0 ? null : keys;
+}
+
+// An indexed access scoped to the properties its index selects, read at its object type.
+interface ScopedAccess {
+  readonly node: Node;
+  readonly property: string;
+  /** The written index, whose names are keys and no vocabulary. */
+  readonly index: Node;
 }
 
 // The `T["p"]` accesses under `root`, by their object type: their names are read scoped, never whole. `T[K]` is one
 // when `K` is a type parameter whose binding selects a property.
-function* scopedAccesses(
-  world: NativeWorld,
-  root: Node,
-  bindings: Bindings,
-): APIRequestGenerator<readonly { readonly node: Node; readonly property: string }[]> {
+function* scopedAccesses(world: NativeWorld, root: Node, bindings: Bindings): APIRequestGenerator<readonly ScopedAccess[]> {
   const accesses: IndexedAccessTypeNode[] = [];
   const visit = (node: Node): void => {
     if (isIndexedAccessTypeNode(node)) {
@@ -1597,16 +1669,16 @@ function* scopedAccesses(
     node.forEachChild(visit);
   };
   visit(root);
-  const found: { readonly node: Node; readonly property: string }[] = [];
+  const found: ScopedAccess[] = [];
   for (const access of accesses) {
     const { indexType } = access;
     const selected =
       isTypeReferenceNode(indexType) && isIdentifier(indexType.typeName)
-        ? (yield* declaredSites(world, indexType.typeName)).flatMap((site) => bindings.get(siteKey(site))?.index ?? [])[0]
-        : undefined;
-    const property = indexedProperty(access) ?? selected;
-    if (property !== undefined && !found.some(({ node }) => isUnder(access, new Set([nodeKey(node)])))) {
-      found.push({ node: access.objectType, property });
+        ? (yield* declaredSites(world, indexType.typeName)).flatMap((site) => bindings.get(siteKey(site))?.index ?? [])
+        : [];
+    const properties = (yield* keyNames(world, indexType)) ?? selected;
+    if (properties.length > 0 && !found.some(({ node }) => isUnder(access, new Set([nodeKey(node)])))) {
+      found.push(...properties.map((property) => ({ node: access.objectType, property, index: indexType })));
     }
   }
   return found;
@@ -1651,7 +1723,7 @@ function* readSpelling(world: NativeWorld, spelling: Spelling, reading: Reading)
   const tuples: string[] = [];
   const next: Spelling[] = [];
   const scoped = (yield* scopedAccesses(world, root, bindings)).map((access) => ({ ...access, bindings, positions }));
-  const objects = new Set(scoped.map(({ node }) => nodeKey(node)));
+  const objects = new Set(scoped.flatMap(({ node, index }) => [nodeKey(node), nodeKey(index)]));
   const contained = reading === "slot" && !isNested(positions) ? yield* containerArguments(world, root) : new Set<string>();
   for (const name of referencedNames(root).filter((candidate) => !(isUnder(candidate, objects) || isUnder(candidate, contained)))) {
     const reached = yield* expansionsOf(world, name);
@@ -1759,7 +1831,7 @@ function* propertyStep(world: NativeWorld, scoped: ScopedTo): APIRequestGenerato
 // the spelling's own.
 function collectLiteralTypes(root: Node, into: Map<string, string>): void {
   const visit = (node: Node): void => {
-    if (indexedProperty(node) !== null) {
+    if (isIndexedAccessTypeNode(node) && literalKeys(node.indexType) !== null) {
       return;
     }
     if (isLiteralTypeNode(node) && isStringLiteral(node.literal)) {
@@ -1772,14 +1844,30 @@ function collectLiteralTypes(root: Node, into: Map<string, string>): void {
 
 // What a reach scoped to `property` leads to; a type the property cannot be found in is read whole, for its tuples only.
 function* scopedReaches(world: NativeWorld, reach: Reach, property: string): APIRequestGenerator<readonly Reach[]> {
-  const steps = yield* propertyStep(world, { ...reach, property });
+  const steps = (yield* propertyStep(world, { ...reach, property })) ?? (yield* declaredPropertyOf(world, { ...reach, property }));
   return steps === null ? [{ ...reach, property: null, collect: false }] : steps.map((step) => ({ ...step, collect: reach.collect }));
+}
+
+// The property of a type no written member names (`z.output<typeof schema>["p"]`, `Awaited<ReturnType<F>>[number]["p"]`):
+// the declaration the checker finds it by on the type the node denotes, read under that type's instantiation; null when
+// a declaration is outside the production sources or spells nothing.
+function* declaredPropertyOf(world: NativeWorld, { node, property }: ScopedTo): APIRequestGenerator<readonly Scoped[] | null> {
+  const found = yield* propertyOn(world, yield* constituents(yield* world.checker.getTypeAtLocation.gen(node)), property);
+  const spellings = found.sites.map((site) => {
+    const declaration = declarationAt(world, site);
+    return declaration === null ? undefined : propertySpelling(declaration);
+  });
+  if (spellings.length === 0 || spellings.includes(undefined)) {
+    return null;
+  }
+  const bindings = yield* ownerBindings(world, found.owners);
+  return spellings.flatMap((spelled) => (spelled === undefined ? [] : [{ node: spelled, property: null, bindings }]));
 }
 
 // A reach's bindings, by what each binds: a node read under other instantiations is another reach.
 const bindingsKey = (bindings: Bindings): string =>
   [...bindings]
-    .map(([key, { spellings, index }]) => `${key}=${spellings.map(({ node }) => nodeKey(node)).join("|")}@${index ?? ""}`)
+    .map(([key, { spellings, index }]) => `${key}=${spellings.map(({ node }) => nodeKey(node)).join("|")}@${index?.join(",") ?? ""}`)
     .sort()
     .join(";");
 

@@ -1185,3 +1185,134 @@ const REF_TREE = {
 test("an assignment to a library ref's current value is read through the ref's type argument", { timeout: 120_000 }, async ({ plantedTree }) => {
   expect(sortedRows(await scanUnions(plantedTree, REF_TREE))).toEqual(["TWINS.open"]);
 });
+
+// An indexed access selects every property its index names, written as a union or through an alias of one:
+// `Settings["theme" | "size"]` is a Theme or a Size and never a Mode. THEMES, MODES and SIZES all hold `dark`.
+const KEY_INDEX_TREE = {
+  "packages/a/src/settings.ts": [
+    'const THEMES = ["dark", "light"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dark", "auto"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const SIZES = ["dark", "tiny"] as const;',
+    "type Size = (typeof SIZES)[number];",
+    "interface Settings { theme: Theme; mode: Mode; size: Size }",
+    'export const pick = (value: Settings["theme" | "size"]): string => value;',
+    'export const picked = pick("dark");',
+    'type Keys = "theme" | "size";',
+    "export const pickAlias = (value: Settings[Keys]): string => value;",
+    'export const pickedAlias = pickAlias("light");',
+    'export const pickedTiny = pickAlias("tiny");',
+  ].join("\n"),
+};
+
+test("an indexed access over a union of keys or an alias of one reads only the properties it selects", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, KEY_INDEX_TREE))).toEqual(["MODES.auto", "MODES.dark"]);
+});
+
+// A setter keyed by a variable reads the property the variable's declared type selects, as a literal key does: `themeKey`
+// is typed `"theme"` and `sizeKey` a union.
+const KEYED_SETTER_TREE = {
+  "packages/a/src/settings.ts": [
+    'const THEMES = ["dark", "light"] as const;',
+    "type Theme = (typeof THEMES)[number];",
+    'const MODES = ["dark", "auto"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'const SIZES = ["dark", "tiny"] as const;',
+    "type Size = (typeof SIZES)[number];",
+    "interface Settings { theme: Theme; mode: Mode; size: Size }",
+    "export const set = <K extends keyof Settings>(key: K, value: Settings[K]): void => { void key; void value; };",
+    'const themeKey: "theme" = "theme";',
+    'set(themeKey, "dark");',
+    'export const retint = (key: "theme" | "size"): void => set(key, "tiny");',
+  ].join("\n"),
+};
+
+test("a setter keyed by a typed variable reads the property that variable's type selects", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, KEYED_SETTER_TREE))).toEqual(["MODES.auto", "MODES.dark", "SIZES.dark", "THEMES.light"]);
+});
+
+// A shorthand property hands an unannotated constant on to the property it names: `{ state }` reads `Query["state"]`.
+// TWINS holds the same texts and is read by no property.
+const SHORTHAND_TREE = {
+  "packages/a/src/inbox.ts": [
+    'const STATES = ["active", "dismissed"] as const;',
+    "type State = (typeof STATES)[number];",
+    'const TWINS = ["active", "dismissed"] as const;',
+    "export const twin = (value: (typeof TWINS)[number]): string => value;",
+    "interface Params { readonly state?: State }",
+    "interface Query { readonly state: State; readonly limit: number }",
+    "export const select = (query: Query): number => query.limit;",
+    "export function list(params: Params): number {",
+    '  const state = params.state ?? "active";',
+    "  return select({ state, limit: 3 });",
+    "}",
+  ].join("\n"),
+};
+
+test("an unannotated constant handed on through a shorthand property credits that property's tuple", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, SHORTHAND_TREE))).toEqual(["STATES.dismissed", "TWINS.active", "TWINS.dismissed"]);
+});
+
+// An indexed access on a type no written member names reads the property by the declaration the checker finds on the type
+// the access denotes: a schema-inferred type through a generic helper whose body the slot cannot read, and the element of an
+// awaited return type. TWINS holds the same texts in both trees and is reached by neither access.
+const SCHEMA_PROPERTY_TREE = {
+  "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
+  "node_modules/zod/index.d.ts": [
+    "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    "export interface Schema<T = unknown> { readonly _output: T; nullable(): Schema<T | null> }",
+    "export declare namespace z {",
+    "  type output<S> = S extends Schema<infer T> ? T : never;",
+    "  type ZodType<T = unknown> = Schema<T>;",
+    "}",
+    "export declare const z: {",
+    "  object<S>(shape: S): Schema<Shape<S>> & { readonly shape: S };",
+    "  enum<const T extends readonly string[]>(values: T): Schema<T[number]>;",
+    "  string(): Schema<string>;",
+    "};",
+  ].join("\n"),
+  "packages/a/src/view.ts": [
+    'import { z } from "zod";',
+    'const SOURCES = ["url", "git", "showcase"] as const;',
+    'const TWINS = ["url", "git", "showcase"] as const;',
+    "function tagged<T extends string>(tag: T): z.ZodType<T> { void tag; return z.string() as unknown as z.ZodType<T>; }",
+    'const viewSchema = z.object({ id: tagged("x"), updateSource: z.enum(SOURCES) });',
+    "const twinSchema = z.object({ updateSource: z.enum(TWINS) });",
+    "export type View = z.output<typeof viewSchema>;",
+    "export type Twin = z.output<typeof twinSchema>;",
+    'export const sourceFor = (): View["updateSource"] => "git";',
+  ].join("\n"),
+  "packages/a/src/fs.ts": [
+    'const KINDS = ["file", "directory", "other"] as const;',
+    "type Kind = (typeof KINDS)[number];",
+    'const SHAPES = ["file", "directory", "other"] as const;',
+    "type Shape = (typeof SHAPES)[number];",
+    "interface Entry { readonly name: string; readonly kind: Kind }",
+    "interface Dir { readonly list: () => Promise<readonly Entry[]> }",
+    'type FsEntry = Awaited<ReturnType<Dir["list"]>>[number];',
+    "export const shape = (value: Shape): string => value;",
+    'export async function kindOf(path: string, dangling: FsEntry["kind"]): Promise<FsEntry["kind"]> {',
+    '  return path === "x" ? "directory" : dangling;',
+    "}",
+    'export const dir = (path: string): Promise<FsEntry["kind"]> => kindOf(path, "other");',
+  ].join("\n"),
+};
+
+test("an indexed access on a schema-inferred or awaited type reads the property's declaration the checker finds", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await scanUnions(plantedTree, SCHEMA_PROPERTY_TREE);
+  const rows = [...report.unwired, ...report.parsed].map(({ home, member }) => `${home}.${member}`).toSorted((a, b) => a.localeCompare(b));
+  expect(rows).toEqual([
+    "KINDS.file",
+    "SHAPES.directory",
+    "SHAPES.file",
+    "SHAPES.other",
+    "SOURCES.showcase",
+    "SOURCES.url",
+    "TWINS.git",
+    "TWINS.showcase",
+    "TWINS.url",
+  ]);
+});
