@@ -48,6 +48,8 @@ const CASES: Readonly<Record<string, { readonly use: string; readonly sent: Send
   hashingHelper: { use: "digest(JSON.stringify(v));", sent: null },
   hashNamed: { use: "hashKey(JSON.stringify(v));", sent: "file" },
   console: { use: "console.log(JSON.stringify(v));", sent: "log" },
+  // a local object spelled like the platform serializer serializes nothing: its function takes the value
+  ownJson: { use: "const JSON = { stringify: (value: unknown): string => String(value) }; console.log(JSON.stringify(v));", sent: "unclassified" },
   logNamed: { use: "log(JSON.stringify(v));", sent: "file" },
   file: { use: 'writeFileSync("out", JSON.stringify(v));', sent: "file" },
   libraryFile: { use: 'libraryWrite("out", JSON.stringify(v));', sent: "dependency" },

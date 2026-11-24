@@ -281,8 +281,8 @@ class Builder {
   constructor(state: GraphState) {
     this.#state = state;
     this.#variants = new Variants(state.session);
-    this.#flows = new Flows(this.#state);
     this.#doors = new MessageDoors(this.#state);
+    this.#flows = new Flows(this.#state, this.#doors);
     this.#routes = new RouteParams(this.#state);
     this.#constraints = new Constraints(this.#state);
     this.#keys = new Keys(this.#state);

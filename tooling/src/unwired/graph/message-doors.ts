@@ -18,12 +18,16 @@
 // - A DOM listener receives an event, so its view is the event's `data`.
 // - An unpaired send escapes as any opaque hand-off does; an unpaired receiver is reported. `onmessage =` assigns a
 //   listener without a call and is not read.
+// - A send chase (open-sends.ts) that reaches a door's send crosses it here, through these pairs and no other door
+//   reader: the chase goes on in each paired listener from the path the sent value held the data at, and a send no
+//   listener pairs with is the wire. A crossing reached twice at one argument and path adds nothing.
 import type {
   ArrowFunction,
   CallExpression,
   FunctionDeclaration,
   FunctionExpression,
   MethodDeclaration,
+  NewExpression,
   Node,
   ParameterDeclaration,
 } from "@typescript/native/ast";
@@ -52,19 +56,21 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
-import { hasFlag } from "../native.ts";
-import type { Destination } from "../open-sends.ts";
-import { declarationHome, NODE_TYPES } from "../open-sends.ts";
+import { declarationHome, hasFlag, NODE_TYPES, resolvedSymbol } from "../native.ts";
+import type { Chase, ChaseScope, Crossing, Destination, DoorCrossings, Listener } from "../open-sends.ts";
+import { joinChases, pathText, receivedChase, sentChase } from "../open-sends.ts";
 import type { FlowPair, Flows, HeldSends } from "./flows.ts";
 import { opaqueSlot } from "./flows.ts";
 import type { DeclKey } from "./resolve.ts";
-import { allOf } from "./resolve.ts";
+import { allOf, answer } from "./resolve.ts";
 import type { FileSites } from "./sites.ts";
 import type { GraphState, MessageDoor, MessageReceiver } from "./state.ts";
 import { isPrimitive } from "./state.ts";
 
 // A message crosses into another realm, the wire destination's own case (boundaries.ts).
 const MESSAGE_SEND: Destination = { destination: "wire", receiver: null };
+// A paired listener the walk could not see into takes the message somewhere the chase cannot follow.
+const UNSEEN_LISTENER: Destination = { destination: "unclassified", receiver: null };
 
 // Where a door member is declared: an ambient module of `@types/node`, or the compiler's DOM library.
 const DOM = "dom";
@@ -162,6 +168,8 @@ interface Receive {
   readonly file: string;
   readonly line: number;
   readonly at: number;
+  /** The listener a call registered, which a crossing chase goes on in; null for a worker's data read. */
+  readonly listener: Listener | null;
 }
 
 // One door name site: the member it resolved to and the node it sits on.
@@ -196,7 +204,7 @@ type FunctionLike = ArrowFunction | FunctionExpression | FunctionDeclaration | M
 const isFunctionLike = (node: Node): node is FunctionLike =>
   isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node) || isMethodDeclaration(node);
 
-export class MessageDoors {
+export class MessageDoors implements DoorCrossings {
   readonly #state: GraphState;
   readonly #sends: Send[] = [];
   readonly #receives: Receive[] = [];
@@ -208,6 +216,55 @@ export class MessageDoors {
 
   constructor(state: GraphState) {
     this.#state = state;
+  }
+
+  /** Whether a call is a door's send of its argument `index`, by the member its callee resolves to: an emitter's
+   *  arguments after the event, any other door's first. */
+  *sendOf(call: CallExpression | NewExpression, index: number): APIRequestGenerator<boolean> {
+    const symbol = yield* resolvedSymbol(this.#state.world, namePart(call.expression));
+    const member = symbol === undefined || !DOOR_NAMES.has(symbol.name) ? null : yield* this.#memberOf(symbol);
+    if (member?.act !== "send") {
+      return false;
+    }
+    return member.door === "emitter" ? index >= 1 : index === 0;
+  }
+
+  /** Where the data a send chase carried into a door's send goes on the other side: each paired listener's chase, with
+   *  the crossings those reach settled the same way. Call once every file is walked, when the pairs are known. */
+  *crossedTo(crossing: Crossing): APIRequestGenerator<Chase> {
+    return yield* this.#crossed(crossing, new Set());
+  }
+
+  *#crossed(crossing: Crossing, seen: Set<string>): APIRequestGenerator<Chase> {
+    const state = this.#state;
+    const argument = crossing.call.arguments?.[crossing.index];
+    const file = state.world.siteOf(crossing.call).file;
+    const key = `${file}:${String(argument?.pos)}${pathText(crossing.path)}`;
+    if (argument === undefined || seen.has(key)) {
+      return joinChases([]);
+    }
+    seen.add(key);
+    const sends = this.#sends.filter((send) => send.file === file && send.at === argument.pos);
+    const receivers = sends.flatMap((send) => this.#receivers(send));
+    if (receivers.length === 0) {
+      return sentChase([MESSAGE_SEND]);
+    }
+    const scope: ChaseScope = {
+      doors: this,
+      count: (name, by) => {
+        state.count(name, by);
+      },
+    };
+    const chases = yield* allOf(
+      receivers.map(({ listener }) => (listener === null ? answer(sentChase([UNSEEN_LISTENER])) : receivedChase(state.world, listener, crossing, scope))),
+    );
+    const further = yield* allOf(chases.flatMap((chase) => chase.crossed).map((next) => this.#crossed(next, seen)));
+    return joinChases([...chases.map((chase) => ({ ...chase, crossed: [] })), ...further]);
+  }
+
+  // The receivers a send's link pairs it with.
+  #receivers(send: Send): readonly Receive[] {
+    return this.#receives.filter((receive) => receive.door === send.door && receive.index === send.index && this.#linked(send.link, receive.link));
   }
 
   /** A file's door sends, which flows.ts leaves to {@link MessageDoors.settle}. */
@@ -274,6 +331,7 @@ export class MessageDoors {
         file: sites.file,
         line: sites.lineOf(node),
         at: node.pos,
+        listener: null,
       });
       return;
     }
@@ -367,7 +425,8 @@ export class MessageDoors {
       const parameter = parameters[index];
       const views = parameter === undefined || fn === undefined ? [] : yield* this.#parameterView(parameter, fn, member.origin === DOM, new Set());
       const names = parameter === undefined || fn === undefined ? [] : yield* this.#parameterNames(parameter, fn, member.origin === DOM);
-      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call), at: call.pos });
+      const listener = fn === undefined ? null : { fn, index, event: member.origin === DOM };
+      this.#receives.push({ link, door: member.door, index, views, names, file: sites.file, line: sites.lineOf(call), at: call.pos, listener });
     }
   }
 
@@ -565,7 +624,7 @@ export class MessageDoors {
     const pairs = new Map<string, FlowPair[]>();
     const state = this.#state;
     for (const send of this.#sends) {
-      const receivers = this.#receives.filter((receive) => receive.door === send.door && receive.index === send.index && this.#linked(send.link, receive.link));
+      const receivers = this.#receivers(send);
       for (const receive of receivers) {
         paired.add(receive);
         const into = pairs.get(receive.file) ?? [];
@@ -644,5 +703,5 @@ function returnsOf(fn: FunctionLike): readonly Node[] {
   return out;
 }
 
-// The door origin of a Node module, by the bare name the shared declaration home reads (../open-sends.ts).
+// The door origin of a Node module, by the bare name the shared declaration home reads (../native.ts).
 const nodeModule = (module: string | null): Origin | null => NODE_MODULES.find((known) => known === module) ?? null;

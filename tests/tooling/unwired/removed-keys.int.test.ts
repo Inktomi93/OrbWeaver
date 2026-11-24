@@ -254,6 +254,21 @@ const SENDS = {
     '  chosen["guidedPick"] = "g";',
     "  await fetch(draft ? '/api/draft' : SEND_ROUTE, { method: 'POST', body: JSON.stringify(chosen) });",
     "}",
+    // A platform Request carries its body to the route its URL names, as a fetch's init does.
+    "export async function requested(): Promise<void> {",
+    "  const req: Record<string, unknown> = {};",
+    '  req["guidedPick"] = "g";',
+    "  await fetch(new Request(SEND_ROUTE, { method: 'POST', body: JSON.stringify(req) }));",
+    "}",
+  ].join("\n"),
+  // A module's own function named `fetch` makes no platform request, whatever URL it takes.
+  "packages/client/src/local-fetch.ts": [
+    "function fetch(url: string, init: { readonly body: string }): void { void url; void init; }",
+    "export function sent(): void {",
+    "  const local: Record<string, unknown> = {};",
+    '  local["guidedPick"] = "g";',
+    "  fetch('/api/chat/send', { body: JSON.stringify(local) });",
+    "}",
   ].join("\n"),
   "packages/client/src/query.ts": [
     'import { trpc } from "./trpc.ts";',
@@ -293,10 +308,12 @@ test("a loose body reaches our server through a route constant, a query's option
     "packages/client/src/query.ts:4 trpc chat.list",
     "packages/client/src/route.ts:13 http /api/chat/:*",
     "packages/client/src/route.ts:16 http /api/draft | /api/chat/send",
+    "packages/client/src/route.ts:21 http /api/chat/send",
     "packages/client/src/route.ts:5 http /api/chat/send",
     "packages/client/src/route.ts:8 http /api/upload/part",
   ]);
   expect(guidedPick?.unresolved.map(({ at, reason }) => `${at} ${reason}`).toSorted()).toEqual([
+    `packages/client/src/local-fetch.ts:4 ${NO_DESTINATION}`,
     `packages/client/src/loose.ts:3 ${NO_DESTINATION}`,
     `packages/client/src/store.ts:4 ${NO_DESTINATION}`,
   ]);

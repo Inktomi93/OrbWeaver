@@ -1,7 +1,7 @@
 // String keys and built keys the fields query places, one form per case, each with a truly dead twin beside it that
 // stays reported; and the reads no walk places, which are listed as unresolved and never credited by their name.
 import { expect, test } from "@orb/testkit/tooling";
-import { fieldsScan, GRAPH_SOURCE, JSX_NAMESPACE, fieldRows as named } from "./_planted.ts";
+import { fieldsScan, GRAPH_SOURCE, JSX_NAMESPACE, libraryModule, fieldRows as named } from "./_planted.ts";
 
 const planted = (file: string, lines: readonly string[]): Readonly<Record<string, string>> => ({
   [`${GRAPH_SOURCE}/${file}`]: lines.join("\n"),
@@ -83,24 +83,30 @@ test("a generic call's key slot names the member of the type its argument binds 
   ]);
 });
 
+// The package a form instance's field methods are declared by, as TanStack Form's are.
+const FORM_CORE = "@tanstack/form-core";
+
 // Step six: TanStack Form's paths walk the form data type segment by segment. `setFieldValue` writes `params.seed`,
 // `getFieldValue` reads it, a `Field` binds `title` (it reads and writes it) and a `getFieldValue` alone reads `note`;
 // `params.dead` and `gone` are named by nobody. The default values write `params.fixed`, so a set path taken as a read
 // would leave `params.seed` never written.
 const FORM = {
   [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
-  [`${GRAPH_SOURCE}/form-api.ts`]: [
-    "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
-    "export type ReactFormExtendedApi<TFormData> = {",
-    "  readonly state: { readonly values: TFormData };",
-    "  setFieldValue(name: string, value: unknown): void;",
-    "  getFieldValue(name: string): unknown;",
-    "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
-    "};",
-    "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
-  ].join("\n"),
+  ...libraryModule(
+    [
+      "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
+      "export type ReactFormExtendedApi<TFormData> = {",
+      "  readonly state: { readonly values: TFormData };",
+      "  setFieldValue(name: string, value: unknown): void;",
+      "  getFieldValue(name: string): unknown;",
+      "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
+      "};",
+      "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
+    ],
+    FORM_CORE,
+  ),
   [`${GRAPH_SOURCE}/form.tsx`]: [
-    'import { useForm } from "./form-api.ts";',
+    `import { useForm } from "${FORM_CORE}";`,
     "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly note?: string; readonly gone?: string }",
     "export function Editor(): JSX.Element {",
     "  const form = useForm<Values>({ defaultValues: { params: { fixed: 1 } } });",

@@ -181,10 +181,17 @@ const HONO = {
     "  get(path: string, ...handlers: unknown[]): Hono;",
     "  post(path: string, ...handlers: unknown[]): Hono;",
     "  delete(path: string, ...handlers: unknown[]): Hono;",
+    "  all(path: string, ...handlers: unknown[]): Hono;",
     "  on(method: string, path: string, ...handlers: unknown[]): Hono;",
     "  use(...handlers: unknown[]): Hono;",
     "}",
   ].join("\n"),
+  // A tRPC link's options, declared in the tRPC client package, and a link library of another name with the same option.
+  "node_modules/@trpc/client/package.json": '{ "name": "@trpc/client", "types": "index.d.ts" }',
+  "node_modules/@trpc/client/index.d.ts":
+    "export interface HTTPLinkOptions { url: string }\nexport declare function httpBatchLink(options: HTTPLinkOptions): unknown;",
+  "node_modules/other-link/package.json": '{ "name": "other-link", "types": "index.d.ts" }',
+  "node_modules/other-link/index.d.ts": "export declare function link(options: { url: string }): unknown;",
   // A router's navigation options, declared in the router package as TanStack Router's are.
   "node_modules/@tanstack/react-router/package.json": '{ "name": "@tanstack/react-router", "types": "index.d.ts" }',
   "node_modules/@tanstack/react-router/index.d.ts": "export type Navigate = (options: { readonly to: string }) => Promise<void>;",
@@ -288,14 +295,32 @@ const ROUTE_TREE = {
     "  app.use(() => null);",
     "}",
   ].join("\n"),
-  // The debug registrar is a route home beside entry/http: a route only tooling calls is test-only, and one nothing calls
-  // is uncalled.
+  // A registrar in any production file registers its routes, the debug registrar's among them: a route only tooling calls
+  // is test-only, and one nothing calls is uncalled.
   "packages/server/src/foundation/observability/debug/routes.ts": [
     'import type { Hono } from "hono";',
     "export function registerDebug(app: Hono): void {",
     '  app.get("/api/_debug/info", () => null);',
     '  app.get("/api/_debug/unread", () => null);',
     "}",
+  ].join("\n"),
+  // A registrar outside the server's entry and debug homes, whose wildcard routes a tRPC link's URL and another
+  // library's `url` option name; a local class's `get` registers nothing.
+  "packages/server/src/features/moved/routes.ts": [
+    'import type { Hono } from "hono";',
+    "class Board { get(path: string): string { return path; } }",
+    "export function registerMoved(app: Hono): void {",
+    '  app.all("/api/trpc/*", () => null);',
+    '  app.all("/api/linked/*", () => null);',
+    '  new Board().get("/api/board");',
+    "}",
+  ].join("\n"),
+  "packages/client/src/trpc.ts": [
+    'import { httpBatchLink } from "@trpc/client";',
+    'import { link } from "other-link";',
+    'const TRPC_URL = "/api/trpc";',
+    "export const trpcLink = (url: string = TRPC_URL): unknown => httpBatchLink({ url });",
+    'export const otherLink = (): unknown => link({ url: "/api/linked" });',
   ].join("\n"),
   [`${TOOLING}/debug-info.ts`]: 'export const info = (): Promise<Response> => fetch("/api/_debug/info");\n',
   "packages/client/src/requests.tsx": [
@@ -409,11 +434,12 @@ test("a route is called by a platform request, a URL attribute or a URL builder'
 }) => {
   const report = await scan(await plantedTree(surfaceTree(ROUTE_TREE)));
   // The policy registrar folds once per member of its union, so it registers two routes and no cross of their parts.
-  expect(report.routes).toBe(29 + PLANTED_ROUTE_ROWS.length);
+  expect(report.routes).toBe(31 + PLANTED_ROUTE_ROWS.length);
   expect(found(report)).toEqual([
     "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
+    "uncalled-route ALL /api/linked/* tests=0 keys=0",
     "uncalled-route GET /api/_debug/unread tests=0 keys=0",
     "uncalled-route GET /api/labelled tests=0 keys=0",
     "uncalled-route GET /api/many/zzzzz tests=0 keys=0",
@@ -463,6 +489,7 @@ test("a judged row reports apart with its open item, and an entry for a gone row
     "test-only-route GET /api/_debug/info tests=1 keys=0",
     "test-only-route GET /api/debug/dump tests=1 keys=0",
     "test-only-route GET /api/debug/probe tests=1 keys=0",
+    "uncalled-route ALL /api/linked/* tests=0 keys=0",
     "uncalled-route GET /api/_debug/unread tests=0 keys=0",
     "uncalled-route GET /api/labelled tests=0 keys=0",
     "uncalled-route GET /api/many/zzzzz tests=0 keys=0",

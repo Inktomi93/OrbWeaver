@@ -414,7 +414,8 @@ test("a backend value that reaches a provider request is sent to the provider, a
     received: [["Knobs.topK", "provider", "README.md:1"]],
     unwired: [
       ["Call.translate", "member-write-only", []],
-      ["Knobs.minP", "member-sent-only", [`provider ${backend}:10`]],
+      // followed down its key path through the spread of `args.options` into the request the provider library takes
+      ["Knobs.minP", "member-sent-only", [`provider ${backend}:10 @ai-sdk/provider`]],
       ["Routing.order", "member-sent-only", [`provider ${backend}:22 @ai-sdk/provider`]],
       ["Answer.code", "member-sent-only", [`unclassified ${backend}:24`]],
       ["Extras.keyed", "member-sent-only", [`provider ${backend}:16`]],

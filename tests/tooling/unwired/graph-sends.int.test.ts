@@ -1,7 +1,9 @@
 // What reaches a receiver that names no member: a value handed whole to an opaque slot, published to a global, or taken
 // by a library's bare type parameter is sent, not read, and its members land in member-sent-only; a slot that names a
 // member pairs it, and a library slot naming a field is a receiver reading it.
+import { relative } from "node:path";
 import { expect, plantedTsconfig, plantLink, test } from "@orb/testkit/tooling";
+import { NESTED_READS } from "../../../tooling/src/unwired/boundaries.ts";
 import { NativeWorld, scanGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, graphTree, HONO_CONTEXT, JSX_NAMESPACE, LIB, labelsIn, libraryModule, NODE_TYPES, WORLD } from "./_planted.ts";
 
@@ -374,6 +376,15 @@ test("an assertion of a library's parameter sends the asserted type to that libr
   ]);
 });
 
+// The dotted-path reader the chase knows by its declaration, planted where production declares it, and a function of the
+// same name declared elsewhere, which reads nothing.
+const [NESTED_READER = { file: "", name: "" }] = NESTED_READS;
+const NESTED_IMPORT = relative(GRAPH_SOURCE, NESTED_READER.file);
+const READERS = {
+  [NESTED_READER.file]: `export function ${NESTED_READER.name}(value: unknown, path: string): unknown { return (value as Record<string, unknown>)[path]; }`,
+  [`${GRAPH_SOURCE}/near.ts`]: "export const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
+};
+
 // A serialization whose string is compared reads every member in the process, as a dotted-path reader does with its
 // value; a response or a thrown serialization only sends the members, and an in-tree logger that drops the value sends
 // nothing.
@@ -382,34 +393,40 @@ test("a dotted-path read and a compared serialization read a value's members; a 
 }) => {
   const scan = await graphScan(plantedTree, {
     ...HONO_CONTEXT,
+    ...READERS,
     ...source([
       '/// <reference types="node" />',
       'import type { Context } from "hono";',
+      `import { nestedValue } from "${NESTED_IMPORT}";`,
+      'import { nestedValue as nearValue } from "./near.ts";',
       "export interface Snapshot { readonly mode: string; readonly deep: { readonly leaf: string } }",
+      "export interface Twin { readonly mode: string }",
       "export interface Detail { readonly note: string }",
       "export interface View { readonly status: string; readonly details: readonly Detail[] }",
       "export interface Passed { readonly unread: string }",
       "export interface Pair { readonly left: string; readonly inner: { readonly right: string } }",
       "export interface Failed { readonly code: string }",
-      "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
       "const log = (value: unknown): void => { void value; };",
       "declare const c: Context;",
+      'const twin: Twin = { mode: "t" };',
       'const snapshot: Snapshot = { mode: "m", deep: { leaf: "l" } };',
       'const view: View = { status: "ok", details: [{ note: "n" }] };',
       'const passed: Passed = { unread: "u" };',
       'const pair: Pair = { left: "l", inner: { right: "r" } };',
       'const failed: Failed = { code: "c" };',
       'export const sample = nestedValue(snapshot, "mode");',
+      'export const near = nearValue(twin, "mode");',
       "export const sent = c.json(view);",
       "export const same = JSON.stringify(pair) === JSON.stringify(pair);",
       'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
       "log(passed);",
     ]),
   });
+  // a function named like the reader but declared elsewhere reads nothing, so `Twin.mode` stays sent
   expect({
     sent: labelsIn(scan, "member-sent-only", FILE),
     written: labelsIn(scan, "member-write-only", FILE),
-  }).toEqual({ sent: ["Detail.note", "View.status", "View.details", "Failed.code"], written: ["Passed.unread"] });
+  }).toEqual({ sent: ["Twin.mode", "Detail.note", "View.status", "View.details", "Failed.code"], written: ["Passed.unread"] });
   expect(scan.members.unwired.filter(({ member }) => member === "status" || member === "code").map(({ sent }) => sent[0]?.split(" ")[0])).toEqual([
     "http",
     "error",

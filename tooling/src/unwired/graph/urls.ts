@@ -30,10 +30,12 @@ import {
   isFunctionExpression,
   isIdentifier,
   isImportClause,
+  isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
   isJsxAttribute,
   isMethodDeclaration,
+  isNamedImports,
   isNamespaceImport,
   isNewExpression,
   isNonNullExpression,
@@ -62,7 +64,7 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescr
 import { all, SymbolFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
-import { declarationKeys, hasFlag, isFunctionLike, propertiesNamed } from "../native.ts";
+import { declarationHome, declarationKeys, hasFlag, isFunctionLike, isPlatform, platformMember, propertiesNamed } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import { sameNode } from "./roles.ts";
 
@@ -100,6 +102,10 @@ const INIT_METHOD = "method";
 
 // URL members the platform declares: writing one loads it. A form's action posts with a method the form owns.
 const URL_MEMBERS: Readonly<Record<string, RouteMethod>> = { href: "GET", src: "GET", action: ANY_METHOD, formAction: ANY_METHOD };
+// A tRPC client link's `url` option, by the package that declares it: every procedure call the link makes requests a
+// path under it.
+const TRPC_LINK_URL = "url";
+const TRPC_SCOPE = "@trpc/";
 
 // --- URL patterns -------------------------------------------------------------------------------------------------
 
@@ -252,8 +258,11 @@ function* foldValue(world: NativeWorld, expression: Expression, path: FoldPath):
     return UNKNOWN;
   }
   const declaration = yield* declarationOf(world, yield* unaliased(world, yield* checker.getSymbolAtLocation.gen(named)));
+  // a parameter folds to its default, the value a call that omits it passes
   const initializer =
-    declaration !== undefined && (isVariableDeclaration(declaration) || isPropertyAssignment(declaration)) ? declaration.initializer : undefined;
+    declaration !== undefined && (isVariableDeclaration(declaration) || isPropertyAssignment(declaration) || isParameterDeclaration(declaration))
+      ? declaration.initializer
+      : undefined;
   const inside = initializer === undefined || declaration === undefined ? null : enter(world, path, declaration);
   return initializer === undefined || inside === null ? UNKNOWN : yield* fold(world, initializer, inside);
 }
@@ -297,7 +306,8 @@ function* foldCall(world: NativeWorld, call: CallExpression, path: FoldPath): AP
     return null;
   }
   const symbol = yield* unaliased(world, yield* checker.getSymbolAtLocation.gen(name));
-  if (isPropertyAccessExpression(callee) && outsideTree(world, symbol) && (callee.name.text === "replace" || callee.name.text === "replaceAll")) {
+  const platform = isPropertyAccessExpression(callee) ? yield* platformMember(world, symbol) : null;
+  if (isPropertyAccessExpression(callee) && platform?.container === STRING_INTERFACE && STRING_REPLACERS.has(platform.name)) {
     const [target] = call.arguments;
     const receiver = yield* fold(world, callee.expression, path);
     return target !== undefined && (isStringLiteral(target) || isNoSubstitutionTemplateLiteral(target))
@@ -315,6 +325,10 @@ function* foldCall(world: NativeWorld, call: CallExpression, path: FoldPath): AP
   const returned = yield* all(...returnsOf(fn).map((value) => fold(world, value, inside)));
   return returned.length === 0 ? null : distinct(returned.flat());
 }
+
+// The platform's `String` members that replace a part of their receiver.
+const STRING_INTERFACE = "String";
+const STRING_REPLACERS: ReadonlySet<string> = new Set(["replace", "replaceAll"]);
 
 const replaced = (pattern: Pattern, target: string): Pattern =>
   pattern.flatMap((part) =>
@@ -414,6 +428,11 @@ function* requestKey(world: NativeWorld, symbol: NativeSymbol | undefined): APIR
   if (symbol === undefined || !outsideTree(world, symbol)) {
     return null;
   }
+  // a library's own `fetch` or `open` sends no platform request
+  const platform = yield* all(...symbol.declarations.map((handle) => isPlatform(world, handle)));
+  if (!platform.every(Boolean)) {
+    return null;
+  }
   const parent = yield* symbol.getParent.gen();
   if (parent !== undefined) {
     // A module's export keeps its module in the key, so `open` from a file-system module is never the window's.
@@ -458,7 +477,9 @@ function* shorthandValue(world: NativeWorld, shorthand: ShorthandPropertyAssignm
     return literal;
   }
   const bound = yield* declarationOf(world, value);
-  return bound !== undefined && isVariableDeclaration(bound) && bound.initializer !== undefined ? yield* fold(world, bound.initializer) : UNKNOWN;
+  return bound !== undefined && (isVariableDeclaration(bound) || isParameterDeclaration(bound)) && bound.initializer !== undefined
+    ? yield* fold(world, bound.initializer)
+    : UNKNOWN;
 }
 
 // The method a request's init object names, read through the checker as the platform's `RequestInit` reads it: a
@@ -507,7 +528,15 @@ function* memberWrite(world: NativeWorld, name: Identifier, value: Expression, r
   if (resolved.length === 0 || !resolved.every((member) => outsideTree(world, member))) {
     return null;
   }
-  return { site: world.siteOf(name), sink: text, method: URL_MEMBERS[text] ?? ANY_METHOD, patterns: yield* fold(world, value), body: null };
+  const patterns = isShorthandPropertyAssignment(value.parent) ? yield* shorthandValue(world, value.parent) : yield* fold(world, value);
+  if (text !== TRPC_LINK_URL) {
+    return { site: world.siteOf(name), sink: text, method: URL_MEMBERS[text] ?? ANY_METHOD, patterns, body: null };
+  }
+  const packages = yield* all(...resolved.flatMap((member) => member.declarations).map((handle) => world.packageOf(handle)));
+  // the link sends each procedure call to its path under the URL
+  return packages.every((pkg) => pkg?.startsWith(TRPC_SCOPE) === true)
+    ? { site: world.siteOf(name), sink: text, method: ANY_METHOD, patterns: patterns.map((pattern) => [...pattern, "/", null]), body: null }
+    : null;
 }
 
 /** An in-tree function whose return is one of our URLs, by its declaration key, with the paths it returns. */
@@ -830,7 +859,7 @@ function* callsReach(flow: Flow, name: Identifier): APIRequestGenerator<boolean>
 }
 
 /** The package whose context answers a request: a value handed to one of its members is the response's. */
-export const HONO_PACKAGE = "hono";
+const HONO_PACKAGE = "hono";
 
 // The value a literal holds it in, through object members, array elements and spreads, so `c.json({ url })` is read at
 // the call that sends the object.
@@ -848,22 +877,59 @@ function holder(value: Node): Node {
   }
 }
 
+/** The hono class whose members register routes, and the request class whose `param` reads a path parameter. */
+export const HONO_APP = "Hono";
+export const HONO_REQUEST = "HonoRequest";
+
+/** The hono member a call's callee resolves to: its name and the class that declares it, by the declarations the
+ *  checker resolves, every one of them hono's. Null for any other callee, a same-named member of ours included. */
+export function* honoMember(
+  world: NativeWorld,
+  call: CallExpression,
+): APIRequestGenerator<{ readonly name: string; readonly container: string | null } | null> {
+  const callee = unwrap(call.expression);
+  if (!(isPropertyAccessExpression(callee) && isIdentifier(callee.name))) {
+    return null;
+  }
+  const symbol = yield* unaliased(world, yield* world.checker.getSymbolAtLocation.gen(callee.name));
+  const declarations = symbol?.declarations ?? [];
+  const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
+  if (symbol === undefined || packages.length === 0 || !packages.every((pkg) => pkg === HONO_PACKAGE)) {
+    return null;
+  }
+  const nodes = yield* all(...declarations.map((handle) => handle.resolve.gen()));
+  const containers = nodes.flatMap((node) => (node === undefined ? [] : [declarationHome(node).container]));
+  return { name: symbol.name, container: containers[0] ?? null };
+}
+
+// The platform's Fetch `Response`, which a framework member that answers a request returns.
+const RESPONSE = "Response";
+
+/** Whether a call builds the response to a request: a member the HTTP framework declares, called for the platform's
+ *  `Response`, as the request context's `json`, `text`, `body` and `redirect` are. A framework member that answers no
+ *  Response, as the context's `set` or `get`, is the framework's own. */
+export function* honoResponse(world: NativeWorld, call: CallExpression | NewExpression): APIRequestGenerator<boolean> {
+  const callee = nameOf(unwrap(call.expression));
+  const declarations = (callee === null ? undefined : yield* unaliased(world, yield* world.checker.getSymbolAtLocation.gen(callee)))?.declarations ?? [];
+  const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
+  if (packages.length === 0 || !packages.every((pkg) => pkg === HONO_PACKAGE)) {
+    return false;
+  }
+  const result: Type = yield* world.checker.getTypeAtLocation.gen(call);
+  const parts = result.isUnionType() || result.isIntersectionType() ? yield* result.getTypes.gen() : [result];
+  const symbols = yield* all(...parts.map((part) => part.getSymbol.gen()));
+  const responses = symbols.flatMap((symbol) => (symbol?.name === RESPONSE ? symbol.declarations : []));
+  const platform = yield* all(...responses.map((handle) => isPlatform(world, handle)));
+  return platform.some(Boolean);
+}
+
 /** Whether a value is part of a response the server sends: an argument, directly or inside an object or array literal,
- *  of a member the HTTP framework declares on its context (`c.json`, `c.redirect`). The browser follows a URL it
- *  receives there, so the server's builder call is that URL's request. */
+ *  of a call {@link honoResponse} answers for (`c.json`, `c.redirect`). The browser follows a URL it receives there, so
+ *  the server's builder call is that URL's request. */
 function* inResponse(world: NativeWorld, value: Node): APIRequestGenerator<boolean> {
   const at = holder(value);
   const call = at.parent;
-  if (!(isCallExpression(call) && call.arguments.some((argument) => sameNode(argument, at)))) {
-    return false;
-  }
-  const callee = nameOf(unwrap(call.expression));
-  const symbol = callee === null ? undefined : yield* world.checker.getSymbolAtLocation.gen(callee);
-  if (symbol === undefined || symbol.declarations.length === 0) {
-    return false;
-  }
-  const packages = yield* all(...symbol.declarations.map((handle) => world.packageOf(handle)));
-  return packages.every((owner) => owner === HONO_PACKAGE);
+  return isCallExpression(call) && call.arguments.some((argument) => sameNode(argument, at)) && (yield* honoResponse(world, call));
 }
 
 interface Sites {
@@ -873,8 +939,14 @@ interface Sites {
 }
 
 // The request sites a node is: a URL member write or a platform request call in a file that sends to our origin, or a
-// builder call in any file.
-function collectSite(node: Node, sends: boolean, into: Sites, callsBuilder: (name: Identifier) => boolean): void {
+// builder call in any file. A call is kept by the name it may resolve to, its own or the one a renamed import names;
+// the checker then decides.
+interface CallNames {
+  readonly request: (name: Identifier) => boolean;
+  readonly builder: (name: Identifier) => boolean;
+}
+
+function collectSite(node: Node, sends: boolean, into: Sites, names: CallNames): void {
   const written = sends ? urlWrite(node) : null;
   if (written !== null) {
     into.writes.push(written);
@@ -886,12 +958,28 @@ function collectSite(node: Node, sends: boolean, into: Sites, callsBuilder: (nam
   if (name === null) {
     return;
   }
-  if (sends && REQUEST_NAMES.has(name.text)) {
+  if (sends && names.request(name)) {
     into.calls.push(node);
   }
-  if (isCallExpression(node) && callsBuilder(name)) {
+  if (isCallExpression(node) && names.builder(name)) {
     into.builderCalls.push({ call: node, name });
   }
+}
+
+// The local names a file's renamed imports give, by the name each imports: `import { a as b }` maps b to a.
+function importedAs(source: SourceFile): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const statement of source.statements) {
+    const bindings = isImportDeclaration(statement) ? statement.importClause?.namedBindings : undefined;
+    if (bindings !== undefined && isNamedImports(bindings)) {
+      for (const element of bindings.elements) {
+        if (element.propertyName !== undefined && isIdentifier(element.propertyName)) {
+          out.set(element.name.text, element.propertyName.text);
+        }
+      }
+    }
+  }
+  return out;
 }
 
 /** Every request to our origin: platform request calls and URL member writes in a file that sends to it, a URL builder's
@@ -908,8 +996,13 @@ export function requestsOf(world: NativeWorld, files: readonly SourceFile[], sen
   };
   for (const source of files) {
     const sending = sends(world.fileOfSource(source));
+    const renamed = importedAs(source);
+    const spelled = (name: Identifier, names: ReadonlySet<string>): boolean => names.has(renamed.get(name.text) ?? name.text);
     walkFiles([source], (node) => {
-      collectSite(node, sending, sites, (name) => builderNames.has(name.text) && !insideBuilder(node));
+      collectSite(node, sending, sites, {
+        request: (name) => spelled(name, REQUEST_NAMES),
+        builder: (name) => spelled(name, builderNames) && !insideBuilder(node),
+      });
     });
   }
   const { calls, writes, builderCalls } = sites;
@@ -953,8 +1046,12 @@ function urlWrite(node: Node): { readonly name: Identifier; readonly value: Expr
         : (node.initializer as Expression);
     return value === undefined ? null : { name: node.name, value };
   }
-  if (isPropertyAssignment(node) && isIdentifier(node.name) && Object.hasOwn(URL_MEMBERS, node.name.text) && isObjectLiteralExpression(node.parent)) {
+  const urlKey = (name: Identifier): boolean => Object.hasOwn(URL_MEMBERS, name.text) || name.text === TRPC_LINK_URL;
+  if (isPropertyAssignment(node) && isIdentifier(node.name) && urlKey(node.name) && isObjectLiteralExpression(node.parent)) {
     return { name: node.name, value: node.initializer };
   }
-  return null;
+  // a shorthand's value is the binding it names, which memberWrite folds through the checker
+  return isShorthandPropertyAssignment(node) && isIdentifier(node.name) && urlKey(node.name) && isObjectLiteralExpression(node.parent)
+    ? { name: node.name, value: node.name }
+    : null;
 }

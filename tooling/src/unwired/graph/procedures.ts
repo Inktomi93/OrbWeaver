@@ -10,7 +10,9 @@
 // - A product site whose next link is a cache-key or filter verb tRPC declares, by the program's package answer, builds
 //   a key and sends no request: it is counted in `keys` and calls nothing. A same-named method declared anywhere else
 //   is a call.
-// - A route is a Hono verb registration under {@link ROUTE_HOMES}. Its path and each request's URL fold through ./urls.ts.
+// - A route is a call of a verb hono's app class declares, in any production file, by the declaration the checker
+//   resolves: a registrar that moves keeps its routes, and a context's `get` is no route. Its path and each request's
+//   URL fold through ./urls.ts.
 // - A request to our origin is sent from any file but a server's: product code outside snap whose own world loads no DOM
 //   library (worlds.ts `browserFiles`) fetches outward. Snap drives the real app over HTTP (owner ruling), so its request
 //   is a product call; a Node test's or a tool's request is a test call.
@@ -37,7 +39,7 @@ import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationKeys, isPropertyName } from "../native.ts";
-import { browserFiles } from "../worlds.ts";
+import { browserFiles, isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts } from "./resolve.ts";
@@ -45,16 +47,12 @@ import { READS, sameNode } from "./roles.ts";
 import type { RoleSite } from "./state.ts";
 import { productReader, SNAP_SOURCE } from "./state.ts";
 import type { CallerPath, Pattern, Request, RouteMethod } from "./urls.ts";
-import { ANY_METHOD, asMethod, callerPath, fold, HONO_PACKAGE, literalsOf, merged, requestsOf, unwrap, walkFiles } from "./urls.ts";
+import { ANY_METHOD, asMethod, callerPath, fold, HONO_APP, honoMember, literalsOf, merged, requestsOf, unwrap, walkFiles } from "./urls.ts";
 
 // --- What the query reads -------------------------------------------------------------------------------------------
 
 /** The router files: the root router and every domain router under it. The build keeps their declarations' role sites. */
 export const PROCEDURE_HOMES = ["packages/server/src/transport/trpc/router.ts", "packages/server/src/transport/trpc/routers/"] as const;
-/** The registrars of the server's own HTTP routes. */
-// The debug registrar is a route home too: its surface is dev-only behind the debug gate, so its callers are tooling and
-// tests, and a debug route nothing calls is surface nobody watches.
-const ROUTE_HOMES = ["packages/server/src/entry/http/", "packages/server/src/foundation/observability/debug/"] as const;
 
 const inHomes = (file: string, homes: readonly string[]): boolean => homes.some((home) => (home.endsWith("/") ? file.startsWith(home) : file === home));
 
@@ -135,7 +133,7 @@ const PROCEDURE_LIMITS: readonly string[] = [
   "A URL part the checker gives no literal type is one wildcard segment; a caller whose URL starts with a wildcard is unplaced and listed, never matched.",
   "A URL builder's method is unknown, so its call matches every method of the routes its URL fits.",
   "A request the e2e suite sends through Playwright's request API, and any request a script or the browser sends unprompted, is not seen.",
-  "Routes registered outside packages/server/src/entry/http/ and the debug registrar under packages/server/src/foundation/observability/debug/ (the tRPC mount) are outside this query.",
+  "A route is a call of a verb member hono's app declares, in any production file; a verb read off the app and called later (a destructured get) registers nothing this query sees.",
 ];
 
 // --- Findings ---------------------------------------------------------------------------------------------------
@@ -380,7 +378,8 @@ function* methodsOf(world: NativeWorld, fixed: RouteMethod | null, first: Expres
   return (yield* fold(world, first)).map((pattern) => (pattern.includes(null) ? ANY_METHOD : asMethod(pattern.join(""))));
 }
 
-// Every Hono route the registrar files declare, one per path its registration can take.
+// Every Hono route the production files register, one per path its registration can take: a call of a member hono's app
+// class declares, wherever the registrar sits. A member access names its member, so only a verb's name can be one.
 function routeInventory(world: NativeWorld, files: readonly SourceFile[]): readonly RouteRecord[] {
   const calls: CallExpression[] = [];
   walkFiles(files, (node) => {
@@ -388,18 +387,13 @@ function routeInventory(world: NativeWorld, files: readonly SourceFile[]): reado
       calls.push(node);
     }
   });
-  const { checker } = world;
   const found = world.batch(
     calls.map(function* (call): APIRequestGenerator<readonly RouteRecord[]> {
-      const callee = call.expression;
-      if (!(isPropertyAccessExpression(callee) && isIdentifier(callee.name))) {
+      const member = yield* honoMember(world, call);
+      if (member === null || member.container !== HONO_APP || !Object.hasOwn(HONO_VERBS, member.name)) {
         return [];
       }
-      const method = yield* checker.getSymbolAtLocation.gen(callee.name);
-      if (!(yield* fromPackage(world, method, (name) => name === HONO_PACKAGE))) {
-        return [];
-      }
-      const fixed = HONO_VERBS[callee.name.text] ?? null;
+      const fixed = HONO_VERBS[member.name] ?? null;
       const [first, second] = call.arguments;
       const pathArgument = fixed === null ? second : first;
       if (first === undefined || pathArgument === undefined) {
@@ -636,7 +630,10 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
   const sources = graph.files.flatMap((file) => world.source(file) ?? []);
   const homed = (homes: readonly string[]): readonly SourceFile[] => sources.filter((source) => inHomes(world.fileOfSource(source), homes));
   const procedures = procedureInventory(world, homed(PROCEDURE_HOMES));
-  const routes = routeInventory(world, homed(ROUTE_HOMES));
+  const routes = routeInventory(
+    world,
+    sources.filter((source) => isProduction(world.fileOfSource(source))),
+  );
   const outside = new Map(OUTSIDE_CALLERS.map((row) => [outsideKey(row), { row, at: [] as string[], calls: 0 }] as const));
   const browser = browserFiles(options.root);
   const requests = requestsOf(world, sources, (file) => browser.has(file) || file.startsWith(SNAP_SOURCE) || !productReader(file));

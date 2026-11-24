@@ -69,8 +69,8 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, T
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
 import { rowColumns } from "../drizzle-rows.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
-import type { Chase, Destination, ProviderReach } from "../open-sends.ts";
-import { assertedDestination, CHASE_STOPPED, identitySlot, providerReach, sendChase } from "../open-sends.ts";
+import type { Chase, ChaseScope, Crossing, Destination, DoorCrossings, ProviderReach } from "../open-sends.ts";
+import { assertedDestination, CHASE_STOPPED, identitySlot, joinChases, providerReach, sendChase } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
@@ -181,19 +181,28 @@ const NO_HELD_TYPES: ReadonlySet<number> = new Set();
 const NO_CHECK_SITES: ReadonlySet<number> = new Set();
 const NO_SITE_NODES: ReadonlyMap<number, Node> = new Map();
 const PROVIDER_SEND: Destination = { destination: "provider", receiver: null };
-const UNFOLLOWED: Chase = { to: [], dropped: false, read: false, stopped: false };
+const UNFOLLOWED: Chase = { to: [], dropped: false, read: false, stopped: false, crossed: [] };
 
 // The dev bridge: a global our own `declare global` declares, which snap and agent probes read outside the program.
 const DEV_BRIDGE_SEND: Destination = { destination: "observability", receiver: "dev bridge" };
 
 // What a chase decides for an escaping value: `read` where some path reads it whole, and every place it is sent, none
 // where nothing receives it.
+// `crossed`: the message door sends it reached, settled once the doors are paired.
 interface Outcome {
   readonly read: boolean;
   readonly sends: readonly Destination[];
+  readonly crossed: readonly Crossing[];
 }
 
-const UNCLASSIFIED_OUTCOME: Outcome = { read: false, sends: [UNCLASSIFIED] };
+const UNCLASSIFIED_OUTCOME: Outcome = { read: false, sends: [UNCLASSIFIED], crossed: [] };
+
+// Members a chase carried into a message door's send, with the site they escape at once the crossing is settled.
+interface CrossedMembers {
+  readonly members: readonly DeclKey[];
+  readonly site: { readonly file: string; readonly at: number };
+  readonly crossed: readonly Crossing[];
+}
 
 // Each destination once: two paths can reach one receiver.
 const distinctSends = (to: readonly Destination[]): readonly Destination[] => [
@@ -284,10 +293,21 @@ export class Flows {
   readonly #values: ValueTracer;
   readonly #traceRequests: TraceRequest[] = [];
   readonly #traced = new Set<string>();
+  // The door crossings the chases reached, settled after every other link (MessageDoors.crossedTo).
+  readonly #crossings: CrossedMembers[] = [];
+  readonly #doors: DoorCrossings;
+  readonly #scope: ChaseScope;
   #walking = false;
 
-  constructor(state: GraphState) {
+  constructor(state: GraphState, doors: DoorCrossings) {
     this.#state = state;
+    this.#doors = doors;
+    this.#scope = {
+      doors,
+      count: (name, by): void => {
+        state.count(name, by);
+      },
+    };
     this.#variances = new Variances(state);
     this.#values = new ValueTracer(state);
     this.#walkTrace = tracing(state.session.options, "flow-walk") === undefined ? null : { record: 0 };
@@ -340,7 +360,7 @@ export class Flows {
         ? [{ assertion, operand }]
         : [];
     });
-    const chases = state.batch(handedOn.map(({ assertion }) => sendChase(state.world, assertion)));
+    const chases = state.batch(handedOn.map(({ assertion }) => sendChase(state.world, assertion, this.#scope)));
     this.#countStops(chases);
     for (const [at, assertion] of assertions.entries()) {
       const [library, type] = [libraries[at], asserted[at]];
@@ -349,9 +369,11 @@ export class Flows {
       }
     }
     for (const [y, { assertion, operand }] of handedOn.entries()) {
+      const site = { file: sites.file, at: assertion.pos };
       for (const send of this.#assertionSends(assertion, chases[y])) {
-        this.escape(operand, false, { file: sites.file, at: assertion.pos }, send);
+        this.escape(operand, false, site, send);
       }
+      this.#cross(() => this.deepMembers(operand, false), site, chases[y]?.crossed ?? []);
     }
   }
 
@@ -572,7 +594,7 @@ export class Flows {
     for (const [y, { node, value, door }] of escaping.entries()) {
       const site = { file, at: node?.pos ?? 0 };
       // a published global's reader is the dev bridge's, whatever the chase from the assignment finds
-      const outcome = door ? { read: false, sends: [DEV_BRIDGE_SEND] } : outcomes[y];
+      const outcome = door ? { read: false, sends: [DEV_BRIDGE_SEND], crossed: [] } : outcomes[y];
       for (const type of [value, ...(checked[y] === undefined ? [] : [checked[y]])]) {
         this.#settle(type, door, site, outcome);
       }
@@ -582,13 +604,48 @@ export class Flows {
   // What a chase decides for the members a value holds: a read where some path reads the whole value, a send for each
   // place a path sends it on, nothing where an in-tree body drops it. Without an outcome the value is sent unclassified.
   #settle(value: Type, door: boolean, site: { readonly file: string; readonly at: number }, outcome: Outcome | undefined): void {
-    const { read, sends } = outcome ?? UNCLASSIFIED_OUTCOME;
+    const { read, sends, crossed } = outcome ?? UNCLASSIFIED_OUTCOME;
     if (read) {
       this.#state.roleAll(this.deepMembers(value, door), "read", site.file, site.at);
     }
     for (const send of sends) {
       this.escape(value, door, site, send);
     }
+    this.#cross(() => this.deepMembers(value, door), site, crossed);
+  }
+
+  // Keep the members a chase carried into door sends for the crossing settle.
+  #cross(members: () => readonly DeclKey[], site: { readonly file: string; readonly at: number }, crossed: readonly Crossing[]): void {
+    if (crossed.length > 0) {
+      this.#crossings.push({ members: members(), site, crossed });
+    }
+  }
+
+  // Each crossing goes on in the listeners its send pairs with: what those chases reach takes the members, and a chase
+  // that reaches nothing it can name, or that a bound stopped, leaves them unclassified.
+  #settleCrossings(): void {
+    const state = this.#state;
+    const pending = this.#crossings.splice(0);
+    const doors = this.#doors;
+    const chases = state.batch(
+      pending.map(function* ({ crossed }): APIRequestGenerator<Chase> {
+        return joinChases(yield* allOf(crossed.map((crossing) => doors.crossedTo(crossing))));
+      }),
+    );
+    for (const [at, { members, site }] of pending.entries()) {
+      const chase = chases[at];
+      if (chase === undefined) {
+        continue;
+      }
+      if (chase.read) {
+        state.roleAll(members, "read", site.file, site.at);
+      }
+      const unplaced = chase.stopped || (chase.to.length === 0 && !chase.read && !chase.dropped);
+      for (const send of distinctSends(unplaced ? [...chase.to, UNCLASSIFIED] : chase.to)) {
+        state.escapeAll(members, site, send);
+      }
+    }
+    this.#countStops(chases);
   }
 
   // A chase the depth bound stopped left its value unclassified; the count says how often.
@@ -604,18 +661,19 @@ export class Flows {
   // reach marks expressions one by one, so only a value that is the site's own (`whole`) can be a provider send.
   #destinations(nodes: readonly (Node | undefined)[], whole: (at: number) => boolean = () => true): readonly Outcome[] {
     const { state } = this;
-    const found = state.batch(nodes.map((node) => (node === undefined ? answer<Chase>(UNFOLLOWED) : sendChase(state.world, node))));
+    const found = state.batch(nodes.map((node) => (node === undefined ? answer<Chase>(UNFOLLOWED) : sendChase(state.world, node, this.#scope))));
     this.#countStops(found);
-    return found.map(({ to, dropped, read, stopped }, at) => {
+    return found.map(({ to, dropped, read, stopped, crossed }, at) => {
       const node = nodes[at];
-      if (dropped || (read && to.length === 0 && !stopped)) {
-        return { read, sends: [] };
+      // a value that only crosses a door is placed where the crossing settles
+      if (dropped || (to.length === 0 && !stopped && (read || crossed.length > 0))) {
+        return { read, sends: [], crossed };
       }
       // a path the depth bound stopped is unclassified even beside the places other paths reach
       if (to.length > 0) {
-        return { read, sends: distinctSends(stopped ? [...to, UNCLASSIFIED] : to) };
+        return { read, sends: distinctSends(stopped ? [...to, UNCLASSIFIED] : to), crossed };
       }
-      return { read, sends: [node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED] };
+      return { read, sends: [node !== undefined && whole(at) && this.#providerReach().has(node) ? PROVIDER_SEND : UNCLASSIFIED], crossed };
     });
   }
 
@@ -1263,7 +1321,7 @@ export class Flows {
     );
     for (const [z, { pair, y }] of escaping.entries()) {
       const held = (types[y] ?? []).filter((type) => !isPrimitive(type)).flatMap((type) => this.deepMembers(type, false));
-      const { read, sends } = outcomes[z] ?? UNCLASSIFIED_OUTCOME;
+      const { read, sends, crossed } = outcomes[z] ?? UNCLASSIFIED_OUTCOME;
       const members = [...(decls[y] ?? []), ...held];
       if (read) {
         state.roleAll(members, "read", file, pair.site);
@@ -1271,6 +1329,7 @@ export class Flows {
       for (const send of sends) {
         state.escapeAll(members, { file, at: pair.site }, send);
       }
+      this.#cross(() => members, { file, at: pair.site }, crossed);
     }
     return typed;
   }
@@ -1291,6 +1350,7 @@ export class Flows {
       }
     }
     this.#flowAssignedBack();
+    this.#settleCrossings();
   }
 
   // A whole hand-off whose slot names members of ours its value's type lacks: the value's trace may still carry them.

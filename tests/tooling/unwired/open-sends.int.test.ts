@@ -4,7 +4,7 @@
 // request; a parsed response and a logger field bag are not, and a literal element read of the parsed value is its read.
 import { expect, test } from "@orb/testkit/tooling";
 import type { FieldsReport } from "../../../tooling/src/unwired/index.ts";
-import { fieldsScan, NODE_TYPES } from "./_planted.ts";
+import { fieldsScan, GRAPH_SOURCE, NODE_TYPES } from "./_planted.ts";
 
 const LIBRARIES = {
   "node_modules/pino/package.json": '{ "name": "pino", "types": "index.d.ts" }',
@@ -145,7 +145,8 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
     "Reply.zqUnread ask unclassified",
     // a logger-named port nothing fills is no log line
     "Sampling.zqHeat ask unclassified",
-    "Knobs.zqTopK ask provider",
+    // the chase follows the value down its key path through the spread of `args.options` into the request
+    "Knobs.zqTopK ask provider @ai-sdk/provider",
     "Extras.zqKeyed ask provider",
     "Answer.zqCode ask unclassified",
   ]) {
@@ -155,4 +156,84 @@ test("an open slot sends to the logger, library or file it leads to, and a backe
   // is read by the library it augments.
   expect([...found].filter((line) => /^(Reply\.zqDone|Reply\.zqCalls|Register\.zqMeta) /u.test(line))).toEqual([]);
   expect(report.received).toEqual([]);
+});
+
+// Every zq row a report lists, observed or unwired, as `Home.member verdict destination receiver`.
+const zqRows = (report: FieldsReport): readonly string[] =>
+  [...report.observed, ...report.unwired]
+    .filter(({ member }) => member.startsWith("zq"))
+    .map(({ home, member, verdict, sent }) => [`${home}.${member}`, verdict, ...sent.map((send) => send.split(" ").toSpliced(1, 1).join(" "))].join(" "))
+    .toSorted();
+
+// A worker's log port: a line logged through a member a factory's closure fills posts the fields to the parent's
+// listener, which logs them through a port whose members a pino logger fills. The chase crosses the door through the
+// paired listener and goes on at the key it sent the data under: `zqCrossed` reaches pino; `zqAside` rides under a key
+// the listener never reads, so no sink takes it; and `zqLone` goes through a door no listener pairs with, to the wire.
+const WORKER_LOG = {
+  [`${GRAPH_SOURCE}/line.ts`]: [
+    'export type Level = "info" | "warn";',
+    "export interface Log { info(fields: object, message: string): void; warn(fields: object, message: string): void }",
+    "export interface Line { readonly level: Level; readonly fields: object; readonly message: string; readonly aside?: object }",
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/child.ts`]: [
+    '/// <reference types="node" />',
+    'import { parentPort } from "worker_threads";',
+    'import type { Level, Line, Log } from "./line.ts";',
+    "const post = (message: Line): void => { parentPort?.postMessage(message); };",
+    "const logAt = (level: Level) => (fields: object, message: string): void => post({ level, fields: { ...fields }, message });",
+    'export const log: Log = { info: logAt("info"), warn: logAt("warn") };',
+    "interface Crossed { readonly zqCrossed: number }",
+    "interface Aside { readonly zqAside: number }",
+    "const crossed: Crossed = { zqCrossed: 1 };",
+    "const aside: Aside = { zqAside: 1 };",
+    'log.info(crossed, "crossed");',
+    'export const sideways = (): void => post({ level: "info", fields: {}, message: "aside", aside });',
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/parent.ts`]: [
+    '/// <reference types="node" />',
+    'import { Worker } from "worker_threads";',
+    'import type { Logger } from "pino";',
+    'import type { Line, Log } from "./line.ts";',
+    "declare const pino: Logger;",
+    "const host: Log = { info: (fields, message) => pino.debug(fields, message), warn: (fields, message) => pino.debug(fields, message) };",
+    "const onMessage = (message: Line): void => { host[message.level](message.fields, message.message); };",
+    'const worker = new Worker(new URL("./child.ts", import.meta.url));',
+    'worker.on("message", (message: Line) => { onMessage(message); });',
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/lone.ts`]: [
+    '/// <reference types="node" />',
+    "interface Lone { readonly zqLone: number }",
+    "const relay = (message: unknown): void => { process.send?.(message); };",
+    "const lone: Lone = { zqLone: 1 };",
+    "export const sent = (): void => relay({ fields: lone });",
+  ].join("\n"),
+};
+
+test("a send chase crosses a message door through its paired listener, at the key it sent the data under", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await fieldsScan(plantedTree, { ...LIBRARIES, ...NODE_TYPES, ...WORKER_LOG });
+  expect(zqRows(report)).toEqual(["Aside.zqAside ask unclassified", "Crossed.zqCrossed ask log pino", "Lone.zqLone ask wire"]);
+});
+
+// The platform's `Object.entries` and `Object.fromEntries` move a value to an entry's slot 1 and back to a member, so a
+// record rebuilt from its entries carries the value on to the console. A rebuild that keeps only the entries' keys
+// drops the values.
+test("a send chase follows a record through Object.entries and Object.fromEntries, and a rebuild of the keys alone drops it", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await fieldsScan(plantedTree, {
+    ...NODE_TYPES,
+    [`${GRAPH_SOURCE}/rebuild.ts`]: [
+      '/// <reference types="node" />',
+      "interface Kept { readonly zqKept: number }",
+      "interface Keyed { readonly zqKeyed: number }",
+      "const kept: Kept = { zqKept: 1 };",
+      "const keyed: Keyed = { zqKeyed: 1 };",
+      "const slices: Record<string, unknown> = { a: kept };",
+      "const others: Record<string, unknown> = { b: keyed };",
+      "const named = Object.entries(slices);",
+      "export const evidence = (): void => console.log(Object.fromEntries(named.map(([name, slice]) => [name, slice])));",
+      "export const names = (): void => console.log(Object.fromEntries(Object.entries(others).map(([name]) => [name, 0])));",
+    ].join("\n"),
+  });
+  expect(zqRows(report)).toEqual(["Kept.zqKept ask log console", "Keyed.zqKeyed dead"]);
 });

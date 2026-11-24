@@ -11,7 +11,7 @@
 //   program loads the working tree, so `head` must be the checked-out commit and the tracked files clean.
 // - A branch that removes no key builds no session.
 
-import type { CallExpression, Expression, Identifier, Node, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
+import type { CallExpression, Expression, Identifier, NewExpression, Node, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isAsExpression,
@@ -20,6 +20,7 @@ import {
   isElementAccessExpression,
   isIdentifier,
   isInterfaceDeclaration,
+  isNewExpression,
   isNonNullExpression,
   isObjectLiteralExpression,
   isParenthesizedExpression,
@@ -43,7 +44,7 @@ import type { KeyResolution } from "../key-resolver.ts";
 import { resolveKeys } from "../key-resolver.ts";
 import { gitGrep } from "../literal-hits.ts";
 import type { PropertyName } from "../native.ts";
-import { constituents, declarationKeys, declaredBy, isPropertyName, NativeWorld } from "../native.ts";
+import { callsPlatform, constituents, declarationKeys, declaredBy, isPropertyName, NativeWorld } from "../native.ts";
 import { callerPath, patternText, platformCall } from "./urls.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
@@ -81,7 +82,9 @@ const TRPC_SENDS: ReadonlySet<string> = new Set([
 const MUTATE_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync"]);
 const MUTATION_OPTIONS = "mutationOptions";
 const QUERY_PACKAGE = "/node_modules/@tanstack/";
-const SERIALIZE = "JSON.stringify";
+// The platform's serializer, whose string carries every key of its value.
+const JSON_INTERFACE = "JSON";
+const STRINGIFY = "stringify";
 /** The reason a receiver file the merged program does not load is listed unresolved with. */
 export const OUTSIDE_PROGRAM = "outside the merged program";
 /** The reason a string with the key's text that sits in no key slot (a plain value) is listed unresolved with. */
@@ -283,15 +286,15 @@ function outerOf(node: Node): Node {
   return at;
 }
 
-/** Where a loose value's climb ends: the call it is an argument of, and that argument. */
+/** Where a loose value's climb ends: the call or construction it is an argument of, and that argument. */
 interface CallEnd {
-  readonly call: CallExpression;
+  readonly call: CallExpression | NewExpression;
   readonly argument: Node;
 }
 
 // The call a value is handed to, climbing through literals that carry it: a property value, a shorthand, a spread, an
-// array element, a conditional branch and a JSON serialization. Null for any other end.
-function callEndOf(value: Node): CallEnd | null {
+// array element, a conditional branch and the platform's JSON serialization. Null for any other end.
+function* callEndOf(world: NativeWorld, value: Node): APIRequestGenerator<CallEnd | null> {
   let at = outerOf(value);
   for (;;) {
     const { parent } = at;
@@ -299,10 +302,10 @@ function callEndOf(value: Node): CallEnd | null {
       at = outerOf(parent.parent);
     } else if (isObjectLiteralExpression(parent) || isArrayLiteralExpression(parent) || isConditionalExpression(parent)) {
       at = outerOf(parent);
-    } else if (isCallExpression(parent) && parent.expression.getText() === SERIALIZE) {
+    } else if (isCallExpression(parent) && (yield* callsPlatform(world, parent.expression, JSON_INTERFACE, STRINGIFY))) {
       at = outerOf(parent);
     } else {
-      return isCallExpression(parent) ? { call: parent, argument: at } : null;
+      return isCallExpression(parent) || isNewExpression(parent) ? { call: parent, argument: at } : null;
     }
   }
 }
@@ -355,21 +358,22 @@ function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): A
 // one whose start the fold cannot read, leaves the repo. The URL folds through ./urls.ts.
 function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequestGenerator<string | null> {
   const request = yield* platformCall(world, call);
-  if (request === null || request.body === null || call.arguments[request.body] !== argument) {
+  if (request === null || request.body === null || call.arguments?.[request.body] !== argument) {
     return null;
   }
   const own = request.patterns.length > 0 && request.patterns.every((pattern) => callerPath(pattern) !== null);
   return own ? `http ${request.patterns.map(patternText).join(" | ")}` : null;
 }
 
-// The procedure or own route a call hands its argument to, with the callee resolved.
-function* destinationOf(world: NativeWorld, end: CallEnd | null): APIRequestGenerator<string | null> {
+// The procedure or own route a value is handed to, with the callee resolved.
+function* destinationOf(world: NativeWorld, value: Node): APIRequestGenerator<string | null> {
+  const end = yield* callEndOf(world, value);
   if (end === null) {
     return null;
   }
   const callee = end.call.expression;
   // A property callee is a procedure verb, or a platform request reached through its owner, as `window.fetch` is.
-  const procedure = isPropertyAccessExpression(callee) ? yield* procedureCall(world, callee) : null;
+  const procedure = isPropertyAccessExpression(callee) && isCallExpression(end.call) ? yield* procedureCall(world, callee) : null;
   return procedure ?? (yield* routeCall(world, end));
 }
 
@@ -409,9 +413,9 @@ function looseDestinations(world: NativeWorld, values: readonly Node[]): readonl
   const ends = values.map((value, at) => {
     const own = keys[at] ?? [];
     const reaching = (uses[at] ?? []).filter((use) => (plainKeys.get(use) ?? shorthandKeys.get(use) ?? []).some((key) => own.includes(key)));
-    return [value, ...reaching].map(callEndOf);
+    return [value, ...reaching];
   });
-  const reached = world.batch(ends.flat().map((end) => destinationOf(world, end)));
+  const reached = world.batch(ends.flat().map((start) => destinationOf(world, start)));
   let cursor = 0;
   return ends.map((each) => {
     const found = each.map(() => reached[cursor++] ?? null).find((destination) => destination !== null);
