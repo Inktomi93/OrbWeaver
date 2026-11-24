@@ -141,7 +141,37 @@ const PROBE = [
   "  return openPersona(chat);",
   "}",
 ].join("\n");
-const PROVIDER_SDK = "export interface SdkReply {\n  readonly messageId: string;\n}";
+const PROVIDER_SDK = [
+  "export interface SdkReply {",
+  "  readonly messageId: string;",
+  "}",
+  // the shape of a library's own key: a field named for a brand, typed `string` by the library
+  "export interface SdkKey {",
+  "  readonly chatId: string;",
+  "}",
+  "export declare function load(key: SdkKey): void;",
+].join("\n");
+
+// A persona handed to a field named for a chat, in four slots: a library's, a literal no declaration types, a local
+// interface the program owns, and a local one a library-typed twin sits beside.
+const SLOTS = [
+  'import type { PersonaId } from "../../kit/src/ids/index.ts";',
+  'import { load } from "provider-sdk";',
+  "export interface LocalKey {",
+  "  readonly chatId: string;",
+  "}",
+  "export declare function open(key: LocalKey): void;",
+  "export function viaLibrary(persona: PersonaId): void {",
+  "  load({ chatId: persona });",
+  "}",
+  "export function viaLiteral(persona: PersonaId): number {",
+  '  const refused = ["chat"].flatMap((channel) => [{ channel }, { channel, chatId: persona }, { channel, chatId: "chat_x" }]);',
+  "  return refused.length;",
+  "}",
+  "export function viaLocal(persona: PersonaId): void {",
+  "  open({ chatId: persona });",
+  "}",
+].join("\n");
 
 const TREE = {
   [WORLD]: plantedTsconfig({
@@ -151,6 +181,7 @@ const TREE = {
   }),
   "packages/kit/src/ids/index.ts": IDS,
   "packages/a/src/flow.ts": FLOW,
+  "packages/a/src/slots.ts": SLOTS,
   "packages/a/src/gadget.ts": GADGET,
   "packages/a/src/fake.ts": FAKE,
   "packages/a/test/probe.ts": PROBE,
@@ -265,6 +296,25 @@ test("the brand-flow scan reports each cross-brand flow", SCAN, async ({ planted
       { line: lineOf("castId<ChatId>(key)"), how: "fed-other-brand" },
     ]),
   );
+});
+
+test("the brand-flow scan reads a named slot only where the program declares it", SCAN, async ({ plantedTree }) => {
+  const report = await scanFlow(plantedTree);
+  const slotLine = (needle: string): number => SLOTS.split("\n").findIndex((line) => line.includes(needle)) + 1;
+  const inSlots = <T extends { readonly file: string }>(sites: readonly T[]): T[] => sites.filter(({ file }) => file === "packages/a/src/slots.ts");
+  // Control: the scan sees the persona enter all three slots, so a missing row below is a choice, not a blind spot.
+  expect(
+    inSlots(report.widens)
+      .map(({ line, slot }) => ({ line, slot: slot.name, lib: slot.lib, declared: slot.declared }))
+      .sort((a, b) => a.line - b.line),
+  ).toEqual([
+    { line: slotLine("load({"), slot: "SdkKey.chatId", lib: true, declared: "plain" },
+    { line: slotLine("flatMap("), slot: "{…}.chatId", lib: false, declared: "unknown" },
+    { line: slotLine("open({"), slot: "LocalKey.chatId", lib: false, declared: "plain" },
+  ]);
+  expect(inSlots(report.crossBrand).map(({ line, how, slot }) => ({ line, how, slot }))).toEqual([
+    { line: slotLine("open({"), how: "widen-into-named-slot", slot: "LocalKey.chatId" },
+  ]);
 });
 
 test("the brand-flow scan lists every site where the type and the name answer differently", SCAN, async ({ plantedTree }) => {

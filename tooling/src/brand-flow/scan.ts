@@ -248,10 +248,17 @@ function crossBrandOf(answers: SiteAnswers, mints: readonly MintSite[], widens: 
   return [...crossWidens(answers, widens), ...crossMints(answers, mints), ...crossCompares(answers, compares)];
 }
 
+// A slot whose name is all the program says about it: a library's own field, which the program cannot retype, and an
+// owner-less property whose declaration reads as no type (a property of a literal no declared type names).
+const namedOnly = ({ lib, kind, owner, declared }: WidenSite["slot"]): boolean => lib || (kind === "property" && owner === null && declared === "unknown");
+
 // A widen edge into a slot whose name stands for a different brand than the value it carries. The value's brand is the
-// type's answer for the slot, so this row is the name and the type disagreeing.
+// type's answer for the slot, so this row is the name and the type disagreeing; a slot only a name describes is no row.
 function crossWidens(answers: SiteAnswers, widens: readonly WidenSite[]): CrossBrandSite[] {
   return widens.flatMap((widen): CrossBrandSite[] => {
+    if (namedOnly(widen.slot)) {
+      return [];
+    }
     const named = answers.named(slotWord(widen.slot.name) ?? "");
     const crossed = named !== null && !sharesBrand(widen.brands, [named.brand]);
     return crossed ? [{ ...here(widen), how: "widen-into-named-slot", value: widen.brands.join(OR), slot: widen.slot.name, provenance: "heuristic" }] : [];
