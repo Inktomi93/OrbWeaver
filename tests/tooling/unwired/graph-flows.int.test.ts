@@ -687,8 +687,9 @@ test("a trace the context depth cap stops credits nothing", { timeout: 120_000 }
 });
 
 // `fit` takes a list of `Wire` costs, whose type names `extra` one step back, and a list of `Lost` costs at the end of a
-// chain of `const` aliases. Past the hop budget the walk stops, and the origin it found on the first call site credits
-// nothing either. With a short chain both lists' costs reach the read.
+// chain of `const` aliases. Past the hop budget the walk stops: the chain credits nothing, so `Lost.cost.extra` stays
+// written and never read, while the origin proved on the first call site keeps its credit. With a short chain both
+// lists' costs reach the read.
 const aliased = (aliases: number): readonly string[] => [
   ...COST_TYPES,
   "declare const base: Base;",
@@ -700,17 +701,80 @@ const aliased = (aliases: number): readonly string[] => [
   ...Array.from({ length: aliases }, (_, at) => `const alias${String(at + 1)} = alias${String(at)};`),
   `export const far = (): number => fit(alias${String(aliases)});`,
 ];
-test("a trace the hop budget stops credits nothing, though it found an origin first", { timeout: 120_000 }, async ({ plantedTree }) => {
+test("a trace the hop budget stops credits nothing past the stop and keeps the origin it proved", { timeout: 120_000 }, async ({ plantedTree }) => {
   const stopped = await graphScan(plantedTree, source(aliased(HOP_BUDGET)));
-  expect(bucketsIn(stopped)).toEqual([
+  expect(bucketsIn(stopped)).toEqual(["member-write-only Lost.cost.extra", "member-untouched Turn.id"]);
+  expect(stopped.counts.find(({ name }) => name === TRACE_COUNTS.stopped)?.count).toBe(1);
+  const reached = await graphScan(plantedTree, source(aliased(2)));
+  expect(bucketsIn(reached)).toEqual(["member-untouched Turn.id"]);
+  expect(reached.counts.find(({ name }) => name === TRACE_COUNTS.stopped)).toBeUndefined();
+});
+
+// The shared callee reads its parameter inside a closure it calls, so the walk is inside `inner` when it meets `rows`.
+// The parameter binds to the call of `costs` the walk came through, below `inner`'s call: `Wire.cost.extra` is read,
+// and the other caller's `Lost.cost.extra` stays written and never read, with its call beside `fit`'s or in a function
+// of its own.
+const SHARED_CLOSURE = [
+  ...COST_TYPES,
+  "declare const base: Base;",
+  'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+  'const lost: Lost[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+  "const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
+  "const costs = (rows: readonly { readonly cost: Base }[]): Base[] => { const inner = (): Base[] => rows.map((w) => w.cost); return inner(); };",
+];
+const CLOSURE_CALLERS = [
+  { callers: "one function", lines: ["export const total = (): number => fit(costs(wires)) + costs(lost).length;"] },
+  { callers: "separate functions", lines: ["export const total = (): number => fit(costs(wires));", "export const other = (): number => costs(lost).length;"] },
+] as const;
+for (const { callers, lines } of CLOSURE_CALLERS) {
+  test(`a parameter a closure reads binds to its own function's call, callers in ${callers}`, { timeout: 120_000 }, async ({ plantedTree }) => {
+    const scan = await graphScan(plantedTree, source([...SHARED_CLOSURE, ...lines]));
+    expect(bucketsIn(scan)).toEqual(["member-write-only Lost.cost.extra", "member-untouched Turn.id"]);
+  });
+}
+
+// `make` returns its closure, and the closure is called away from the call that made it: the walk enters `inner` with
+// no call of `make` in its context, so it cannot tell which list `rows` held and credits neither. `Lost.cost.extra`
+// stays written and never read; `Wire.cost.extra` does too, the cost of the refusal.
+test("a closure called away from the call that made it credits no caller's argument", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      ...COST_TYPES,
+      "declare const base: Base;",
+      'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      'const lost: Lost[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      "const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
+      "const make = (rows: readonly { readonly cost: Base }[]) => { const inner = (): Base[] => rows.map((w) => w.cost); return inner; };",
+      "export const total = (): number => fit(make(wires)()) + make(lost)().length;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual([
     "member-write-only Wire.cost.extra",
     "member-write-only Lost.cost.extra",
     "member-untouched Turn.id",
     "member-read-only turnCost.extra",
   ]);
-  expect(stopped.counts.find(({ name }) => name === TRACE_COUNTS.stopped)?.count).toBe(1);
-  const reached = await graphScan(plantedTree, source(aliased(2)));
-  expect(bucketsIn(reached)).toEqual(["member-untouched Turn.id"]);
+  expect(scan.counts.find(({ name }) => name === TRACE_COUNTS.unbound)?.count).toBe(1);
+});
+
+// The recursive arm walks into `costs` again and again until the depth cap stops it; the base arm proves `wires` on the
+// first entry, and that origin keeps its credit.
+test("a recursive arm the depth cap stops keeps the origin the base arm proved", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      ...COST_TYPES,
+      "declare const base: Base;",
+      'const wires: Wire[] = [{ cost: { ...base, content: "c", extra: 1 } }];',
+      "const fit = (turns: readonly Turn[]): number => turns.reduce((sum, turn) => sum + turnCost(turn), 0);",
+      "const costs = (rows: readonly { readonly cost: Base }[], depth: number): Base[] =>",
+      "  depth === 0 ? rows.map((w) => w.cost) : costs(rows, depth - 1);",
+      "export const total = (): number => fit(costs(wires, 2));",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-untouched Turn.id"]);
+  expect(scan.counts.find(({ name }) => name === TRACE_COUNTS.stopped)?.count).toBe(1);
 });
 
 // `inner` records its verdict on the ledger object the caller handed in, and the caller spreads that same object into

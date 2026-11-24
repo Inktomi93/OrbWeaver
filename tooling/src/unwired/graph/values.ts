@@ -8,9 +8,12 @@
 //   elements, a parameter of ours to the argument each call hands it, a call of ours to its returns, `x.m` to `x`, and a
 //   literal, a conditional or `??`/`||` to the part the path names. It ends at the first value whose type, the path
 //   applied, names a missing member of ours: that type fills the slot.
-// - A call entered through its returns is the trace's context: a parameter of that callee then takes only that call's
-//   argument. A parameter reached with no context takes every call's.
-// - A trace the hop budget or the context depth stops credits nothing.
+// - The calls a walk entered through their returns are its context. A parameter takes the argument of its own
+//   function's call in that context, wherever the call sits in it, so a closure inside the callee reads the callee's
+//   argument. A parameter reached with no context takes every call's. A parameter of a function whose call is not in a
+//   nonempty context belongs to a closure made by a call the walk never saw, and ends the walk there.
+// - A branch the hop budget or the context depth stops credits nothing; an origin the walk proved before the stop
+//   keeps its credit, as it is that value's own trace.
 // - A rest parameter and a spread argument end the trace: an argument forwarded by `(...args) => f(...args)` is not
 //   followed.
 import type { CallExpression, Expression, NewExpression, Node } from "@typescript/native/ast";
@@ -60,8 +63,8 @@ import type { GraphState } from "./state.ts";
 export interface TraceRequest {
   readonly node: Expression;
   readonly slot: Type;
-  /** Each missing slot member by name, with its symbol id: the slot's own member never counts as an origin. */
-  readonly missing: readonly { readonly name: string; readonly id: number }[];
+  /** The names of the slot members of ours the value's type lacks. */
+  readonly missing: readonly string[];
   readonly file: string;
   readonly site: number;
 }
@@ -153,13 +156,15 @@ function methodCallOf(fn: Node): { readonly call: CallExpression; readonly metho
   return index < 0 ? undefined : { call, method: call.expression.name.text, receiver: call.expression.expression, index };
 }
 
-// One request's walk: the hops it took, the steps it has seen, the origins it found, and whether a bound stopped it.
+// One request's walk: the hops it took, the steps it has seen and the origins it found. `halted` marks a walk the hop
+// budget ended; `stopped` marks one a bound cut anywhere.
 interface Run {
   readonly request: TraceRequest;
   hops: number;
   readonly seen: Set<string>;
   readonly found: Type[];
-  cut: boolean;
+  halted: boolean;
+  stopped: boolean;
 }
 
 // One step of a walk: a value, the path from it to the traced part, and the calls entered through their returns,
@@ -192,6 +197,7 @@ export const TRACE_COUNTS = {
   asked: "value trace node queries",
   remembered: "value trace remembered answers",
   fanOut: "value trace call-site fan-out",
+  unbound: "value trace closures of an unseen call",
 } as const;
 
 /**
@@ -223,10 +229,10 @@ export class ValueTracer {
     }
   }
 
-  /** The types each request's value had where it still named a missing member; empty where a bound stopped it. */
+  /** The types each request's value had where it still named a missing member, along the branches no bound cut. */
   origins(requests: readonly TraceRequest[]): readonly (readonly Type[])[] {
     const { state } = this;
-    const runs = requests.map((request): Run => ({ request, hops: 0, seen: new Set(), found: [], cut: false }));
+    const runs = requests.map((request): Run => ({ request, hops: 0, seen: new Set(), found: [], halted: false, stopped: false }));
     let front: readonly Item[] = runs.map((run) => ({ node: unwrapped(run.request.node), path: [], stack: [], run }));
     while (front.length > 0) {
       state.count(TRACE_COUNTS.levels);
@@ -234,9 +240,8 @@ export class ValueTracer {
     }
     return runs.map((run) => {
       state.count(TRACE_COUNTS.hops, run.hops);
-      if (run.cut) {
+      if (run.stopped) {
         state.count(TRACE_COUNTS.stopped);
-        return [];
       }
       const unique = [...new Map(run.found.map((type) => [type.id, type])).values()];
       if (unique.length > 0) {
@@ -253,11 +258,12 @@ export class ValueTracer {
   // Whether a step is new to its walk and inside its budget; a step past the budget stops the walk.
   #admitted({ node, path, stack, run }: Item): boolean {
     const key = `${nodeKey(node)}${pathKey(path)}|${stack.map(({ call }) => nodeKey(call)).join(">")}`;
-    if (run.cut || run.seen.has(key)) {
+    if (run.halted || run.seen.has(key)) {
       return false;
     }
     if (run.hops >= HOP_BUDGET) {
-      run.cut = true;
+      run.halted = true;
+      run.stopped = true;
       return false;
     }
     run.hops += 1;
@@ -278,7 +284,7 @@ export class ValueTracer {
         item.run.found.push(type);
       }
     }
-    return this.#stepBack(open.filter(({ run }) => !run.cut));
+    return this.#stepBack(open.filter(({ run }) => !run.halted));
   }
 
   // The value's type with its path applied, where it names a missing member of ours other than the slot's own.
@@ -296,9 +302,9 @@ export class ValueTracer {
       return undefined;
     }
     const bare: Type = yield* checker.getNonNullableType.gen(at);
-    for (const { name, id } of run.request.missing) {
+    for (const name of run.request.missing) {
       const member = yield* checker.getPropertyOfType.gen(bare, name);
-      if (member !== undefined && member.id !== id && member.declarations.some((handle) => this.#state.resolver.ours(handle))) {
+      if (member?.declarations.some((handle) => this.#state.resolver.ours(handle)) === true) {
         return at;
       }
     }
@@ -349,12 +355,19 @@ export class ValueTracer {
     return out;
   }
 
-  // A parameter of ours takes the argument of the call the walk came through, else of every call.
+  // A parameter of ours takes the argument of its function's innermost call in the walk's context, and the walk goes on
+  // in the caller's context; with no context it takes every call's argument.
   #argumentSteps(item: Item, fn: Node, index: number, key: string): readonly Item[] {
-    const top = item.stack.at(-1);
-    if (top !== undefined && nodeKey(top.callee) === nodeKey(fn)) {
-      const argument = top.call.arguments?.[index];
-      return argument === undefined || isSpreadElement(argument) ? [] : [{ ...item, node: unwrapped(argument), stack: item.stack.slice(0, -1) }];
+    const own = nodeKey(fn);
+    const at = item.stack.findLastIndex(({ callee }) => nodeKey(callee) === own);
+    const frame = item.stack[at];
+    if (frame !== undefined) {
+      const argument = frame.call.arguments?.[index];
+      return argument === undefined || isSpreadElement(argument) ? [] : [{ ...item, node: unwrapped(argument), stack: item.stack.slice(0, at) }];
+    }
+    if (item.stack.length > 0) {
+      this.#state.count(TRACE_COUNTS.unbound);
+      return [];
     }
     const handed = this.#arguments.get(key) ?? [];
     this.#state.count(TRACE_COUNTS.fanOut, handed.length);
@@ -389,7 +402,7 @@ export class ValueTracer {
         continue;
       }
       if (item.stack.length >= DEPTH_CAP) {
-        item.run.cut = true;
+        item.run.stopped = true;
         continue;
       }
       const stack = [...item.stack, { call: item.node, callee: fn }];

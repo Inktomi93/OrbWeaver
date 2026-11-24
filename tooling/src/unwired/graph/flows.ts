@@ -1265,7 +1265,7 @@ export class Flows {
         continue;
       }
       this.#traced.add(key);
-      this.#traceRequests.push({ node, slot: pair.slot, missing: group.map(({ member }) => ({ name: member.name, id: member.id })), file, site: pair.site });
+      this.#traceRequests.push({ node, slot: pair.slot, missing: [...new Set(group.map(({ member }) => member.name))], file, site: pair.site });
     }
   }
 
