@@ -1,14 +1,13 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-11-24
 priority: P1
 area: tooling
-lane: wt/agent-a8188e6e4871fd1c3
 plan: unwired-code
 ---
 
-# An argument's members pair with an inline parameter type's members
+# The graph traces values so a widened member reaches the slot that reads it
 
 ## What
 
