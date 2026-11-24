@@ -1,9 +1,10 @@
 // The appearance row's SURFACE DRIVE: reach the surface a row judges, and settle on that surface's own
 // subject. Split out of `appearance-invariant-runtime.ts` — the drive is one question ("is this row's surface up?") and the runtime owner reads as
 // one call.
+
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import { instrumentRefusal, navResultShape, pageArray, pageNumber, pageObject } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
 import { settle } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { evaluateNav } from "../../floor/instrument/nav.ts";
@@ -20,7 +21,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
  *  NOT by the dialog-attach ceiling it used until #1104: a popup that has been asked to open returns in a
  *  frame or two, but reaching a chat on a cold stage means a route chunk, a query and a virtualized list,
  *  and a 5s popup ceiling made that read as a defect on load alone. */
-function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow, chatRoom: string | null): readonly ["goto" | "open-chat", string, string] {
+function appearanceSurfaceNav(row: AppearanceHistoricalRow, chatRoom: string | null): readonly ["goto" | "open-chat", string, string] {
   if (row.surface === "chat" || row.id === "light-art-scrim-glass-elevation") {
     // The run's own provisioned room when it has one, so the verdict does not depend on which room the
     // stage's database lists first; a shared run with no room takes the list's top row.
@@ -34,7 +35,7 @@ function appearanceSurfaceNav(row: RuntimeAppearanceHistoricalRow, chatRoom: str
 
 /** Exported for its pin (`tests/tooling/snap/ops/appearance-surface-drive.int.test.ts`): the arm that
  *  proves an unreachable surface REFUSES BY NAME instead of surfacing as a bare Playwright timeout. */
-export async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow, chatRoom: string | null): Promise<void> {
+export async function driveSurface(page: Page, row: AppearanceHistoricalRow, chatRoom: string | null): Promise<void> {
   const [kind, target, waitSelector] = appearanceSurfaceNav(row, chatRoom);
   const result = navResultShape(await evaluateNav(page, kind, target), `nav ${kind} ${target}`);
   if (!result.ok) {
@@ -162,7 +163,7 @@ function browserSubjectPopulations(selectors: readonly string[]): readonly numbe
  *  population without deleting a single node. Reading the SIBLING subjects' counts beside it is
  *  what tells those apart, and re-deriving them by hand cost a lane an afternoon. A count here is evidence
  *  about the surface, never a verdict; the refusal is still the same refusal. */
-async function subjectPopulationReport(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<string> {
+async function subjectPopulationReport(page: Page, row: AppearanceHistoricalRow): Promise<string> {
   const selectors = row.subjects.map((subject) => subject.selector);
   const counts = pageArray(await page.evaluate(browserSubjectPopulations, selectors), `Appearance row ${row.id} subject populations`);
   return row.subjects.map((subject, index) => `${subject.id}=${String(pageNumber(counts[index], `${subject.id} population`))}`).join(" ");
@@ -210,7 +211,7 @@ function anchorHeld(scrolled: AnchorRect, settled: AnchorRect): boolean {
 /** Centre the row's judged subject and PROVE it stayed there — exported for its pins in
  *  `tests/tooling/snap/ops/appearance-surface-drive.int.test.ts`. Called immediately before every census so
  *  a late re-pin cannot land between the scroll and the measurement. A row with no anchor is a no-op. */
-export async function anchorRowSubject(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {
+export async function anchorRowSubject(page: Page, row: AppearanceHistoricalRow): Promise<void> {
   const subjectId = ANCHOR_SUBJECT_BY_ROW[row.id];
   if (subjectId === undefined) {
     return;

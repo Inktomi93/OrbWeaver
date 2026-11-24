@@ -7,9 +7,9 @@
 // against a page that DOES show the surface's settle subject returns normally, so the refusal above is a
 // real answer about the surface rather than a wait that can only fail.
 
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
-import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import { anchorRowSubject, driveSurface } from "../../../../tooling/src/snap/ops/appearance-surface-drive.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -20,8 +20,8 @@ const VIEWPORT = { width: 800, height: 600 } as const;
 
 /** A NON-chat row (`shell`): its settle subject is the shell grid, so the fixture needs no chat data to be
  *  the honest subject of this question. */
-const HOME_ROW: RuntimeAppearanceHistoricalRow = {
-  id: "psh-home-row",
+const HOME_ROW: AppearanceHistoricalRow = {
+  id: "opposite-os-app-prepaint",
   surface: "shell",
   subjects: [{ id: "sample", selector: ".shell-grid", population: "one", sample: "geometry" }],
   cascade: [],
@@ -71,8 +71,8 @@ test("the same drive returns normally once the surface's settle subject is there
 
 // A chat row opens the matrix's own room when the run provisioned one, so its verdict never depends on which
 // room a stage's database happens to list first. With no room it keeps the list's top row.
-const CHAT_ROW: RuntimeAppearanceHistoricalRow = {
-  id: "psh-chat-row",
+const CHAT_ROW: AppearanceHistoricalRow = {
+  id: "density-preview",
   surface: "chat",
   subjects: [{ id: "row", selector: '[data-slot="message-row"]', population: "many", sample: "carrier" }],
   cascade: [],
@@ -109,7 +109,7 @@ test("a chat row opens the provisioned room by id, and the list's top row only w
 // @instrument-absence-proof: the second arm is the planted control in the other direction — a surface that
 // re-pins FOREVER gets a named refusal carrying the last measured rect, so "anchored" is a real answer
 // about the surface rather than a loop that can only succeed.
-const ANCHOR_ROW: RuntimeAppearanceHistoricalRow = {
+const ANCHOR_ROW: AppearanceHistoricalRow = {
   id: "dark-name-time-short-bubble",
   surface: "chat",
   subjects: [{ id: "attribution", selector: "#subject", population: "many", sample: "pixel" }],
@@ -228,7 +228,7 @@ test("an ancestor-hidden candidate with nothing rendered behind it refuses as UN
 // the row was 0 (each one is scoped through the same relational `:has(... :not([data-pinned]) ...)` row,
 // and every header carried the attribute that fence excludes), which the one-subject message could not say. A lane
 // spent an afternoon re-deriving by hand what the instrument already had in the page.
-const CENSUS_ROW: RuntimeAppearanceHistoricalRow = {
+const CENSUS_ROW: AppearanceHistoricalRow = {
   id: "hover-pointer",
   surface: "chat",
   subjects: [

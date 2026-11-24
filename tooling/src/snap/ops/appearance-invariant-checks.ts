@@ -1,7 +1,7 @@
 // Literal semantic judgments for #953's seven historical rows. This is intentionally a closed switch,
 // not a generic assertion DSL: a new invariant belongs in the client policy and in one explicit arm.
 
-import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import type { AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AppearanceCheckContext } from "../contract/appearance-check-context.ts";
@@ -356,7 +356,7 @@ function r5(ctx: AppearanceCheckContext): readonly AppearanceInvariantCheck[] {
   ];
 }
 
-export function buildAppearanceInvariantChecks(row: RuntimeAppearanceHistoricalRow, ctx: AppearanceCheckContext): readonly AppearanceInvariantCheck[] {
+export function buildAppearanceInvariantChecks(row: AppearanceHistoricalRow, ctx: AppearanceCheckContext): readonly AppearanceInvariantCheck[] {
   switch (row.id) {
     case "compact-portal-carried":
       return r1(ctx);
@@ -373,6 +373,6 @@ export function buildAppearanceInvariantChecks(row: RuntimeAppearanceHistoricalR
     case "opposite-os-app-prepaint":
       return buildPrepaintChecks(ctx);
     default:
-      throw new Error(`INSTRUMENT ERROR: unowned appearance historical row ${row.id}`);
+      throw new Error(`INSTRUMENT ERROR: unowned appearance historical row ${String(row.id)}`);
   }
 }

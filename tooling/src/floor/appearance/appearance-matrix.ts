@@ -1,9 +1,16 @@
 // Live Appearance/theme inputs shared by the representative-matrix consumers. The browser bridge owns
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
+// The bridge is parsed with the shapes in `@orb/kit/appearance-manifest` and checked against its rows.
 import type { AppearanceMatrixBridgeContract } from "@orb/client/agent-bridge-contract";
-import { appearanceMatrixContract } from "@orb/client/appearance-carrier-manifest";
-import type { AssetId, MessageId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { AppearanceMessageRegistryReceipt } from "@orb/kit/appearance-manifest";
+import {
+  APPEARANCE_HISTORICAL_ROW_IDS,
+  appearanceCarrierContract,
+  appearanceMatrixContractRowSchema,
+  appearanceMatrixContractSchema,
+  appearanceMessageRegistryReceiptSchema,
+} from "@orb/kit/appearance-manifest";
+import type { AssetId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { z } from "zod";
 import { instrumentRefusal } from "../browser/page-validate.ts";
@@ -24,138 +31,23 @@ function readAppearanceMatrixContract(): AppearanceMatrixBridgeContract {
   return read();
 }
 
-export interface RuntimeAppearanceContractRow {
-  readonly key: string;
-  readonly arms: readonly unknown[] | null;
-  readonly dependsOn: readonly string[];
-  readonly incompatibleWith: readonly string[];
-  readonly observable: { readonly kind: "attribute" | "inline-style" | "message-prop"; readonly selector: string; readonly signal: string } | null;
-  readonly reached?: number | undefined;
-  readonly samples?: readonly unknown[] | undefined;
-}
-
-export interface RuntimeMessageRegistryReceipt {
-  readonly mounted: number;
-  readonly registered: number;
-  readonly matched: number;
-  readonly missingIds: readonly MessageId[];
-  readonly staleIds: readonly MessageId[];
-}
-
-export interface RuntimeAppearanceHistoricalSubject {
-  readonly id: string;
-  readonly selector: string;
-  readonly population: "many" | "one";
-  readonly sample: "carrier" | "geometry" | "interactive" | "pixel";
-}
-
-export interface RuntimeAppearanceHistoricalCascade {
-  readonly selector: string;
-  readonly property: string;
-  readonly sources: readonly string[];
-  readonly overloadedSources?: readonly string[] | undefined;
-}
-
-export type RuntimeAppearanceHistoricalMerge =
-  | {
-      readonly mechanism: "merge-required";
-      readonly selector: string;
-      readonly owner: string;
-      readonly conflict: { readonly axis: string; readonly loser: string; readonly winner: string };
-    }
-  | { readonly mechanism: "merge-not-applicable"; readonly reason: "direct-carrier"; readonly selector: string; readonly owner: string };
-
-export interface RuntimeAppearanceHistoricalRow {
-  readonly id: string;
-  readonly surface: "chat" | "config-sizing" | "shell";
-  readonly subjects: readonly RuntimeAppearanceHistoricalSubject[];
-  readonly cascade: readonly RuntimeAppearanceHistoricalCascade[];
-  readonly merge: RuntimeAppearanceHistoricalMerge;
-  readonly requiredChecks: readonly string[];
-  readonly optionalSubjectIds: readonly string[];
-}
-
-export interface RuntimeAppearanceContract {
-  readonly declared: number;
-  readonly executable: number;
-  readonly dependencies: number;
-  readonly rows: readonly RuntimeAppearanceContractRow[];
-  readonly themeObservables: Readonly<Record<string, { readonly selector: string; readonly signals: readonly string[]; readonly lifecycle: string }>>;
-  readonly historicalRows: readonly RuntimeAppearanceHistoricalRow[];
-  readonly messageRegistry?: RuntimeMessageRegistryReceipt | undefined;
-}
-
-const stringArray = z.array(z.string());
-const observableSchema = z.object({
-  kind: z.enum(["attribute", "inline-style", "message-prop"]),
-  selector: z.string(),
-  signal: z.string(),
-});
-const runtimeAppearanceContractRowSchema: z.ZodType<RuntimeAppearanceContractRow> = z.object({
-  key: z.string(),
-  arms: z.array(z.unknown()).nullable(),
-  dependsOn: stringArray,
-  incompatibleWith: stringArray,
-  observable: observableSchema.nullable(),
+// The live read leaves the bridge's per-row reach evidence optional: `appearanceReachReceipt` refuses an omission by name.
+const runtimeAppearanceContractRowSchema = appearanceMatrixContractRowSchema.extend({
   reached: z.number().int().nonnegative().optional(),
-  samples: z.array(z.unknown()).optional(),
+  samples: z.array(z.unknown()).readonly().optional(),
 });
-const messageRegistrySchema: z.ZodType<RuntimeMessageRegistryReceipt> = z.object({
-  mounted: z.number().int().nonnegative(),
-  registered: z.number().int().nonnegative(),
-  matched: z.number().int().nonnegative(),
-  missingIds: z.array(typeIdSchema(ID_PREFIX.message)),
-  staleIds: z.array(typeIdSchema(ID_PREFIX.message)),
+const runtimeAppearanceContractSchema = appearanceMatrixContractSchema.extend({
+  rows: z.array(runtimeAppearanceContractRowSchema).readonly(),
+  messageRegistry: appearanceMessageRegistryReceiptSchema.optional(),
 });
-const historicalSubjectSchema: z.ZodType<RuntimeAppearanceHistoricalSubject> = z.object({
-  id: z.string(),
-  selector: z.string(),
-  population: z.enum(["many", "one"]),
-  sample: z.enum(["carrier", "geometry", "interactive", "pixel"]),
-});
-const historicalCascadeSchema: z.ZodType<RuntimeAppearanceHistoricalCascade> = z.object({
-  selector: z.string(),
-  property: z.string(),
-  sources: stringArray,
-  overloadedSources: stringArray.optional(),
-});
-const historicalMergeSchema: z.ZodType<RuntimeAppearanceHistoricalMerge> = z.discriminatedUnion("mechanism", [
-  z.object({
-    mechanism: z.literal("merge-required"),
-    selector: z.string(),
-    owner: z.string(),
-    conflict: z.object({ axis: z.string(), loser: z.string(), winner: z.string() }),
-  }),
-  z.object({
-    mechanism: z.literal("merge-not-applicable"),
-    reason: z.literal("direct-carrier"),
-    selector: z.string(),
-    owner: z.string(),
-  }),
-]);
-const historicalRowSchema: z.ZodType<RuntimeAppearanceHistoricalRow> = z.object({
-  id: z.string(),
-  surface: z.enum(["chat", "config-sizing", "shell"]),
-  subjects: z.array(historicalSubjectSchema),
-  cascade: z.array(historicalCascadeSchema),
-  merge: historicalMergeSchema,
-  requiredChecks: stringArray,
-  optionalSubjectIds: stringArray,
-});
-const runtimeAppearanceContractSchema: z.ZodType<RuntimeAppearanceContract> = z.object({
-  declared: z.number().int().nonnegative(),
-  executable: z.number().int().nonnegative(),
-  dependencies: z.number().int().nonnegative(),
-  rows: z.array(runtimeAppearanceContractRowSchema),
-  themeObservables: z.record(z.string(), z.object({ selector: z.string(), signals: stringArray, lifecycle: z.string() })),
-  historicalRows: z.array(historicalRowSchema),
-  messageRegistry: messageRegistrySchema.optional(),
-});
+
+export type RuntimeAppearanceContract = z.infer<typeof runtimeAppearanceContractSchema>;
+export type RuntimeAppearanceContractRow = RuntimeAppearanceContract["rows"][number];
 
 export interface DerivedAppearanceContract {
   readonly axes: readonly VariantAxis[];
   readonly dependencies: readonly RuntimeAppearanceContractRow[];
-  readonly historicalRows: readonly RuntimeAppearanceHistoricalRow[];
+  readonly historicalRows: RuntimeAppearanceContract["historicalRows"];
 }
 
 export interface AppearanceReachReceipt {
@@ -189,7 +81,7 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
     instrumentRefusal("Appearance contract contains duplicate keys");
   }
   // The live bridge must report the checked-in manifest's population exactly; a drift here is a stale bundle, not a new axis.
-  const manifest = appearanceMatrixContract();
+  const manifest = appearanceCarrierContract();
   const manifestKeys = new Set<string>(manifest.rows.map((row) => row.key));
   if (
     contract.declared !== contract.rows.length ||
@@ -208,8 +100,8 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
     instrumentRefusal("Appearance contract has no theme observables");
   }
   if (
-    contract.historicalRows.length !== manifest.historicalRows.length ||
-    new Set(contract.historicalRows.map((row) => row.id)).size !== manifest.historicalRows.length ||
+    contract.historicalRows.length !== APPEARANCE_HISTORICAL_ROW_IDS.length ||
+    new Set(contract.historicalRows.map((row) => row.id)).size !== APPEARANCE_HISTORICAL_ROW_IDS.length ||
     contract.historicalRows.some(
       (row) =>
         row.subjects.length === 0 ||
@@ -234,7 +126,7 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
         !row.subjects.some((subject) => subject.selector === row.merge.selector),
     )
   ) {
-    instrumentRefusal(`Appearance contract historical-row population drift: rows=${contract.historicalRows.length}/${manifest.historicalRows.length}`);
+    instrumentRefusal(`Appearance contract historical-row population drift: rows=${contract.historicalRows.length}/${APPEARANCE_HISTORICAL_ROW_IDS.length}`);
   }
   return { axes: executable.map(appearanceAxis), dependencies, historicalRows: contract.historicalRows };
 }
@@ -249,7 +141,7 @@ export async function readRuntimeAppearanceContract(page: Page): Promise<Runtime
   return runtimeAppearanceContractSchema.parse((await page.evaluate(readAppearanceMatrixContract)) satisfies RuntimeAppearanceContract);
 }
 
-function assertMessageRegistryReceipt(registry: RuntimeMessageRegistryReceipt | undefined): void {
+function assertMessageRegistryReceipt(registry: AppearanceMessageRegistryReceipt | undefined): void {
   if (
     registry !== undefined &&
     (registry.staleIds.length > 0 || registry.missingIds.length > 0 || registry.matched + registry.staleIds.length !== registry.registered)

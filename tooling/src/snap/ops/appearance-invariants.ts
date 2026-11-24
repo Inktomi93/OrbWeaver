@@ -1,7 +1,7 @@
 // One strict reconciler for #953's literal client-owned rows. It does not discover subjects or invent
 // expectations: it rejects any receipt that is not an exact accounting/judgment of the live contract.
 
-import type { RuntimeAppearanceHistoricalCascade, RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
+import type { AppearanceHistoricalCascade, AppearanceHistoricalRow } from "@orb/kit/appearance-manifest";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type {
   AppearanceCascadeExpectation,
@@ -89,7 +89,7 @@ interface EvaluationSink {
 }
 
 function evaluateCascadeRow(
-  policy: RuntimeAppearanceHistoricalCascade | undefined,
+  policy: AppearanceHistoricalCascade | undefined,
   expected: AppearanceCascadeExpectation,
   actual: CssCascadeReceipt | undefined,
   sink: EvaluationSink,
@@ -124,7 +124,7 @@ function evaluateCascadeRow(
   }
 }
 
-function evaluateCascade(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
+function evaluateCascade(policy: AppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   if (receipt.css.status !== "ok") {
     errors.push(`CSS evidence is ${receipt.css.status}: ${receipt.css.error}`);
     return;
@@ -140,7 +140,7 @@ function evaluateCascade(policy: RuntimeAppearanceHistoricalRow, receipt: Appear
   }
 }
 
-function evaluateMerge(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
+function evaluateMerge(policy: AppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   if (policy.merge.mechanism === "merge-not-applicable") {
     if (receipt.merge.mechanism !== "merge-not-applicable" || receipt.merge.selector !== policy.merge.selector || receipt.merge.owner !== policy.merge.owner) {
       errors.push(`direct-carrier merge N/A receipt is invalid for ${policy.id}`);
@@ -180,7 +180,7 @@ function evaluateMerge(policy: RuntimeAppearanceHistoricalRow, receipt: Appearan
   }
 }
 
-function evaluateSubjects(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
+function evaluateSubjects(policy: AppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   const policySubjects = new Map(policy.subjects.map((subject) => [subject.id, subject]));
   if (receipt.subjects.length !== policy.subjects.length || new Set(receipt.subjects.map((subject) => subject.id)).size !== receipt.subjects.length) {
     errors.push(`subject population=${receipt.subjects.length} does not equal unique policy population=${policy.subjects.length}`);
@@ -209,7 +209,7 @@ function evaluateSubjects(policy: RuntimeAppearanceHistoricalRow, receipt: Appea
   }
 }
 
-function evaluateChecks(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
+function evaluateChecks(policy: AppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   const checkIds = receipt.checks.map((check) => check.id);
   if (
     checkIds.length !== policy.requiredChecks.length ||
@@ -227,7 +227,7 @@ function evaluateChecks(policy: RuntimeAppearanceHistoricalRow, receipt: Appeara
   }
 }
 
-function evaluatePixels(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
+function evaluatePixels(policy: AppearanceHistoricalRow, receipt: AppearanceInvariantReceipt, errors: string[], violations: string[]): void {
   const requiredSelectors = policy.subjects.filter((subject) => subject.sample === "pixel").map((subject) => subject.selector);
   const receivedSelectors = receipt.pixels.map((pixel) => pixel.selector);
   if (
@@ -281,7 +281,7 @@ function evaluateDeadCss(receipt: AppearanceInvariantReceipt, errors: string[], 
   }
 }
 
-export function evaluateAppearanceInvariantCell(policy: RuntimeAppearanceHistoricalRow, receipt: AppearanceInvariantReceipt): AppearanceInvariantEvaluation {
+export function evaluateAppearanceInvariantCell(policy: AppearanceHistoricalRow, receipt: AppearanceInvariantReceipt): AppearanceInvariantEvaluation {
   const errors: string[] = [];
   const violations: string[] = [];
   if (receipt.rowId !== policy.id) {

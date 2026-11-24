@@ -7,6 +7,12 @@ export const WORKLOAD_JOB_FIELD_NAME = "Job";
 /** The run dialog's dependency picker. */
 export const WORKLOAD_RUN_AFTER_NAME = "Run after these complete";
 
+/** The owner's bulk switch of the run and the schedule dialogs. */
+export const WORKLOAD_BULK_MODE_NAME = "Bulk mode";
+
+/** The run dialog's bulk target picker: the user whose library receives the imported entities. */
+export const WORKLOAD_BULK_TARGET_NAME = "Import into";
+
 /** The asset-index rebuild's kind picker. */
 export const WORKLOAD_REBUILD_KIND_NAME = "What to rebuild";
 

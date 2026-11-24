@@ -1,7 +1,7 @@
 // channelName reads the production manifest's row for a key, so a spec never spells a channel by hand.
 
+import { APPEARANCE_CHANNEL_ROWS } from "@orb/kit/appearance-manifest";
 import { describe, expect, test } from "vitest";
-import { APPEARANCE_CHANNEL_ROWS } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { channelName } from "./appearance-channel-name.ts";
 
 describe("channelName", () => {
