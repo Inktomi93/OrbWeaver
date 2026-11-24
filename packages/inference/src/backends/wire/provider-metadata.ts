@@ -27,6 +27,7 @@
 
 import type { VariantProviderMetadata } from "@orb/contracts/chat";
 import { variantProviderMetadataSchema } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import { isPluginProviderId } from "@orb/contracts/inference";
 import { z } from "zod";
 import type { AgentSdkTurnFacts } from "#src/contract/wire.ts";
@@ -120,7 +121,7 @@ function anthropicArm(bag: unknown): VariantProviderMetadata | undefined {
  *  producer-side parse the header names — which validates the `plugin:<ns>/<id>` pattern and the payload's
  *  JSON-ness in one step and yields a value already inside the union. The caller's `isPluginProviderId` guard
  *  stays: without it a named id would parse as its own (empty) arm and record provenance about nothing. */
-function pluginArm(providerId: string, bag: unknown): VariantProviderMetadata | undefined {
+function pluginArm(providerId: ProviderId, bag: unknown): VariantProviderMetadata | undefined {
   const parsed = variantProviderMetadataSchema.safeParse({ provider: providerId, raw: bag });
   return parsed.success ? parsed.data : undefined;
 }
@@ -130,7 +131,7 @@ function pluginArm(providerId: string, bag: unknown): VariantProviderMetadata | 
  * `providerMetadata[<its own key>]`; anything this file does not model yields `undefined` rather than a
  * half-filled arm.
  */
-export function variantProviderMetadataOf(providerId: string, bag: unknown): VariantProviderMetadata | undefined {
+export function variantProviderMetadataOf(providerId: ProviderId, bag: unknown): VariantProviderMetadata | undefined {
   if (!has(bag)) {
     return;
   }
@@ -160,7 +161,7 @@ export function systemFingerprintOf(bag: unknown): string | null {
  * declare the agent-sdk wire, and its payload is `raw` with no reader by key — never the `claude-sub` shape,
  * which names a subscription's own receipts.
  */
-export function agentSdkVariantMetadata(providerId: string, facts: AgentSdkTurnFacts): VariantProviderMetadata | undefined {
+export function agentSdkVariantMetadata(providerId: ProviderId, facts: AgentSdkTurnFacts): VariantProviderMetadata | undefined {
   if (providerId !== CLAUDE_SUB) {
     return variantProviderMetadataOf(providerId, { ...facts });
   }

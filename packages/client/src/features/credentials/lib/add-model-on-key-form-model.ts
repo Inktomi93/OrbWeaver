@@ -5,6 +5,7 @@
 // its key. This file holds the action's copy, which rows offer it, and the dialog's form values.
 
 import type { ProviderAuth } from "@orb/contracts/inference";
+import type { UserCredentialId } from "@orb/kit/ids";
 import { ADD_MODEL_ACTION_LABELS } from "./credentials-names.ts";
 import { MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
@@ -30,7 +31,7 @@ type AddModelScope = keyof typeof ADD_MODEL_ACTION_COPY;
 
 /** The row's scope, or `null` when the action cannot work: a hosted row whose key is gone has nothing to
  *  list a catalog with and nothing to share. */
-export function addModelScope(row: { readonly auth: ProviderAuth; readonly credentialId: string | null }): AddModelScope | null {
+export function addModelScope(row: { readonly auth: ProviderAuth; readonly credentialId: UserCredentialId | null }): AddModelScope | null {
   switch (row.auth) {
     case "none":
       return "builtin";

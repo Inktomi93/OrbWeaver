@@ -230,7 +230,7 @@ export function AddConnectionFormBody({
     return values;
   };
 
-  const { form } = useAddConnectionForm({ entityId: "add-connection", serverValues: undefined, save });
+  const { form } = useAddConnectionForm({ mountKey: "add-connection", serverValues: undefined, save });
   const formId = useId();
   const submitDraft = (): void => {
     form.handleSubmit().catch((err: unknown) => setSubmitFailure({ error: err, values: form.state.values }));

@@ -7,6 +7,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import { chatEvents } from "@orb/db";
+import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node";
@@ -86,7 +87,7 @@ function framesOf(frames: readonly Frame[], type: DurableType): readonly Frame[]
   return frames.filter(({ event }) => event.type === type);
 }
 
-function committedFrame(device: Device, messageId: string): Frame | undefined {
+function committedFrame(device: Device, messageId: MessageId): Frame | undefined {
   return device.frames.find(({ event }) => event.type === "messageCommitted" && event.messageId === messageId);
 }
 

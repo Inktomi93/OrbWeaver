@@ -39,6 +39,7 @@
 
 import type { Theme } from "@orb/contracts/theme";
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
+import type { ThemeId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
@@ -176,7 +177,7 @@ function LooksBody(): ReactElement {
   const current = themes.find(isActive) ?? themes[0];
 
   // Applying: the ONE applying act. The DEFAULT card writes NULL.
-  const applyById = (id: string | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
+  const applyById = (id: ThemeId | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
   const apply = (theme: Theme): void => applyById(theme.isDefault ? null : theme.id);
 
   // The builder door: a DRAFT of the current look; the duplicate row is minted at the first real edit.

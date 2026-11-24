@@ -90,7 +90,7 @@ function economicsModelTitle(run: RunView): string | null {
 
 export interface RunsTabProps {
   readonly runs: readonly RunView[];
-  readonly viewedRunId: string | null;
+  readonly viewedRunId: RefineryRunId | null;
   readonly onView: (run: RunView) => void;
   /** Arm a rewrite run for the NEXT apply/analyze (operate-back) — null clears back to latest. */
   readonly armedRewriteId: string | null;

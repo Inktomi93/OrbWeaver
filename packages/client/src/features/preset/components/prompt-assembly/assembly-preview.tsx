@@ -11,6 +11,7 @@
 // keys `description` / `personality` / `guided_instruction`. Nothing here resolves a macro; the run is the
 // kit tokenizer's, and the chip is the same one the Actions readout ships.
 
+import type { PromptSectionId } from "@orb/contracts/preset";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -34,7 +35,7 @@ const ROLE_HEADER: Record<MessageRole, string> = {
 export interface AssemblyPreviewProps {
   readonly preview: AssembledPreview;
   /** Click-through: flip to Compose + select this section + reveal the inspector (the caller wires it). */
-  readonly onSelectBlock: (sectionId: string) => void;
+  readonly onSelectBlock: (sectionId: PromptSectionId) => void;
 }
 
 /** The assembled read-out: setup role-groups → the conversation band (with splices) → post role-groups. */
@@ -64,7 +65,7 @@ function groupKey(zone: string, index: number, group: RoleGroup): string {
 }
 
 /** One role block: a header + its contiguous same-role blocks. */
-function RoleGroupView({ group, onSelect }: { readonly group: RoleGroup; readonly onSelect: (sectionId: string) => void }): ReactElement {
+function RoleGroupView({ group, onSelect }: { readonly group: RoleGroup; readonly onSelect: (sectionId: PromptSectionId) => void }): ReactElement {
   return (
     <Stack gap="field">
       <Text voice="kicker">{ROLE_HEADER[group.role]}</Text>
@@ -76,7 +77,13 @@ function RoleGroupView({ group, onSelect }: { readonly group: RoleGroup; readonl
 }
 
 /** The inset conversation band — the pivot horizon with the spliced sections shown at their depth. */
-function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPreview; readonly onSelect: (sectionId: string) => void }): ReactElement {
+function ConversationBand({
+  preview,
+  onSelect,
+}: {
+  readonly preview: AssembledPreview;
+  readonly onSelect: (sectionId: PromptSectionId) => void;
+}): ReactElement {
   if (preview.missingPivot) {
     return (
       <Text tone="warning" voice="gloss">
@@ -114,7 +121,7 @@ function SpliceView({
   readonly block: PreviewBlock;
   readonly depth: number;
   readonly order: number;
-  readonly onSelect: (sectionId: string) => void;
+  readonly onSelect: (sectionId: PromptSectionId) => void;
 }): ReactElement {
   return (
     <Row gap="field" align="center">
@@ -127,7 +134,7 @@ function SpliceView({
 }
 
 /** One preview block — a click-through ghost Button of its name + macro-chipped display text. */
-function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly onSelect: (sectionId: string) => void }): ReactElement {
+function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly onSelect: (sectionId: PromptSectionId) => void }): ReactElement {
   return (
     <Button variant="outline" size="sm" stacked={true} stretch="row" onClick={(): void => onSelect(block.section.id)}>
       <Text voice="kicker" truncate={true}>

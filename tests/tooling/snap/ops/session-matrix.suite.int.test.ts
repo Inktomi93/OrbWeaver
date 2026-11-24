@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
+import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
@@ -58,7 +59,7 @@ fetch("/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D")
 }
 
 async function loopbackFixture(
-  backgroundAssetId: string,
+  backgroundAssetId: AssetId,
 ): Promise<{ readonly base: string; readonly requests: string[]; readonly close: () => Promise<void> }> {
   const requests: string[] = [];
   const server = createServer((request, response) => {

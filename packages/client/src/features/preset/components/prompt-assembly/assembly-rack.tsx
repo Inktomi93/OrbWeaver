@@ -13,7 +13,7 @@
 // The rack is an instrument ISLAND inside the form-tier editor (§2 — the density law's sanctioned reverse
 // nesting): rows are `ListRow`-skinned, hairline-separated, no border boxes.
 
-import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PromptConfig, PromptSection, PromptSectionId } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -42,9 +42,9 @@ export interface AssemblyRackProps {
   readonly presetId: PresetId;
   readonly selectedSectionId: string | null;
   /** SELECT (a row's name click) — the CONTEXT readout echoes; this is the INSPECT act. */
-  readonly onSelectSection: (sectionId: string) => void;
+  readonly onSelectSection: (sectionId: PromptSectionId) => void;
   /** DRILL (a row's chevron) — open the consolidated section editor. */
-  readonly onDrillSection: (sectionId: string) => void;
+  readonly onDrillSection: (sectionId: PromptSectionId) => void;
   /** Append a `chat_history` marker (the missing-pivot callout action). */
   readonly onAddChatHistory: () => void;
   /** The section whose chevron should take focus on this mount — the drill-in's focus RESTORE (F-04).

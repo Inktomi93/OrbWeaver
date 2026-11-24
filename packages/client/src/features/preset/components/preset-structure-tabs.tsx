@@ -158,12 +158,12 @@ function PromptTab({
   const selectedSectionId = useSelectedPresetSectionId();
   const ids = useIds();
 
-  const onSelectSection = (sectionId: string): void => {
+  const onSelectSection = (sectionId: PromptSectionId): void => {
     selectPresetSection(sectionId);
     onRevealSection?.();
   };
   // Drilling also SELECTS: the row you are editing is the row the readout should be echoing.
-  const onDrillSection = (sectionId: string): void => {
+  const onDrillSection = (sectionId: PromptSectionId): void => {
     selectPresetSection(sectionId);
     drillPresetSection(presetId, sectionId);
   };

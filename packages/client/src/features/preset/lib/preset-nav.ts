@@ -12,7 +12,7 @@
 // DESCRIPTOR-driven sampling/reasoning/verbosity vocab is NOT here (it lives in capability-panel-model.ts,
 // iterated from `ModelCapabilityView` — the panel GATE).
 
-import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
+import type { CompactionMode, ContinuePostfix, NamesBehavior, PromptSectionId, ThinkingDisplay } from "@orb/contracts/preset";
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select/items";
 import { selectPresetSection, setPresetEditorView } from "#state";
@@ -39,7 +39,7 @@ type PresetEditorViewId = (typeof PRESET_EDITOR_VIEW_TUPLE)[number]["id"];
  *
  *  It writes through the SAME two store actions the tab strip and the rack use (§16 row 10 / row 19) — one
  *  writer each, no second navigation surface. */
-export function openSectionInPrompt(sectionId: string): void {
+export function openSectionInPrompt(sectionId: PromptSectionId): void {
   setPresetEditorView(PROMPT_VIEW);
   selectPresetSection(sectionId);
 }

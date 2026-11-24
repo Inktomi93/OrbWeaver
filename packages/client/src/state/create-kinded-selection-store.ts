@@ -11,16 +11,17 @@
 // the same LIST dual-write — and G27's `orb/selection-store-via-factory` seal still holds, since a
 // `state/*-selection-store.ts` calls THIS mint and never the raw door.
 
+import type { CollectionMemberId } from "#lib";
 import { createGatedStore } from "./create-gated-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
-/** A MIXED-KIND selection: which collection the member belongs to, and which member (review F-7). Both
- *  halves are opaque strings — the kind axis is host-opaque by design (no closed tuple to gate), and the
- *  member id is re-branded at the owner's edge, the same trade `P extends string` already makes. */
+/** A MIXED-KIND selection: which collection the member belongs to, and which member (review F-7). The kind
+ *  axis is a host-opaque string by design (no closed tuple to gate); the member id is a {@link CollectionMemberId}, since the
+ *  host never reads which kind it is and the owner narrows it in its own id space. */
 export interface KindedSelection {
   readonly kind: string;
-  readonly memberId: string;
+  readonly memberId: CollectionMemberId;
 }
 
 /** A drill store whose primary is a (kind, member) PAIR — one selection across N sibling collections in one
@@ -29,12 +30,12 @@ export interface KindedDrillStore {
   /** Reactive: the selected pair (`null` = the section's welcome home). One state field, one object
    *  identity — a primitive-shaped selector, no fresh object per render. */
   readonly useSelection: () => KindedSelection | null;
-  readonly select: (kind: string, memberId: string) => void;
+  readonly select: (kind: string, memberId: CollectionMemberId) => void;
   /** Clear the selection — back to the section's welcome home, AND release any open LIST slide-over (the
    *  drill-store twin: ONE DOOR BACK, side-eye P2). */
   readonly clear: () => void;
   /** `select` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
-  readonly selectFromList: (kind: string, memberId: string) => void;
+  readonly selectFromList: (kind: string, memberId: CollectionMemberId) => void;
   /** The section-registry SEAM over this store (`SectionSelection`) — the drill-store twin: how the SHELL
    *  asks "is a member open here?" for the mobile ONE-SHELL rule, and how its back affordance clears it. */
   readonly selection: SectionSelection;
@@ -48,7 +49,7 @@ interface KindedSelectionState {
 export function createKindedSelectionStore(name: string): KindedDrillStore {
   const useSelectionStore = createGatedStore<KindedSelectionState>(name, (): KindedSelectionState => ({ selection: null }));
   // Content writes ride the shell's content-swap door (the drill-store twin), the slide-over release inside it.
-  const write = (kind: string, memberId: string, releaseOverlay: boolean): void =>
+  const write = (kind: string, memberId: CollectionMemberId, releaseOverlay: boolean): void =>
     withContentSwap(() => {
       useSelectionStore.setState({ selection: { kind, memberId } }, false, `${name}/select`);
       if (releaseOverlay) {
@@ -63,9 +64,9 @@ export function createKindedSelectionStore(name: string): KindedDrillStore {
     });
   return {
     useSelection: (): KindedSelection | null => useSelectionStore((s) => s.selection),
-    select: (kind: string, memberId: string): void => write(kind, memberId, false),
+    select: (kind: string, memberId: CollectionMemberId): void => write(kind, memberId, false),
     clear: clearSelection,
-    selectFromList: (kind: string, memberId: string): void => write(kind, memberId, true),
+    selectFromList: (kind: string, memberId: CollectionMemberId): void => write(kind, memberId, true),
     selection: {
       subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
       hasSelection: (): boolean => useSelectionStore.getState().selection !== null,

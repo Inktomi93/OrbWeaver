@@ -3,6 +3,7 @@
 // never prompt/RP/system-prompt content. A FACTORY over the injected `InferenceLog` (no `getLog()` global:
 // the package never imports the server's logger).
 
+import type { ProviderId } from "@orb/contracts/inference";
 import type { ProviderLogger } from "#src/contract/http.ts";
 import type { InferenceLog } from "#src/deps.ts";
 
@@ -15,7 +16,7 @@ export const PROVIDER_CAPABILITY_EVENT = "provider.capability";
 export const PROVIDER_CACHE_EVENT = "provider.cache";
 
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */
-export function providerLogger(log: InferenceLog, wire: string, providerId: string): ProviderLogger {
+export function providerLogger(log: InferenceLog, wire: string, providerId: ProviderId): ProviderLogger {
   const emit: ProviderLogger["emit"] = (level, event, fields = {}) => {
     log[level]({ provider: true, wire, providerId, event, ...fields }, event);
   };

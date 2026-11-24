@@ -129,7 +129,7 @@ function RunWorkloadFormBody({
     return values;
   };
 
-  const { form } = useRunWorkloadForm({ entityId: "run-workload", serverValues: undefined, save });
+  const { form } = useRunWorkloadForm({ mountKey: "run-workload", serverValues: undefined, save });
   const kindItems = workloadKindItems(viewerIsOwner);
 
   return (

@@ -32,10 +32,10 @@ import { characterBulkRemoveRefusal } from "../lib/character-refusal-notice.ts";
 type BulkActionId = (typeof CHARACTER_ACTION_SCOPE_IDS)["bulk"][number];
 
 export interface CharacterBulkBarProps {
-  readonly ids: readonly string[];
+  readonly ids: readonly CharacterId[];
   readonly selectedCount: number;
   readonly onClear: () => void;
-  readonly onRemoveSubmitted: (ids: readonly string[]) => void;
+  readonly onRemoveSubmitted: (ids: readonly CharacterId[]) => void;
   /** The name the library lists for a card, for the notice that says which cards a delete left behind. */
   readonly characterName: (characterId: CharacterId) => string | undefined;
   readonly trpc: Trpc;

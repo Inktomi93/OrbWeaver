@@ -7,6 +7,7 @@ import { createServer } from "node:http";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach } from "vitest";
@@ -22,8 +23,8 @@ interface Stage {
 }
 
 interface StageState extends Omit<Stage, "baseUrl"> {
-  readonly characterId: string;
-  readonly chatId: string;
+  readonly characterId: CharacterId;
+  readonly chatId: ChatId;
   readonly importFails: boolean;
 }
 
@@ -115,7 +116,7 @@ async function answer(state: StageState, request: IncomingMessage, response: Ser
 
 /** A stage edge holding characters and rooms. `importFails` answers the import with a per-file failure,
  *  the shape the route returns for a transcript naming no character the account has. */
-async function startStage(characterId: string, chatId: string, importFails = false): Promise<Stage> {
+async function startStage(characterId: CharacterId, chatId: ChatId, importFails = false): Promise<Stage> {
   const state: StageState = { characterId, chatId, importFails, calls: [], characters: new Map(), rooms: new Map(), transcripts: [] };
   const listening = createServer((request, response) => {
     answer(state, request, response).catch((error: unknown) => {

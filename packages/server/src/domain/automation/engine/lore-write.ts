@@ -8,6 +8,7 @@
 // route `neutralizeMacros`-es model bytes and span-stamps its keys BEFORE they reach this belt (§2 law 7 —
 // machine-authored text entering world-info's macro-execution plane is neutralized at the write boundary).
 
+import type { AutomationRuleId } from "@orb/kit/ids";
 import type { RuleLoreWriteArgs, RuleLoreWriteOutcome } from "../contract/analysis.ts";
 import type { ArmExecutorDeps } from "../contract/ops.ts";
 import { isBookAttachedToChat, isBookOwnedBy, listRuleEntryTitles } from "../persistence/canon-reads.ts";
@@ -19,7 +20,7 @@ const AUTO_ENTRY_TITLE_PREFIX = "auto/";
 const RULE_MAX_ENTRIES_PER_BOOK = 64;
 
 /** The title a rule's lore write lands under (ruleId-namespaced idempotency handle). */
-function ruleLoreTitle(ruleId: string, entryKey: string): string {
+function ruleLoreTitle(ruleId: AutomationRuleId, entryKey: string): string {
   return `${AUTO_ENTRY_TITLE_PREFIX}${ruleId}:${entryKey}`;
 }
 

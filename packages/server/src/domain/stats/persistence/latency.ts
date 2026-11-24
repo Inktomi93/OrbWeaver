@@ -9,6 +9,7 @@
 
 import type { LatencyScope, LatencyStats } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { percentiles } from "../substrate/percentiles.ts";
 import { ownerChatIds } from "./owner-chat-scope.ts";
@@ -45,7 +46,7 @@ function statsOf(ttft: number[], gen: number[]): LatencyStats {
  *  assistant message. TTFT is `ttft_ms` (≥ 0); gen-duration is `gen_finished_at − gen_started_at` where
  *  both are present and finished ≥ started. Owner scope spans every owned character's assistant messages;
  *  character scope narrows to one character; model scope to one (model, provider) bucket. */
-export async function readLatency(db: Db, ownerId: string, scope: LatencyScope): Promise<LatencyStats> {
+export async function readLatency(db: Db, ownerId: UserId, scope: LatencyScope): Promise<LatencyStats> {
   // Narrowing predicate per scope (owner = no extra filter). Exhaustive over `LatencyScope` — a new scope
   // kind fails tsc until its arm exists.
   let narrow = sql``;
@@ -106,7 +107,7 @@ export function modelLatencyKey(model: string, provider: string): string {
  *  LIMIT costs one owner-scoped scan of assistant selected variants — the same scan `readByModel` already
  *  pays unbounded for its distinct-character "reach" GROUP BY, so this adds no new asymptotic cost to the
  *  one read that calls it. */
-export async function readModelLatencies(db: Db, ownerId: string): Promise<Map<string, LatencyStats>> {
+export async function readModelLatencies(db: Db, ownerId: UserId): Promise<Map<string, LatencyStats>> {
   const rows = await db.all<{
     model: string;
     provider: string | null;

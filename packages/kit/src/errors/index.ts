@@ -23,10 +23,12 @@ export class DomainError extends Error {
   }
 }
 
-/** The entity the caller asked for does not exist. Maps to tRPC NOT_FOUND. */
+/** The entity the caller asked for does not exist. Maps to tRPC NOT_FOUND.
+ *  @remarks `reference` is message text, not an id slot: callers pass any entity's id, an index, or an empty string
+ *  when naming the id would be an existence oracle. */
 export class DomainNotFoundError extends DomainError {
-  constructor(entityName: string, id: string) {
-    super(`${entityName} ${id} not found`);
+  constructor(entityName: string, reference: string) {
+    super(`${entityName} ${reference} not found`);
     this.name = this.constructor.name;
   }
 }

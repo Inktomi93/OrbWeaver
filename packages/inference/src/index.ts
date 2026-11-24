@@ -10,6 +10,7 @@ import type {
   ModelKind,
   ProviderAvailability,
   ProviderDef,
+  ProviderId,
   TokenizeResult,
   UserConnection,
 } from "@orb/contracts/inference";
@@ -91,7 +92,7 @@ const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
 /** The kind a row whose model no evidence describes is read as. */
 const DEFAULT_MODEL_KIND: ModelKind = "generation";
 
-function requireProvider(provider: ProviderDef | undefined, providerId: string): ProviderDef {
+function requireProvider(provider: ProviderDef | undefined, providerId: ProviderId): ProviderDef {
   if (provider === undefined) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `provider "${providerId}" is not registered` });
   }

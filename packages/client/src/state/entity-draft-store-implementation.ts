@@ -48,26 +48,28 @@ export interface EntityDraftStoreConfig<TInput> {
   readonly storage?: StateStorage;
 }
 
+/** Every draft slot is keyed by the form's mount key (`entityId` on the editor boundary): an entity id, or a token
+ *  or slug for a form with no entity, so the key names no one brand. */
 export interface EntityDraftStore<TInput> {
   /** Reactive read — returns the frozen `EMPTY` (stable ref) when no draft exists. Unwraps the envelope
    *  to `values`; does NOT baseline-gate (a live reactive observer, not the mount-seed gate). */
-  readonly useDraft: (id: string) => Readonly<Partial<TInput>>;
-  readonly useHasDraft: (id: string) => boolean;
-  /** Reactive: the ids among `ids`, in order, that hold a draft passing the model validator. A list that numbers
+  readonly useDraft: (key: string) => Readonly<Partial<TInput>>;
+  readonly useHasDraft: (key: string) => boolean;
+  /** Reactive: the keys among `keys`, in order, that hold a draft passing the model validator. A list that numbers
    *  or counts its drafted rows reads this, so it follows every set and clear. */
-  readonly useDraftedIds: (ids: readonly string[]) => readonly string[];
+  readonly useDraftedIds: (keys: readonly string[]) => readonly string[];
   /**
    * Non-hook read for factory seeding (the autosave form seeds draft-over-server at mount). Returns the
    * draft ONLY when it validates against the model AND its stamped baseline matches `baselineHash`; a
    * stale/unverifiable draft is DISCARDED (its dead slot cleared) and `undefined` returned.
    */
-  readonly readDraft: (id: string, baselineHash?: string) => Readonly<Partial<TInput>> | undefined;
+  readonly readDraft: (key: string, baselineHash?: string) => Readonly<Partial<TInput>> | undefined;
   /** Read provenance only, without clearing/restamping or claiming freshness against a server row. */
-  readonly readDraftBaseline: (id: string) => string | undefined;
-  /** Shallow-merge a patch into the id's draft, stamping the current schema version + `baselineHash`. */
-  readonly setDraft: (id: string, patch: Partial<TInput>, baselineHash?: string) => void;
-  readonly clearDraft: (id: string) => void;
-  readonly hasDraft: (id: string) => boolean;
+  readonly readDraftBaseline: (key: string) => string | undefined;
+  /** Shallow-merge a patch into the key's draft, stamping the current schema version + `baselineHash`. */
+  readonly setDraft: (key: string, patch: Partial<TInput>, baselineHash?: string) => void;
+  readonly clearDraft: (key: string) => void;
+  readonly hasDraft: (key: string) => boolean;
 }
 
 /** Any unrecognized/older persisted shape falls back to a fresh empty map — drafts are cache, not canon.

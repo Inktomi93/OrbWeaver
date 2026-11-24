@@ -19,7 +19,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { ContextTabBody } from "#components";
-import type { CollectionContribution, ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue } from "#lib";
+import type { CollectionContribution, CollectionMemberId, ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue } from "#lib";
 
 export interface TeacherProps {
   readonly state: ConfigContextState;
@@ -198,7 +198,7 @@ export function TeacherLearn({ state }: TeacherProps): ReactElement {
 export interface CollectionMemberContextProps {
   readonly context: CollectionContribution["context"];
   readonly icon: LucideIcon;
-  readonly memberId: string;
+  readonly memberId: CollectionMemberId;
 }
 
 /** The open member's context arm — the retired `ConfigContextBody`'s member truths, re-homed: a collection

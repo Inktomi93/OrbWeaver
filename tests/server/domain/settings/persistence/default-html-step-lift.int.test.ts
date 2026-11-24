@@ -7,6 +7,7 @@
 import type { HtmlTrustStep } from "@orb/contracts/chat";
 import { renderPolicyOverrideForStep } from "@orb/contracts/chat";
 import { settings } from "@orb/db";
+import type { CharacterId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { eq } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "#server/domain/settings/contract/keys.ts";
@@ -73,6 +74,7 @@ test.for(Object.entries(LEGACY_ROWS))("a v11 row with %s lifts to the step its c
   expect(overrides).not.toHaveProperty("allowInteractiveCards");
   expect(overrides.defaultHtmlStep ?? null).toBe(row.lifted);
   const { participants } = await caller.chat.getChat({ chatId: chat.id });
-  const stepOf = (characterId: string): HtmlTrustStep | undefined => participants.find((seat) => seat.characterId === characterId)?.renderPolicy?.htmlTrust;
+  const stepOf = (characterId: CharacterId): HtmlTrustStep | undefined =>
+    participants.find((seat) => seat.characterId === characterId)?.renderPolicy?.htmlTrust;
   expect({ inheriting: stepOf(inheriting.id), richHtml: stepOf(richHtml.id), interactive: stepOf(interactive.id) }).toEqual(row.drew);
 });

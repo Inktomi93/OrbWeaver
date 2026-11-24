@@ -254,19 +254,20 @@ interface MemoEntry<T> {
   disposed: boolean;
 }
 
+// Keyed by a model id or, for a reranker, by a serving key built from the id and its ONNX options, so the key is no id slot.
 interface ModelMemo<T> {
-  (id: string): Promise<T>;
-  withLease: <R>(id: string, use: (value: T) => Promise<R>) => Promise<R>;
-  /** Whether the id's most recent load rejected, until a later load of it succeeds. */
-  failed: (id: string) => boolean;
+  (key: string): Promise<T>;
+  withLease: <R>(key: string, use: (value: T) => Promise<R>) => Promise<R>;
+  /** Whether the key's most recent load rejected, until a later load of it succeeds. */
+  failed: (key: string) => boolean;
   /** Record that a loaded entry cannot serve (its outputs do not match its serving) and drop it, so the
    *  availability verdict says so and the next call loads afresh. */
-  markFailed: (id: string) => void;
+  markFailed: (key: string) => void;
 }
 
 /** The lease-counted single-flight memo every model slot below is built from. */
 function createMemo<T>(
-  load: (id: string) => Promise<T>,
+  load: (key: string) => Promise<T>,
   dispose: (value: T) => Promise<void>,
   detach: ModelCacheConfig["detach"],
   disposeName: string,
@@ -282,24 +283,24 @@ function createMemo<T>(
       await dispose(await entry.promise);
     });
   };
-  const getEntry = (id: string): MemoEntry<T> => {
-    const existing = entries.get(id);
+  const getEntry = (key: string): MemoEntry<T> => {
+    const existing = entries.get(key);
     if (existing !== undefined) {
       return existing;
     }
-    const created = load(id);
+    const created = load(key);
     const entry: MemoEntry<T> = { promise: created, refs: 0, evictionPending: false, disposed: false };
-    entries.set(id, entry);
+    entries.set(key, entry);
     // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled, so the
     // next call retries the load, and every caller still receives the original rejection through `entry.promise`.
     void created.then(
       () => {
-        failedIds.delete(id);
+        failedIds.delete(key);
       },
       () => {
-        failedIds.add(id);
-        if (entries.get(id) === entry) {
-          entries.delete(id);
+        failedIds.add(key);
+        if (entries.get(key) === entry) {
+          entries.delete(key);
         }
       },
     );
@@ -316,9 +317,9 @@ function createMemo<T>(
     }
     return entry;
   };
-  const memo = ((id: string): Promise<T> => getEntry(id).promise) as ModelMemo<T>;
-  memo.withLease = async <R>(id: string, use: (value: T) => Promise<R>): Promise<R> => {
-    const entry = getEntry(id);
+  const memo = ((key: string): Promise<T> => getEntry(key).promise) as ModelMemo<T>;
+  memo.withLease = async <R>(key: string, use: (value: T) => Promise<R>): Promise<R> => {
+    const entry = getEntry(key);
     entry.refs += 1;
     try {
       return await use(await entry.promise);
@@ -327,12 +328,12 @@ function createMemo<T>(
       disposeEntry(entry);
     }
   };
-  memo.failed = (id: string): boolean => failedIds.has(id);
-  memo.markFailed = (id: string): void => {
-    failedIds.add(id);
-    const entry = entries.get(id);
+  memo.failed = (key: string): boolean => failedIds.has(key);
+  memo.markFailed = (key: string): void => {
+    failedIds.add(key);
+    const entry = entries.get(key);
     if (entry !== undefined) {
-      entries.delete(id);
+      entries.delete(key);
       entry.evictionPending = true;
       disposeEntry(entry);
     }

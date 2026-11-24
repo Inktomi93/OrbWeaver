@@ -40,6 +40,7 @@
 //  · no `nav`/`search` field — cross-collection search is deferred (review F-10); per-collection filtering
 //    is the host's `filter` input applied by the owner's own rows.
 
+import type { RegexScriptId, RosterPresetId, WorldBookId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
 
 /** Member count above which rows are virtualized. This is a rendering budget, not the filter visibility
@@ -61,6 +62,10 @@ export const COLLECTION_LARGE_GROUP = 30;
  *  inside the landing, which is the `character-library-body.tsx` chain verbatim. The window is therefore as
  *  tall as the pane at every width instead of 384px at all of them, and the row past the old fold is
  *  reachable (the #1133 stranded-tail class). Nothing re-spells a height, so there is nothing left to home. */
+
+/** A collection member: the one id kind each of the host's libraries holds. The host never reads which kind a member is;
+ *  the owner parses it in its own id space. */
+export type CollectionMemberId = RegexScriptId | RosterPresetId | WorldBookId;
 
 /** ONE library-level FACT the landing states — what is TRUE OF THE LIBRARY, in the library's own words,
  *  and (when the fact is about one member) a real door to it.
@@ -96,7 +101,7 @@ export interface CollectionInsight {
    *  `label` is the control's whole accessible name, so it names what it opens rather than repeating the
    *  fact. `memberId` is the member the door opens: two facts about one member share it, and the host draws
    *  that door once, on the first of them. Two members can share a name, so the label never tells them apart. */
-  readonly open?: { readonly label: string; readonly memberId: string; readonly run: () => void };
+  readonly open?: { readonly label: string; readonly memberId: CollectionMemberId; readonly run: () => void };
 }
 
 /** ONE library's member CENSUS as the host knows it — the number, or why there is no number (#1546).
@@ -128,10 +133,10 @@ export interface CollectionCount {
 /** What the host hands a collection's LIST half. */
 export interface CollectionListView {
   /** Selection arrives KIND-PRE-BOUND: non-null only when the selected member belongs to THIS collection. */
-  readonly selectedId: string | null;
+  readonly selectedId: CollectionMemberId | null;
   /** The host's mixed-kind `selectFromList`, kind pre-bound (writes the selection AND closes an open LIST
    *  slide-over — the drill-store dual-write, unchanged). */
-  readonly onSelect: (memberId: string) => void;
+  readonly onSelect: (memberId: CollectionMemberId) => void;
   /** The host's per-group filter box, verbatim (`""` = no filter). The BOX is host chrome (one grammar for
    *  every group, shown by count); applying it is the owner's, because the owner is the only party that
    *  knows what its rows are made of. */
@@ -140,9 +145,9 @@ export interface CollectionListView {
 
 // What the host hands a collection's CONTENT / CONTEXT halves for one selected member.
 interface CollectionDetailView {
-  /** Opaque at the seam; the owner re-brands through its own id schema (the stamped-id posture — the same
+  /** A member id of any library at the seam; the owner re-brands through its own id schema (the stamped-id posture — the same
    *  trade every drill store already makes at `P extends string`). */
-  readonly memberId: string;
+  readonly memberId: CollectionMemberId;
 }
 
 /** A drilled member's way back: the button's whole accessible name and visible text, and what pressing it does. */
@@ -239,7 +244,7 @@ export interface CollectionContribution {
    *  answers with a crash rather than a fallback. It passes today only because all four contributions
    *  happen to declare it; the pin that keeps it that way is a compile fact, not a convention. A collection with nothing better to say returns
    *  `undefined` from the hook — the fallback arm is a VALUE, never an absent field. */
-  readonly useMemberTitle: (memberId: string) => string | undefined;
+  readonly useMemberTitle: (memberId: CollectionMemberId | null) => string | undefined;
   /** The group's rows — OWNER-rendered (its own query, its own row anatomy under the §12.2 row-action
    *  grammar + G6), inside the host's group frame, and mounted ONLY while the group is expanded. */
   readonly list: (view: CollectionListView) => ReactNode;

@@ -58,10 +58,11 @@ function checkpointValues(checkpoint: NonNullable<RuleCreation["checkpoint"]>): 
   return values;
 }
 
+// `identity` is the editor's form key: a creation request id before the rule exists, the rule id after.
 function recoveryCheckpoint(
-  id: string,
+  identity: string,
 ): { readonly creation: RuleCreation; readonly checkpoint: NonNullable<RuleCreation["checkpoint"]>; readonly values: RuleEditorValues } | undefined {
-  const creation = readRuleCreation(id);
+  const creation = readRuleCreation(identity);
   if (creation === undefined || creation.checkpoint === null) {
     return;
   }

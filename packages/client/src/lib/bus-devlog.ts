@@ -70,7 +70,7 @@ export function busLiveCount(): number {
   return liveSubscriptions;
 }
 
-function shortId(id: string): string {
+function shortId(id: ChatId | "user"): string {
   const cut = id.indexOf("_");
   return cut === -1 || id.length <= SHORT_ID_WHOLE_MAX ? id : `${id.slice(0, cut + 1)}…${id.slice(-SHORT_ID_TAIL)}`;
 }

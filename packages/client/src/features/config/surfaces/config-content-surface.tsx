@@ -34,7 +34,7 @@ import { Fragment, useEffect, useId, useState } from "react";
 import { ContentPane, DetailHeader, QueryBoundary, returnFocusToRow, SettingsPane } from "#components";
 import { QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
-import type { DrillBack } from "#lib";
+import type { CollectionMemberId, DrillBack } from "#lib";
 import { sectionBackName, useFocusOnMount } from "#lib";
 import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
 import {
@@ -308,7 +308,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
  * the member's read is in flight. Pressing it returns focus to the list row the member was opened from, or the list's
  * root when that row is gone.
  */
-function collectionBack(group: ConfigGroupDefinition, memberId: string): DrillBack {
+function collectionBack(group: ConfigGroupDefinition, memberId: CollectionMemberId): DrillBack {
   return {
     label: sectionBackName(group.label),
     onClick: (): void => {
@@ -320,7 +320,15 @@ function collectionBack(group: ConfigGroupDefinition, memberId: string): DrillBa
 
 /** The open member's editor — the owning collection's `detail`, mounted, with the host's Back. A selection can only name a
  *  collection group (its rows are the only writers), so the narrowing is a type fact, not a runtime guess. */
-function MemberBody({ group, memberId, back }: { readonly group: ConfigGroupDefinition; readonly memberId: string; readonly back: DrillBack }): ReactNode {
+function MemberBody({
+  group,
+  memberId,
+  back,
+}: {
+  readonly group: ConfigGroupDefinition;
+  readonly memberId: CollectionMemberId;
+  readonly back: DrillBack;
+}): ReactNode {
   if (!isCollectionGroup(group)) {
     return null;
   }

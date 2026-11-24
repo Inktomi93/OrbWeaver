@@ -4,6 +4,7 @@
 // deleting a newer mount with the same message id. This module does not enter the client barrel.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import type { MessageId } from "@orb/kit/ids";
 import { IS_DEV } from "./dev-flag.ts";
 
 export interface AppearanceMessageCarrierSnapshot {
@@ -54,7 +55,7 @@ export function enableAppearanceMessageRegistry(): () => void {
   };
 }
 
-export function registerAppearanceMessageSnapshot(instanceId: string, snapshot: AppearanceMessageCarrierSnapshot): () => void {
+export function registerAppearanceMessageSnapshot(instanceId: MessageId, snapshot: AppearanceMessageCarrierSnapshot): () => void {
   const token = Symbol(instanceId);
   mountedSnapshots.set(instanceId, { instanceId, snapshot, token });
   return (): void => {

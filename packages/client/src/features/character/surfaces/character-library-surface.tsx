@@ -35,6 +35,7 @@
 // matches nothing at all: a filter you cannot see is a filter you cannot turn off).
 
 import type { CharacterListSort } from "@orb/contracts/character";
+import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -183,7 +184,7 @@ export function CharacterLibrarySurface(): ReactElement {
   const openEditor = (id: string): void => selectCharacter(CHARACTER_ID.parse(id));
   const toggleStar = (id: string, next: boolean): void => update.mutate({ characterId: CHARACTER_ID.parse(id), input: { starred: next } });
   const toggleArchive = (id: string, next: boolean): void => update.mutate({ characterId: CHARACTER_ID.parse(id), input: { archived: next } });
-  const toggleBulk = (id: string): void => collection.selection.toggle(id);
+  const toggleBulk = (id: CharacterId): void => collection.selection.toggle(id);
   const duplicateCharacter = (id: string): void => {
     void duplicate
       .mutateAsync({ characterId: CHARACTER_ID.parse(id) })

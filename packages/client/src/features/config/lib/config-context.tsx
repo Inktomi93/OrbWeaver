@@ -36,7 +36,7 @@ import { isPrimitive } from "@orb/kit/guards";
 import type { ConfigLeafValue } from "#components";
 import { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "#components";
 import { useSettingsViewerView } from "#data";
-import type { ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue, ConfigTeachView, ContextDefinition } from "#lib";
+import type { CollectionMemberId, ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue, ConfigTeachView, ContextDefinition } from "#lib";
 import { defineContextTabs, settingGloss } from "#lib";
 import type {
   CollectionGroupDefinition,
@@ -163,7 +163,7 @@ function readingLesson(
 
 /** The open member's arm — the collection's own context contract, verbatim (the retired
  *  `ConfigContextBody`'s three truths, re-homed): a `none` collection renders ITS copy, never a generic. */
-function memberArm(group: CollectionGroupDefinition, memberId: string, title: string): ConfigContextState["member"] {
+function memberArm(group: CollectionGroupDefinition, memberId: CollectionMemberId, title: string): ConfigContextState["member"] {
   const context = group.body.collection.context;
   return {
     title,

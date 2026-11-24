@@ -22,14 +22,14 @@ import type {
 } from "@orb/contracts/inference";
 import { connectionTransportSchema, isBeltOwnedBodyKey, requirementMet, taskDef } from "@orb/contracts/inference";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
+import type { UserCredentialId } from "@orb/kit/ids";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "#src/lib/connection-roles.ts";
-
 import { grouped } from "./connection-fact-model.ts";
 import { fieldText, parsePastedObject } from "./pasted-fields.ts";
 
 /** A missing credential is keyless only when the provider itself declares no authentication. */
-export function credentialReadout(auth: ProviderAuth, credentialId: string | null): string {
+export function credentialReadout(auth: ProviderAuth, credentialId: UserCredentialId | null): string {
   if (credentialId !== null) {
     return "saved";
   }

@@ -1,6 +1,6 @@
 // Connection authoring values and validation; saved keys are metadata-only choices, while pasted secrets are minted before the connection.
 
-import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
+import type { ProviderAuth, ProviderDef, ProviderId, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { UserCredentialId } from "@orb/kit/ids";
@@ -39,7 +39,7 @@ export function isClaudeSubscription(provider: Pick<ProviderDef, "auth">): boole
 export const CLAUDE_SETUP_TOKEN_COPY_SUBJECT = `the command ${CLAUDE_SETUP_TOKEN_COMMAND}`;
 
 export interface AddConnectionFormValues {
-  readonly providerId: string;
+  readonly providerId: ProviderId | "";
   /** DERIVED from the picked provider's row (`ProviderDef.auth`), written by the provider field's change
    *  listener — the validator runs at module scope with no registry in reach, so the auth kind rides the
    *  values. `""` until a provider is picked. */

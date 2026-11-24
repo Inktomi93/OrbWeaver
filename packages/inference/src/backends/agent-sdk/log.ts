@@ -1,13 +1,14 @@
 // agent-sdk `provider.*` event lines over the shared `providerLogger` sink. Doctrine: logs are METADATA only —
 // never prompt/RP/system-prompt content. Bound ONCE per backend (`createAgentSdkLog`) — no global logger.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import type { AgentSdkLog } from "#src/contract/agent-sdk-backend.ts";
 import type { InferenceLog } from "#src/deps.ts";
 import { providerLogger } from "../http/provider-log.ts";
 
 const WIRE = "agent-sdk";
 
-export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentSdkLog {
+export function createAgentSdkLog(log: InferenceLog, providerId: ProviderId): AgentSdkLog {
   const base = providerLogger(log, WIRE, providerId);
   return {
     base,

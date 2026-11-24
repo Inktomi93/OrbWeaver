@@ -2,13 +2,14 @@
 // The room's identity set is read through its two public doors, `getChat` and `listMessages`; no row is read or written
 // here. Coverage is member-gated: every id the room's roster, pin or stored lines name resolves, whoever owns it.
 import type { ChatIdentity } from "@orb/contracts/chat";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { addCharacter, addPersona, startRoom, storeAvatar } from "@orb/testkit/node/composed";
 import { invitePerson } from "../persona-cache-physical.ts";
 import { textRoom } from "../scenario-physical.ts";
 
-function entry(identities: readonly ChatIdentity[], id: string): ChatIdentity | undefined {
+function entry(identities: readonly ChatIdentity[], id: CharacterId | PersonaId): ChatIdentity | undefined {
   return identities.find((identity) => identity.id === id);
 }
 

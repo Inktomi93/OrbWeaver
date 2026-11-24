@@ -24,7 +24,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { CollectionContribution, Registry } from "#lib";
+import type { CollectionContribution, CollectionMemberId, Registry } from "#lib";
 import type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 
 /** A reference to another KNOB — the teacher's "Related" link vocabulary (VS Code's
@@ -170,7 +170,7 @@ export type ConfigSearchRow = {
     }
   | {
       readonly subId?: never;
-      readonly memberId?: string;
+      readonly memberId?: CollectionMemberId;
     }
 );
 
@@ -237,9 +237,10 @@ export type ConfigGroupDefinition = ConfigGroupBase & { readonly body: ConfigGro
 export type ConfigGroupRegistry = Registry<ConfigGroupId, ConfigGroupDefinition>;
 
 /** The DOM id of a setting leaf's own control — the element a setting-level landing focuses. A section
- *  stamps it on the control a deep link to that leaf means; a leaf without one keeps focus where it was. */
-export function configSettingControlId(groupId: ConfigGroupId, settingId: string): string {
-  return `config-setting-${groupId}-${settingId}`;
+ *  stamps it on the control a deep link to that leaf means; a leaf without one keeps focus where it was.
+ *  The key is a leaf's own slug, or a plugin's id for a plugin leaf, so it names no one brand. */
+export function configSettingControlId(groupId: ConfigGroupId, settingKey: string): string {
+  return `config-setting-${groupId}-${settingKey}`;
 }
 
 /** A group whose body is the `collection` arm — the narrowing the host's welcome, mobile teaching, context

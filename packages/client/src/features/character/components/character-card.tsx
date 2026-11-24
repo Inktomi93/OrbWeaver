@@ -27,6 +27,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterSummary } from "@orb/contracts/character";
 import { exportCharacterPath } from "@orb/contracts/portability";
 import type { TagView } from "@orb/contracts/tag";
+import type { CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
@@ -62,15 +63,15 @@ export interface CharacterCardTileProps {
   /** Bulk mode: the click toggles selection (not open-editor) and a checkbox replaces the actions. */
   readonly bulkMode: boolean;
   readonly bulkSelected: boolean;
-  readonly onSelect: (id: string) => void;
-  readonly onToggleBulk: (id: string) => void;
+  readonly onSelect: (id: CharacterId) => void;
+  readonly onToggleBulk: (id: CharacterId) => void;
   /** The dual-purpose Chat CTA — the surface passes a handler that resumes the most-recent chat or
    *  starts a new one; the row is agnostic to which. */
-  readonly onChat: (id: string) => void;
-  readonly onToggleStar: (id: string, next: boolean) => void;
-  readonly onToggleArchive: (id: string, next: boolean) => void;
-  readonly onDuplicate: (id: string) => void;
-  readonly onDelete: (id: string) => void;
+  readonly onChat: (id: CharacterId) => void;
+  readonly onToggleStar: (id: CharacterId, next: boolean) => void;
+  readonly onToggleArchive: (id: CharacterId, next: boolean) => void;
+  readonly onDuplicate: (id: CharacterId) => void;
+  readonly onDelete: (id: CharacterId) => void;
   /** Hands focus to a neighbouring row when this row's delete confirms: the row unmounts with its confirm. */
   readonly rowFocus: RowDeleteFocus;
 }
@@ -225,11 +226,11 @@ function NormalRowActions({
    *  (`ListRow.titleQualifier` → a visible `Eleni · eleni-3`): one identity, two sentence shapes — a name
    *  standing alone, and a name inside a verb. */
   readonly subject: string;
-  readonly onChat: (id: string) => void;
-  readonly onToggleStar: (id: string, next: boolean) => void;
-  readonly onToggleArchive: (id: string, next: boolean) => void;
-  readonly onDuplicate: (id: string) => void;
-  readonly onDelete: (id: string) => void;
+  readonly onChat: (id: CharacterId) => void;
+  readonly onToggleStar: (id: CharacterId, next: boolean) => void;
+  readonly onToggleArchive: (id: CharacterId, next: boolean) => void;
+  readonly onDuplicate: (id: CharacterId) => void;
+  readonly onDelete: (id: CharacterId) => void;
   readonly rowFocus: RowDeleteFocus;
 }): ReactElement {
   /** Every verb the `row` scope offers, wired. `null` = not click-dispatched from this map: `exportCard`

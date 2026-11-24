@@ -147,7 +147,7 @@ function AddModelOnKeyBody({
     return values;
   };
 
-  const { form } = useAddModelOnKeyForm({ entityId: `add-model-on-key-${connection.id}`, serverValues: undefined, save });
+  const { form } = useAddModelOnKeyForm({ mountKey: `add-model-on-key-${connection.id}`, serverValues: undefined, save });
   const listOwner = connectionHost(connection.baseUrl) ?? providerLabel;
 
   const submit = (): void => {

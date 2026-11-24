@@ -15,7 +15,7 @@
 // CARRIERS READ `~—`, NOT `~0` (§5.1): a plain marker's cost is the CONVERSATION or the active world-info
 // set — chat-side facts this editor cannot know. A `~0` there would be a lie with a number on it.
 
-import type { PromptSection } from "@orb/contracts/preset";
+import type { PromptSection, PromptSectionId } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronRight, Hash, Icon, Lock, Zap } from "@orb/ui/icons";
@@ -49,9 +49,9 @@ export interface SectionRowProps {
   /** This row's section is the SELECTED one — the readout echoes it (ListRow paints the ember bar+tint). */
   readonly selected: boolean;
   /** SELECT (the name click) — the inspect act. */
-  readonly onSelect: (sectionId: string) => void;
+  readonly onSelect: (sectionId: PromptSectionId) => void;
   /** DRILL (the chevron) — open the consolidated editor. */
-  readonly onDrill: (sectionId: string) => void;
+  readonly onDrill: (sectionId: PromptSectionId) => void;
   /** This row's chevron is the drill-in's focus RESTORE target (side-eye F-04): back-out from the editor
    *  unmounts the drill-in and remounts the rack, so the control the user left from is a brand-new node —
    *  the row focuses it on mount when the id matches, rather than the caller holding a stale ref. */
