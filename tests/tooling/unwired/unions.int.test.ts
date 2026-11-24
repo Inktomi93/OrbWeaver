@@ -1088,3 +1088,100 @@ test("a judged row reports apart with its open item, and an entry for a done ite
     judgedExpected("KINDS_D.dopen", "KINDS_G.gshared"),
   );
 });
+
+// An array literal's element is read at its position in the type its slot declares: a Map's entry is a key then a value,
+// and a tuple type holds a vocabulary of its own at each index, written inline, through an alias, in a list of them, or
+// as a rest element. Each pair of tuples shares both texts, so a literal read at every position would build the other's
+// member.
+const POSITION_TREE = {
+  "packages/a/src/pairs.ts": [
+    'const KEYS = ["alpha", "beta"] as const;',
+    "type Key = (typeof KEYS)[number];",
+    'const VALS = ["alpha", "beta"] as const;',
+    "type Val = (typeof VALS)[number];",
+    'export const table = new Map<Key, Val>([["alpha", "beta"]]);',
+    'const PACES = ["idle", "busy"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    'const MODES = ["idle", "busy"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    'export const pair: readonly [Pace, Mode] = ["idle", "busy"];',
+    'const FASTS = ["a", "b"] as const;',
+    "type Fast = (typeof FASTS)[number];",
+    'const SLOWS = ["a", "b"] as const;',
+    "type Slow = (typeof SLOWS)[number];",
+    "type Step = readonly [Fast, Slow];",
+    'export const steps: readonly Step[] = [["a", "b"]];',
+    'const LEADS = ["x", "y"] as const;',
+    "type Lead = (typeof LEADS)[number];",
+    'const TAILS = ["x", "y"] as const;',
+    "type Tail = (typeof TAILS)[number];",
+    'export const run: readonly [Lead, ...Tail[]] = ["x", "x", "y"];',
+  ].join("\n"),
+};
+
+test("an array literal's element is read at its position in the tuple type or Map entry its slot declares", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, POSITION_TREE))).toEqual([
+    "FASTS.b",
+    "KEYS.beta",
+    "LEADS.y",
+    "MODES.idle",
+    "PACES.busy",
+    "SLOWS.a",
+    "VALS.alpha",
+  ]);
+});
+
+// A functional state updater returns the state's next value: `setStage((prev) => ...)` builds a Stage, and the twin
+// Phase tuple, whose setter takes `() => "open"`, is credited only for its own.
+const UPDATER_TREE = {
+  "packages/a/lib/react.ts": [
+    "export type SetStateAction<S> = S | ((prevState: S) => S);",
+    "export type Dispatch<A> = (value: A) => void;",
+    "export declare function useState<S>(initialState: S | (() => S)): [S, Dispatch<SetStateAction<S>>];",
+  ].join("\n"),
+  "packages/a/src/stage.ts": [
+    'import { useState } from "../lib/react.ts";',
+    'const STAGES = ["enter", "open", "gone"] as const;',
+    "type Stage = (typeof STAGES)[number];",
+    'const PHASES = ["enter", "open", "gone"] as const;',
+    "type Phase = (typeof PHASES)[number];",
+    "export function View(): void {",
+    '  const [stage, setStage] = useState<Stage>("enter");',
+    '  const [phase, setPhase] = useState<Phase>("enter");',
+    '  setStage((prev) => (prev === "enter" ? "open" : "gone"));',
+    '  setPhase(() => "open");',
+    "  void stage;",
+    "  void phase;",
+    "}",
+  ].join("\n"),
+};
+
+test("a functional state updater's returned value is read through the state's type argument", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, UPDATER_TREE))).toEqual(["PHASES.gone"]);
+});
+
+// An assignment to a library ref's `current` reads the library property's declared type under the ref's type argument,
+// whether the ref is annotated or made by `useRef<Presence>(...)`. TWINS shares every text with PRESENCES and is
+// assigned only through its own ref.
+const REF_TREE = {
+  "packages/a/lib/react.ts": ["export interface RefObject<T> { current: T }", "export declare function useRef<T>(initial: T): RefObject<T>;"].join("\n"),
+  "packages/a/src/dialog.ts": [
+    'import type { RefObject } from "../lib/react.ts";',
+    'import { useRef } from "../lib/react.ts";',
+    'const PRESENCES = ["closed", "open", "gone"] as const;',
+    "type Presence = (typeof PRESENCES)[number];",
+    'const TWINS = ["closed", "open", "gone"] as const;',
+    "type Twin = (typeof TWINS)[number];",
+    "export function dialog(isOpen: boolean): void {",
+    '  const shown = useRef<Presence>("closed");',
+    '  shown.current = isOpen ? "open" : "closed";',
+    '  const other = useRef<Twin>("closed");',
+    '  other.current = "gone";',
+    "}",
+    'export const held = (box: RefObject<Presence>): void => { box.current = "gone"; };',
+  ].join("\n"),
+};
+
+test("an assignment to a library ref's current value is read through the ref's type argument", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, REF_TREE))).toEqual(["TWINS.open"]);
+});
