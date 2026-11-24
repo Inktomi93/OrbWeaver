@@ -102,6 +102,57 @@ test("a value pushed through a wider element type writes the narrower element", 
   ]);
 });
 
+// A tree generic's `push` stores its argument in the instance and answers a count, so `Stack<Leaf>` handed as
+// `Stack<Wide>` pairs both ways and the caller's reads of `Leaf` read the push. `has` only compares its argument, so the
+// probe it takes as `Probe` fills nothing of `Stored`, whose `label` stays read and never written.
+test("a tree generic's method that stores its argument pairs both ways; one that compares does not", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Leaf { readonly label: string; readonly note?: string }",
+      "export interface Wide { readonly label: string; readonly note?: string; readonly spare?: string }",
+      "export interface Stored { readonly label?: string; readonly kept: string }",
+      "export interface Probe { readonly label?: string }",
+      "export class Stack<T> {",
+      "  readonly #items: T[] = [];",
+      "  push(value: T): number {",
+      "    this.#items.push(value);",
+      "    return this.#items.length;",
+      "  }",
+      "  has(value: T): boolean {",
+      "    return this.#items.includes(value);",
+      "  }",
+      "  peek(): T | undefined {",
+      "    return this.#items.at(-1);",
+      "  }",
+      "}",
+      "export class Pool<T> {",
+      "  readonly #items: T[] = [];",
+      "  has(value: T): boolean {",
+      "    return this.#items.includes(value);",
+      "  }",
+      "  first(): T | undefined {",
+      "    return this.#items[0];",
+      "  }",
+      "}",
+      'const fill = (stack: Stack<Wide>): void => { stack.push({ label: "l", note: "n" }); };',
+      'const look = (pool: Pool<Probe>): boolean => pool.has({ label: "p" });',
+      "export const shown = (): string => {",
+      "  const leaves = new Stack<Leaf>();",
+      "  fill(leaves);",
+      "  const top = leaves.peek();",
+      '  return (top?.label ?? "") + (top?.note ?? "") + String(leaves.has({ label: "h" }));',
+      "};",
+      "export const looked = (): string => {",
+      "  const pool = new Pool<Stored>();",
+      '  const one: Stored = { kept: "k" };',
+      '  return String(look(pool)) + (pool.first()?.label ?? "") + one.kept;',
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Probe.label", "member-untouched Wide.spare", "member-read-only Stored.label"]);
+});
+
 // The walk of `Options` runs once for each pair that meets it in one batch; a declared `out` wins in every one of them,
 // so `V` pairs forward only and the client's vars stay written and never read. A declared `in` wins over a value the
 // walk sees coming out, so `Box<Leaf>` handed as `Box<Shown>` reads nothing of `Leaf`.

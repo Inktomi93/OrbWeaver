@@ -1049,9 +1049,9 @@ export class Flows {
         : [];
     });
     const types = state.world.typesAt(receivers);
-    const mutable = state.batch(types.map((type) => (type?.isTypeReference() === true ? this.#mutableArray(type) : answer(false))));
+    const mutable = state.batch(types.map((type) => (type.isTypeReference() ? this.#mutableArray(type) : answer(false))));
     for (const [at, type] of types.entries()) {
-      if (type !== undefined && mutable[at] === true) {
+      if (mutable[at] === true) {
         this.#writtenLists.add(type.id);
       }
     }

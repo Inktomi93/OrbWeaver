@@ -543,7 +543,7 @@ function* keyInput(
 function validatedSpreadWrites(state: GraphState, validated: Validated): readonly SlotWrite[] {
   const spreads = [...validated.values()].flatMap(({ literal, type }) => literal.properties.filter(isSpreadAssignment).map((spread) => ({ spread, type })));
   const values = state.world.typesAt(spreads.map(({ spread }) => spread.expression));
-  const members = state.batch(values.map((value) => (value === undefined ? answer([]) : state.membersOf(value))));
+  const members = state.batch(values.map((value) => state.membersOf(value)));
   const named = state.batch(spreads.map(({ type }) => state.membersOf(type)));
   return spreads.flatMap(({ spread, type }, x) => {
     const names = new Set((named[x] ?? []).map(({ name }) => name));
