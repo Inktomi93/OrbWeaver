@@ -1386,3 +1386,23 @@ const FORWARDED_KEY_TREE = {
 test("a mapped key reaches a generic template's index through the type argument it is passed as", { timeout: 120_000 }, async ({ plantedTree }) => {
   expect(sortedRows(await scanUnions(plantedTree, FORWARDED_KEY_TREE))).toEqual(["MODES.dim", "THEMES.light"]);
 });
+
+// `Extract<T, U>` is the part of `T` that `U` selects: a slot typed `Extract<Pace | Mode, Mode>` holds Mode members, so
+// its `busy` builds MODES.busy and not the Pace member of the same text. An `Extract` whose `U` is only literals
+// (`Extract<Pace, "idle">`) is a subset of the tuple `T` names and still builds it.
+const EXTRACT_TREE = {
+  "packages/a/src/extract.ts": [
+    'const PACES = ["idle", "busy"] as const;',
+    "type Pace = (typeof PACES)[number];",
+    'const MODES = ["busy", "on"] as const;',
+    "type Mode = (typeof MODES)[number];",
+    "export const take = (value: Extract<Pace | Mode, Mode>): string => value;",
+    'export const taken = take("busy");',
+    'export const takeIdle = (value: Extract<Pace, "idle">): string => value;',
+    'export const idle = takeIdle("idle");',
+  ].join("\n"),
+};
+
+test("an Extract over aliases reads the type it selects, and one over literals the tuple it subsets", { timeout: 120_000 }, async ({ plantedTree }) => {
+  expect(sortedRows(await scanUnions(plantedTree, EXTRACT_TREE))).toEqual(["MODES.on", "PACES.busy"]);
+});

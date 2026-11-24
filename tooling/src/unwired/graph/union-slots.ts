@@ -27,6 +27,7 @@
 //   property's name; a library's mapped type (`Partial`, `Readonly`) keeps the declarations of the properties it maps. A
 //   type argument that is a literal selects properties and spells no vocabulary, and a type argument that is a key
 //   hands its keys on to the parameter it instantiates.
+// - `Extract<T, U>` with a `U` that names a type reads `U`: the result is the part of `T` that `U` selects.
 // - Remote nodes are materialised per request, so a declaration a symbol names is read back as its site and found
 //   again in the world's own parse of its file, and a walk keys what it has seen by span and kind, never by identity.
 import type {
@@ -1755,6 +1756,35 @@ function* scopedAccesses(world: NativeWorld, root: Node, bindings: Bindings): AP
   return found;
 }
 
+// The type arguments a slot reading leaves out: a container's argument for a literal that is no element of it, and the
+// part of an `Extract` its selector does not name.
+function* skippedArguments(world: NativeWorld, root: Node, positions: Positions): APIRequestGenerator<ReadonlySet<string>> {
+  const contained = isNested(positions) ? new Set<string>() : yield* containerArguments(world, root);
+  return new Set([...contained, ...(yield* extractedFrom(world, root))]);
+}
+
+// The first type argument of each library `Extract<T, U>` under `root` whose `U` names a type, by node key: the result is
+// the part of `T` that `U` selects, so a name in `T` that `U` does not name is no vocabulary of the slot. A `U` that is
+// only literals (`Extract<Pace, "idle">`) leaves `T` as the vocabulary it is a subset of.
+function* extractedFrom(world: NativeWorld, root: Node): APIRequestGenerator<ReadonlySet<string>> {
+  const references: TypeReferenceNode[] = [];
+  const visit = (node: Node): void => {
+    if (isTypeReferenceNode(node) && isIdentifier(node.typeName) && node.typeName.text === EXTRACT && node.typeArguments?.length === 2) {
+      references.push(node);
+    }
+    node.forEachChild(visit);
+  };
+  visit(root);
+  const selected = new Set<string>();
+  for (const { typeName, typeArguments } of references) {
+    const [from, by] = typeArguments ?? [];
+    if (from !== undefined && by !== undefined && referencedNames(by).length > 0 && isIdentifier(typeName) && (yield* isLibReference(world, typeName))) {
+      selected.add(nodeKey(from));
+    }
+  }
+  return selected;
+}
+
 // The type arguments of library interface and class references under `root`, by node key: a literal is no instance of
 // `Box<Mode>`, so `Mode` is its slot only when the literal is an element of the container.
 function* containerArguments(world: NativeWorld, root: Node): APIRequestGenerator<ReadonlySet<string>> {
@@ -1795,8 +1825,8 @@ function* readSpelling(world: NativeWorld, spelling: Spelling, reading: Reading)
   const next: Spelling[] = [];
   const scoped = (yield* scopedAccesses(world, root, bindings)).map((access) => ({ ...access, bindings, positions }));
   const objects = new Set(scoped.flatMap(({ node, index }) => [nodeKey(node), nodeKey(index)]));
-  const contained = reading === "slot" && !isNested(positions) ? yield* containerArguments(world, root) : new Set<string>();
-  for (const name of referencedNames(root).filter((candidate) => !(isUnder(candidate, objects) || isUnder(candidate, contained)))) {
+  const skipped = reading === "slot" ? yield* skippedArguments(world, root, positions) : new Set<string>();
+  for (const name of referencedNames(root).filter((candidate) => !(isUnder(candidate, objects) || isUnder(candidate, skipped)))) {
     const reached = yield* expansionsOf(world, name);
     if (reading === "slot" && reached === null) {
       return null;
@@ -2003,6 +2033,8 @@ function tupleElements(node: TupleTypeNode, at: Position | undefined): readonly 
 }
 
 const ARRAY_TYPE_NAMES: ReadonlySet<string> = new Set(["Array", "ReadonlyArray"]);
+
+const EXTRACT = "Extract";
 
 // The type a literal's first position selects from one written type: an array's or a tuple's element, through
 // parentheses, `readonly`, unions, intersections and product aliases. Null for a type that cannot select, which reads
