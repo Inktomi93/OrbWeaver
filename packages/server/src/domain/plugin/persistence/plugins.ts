@@ -8,7 +8,7 @@
 // and CAS ordering live in the verbs.
 
 import { providerIdSchema } from "@orb/contracts/inference";
-import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus, PluginView } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginManifest, PluginOrigin, PluginProviderView, PluginStatus, PluginView } from "@orb/contracts/plugin";
 import { pluginManifestSchema, storedPluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
@@ -34,6 +34,12 @@ function parsePluginRow(row: PluginRow): PluginRow {
     widenedNetHosts: pluginManifestSchema.shape.netHosts.unwrap().parse(row.widenedNetHosts),
     widenedProviderIds: providerIdSchema.array().parse(row.widenedProviderIds),
   };
+}
+
+/** The declared providers as a consent surface names them. The row's view and a stored-upgrade preview both read
+ *  it, so a card and a review call one provider by one label. */
+export function providerViewsOf(manifest: PluginManifest): readonly PluginProviderView[] {
+  return (manifest.providers ?? []).map((provider) => ({ id: provider.id, label: provider.label }));
 }
 
 /** The reach a row's standing re-consent still asks for, as an activation withholds it and the next upgrade
@@ -87,7 +93,7 @@ export function toPluginView(stored: PluginRow, showcaseSlugs: ReadonlySet<strin
     netHosts: row.manifest.netHosts ?? null,
     reconsentPending: row.pendingReconsent,
     widenedNetHosts: row.widenedNetHosts,
-    providers: (row.manifest.providers ?? []).map((provider) => ({ id: provider.id, label: provider.label })),
+    providers: providerViewsOf(row.manifest),
     matchAutomationEvents: row.manifest.matchAutomationEvents === true,
     widenedProviderIds: row.widenedProviderIds,
     widenedMatchAutomationEvents: row.widenedMatchAutomationEvents,
