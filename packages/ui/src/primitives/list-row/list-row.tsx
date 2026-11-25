@@ -412,6 +412,7 @@ export function ListRow({
     clickable: pressable,
     disclosure: expand !== undefined,
     float: actionsFloat,
+    metaQualifies: metaQualifiesTitle,
     // A datum that tells rows apart is the half a squeeze must never eat, so the name keeps its floor beside it either way.
     qualified: nameQualifier !== undefined,
     rail,

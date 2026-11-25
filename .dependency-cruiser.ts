@@ -580,6 +580,8 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_MESSAGE_HANDLING_SUBCATEGORY: the Message handling section's model, whose setting names its pane and its test both read",
   "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
     "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/app-shell/lib/appearance-accessibility-model.ts":
+    "APPEARANCE_ACCESSIBILITY_SUBCATEGORY: the Accessibility section's model, whose setting names its pane and its tests both read",
   "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
   "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
@@ -1104,10 +1106,8 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/app-shell/lib/command-shortcut-label.test.ts": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts": "commandShortcutLabel: the feature-private platform key hint",
   },
-  "tests/client/features/app-shell/components/appearance-sizing-preferences.ct.tsx": {
+  "tests/client/features/app-shell/components/appearance-accessibility-preferences.ct.tsx": {
     "packages/client/src/features/app-shell/lib/appearance-select-items.ts": "OS_PREFERENCE_ITEMS: the mode words the section's segments print",
-    "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
-      "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
   },
   "tests/client/features/config/lib/appearance-setting-place.dom.test.ts": {
     "packages/client/src/features/config/lib/appearance-setting-place.ts":

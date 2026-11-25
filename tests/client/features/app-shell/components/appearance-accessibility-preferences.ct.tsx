@@ -1,17 +1,18 @@
-// @subject packages/client/src/features/app-shell/components/appearance-sizing-section.tsx
-// The three OS preferences each offer System, On and Off, and a pick saves that mode on the appearance section.
+// @subject packages/client/src/features/app-shell/components/appearance-accessibility-section.tsx
+// The two OS preferences that offer modes (reduced motion and increased contrast) each offer System, On and Off, and a pick saves that mode on the appearance section.
 // The corpus root's settings verbs answer the section, so the merge that stores a pick is the server's own.
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { APPEARANCE_ACCESSIBILITY_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-accessibility-model.ts";
 import { OS_PREFERENCE_ITEMS } from "#client/features/app-shell/lib/appearance-select-items.ts";
-import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
-import type { SizingSectionStory } from "./_appearance-sizing-stories.tsx";
+import type { AccessibilitySectionStory } from "./_appearance-sizing-stories.tsx";
 
-const STORY = "tests/client/features/app-shell/components/_appearance-sizing-stories/SizingSectionStory";
-// The model's leaves that offer the OS preference modes: their labels name the groups, their keys are what a pick writes.
-const PREFERENCES = (APPEARANCE_SIZING_SUBCATEGORY.settings ?? []).flatMap((leaf) =>
+const STORY = "tests/client/features/app-shell/components/_appearance-sizing-stories/AccessibilitySectionStory";
+// The model's leaves that offer the OS preference modes: their labels name the groups, their keys are what a pick writes. The device's reduced
+// transparency is a switch, not a mode, so it is not one of them.
+const PREFERENCES = (APPEARANCE_ACCESSIBILITY_SUBCATEGORY.settings ?? []).flatMap((leaf) =>
   leaf.options === OS_PREFERENCE_ITEMS && leaf.key !== undefined ? [leaf] : [],
 );
 const OFF = OS_PREFERENCE_ITEMS.find((item) => item.value === "off");
@@ -31,10 +32,10 @@ test("each OS preference offers three modes and saves the one picked", async ({ 
   if (OFF === undefined) {
     throw new Error("The OS preference items name no off mode");
   }
-  expect(PREFERENCES).toHaveLength(3);
+  expect(PREFERENCES).toHaveLength(2);
   const caller = await root.internalCallerFor(root.ownerId);
   await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "settings.updateUserSettingsSection"]));
-  await mount<typeof SizingSectionStory>(STORY, {});
+  await mount<typeof AccessibilitySectionStory>(STORY, {});
 
   for (const { label, key } of PREFERENCES) {
     const group = page.getByRole("group", { name: label, exact: true });

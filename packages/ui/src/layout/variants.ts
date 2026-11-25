@@ -167,10 +167,11 @@ const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A capped box centres in the room its cap leaves.
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
 // pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed; `section` crosses the held inset
-// `paddingInline="section"` writes, so a bleed ends on the parent's edge at enlarged text too.
+// `paddingInline="section"` writes, so a bleed ends on the parent's edge at enlarged text too: under a 20rem pane the parent gives that inset back
+// (`paddingInlineCramped`), and the bleed gives back the same step.
 const REACH = {
   row: "-mx-row px-row",
-  section: "-mx-inset-section px-inset-section",
+  section: "-mx-inset-section px-inset-section @max-cq-20:-mx-inset-block @max-cq-20:px-inset-block",
 } as const;
 // A Row's own reach. `column` and `page` cross the two reading boxes' insets, from the one table that lays those insets, phone step
 // included. `header` and `foot` cross a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps
@@ -603,7 +604,7 @@ export const gridVariants = tv({
     gapInline: { row: "gap-x-row", block: "gap-x-block" },
     gapBlock: { tight: "gap-y-tight", field: "gap-y-field" },
     // A snapping track keeps its edge item clear of the scrollport's edge, by the same held inset its `section` reach crosses.
-    scrollInset: { section: "scroll-px-inset-section" },
+    scrollInset: { section: "scroll-px-inset-section @max-cq-20:scroll-px-inset-block" },
     cap: CAP,
     width: WIDTH,
     minWidth: { shrinks: MIN_WIDTH.shrinks },

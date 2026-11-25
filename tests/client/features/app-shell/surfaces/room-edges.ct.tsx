@@ -14,7 +14,8 @@ import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const ROW = '[data-slot="chat-room-flank-row"] [data-slot="message-row"]';
 const REGION = '[data-slot="chat-room-composer-region"]';
-const COMPOSER = `${REGION} [data-track="composer"]`;
+// The card, not every element on the composer track: the above-composer band and the reply-status tail ride that track too, and the tail comes last.
+const COMPOSER = `${REGION} [data-track="composer"][data-slot="composer"]`;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
