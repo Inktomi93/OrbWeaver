@@ -167,11 +167,13 @@ const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A capped box centres in the room its cap leaves.
 // A box that crosses its parent's inline inset to the parent's edge and keeps its content where it was: the bleed and the inset that
 // pays it back are one choice, so they cannot drift apart. `row` and `section` name the inset crossed; `section` crosses the held inset
-// `paddingInline="section"` writes, so a bleed ends on the parent's edge at enlarged text too: under a 20rem pane the parent gives that inset back
-// (`paddingInlineCramped`), and the bleed gives back the same step.
+// `paddingInline="section"` writes, so a bleed ends on the parent's edge at enlarged text too. A parent that gives that inset back
+// (`paddingInlineCramped`) publishes the step it kept as `--held-inset`, which the bleed reads: the bleed sits in boxes the parent's
+// container query cannot see through (a nested container measures a narrower box), so it cannot make that query itself.
+// The classes are spelled whole: Tailwind finds a class by its literal text, never through an interpolation.
 const REACH = {
   row: "-mx-row px-row",
-  section: "-mx-inset-section px-inset-section @max-cq-20:-mx-inset-block @max-cq-20:px-inset-block",
+  section: "-mx-[var(--held-inset,var(--spacing-inset-section))] px-[var(--held-inset,var(--spacing-inset-section))]",
 } as const;
 // A Row's own reach. `column` and `page` cross the two reading boxes' insets, from the one table that lays those insets, phone step
 // included. `header` and `foot` cross a message card's own edges, whose insets are the `--row-reach-*` the card sets: a `header` keeps
@@ -329,7 +331,7 @@ export const stackVariants = tv({
     paddingInlineNarrow: PADDING_INLINE_NARROW,
     // The inline inset a box gives back under a 20rem pane, the width an enlarged root leaves a phone, so a control row of its own
     // width still fits.
-    paddingInlineCramped: { block: "@max-cq-20:px-inset-block" },
+    paddingInlineCramped: { block: "@max-cq-20:px-inset-block @max-cq-20:[--held-inset:var(--spacing-inset-block)]" },
     // The block-start inset a box gives up at a phone-width pane.
     paddingBlockStartNarrow: { none: "@max-cq-32:pbs-0" },
     paddingInlineEndNarrow: PADDING_INLINE_END_NARROW,
@@ -604,7 +606,7 @@ export const gridVariants = tv({
     gapInline: { row: "gap-x-row", block: "gap-x-block" },
     gapBlock: { tight: "gap-y-tight", field: "gap-y-field" },
     // A snapping track keeps its edge item clear of the scrollport's edge, by the same held inset its `section` reach crosses.
-    scrollInset: { section: "scroll-px-inset-section @max-cq-20:scroll-px-inset-block" },
+    scrollInset: { section: "scroll-px-(--held-inset,var(--spacing-inset-section))" },
     cap: CAP,
     width: WIDTH,
     minWidth: { shrinks: MIN_WIDTH.shrinks },
