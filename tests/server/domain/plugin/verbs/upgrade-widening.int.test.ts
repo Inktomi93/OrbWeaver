@@ -52,11 +52,14 @@ interface Installed {
   readonly approve: (card: PluginView) => Promise<PluginView>;
 }
 
-/** Install and enable the first version, consenting to everything it declares. */
-async function installEnabled(root: ServerTestHarness): Promise<Installed> {
+/** Install the first version, consenting to everything it declares, and enable it. Left disabled, no activation has
+ *  claimed its provider ids for the owner, so the connection claim cannot refuse a later definition of one. */
+async function installEnabled(root: ServerTestHarness, enabled = true): Promise<Installed> {
   const who = await root.principalFor(root.ownerId);
   const installed = await root.services.plugin.install({ caller: who, bundle: makePluginBundle(manifestOf("1.0.0", {}), GUEST, root.clock.now()), grant: [] });
-  await root.services.plugin.setEnabled({ caller: who, pluginId: installed.id, enabled: true });
+  if (enabled) {
+    await root.services.plugin.setEnabled({ caller: who, pluginId: installed.id, enabled: true });
+  }
   return {
     who,
     pluginId: installed.id,
@@ -120,6 +123,46 @@ test("a twin upgrade that adds no provider and keeps the automation opt-in re-ac
 
   const upgraded = await plugin.upgrade("1.0.1", {});
   expect(upgraded).toMatchObject({ status: "enabled", reconsentPending: false, widenedProviderIds: [], widenedMatchAutomationEvents: false });
+  expect(await plugin.offered()).toEqual([FIRST_ID]);
+});
+
+// The first provider under the same id with one more chat route: a definition the owner was never shown.
+const REDEFINED_APIS = ["chat-completions", "responses"] as const;
+const redefined = { providers: [makePluginProviderRow(PLUGIN, FIRST, { apis: [...REDEFINED_APIS] })] };
+
+test("an upgrade that redefines an approved provider id no activation claimed waits for re-consent and withholds it until approved", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const plugin = await installEnabled(root, false);
+  expect(await plugin.offered()).toEqual([]);
+
+  const upgraded = await plugin.upgrade("1.1.0", redefined);
+  expect(upgraded).toMatchObject({ status: "disabled", reconsentPending: true, widenedProviderIds: [FIRST_ID] });
+
+  // Enabling grants nothing: the redefined provider stays withheld, so no connection can bind the new definition.
+  await root.services.plugin.setEnabled({ caller: plugin.who, pluginId: plugin.pluginId, enabled: true });
+  expect(await plugin.offered()).toEqual([]);
+
+  const consented = await plugin.approve(upgraded);
+  expect(consented).toMatchObject({ status: "enabled", reconsentPending: false, widenedProviderIds: [] });
+  const offered = (await root.services.connection.providersAvailable({ principal: plugin.who })).find(({ provider }) => provider.id === FIRST_ID);
+  expect(offered?.provider.apis).toEqual(REDEFINED_APIS);
+});
+
+test("an upgrade that re-declares an approved provider unchanged, its keys spelled in another order, re-activates enabled", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const plugin = await installEnabled(root);
+  const { id, ...rest } = makePluginProviderRow(PLUGIN, FIRST);
+  // Built after the schema parse, so the bundle's manifest bytes carry the id last; the definition is the same.
+  const respelled = { ...manifestOf("1.0.1", {}), providers: [{ ...rest, id }] };
+
+  const upgraded = await root.services.plugin.upgrade({
+    caller: plugin.who,
+    pluginId: plugin.pluginId,
+    bundle: makePluginBundle(respelled, GUEST, root.clock.now()),
+  });
+  expect(upgraded).toMatchObject({ status: "enabled", reconsentPending: false, widenedProviderIds: [] });
   expect(await plugin.offered()).toEqual([FIRST_ID]);
 });
 

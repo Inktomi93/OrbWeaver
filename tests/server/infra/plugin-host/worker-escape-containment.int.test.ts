@@ -20,7 +20,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import type { createPluginHost } from "@orb/server/infra/plugin-host";
 import type { createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { HOST_FN_ARGS_MAX_BYTES, PLUGIN_BROKER_LIVENESS_BOUND_MS, PLUGIN_WORKER_HEAP_MAX_MEBIBYTES } from "#server/infra/plugin-host/budgets.ts";
+import { PLUGIN_BROKER_LIVENESS_BOUND_MS, PLUGIN_WORKER_HEAP_MAX_MEBIBYTES } from "#server/infra/plugin-host/budgets.ts";
 import { formatPluginBrokerArguments } from "#server/infra/plugin-host/process-argv.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import { pluginBrokerExecArgv } from "#server/infra/plugin-host/process-permission.ts";
@@ -234,14 +234,12 @@ test("a guest Worker grown past its heap ceiling ends alone, and the same broker
   expect(broker.reports).toEqual([]);
 
   // Positive control: the broker that ran it is still serving, and the ceiling holds the largest transient an honest
-  // guest makes the host build, a whole-string dump it then refuses for its size.
+  // guest makes the host build, a whole-string read it serves. A host call refuses a value this long unread.
   const code = `const h = orb.host(1);
-    h.variables.set("big", "x".repeat(${String(LARGEST_DUMP_CHARS)})).catch((e) => h.log.info("refused " + e.message)).then(() => h.variables.get("held")).then((value) => h.log.info("served " + value));`;
+    h.log.info("counted " + typeof h.tokens.count("x".repeat(${String(LARGEST_DUMP_CHARS)})));
+    h.variables.get("held").then((value) => h.log.info("served " + value));`;
   const served = await broker.snippet(ids.uuid(), code, Promise.resolve());
-  expect(served).toMatchObject({
-    ok: true,
-    value: { logLines: [expect.stringContaining(`exceed the ${String(HOST_FN_ARGS_MAX_BYTES)}-byte inbound cap`), "[info] served after the probe"] },
-  });
+  expect(served).toMatchObject({ ok: true, value: { logLines: ["[info] counted number", "[info] served after the probe"] } });
   expect(broker.alive()).toBe(true);
 });
 

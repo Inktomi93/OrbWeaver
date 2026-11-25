@@ -79,6 +79,7 @@ export default defineConfig<CtCorpusOptions>({
         "**/platform-*.suite.ct.tsx",
         "**/features/chat/components/appearance-message-style-section.ct.tsx",
         "**/features/chat/components/framed-media-notice.ct.tsx",
+        "**/content/sandbox-frame/sandbox-frame-resource-hints.ct.tsx",
         "**/features/chat/components/composer-two-rows.ct.tsx",
         "**/features/chat/components/context-tab-strip-fade.ct.tsx",
         "**/features/app-shell/surfaces/context-rail-focus.ct.tsx",
@@ -100,6 +101,12 @@ export default defineConfig<CtCorpusOptions>({
         "**/content/theme-swatch/preview-pane.ct.tsx",
       ],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
+    },
+    // Opt-in (`pnpm test:ct:firefox`) on Playwright's Firefox build, for the frame cases whose outcome differs by engine.
+    {
+      name: "firefox",
+      testMatch: ["**/content/sandbox-frame/sandbox-frame-resource-hints.ct.tsx"],
+      use: { ...devices["Desktop Firefox"], launchOptions: nativeBrowserLaunchOptions("firefox") },
     },
     { name: "tooling", testDir: "tests/tooling" },
   ],

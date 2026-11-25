@@ -23,7 +23,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
-import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
+import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, GLOBAL_VARIABLE_KEY_MAX_CHARS, GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
 import type { VariablePrecondition } from "@orb/contracts/chat";
 import { variablePreconditionsSchema } from "@orb/contracts/chat";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
@@ -51,6 +51,8 @@ import {
   HOST_FUNCTION_CAPABILITY,
   PLUGIN_CARD_DATA_FIND_MAX,
   PLUGIN_FRAME_SURFACES_MAX,
+  PLUGIN_KV_KEY_MAX_CHARS,
+  PLUGIN_KV_VALUE_MAX_BYTES,
   PLUGIN_PUBSUB_NAME_RE,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
   PLUGIN_QUIET_IMAGES_MAX,
@@ -90,7 +92,7 @@ import {
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { LocalPluginHostSeams } from "./contract/port.ts";
 import { pumpGuestJobs, settleInCpuWindow } from "./cpu-guard.ts";
-import type { GuestMarshal } from "./marshal.ts";
+import type { GuestMarshal, ReadAllowance } from "./marshal.ts";
 import { GuestCallFailure, guestJson } from "./marshal.ts";
 
 /** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context) and is
@@ -283,6 +285,9 @@ interface AsyncFnSpec {
   readonly log: Logger;
   readonly marshal: GuestMarshal;
   readonly impl: (args: readonly unknown[], signal: AbortSignal) => Promise<unknown>;
+  /** The most string, in UTF-16 units, the function's arguments can hold and still be served, when its store keeps
+   *  less than {@link HOST_FN_ARGS_MAX_BYTES}: a longer call is refused before it is read. */
+  readonly argUnitsMax?: number;
 }
 
 function commandHandler(ctx: QuickJSContext, onRun: QuickJSHandle, composerDraft: boolean): QuickJSHandle {
@@ -357,8 +362,8 @@ const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
  *  Call it only inside a host function built by `marshal.newHostFunction`: a realm failure during the read (the
  *  CPU interrupt, the memory limit, a guest trap that throws) throws {@link GuestCallFailure}, which that function
  *  hands back to the guest. */
-function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle): ArgRead {
-  const read = marshal.fromGuest(handle);
+function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle, allowance?: ReadAllowance): ArgRead {
+  const read = marshal.fromGuest(handle, allowance);
   switch (read.kind) {
     case "value":
       return { ok: true, value: read.value };
@@ -1154,6 +1159,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: GLOBAL_VARIABLE_KEY_MAX_CHARS + GLOBAL_VARIABLE_VALUE_MAX_BYTES,
     impl: async (args, signal) => {
       await runtime.bridge.variables.set(stringArg(args, 0, "variables.set", "key"), stringArg(args, 1, "variables.set", "value"), invocationLiveness(signal));
       return null;
@@ -1177,7 +1183,8 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
 /** storage.get/set/compareAndSet/delete/list — capability storage.kv. The plugin-PRIVATE KV: the bridge op
  *  is closed DOMAIN-side over the pluginId + installer (owner), so a guest names only the key/prefix and can
  *  NEVER read another plugin's (or owner's) keys. Not host-authority gated (a plugin's own private store is not
- *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op. */
+ *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op; a writer
+ *  whose strings are longer than its key and values together could ever be is refused here, unread. */
 function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using storage = ctx.newObject();
   attachAsync(ctx, storage, {
@@ -1196,6 +1203,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS + PLUGIN_KV_VALUE_MAX_BYTES,
     impl: async (args, signal) => {
       await runtime.bridge.storage.set(stringArg(args, 0, "storage.set", "key"), stringArg(args, 1, "storage.set", "value"), invocationLiveness(signal));
       return null;
@@ -1213,6 +1221,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS + 2 * PLUGIN_KV_VALUE_MAX_BYTES,
     impl: async (args, signal) => {
       const expected = args[1] === null || args[1] === undefined ? null : stringArg(args, 1, "storage.compareAndSet", "expected value");
       const key = stringArg(args, 0, "storage.compareAndSet", "key");
@@ -1867,6 +1876,43 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
   runtime.marshal.setHostProp(surface, "net", net);
 }
 
+function argsOverCap(name: string, cap: number): string {
+  return `plugin host: ${name} arguments exceed the ${String(cap)}-byte inbound cap`;
+}
+
+/** One host call's arguments read into the host, or why they are refused. Each check runs before the in-flight gate,
+ *  so a refused call never charges a slot.
+ *
+ *  - THE INBOUND LENGTH ALLOWANCE: every string the arguments hold is measured before it is read, against the most the
+ *    call can carry or its store can keep, so a call refused for its size has copied nothing out of the realm
+ *    (`marshal.ts`). Its bytes are at least its units, so the refusal names the cap as bytes truthfully.
+ *  - THE INBOUND DEPTH GUARD: the marshal's bounded walk refuses a too-deep or too-wide argument as it reads it,
+ *    because a deeply-nested guest argument handed to the binding's dump would overflow it host-side and corrupt the
+ *    WASM runtime (`budgets.ts`).
+ *  - THE INBOUND ARG CAP: the mirror of the result cap, on the bytes the read arguments cross as.
+ *
+ *  Call it inside a host function, as {@link tryDumpGuestValue}. */
+function readHostArgs(
+  marshal: GuestMarshal,
+  name: string,
+  argHandles: readonly QuickJSHandle[],
+  argUnitsMax: number,
+): { readonly ok: true; readonly args: readonly unknown[] } | { readonly ok: false; readonly refusal: string } {
+  const allowance: ReadAllowance = { units: argUnitsMax };
+  const args: unknown[] = [];
+  for (const handle of argHandles) {
+    const dumped = tryDumpGuestValue(marshal, handle, allowance);
+    if (!dumped.ok) {
+      return { ok: false, refusal: allowance.units < 0 ? argsOverCap(name, argUnitsMax) : `plugin host: ${name} argument is ${dumped.reason}` };
+    }
+    args.push(dumped.value);
+  }
+  if (exceedsArgBudget(args, HOST_FN_ARGS_MAX_BYTES)) {
+    return { ok: false, refusal: argsOverCap(name, HOST_FN_ARGS_MAX_BYTES) };
+  }
+  return { ok: true, args };
+}
+
 /** True once the already-dumped guest arguments exceed `cap` serialized bytes. An ITERATIVE walk that
  *  SHORT-CIRCUITS the moment the budget is blown — so a hostile payload costs ~`cap` of accounting, not a
  *  second full `JSON.stringify` of the whole graph. Every value is charged its own JSON text, which is the form a
@@ -1876,9 +1922,8 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
  *  WHAT THIS BOUNDS, precisely: everything that crosses into a domain op, and everything RETAINED host-side for
  *  the life of the async impl — which is the amplification (`HOST_CALLS_IN_FLIGHT_MAX` concurrent calls, each
  *  previously free to hold the guest's whole 32 MiB heap, plus whatever the op then did with it: a
- *  `storage.set` writes it, a `net.fetch` body sends it). What it does NOT bound is the TRANSIENT read
- *  (`marshal.ts` `fromGuest`) it must measure — one at a time per context, and already bounded by the instance memory cap.
- *  Do not read this cap as a bound on peak host memory; it is a bound on retained and forwarded bytes. */
+ *  `storage.set` writes it, a `net.fetch` body sends it). The TRANSIENT read it measures is bounded before it, by the
+ *  length allowance in {@link readHostArgs}; this cap adds the exact byte count, which a length cannot give. */
 function exceedsArgBudget(args: readonly unknown[], cap: number): boolean {
   let bytes = 0;
   const pending: unknown[] = [...args];
@@ -1967,7 +2012,7 @@ function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise,
  *  this does NOT claim to be: a spend CEILING (the D46 amendment retired the plugin spend tier
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
-  const { ref, grants, inFlight, pending, impl, log, marshal } = spec;
+  const { ref, grants, inFlight, pending, impl, log, marshal, argUnitsMax = HOST_FN_ARGS_MAX_BYTES } = spec;
   const name = hostFunctionName(ref);
   const capability = HOST_FUNCTION_CAPABILITY[ref];
   // The membrane runs in the broker Worker, whose spans reach no debug surface.
@@ -1981,24 +2026,13 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
       return marshal.rejectedWith(new PluginCapabilityError(capability));
     }
     //
-    // THE INBOUND DEPTH GUARD — the marshal's bounded walk refuses a too-deep or too-wide arg as it reads it,
-    // because a deeply-nested guest arg handed to the binding's dump would overflow it host-side and corrupt the
-    // WASM runtime (`budgets.ts`). A refusal is an already-rejected promise and registers nothing in `pending`.
     // The reads come before any handle of ours exists: a realm failure during one goes back to the guest as it is.
-    const args: unknown[] = [];
-    for (const handle of argHandles) {
-      const dumped = tryDumpGuestValue(marshal, handle);
-      if (!dumped.ok) {
-        return marshal.rejectedWith({ name: "Error", message: `plugin host: ${name} argument is ${dumped.reason}` });
-      }
-      args.push(dumped.value);
+    // A refusal is an already-rejected promise and registers nothing in `pending`.
+    const read = readHostArgs(marshal, name, argHandles, argUnitsMax);
+    if (!read.ok) {
+      return marshal.rejectedWith({ name: "Error", message: read.refusal });
     }
-
-    // THE INBOUND ARG CAP — the mirror of the result cap below, checked BEFORE the in-flight gate so a refused
-    // call never charges a slot.
-    if (exceedsArgBudget(args, HOST_FN_ARGS_MAX_BYTES)) {
-      return marshal.rejectedWith({ name: "Error", message: `plugin host: ${name} arguments exceed the ${HOST_FN_ARGS_MAX_BYTES}-byte inbound cap` });
-    }
+    const { args } = read;
 
     // Two counts under one cap: host work still running, and guest promises not yet settled, a settlement held while
     // the account is spent included. The second bounds what held settlements keep in memory to the cap's number of

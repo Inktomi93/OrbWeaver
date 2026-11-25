@@ -137,6 +137,32 @@ test("the built document applies the clamps itself, so hostile tokens never reac
   expect(document).toContain("font-family: sans-serif;");
 });
 
+// Each spelling the HTML tokenizer reads as a `<link>` start tag, beside the held form the served bytes must carry.
+const LINK_SPELLINGS: readonly (readonly [string, string])[] = [
+  ['<link rel="preconnect" href="https://beacon.test">', '<wbr rel="preconnect" href="https://beacon.test">'],
+  ["<LINK rel=dns-prefetch href=//beacon.test>", "<wbr rel=dns-prefetch href=//beacon.test>"],
+  ["<Link\trel=prefetch href=https://beacon.test/p>", "<wbr\trel=prefetch href=https://beacon.test/p>"],
+  ["<link\nrel=preload as=image href=https://beacon.test/i>", "<wbr\nrel=preload as=image href=https://beacon.test/i>"],
+  ["<link/rel=preconnect/href=https://beacon.test>", "<wbr/rel=preconnect/href=https://beacon.test>"],
+  ["<link\frel=preconnect href=https://beacon.test>", "<wbr\frel=preconnect href=https://beacon.test>"],
+  ["<link>", "<wbr>"],
+];
+// Start tags whose name only begins with `link`: a different element, so the hold leaves them as written.
+const NOT_LINK_TAGS = ["<link-card>", "<linked>", "<linkx rel=preconnect>"];
+
+test("every authored link start tag is held in the body and in a stylesheet that closes its own style element", () => {
+  for (const [authored, held] of LINK_SPELLINGS) {
+    const fromBody = buildCardFrameDocument({ ...CONTENT, html: `<p>card</p>${authored}` });
+    expect(fromBody, authored).toContain(`<body><p>card</p>${held}</body>`);
+    const fromSheet = buildCardFrameDocument({ ...CONTENT, css: `p{color:red}</style>${authored}<style>` });
+    expect(fromSheet, authored).toContain(`p{color:red}</style>${held}<style>`);
+    expect(buildCardFrameDocument({ ...CONTENT, html: authored }, "default-src 'none'"), authored).toContain(held);
+  }
+  for (const tag of NOT_LINK_TAGS) {
+    expect(buildCardFrameDocument({ ...CONTENT, html: tag }), tag).toContain(`<body>${tag}</body>`);
+  }
+});
+
 test("a font-family list with an unbalanced or stray quote is refused by both font readers; shipped stacks pass", () => {
   for (const family of UNBALANCED_FAMILIES) {
     expect(clampCardFrameFontFamily(family), family).toBeUndefined();

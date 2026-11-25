@@ -5,8 +5,16 @@
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
 import type { PluginHostV1 } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_HOST_VERSIONS, PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
+import {
+  HOST_FUNCTION_CAPABILITY,
+  HostVersionError,
+  PLUGIN_HOST_VERSIONS,
+  PLUGIN_KV_VALUE_MAX_BYTES,
+  PluginCapabilityError,
+  PluginHostDeadlineError,
+} from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps, GuestRun, ServerTestHarness } from "@orb/testkit/node/composed";
@@ -185,6 +193,53 @@ test("a host call whose arguments pass the inbound byte budget is refused before
   expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES / 2 })).toEqual({ ok: true, value: null });
   expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: false, name: Error.name });
 });
+
+// Each write passes its value, then an argument whose read the guest sees. A host that reads a value before refusing it
+// for its size has read the later argument too.
+const LATER = "let read = false; const later = { get probe() { read = true; return 1; } };";
+const STORE_WRITES = {
+  "storage.set": `async (h, room, a) => { ${LATER} try { await h.storage.set('k', 'v'.repeat(a.length), later); return ['stored', read]; } catch (e) { return [e.name, read]; } }`,
+  "storage.compareAndSet": `async (h, room, a) => { ${LATER} try { await h.storage.compareAndSet('k', null, 'v'.repeat(a.length), later); return ['stored', read]; } catch (e) { return [e.name, read]; } }`,
+  "variables.set": `async (h, room, a) => { ${LATER} try { await h.variables.set('k', 'v'.repeat(a.length), later); return ['stored', read]; } catch (e) { return [e.name, read]; } }`,
+  nestedKey: `async (h, room, a) => { ${LATER} try { await h.storage.get({ ['k'.repeat(a.length)]: 1 }, later); return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
+  nestedValue: `async (h, room, a) => { ${LATER} try { await h.storage.get([['v'.repeat(a.length)]], later); return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
+} as const satisfies GuestOps;
+// Far past every store's value cap and inside what any host call carries, so only the store's own size refuses it.
+const PAST_STORE_LENGTH = HOST_FN_ARGS_MAX_BYTES / 2;
+
+test.for([
+  { op: "storage.set", atCap: PLUGIN_KV_VALUE_MAX_BYTES },
+  { op: "storage.compareAndSet", atCap: PLUGIN_KV_VALUE_MAX_BYTES },
+  { op: "variables.set", atCap: GLOBAL_VARIABLE_VALUE_MAX_BYTES },
+] as const satisfies readonly { readonly op: keyof typeof STORE_WRITES; readonly atCap: number }[])(
+  "a $op value longer than the store keeps is refused before the host reads it or any later argument, and one at the cap is stored",
+  { tags: ["slow"] },
+  async ({ op, atCap }) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const capability = HOST_FUNCTION_CAPABILITY[op];
+    const pluginId = await installGuest(root, owner, { slug: "store-writer", capabilities: [capability] }, STORE_WRITES);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    expect(await run(op, { length: PAST_STORE_LENGTH })).toEqual({ ok: true, value: [Error.name, false] });
+    expect(await run(op, { length: atCap })).toEqual({ ok: true, value: ["stored", true] });
+  },
+);
+
+test.for(["nestedKey", "nestedValue"] as const)(
+  "an argument whose %s is past the inbound cap is refused before any later argument is read",
+  { tags: ["slow"] },
+  async (op) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const pluginId = await installGuest(root, owner, { slug: "store-writer", capabilities: ["storage.kv"] }, STORE_WRITES);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    expect(await run(op, { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: true, value: [Error.name, false] });
+    // The same shape inside the cap is read whole, the later argument with it, and refused only as a key.
+    expect(await run(op, { length: 1 })).toEqual({ ok: true, value: [Error.name, true] });
+  },
+);
 
 // Each loop catches everything a host call throws and never ends on its own, so only the CPU interrupt ends it.
 // `refusalLoop` holds the in-flight cap, so all but the first calls are refused; `readLoop` passes a string each call.

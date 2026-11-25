@@ -73,6 +73,13 @@
 // deployment "Block external media" ceiling. What the grant changes is not WHICH channel exists but what
 // can be encoded in it: a script composes a URL from what it observed, where authored markup could only
 // carry a constant.
+// WEBKIT RESOURCE HINTS, which no directive covers. Playwright WebKit 2370 opens the TCP connection a
+// `<link rel=preconnect>` names, to any host, from a sandboxed frame under the static card policy and the plugin
+// frame policy alike, while the same frame's `fetch` and off-origin `img` are refused. Chromium and Firefox open
+// nothing there. So every authored `<link>` start tag is rewritten to an inert element before render
+// ({@link buildCardFrameDocument}), which closes it for markup with no script. A `<link>` is dead weight in a card
+// frame anyway: `style-src` admits no sheet URL. A script that inserts the element itself still reaches the host,
+// on WebKit only: residual R2 below.
 // The frame's isolation holds under script: `document.cookie`, `localStorage`, `parent.document` and a
 // SIBLING card frame's document all throw SecurityError, and a sibling frame cannot be navigated
 // ("Unsafe attempt to initiate navigation for frame …"). A card CAN `postMessage` the embedder and its
@@ -93,6 +100,10 @@
 // server mint. The default's floor is Interactive by owner ruling, so R1 is open on a default deployment; an
 // operator closes it for inheriting characters by lowering the default, a character's owner keeps it open for
 // that character by setting it to Interactive, and a viewer closes it for their own browser.
+//
+// RESIDUAL R2 — A SCRIPTED WEBKIT PRECONNECT. An interactive card or a plugin frame that creates a `<link
+// rel=preconnect>` from script opens a connection to the host it names on WebKit. It carries what R1 carries in
+// the hostname, and the same consents that decide R1 decide it.
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a
@@ -731,6 +742,20 @@ export function holdCardFrameMedia(doc: string): string {
   return doc.replace("<style>", () => `<style>${HELD_MEDIA_CSS} `);
 }
 
+// A `<link>` start tag as the HTML tokenizer reads one: its name ends at whitespace, `/` or `>`, in any letter case.
+// Matching every spelling of the tag, never its `rel`, leaves no hint keyword or rel-token spelling to slip past.
+// A match inside a comment, a raw-text element or an attribute value changes only that text.
+const LINK_START_TAG = /<link(?=[\t\n\f\r />])/giu;
+// What a `<link>` start tag becomes: a void element, so nothing after it is re-parented, and one that fetches
+// nothing whatever attributes it keeps.
+const HELD_LINK_START_TAG = "<wbr";
+
+// Authored markup with every `<link>` start tag held (the WEBKIT RESOURCE HINTS note in the header). It runs on the
+// stylesheet too, because a sheet that closes its own `<style>` writes markup into the document head.
+function holdAuthoredLinks(text: string): string {
+  return text.replace(LINK_START_TAG, HELD_LINK_START_TAG);
+}
+
 /**
  * Assembles the full card document. `metaCsp` is the SRCDOC arm's in-document policy; the routed arm passes
  * it `undefined` because its policy rides the response header (a `<meta>` copy there would be a second,
@@ -746,8 +771,8 @@ export function holdCardFrameMedia(doc: string): string {
  * unclosed `<!--` in the body would) and so the untrusted content has no way to influence the one thing in
  * the document that is allowed to execute. It measures on DOMContentLoaded, hence never runs before a body.
  *
- * The clamps run HERE, on every call, regardless of what the caller already did — the server's call is a
- * trust boundary and must not inherit the client's word for it.
+ * The clamps and the `<link>` hold run HERE, on every call, regardless of what the caller already did — the
+ * server's call is a trust boundary and must not inherit the client's word for it.
  */
 export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: string): string {
   // Colors and non-color scalars land in ONE `:root` block but pass through TWO clamps, because the shapes
@@ -764,10 +789,10 @@ export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: stri
     "<!doctype html>",
     `<html${rootAttributes}><head><meta charset="utf-8">`,
     meta,
-    `<style>${themeCss} ${baseBody} ${content.css ?? ""}</style>`,
+    `<style>${themeCss} ${baseBody} ${holdAuthoredLinks(content.css ?? "")}</style>`,
     script,
     "</head><body>",
-    content.html,
+    holdAuthoredLinks(content.html),
     "</body></html>",
   ].join("");
 }
