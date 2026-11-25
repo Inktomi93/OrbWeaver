@@ -146,6 +146,8 @@ export function plantedKnip(config: object, operators: Readonly<Record<string, r
  *  JSDoc tags knip is told to keep. */
 export interface GraphTreeOptions {
   readonly jsx?: boolean;
+  /** The world's own `types`, which the merged program resolves as the world does. */
+  readonly types?: readonly string[];
   readonly entries?: readonly string[];
   readonly tags?: readonly string[];
 }
@@ -159,7 +161,7 @@ export function graphTree(files: Readonly<Record<string, string>>, options: Grap
   return {
     "tsconfig.json": JSON.stringify({ files: [], references: [{ path: "packages/a" }] }),
     "tsconfig.world-browser.json": plantedTsconfig({ lib: LIB, include: [], ...jsx }),
-    [WORLD]: plantedTsconfig({ lib: LIB, include: ["../*/src"], ...jsx }),
+    [WORLD]: plantedTsconfig({ lib: LIB, include: ["../*/src"], ...jsx, ...(options.types === undefined ? {} : { types: options.types }) }),
     "knip.ts": graphKnip(packages, options),
     ...files,
   };
@@ -213,17 +215,30 @@ export const REACT_TYPES = {
 
 /** A minimal `@types/node` at its own path: the message doors' declarations and the platform a send reaches (the
  *  crypto and file modules, the console, a socket, fetch and the web bodies) where Node's types declare them. A planted
- *  source reaches it through `/// <reference types="node" />`. */
+ *  source reaches it through `/// <reference types="node" />`, and its index reaches each module's file by
+ *  `/// <reference path>` as the installed package's does, which the 7.1 program does not flag as an external library. */
 export const NODE_TYPES = {
   "node_modules/@types/node/package.json": JSON.stringify({ name: "@types/node", types: "index.d.ts" }),
   "node_modules/@types/node/index.d.ts": [
+    '/// <reference path="crypto.d.ts" />',
+    '/// <reference path="fs.d.ts" />',
+    '/// <reference path="globals.d.ts" />',
+    '/// <reference path="worker_threads.d.ts" />',
+    '/// <reference path="child_process.d.ts" />',
+    '/// <reference path="process.d.ts" />',
+    '/// <reference path="events.d.ts" />',
+    '/// <reference path="diagnostics_channel.d.ts" />',
+    '/// <reference path="async_hooks.d.ts" />',
+    '/// <reference path="stream.d.ts" />',
+  ].join("\n"),
+  "node_modules/@types/node/crypto.d.ts": [
     'declare module "node:crypto" {',
     "  export class Hash { update(data: string): Hash; digest(encoding: string): string }",
     "  export function createHash(algorithm: string): Hash;",
     "}",
-    'declare module "node:fs" {',
-    "  export function writeFileSync(path: string, data: string): void;",
-    "}",
+  ].join("\n"),
+  "node_modules/@types/node/fs.d.ts": ['declare module "node:fs" {', "  export function writeFileSync(path: string, data: string): void;", "}"].join("\n"),
+  "node_modules/@types/node/globals.d.ts": [
     // the file is a script: its top level is the global scope, as Node's globals are
     "interface Console { log(...data: unknown[]): void }",
     "declare var console: Console;",
@@ -232,20 +247,33 @@ export const NODE_TYPES = {
     "declare function fetch(url: string, init?: RequestInit): Promise<unknown>;",
     "declare class Response { constructor(body: string) }",
     "declare class Blob { constructor(parts: readonly string[]) }",
-    'declare module "worker_threads" {',
+  ].join("\n"),
+  "node_modules/@types/node/worker_threads.d.ts": [
+    // the package's own layout: the module is `node:worker_threads`, re-exported bare, and a Worker takes its listeners
+    // from the events module's InternalEventEmitter rather than declaring them
+    'declare module "node:worker_threads" {',
+    '  import { InternalEventEmitter } from "events";',
     '  export class MessagePort { postMessage(value: any): void; on(event: "message", listener: (value: any) => void): this; }',
+    "  interface WorkerEventMap { message: [value: any] }",
     "  export class Worker {",
     "    constructor(url: URL | string, options?: { workerData?: any });",
     "    postMessage(value: any): void;",
-    '    on(event: "message", listener: (value: any) => void): this;',
     "  }",
+    "  export interface Worker extends InternalEventEmitter<WorkerEventMap> {}",
     "  export const parentPort: MessagePort | null;",
     "  export const workerData: any;",
     "}",
+    'declare module "worker_threads" {',
+    '  export * from "node:worker_threads";',
+    "}",
+  ].join("\n"),
+  "node_modules/@types/node/child_process.d.ts": [
     'declare module "child_process" {',
     '  export interface ChildProcess { send(message: any): boolean; on(event: "message", listener: (message: any) => void): this; }',
     "  export function spawn(command: string, args: readonly string[]): ChildProcess;",
     "}",
+  ].join("\n"),
+  "node_modules/@types/node/process.d.ts": [
     'declare module "process" {',
     "  global {",
     "    var process: NodeJS.Process;",
@@ -254,14 +282,31 @@ export const NODE_TYPES = {
     "    }",
     "  }",
     "}",
+  ].join("\n"),
+  "node_modules/@types/node/events.d.ts": [
     'declare module "events" {',
     "  export class EventEmitter { emit(event: string, ...args: any[]): boolean; on(event: string, listener: (...args: any[]) => void): this; }",
+    "  export interface InternalEventEmitter<T> extends EventEmitter {",
+    "    on<E extends keyof T>(eventName: E, listener: (...args: T[E] & any[]) => void): this;",
+    "  }",
     "}",
+  ].join("\n"),
+  "node_modules/@types/node/diagnostics_channel.d.ts": [
     'declare module "diagnostics_channel" {',
     "  export class Channel { publish(message: unknown): void; subscribe(listener: (message: unknown) => void): void; }",
     "  export function channel(name: string): Channel;",
     "  export function subscribe(name: string, listener: (message: unknown) => void): void;",
     "}",
+  ].join("\n"),
+  // a library class that takes its listeners from the same emitter interface and is no message door
+  "node_modules/@types/node/stream.d.ts": [
+    'declare module "stream" {',
+    '  import { InternalEventEmitter } from "events";',
+    "  export class Readable {}",
+    "  export interface Readable extends InternalEventEmitter<{ message: [value: any] }> {}",
+    "}",
+  ].join("\n"),
+  "node_modules/@types/node/async_hooks.d.ts": [
     'declare module "async_hooks" {',
     "  export class AsyncLocalStorage<T> { run<R>(store: T, callback: () => R): R; getStore(): T | undefined; }",
     "}",

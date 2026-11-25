@@ -31,6 +31,8 @@ import type {
   InterfaceDeclaration,
   NewExpression,
   Node,
+  PropertyDeclaration,
+  PropertySignatureDeclaration,
   VariableDeclaration,
 } from "@typescript/native/ast";
 import {
@@ -45,6 +47,7 @@ import {
   isCallExpression,
   isComputedPropertyName,
   isConditionalExpression,
+  isConstructorDeclaration,
   isElementAccessExpression,
   isExportSpecifier,
   isExpressionStatement,
@@ -56,6 +59,7 @@ import {
   isImportSpecifier,
   isIndexedAccessTypeNode,
   isInterfaceDeclaration,
+  isJSDocLink,
   isMethodDeclaration,
   isMethodSignatureDeclaration,
   isNewExpression,
@@ -69,6 +73,7 @@ import {
   isPrefixUnaryExpression,
   isPropertyAccessExpression,
   isPropertyAssignment,
+  isPropertyDeclaration,
   isPropertySignatureDeclaration,
   isReturnStatement,
   isSatisfiesExpression,
@@ -731,6 +736,9 @@ function* destinationsOf(world: NativeWorld, value: Node, walk: Walk): APIReques
   run.count(CHASE_COUNTS.hops);
   run.seen.add(key);
   const top = carriedTop(value, walk.path);
+  if (yield* narrowedAway(world, top.node, top.path)) {
+    return DROPPED;
+  }
   const at: Walk = { ...walk, path: top.path };
   const argument = argumentOf(top.node);
   if (argument !== null) {
@@ -749,6 +757,23 @@ function* destinationsOf(world: NativeWorld, value: Node, walk: Walk): APIReques
     return yield* boundTo(world, parent, at);
   }
   return consumedAt(top.node) ? DROPPED : UNFOLLOWED;
+}
+
+// A use of a name the checker narrows to members none of which holds the path's key, where the name's declared type
+// does hold it: past `if (message.type === "log") return;` a message is a reply, which carries no `fields`.
+function* narrowedAway(world: NativeWorld, node: Node, path: KeyPath): APIRequestGenerator<boolean> {
+  const [step] = path;
+  if (step?.kind !== "key" || !isIdentifier(node)) {
+    return false;
+  }
+  const { checker } = world;
+  const symbol = yield* resolvedSymbol(world, node);
+  if (symbol === undefined) {
+    return false;
+  }
+  const [declared, narrowed] = yield* all(checker.getTypeOfSymbol.gen(symbol), checker.getTypeAtLocation.gen(node));
+  const [held, kept] = yield* all(propertiesNamed(checker, declared, step.key), propertiesNamed(checker, narrowed, step.key));
+  return held.some((property) => property !== undefined) && kept.every((property) => property === undefined);
 }
 
 // The key a read off a holder names: a member's name, a literal element key, or null for a computed one.
@@ -1004,9 +1029,13 @@ function* callbackReturn(world: NativeWorld, fn: FunctionLike, walk: Walk): APIR
   return TESTED_RETURNS.has(method.method) ? DROPPED : null;
 }
 
-// A reference that names a function without handing it anywhere: an import, an export or a `typeof` type.
+// A reference that names a function without handing it anywhere: an import, an export, a `typeof` type or a doc link.
 const namesOnly = (reference: Node): boolean =>
-  isImportSpecifier(reference.parent) || isImportClause(reference.parent) || isExportSpecifier(reference.parent) || isTypeQueryNode(reference.parent);
+  isImportSpecifier(reference.parent) ||
+  isImportClause(reference.parent) ||
+  isExportSpecifier(reference.parent) ||
+  isTypeQueryNode(reference.parent) ||
+  isJSDocLink(reference.parent);
 
 // The call a function reference is the callee of, `f(…)` or `x.f(…)`; null for a reference that hands the function on.
 function calledAt(reference: Node): Invocation | null {
@@ -1246,10 +1275,10 @@ function* holderValues(world: NativeWorld, holder: Node, typed: Node): APIReques
   if (isIndexedAccessTypeNode(holder) || (isTypeOperatorNode(holder) && holder.operator === SyntaxKind.KeyOfKeyword)) {
     return [];
   }
-  if (isPropertySignatureDeclaration(holder) && holder.type === typed) {
-    return yield* memberWrites(world, holder.name);
+  if ((isPropertySignatureDeclaration(holder) || isPropertyDeclaration(holder)) && holder.type === typed) {
+    return yield* memberValues(world, holder);
   }
-  if (isParameterDeclaration(holder) && holder.type === typed && isFunctionLike(holder.parent)) {
+  if (isParameterDeclaration(holder) && holder.type === typed && (isFunctionLike(holder.parent) || isConstructorDeclaration(holder.parent))) {
     return yield* argumentsOf(world, holder.parent, holder.parent.parameters.indexOf(holder));
   }
   if (isVariableDeclaration(holder) && holder.type === typed) {
@@ -1260,6 +1289,30 @@ function* holderValues(world: NativeWorld, holder: Node, typed: Node): APIReques
     return returnsOf(holder);
   }
   return null;
+}
+
+// The values a member typed by the port takes: an interface member's key-writes, or a class property's initializer and
+// each assignment to it.
+function* memberValues(world: NativeWorld, member: PropertySignatureDeclaration | PropertyDeclaration): APIRequestGenerator<readonly Node[]> {
+  if (isPropertySignatureDeclaration(member)) {
+    return yield* memberWrites(world, member.name);
+  }
+  return [...(member.initializer === undefined ? [] : [member.initializer]), ...(yield* assignedTo(world, member.name))];
+}
+
+// The values product code assigns to a class property, `this.log = log`.
+function* assignedTo(world: NativeWorld, name: Node): APIRequestGenerator<readonly Node[]> {
+  return (yield* productReferences(world, name)).flatMap((reference): readonly Node[] => {
+    const access = reference.parent;
+    const assignment = access.parent;
+    return isPropertyAccessExpression(access) &&
+      sameNode(access.name, reference) &&
+      isBinaryExpression(assignment) &&
+      assignment.operatorToken.kind === SyntaxKind.EqualsToken &&
+      sameNode(assignment.left, access)
+      ? [assignment.right]
+      : [];
+  });
 }
 
 // The values product key-writes give a member: an initializer, or the name a shorthand reads.
@@ -1292,7 +1345,7 @@ function* argumentsOf(world: NativeWorld, fn: FunctionLike, index: number): APIR
 function* usageArgument(world: NativeWorld, usage: SignatureUsage, target: Node, index: number): APIRequestGenerator<readonly Node[] | null> {
   const name = yield* usage.name.resolve.gen();
   const call = usage.call === undefined ? undefined : yield* usage.call.resolve.gen();
-  if (name === undefined || !isProduction(world.siteOf(name).file) || (call === undefined && sameNode(name.parent, target))) {
+  if (name === undefined || !isProduction(world.siteOf(name).file) || (call === undefined && (sameNode(name.parent, target) || namesOnly(name)))) {
     return [];
   }
   if (call === undefined || !(isCallExpression(call) || isNewExpression(call))) {

@@ -216,7 +216,9 @@ test("a send chase crosses a message door through its paired listener, at the ke
 
 // The inference log chain as the tree writes it: a backend emits through `log[level]` on an injected log port, one
 // filler of that port is a worker's per-level closures over a `post` that sends on a `MessagePort` parameter the
-// worker's entry hands `parentPort`, and the host logs each `type: "log"` message through the same port.
+// worker's entry hands `parentPort`, and the host logs each `type: "log"` message through the same port. The world
+// loads Node's types through its own `types`, as the tree's worlds do, so the door's declarations reach the merged
+// program through that entry and its package's `/// <reference path>` files.
 const PORT_LOG = {
   [`${GRAPH_SOURCE}/port.ts`]: [
     "export interface PortLog {",
@@ -252,7 +254,6 @@ const PORT_LOG = {
     "};",
   ].join("\n"),
   [`${GRAPH_SOURCE}/port-worker.ts`]: [
-    '/// <reference types="node" />',
     'import { parentPort } from "worker_threads";',
     'import type { PortLevel, PortLog, PortMessage } from "./port.ts";',
     "async function main(port: MessagePort): Promise<void> {",
@@ -272,19 +273,26 @@ const PORT_LOG = {
     "}",
   ].join("\n"),
   [`${GRAPH_SOURCE}/port-host.ts`]: [
-    '/// <reference types="node" />',
     'import { Worker } from "worker_threads";',
     'import type { Logger } from "pino";',
     'import { createTurnLog } from "./emitter.ts";',
     'import type { PortLog, PortMessage } from "./port.ts";',
     "declare const pino: Logger;",
     "const host: PortLog = { debug: (fields, message) => pino.debug(fields, message), info: (fields, message) => pino.debug(fields, message) };",
+    // a reply settles the request waiting on it, which the walk cannot follow; a log message never gets there
+    "interface Waiting { readonly resolve: (reply: PortMessage) => void }",
+    "const waiting = new Map<number, Waiting>();",
+    "export const ask = (): Promise<PortMessage> => {",
+    "  const { promise, resolve } = Promise.withResolvers<PortMessage>();",
+    "  waiting.set(1, { resolve });",
+    "  return promise;",
+    "};",
     "const onMessage = (state: { readonly id: number }, message: PortMessage): void => {",
     '  if (message.type === "log") {',
     "    host[message.level](message.fields, message.message);",
     "    return;",
     "  }",
-    "  void state;",
+    "  waiting.get(message.id + state.id)?.resolve(message);",
     "};",
     'const worker = new Worker(new URL("./port-worker.ts", import.meta.url));',
     "const state = { id: 1 };",
@@ -298,8 +306,53 @@ const PORT_LOG = {
 test("a log line that one filler of its port posts to a worker's parent crosses that door and lands on the parent's logger", { timeout: 120_000 }, async ({
   plantedTree,
 }) => {
-  const report = await fieldsScan(plantedTree, { ...LIBRARIES, ...NODE_TYPES, ...PORT_LOG });
+  const report = await fieldsScan(plantedTree, { ...LIBRARIES, ...NODE_TYPES, ...PORT_LOG }, { types: ["node"] });
   expect(zqRows(report)).toEqual(["TurnLine.zqTurn ask log pino"]);
+});
+
+// The same chain over the tree's own declaration of the worker module, a workspace file a source reaches by
+// `/// <reference path>`: that file is the tree's own, so its `postMessage` is no Node door and the worker's send
+// stays unresolved.
+test("a worker module the tree declares in its own declaration file is no message door", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await fieldsScan(plantedTree, {
+    ...LIBRARIES,
+    ...PORT_LOG,
+    [`${GRAPH_SOURCE}/threads.d.ts`]: NODE_TYPES["node_modules/@types/node/worker_threads.d.ts"],
+    [`${GRAPH_SOURCE}/threads-ref.ts`]: ['/// <reference path="./threads.d.ts" />', "export {};"].join("\n"),
+  });
+  expect(zqRows(report)).toEqual(["TurnLine.zqTurn ask log pino unclassified"]);
+});
+
+// The inference session cache's shape: a port a class holds in a property its constructor assigns, handed on from
+// `this`, and an emitter a `typeof` and a doc link name without handing anywhere. The chase fills the port through the
+// property's assignment and the constructor's callers, and the bare names are no fill: the line reaches the console
+// the one filler writes to, and nothing is unresolved.
+test("a port a class holds in a constructor-assigned property is filled through its constructor's callers, and a typeof or doc link fills nothing", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  const report = await fieldsScan(plantedTree, {
+    ...NODE_TYPES,
+    [`${GRAPH_SOURCE}/held.ts`]: [
+      '/// <reference types="node" />',
+      "interface HeldLog { readonly debug: (fields: Readonly<Record<string, unknown>>, message: string) => void }",
+      "interface HeldLine { readonly zqHeld: string }",
+      'const emitHeld = (log: HeldLog, line: HeldLine): void => log.debug({ ...line }, "held");',
+      "export type Emit = typeof emitHeld;",
+      "class Holder {",
+      "  private readonly log: HeldLog;",
+      "  constructor(log: HeldLog) {",
+      "    this.log = log;",
+      "  }",
+      "  /** Writes through {@link emitHeld}. */",
+      "  turn(line: HeldLine): void {",
+      "    emitHeld(this.log, line);",
+      "  }",
+      "}",
+      "const consoleLog: HeldLog = { debug: (fields, message) => console.log(fields, message) };",
+      'export const held = (): void => new Holder(consoleLog).turn({ zqHeld: "h" });',
+    ].join("\n"),
+  });
+  expect(zqRows(report)).toEqual(["HeldLine.zqHeld ask log console"]);
 });
 
 // The platform's `Object.entries` and `Object.fromEntries` move a value to an entry's slot 1 and back to a member, so a

@@ -6,7 +6,8 @@
 // Invariants:
 // - A door is recognised by its resolved declaration, never by the text at the site: a member or function a library
 //   declares (the program's package answer for `@types/node` and the ambient module it sits in, or the compiler's
-//   default library for the DOM), matched against {@link DOOR_MEMBERS}. A local `postMessage` is no door.
+//   default library for the DOM), matched against {@link DOOR_MEMBERS}. A local `postMessage` is no door. A member a
+//   library class inherits from an interface no row names is judged by the receiver type's own declaration instead.
 // - A worker or child process links by module: the parent side of a file links to the modules the file loads by path
 //   (`new URL(specifier, import.meta.url)`); the child side of a module links to the files that load it. A file that
 //   loads several modules links its parent side to each, which can only add a read.
@@ -288,13 +289,29 @@ export class MessageDoors implements DoorCrossings {
     if (asked.length === 0) {
       return;
     }
-    const members = this.#state.batch(asked.map(({ symbol }) => this.#memberOf(symbol)));
+    const members = this.#state.batch(asked.map(({ node, symbol }) => this.#siteMember(node, symbol)));
     const doors = asked.flatMap(({ node }, at) => {
       const member = members[at];
       return member === null || member === undefined ? [] : [{ member, node }];
     });
     const state = this.#state;
     state.batch(doors.map((site) => this.#site(site, sites)));
+  }
+
+  // The door member a name site is: its symbol's, or for a member the declaring container takes from an interface it
+  // extends (Node's Worker takes `on` from the events module's InternalEventEmitter), the member of the class or
+  // interface the receiver's own type declares, by that declaration.
+  *#siteMember(node: Node, symbol: NativeSymbol): APIRequestGenerator<DoorMember | null> {
+    const member = yield* this.#memberOf(symbol);
+    if (member !== null || !isPropertyAccessExpression(node.parent) || node.parent.name !== node) {
+      return member;
+    }
+    const owner = yield* (yield* this.#state.world.checker.getTypeAtLocation.gen(node.parent.expression)).getSymbol.gen();
+    let found: DoorMember | null = null;
+    for (const handle of owner?.declarations ?? []) {
+      found ??= yield* this.#declaredMember(handle, symbol.name);
+    }
+    return found;
   }
 
   // The door member a symbol is, by its first declaration a library's module or the DOM library declares.

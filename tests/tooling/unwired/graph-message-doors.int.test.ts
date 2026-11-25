@@ -185,6 +185,30 @@ test("a receiver no send reaches is reported; a local class spelled like a door 
   expect(scan.analysis["message-receiver-unpaired"].map(({ label }) => label)).toEqual([`${Lonely}:4 worker`]);
 });
 
+// Node's Worker takes `on` from the events module's InternalEventEmitter, so the listener is the door of the type it is
+// called on: a Worker's is the worker door, and a stream's, from the same interface, is none.
+test("an inherited listener is the door of the library type it is called on, and a non-door library emitter's is no door", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const Inherited = `${GRAPH_SOURCE}/inherited.ts`;
+  const files = {
+    ...NODE_TYPES,
+    [SHAPES]: SHAPES_SOURCE,
+    [Inherited]: [
+      NODE,
+      'import { Worker } from "node:worker_threads";',
+      'import type { Readable } from "stream";',
+      'import type { Got } from "./shapes.ts";',
+      "export const listen = (worker: Worker, stream: Readable): void => {",
+      '  worker.on("message", (value: Got) => { void value.wanted; });',
+      '  stream.on("message", (value: Got) => { void value.wanted; });',
+      "};",
+    ].join("\n"),
+  };
+  const scan = await graphScan(plantedTree, files, entries(files));
+  expect(scan.analysis["message-receiver-unpaired"].map(({ label }) => label)).toEqual([`${Inherited}:6 worker`]);
+});
+
 test("a broadcast channel set into a variable after its start links by the name it was opened with", { timeout: 120_000 }, async ({ plantedTree }) => {
   const files = {
     [SHAPES]: SHAPES_SOURCE,
