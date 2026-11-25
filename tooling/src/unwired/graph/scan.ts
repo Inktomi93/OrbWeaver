@@ -158,6 +158,7 @@ class Session implements Disposable {
     this.#compilerWatch = new CompilerWatch(
       () => this.#step(),
       (start) => this.#profile?.watch(start),
+      () => this.#profile?.beforeClose(),
     );
   }
 

@@ -58,7 +58,17 @@ export type { UnionsReport } from "./graph/unions.ts";
 export type { Verdict, Verified } from "./graph/verify.ts";
 export { VERDICTS } from "./graph/verify.ts";
 export type { JudgedEntry } from "./judged.ts";
-export { COMPILER_CHANNEL, compilerStartOf, constituents, DEFAULT_LIBRARY, hasFlag, homeFiles, NativeWorld, propertiesNamed } from "./native.ts";
+export {
+  COMPILER_CHANNEL,
+  COMPILER_ENDING_CHANNEL,
+  compilerStartOf,
+  constituents,
+  DEFAULT_LIBRARY,
+  hasFlag,
+  homeFiles,
+  NativeWorld,
+  propertiesNamed,
+} from "./native.ts";
 export type { PluginSources } from "./plugin-surface.ts";
 export { isPluginProduction, pluginAuthorWorlds, pluginSources, publishedSdkSources } from "./plugin-surface.ts";
 export type { PortCensus } from "./port-census.ts";
