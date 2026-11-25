@@ -19,6 +19,7 @@ async function scanUnions(
 }
 
 const TREE = {
+  ...ZOD_MODULE,
   "packages/a/src/mode.ts": [
     'export const MODES = ["on", "off", "auto"] as const;',
     "export type Mode = (typeof MODES)[number];",
@@ -44,7 +45,7 @@ const TREE = {
   ].join("\n"),
   // A model's structured output fills this vocabulary through a parse, so no literal builds `warm` or `cold`.
   "packages/a/src/tone.ts": [
-    "const z = { enum: <const T extends readonly string[]>(values: T): T => values };",
+    'import { z } from "zod";',
     'export const TONES = ["warm", "cold"] as const;',
     "export type Tone = (typeof TONES)[number];",
     "export const toneSchema = z.enum(TONES);",
@@ -257,22 +258,22 @@ test("the unions scan reads a slot's tuple from its declaration, so derived slot
 // builds the member, so the scan must not call it unbuilt: a schema-inferred property (`z.infer` of a `z.object`
 // written from `z.enum(TUPLE)`), and a generated table whose `satisfies` type is generic over the tuples.
 const SCHEMA_TREE = {
-  // A library, outside the production sources, as zod is in the real tree.
-  "packages/a/lib/zod.ts": [
+  // zod's package, outside the production sources, as in the real tree: the scans know zod by its declarations.
+  "node_modules/zod/package.json": JSON.stringify({ name: "zod", types: "index.d.ts" }),
+  "node_modules/zod/index.d.ts": [
     "export interface ZodType<T> { readonly output?: T; optional(): ZodType<T | undefined>; nullable(): ZodType<T | null> }",
-    "const schema = <T>(): ZodType<T> => ({ optional: () => schema<T | undefined>(), nullable: () => schema<T | null>() });",
     "type Out<S> = { [K in keyof S]: S[K] extends ZodType<infer V> ? V : never };",
-    "export const z = {",
-    "  enum: <const T extends readonly [string, ...string[]]>(_values: T): ZodType<T[number]> => schema<T[number]>(),",
-    "  array: <T>(_item: ZodType<T>): ZodType<T[]> => schema<T[]>(),",
-    "  object: <S extends Record<string, ZodType<unknown>>>(_shape: S): ZodType<Out<S>> => schema<Out<S>>(),",
+    "export declare const z: {",
+    "  enum<const T extends readonly [string, ...string[]]>(values: T): ZodType<T[number]>;",
+    "  array<T>(item: ZodType<T>): ZodType<T[]>;",
+    "  object<S extends Record<string, ZodType<unknown>>>(shape: S): ZodType<Out<S>>;",
     "};",
     "export declare namespace z {",
     "  type infer<T> = T extends ZodType<infer V> ? V : never;",
     "}",
   ].join("\n"),
   "packages/a/src/capability.ts": [
-    'import { z } from "../lib/zod.ts";',
+    'import { z } from "zod";',
     'export const OFF_MODES = ["disabled", "between-tools"] as const;',
     'export const STAGES = ["penalties", "dry", "xtc"] as const;',
     "const offModeSchema = z.enum(OFF_MODES);",
@@ -286,7 +287,7 @@ const SCHEMA_TREE = {
   ].join("\n"),
   // An interface slot typed through an indexed access on an inferred schema type, and a return type spelled the same way.
   "packages/a/src/probes.ts": [
-    'import { z } from "../lib/zod.ts";',
+    'import { z } from "zod";',
     'const SERVERS = ["alpha", "beta"] as const;',
     'const PROVENANCES = ["fresh", "request"] as const;',
     "const detectedSchema = z.object({ server: z.enum(SERVERS).nullable() });",

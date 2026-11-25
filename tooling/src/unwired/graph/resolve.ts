@@ -81,6 +81,8 @@ import type { RowTable } from "../drizzle-rows.ts";
 import { rowTables, rowTablesOf } from "../drizzle-rows.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { KEY_TRANSPARENT, libraryNames, ZOD_ENUM, ZOD_ENUM_DOORS, ZOD_INFERS } from "./library-names.ts";
 
 /** A declaration in the tree: its repository-relative file, its span and its syntax kind. */
 export type DeclKey = `${string}#${number}-${number}.${number}`;
@@ -163,16 +165,6 @@ const KEY_ARGUMENT: ReadonlyMap<string, number> = new Map([
   ["Exclude", 0],
   ["Extract", 0],
 ]);
-// `Promise` and `Awaited` too: an awaited value's keys are its promise's argument's.
-const KEY_TRANSPARENT: ReadonlySet<string> = new Set(["Readonly", "Partial", "Required", "NonNullable", "Promise", "Awaited"]);
-// zod's inferred types, whose keys are the queried schema's: `z.infer<typeof S>` over `S = z.enum(T)` is T's. Taught by hand.
-const ZOD_INFERS: ReadonlySet<string> = new Set(["infer", "output", "input"]);
-/** The package whose declarations make a call a validator and a `satisfies` reference a schema twin. */
-export const ZOD_PACKAGE = "zod";
-
-// zod's enum door: `schema.enum.k` on `schema = z.enum(T)` reads T's member. Taught by hand.
-const ZOD_ENUM_DOORS: ReadonlySet<string> = new Set(["enum", "Enum"]);
-const ZOD_ENUM = "enum";
 
 // `all` takes its requests as arguments; a walk over many names and types can ask more than a call's argument limit.
 const CHUNK = 8192;
@@ -313,30 +305,36 @@ function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: Wa
 }
 
 // The tuple a `z.enum(T)` initializer hands zod: `schema = z.enum(T)`, through any assertion.
-function enumArgumentOf(declaration: Node): readonly Node[] {
+function enumArgumentOf(declaration: Node, names: LibraryNames): readonly Node[] {
   const call = unassert(unwrapExpression(initializerOf(declaration)));
   if (call === undefined || !isCallExpression(call)) {
     return [];
   }
   const callee = unwrapExpression(call.expression);
   const [tuple] = call.arguments;
-  return callee !== undefined && isPropertyAccessExpression(callee) && callee.name.text === ZOD_ENUM && tuple !== undefined ? [tuple] : [];
+  return callee !== undefined &&
+    isPropertyAccessExpression(callee) &&
+    callee.name.text === ZOD_ENUM &&
+    names.declaredBy(callee.name, "zod") &&
+    tuple !== undefined
+    ? [tuple]
+    : [];
 }
 
 // The type names a type node spells in a key position.
-function keyRefNames(node: TypeNode): ReadonlySet<string> {
-  const sink: SpellingSink = { owner: null, inline: new Map(), queries: [], tuples: [], refs: [], evaluated: [] };
+function keyRefNames(node: TypeNode, names: LibraryNames): ReadonlySet<string> {
+  const sink: SpellingSink = { owner: null, inline: new Map(), queries: [], tuples: [], refs: [], evaluated: [], names };
   spellKeys(node, true, sink);
   return new Set(sink.refs.flatMap((ref) => (isIdentifier(ref) ? [ref.text] : [])));
 }
 
 // The positions of a function's parameters whose annotation spells, in a key position, a type parameter of the
 // function that its return spells keys with.
-function boundParameters(fn: Node, returned: ReadonlySet<string>): readonly number[] {
+function boundParameters(fn: Node, returned: ReadonlySet<string>, names: LibraryNames): readonly number[] {
   const own = new Set(typeParametersOf(fn).filter((name) => returned.has(name)));
   const parameters = isFunctionDeclaration(fn) || isArrowFunction(fn) || isFunctionExpression(fn) || isMethodDeclaration(fn) ? fn.parameters : [];
   return parameters.flatMap((parameter, at) => {
-    const refs = parameter.type === undefined ? new Set<string>() : keyRefNames(parameter.type);
+    const refs = parameter.type === undefined ? new Set<string>() : keyRefNames(parameter.type, names);
     return [...own].some((name) => refs.has(name)) ? [at] : [];
   });
 }
@@ -405,7 +403,7 @@ export class Resolver {
   readonly #spelledByAlias = new Map<string, Spelled>();
   readonly #spelledByType = new Map<number, Spelled>();
   // Read before any walk, so the origin walk's generators read a settled table; NativeWorld.batch refuses a batch run
-  // from inside a generator.
+  // from inside a generator. The library names settle in the constructor for the same reason.
   readonly #rows: ReadonlyMap<RowTable, ReadonlyMap<string, readonly DeclKey[]>>;
   // False under `--ablate=spelling`: no alias's syntax is read for the keys it spells.
   readonly #spelling: boolean;
@@ -414,6 +412,7 @@ export class Resolver {
     this.#world = world;
     this.#spelling = spelling;
     this.#rows = this.#rowTables();
+    libraryNames(world);
   }
 
   /** A walked declaration's key. */
@@ -601,7 +600,7 @@ export class Resolver {
       ];
       pendingRoots = [];
       for (const item of items) {
-        spellKeys(item.type, item.key, { owner: item.owner, inline, queries, tuples, refs, evaluated });
+        spellKeys(item.type, item.key, { owner: item.owner, inline, queries, tuples, refs, evaluated, names: libraryNames(this.#world) });
       }
       todo = refs.length > 0 ? yield* this.#aliasDeclarations(refs) : [];
     }
@@ -721,7 +720,7 @@ export class Resolver {
     const schema = query !== undefined && isTypeQueryNode(query) ? yield* checker.getSymbolAtLocation.gen(query.exprName) : undefined;
     const homes: DeclKey[] = [];
     for (const { owner, declaration } of yield* this.#ownDeclarations(schema)) {
-      for (const tuple of enumArgumentOf(declaration)) {
+      for (const tuple of enumArgumentOf(declaration, libraryNames(this.#world))) {
         const named = isIdentifier(tuple) ? yield* checker.getSymbolAtLocation.gen(tuple) : undefined;
         homes.push(...(named === undefined ? [owner] : yield* this.#keysOf(named.declarations)));
       }
@@ -893,7 +892,10 @@ export class Resolver {
     const { checker } = this.#world;
     const unwrapped = unwrapExpression(receiver);
     const door =
-      unwrapped !== undefined && isPropertyAccessExpression(unwrapped) && ZOD_ENUM_DOORS.has(unwrapped.name.text)
+      unwrapped !== undefined &&
+      isPropertyAccessExpression(unwrapped) &&
+      ZOD_ENUM_DOORS.has(unwrapped.name.text) &&
+      libraryNames(this.#world).declaredBy(unwrapped.name, "zod")
         ? unwrapExpression(unwrapped.expression)
         : undefined;
     const nameNode = receiverName(door ?? unwrapped);
@@ -907,7 +909,7 @@ export class Resolver {
     const declarations = yield* this.#bindingSources(yield* this.#ownDeclarations(symbol));
     if (door !== undefined) {
       return yield* this.#enumHomes(
-        declarations.flatMap(({ declaration }) => enumArgumentOf(declaration)),
+        declarations.flatMap(({ declaration }) => enumArgumentOf(declaration, libraryNames(this.#world))),
         symbol,
         name,
       );
@@ -971,7 +973,8 @@ export class Resolver {
     }
     const holder = yield* this.#expressionSpelling(value.expression, seen);
     const member = value.name.text;
-    return { roots: holder.roots.flatMap(({ owner, node }) => memberValues(node, member).map((type) => ({ owner, node: type }))), tuples: [] };
+    const names = libraryNames(this.#world);
+    return { roots: holder.roots.flatMap(({ owner, node }) => memberValues(node, member, names).map((type) => ({ owner, node: type }))), tuples: [] };
   }
 
   *#unaliased(symbol: NativeSymbol | undefined): APIRequestGenerator<NativeSymbol | undefined> {
@@ -1041,7 +1044,8 @@ export class Resolver {
   // A call's arguments for the type parameters its function's return spells keys with: an object literal argument's
   // properties are the homes of their keys; another argument spells what its own value spells.
   *#argumentKeys(fn: Node, returned: TypeNode, call: CallExpression, seen: Set<Node>): APIRequestGenerator<ValueSpelling> {
-    const bound = boundParameters(fn, keyRefNames(returned));
+    const names = libraryNames(this.#world);
+    const bound = boundParameters(fn, keyRefNames(returned, names), names);
     const roots: SpellingRoot[] = [];
     const tuples: SpelledTuple[] = [];
     for (const at of bound) {
@@ -1090,7 +1094,7 @@ export class Resolver {
     if (annotation === undefined || parameters.length === 0 || receiver === undefined || !isPropertyAccessExpression(receiver)) {
       return NO_VALUE_SPELLING;
     }
-    const refs = keyRefNames(annotation);
+    const refs = keyRefNames(annotation, libraryNames(this.#world));
     const bound = parameters.flatMap((parameter, at) => (refs.has(parameter) ? [at] : []));
     if (bound.length === 0) {
       return NO_VALUE_SPELLING;
@@ -1258,6 +1262,7 @@ interface SpellingSink {
   readonly refs: Node[];
   /** Key-position nodes the checker evaluates to a literal set: `T["k"]`, `z.infer<typeof S>`. */
   readonly evaluated: TypeNode[];
+  readonly names: LibraryNames;
 }
 
 // One type node's key spelling. `key` says whether the node sits in a key position.
@@ -1331,12 +1336,12 @@ function spellMapped(node: MappedTypeNode, sink: SpellingSink): void {
 // The type syntax a spelled type gives one member's value: a type literal's property, a record's value argument, through
 // unions, intersections and the key-transparent wrappers. A named alias is not followed here: its own spelling is read
 // where it is a root.
-function memberValues(node: TypeNode, member: string): readonly TypeNode[] {
+function memberValues(node: TypeNode, member: string, names: LibraryNames): readonly TypeNode[] {
   if (isUnionTypeNode(node) || isIntersectionTypeNode(node)) {
-    return node.types.flatMap((arm) => memberValues(arm, member));
+    return node.types.flatMap((arm) => memberValues(arm, member, names));
   }
   if (isParenthesizedTypeNode(node)) {
-    return memberValues(node.type, member);
+    return memberValues(node.type, member, names);
   }
   if (isTypeLiteralNode(node)) {
     return node.members.flatMap((signature) => (isPropertySignatureDeclaration(signature) && keyText(signature.name) === member ? [signature.type] : []));
@@ -1344,10 +1349,11 @@ function memberValues(node: TypeNode, member: string): readonly TypeNode[] {
   if (!isTypeReferenceNode(node)) {
     return [];
   }
-  const name = isQualifiedName(node.typeName) ? node.typeName.right.text : node.typeName.text;
+  const nameNode = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
+  const name = nameNode.text;
   const [first, second] = node.typeArguments ?? [];
-  if (KEY_TRANSPARENT.has(name) && first !== undefined) {
-    return memberValues(first, member);
+  if (KEY_TRANSPARENT.has(name) && names.declaredBy(nameNode, "platform") && first !== undefined) {
+    return memberValues(first, member, names);
   }
   return name === RECORD && second !== undefined ? [second] : [];
 }
@@ -1368,7 +1374,7 @@ function spellReference(node: TypeReferenceNode, key: boolean, sink: SpellingSin
   const id = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
   const args = node.typeArguments ?? [];
   const [first] = args;
-  if (key && ZOD_INFERS.has(id.text) && first !== undefined && isTypeQueryNode(first)) {
+  if (key && ZOD_INFERS.has(id.text) && sink.names.declaredBy(id, "zod") && first !== undefined && isTypeQueryNode(first)) {
     sink.evaluated.push(node);
     return;
   }
@@ -1392,7 +1398,7 @@ function spellNamed(id: MemberName, args: readonly TypeNode[], key: boolean, sin
     }
     return;
   }
-  if (KEY_TRANSPARENT.has(id.text)) {
+  if (KEY_TRANSPARENT.has(id.text) && sink.names.declaredBy(id, "platform")) {
     for (const [at, argument] of args.entries()) {
       spellKeys(argument, at === 0 && key, sink);
     }

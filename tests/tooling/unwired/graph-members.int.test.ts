@@ -146,8 +146,8 @@ test("a key written beside a spread writes the member its source declares, throu
 });
 
 // A key beside a spread fills the member of the literal's own slot: a row spread into a wire shape writes the wire's
-// member, never the row's. The row's member fills the wire's through the spread, so it is judged at that slot and
-// reports nowhere; a false write would report it write-only.
+// member, never the row's. The key overrides the spread's member of its name, so the row's `createdAt` reaches no slot
+// and nothing writes it: it is untouched, and a false write would report it write-only.
 test("a key beside a spread into another type's slot writes that slot's member, not the spread source's", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
@@ -162,7 +162,7 @@ test("a key beside a spread into another type's slot writes that slot's member, 
     labelsIn(scan, bucket, FILE)
       .map((label) => label.split("  ")[0])
       .filter((label) => label?.endsWith(".createdAt") === true);
-  expect(createdAt("member-untouched")).toEqual([]);
+  expect(createdAt("member-untouched")).toEqual(["Row.createdAt"]);
   expect(createdAt("member-write-only")).toEqual(["Wire.createdAt"]);
 });
 

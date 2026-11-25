@@ -56,7 +56,7 @@ tooling/src/unwired/graph/ is the one core (D357). Every verb is a query over on
 
 ## One pass for the member scan
 
-`pnpm unwired scan` is a query over the reference graph (D357): the graph's member rows whose member is callable, a method or a member whose type has a call signature, in tooling/src/unwired/graph/members.ts. A row is test-only when production never reads it and a site outside the product reads or calls it; a site outside the product that only writes it, such as a test fake, makes no row test-only. The graph is the only engine, so every verb refuses `--cross-check`.
+`pnpm unwired scan` is a query over the reference graph (D357): the graph's member rows whose member is callable, a method or a member whose type has a call signature, in tooling/src/unwired/graph/members.ts. A row is test-only when production never reads it and a site outside the product reads or calls it; a site outside the product that only writes it, such as a test fake, makes no row test-only. The graph is the only engine.
 
 The graph counts two uses no name shows:
 
@@ -117,9 +117,9 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 - Migrations, the baseline and the schema files are neither a read nor a write. The schema directory is the graph session's declaring home: a site in it gives a column it declares no role.
 - A column picked by name into a log, a debug route or a bug bundle counts as read. A column that only rides a whole-row dump does not.
 - An export that carries a column to a file counts as a read, a whole row serialized into a file included. The import that fills it counts as a write.
-- A zod `parse` or `safeParse` of a row, whole or spread into an object literal, reads each column whose name the parsed output carries. A key the schema strips, or one a later property of the literal sets over the spread, is no read. A parse no zod schema answers reads nothing.
+- A zod `parse` or `safeParse` of a row, whole or spread into an object literal, reads each column whose name the parsed output carries. A key the schema strips is no read, nor a key the object spread row excludes. A parse no zod schema answers reads nothing.
 - A primary-key column, built with `.primaryKey()` or listed by `primaryKey({ columns })`, that production never reads is listed apart under `primaryKeys`, never as a finding: the key is the row's identity, which an upsert on a natural key never selects.
-- A store of a whole value writes the columns of its required members. An optional column that the value's type only allows is a write only where the value's construction sets it. A store is a builder call drizzle-orm declares, never a same-named method.
+- A store of a whole value writes the columns of its required members. An optional column that the value's type only allows is a write only where the value's construction sets it. A store is a builder call drizzle-orm declares, never a same-named method. A table is a schema call typed as drizzle-orm's table, so a wrapper defines one.
 - A row that carries a subset of its table's columns outside a mapped type over the row matches no table. A member of it named as a column is listed as unresolved.
 - A column that only raw SQL writes is listed as deliberate with its reason.
 

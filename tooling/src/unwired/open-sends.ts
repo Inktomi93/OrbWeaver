@@ -97,7 +97,8 @@ import {
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, SignatureUsage, Type } from "@typescript/native/sync";
 import { all, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
-import { DRIZZLE_PACKAGE, NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
+import { NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
+import { DRIZZLE_PACKAGE } from "./drizzle-rows.ts";
 import { answer } from "./graph/resolve.ts";
 import { honoResponse } from "./graph/urls.ts";
 import type { ListResult } from "./list-methods.ts";

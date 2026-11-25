@@ -47,6 +47,8 @@ import { sortJudged } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag } from "../native.ts";
 import { isProduction } from "../worlds.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { libraryNames } from "./library-names.ts";
 import type { GraphLog } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { Resolver } from "./resolve.ts";
@@ -442,7 +444,7 @@ function literalSites(world: NativeWorld, local: readonly UnionTuple[]): FirstWa
     if (literal !== null) {
       keys.push({ node, site, literal });
     } else if (isStringLiteral(node)) {
-      values.push({ node, site, role: literalRole(node) });
+      values.push({ node, site, role: literalRole(node, libraryNames(world)) });
     }
   });
   const holds = world.batch([
@@ -600,7 +602,8 @@ function guardedTuples(world: NativeWorld, guards: readonly Node[]): ReadonlyMap
 const INSPECTING_USES: ReadonlySet<ValueUse> = new Set<ValueUse>(["type", "test", "parse"]);
 
 // Whether a product reference hands the tuple on (a spread, a map, an index), so it can build any member.
-const enumerates = (references: Iterable<Node>): boolean => [...references].some((reference) => !INSPECTING_USES.has(valueUse(reference)));
+const enumerates = (references: Iterable<Node>, names: LibraryNames): boolean =>
+  [...references].some((reference) => !INSPECTING_USES.has(valueUse(reference, names)));
 
 interface TupleEntry {
   readonly tuple: UnionTuple;
@@ -685,7 +688,8 @@ function readTuples(world: NativeWorld, log: GraphLog): Reading {
     const keys = lineage(tuple);
     return { lineage: keys, respelled: new Set(keys.flatMap((key) => [...(respelled.get(key)?.get(text) ?? [])])) };
   };
-  const ownEnumerated = new Set(local.filter((tuple) => enumerates(tuple.references)).map((tuple) => tuple.key));
+  const names = libraryNames(world);
+  const ownEnumerated = new Set(local.filter((tuple) => enumerates(tuple.references, names)).map((tuple) => tuple.key));
   const produced = [
     ...facts.first.literals.filter((site) => site.role === "construct" && site.holds),
     ...facts.constructions,
@@ -724,7 +728,7 @@ export function readUnionsOnGraph(world: NativeWorld, log: GraphLog): UnionReadi
     names: (literal, tuple) =>
       literal.holds && tuple.members.some((member) => member.text === literal.text) && belongsTo(literal.origins, vocabulary(tuple, literal.text)),
     builds: (tuple, text) => buildsMember(built, vocabulary(tuple, text), text),
-    enumerates,
+    enumerates: (references) => enumerates(references, libraryNames(world)),
   };
 }
 
@@ -741,7 +745,7 @@ export function scanUnionsOnGraph(world: NativeWorld, options: UnionsOptions): U
   // Where outside input enters a tuple: each production z.enum or membership test on its references, and each guard.
   const narrowings = (key: string): readonly string[] => [
     ...(referencesOf.get(key) ?? []).flatMap((reference) => {
-      const use = valueUse(reference);
+      const use = valueUse(reference, libraryNames(world));
       return use === "parse" || use === "test" ? [`${NARROWING_OF_USE[use]} ${located(world.siteOf(reference), reference)}`] : [];
     }),
     ...(facts.guarded.get(key) ?? []).map((guard) => `${GUARD_NARROWING} ${located(world.siteOf(guard), guard)}`),

@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import type { TestOptions } from "vitest";
 import { z } from "zod";
-import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import { graphTree } from "./_planted.ts";
 
 const MEMBER_REPORT = "reports/unwired/unwired.json";
@@ -21,24 +20,6 @@ test.for([
   const run = await runCli("unwired", [...argv, `--root=${root}`]);
   await expect(run).toExitWith(0);
   expect(existsSync(join(root, MEMBER_REPORT))).toBe(true);
-});
-
-// Every scan runs on the reference graph alone (D357), so a cross-check request is refused before any graph builds;
-// the member scan without the flag is the control that runs.
-test.for([
-  { verb: "scan", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "fields", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "unions", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "codes", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "params", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "shapes", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "procedures", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "columns", argv: ["--cross-check"], exit: EXIT.misuse },
-  { verb: "scan", argv: [], exit: EXIT.clean },
-])("unwired $verb $argv exits $exit", SPAWNS_CLI, async ({ verb, argv, exit }, { runCli, plantedTree }) => {
-  const root = await plantedTree(graphTree({}));
-  const run = await runCli("unwired", [verb, ...argv, `--root=${root}`]);
-  await expect(run).toExitWith(exit);
 });
 
 // `.gitignore` covers only the checkout's own `reports/`, so a scan rooted in a package must not leave a stray there.

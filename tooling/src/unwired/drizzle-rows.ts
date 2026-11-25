@@ -3,6 +3,9 @@
 // such a member finds its column through the table the checker ties its row type to. The key resolver's row-column
 // step, the hand-offs, the sends and the origin walk all place a row member here.
 //
+// - A table is a call in a schema file whose type has a `$inferSelect` member drizzle-orm declares, so a wrapper or a
+//   renamed import of `sqliteTable` is a table and a same-named local function is none. Its columns are the keys of the
+//   call's column-map literal that its type holds as members.
 // - A row type is tied to a table only through the types the checker resolves: the table's `$inferSelect`,
 //   `$inferInsert` and `_.columns` types are its anchors, and a type is that table's row when the types it is built from
 //   (alias arguments, union and intersection members, a mapped type's template and key constraint, an indexed access's
@@ -17,7 +20,7 @@
 //   out of new types.
 // - Each world counts the ties made, the types whose member names spell a table's columns but that the checker ties to
 //   none (listed with their file), and the walks the depth bound cut, so a real-tree run shows any column read lost.
-import type { CallExpression, Node } from "@typescript/native/ast";
+import type { CallExpression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isCallExpression,
@@ -29,17 +32,19 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, ConditionalType, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
-import { tableDefinition } from "./boundaries.ts";
 import type { NativeWorld, PropertyName } from "./native.ts";
 import { constituents, DEFAULT_LIBRARY, isPropertyName } from "./native.ts";
 
-/** The Drizzle schema directory: every `sqliteTable` definition lives here. */
+/** The Drizzle schema directory: every table definition lives here. */
 export const DB_SCHEMA = "packages/db/src/schema/";
+
+/** The package whose declarations make a call a table and a builder chain a Drizzle store. */
+export const DRIZZLE_PACKAGE = "drizzle-orm";
 
 /** One Drizzle table definition: the name its table is bound to and its column keys, each the column's declaration. */
 export interface SchemaTable {
   readonly binding: string;
-  /** The `sqliteTable(…)` call: its type is the table's. */
+  /** The defining call: its type is the table's. */
   readonly definition: CallExpression;
   readonly columns: readonly PropertyName[];
   /** The columns its primary key names: a column built with `.primaryKey()`, or one a `primaryKey({ columns })` lists. */
@@ -60,8 +65,8 @@ function buildsPrimaryKey(node: Node | undefined): boolean {
   return false;
 }
 
-// The columns each `primaryKey({ columns: [t.a, t.b] })` in a table's extra callback names.
-function compositeKeys(definition: CallExpression): readonly string[] {
+// The columns each `primaryKey({ columns: [t.a, t.b] })` in a table's other arguments names.
+function compositeKeys(definition: CallExpression, literal: ObjectLiteralExpression): readonly string[] {
   const names: string[] = [];
   const visit = (node: Node): void => {
     if (isCallExpression(node) && isIdentifier(node.expression) && node.expression.text === PRIMARY_KEY) {
@@ -75,39 +80,114 @@ function compositeKeys(definition: CallExpression): readonly string[] {
     }
     node.forEachChild(visit);
   };
-  const extra = definition.arguments[2];
-  if (extra !== undefined) {
-    visit(extra);
+  for (const argument of definition.arguments) {
+    if (!sameSpan(argument, literal)) {
+      visit(argument);
+    }
   }
   return names;
 }
 
-/** Every table defined in the schema files of `world` that `files` admits. */
-export function schemaTables(world: NativeWorld, files: (file: string) => boolean = () => true): readonly SchemaTable[] {
-  const tables: SchemaTable[] = [];
+const sameSpan = (a: Node, b: Node): boolean => a.pos === b.pos && a.end === b.end && a.kind === b.kind;
+
+// Drizzle's table members whose types anchor a row: the select and insert rows, and the column map under `_`.
+const SELECT_ROW = "$inferSelect";
+const INSERT_ROW = "$inferInsert";
+const TABLE_META = "_";
+const TABLE_COLUMNS = "columns";
+
+// A call in a schema file that hands an object literal: only such a call can define a table's columns where it stands.
+function candidateCalls(world: NativeWorld): readonly CallExpression[] {
+  const calls: CallExpression[] = [];
   const visit = (node: Node): void => {
-    const definition = tableDefinition(node);
-    if (definition !== null) {
-      const { parent } = definition.call;
-      const binding = isVariableDeclaration(parent) && isIdentifier(parent.name) ? parent.name.text : (definition.call.arguments[0]?.getText() ?? "");
-      const assignments = definition.columns.properties.filter(isPropertyAssignment);
-      tables.push({
-        binding,
-        definition: definition.call,
-        columns: assignments.flatMap((column) => (isPropertyName(column.name) ? [column.name] : [])),
-        primaryKeys: new Set([
-          ...assignments.flatMap((column) => (isPropertyName(column.name) && buildsPrimaryKey(column.initializer) ? [column.name.text] : [])),
-          ...compositeKeys(definition.call),
-        ]),
-      });
+    if (isCallExpression(node) && node.arguments.some(isObjectLiteralExpression)) {
+      calls.push(node);
     }
     node.forEachChild(visit);
   };
-  for (const file of world.files.filter((source) => world.siteOf(source).file.startsWith(DB_SCHEMA) && files(world.siteOf(source).file))) {
+  for (const file of world.files.filter((source) => world.siteOf(source).file.startsWith(DB_SCHEMA))) {
     file.forEachChild(visit);
   }
+  return calls;
+}
+
+// The member names of a table's type, which holds each column under its key as drizzle's table types do; null for a type
+// whose `$inferSelect` drizzle-orm does not declare.
+function* tableMemberNames(world: NativeWorld, type: Type): APIRequestGenerator<ReadonlySet<string> | null> {
+  const { checker } = world;
+  const select = yield* checker.getPropertyOfType.gen(type, SELECT_ROW);
+  const [declaration] = select?.declarations ?? [];
+  if (declaration === undefined || (yield* world.packageOf(declaration)) !== DRIZZLE_PACKAGE) {
+    return null;
+  }
+  return new Set((yield* checker.getPropertiesOfType.gen(type)).map(({ name }) => name));
+}
+
+// A table call as its definition: the column-map literal is the argument whose keys the table's columns name.
+function definitionOf(call: CallExpression, names: ReadonlySet<string>): SchemaTable | null {
+  const keysOf = (literal: ObjectLiteralExpression): readonly PropertyName[] =>
+    literal.properties.flatMap((property) =>
+      isPropertyAssignment(property) && isPropertyName(property.name) && names.has(property.name.text) ? [property.name] : [],
+    );
+  const columns = call.arguments.filter(isObjectLiteralExpression).find((literal) => keysOf(literal).length > 0);
+  if (columns === undefined) {
+    return null;
+  }
+  const { parent } = call;
+  const assignments = columns.properties.filter(isPropertyAssignment);
+  return {
+    binding: isVariableDeclaration(parent) && isIdentifier(parent.name) ? parent.name.text : (call.arguments[0]?.getText() ?? ""),
+    definition: call,
+    columns: keysOf(columns),
+    primaryKeys: new Set([
+      ...assignments.flatMap((column) => (isPropertyName(column.name) && buildsPrimaryKey(column.initializer) ? [column.name.text] : [])),
+      ...compositeKeys(call, columns),
+    ]),
+  };
+}
+
+// One world's tables, settled once: the row ties, the walk's table spans and the columns scan all read them.
+const TABLES = new WeakMap<NativeWorld, readonly SchemaTable[]>();
+
+// The tables are asked through yield, so a row tie first needed mid-walk asks within its own round.
+function* schemaTablesOf(world: NativeWorld): APIRequestGenerator<readonly SchemaTable[]> {
+  const known = TABLES.get(world);
+  if (known !== undefined) {
+    return known;
+  }
+  const calls = candidateCalls(world);
+  const types = calls.length === 0 ? [] : yield* world.checker.getTypeAtLocation.gen(calls);
+  const names = yield* all(...types.map((type) => tableMemberNames(world, type)));
+  const tables = calls.flatMap((call, at) => {
+    const columns = names[at];
+    const table = columns === null || columns === undefined ? null : definitionOf(call, columns);
+    return table === null ? [] : [table];
+  });
+  const raced = TABLES.get(world);
+  if (raced !== undefined) {
+    return raced;
+  }
+  TABLES.set(world, tables);
   return tables;
 }
+
+/** Every table defined in the schema files of `world`. */
+export function schemaTables(world: NativeWorld): readonly SchemaTable[] {
+  const known = TABLES.get(world);
+  if (known !== undefined) {
+    return known;
+  }
+  const [tables] = world.batch([schemaTablesOf(world)]);
+  return tables ?? [];
+}
+
+/** Whether a node is one of the world's table definitions, by span. Settles the tables, so ask it outside any batch. */
+export function tableCalls(world: NativeWorld): (node: Node) => boolean {
+  const spans = new Set(schemaTables(world).map(({ definition }) => spanKey(definition)));
+  return (node) => isCallExpression(node) && spans.has(spanKey(node));
+}
+
+const spanKey = (node: Node): string => `${node.getSourceFile().fileName}#${String(node.pos)}-${String(node.end)}`;
 
 /** A schema table a row type can be tied to: its binding and each column's symbols by name. */
 export interface RowTable {
@@ -127,12 +207,6 @@ export interface RowTally {
   readonly counts: ReadonlyMap<string, number>;
   readonly refusals: readonly string[];
 }
-
-// Drizzle's table members whose types anchor a row: the select and insert rows, and the column map under `_`.
-const SELECT_ROW = "$inferSelect";
-const INSERT_ROW = "$inferInsert";
-const TABLE_META = "_";
-const TABLE_COLUMNS = "columns";
 
 // The deepest real-drizzle row reaches its anchor at level 9 (`Pick<InferSelectModel<typeof t>, "k"> & {…}`), and the
 // deepest non-row closure in the server and client worlds (a `z.infer` over a nested zod schema) ends by level 32. The
@@ -213,7 +287,7 @@ function* rowsOf(world: NativeWorld): APIRequestGenerator<Rows> {
     return known;
   }
   const { checker } = world;
-  const definitions = schemaTables(world);
+  const definitions = yield* schemaTablesOf(world);
   const names = definitions.flatMap(({ columns }) => columns);
   const [found, tableTypes] =
     definitions.length === 0

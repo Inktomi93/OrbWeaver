@@ -27,18 +27,18 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
-import { DRIZZLE_PACKAGE } from "../boundaries.ts";
 import type { Site } from "../classify.ts";
 import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { DistinctRegistry } from "../distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "../distinct-lookalikes.ts";
+import { DRIZZLE_PACKAGE } from "../drizzle-rows.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationKeys, hasFlag, resolvedSymbol } from "../native.ts";
 import { isProduction } from "../worlds.ts";
-import { ZOD_PACKAGE } from "./resolve.ts";
+import { ZOD_PACKAGE } from "./library-names.ts";
 
 const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;
 /** `restated`: two named object types in different files with the same members, each assignable to the other.

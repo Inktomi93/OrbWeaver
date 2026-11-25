@@ -147,9 +147,11 @@ import {
 } from "@typescript/native/ast";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { StoreWrite } from "../boundaries.ts";
-import { copiedReads, insertSelectWritesAt, storeWritesAt, tableDefinition } from "../boundaries.ts";
+import { copiedReads, insertSelectWritesAt, storeWritesAt } from "../boundaries.ts";
 import { isParseCall } from "../handoffs.ts";
 import { hasFlag } from "../native.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { REFLECTIVE_CALLS, ZOD_EXTENDERS, ZOD_LAZY, ZOD_OBJECT_BUILDERS, ZOD_OPTIONAL, ZOD_TYPE, ZOD_UNION_BUILDERS } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -275,8 +277,10 @@ const isUnitDeclaration = (node: Node): node is UnitDeclaration =>
 // The name of a unit declaration, or undefined for any other node.
 const unitName = (node: Node): Node | undefined => (isUnitDeclaration(node) ? node.name : undefined);
 
-/** The name a declaration-like node declares: a unit's, a binding's, a parameter's or a literal key's. */
-export const declarationNameOf = (node: Node): Node | undefined => unitName(node) ?? namingName(node);
+/** The name a declaration-like node declares: a unit's, a binding's, a parameter's or a literal key's, a shorthand
+ *  key's included. A shorthand's name also reads the binding it names, so {@link declaresName} leaves it out. */
+export const declarationNameOf = (node: Node): Node | undefined =>
+  unitName(node) ?? namingName(node) ?? (isShorthandPropertyAssignment(node) ? node.name : undefined);
 
 /** The declaration kinds of a member: what a type, a class or an enum holds. A zod shape key is a member too, marked
  *  {@link DeclInfo.schemaKey}, since its kind is every literal key's. */
@@ -685,6 +689,10 @@ export interface WalkSink {
   readonly unseenCall: (key: DeclKey) => void;
   /** A module a `new URL("./x", import.meta.url)` names, if it is one of the tree's code files. */
   readonly urlModule: (fromFile: string, specifier: string) => string | null;
+  /** Whether a node is a Drizzle table definition, by the checker's type of the call (../drizzle-rows.ts). */
+  readonly isTable: (node: Node) => boolean;
+  /** The world's library names, settled before the walk (./library-names.ts). */
+  readonly names: LibraryNames;
 }
 
 const CSS_NAME = /^--[\w-]+$/u;
@@ -714,37 +722,24 @@ const INSPECT_CUSTOM = "custom";
 const RUNTIME_PROTOCOL_NAMES: ReadonlySet<string> = new Set(["toJSON", "toString", "valueOf", "then"]);
 const ARM_SELECTORS: ReadonlySet<string> = new Set(["Extract", "Exclude"]);
 const MEMBER_SELECTORS: ReadonlySet<string> = new Set(["Pick", "Omit"]);
-// A zod object schema's shape literal, through the chain it is built in (`z.strictObject({ … }).describe(…)`).
-const ZOD_OBJECT_BUILDERS: ReadonlySet<string> = new Set(["object", "strictObject", "looseObject"]);
-// An inline `z.union` or `z.discriminatedUnion` spells each arm; an arm held in a constant twins at its own `satisfies`.
-const ZOD_UNION_BUILDERS: ReadonlySet<string> = new Set(["union", "discriminatedUnion"]);
-const ZOD_EXTENDERS: ReadonlySet<string> = new Set(["extend", "safeExtend"]);
-const ZOD_LAZY = "lazy";
-// The zod type a schema is checked against.
-const ZOD_TYPE = "ZodType";
 /** How a reflective use takes each member: `read` takes its value, `key` only its name, as an `in` test does. */
 type ReflectiveRole = Extract<Role, "read" | "key">;
-// The platform calls that take every member of their arguments: the `Object` statics that list or copy them, and a deep
-// clone. `Object.keys` lists names alone, so it is a key use of each member, never a read of its value.
-const REFLECTIVE_STATICS: ReadonlyMap<string, ReflectiveRole> = new Map([
-  ["entries", "read"],
-  ["values", "read"],
-  ["assign", "read"],
-  ["keys", "key"],
-]);
-const OBJECT_GLOBAL = "Object";
-const CLONE = "structuredClone";
-const reflectiveRole = (callee: Node): ReflectiveRole | undefined => {
-  if (isIdentifier(callee) && callee.text === CLONE) {
-    return "read";
-  }
-  return isPropertyAccessExpression(callee) && isIdentifier(callee.expression) && callee.expression.text === OBJECT_GLOBAL
-    ? REFLECTIVE_STATICS.get(callee.name.text)
-    : undefined;
-};
-const ZOD_NAMESPACE = "z";
-// A builder method anywhere on a key's chain (`z.string().optional()`) makes the key optional or gives it a default.
-const ZOD_OPTIONAL: ReadonlySet<string> = new Set(["optional", "nullish", "default", "prefault", "catch"]);
+// The platform call that takes every member of its arguments (library-names.ts REFLECTIVE_CALLS), by its callee's name.
+function reflectiveRole(callee: Node, names: LibraryNames): ReflectiveRole | undefined {
+  const name = isPropertyAccessExpression(callee) ? callee.name : callee;
+  const role = isIdentifier(name) ? REFLECTIVE_CALLS.get(name.text) : undefined;
+  return role !== undefined && names.declaredBy(name, "platform") ? role : undefined;
+}
+// The name a call's callee ends in, when it is one of zod's: `zod.object` and `z.object` alike.
+const zodCallee = (
+  call: Node,
+  builders: ReadonlySet<string>,
+  names: LibraryNames,
+): call is CallExpression & { readonly expression: PropertyAccessExpression } =>
+  isCallExpression(call) &&
+  isPropertyAccessExpression(call.expression) &&
+  builders.has(call.expression.name.text) &&
+  names.declaredBy(call.expression.name, "zod");
 // A variable's JSDoc sits on its statement (`/** @public */ export const x = …`), two levels up from the declaration.
 const hasJsDoc = (node: UnitDeclaration): boolean => {
   const holder = isVariableDeclaration(node) ? node.parent.parent : node;
@@ -821,7 +816,7 @@ const referenceName = (node: TypeReferenceNode): string => (isQualifiedName(node
 
 // A schema expression checked against a type: `schema satisfies z.ZodType<T>`, `const schema: z.ZodType<T> = …`, or a
 // value returned where the function declares `z.ZodType<T>`.
-function checkedSchema(node: Node): { readonly schema: Node; readonly type: TypeReferenceNode } | undefined {
+function checkedSchema(node: Node, names: LibraryNames): { readonly schema: Node; readonly type: TypeReferenceNode } | undefined {
   if (isSatisfiesExpression(node) && isTypeReferenceNode(node.type)) {
     return { schema: node.expression, type: node.type };
   }
@@ -834,24 +829,31 @@ function checkedSchema(node: Node): { readonly schema: Node; readonly type: Type
   }
   const declared = isArrowFunction(node) ? node.type : declaredReturnType(node);
   // a return is checked against every declared return type, so only one spelled `ZodType` is asked of the checker
-  return declared !== undefined && isTypeReferenceNode(declared) && referenceName(declared) === ZOD_TYPE ? { schema: returned, type: declared } : undefined;
+  return declared !== undefined && isTypeReferenceNode(declared) && isZodType(declared, names) ? { schema: returned, type: declared } : undefined;
 }
 
+const referenceNameNode = (node: TypeReferenceNode): Node => (isQualifiedName(node.typeName) ? node.typeName.right : node.typeName);
+
+const isZodType = (node: TypeReferenceNode, names: LibraryNames): boolean =>
+  referenceName(node) === ZOD_TYPE && names.declaredBy(referenceNameNode(node), "zod");
+
 // The schemas a zod builder wraps whole: each arm of `z.union([…])`, or the schema `z.lazy(() => schema)` returns;
-// undefined for any other builder.
-function zodWrappedSchemas(args: readonly Expression[], builder: string): readonly Node[] | undefined {
-  if (ZOD_UNION_BUILDERS.has(builder)) {
-    return args.find(isArrayLiteralExpression)?.elements ?? [];
+// undefined for any other call.
+function zodWrappedSchemas(call: CallExpression, names: LibraryNames): readonly Node[] | undefined {
+  if (zodCallee(call, ZOD_UNION_BUILDERS, names)) {
+    return call.arguments.find(isArrayLiteralExpression)?.elements ?? [];
   }
-  const [made] = args;
-  return builder === ZOD_LAZY && made !== undefined && isArrowFunction(made) && !isBlock(made.body) ? [made.body] : undefined;
+  const [made] = call.arguments;
+  return zodCallee(call, ZOD_LAZY_BUILDER, names) && made !== undefined && isArrowFunction(made) && !isBlock(made.body) ? [made.body] : undefined;
 }
+
+const ZOD_LAZY_BUILDER: ReadonlySet<string> = new Set([ZOD_LAZY]);
 
 // Every object shape a zod schema expression spells: one `z.object` literal, each arm of an inline union, each
 // `base.extend({ … })` literal along the chain (the base keeps its own twin through its own `satisfies`), and the
 // schema a `z.lazy(() => schema)` arrow returns.
-function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
-  const one = zodShapeOf(expression);
+function zodShapesOf(expression: Node, names: LibraryNames): readonly ObjectLiteralExpression[] {
+  const one = zodShapeOf(expression, names);
   if (one !== undefined) {
     return [one];
   }
@@ -861,15 +863,15 @@ function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
     if (!isPropertyAccessExpression(callee)) {
       return shapes;
     }
-    const wrapped = zodWrappedSchemas(at.arguments, callee.name.text);
+    const wrapped = zodWrappedSchemas(at, names);
     if (wrapped !== undefined) {
-      return [...shapes, ...wrapped.flatMap(zodShapesOf)];
+      return [...shapes, ...wrapped.flatMap((schema) => zodShapesOf(schema, names))];
     }
     const [added] = at.arguments;
-    if (ZOD_EXTENDERS.has(callee.name.text) && added !== undefined && isObjectLiteralExpression(added)) {
+    if (zodCallee(at, ZOD_EXTENDERS, names) && added !== undefined && isObjectLiteralExpression(added)) {
       shapes.push(added);
     }
-    const inner = zodShapeOf(callee.expression);
+    const inner = zodShapeOf(callee.expression, names);
     if (inner !== undefined) {
       return [...shapes, inner];
     }
@@ -883,14 +885,14 @@ function zodShapesOf(expression: Node): readonly ObjectLiteralExpression[] {
 const spanOf = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
 
 /** Whether a declaration is a key of a zod shape literal: the declaration of a field the schema parses. */
-export const isZodShapeKey = (node: Node): node is PropertyAssignment | ShorthandPropertyAssignment =>
-  (isPropertyAssignment(node) || isShorthandPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isZodShape(node.parent);
+export const isZodShapeKey = (node: Node, names: LibraryNames): node is PropertyAssignment | ShorthandPropertyAssignment =>
+  (isPropertyAssignment(node) || isShorthandPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isZodShape(node.parent, names);
 
 // The names of the object keys a shape literal sits under, outermost first, up to its binding or to the schema key that
 // holds it: each declares nothing, so the holder chain alone leaves it out of the home.
-function schemaKeyPath(literal: Node): readonly string[] {
+function schemaKeyPath(literal: Node, names: LibraryNames): readonly string[] {
   const path: string[] = [];
-  for (let at: Node = literal.parent; !(isSourceFile(at) || isVariableDeclaration(at) || isZodShapeKey(at)); at = at.parent) {
+  for (let at: Node = literal.parent; !(isSourceFile(at) || isVariableDeclaration(at) || isZodShapeKey(at, names)); at = at.parent) {
     if (isPropertyAssignment(at) && isIdentifier(at.name)) {
       path.unshift(at.name.text);
     }
@@ -898,22 +900,15 @@ function schemaKeyPath(literal: Node): readonly string[] {
   return path;
 }
 
-function isZodShape(literal: ObjectLiteralExpression): boolean {
+function isZodShape(literal: ObjectLiteralExpression, names: LibraryNames): boolean {
   const call = literal.parent;
-  return (
-    isCallExpression(call) &&
-    sameNode(call.arguments[0], literal) &&
-    isPropertyAccessExpression(call.expression) &&
-    ZOD_OBJECT_BUILDERS.has(call.expression.name.text) &&
-    isIdentifier(call.expression.expression) &&
-    call.expression.expression.text === ZOD_NAMESPACE
-  );
+  return zodCallee(call, ZOD_OBJECT_BUILDERS, names) && sameNode(call.arguments[0], literal);
 }
 
 // `z.string().optional()`: a builder method that makes a key optional or defaulted, anywhere on its initializer's chain.
-function isOptionalSchema(node: Node): boolean {
+function isOptionalSchema(node: Node, names: LibraryNames): boolean {
   for (let at: Node | undefined = unwrapExpression(node); at !== undefined && isCallExpression(at) && isPropertyAccessExpression(at.expression); ) {
-    if (ZOD_OPTIONAL.has(at.expression.name.text)) {
+    if (zodCallee(at, ZOD_OPTIONAL, names)) {
       return true;
     }
     at = unwrapExpression(at.expression.expression);
@@ -921,11 +916,11 @@ function isOptionalSchema(node: Node): boolean {
   return false;
 }
 
-function zodShapeOf(expression: Node): ObjectLiteralExpression | undefined {
+function zodShapeOf(expression: Node, names: LibraryNames): ObjectLiteralExpression | undefined {
   for (let at: Node | undefined = unwrapExpression(expression); at !== undefined && isCallExpression(at); ) {
     const callee = at.expression;
     const [shape] = at.arguments;
-    if (isPropertyAccessExpression(callee) && ZOD_OBJECT_BUILDERS.has(callee.name.text) && shape !== undefined && isObjectLiteralExpression(shape)) {
+    if (zodCallee(at, ZOD_OBJECT_BUILDERS, names) && shape !== undefined && isObjectLiteralExpression(shape)) {
       return shape;
     }
     at = isPropertyAccessExpression(callee) ? unwrapExpression(callee.expression) : undefined;
@@ -1076,7 +1071,7 @@ class Walker {
   // The children, counting the generic functions and the Drizzle table definitions that enclose them.
   #children(node: Node, inType: boolean): void {
     const generic = isFunctionLikeDeclaration(node) && (node.typeParameters?.length ?? 0) > 0 ? 1 : 0;
-    const table = isCallExpression(node) && tableDefinition(node) !== null ? 1 : 0;
+    const table = this.#sink.isTable(node) ? 1 : 0;
     this.#frame.generic += generic;
     this.#frame.tables += table;
     node.forEachChild((child) => this.visit(child, inType));
@@ -1277,7 +1272,7 @@ class Walker {
   // A key of a zod shape literal declares a member of its schema, held by the schema's binding or by the key whose
   // nested schema it sits in, so its home reads `userSchema.inner` as the fields scan spells it.
   #schemaKey(node: Node): boolean {
-    if (!isZodShapeKey(node)) {
+    if (!isZodShapeKey(node, this.#sink.names)) {
       return false;
     }
     const name = keyText(node.name);
@@ -1296,9 +1291,9 @@ class Walker {
       line: editorLineOf(this.#source, node.name.getStart(this.#source)),
       effect: false,
       shapeOnly: null,
-      optional: isPropertyAssignment(node) && isOptionalSchema(node.initializer),
+      optional: isPropertyAssignment(node) && isOptionalSchema(node.initializer, this.#sink.names),
       schemaKey: true,
-      via: schemaKeyPath(node.parent),
+      via: schemaKeyPath(node.parent, this.#sink.names),
       docTags: [],
     });
     // a literal key lives with its schema, which runs the key's builder chain; a read of the key keeps the schema too
@@ -1424,7 +1419,7 @@ class Walker {
     }
     this.#sites.literals.push(literal);
     this.#frame.literals.push(literal);
-    const schema = isZodShape(node) || this.#frame.twinShapes.has(spanOf(node));
+    const schema = isZodShape(node, this.#sink.names) || this.#frame.twinShapes.has(spanOf(node));
     for (const property of node.properties) {
       const name = isSpreadAssignment(property) ? undefined : keyText(property.name);
       if (name === undefined) {
@@ -1605,13 +1600,13 @@ class Walker {
       const value = node.initializer !== undefined && isJsxExpression(node.initializer) ? node.initializer.expression : node.initializer;
       this.#sites.jsxAttributes.push({ attributes: node.parent, name: node.name.text, value });
     }
-    const checked = checkedSchema(node);
+    const checked = checkedSchema(node, this.#sink.names);
     if (checked !== undefined && checked.type.typeArguments?.[0] !== undefined) {
       const [shape] = checked.type.typeArguments;
       const { typeName } = checked.type;
       const type = isQualifiedName(typeName) ? typeName.right : typeName;
       this.#sites.zodChecks.push({ type, shape, schema: checked.schema });
-      for (const literal of zodShapesOf(checked.schema)) {
+      for (const literal of zodShapesOf(checked.schema, this.#sink.names)) {
         this.#frame.twinShapes.add(spanOf(literal));
         this.#sites.zodTwins.push({ type, shape, keys: literal.properties.flatMap((property) => this.#twinKey(property)) });
       }
@@ -1623,7 +1618,7 @@ class Walker {
     if (isForInStatement(node)) {
       this.#sites.reflectiveReads.push({ value: node.expression, callee: null, role: "key" });
     }
-    const role = isCallExpression(node) ? reflectiveRole(node.expression) : undefined;
+    const role = isCallExpression(node) ? reflectiveRole(node.expression, this.#sink.names) : undefined;
     if (role !== undefined && isCallExpression(node)) {
       this.#sites.reflectiveReads.push(...node.arguments.map((value) => ({ value, callee: node.expression, role })));
     }
@@ -1915,10 +1910,10 @@ const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
 
 /** Whether a Drizzle write copies the name's read into a column, or a table definition holds it: the reads the walk
  *  gives no role (the header's ruling), found from the name up through its enclosing calls. */
-export function handedToColumn(name: Node): boolean {
+export function handedToColumn(name: Node, isTable: (node: Node) => boolean): boolean {
   const inTable = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name);
   for (let at = name.parent; !isSourceFile(at); at = at.parent) {
-    if (copiedBy(storesAt(at)).some((read) => sameNode(read, name)) || (inTable && tableDefinition(at) !== null)) {
+    if (copiedBy(storesAt(at)).some((read) => sameNode(read, name)) || (inTable && isTable(at))) {
       return true;
     }
   }

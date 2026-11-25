@@ -40,10 +40,6 @@ export const OBSERVABILITY_SINKS: ReadonlySet<SendDestination> = new Set<SendDes
 /** Where the tRPC packages live: a symbol they declare is the wire client's, not ours. */
 export const TRPC_PACKAGE = "/node_modules/@trpc/";
 
-/** The Drizzle package: its `sql` tag stores a value, a write through it is a column write, and its model types are
- *  computed from a table. */
-export const DRIZZLE_PACKAGE = "drizzle-orm";
-
 /** The provider backends make every provider request, so only a value there can reach one. */
 export const PROVIDER_BODIES = "packages/inference/src/backends/";
 
@@ -171,14 +167,4 @@ export function copiedReads(value: Expression): readonly Node[] {
     return [...copiedReads(at.left), ...copiedReads(at.right)];
   }
   return isConditionalExpression(at) ? [...copiedReads(at.whenTrue), ...copiedReads(at.whenFalse)] : [];
-}
-
-/** A Drizzle table definition, `sqliteTable(name, columns, extra)`: its column keys, and the call whose span holds the
- *  column reads that define indexes and foreign keys rather than read stored values. */
-export function tableDefinition(node: Node): { readonly call: CallExpression; readonly columns: ObjectLiteralExpression } | null {
-  if (!(isCallExpression(node) && isIdentifier(node.expression) && node.expression.text === "sqliteTable")) {
-    return null;
-  }
-  const columns = node.arguments[1];
-  return columns !== undefined && isObjectLiteralExpression(columns) ? { call: node, columns } : null;
 }
