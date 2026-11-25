@@ -56,7 +56,7 @@ import {
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { IndexKind } from "@typescript/native/sync";
 import type { ListResult } from "../list-methods.ts";
-import { methodCallOf, RESULTS } from "../list-methods.ts";
+import { ELEMENT_PARAMETERS, methodCallOf, RESULTS } from "../list-methods.ts";
 import { declarationKeys, hasFlag } from "../native.ts";
 import { answer, keyText } from "./resolve.ts";
 import type { GraphState } from "./state.ts";
@@ -81,16 +81,6 @@ interface Frame {
   readonly call: CallExpression | NewExpression;
   readonly callee: Node;
 }
-
-// The array methods whose callback takes the receiver's elements, by the callback parameter that takes them.
-const ELEMENT_PARAMETERS: ReadonlyMap<string, readonly number[]> = new Map<string, readonly number[]>([
-  ...["forEach", "map", "flatMap", "filter", "find", "findLast", "findIndex", "findLastIndex", "some", "every"].map((name): [string, readonly number[]] => [
-    name,
-    [0],
-  ]),
-  ...["reduce", "reduceRight"].map((name): [string, readonly number[]] => [name, [1]]),
-  ...["sort", "toSorted"].map((name): [string, readonly number[]] => [name, [0, 1]]),
-]);
 
 const pathKey = (path: Path): string => path.map((step) => (step.kind === "element" ? "[]" : `.${step.name}`)).join("");
 const nodeKey = (node: Node): string => `${node.getSourceFile().fileName}:${String(node.pos)}:${String(node.end)}`;

@@ -125,6 +125,7 @@ exports map has one entry, so no domain can reach a backend.
 | - | - |
 | Packages, server tiers, the domain template and partitioning | `Core-0-Architecture-and-Structure.md` |
 | Retained tooling | `Core-0-Architecture-and-Structure.md` §9 |
+| The unwired fields scan's limits and member rows | `unwired-fields-scan.md` |
 | Cross-cutting threads (§5) | `Spine-Identity-and-Auth.md`, `Spine-Config-and-Serialization.md`, `Spine-TypeScript-and-Patterns.md`, `Spine-Testing.md` |
 | Knowledge and derived data | `Knowledge-Cluster.md` |
 | Mined vendor and SDK API surfaces | `deepseek-api-surface.md`, `ai-sdk-surface.md` |

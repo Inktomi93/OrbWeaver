@@ -41,7 +41,7 @@ import { copiedReads } from "../boundaries.ts";
 import { DRIZZLE_PACKAGE, tableCalls } from "../drizzle-rows.ts";
 import { parsedColumns, schemaParses } from "../handoffs.ts";
 import type { PropertyName } from "../native.ts";
-import { hasFlag, isPropertyName, NativeWorld } from "../native.ts";
+import { hasFlag, isPropertyName, NativeWorld, resolvedSymbol } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
@@ -283,8 +283,8 @@ class Builder {
   constructor(state: GraphState) {
     this.#state = state;
     this.#variants = new Variants(state.session);
-    this.#flows = new Flows(this.#state);
     this.#doors = new MessageDoors(this.#state);
+    this.#flows = new Flows(this.#state, this.#doors);
     this.#routes = new RouteParams(this.#state);
     this.#constraints = new Constraints(this.#state);
     this.#keys = new Keys(this.#state);
@@ -872,8 +872,9 @@ class Builder {
   // `const [value, setValue] = useState(…)`: the tuple a React state hook hands back.
   #hookTuples(sites: FileSites): void {
     const state = this.#state;
-    const callees = state.world.symbolsAt(
-      sites.hookTuples.map(({ call }) => (isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression)),
+    // an import alias (`import { useState as useLocal }`) resolves to React's own hook; a local one is no hook
+    const callees = state.batch(
+      sites.hookTuples.map(({ call }) => resolvedSymbol(state.world, isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression)),
     );
     const reacts = state.world.fromPackage(
       callees.map((callee) => callee?.declarations ?? []),

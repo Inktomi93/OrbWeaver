@@ -90,24 +90,27 @@ interface LoadedWorld {
 
 const loadMergedWorlds = (root: string): readonly LoadedWorld[] => mergedWorlds(root).map((config) => ({ config, parsed: loadWorld(root, config) }));
 
-// Each world's `types` entries resolved as tsc resolves them for that world, from the world's own folder. The merged
-// config sits at the root, where an entry only a package's node_modules links (the showcase author worlds' plugin SDK)
-// resolves to nothing, so the merged program loads each resolved file as a root file instead. An entry the world itself
-// cannot resolve stays a `types` entry, so the merged program reports the same missing type the world does.
-function worldTypes(root: string, worlds: readonly LoadedWorld[]): { readonly files: readonly string[]; readonly unresolved: readonly string[] } {
+// Each world's `types` entries resolved as tsc resolves them for that world, from the world's own folder. An entry that
+// resolves to the same file from the merged config's root stays a `types` entry, so the program loads its package as
+// the world does, as an external library with every file its index reaches by `/// <reference path>`; a package loaded
+// as a root file is the tree's own by the program's answer. The merged config sits at the root, where an entry only a
+// package's node_modules links (the showcase author worlds' plugin SDK) resolves to nothing, so the merged program loads
+// each such resolved file as a root file instead. An entry the world itself cannot resolve stays a `types` entry, so the
+// merged program reports the same missing type the world does.
+function worldTypes(root: string, worlds: readonly LoadedWorld[]): { readonly files: readonly string[]; readonly entries: readonly string[] } {
   const files = new Set<string>();
-  const unresolved = new Set<string>();
+  const entries = new Set<string>();
   for (const { config, parsed } of worlds) {
     for (const name of parsed.options.types ?? []) {
       const found = resolveWorldType(root, config, parsed, name);
-      if (found === undefined) {
-        unresolved.add(name);
+      if (found === undefined || resolveWorldType(root, MERGED_CONFIG, parsed, name) === found) {
+        entries.add(name);
       } else {
         files.add(found);
       }
     }
   }
-  return { files: [...files].sort(), unresolved: [...unresolved].sort() };
+  return { files: [...files].sort(), entries: [...entries].sort() };
 }
 
 // The merged program's options on the browser world's: every world's `types` (worldTypes) and `allowJs`, over `files`
@@ -118,7 +121,7 @@ function mergedText(root: string, worlds: readonly LoadedWorld[], files: readonl
     extends: join(root, MERGED_BASE),
     // allowJs is written only when a world sets it, so the merged options set nothing a world leaves to its default
     compilerOptions: {
-      types: types.unresolved,
+      types: types.entries,
       paths,
       ...(worlds.some(({ parsed }) => parsed.options.allowJs === true) ? { allowJs: true } : {}),
       noEmit: true,

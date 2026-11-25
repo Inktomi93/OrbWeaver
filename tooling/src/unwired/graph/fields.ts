@@ -64,7 +64,7 @@ export interface FieldsReport {
 
 /** What the fields query cannot see or does not fill, printed with every run. */
 const FIELD_LIMITS: readonly string[] = [
-  "Every row is a graph member row (tooling/src/unwired/graph/judge.ts), so the graph's own limits hold: docs/plans/unwired-code/design.md 'Limits of the fields scan' and the open classes under 'Member rows on the graph against the fields scan'.",
+  "Every row is a graph member row (tooling/src/unwired/graph/judge.ts), so the graph's own limits hold: docs/law/unwired-fields-scan.md 'Limits of the fields scan' and the open classes under 'Member rows on the graph'.",
   "A computed key built from runtime strings or a runtime symbol types as string or symbol, so it reads or writes no named member.",
   "A type-position read (Registry[K] in a type) is no data read unless K can be the entry's key.",
   "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible; the literal stage lists such a spelling and moves a dead row to ask.",

@@ -466,13 +466,22 @@ const KEYS_TREE = {
     "type Mode = (typeof MODES)[number];",
     'export const mode: Mode = "x";',
   ].join("\n"),
+  // A package's type named `Omit` is no lib key selection, so the tuple it takes is a value vocabulary.
+  "packages/a/node_modules/omit-lib/package.json": JSON.stringify({ name: "omit-lib", types: "index.d.ts" }),
+  "packages/a/node_modules/omit-lib/index.d.ts": "export type Omit<T, K> = { readonly kept: T; readonly dropped: K };",
+  "packages/a/src/local-omit.ts": [
+    'import type { Omit } from "omit-lib";',
+    'const LOCAL = ["p", "q"] as const;',
+    "type LocalKey = (typeof LOCAL)[number];",
+    "export type Local = Omit<{ readonly p: 1 }, LocalKey>;",
+  ].join("\n"),
 };
 
 test("the unions scan lists a tuple a Pick, Omit or keyof filter names as a key list and judges none of its members", {
   timeout: 120_000,
 }, async ({ plantedTree }) => {
   const report = await scanUnions(plantedTree, KEYS_TREE);
-  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt MODES.y"]);
+  expect(report.unwired.map(({ kind, home, member }) => `${kind} ${home}.${member}`)).toEqual(["unbuilt LOCAL.p", "unbuilt LOCAL.q", "unbuilt MODES.y"]);
   expect(report.keyLists).toEqual(["packages/a/src/props.ts:JSON_FIELDS", "packages/a/src/props.ts:LOOK", "packages/a/src/props.ts:PICKED"]);
 });
 

@@ -20,15 +20,23 @@ const STEPS_PER_LEVEL = 4;
 // A ceiling on the (node, position) answers one list element may cost.
 const STEPS_PER_LIST = 8;
 
-// The element surface the planted code writes and reads through, since a planted tree has no DOM lib.
-const ELEMENT = [
-  "export interface El {",
-  "  setAttribute(name: string, value: string): void;",
-  "  toggleAttribute(name: string, force?: boolean): boolean;",
-  "  getAttribute(name: string): string | null;",
-  "  querySelector(selector: string): El | null;",
-  "  readonly dataset: Record<string, string | undefined>;",
+// The element the planted code writes and reads through: the DOM library's own, since an attribute call counts only
+// when its method resolves there.
+const ELEMENT = "export type El = HTMLElement;";
+const DOM_LIB = [...LIB, "DOM"];
+
+// A browser test runner, installed as a package: its `getByTestId` and `toHaveAttribute` read hooks.
+const RUNNER = "@playwright/test";
+const RUNNER_TYPES = [
+  "export interface Locator {",
+  "  evaluate<A>(fn: (element: HTMLElement, arg: A) => unknown, arg: A): Promise<unknown>;",
   "}",
+  "export interface Page {",
+  "  getByTestId(id: string): Locator;",
+  "  locator(selector: string): Locator;",
+  "  evaluate<A>(fn: (arg: A) => unknown, arg: A): Promise<unknown>;",
+  "}",
+  "export declare function expect(locator: Locator): { toHaveAttribute(name: string): Promise<void> };",
 ].join("\n");
 
 const owner = (lines: readonly string[]): string => [...lines, "export const OWNER_CSS_SURFACE = [];"].join("\n");
@@ -37,9 +45,13 @@ async function dom(plantedTree: (tree: Record<string, string>) => Promise<string
   const root = await plantedTree(
     graphTree(
       {
-        [WORLD]: plantedTsconfig({ lib: LIB, include: ["../*/src", "../../tests", "../../tooling"], jsx: "preserve" }),
+        // The merged program takes its options from the browser world's config.
+        "tsconfig.world-browser.json": plantedTsconfig({ lib: DOM_LIB, include: [], jsx: "preserve" }),
+        [WORLD]: plantedTsconfig({ lib: DOM_LIB, include: ["../*/src", "../../tests", "../../tooling"], jsx: "preserve" }),
         [`${GRAPH_SOURCE}/jsx-env.ts`]: JSX_NAMESPACE,
         [`${GRAPH_SOURCE}/el.ts`]: ELEMENT,
+        [`node_modules/${RUNNER}/package.json`]: JSON.stringify({ name: RUNNER, types: "index.d.ts" }),
+        [`node_modules/${RUNNER}/index.d.ts`]: RUNNER_TYPES,
         [OWNER_CSS_SURFACE]: owner([]),
         ...files,
       },
@@ -130,15 +142,20 @@ test("a written data-* attribute no product or snap read reaches is reported, a 
       'const READ = "data-held-read";',
       'const SELECTED = "data-selected";',
       "export const Marks = () => (",
-      '  <div data-orphan="x" data-styled data-held-read="1" data-selected data-asserted data-variant data-dataset-read data-theme-grain="on" data-base-ui-x data-snapped data-driven className="data-variant:flex" />',
+      '  <div data-orphan="x" data-styled data-held-read="1" data-selected data-asserted data-variant data-dataset-read data-theme-grain="on" data-base-ui-x data-snapped data-driven data-lookalike className="data-variant:flex" />',
       ");",
       // biome-ignore lint/suspicious/noTemplateCurlyInString: the case is planted template source the pass reads.
       "export const read = (el: El): unknown => [el.getAttribute(READ), el.querySelector(`[${SELECTED}]`), el.dataset.datasetRead];",
     ].join("\n"),
     "tests/a/marks.test.ts": [
-      "declare const expectEl: { toHaveAttribute(name: string): void; setAttribute(name: string, value: string): void };",
-      'expectEl.toHaveAttribute("data-asserted");',
-      'expectEl.setAttribute("data-test-only", "");',
+      `import { expect, type Locator } from "${RUNNER}";`,
+      "declare const row: Locator;",
+      "declare const el: HTMLElement;",
+      'void expect(row).toHaveAttribute("data-asserted");',
+      'el.setAttribute("data-test-only", "");',
+      // A matcher of our own spelled like the runner's reads nothing.
+      "declare const lookalike: { toHaveAttribute(name: string): void };",
+      'lookalike.toHaveAttribute("data-lookalike");',
     ].join("\n"),
     "tooling/src/snap/drive.ts": [
       'import type { El } from "../../../packages/a/src/el.ts";',
@@ -150,7 +167,12 @@ test("a written data-* attribute no product or snap read reaches is reported, a 
     ].join("\n"),
   });
   const at = `${GRAPH_SOURCE}/marks.tsx:5`;
-  expect(report.buckets["dom-attr-unread"]).toEqual([`data-asserted ${at} read by tests`, `data-orphan ${at}`, `data-snapped ${at} read by tooling`]);
+  expect(report.buckets["dom-attr-unread"]).toEqual([
+    `data-asserted ${at} read by tests`,
+    `data-lookalike ${at}`,
+    `data-orphan ${at}`,
+    `data-snapped ${at} read by tooling`,
+  ]);
   expect(names(report.buckets["dom-attr-owner-css-only"])).toEqual(["data-theme-grain"]);
 });
 
@@ -161,18 +183,24 @@ test(
     const report = await dom(plantedTree, {
       [`${GRAPH_SOURCE}/ids.ts`]: 'export const IDS = { found: "found" };',
       [`${GRAPH_SOURCE}/rows.tsx`]:
-        'export const Rows = () => [<div data-testid="lonely" />, <div data-testid="found" />, <div data-testid="selected" />, <div data-testid="snapped" />, <div data-testid="driven" />];',
+        'export const Rows = () => [<div data-testid="lonely" />, <div data-testid="found" />, <div data-testid="selected" />, <div data-testid="snapped" />, <div data-testid="driven" />, <div data-testid="twin" />];',
       "tests/a/rows.test.ts": [
         'import { IDS } from "../../packages/a/src/ids.ts";',
-        "declare const page: { getByTestId(id: string): unknown; locator(selector: string): unknown };",
+        `import type { Page } from "${RUNNER}";`,
+        "declare const page: Page;",
         "page.getByTestId(IDS.found);",
+        // A lookup of our own spelled like the runner's names no test id.
+        "declare const own: { getByTestId(id: string): unknown };",
+        'own.getByTestId("twin");',
         "page.locator('[data-testid=\"selected\"]');",
       ].join("\n"),
-      "tooling/src/snap/ids.ts": ["declare const page: { getByTestId(id: string): unknown };", 'page.getByTestId("driven");'].join("\n"),
-      "tooling/src/snap.ts": ["declare const page: { getByTestId(id: string): unknown };", 'page.getByTestId("snapped");'].join("\n"),
+      "tooling/src/snap/ids.ts": [`import type { Page } from "${RUNNER}";`, "declare const page: Page;", 'page.getByTestId("driven");'].join("\n"),
+      "tooling/src/snap.ts": [`import type { Page } from "${RUNNER}";`, "declare const page: Page;", 'page.getByTestId("snapped");'].join("\n"),
     });
     const at = `${GRAPH_SOURCE}/rows.tsx:1`;
     expect(report.buckets["dom-value-unread"]).toEqual([`data-testid=lonely ${at}`, `data-testid=snapped ${at} read by tooling`]);
+    // The look-alike lookup reads nothing: its argument is only a string equal to a test id, listed unresolved.
+    expect(placed(report.unresolved)).toEqual([{ text: "twin", at: "tests/a/rows.test.ts:6", world: "tests" }]);
   },
 );
 
@@ -190,7 +218,7 @@ test(
         "}",
         "export const bag = (key: string): Record<string, number> => ({ [key]: 1 });",
       ].join("\n"),
-      "tests/a/set.test.ts": ["declare const el: { setAttribute(name: string, value: string): void };", 'el.setAttribute("data-test-set", "");'].join("\n"),
+      "tests/a/set.test.ts": ["declare const el: HTMLElement;", 'el.setAttribute("data-test-set", "");'].join("\n"),
       "tooling/src/named.ts": 'export const NAMED = ["data-tooling-named"];',
     });
     expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-dead]`, `${SHEET}:[data-tooling-named]`]);
@@ -283,23 +311,30 @@ test("a read of snap's or ui-facts' attribute model by name reads that attribute
       "}",
       'export const density = (facts: AppearanceElementFacts): string | null => attr(facts, "data-snap-model");',
     ].join("\n"),
-    "tooling/src/eslint/ui-classes/source.ts": "export interface Elem {\n  readonly attrs: ReadonlyMap<string, unknown>;\n}",
+    "tooling/src/eslint/ui-classes/source.ts": [
+      "export interface Elem {\n  readonly attrs: ReadonlyMap<string, unknown>;\n}",
+      // The model's member typed by a lookup of our own: its `has` is no collection's, so it reads no attribute.
+      "export interface Other {\n  readonly attrs: { has(name: string): boolean };\n}",
+    ].join("\n"),
     "tooling/src/ui-facts/cohorts.ts": [
-      'import type { Elem } from "../eslint/ui-classes/source.ts";',
+      'import type { Elem, Other } from "../eslint/ui-classes/source.ts";',
       'export const shell = (elem: Elem): boolean => elem.attrs.has("data-facts-model");',
+      'export const near = (other: Other): boolean => other.attrs.has("data-facts-lookalike");',
     ].join("\n"),
     [`${GRAPH_SOURCE}/models.tsx`]: [
       "const bag: { readonly attributes: Readonly<Record<string, string>> } = { attributes: {} };",
       'export const other = bag.attributes["data-not-model"];',
-      "export const Models = () => <div data-snap-model data-facts-model data-not-model />;",
+      "export const Models = () => <div data-snap-model data-facts-model data-facts-lookalike data-not-model />;",
     ].join("\n"),
   });
   // A look-alike record's key names a property, not an attribute read, so its hook stays unread.
   expect(report.buckets["dom-attr-unread"]).toEqual([
+    `data-facts-lookalike ${GRAPH_SOURCE}/models.tsx:3`,
     `data-facts-model ${GRAPH_SOURCE}/models.tsx:3 read by tooling`,
     `data-not-model ${GRAPH_SOURCE}/models.tsx:3`,
   ]);
-  expect(placed(report.unresolved)).toEqual([]);
+  // The look-alike lookup is no site, so its name is a whole data-* string no site reaches.
+  expect(placed(report.unresolved)).toEqual([{ text: "data-facts-lookalike", at: "tooling/src/ui-facts/cohorts.ts:3", world: "tooling" }]);
 });
 
 test("a table a flatMap builds holds the rows its callback returns, past a branch that returns none", TIMEOUT, async ({ plantedTree }) => {
@@ -390,12 +425,7 @@ test("a callback a browser driver runs in the page holds the argument the driver
     [`${GRAPH_SOURCE}/marked.tsx`]: "export const Marked = () => <div data-page-mark data-element-mark />;",
     "tests/a/driver.ts": [
       'import type { El } from "../../packages/a/src/el.ts";',
-      "interface Page {",
-      "  evaluate<A>(fn: (arg: A) => unknown, arg: A): Promise<unknown>;",
-      "}",
-      "interface Locator {",
-      "  evaluate<A>(fn: (element: El, arg: A) => unknown, arg: A): Promise<unknown>;",
-      "}",
+      `import type { Locator, Page } from "${RUNNER}";`,
       'const PAGE_MARK = "data-page-mark";',
       'const ELEMENT_MARK = "data-element-mark";',
       "export async function marks(page: Page, locator: Locator, root: El): Promise<void> {",
@@ -456,9 +486,7 @@ test("a named function a browser driver runs in the page holds the argument the 
     [`${GRAPH_SOURCE}/named.tsx`]: "export const Named = () => <div data-named-mark />;",
     "tests/a/named-driver.ts": [
       'import type { El } from "../../packages/a/src/el.ts";',
-      "interface Locator {",
-      "  evaluate<A>(fn: (element: El, arg: A) => unknown, arg: A): Promise<unknown>;",
-      "}",
+      `import type { Locator } from "${RUNNER}";`,
       'const NAMED_MARK = "data-named-mark";',
       "function probe(root: El, { mark }: { readonly mark: string }): string | null {",
       "  return root.getAttribute(mark);",

@@ -70,7 +70,7 @@ export interface MemberScanReport {
 
 /** What the member scan cannot see or does not fill, printed with every run. */
 const MEMBER_LIMITS: readonly string[] = [
-  "Every row is a graph member row (tooling/src/unwired/graph/judge.ts), so the graph's own limits hold: docs/plans/unwired-code/design.md 'Member rows on the graph against the fields scan'.",
+  "Every row is a graph member row (tooling/src/unwired/graph/judge.ts), so the graph's own limits hold: docs/law/unwired-fields-scan.md 'Member rows on the graph'.",
   "A member is callable by its declared type alone: a property typed by a union with a function arm is callable, and a property typed `unknown` that holds a function is not.",
   "A call from outside the tree, such as a plugin guest's or an external agent's, is invisible; a published SDK member is received, and any other needs a deliberate entry.",
   "No second engine audits a row: the scan has no --cross-check and no disagreements list.",

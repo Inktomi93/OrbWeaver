@@ -10,6 +10,8 @@
 //   `dataset` read, a sheet selector, or a selector or Tailwind data variant a string spells. A read in tests or tooling
 //   only annotates its row, as the graph's roles do (./state.ts header), except that a test's `getByTestId` or selector
 //   reads a test id, since those hooks exist for tests, and that a snap read ({@link productReader}) counts as the product's.
+// - A call is a site only when its method resolves to its declarer: an attribute method to the DOM library,
+//   `toHaveAttribute` and `getByTestId` to a test runner's package, a model's `get` and `has` to a platform Map.
 // - Script source a string holds runs in a page or a frame, so an attribute call or a `dataset` use it spells is a
 //   site of the string's world (SCRIPT_CALL, SCRIPT_DATASET).
 // - A read by name of a house attribute model (ATTRIBUTE_MODELS) is an attribute read: snap's DOM snapshot and
@@ -73,9 +75,11 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator } from "@typescript/native/sync";
+import { all } from "@typescript/native/sync";
 import { kebab, SEALED_NAME } from "../../eslint/index.ts";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { NativeWorld } from "../native.ts";
+import { platformMember, resolvedSymbol } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import { OWNER_CSS_SURFACE, STRING } from "./css.ts";
 import type { Text, Texts } from "./held.ts";
@@ -149,7 +153,8 @@ const WRITERS: ReadonlySet<string> = new Set(["setAttribute", "toggleAttribute"]
 const READERS: ReadonlySet<string> = new Set(["getAttribute", "hasAttribute", "removeAttribute", "toggleAttribute", "toHaveAttribute"]);
 const TEST_ID_LOOKUP = "getByTestId";
 const ATTRIBUTE = "Attribute";
-/** An attribute call or a `dataset` use spelled inside script source a string holds. */
+/** An attribute call or a `dataset` use spelled inside script source a string holds. A string is no program, so the
+ *  checker has no declaration to resolve its calls by; the spelling is all there is to read. */
 const SCRIPT_CALL = /\b(get|has|remove|toggle|set)Attribute\(\s*["'`](data-[a-z][\w-]*)/gu;
 const SCRIPT_DATASET = /\.dataset\.([A-Za-z]\w*)(\s*=(?!=))?/gu;
 /** The house models that hold an element's attributes by name, by the file that declares the member: snap's DOM
@@ -160,6 +165,11 @@ const ATTRIBUTE_MODELS: readonly { readonly file: string; readonly member: strin
 ];
 const MODEL_MEMBERS: ReadonlySet<string> = new Set(ATTRIBUTE_MODELS.map(({ member }) => member));
 const MODEL_LOOKUPS: ReadonlySet<string> = new Set(["get", "has"]);
+// The platform's keyed collections, whose `get` and `has` a model lookup must resolve to.
+const MODEL_COLLECTIONS: ReadonlySet<string> = new Set(["Map", "ReadonlyMap"]);
+// The test runners whose declarations of `toHaveAttribute` and `getByTestId` read a hook, by package or scope.
+const TEST_RUNNERS: readonly string[] = ["playwright", "playwright-core", "@playwright/", "vitest", "@vitest/", "@testing-library/"];
+const ASSERTION_READER = "toHaveAttribute";
 const ATTRIBUTE_FILTER = "attributeFilter";
 const RECORD_NAME = "attributeName";
 const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
@@ -277,6 +287,9 @@ class Hooks {
   /** The lists a `MutationObserver` filter names: each is an attribute the observer reads. */
   readonly #filterReads: { readonly node: Node; readonly at: string; readonly world: World }[] = [];
   readonly #testIdLookups: { readonly node: Expression; readonly world: World }[] = [];
+  /** Calls spelled like an attribute method, a test id lookup or a model lookup, kept until the checker proves the
+   *  declaration their method resolves to: the DOM's own, a test runner's, or a platform collection's. */
+  readonly #calls: PendingCall[] = [];
   /** Every whole data-* string in a value position, and every string equal to a plain test id candidate. */
   readonly #whole: { readonly node: StringLiteral | NoSubstitutionTemplateLiteral; readonly at: string; readonly world: World }[] = [];
 
@@ -453,18 +466,26 @@ class Hooks {
       return;
     }
     const at = atOf(file, node);
+    const methodName = isPropertyAccessExpression(callee) ? callee.name : callee;
     if (method === TEST_ID_LOOKUP) {
-      this.read(TEST_ID, undefined, world);
-      this.#testIdLookups.push({ node: name, world });
+      this.#calls.push({
+        method: methodName,
+        declarer: "runner",
+        site: (): void => {
+          this.read(TEST_ID, undefined, world);
+          this.#testIdLookups.push({ node: name, world });
+        },
+      });
       return;
     }
     if (MODEL_LOOKUPS.has(method) && isPropertyAccessExpression(callee) && isModelMember(callee.expression)) {
-      this.#modelReads.push({ member: callee.expression, name, at, world });
+      const member = callee.expression;
+      this.#calls.push({ method: methodName, declarer: "collection", site: (): void => void this.#modelReads.push({ member, name, at, world }) });
       return;
     }
     if (WRITERS.has(method) || READERS.has(method)) {
       const written = method === "toggleAttribute" ? [""] : (value ?? null);
-      this.#sites.push({
+      const site: Site = {
         at,
         world,
         key: false,
@@ -473,7 +494,19 @@ class Hooks {
         write: world === "product" && WRITERS.has(method),
         read: READERS.has(method),
         value: written,
-      });
+      };
+      this.#calls.push({ method: methodName, declarer: method === ASSERTION_READER ? "runner" : "dom", site: (): void => void this.#sites.push(site) });
+    }
+  }
+
+  // Each pending call whose method resolves to the declarer it needs becomes its site.
+  #provenCalls(): void {
+    const world = this.#world;
+    const proven = world.batch(this.#calls.map(({ method, declarer }) => declaredByDeclarer(world, method, declarer)));
+    for (const [at, call] of this.#calls.entries()) {
+      if (proven[at] === true) {
+        call.site();
+      }
     }
   }
 
@@ -565,6 +598,7 @@ class Hooks {
   /** Follow every held name and value through the checker, then list what no site reaches. */
   resolve(): void {
     const world = this.#world;
+    this.#provenCalls();
     this.#modelSites();
     const asks: Expression[] = [
       ...this.#selectorTemplates.map(({ node }) => node),
@@ -727,6 +761,34 @@ class Hooks {
       }
     }
   }
+}
+
+// Who must declare a pending call's method: the DOM library, a test runner, or the platform's keyed collections.
+const DECLARERS = ["dom", "runner", "collection"] as const;
+type Declarer = (typeof DECLARERS)[number];
+
+interface PendingCall {
+  readonly method: Node;
+  readonly declarer: Declarer;
+  readonly site: () => void;
+}
+
+// Whether every declaration a method name resolves to is its declarer's.
+function* declaredByDeclarer(world: NativeWorld, method: Node, declarer: Declarer): APIRequestGenerator<boolean> {
+  const symbol = yield* resolvedSymbol(world, method);
+  const declarations = symbol?.declarations ?? [];
+  if (declarations.length === 0) {
+    return false;
+  }
+  if (declarer === "collection") {
+    const member = yield* platformMember(world, symbol);
+    return member?.container !== null && member?.container !== undefined && MODEL_COLLECTIONS.has(member.container);
+  }
+  if (declarer === "dom") {
+    return (yield* all(...declarations.map((handle) => world.isDefaultLibrary(handle)))).every(Boolean);
+  }
+  const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
+  return packages.every((pkg) => pkg !== null && TEST_RUNNERS.some((runner) => (runner.endsWith("/") ? pkg.startsWith(runner) : pkg === runner)));
 }
 
 function calleeName(callee: Expression): string | null {

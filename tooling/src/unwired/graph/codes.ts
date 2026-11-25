@@ -45,7 +45,7 @@ import type { DeliberateEntry } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
-import { constituents, hasFlag } from "../native.ts";
+import { constituents, hasFlag, platformMember, resolvedSymbol } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import type { LibraryNames } from "./library-names.ts";
@@ -99,7 +99,9 @@ const TEXT_JOIN = "|";
 type BranchRole = LiteralRole | "record-key";
 const BRANCH_ROLES: ReadonlySet<BranchRole> = new Set<BranchRole>(["case", "compare", "key", "record-key"]);
 
-/** The collections whose elements a later `has` or `get` tests a code against, and those methods. */
+/** The platform collections whose elements a later `has` or `get` tests a code against, and those methods. The
+ *  constructor is judged by the declaration it resolves to, so a local `Set` class tests nothing; a binding proven a
+ *  platform collection calls the platform's methods, so their names are enough. */
 const MEMBERSHIP_COLLECTIONS: ReadonlySet<string> = new Set(["Set", "Map"]);
 const MEMBERSHIP_READS: ReadonlySet<string> = new Set(["has", "get"]);
 
@@ -109,7 +111,7 @@ const CODE_LIMITS: readonly string[] = [
   "A member is thrown only as an argument the resolved signature binds to a code parameter: a constructor parameter of a class domainReason in packages/server/src/transport/trpc/error-mapping.ts tests that is, or is stored into, the property it reads, or a parameter a function hands on, as or inside an argument, to one, followed through every hand-off. A member a parameter defaults to (`refusal: Code = CODES.x`) is handed to that parameter. A function hands a parameter on when an argument is the parameter, or names it and no other parameter of that function (`super(reasonOf(code))`, never `super(tag(code, level))`). A member in an object literal argument (a detail object), a binding thrown later, or a class the transport does not carry is no thrown code.",
   "A member of an object vocabulary is built only by a read of its property (`CODES.x`); a literal that spells its text builds nothing, nor names a branch.",
   "A returned vocabulary types a refusal field: one whose string literals are exactly its members, in a value a tRPC resolver returns or a Hono `json` call sends, followed through unions, type arguments and properties, each type read once. A coded refusal is an object with one vocabulary field, one required string sentence and nothing else required. A refusal field is (a) the code of a coded refusal on the `false` members of an object union split by a boolean literal discriminant, where no `true` member carries a vocabulary field and no `false` member carries a field a `true` member carries; (b) the code of a coded refusal reached as `O | null`, never an optional or `undefined` one; or (c) the one vocabulary field at the top of a `json` body sent with a status typed by 4xx and 5xx literals only. A subscription's frames are read the same way, and also (d): in one object member of a frame union, the one vocabulary field beside one required string sentence, setting aside the tags typed by one string literal, such as `channel` and `type`. Any other field is no code; a hand-written response is not followed.",
-  "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant; an element of a `new Set([...])` or a key of a `new Map([...])` whose binding any file, its own or one that imports it, tests with `has` or `get`; or an element access, by a value typed by the whole vocabulary, into a table with a property for every member. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
+  "A client branch is a case label, an equality or membership operand, or a key, written as a literal in the member's vocabulary or as a read of the member's constant; an element of the platform's `new Set([...])` or a key of its `new Map([...])` whose binding any file, its own or one that imports it, tests with `has` or `get`; or an element access, by a value typed by the whole vocabulary, into a table with a property for every member. A literal compared to a value typed `string`, such as `trpcErrorReason(error)`, is no checker link, so it names no branch.",
   "A throw is read only when the merged program holds the error mapping. A client construction never builds a code.",
 ];
 
@@ -814,8 +816,8 @@ function gatherLookups(run: CodesRun): ReadonlyMap<string, readonly string[]> {
 }
 
 // The binding a member read is collected under: an element of `new Set([...])` or the key of an entry of
-// `new Map([[key, value], ...])`, assigned to a name. Null for any other read.
-function membershipBinding(node: Node): Node | null {
+// `new Map([[key, value], ...])`, assigned to a name, with the constructor it names. Null for any other read.
+function membershipBinding(node: Node): { readonly binding: Node; readonly made: Node } | null {
   const value = handedValue(node);
   const entry = isArrayLiteralExpression(value.parent) && isArrayLiteralExpression(value.parent.parent) && sameNode(value.parent.elements[0], value);
   const list = entry ? value.parent.parent : value.parent;
@@ -834,10 +836,12 @@ function membershipBinding(node: Node): Node | null {
     bound = bound.parent;
   }
   const declaration = bound.parent;
-  return isVariableDeclaration(declaration) && sameNode(declaration.initializer, bound) && isIdentifier(declaration.name) ? declaration.name : null;
+  return isVariableDeclaration(declaration) && sameNode(declaration.initializer, bound) && isIdentifier(declaration.name)
+    ? { binding: declaration.name, made: made.expression }
+    : null;
 }
 
-// A reference to a collection's binding that calls `has` or `get` on it.
+// A reference to a platform collection's binding that calls `has` or `get` on it.
 function testsMembership(node: Node): boolean {
   const access = node.parent;
   return (
@@ -849,13 +853,21 @@ function testsMembership(node: Node): boolean {
   );
 }
 
+// Whether a name resolves to the platform's `Set` or `Map`, whose first declaration is the interface itself.
+function* platformCollection(world: NativeWorld, name: Node): APIRequestGenerator<boolean> {
+  const member = yield* platformMember(world, yield* resolvedSymbol(world, name));
+  return member !== null && MEMBERSHIP_COLLECTIONS.has(member.name);
+}
+
 // The client member reads collected into a Set or Map whose binding some file, its own or one that imports it, tests
 // with `has` or `get`, by key.
 function gatherMemberships(run: CodesRun, reads: readonly Node[]): ReadonlySet<string> {
-  const collected = reads.flatMap((node) => {
-    const binding = inClient(run.fileOf(node)) && readRole(node, libraryNames(run.world)) === "construct" ? membershipBinding(node) : null;
-    return binding === null ? [] : [{ node, binding }];
+  const candidates = reads.flatMap((node) => {
+    const held = inClient(run.fileOf(node)) && readRole(node, libraryNames(run.world)) === "construct" ? membershipBinding(node) : null;
+    return held === null ? [] : [{ node, ...held }];
   });
+  const platform = run.world.batch(candidates.map(({ made }) => platformCollection(run.world, made)));
+  const collected = candidates.filter((_, at) => platform[at] === true);
   const references = run.references(collected.map(({ binding }) => binding));
   return new Set(collected.filter((_, at) => (references[at] ?? []).some(testsMembership)).map(({ node }) => run.key(node)));
 }

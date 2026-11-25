@@ -41,18 +41,24 @@ test("a plugin contract member the SDK spells inline in a slot is read by guests
 test("a state value nothing reads and a setter nothing calls are reported; used ones are not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...REACT_TYPES,
+    // A hook of our own named like React's hands back no state tuple.
+    [`${GRAPH_SOURCE}/own-hook.ts`]: "export function useState<S>(initial: S): [S, (next: S) => void] { return [initial, () => undefined]; }",
     ...source([
-      'import { useState } from "react";',
+      'import { useState, useState as useLocal } from "react";',
+      'import { useState as useOwn } from "./own-hook.ts";',
       "export const panel = (): boolean => {",
       "  const [open, setOpen] = useState(false);",
       "  const [count, setCount] = useState(0);",
+      "  const [shown, setShown] = useLocal(true);",
+      "  const [quiet, setQuiet] = useOwn(true);",
       "  setCount(1);",
-      "  return open;",
+      "  return open && shown && quiet;",
       "};",
     ]),
   });
-  expect(labelsIn(scan, "state-never-read", FILE)).toEqual(["4 value"]);
-  expect(labelsIn(scan, "state-never-set", FILE)).toEqual(["3 setter"]);
+  // React's hook through an import alias is the same hook
+  expect(labelsIn(scan, "state-never-read", FILE)).toEqual(["5 value"]);
+  expect(labelsIn(scan, "state-never-set", FILE)).toEqual(["4 setter", "6 setter"]);
 });
 
 test("an exclusion marker is judged by nothing, though a write into its union lands on it", { timeout: 120_000 }, async ({ plantedTree }) => {

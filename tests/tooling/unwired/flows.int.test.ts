@@ -1,6 +1,8 @@
 // A value handed from one type to a restated twin carries its members across: the sink's reads count for the source
 // and the source's writes count for the sink, never the reverse. Each form has a found case beside its wired control.
+import { relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { NESTED_READS } from "../../../tooling/src/unwired/boundaries.ts";
 import { fieldsScan, GRAPH_SOURCE, HONO_CONTEXT, ZOD_MODULE } from "./_planted.ts";
 
 const scanned = async (plantedTree: (tree: Record<string, string>) => Promise<string>, file: string, lines: readonly string[]): Promise<readonly string[]> => {
@@ -74,6 +76,15 @@ test("an uncontextual local literal writes the type it is later handed to", { ti
   expect(found.toSorted()).toEqual(["Image.size never-written", "held.id never-read"]);
 });
 
+// The dotted-path reader the chase knows by its declaration, planted where production declares it, and a function of the
+// same name declared elsewhere, which reads nothing.
+const [NESTED_READER = { file: "", name: "" }] = NESTED_READS;
+const NESTED_IMPORT = relative(GRAPH_SOURCE, NESTED_READER.file);
+const READERS = {
+  [NESTED_READER.file]: `export function ${NESTED_READER.name}(value: unknown, path: string): unknown { return (value as Record<string, unknown>)[path]; }`,
+  [`${GRAPH_SOURCE}/near.ts`]: "export const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
+};
+
 test("an as const writer object and a ReturnType hop both write what they hand on", { timeout: 120_000 }, async ({ plantedTree }) => {
   const found = await scanned(plantedTree, "writers.ts", [
     "interface Styled { readonly tone?: string; readonly pad?: string; readonly made?: number; readonly gap?: string; readonly seed?: string }",
@@ -94,24 +105,29 @@ test("a dotted-path read and a compared serialization read a value's members; a 
 }) => {
   const report = await fieldsScan(plantedTree, {
     ...HONO_CONTEXT,
+    ...READERS,
     [`${GRAPH_SOURCE}/reflective.ts`]: [
       '/// <reference types="node" />',
       'import type { Context } from "hono";',
+      `import { nestedValue } from "${NESTED_IMPORT}";`,
+      'import { nestedValue as nearValue } from "./near.ts";',
       "interface Snapshot { readonly mode: string }",
+      "interface Twin { readonly mode: string }",
       "interface Detail { readonly note: string }",
       "interface View { readonly status: string; readonly details: readonly Detail[] }",
       "interface Passed { readonly unread: string }",
       "interface Pair { readonly left: string }",
       "interface Failed { readonly code: string }",
-      "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
       "const log = (value: unknown): void => { void value; };",
       "declare const c: Context;",
+      'const twin: Twin = { mode: "t" };',
       'const snapshot: Snapshot = { mode: "m" };',
       'const view: View = { status: "ok", details: [{ note: "n" }] };',
       'const passed: Passed = { unread: "u" };',
       'const pair: Pair = { left: "l" };',
       'const failed: Failed = { code: "c" };',
       'export const sample = nestedValue(snapshot, "mode");',
+      'export const near = nearValue(twin, "mode");',
       "export const sent = c.json(view);",
       "export const same = JSON.stringify(pair) === JSON.stringify(pair);",
       'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
@@ -125,6 +141,8 @@ test("a dotted-path read and a compared serialization read a value's members; a 
     "Detail.note never-read ask http",
     "Failed.code never-read ask error",
     "Passed.unread never-read dead ",
+    // a function named like the reader but declared elsewhere reads nothing
+    "Twin.mode never-read ask unclassified",
     "View.details never-read ask http",
     "View.status never-read ask http",
   ]);

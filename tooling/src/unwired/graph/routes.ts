@@ -17,7 +17,6 @@ import {
   isFunctionExpression,
   isIdentifier,
   isNoSubstitutionTemplateLiteral,
-  isPropertyAccessExpression,
   isStringLiteral,
   isTemplateExpression,
   isVariableDeclaration,
@@ -26,8 +25,8 @@ import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import { keyLiterals, ROUTE_METHODS } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { literalValues } from "./state.ts";
+import { HONO_APP, HONO_REQUEST, honoMember } from "./urls.ts";
 
-const HONO = "hono";
 const PARAM_METHOD = "param";
 const SEGMENT = /:([A-Za-z_]\w*)/gu;
 // Stands for a substitution of a wide type, so no segment is read across it.
@@ -65,26 +64,23 @@ export class RouteParams {
 
   /** Pair each hono route a file registers with its handlers' parameter reads. */
   file(calls: readonly CallExpression[], file: string): void {
-    const routes = this.#hono(calls);
-    for (const call of routes) {
-      this.#route(call, file);
+    for (const route of this.#hono(calls, HONO_APP)) {
+      this.#route(route, file);
     }
   }
 
-  // The calls whose resolved signature hono declares.
-  #hono(calls: readonly CallExpression[]): readonly CallExpression[] {
+  // The calls of a member hono's class `container` declares, with the member's name.
+  #hono(calls: readonly CallExpression[], container: string): readonly { readonly call: CallExpression; readonly name: string }[] {
     const state = this.#state;
-    const signatures = state.batch(calls.map((call) => state.world.checker.getResolvedSignature.gen(call)));
-    const ours = state.world.fromPackage(
-      signatures.map((signature) => (signature.declaration === undefined ? [] : [signature.declaration])),
-      HONO,
-    );
-    return calls.filter((_, at) => ours[at] === true);
+    const members = state.batch(calls.map((call) => honoMember(state.world, call)));
+    return calls.flatMap((call, at) => {
+      const member = members[at];
+      return member !== null && member !== undefined && member.container === container ? [{ call, name: member.name }] : [];
+    });
   }
 
-  #route(call: CallExpression, file: string): void {
-    const method = isPropertyAccessExpression(call.expression) ? call.expression.name.text : undefined;
-    const index = method === undefined ? undefined : ROUTE_METHODS.get(method);
+  #route({ call, name }: { readonly call: CallExpression; readonly name: string }, file: string): void {
+    const index = ROUTE_METHODS.get(name);
     const path = index === undefined ? undefined : call.arguments[index];
     if (index === undefined || path === undefined) {
       return;
@@ -139,28 +135,27 @@ export class RouteParams {
 
   #functionReads(fn: Handler): ReadonlySet<string> | "whole" {
     const [context] = fn.parameters;
-    const contextName = context !== undefined && isIdentifier(context.name) ? context.name.text : null;
-    const params: CallExpression[] = [];
-    let whole = contextName === null;
+    if (fn.body === undefined || context === undefined || !isIdentifier(context.name)) {
+      return "whole";
+    }
+    const calls: CallExpression[] = [];
     const visit = (node: Node): void => {
       if (isCallExpression(node)) {
-        if (isPropertyAccessExpression(node.expression) && node.expression.name.text === PARAM_METHOD) {
-          params.push(node);
-        } else if (node.arguments.some((argument) => isIdentifier(argument) && argument.text === contextName)) {
-          // the context goes to code this pass does not follow, which may read any parameter
-          whole = true;
-        }
+        calls.push(node);
       }
       node.forEachChild(visit);
     };
-    if (fn.body === undefined) {
-      return "whole";
-    }
     visit(fn.body);
-    if (whole) {
+    const state = this.#state;
+    const [own] = state.world.symbolsAt([context.name]);
+    // the context goes to code this pass does not follow, which may read any parameter
+    const handed = calls.flatMap((call) => call.arguments.filter(isIdentifier));
+    const handedSymbols = state.world.symbolsAt(handed);
+    if (own !== undefined && handedSymbols.some((symbol) => symbol?.id === own.id)) {
       return "whole";
     }
-    return this.#paramKeys(this.#hono(params));
+    const params = this.#hono(calls, HONO_REQUEST).flatMap(({ call, name }) => (name === PARAM_METHOD ? [call] : []));
+    return this.#paramKeys(params);
   }
 
   #paramKeys(reads: readonly CallExpression[]): ReadonlySet<string> | "whole" {

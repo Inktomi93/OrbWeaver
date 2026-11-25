@@ -11,17 +11,22 @@ import { relative, resolve } from "node:path";
 import type { ComputedPropertyName, Expression, Identifier, Node, NoSubstitutionTemplateLiteral, SourceFile, StringLiteral } from "@typescript/native/ast";
 import {
   isArrowFunction,
+  isClassDeclaration,
   isComputedPropertyName,
   isFunctionDeclaration,
   isFunctionExpression,
   isGetAccessorDeclaration,
   isIdentifier,
+  isInterfaceDeclaration,
   isMethodDeclaration,
+  isModuleDeclaration,
   isNoSubstitutionTemplateLiteral,
+  isPropertyAccessExpression,
   isPropertyAssignment,
   isPropertyDeclaration,
   isSetAccessorDeclaration,
   isShorthandPropertyAssignment,
+  isSourceFile,
   isStringLiteral,
   SyntaxKind,
 } from "@typescript/native/ast";
@@ -673,3 +678,75 @@ export const isNamedMember = (parent: Node, node: Node): boolean =>
     isGetAccessorDeclaration(parent) ||
     isSetAccessorDeclaration(parent)) &&
   parent.name === node;
+
+/** The package of Node's own types, whose ambient modules declare Node's platform. */
+export const NODE_TYPES = "@types/node";
+// The platform's own declarations: the compiler's default library and Node's types, whose fetch is undici's.
+const PLATFORM_PACKAGES: ReadonlySet<string> = new Set([NODE_TYPES, "undici-types"]);
+const NODE_MODULE_PREFIX = "node:";
+
+/** Whether a declaration is the platform's: the compiler's default library or Node's types. */
+export function* isPlatform(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<boolean> {
+  if (yield* world.isDefaultLibrary(handle)) {
+    return true;
+  }
+  const pkg = yield* world.packageOf(handle);
+  return pkg !== null && PLATFORM_PACKAGES.has(pkg);
+}
+
+/** Where a library declaration sits: the class or interface that holds it (or is it), and the ambient module around
+ *  it with `node:` dropped, so `node:crypto` and `crypto` are one module. */
+export function declarationHome(node: Node): { readonly container: string | null; readonly module: string | null } {
+  let container: string | null = null;
+  let module: string | null = null;
+  for (let at = node; module === null && !isSourceFile(at); at = at.parent) {
+    if (container === null && (isClassDeclaration(at) || isInterfaceDeclaration(at))) {
+      container = at.name?.text ?? null;
+    }
+    if (isModuleDeclaration(at) && isStringLiteral(at.name)) {
+      module = at.name.text.startsWith(NODE_MODULE_PREFIX) ? at.name.text.slice(NODE_MODULE_PREFIX.length) : at.name.text;
+    }
+  }
+  return { container, module };
+}
+
+/** A platform member a symbol resolves to: its name, the class or interface that declares it (null for a global
+ *  function or variable) and its ambient module. Null when no declaration is the platform's, as a local of the same
+ *  name is not. */
+export interface PlatformMember {
+  readonly name: string;
+  readonly container: string | null;
+  readonly module: string | null;
+}
+
+export function* platformMember(world: NativeWorld, symbol: NativeSymbol | undefined): APIRequestGenerator<PlatformMember | null> {
+  for (const handle of symbol?.declarations ?? []) {
+    if (yield* isPlatform(world, handle)) {
+      const declaration = yield* handle.resolve.gen();
+      if (declaration !== undefined && symbol !== undefined) {
+        return { name: symbol.name, ...declarationHome(declaration) };
+      }
+    }
+  }
+  return null;
+}
+
+/** The symbol a name resolves to, through an import alias to what it imports. */
+export function* resolvedSymbol(world: NativeWorld, node: Node): APIRequestGenerator<NativeSymbol | undefined> {
+  const symbol = yield* world.checker.getSymbolAtLocation.gen(node);
+  if (symbol === undefined || !hasFlag(symbol.flags, SymbolFlags.Alias)) {
+    return symbol;
+  }
+  const target = yield* world.checker.getAliasedSymbol.gen(symbol);
+  return (yield* world.checker.isUnknownSymbol.gen(target)) ? undefined : target;
+}
+
+/** Whether a call's callee is the platform member `container.name` (a global function when `container` is null). */
+export function* callsPlatform(world: NativeWorld, callee: Node, container: string | null, name: string): APIRequestGenerator<boolean> {
+  const target = isPropertyAccessExpression(callee) ? callee.name : callee;
+  if (!isIdentifier(target)) {
+    return false;
+  }
+  const member = yield* platformMember(world, yield* resolvedSymbol(world, target));
+  return member !== null && member.container === container && member.name === name;
+}

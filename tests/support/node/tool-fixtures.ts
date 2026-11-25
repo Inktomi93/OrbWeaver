@@ -215,12 +215,20 @@ export interface PlantedTsconfigOptions {
   readonly include?: readonly string[];
   /** Set for a planted `.tsx` file, whose elements a declared JSX namespace types. */
   readonly jsx?: "preserve";
+  /** The ambient type packages the config loads, as a world's own `types` names them; none unless set. */
+  readonly types?: readonly string[];
 }
 
-/** The `tsconfig.json` body of a planted package: strict bundler resolution, no ambient types, DOM unless `lib` says otherwise. */
-export function plantedTsconfig({ lib = ["ESNext", "DOM"], paths, include = ["src"], jsx }: PlantedTsconfigOptions = {}): string {
+/** The `tsconfig.json` body of a planted package: strict bundler resolution, no ambient types unless `types` names some, DOM unless `lib` says otherwise. */
+export function plantedTsconfig({ lib = ["ESNext", "DOM"], paths, include = ["src"], jsx, types }: PlantedTsconfigOptions = {}): string {
   return JSON.stringify({
-    compilerOptions: { ...PLANTED_COMPILER_OPTIONS, lib, ...(paths === undefined ? {} : { paths }), ...(jsx === undefined ? {} : { jsx }) },
+    compilerOptions: {
+      ...PLANTED_COMPILER_OPTIONS,
+      lib,
+      ...(paths === undefined ? {} : { paths }),
+      ...(jsx === undefined ? {} : { jsx }),
+      ...(types === undefined ? {} : { types }),
+    },
     include,
   });
 }

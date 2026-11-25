@@ -15,6 +15,16 @@ export const RESULTS: ReadonlyMap<string, ListResult> = new Map([
   ["flatMap", "flat"],
 ]);
 
+/** The array methods whose callback takes the receiver's elements, by the callback parameter that takes them. */
+export const ELEMENT_PARAMETERS: ReadonlyMap<string, readonly number[]> = new Map<string, readonly number[]>([
+  ...["forEach", "map", "flatMap", "filter", "find", "findLast", "findIndex", "findLastIndex", "some", "every"].map((name): [string, readonly number[]] => [
+    name,
+    [0],
+  ]),
+  ...["reduce", "reduceRight"].map((name): [string, readonly number[]] => [name, [1]]),
+  ...["sort", "toSorted"].map((name): [string, readonly number[]] => [name, [0, 1]]),
+]);
+
 /** The array method a callback is handed to, with the receiver and the callback's argument index. */
 export function methodCallOf(
   fn: Node,

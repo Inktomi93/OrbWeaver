@@ -108,6 +108,12 @@ test("a type computed from a function's declared return is not a second home of 
         // The twin: a function whose return type spells the members itself is a second home.
         "export type InlineWork = ReturnType<typeof inline>;",
       ].join("\n"),
+      // A local operator spelled like the platform's computes another type from one, so it holds no home of its own.
+      "packages/a/src/local-operator.ts": [
+        'import type { inline } from "./segments.ts";',
+        "type ReturnType<F> = F extends () => infer R ? R : never;",
+        "export type LocalWork = ReturnType<typeof inline>;",
+      ].join("\n"),
     }),
   );
   expect((await scanned(root)).unwired).toEqual(["restated InlineWork~Collected"]);

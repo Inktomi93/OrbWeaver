@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 const [CONFIRMED] = TRIAL_VERDICTS;
 
@@ -510,24 +510,30 @@ test("a JSX attribute's value fills the prop it is handed to", { timeout: 120_00
   expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Option.value", "Entry.note"]);
 });
 
+// The package a form instance's field methods are declared by, as TanStack Form's are.
+const FORM_CORE = "@tanstack/form-core";
+
 // A TanStack Form field path walks the form data type segment by segment: a write method writes each member on the
 // path, any other path argument reads each, and a field component's `name` binds the member's input, so it reads and
 // writes each. A member no path or code names stays untouched, and an optional member only a path reads reports
 // read-only.
 const FORM_API = {
   [`${GRAPH_SOURCE}/jsx.d.ts`]: JSX_NAMESPACE,
-  [`${GRAPH_SOURCE}/form-api.ts`]: [
-    "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
-    "export type ReactFormExtendedApi<TFormData> = {",
-    "  readonly state: { readonly values: TFormData };",
-    "  setFieldValue(name: string, value: unknown): void;",
-    "  getFieldValue(name: string): unknown;",
-    "  reset(): void;",
-    "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
-    "  readonly AppField: (props: FieldProps<TFormData>) => JSX.Element;",
-    "};",
-    "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
-  ].join("\n"),
+  ...libraryModule(
+    [
+      "export interface FieldProps<T> { readonly name: string; readonly children?: unknown; readonly data?: T }",
+      "export type ReactFormExtendedApi<TFormData> = {",
+      "  readonly state: { readonly values: TFormData };",
+      "  setFieldValue(name: string, value: unknown): void;",
+      "  getFieldValue(name: string): unknown;",
+      "  reset(): void;",
+      "  readonly Field: (props: FieldProps<TFormData>) => JSX.Element;",
+      "  readonly AppField: (props: FieldProps<TFormData>) => JSX.Element;",
+      "};",
+      "export declare function useForm<T>(options: { readonly defaultValues: T }): ReactFormExtendedApi<T>;",
+    ],
+    FORM_CORE,
+  ),
 };
 
 test("a form field path reads or writes each member along its segments", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -537,7 +543,7 @@ test("a form field path reads or writes each member along its segments", { timeo
     {
       ...FORM_API,
       [form]: [
-        'import { useForm } from "./form-api.ts";',
+        `import { useForm } from "${FORM_CORE}";`,
         "export interface Values { readonly params: { readonly fixed?: number; readonly seed?: number; readonly dead?: number }; readonly title?: string; readonly note?: string; readonly gone?: string }",
         "export function Editor(): JSX.Element {",
         "  const form = useForm<Values>({ defaultValues: { params: { fixed: 1 } } });",
@@ -556,9 +562,10 @@ test("a form field path reads or writes each member along its segments", { timeo
   }).toEqual({ readOnly: ["Values.note"], untouched: ["Values.params.dead", "Values.gone"], writeOnly: [] });
 });
 
-// A form is an object that holds its data at `state.values` and stores through `setFieldValue` and `getFieldValue`. A
-// store that only holds `state.values`, with a `Field` component and a reading method of its own, is no form: its string
-// arguments name no member. `Real.alpha` is the control a real form's field binds.
+// A form is an object that holds its data at `state.values` and stores through the `setFieldValue` and `getFieldValue`
+// TanStack's form core declares. A store that only holds `state.values`, with a `Field` component and a reading method
+// of its own, is no form, and neither is a local type that declares those two methods itself: their string arguments
+// name no member. `Real.alpha` is the control a real form's field binds.
 test("a string path on an object that holds state.values but is no form writes and reads nothing", { timeout: 120_000 }, async ({ plantedTree }) => {
   const file = `${GRAPH_SOURCE}/store.tsx`;
   const scan = await graphScan(
@@ -566,13 +573,17 @@ test("a string path on an object that holds state.values but is no form writes a
     {
       ...FORM_API,
       [file]: [
-        'import { useForm } from "./form-api.ts";',
+        `import { useForm } from "${FORM_CORE}";`,
         "export interface Real { readonly alpha?: string }",
         "export interface Fake { readonly beta?: string; readonly gamma?: string }",
         "interface Store { readonly state: { readonly values: Fake }; readonly Field: (props: { readonly name: string }) => JSX.Element; read(name: string): unknown }",
         "declare const store: Store;",
+        "export interface Kept { readonly delta?: string }",
+        "interface Lookalike { readonly state: { readonly values: Kept }; setFieldValue(name: string, value: unknown): void; getFieldValue(name: string): unknown }",
+        "declare const local: Lookalike;",
         "export function Panel(): JSX.Element {",
         "  const form = useForm<Real>({ defaultValues: {} });",
+        "  local.setFieldValue('delta', local.getFieldValue('delta'));",
         "  const seen = store.read('gamma');",
         "  return (",
         "    <>",
@@ -585,7 +596,7 @@ test("a string path on an object that holds state.values but is no form writes a
     },
     { jsx: true },
   );
-  expect(labelsIn(scan, "member-untouched", file)).toEqual(["Fake.beta", "Fake.gamma", "Store.state.values"]);
+  expect(labelsIn(scan, "member-untouched", file)).toEqual(["Fake.beta", "Fake.gamma", "Store.state.values", "Kept.delta", "Lookalike.state.values"]);
 });
 
 // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source spells a template path
@@ -605,7 +616,7 @@ test("a field bound by a template path writes the member the path names, resolve
     {
       ...FORM_API,
       [form]: [
-        'import { useForm } from "./form-api.ts";',
+        `import { useForm } from "${FORM_CORE}";`,
         "export interface Macro { readonly description?: string; readonly strict?: boolean; readonly spare?: string; readonly ghost?: string }",
         "export interface Values { readonly macros: readonly Macro[] }",
         "export function Editor({ index, label }: { readonly index: number; readonly label: string }): JSX.Element {",
@@ -647,7 +658,7 @@ test("a form write method's template path writes the member it names, resolved t
     {
       ...FORM_API,
       [form]: [
-        'import { useForm } from "./form-api.ts";',
+        `import { useForm } from "${FORM_CORE}";`,
         "export interface Macro { readonly description?: string; readonly strict?: boolean; readonly spare?: string; readonly ghost?: string }",
         "export interface Values { readonly macros: readonly Macro[] }",
         "export function Editor({ index, label }: { readonly index: number; readonly label: string }): void {",

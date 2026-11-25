@@ -12,11 +12,10 @@ import { isCallExpression, isIdentifier, isPropertyAccessExpression, isQualified
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import type { NativeWorld } from "../native.ts";
+import { NODE_TYPES } from "../native.ts";
 
 /** The package whose declarations make a call a validator, a builder a schema and a `satisfies` reference a twin. */
 export const ZOD_PACKAGE = "zod";
-/** Node's types package: a platform name Node declares, as `structuredClone` is in a Node world. */
-const NODE_TYPES_PACKAGE = "@types/node";
 
 // This module sits below the walk and the role readers, so it compares remote nodes by span itself (roles.ts sameNode).
 const sameNode = (a: Node | undefined, b: Node): boolean => a !== undefined && a.pos === b.pos && a.end === b.end && a.kind === b.kind;
@@ -102,7 +101,7 @@ function* librariesOf(world: NativeWorld, symbol: NativeSymbol | undefined): API
   );
   return [
     ...(packages.includes(ZOD_PACKAGE) ? (["zod"] as const) : []),
-    ...(defaults.includes(true) || packages.includes(NODE_TYPES_PACKAGE) ? (["platform"] as const) : []),
+    ...(defaults.includes(true) || packages.includes(NODE_TYPES) ? (["platform"] as const) : []),
   ];
 }
 

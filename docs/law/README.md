@@ -41,5 +41,6 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
 | [UI surface and interaction rules](ui-surface-and-interaction-rules.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
+| [What the unwired fields scan reads, writes and sends](unwired-fields-scan.md) | active |
 | [User docs](user-docs.md) | active |
 | [THE VOCABULARY MAP — one concept, one word](vocabulary-map.md) | active |

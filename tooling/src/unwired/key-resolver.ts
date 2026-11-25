@@ -301,8 +301,9 @@ function rootOf(at: Node, parent: Node): SlotRoot | null {
 // A TanStack form instance holds its data at `state.values`: the type its field paths walk.
 const FORM_STATE = "state";
 const FORM_VALUES = "values";
-// The field methods every form instance has beside its state.
+// The field methods every form instance has beside its state, which TanStack's form core declares.
 const FORM_IDENTITY: readonly string[] = ["setFieldValue", "getFieldValue"];
+const FORM_CORE = "/node_modules/@tanstack/form-core/";
 // The JSX components a form instance carries whose `name` attribute is a field path.
 const FORM_FIELDS: ReadonlySet<string> = new Set(["Field", "AppField"]);
 const FORM_NAME = "name";
@@ -348,8 +349,9 @@ function formPathOf(slot: Slot): FormPath | null {
 
 // The form data type a form instance carries: `state.values`. A form's type is read by its members, never by the alias
 // it is spelled under, because a project alias over the hook's return (`AppFormInstance<T>`) or an `Omit` of it hides
-// the form type's own alias. An object is a form only when it also stores and reads fields as a form does, so a store
-// that merely holds `state.values` takes no path.
+// the form type's own alias. An object is a form only when it also stores and reads fields by the members TanStack's
+// form core declares, so a store that merely holds `state.values`, or one of ours with methods of those names, takes no
+// path.
 function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | undefined> {
   const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
   const state = yield* checker.getPropertyOfType.gen(type, FORM_STATE);
@@ -357,7 +359,8 @@ function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | und
     return undefined;
   }
   for (const name of FORM_IDENTITY) {
-    if ((yield* checker.getPropertyOfType.gen(type, name)) === undefined) {
+    const declarations = (yield* checker.getPropertyOfType.gen(type, name))?.declarations ?? [];
+    if (declarations.length === 0 || !declarations.every((handle) => handle.path.includes(FORM_CORE))) {
       return undefined;
     }
   }
