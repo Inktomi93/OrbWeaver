@@ -37,10 +37,10 @@ import {
 import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { StoreWrite } from "../boundaries.ts";
-import { copiedReads } from "../boundaries.ts";
+import { copiedReads, DRIZZLE_PACKAGE } from "../boundaries.ts";
 import { parsedColumns, schemaParses } from "../handoffs.ts";
 import type { PropertyName } from "../native.ts";
-import { hasFlag, isPropertyName, NativeWorld } from "../native.ts";
+import { hasFlag, isPropertyName, NativeWorld, resolvedSymbol } from "../native.ts";
 import type { SdkSurface } from "../plugin-surface.ts";
 import { PUBLISHED_SDK, sdkSurface } from "../plugin-surface.ts";
 import { programsApart } from "../worlds.ts";
@@ -249,7 +249,6 @@ function constructingInterfaces(file: Node, className: string): readonly Interfa
 }
 
 // The package whose builder methods a store must resolve to before the build reads it as a Drizzle write.
-const DRIZZLE_PACKAGE = "drizzle-orm";
 
 // A computed load's site and the argument it loads, as the source spells it.
 function computedLoad(call: CallExpression, file: string): ComputedLoad {
@@ -868,8 +867,9 @@ class Builder {
   // `const [value, setValue] = useState(…)`: the tuple a React state hook hands back.
   #hookTuples(sites: FileSites): void {
     const state = this.#state;
-    const callees = state.world.symbolsAt(
-      sites.hookTuples.map(({ call }) => (isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression)),
+    // an import alias (`import { useState as useLocal }`) resolves to React's own hook; a local one is no hook
+    const callees = state.batch(
+      sites.hookTuples.map(({ call }) => resolvedSymbol(state.world, isPropertyAccessExpression(call.expression) ? call.expression.name : call.expression)),
     );
     const reacts = state.world.fromPackage(
       callees.map((callee) => callee?.declarations ?? []),

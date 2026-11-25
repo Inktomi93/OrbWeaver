@@ -146,7 +146,7 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, T
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
-import { constituents, hasFlag } from "../native.ts";
+import { constituents, hasFlag, resolvedSymbol } from "../native.ts";
 import type { LiteralRole } from "./roles.ts";
 import { sameNode } from "./roles.ts";
 import { productReader } from "./state.ts";
@@ -2146,7 +2146,9 @@ function* writtenStep(world: NativeWorld, scoped: ScopedTo, answers: Answers): A
   if (parameter !== undefined) {
     return parameterSteps(world, scoped, parameter);
   }
-  return answers.sites.every((site) => !productReader(site.file)) ? libraryTypeSteps(scoped, node, name) : yield* propertyStep(world, scoped, answers.sites);
+  return answers.sites.every((site) => !productReader(site.file))
+    ? yield* libraryTypeSteps(world, scoped, node, name)
+    : yield* propertyStep(world, scoped, answers.sites);
 }
 
 // `O[I]` scoped to a property: `I`'s keys, each read as `O`'s member, then the property of what they reach.
@@ -2175,14 +2177,23 @@ function parameterSteps(world: NativeWorld, { property, bindings }: ScopedTo, pa
   return binding.spellings === null || binding.spellings.length === 0 ? null : binding.spellings.map((spelling) => ({ ...spelling, property }));
 }
 
-// A library type scoped to a property: `Readonly`, `Partial` and `Required` keep their argument's members, and
-// `Record<K, V>` types every member `V`. Any other library type has no member a written descent can read.
-function libraryTypeSteps({ property, bindings }: ScopedTo, node: TypeReferenceNode, name: Identifier): readonly Scoped[] | null {
+// A library type scoped to a property: the platform's `Readonly`, `Partial` and `Required` keep their argument's
+// members, and its `Record<K, V>` types every member `V`. Any other library type has no member a written descent can
+// read.
+function* libraryTypeSteps(
+  world: NativeWorld,
+  { property, bindings }: ScopedTo,
+  node: TypeReferenceNode,
+  name: Identifier,
+): APIRequestGenerator<readonly Scoped[] | null> {
   const [first, second] = node.typeArguments ?? [];
+  let steps: readonly Scoped[] | null = null;
   if (TRANSPARENT_MAPPERS.has(name.text) && first !== undefined) {
-    return [{ node: first, bindings, property }];
+    steps = [{ node: first, bindings, property }];
+  } else if (name.text === RECORD && second !== undefined) {
+    steps = [{ node: second, bindings, property: null }];
   }
-  return name.text === RECORD && second !== undefined ? [{ node: second, bindings, property: null }] : null;
+  return steps !== null && (yield* isLibReference(world, name)) ? steps : null;
 }
 
 // The property of a type no written member names (`z.output<typeof schema>["p"]`, `Awaited<ReturnType<F>>[number]["p"]`):
@@ -2504,11 +2515,12 @@ export const isKeyTypeName = (name: string): boolean => KEY_SELECTORS.has(name) 
 
 const isKeyof = (node: TypeNode | undefined): boolean => node !== undefined && isTypeOperatorNode(node) && node.operator === SyntaxKind.KeyOfKeyword;
 
-// A lib type reference: no declaration of its name lies in the production sources. An engine may report a lib
-// declaration or none at all, so only a production declaration rules the name out.
+// A lib type reference: every declaration its name resolves to is the compiler's default library, so a type of the
+// same name declared anywhere in the tree, a test's or a tool's included, is no lib type.
 function* isLibReference(world: NativeWorld, name: Identifier): APIRequestGenerator<boolean> {
-  const sites = yield* declaredSites(world, name);
-  return sites.every((site) => !productReader(site.file));
+  const declarations = (yield* resolvedSymbol(world, name))?.declarations ?? [];
+  const library = yield* all(...declarations.map((handle) => world.isDefaultLibrary(handle)));
+  return library.length > 0 && library.every(Boolean);
 }
 
 // The key set a key position spells, reduced to the type nodes that name its keys.

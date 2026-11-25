@@ -498,12 +498,18 @@ const DEFAULTS_AND_SETS = {
   "packages/client/src/url-codes.ts": [
     'import { FORM_CODES } from "../../contracts/src/codes.ts";',
     "export const URL_CODES: ReadonlySet<string> = new Set([FORM_CODES.urlBad, FORM_CODES.urlRefused]);",
-    "export const NAME_CODES: ReadonlySet<string> = new Set([FORM_CODES.nameEmpty]);",
+  ].join("\n"),
+  // A local class named `Set` is no platform collection, so the `has` its binding answers branches on nothing.
+  "packages/client/src/name-codes.ts": [
+    'import { FORM_CODES } from "../../contracts/src/codes.ts";',
+    "class Set<T> { constructor(readonly items: readonly T[]) {} has(item: T): boolean { return this.items.includes(item); } }",
+    "export const NAME_CODES = new Set<string>([FORM_CODES.nameEmpty]);",
   ].join("\n"),
   "packages/client/src/form.ts": [
-    'import { NAME_CODES, URL_CODES } from "./url-codes.ts";',
+    'import { URL_CODES } from "./url-codes.ts";',
+    'import { NAME_CODES } from "./name-codes.ts";',
     "export const onUrl = (reason: string): boolean => URL_CODES.has(reason);",
-    "export const nameCodes = NAME_CODES.size;",
+    "export const onName = (reason: string): boolean => NAME_CODES.has(reason);",
   ].join("\n"),
 };
 

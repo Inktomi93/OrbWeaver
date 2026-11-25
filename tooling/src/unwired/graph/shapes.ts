@@ -11,9 +11,11 @@
 import type { ExportSpecifier, Identifier, InterfaceDeclaration, Node, TypeAliasDeclaration, TypeReferenceNode } from "@typescript/native/ast";
 import {
   isExportSpecifier,
+  isIdentifier,
   isIndexedAccessTypeNode,
   isInterfaceDeclaration,
   isModuleDeclaration,
+  isQualifiedName,
   isSourceFile,
   isStringLiteral,
   isTypeAliasDeclaration,
@@ -25,6 +27,7 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
+import { DRIZZLE_PACKAGE } from "../boundaries.ts";
 import type { Site } from "../classify.ts";
 import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
@@ -33,8 +36,9 @@ import { DISTINCT_LOOKALIKES, isDistinctPair } from "../distinct-lookalikes.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
-import { declarationKeys, hasFlag } from "../native.ts";
+import { declarationKeys, hasFlag, resolvedSymbol } from "../native.ts";
 import { isProduction } from "../worlds.ts";
+import { ZOD_PACKAGE } from "./resolve.ts";
 
 const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;
 /** `restated`: two named object types in different files with the same members, each assignable to the other.
@@ -91,8 +95,48 @@ const PER_VERB_HOMES = [
 ] as const;
 const isPerVerb = (name: string, file: string): boolean => PER_VERB_HOMES.some((home) => home.name.test(name) && home.file.test(file));
 const PER_VERB_REASON = "docs/law/Core-0-Architecture-and-Structure.md §4: every verb keeps its own *Params and *Result";
-// Type operators whose result is computed from a schema or a value, so the type is the schema's own shape.
-const INFERRED = new Set(["z.infer", "z.input", "z.output", "ReturnType", "Awaited", "Parameters", "InferSelectModel", "InferInsertModel"]);
+// Type operators whose result is computed from a schema or a value, so the type is the schema's own shape, by the
+// package that declares them (`null` for the platform's): a local `ReturnType` or a `z` namespace of our own computes
+// nothing.
+const PLATFORM_OPERATOR: null = null;
+const INFERRED: ReadonlyMap<string, string | null> = new Map([
+  ["infer", ZOD_PACKAGE],
+  ["input", ZOD_PACKAGE],
+  ["output", ZOD_PACKAGE],
+  ["ReturnType", PLATFORM_OPERATOR],
+  ["Awaited", PLATFORM_OPERATOR],
+  ["Parameters", PLATFORM_OPERATOR],
+  ["InferSelectModel", DRIZZLE_PACKAGE],
+  ["InferInsertModel", DRIZZLE_PACKAGE],
+]);
+
+// The name a type reference resolves by: `infer` in `z.infer`.
+const operatorName = (typeName: Node): Node => (isQualifiedName(typeName) ? typeName.right : typeName);
+
+// Whether a type reference's name resolves to one of the INFERRED operators, declared where the table says.
+function* isInferring(world: NativeWorld, typeName: Node): APIRequestGenerator<boolean> {
+  const name = operatorName(typeName);
+  const expected = isIdentifier(name) ? INFERRED.get(name.text) : undefined;
+  const symbol = expected === undefined ? undefined : yield* resolvedSymbol(world, name);
+  const declarations = symbol === undefined || symbol.name !== (isIdentifier(name) ? name.text : "") ? [] : symbol.declarations;
+  if (declarations.length === 0) {
+    return false;
+  }
+  if (expected === PLATFORM_OPERATOR) {
+    return (yield* all(...declarations.map((handle) => world.isDefaultLibrary(handle)))).every(Boolean);
+  }
+  return (yield* all(...declarations.map((handle) => world.packageOf(handle)))).every((pkg) => pkg === expected);
+}
+
+// The type reference names a declaration's form depends on: its type's, and its first type argument's.
+function operatorNames(node: Named): readonly Node[] {
+  const { type } = node as { readonly type?: Node };
+  if (type === undefined || !isTypeReferenceNode(type)) {
+    return [];
+  }
+  const [operand] = type.typeArguments ?? [];
+  return [type.typeName, ...(operand !== undefined && isTypeReferenceNode(operand) ? [operand.typeName] : [])];
+}
 
 const FORMS = ["literal", "inferred", "derived", "synonym"] as const;
 /** How a named type is written: its own members, computed from a schema or value, computed from another named type,
@@ -101,7 +145,7 @@ type Form = (typeof FORMS)[number];
 
 type Named = (InterfaceDeclaration | TypeAliasDeclaration) & { readonly name: Identifier };
 
-function formOf(node: Named): Form {
+function formOf(node: Named, inferring: (typeName: Node) => boolean): Form {
   if (isInterfaceDeclaration(node) || isTypeLiteralNode(node.type)) {
     return "literal";
   }
@@ -109,12 +153,12 @@ function formOf(node: Named): Form {
   if (isTypeReferenceNode(type) && type.typeArguments === undefined) {
     return "synonym";
   }
-  return computedForm(type);
+  return computedForm(type, inferring);
 }
 
 // `typeof value` and an operator over it read a value's own shape; `(typeof value)["key"]` does too, while
 // `Router["listRules"][number]` and `Awaited<ReturnType<Service["bounds"]>>` read another named type's.
-function computedForm(type: Node): Form {
+function computedForm(type: Node, inferring: (typeName: Node) => boolean): Form {
   if (isTypeQueryNode(type)) {
     return "inferred";
   }
@@ -125,12 +169,12 @@ function computedForm(type: Node): Form {
     }
     return isTypeQueryNode(object) ? "inferred" : "derived";
   }
-  if (!(isTypeReferenceNode(type) && INFERRED.has(type.typeName.getText()))) {
+  if (!(isTypeReferenceNode(type) && inferring(type.typeName))) {
     return "derived";
   }
   const [operand] = type.typeArguments ?? [];
-  return operand !== undefined && (isIndexedAccessTypeNode(operand) || (isTypeReferenceNode(operand) && INFERRED.has(operand.typeName.getText())))
-    ? computedForm(operand)
+  return operand !== undefined && (isIndexedAccessTypeNode(operand) || (isTypeReferenceNode(operand) && inferring(operand.typeName)))
+    ? computedForm(operand, inferring)
     : "inferred";
 }
 
@@ -154,13 +198,16 @@ function eachProductionNode(world: NativeWorld, visit: (node: Node) => void): vo
 }
 
 function declared(world: NativeWorld): readonly Declared[] {
-  const found: Declared[] = [];
+  const named: Named[] = [];
   eachProductionNode(world, (node) => {
     if ((isInterfaceDeclaration(node) || isTypeAliasDeclaration(node)) && node.typeParameters === undefined) {
-      found.push({ node, site: world.siteOf(node.name), line: lineOf(node.name), form: formOf(node) });
+      named.push(node);
     }
   });
-  return found;
+  const asked = named.flatMap(operatorNames);
+  const answers = world.batch(asked.map((typeName) => isInferring(world, typeName)));
+  const inferring = new Set(asked.filter((_, at) => answers[at] === true));
+  return named.map((node) => ({ node, site: world.siteOf(node.name), line: lineOf(node.name), form: formOf(node, (typeName) => inferring.has(typeName)) }));
 }
 
 // Whether a member declaration is the tree's own: in one of the world's files and outside a `declare module "name"`,

@@ -40,6 +40,10 @@ export const OBSERVABILITY_SINKS: ReadonlySet<SendDestination> = new Set<SendDes
 /** Where the tRPC packages live: a symbol they declare is the wire client's, not ours. */
 export const TRPC_PACKAGE = "/node_modules/@trpc/";
 
+/** The Drizzle package: its `sql` tag stores a value, a write through it is a column write, and its model types are
+ *  computed from a table. */
+export const DRIZZLE_PACKAGE = "drizzle-orm";
+
 /** The provider backends make every provider request, so only a value there can reach one. */
 export const PROVIDER_BODIES = "packages/inference/src/backends/";
 

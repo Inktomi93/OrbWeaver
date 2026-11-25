@@ -97,7 +97,7 @@ import {
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, SignatureUsage, Type } from "@typescript/native/sync";
 import { all, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
-import { NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
+import { DRIZZLE_PACKAGE, NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
 import { answer } from "./graph/resolve.ts";
 import { honoResponse } from "./graph/urls.ts";
 import type { ListResult } from "./list-methods.ts";
@@ -153,8 +153,6 @@ const TYPES_SCOPE = "@types/";
 // The compiler's own lib files, which the native compiler ships under its platform package.
 const COMPILER_PACKAGE = "typescript";
 const COMPILER_SCOPE = "@typescript/";
-// A Drizzle write is a column write, which counts only where a query reads the column back.
-const COLUMN_PACKAGE = "drizzle-orm";
 const CONSOLE = "Console";
 // The platform's serializer and the `Object` statics that rebuild a value, by the interface that declares them.
 const JSON_INTERFACE = "JSON";
@@ -470,7 +468,7 @@ function* libraryDestination(
   if (isAiSdk(pkg)) {
     return [{ destination: "provider", receiver: pkg }];
   }
-  if (pkg === COLUMN_PACKAGE || (yield* isOpaqueSlot(world, argument))) {
+  if (pkg === DRIZZLE_PACKAGE || (yield* isOpaqueSlot(world, argument))) {
     return [];
   }
   return [{ destination: LOG_PACKAGES.has(pkg) ? "log" : "dependency", receiver: pkg }];
@@ -1382,7 +1380,6 @@ const PLATFORM_BODIES: ReadonlyMap<string, SendDestination> = new Map([
 ]);
 // A class's base chain is short; the bound only ends a walk the checker should never make cyclic.
 const BASE_DEPTH = 8;
-const SQL_TAG_PACKAGE = "drizzle-orm";
 
 // The node a serialization's string reaches: through parentheses, assertions, template text, string concatenation and
 // an array of parts, as `new Blob([JSON.stringify(value)])` takes them.
@@ -1453,7 +1450,7 @@ function* taggedTakes(world: NativeWorld, tag: Node): APIRequestGenerator<Serial
   const symbol = yield* resolvedSymbol(world, isPropertyAccessExpression(tag) ? tag.name : tag);
   const outside = symbol?.declarations.find((handle) => world.fileOf(handle) === null);
   const pkg = outside === undefined ? null : yield* world.packageOf(outside);
-  if (pkg === SQL_TAG_PACKAGE) {
+  if (pkg === DRIZZLE_PACKAGE) {
     return sent("stored");
   }
   return pkg === null ? UNPLACED : sent("dependency");
