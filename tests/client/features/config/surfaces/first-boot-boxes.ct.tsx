@@ -40,7 +40,7 @@ const FIXED_KEYS: Readonly<Record<FirstBootGroup, readonly string[]>> = {
 };
 
 // The groups whose fixed keys above render inside the group's Advanced fold: a closed fold mounts no boundary to reserve a box.
-const FOLDED_GROUPS: ReadonlySet<FirstBootGroup> = new Set(["workloads", "admin"]);
+const FOLDED_GROUPS: ReadonlySet<FirstBootGroup> = new Set<FirstBootGroup>(["workloads", "admin"]);
 
 // Every first-boot read runs against the fresh root; routeTrpc refuses a procedure outside this set.
 const FIRST_BOOT_READS = [
