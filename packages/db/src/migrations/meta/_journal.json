@@ -176,6 +176,13 @@
       "when": 1795617808271,
       "tag": "0024_plugin-widened-reach",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1795639816862,
+      "tag": "0025_plugin-widened-changed-providers",
+      "breakpoints": true
     }
   ]
 }

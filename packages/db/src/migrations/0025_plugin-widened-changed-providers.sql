@@ -1,0 +1,1 @@
+ALTER TABLE `plugins` ADD `widened_changed_provider_ids` text DEFAULT '[]' NOT NULL;

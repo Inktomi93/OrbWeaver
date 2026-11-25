@@ -99,6 +99,10 @@ export const plugins = sqliteTable(
     // on the same lifecycle as `widened_net_hosts`: the provider ids a pending re-consent added, and whether it
     // turned automation-caused event delivery on. Activation withholds both while the re-consent stands.
     widenedProviderIds: text("widened_provider_ids", { mode: "json" }).$type<ProviderId[]>().notNull().default(sql`'[]'`),
+    // The subset of `widened_provider_ids` that REDEFINES an id the owner had already seen, as against a new one. Only the
+    // upgrade's widening check sets it (`verbs/upgrade.ts`), in lockstep with `widened_provider_ids`: the prior definition that
+    // tells the two apart is overwritten by the same write. A row written before this column holds `[]`, so its ids read as new.
+    widenedChangedProviderIds: text("widened_changed_provider_ids", { mode: "json" }).$type<ProviderId[]>().notNull().default(sql`'[]'`),
     widenedMatchAutomationEvents: integer("widened_match_automation_events", { mode: "boolean" }).notNull().default(false),
     // The 03 §4 auto-disable counter — a clean invocation resets it, 3 consecutive crashes → errored.
     consecutiveCrashes: integer("consecutive_crashes").notNull().default(0),
