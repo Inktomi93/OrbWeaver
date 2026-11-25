@@ -48,7 +48,10 @@
 //   · the install has NOT DIVERGED — `onboarding.seededPluginVersions[slug]` is the version this system
 //     itself last wrote, and a row sitting at any other version has been taken over by its owner. That is
 //     not a new idea: `domain/plugin/verbs/uninstall-for-all-users.ts` already rules that a row's `version`
-//     is the divergence oracle and skips a `version-diverged` recipient for exactly this reason.
+//     is the divergence oracle and skips a `version-diverged` recipient for exactly this reason;
+//   · the row is an UPLOAD — this seeder only ever installs by upload, so a `url` or `git` row of a shipped
+//     slug is the owner's own install whatever the version record says. Its source stays its own
+//     (`persistence/plugins.ts`), and an upgrade here would reset it to `upload`.
 //
 // THE PRIOR RULING SURVIVES; ITS INPUT CHANGED. The settings comment on `examplePluginsSeeded` used to end
 // "No pack-version twin: a plugin's own manifest `version` + the `upgrade` verb are the release channel for
@@ -61,11 +64,12 @@
 // declared, and a plugin the user turned off stays off. What changed is the owner's answer to whether a
 // PRISTINE copy of our own gift should keep improving: it should.
 //
-// THE BACKFILL ARM, stated so it is not mistaken for sloppiness: a held slug with NO recorded version is one
-// seeded before version recording existed, and it is ADOPTED (treated as ours) rather than frozen. Freezing it would mean
-// every install that predates this code never receives another improvement — the exact symptom the ruling
-// was about — and pre-launch there is no population of hand-forked showcase installs to protect (D157). The
-// arm self-retires: the first pass records every held slug, after which the oracle is exact.
+// THE BACKFILL ARM, stated so it is not mistaken for sloppiness: an uploaded held slug with NO recorded version
+// is ADOPTED (treated as ours) rather than frozen. It is either one seeded before version recording existed, or
+// one whose record was lost when the settings blob came back at its defaults (`seededPluginVersions` parses
+// with `.catch({})`). Freezing it would mean that install never receives another improvement — the exact
+// symptom the ruling was about. A pass records a slug only when it installs or upgrades it, so the arm stays
+// open for a held row at the shipped version until a newer bundle ships.
 //
 // A per-slug upgrade FAILURE is tolerated and does not block the latch or the memo: the user keeps the older
 // working version, the record is left un-advanced, and the next process retries. An upgrade is not a
@@ -156,10 +160,10 @@ export function createExamplePluginSeeder(deps: ExamplePluginSeederDeps): Exampl
   /** Is this held row still exactly what WE last wrote? The divergence oracle, in one place — and it is the
    *  plugin domain's OWN rule rather than a new one: `domain/plugin/verbs/uninstall-for-all-users.ts:31`
    *  already treats a row's `version` as the oracle and passes over a `version-diverged` recipient because
-   *  "they have taken the plugin over". `recorded === undefined` is the BACKFILL arm (adopt; the
-   *  file header states why that is the safe arm and how it self-retires). */
+   *  "they have taken the plugin over". Only an `upload` row can be ours (the seeder installs by upload);
+   *  `recorded === undefined` is the BACKFILL arm (adopt; the file header states why). */
   function isPristine(row: HeldSeedPlugin, recorded: string | undefined): boolean {
-    return recorded === undefined || recorded === row.version;
+    return row.origin === "upload" && (recorded === undefined || recorded === row.version);
   }
 
   /** Take ONE held row from `row.version` to the shipped bundle, or answer `null` for "left alone" (nothing

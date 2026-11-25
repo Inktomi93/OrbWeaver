@@ -66,13 +66,14 @@ export interface PluginCharacterView {
 }
 
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
- *  updatable, host-side idempotent. */
+ *  updatable, host-side idempotent. `position` is optional and unread: the shared lore writer the bridge maps onto
+ *  has no seat field (`substrate/bridge.ts`), so the entry lands at its default seat. */
 export interface PluginWorldEntryUpsert {
   readonly bookId: SandboxWireId<WorldBookId>;
   readonly entryKey: string;
   readonly keys: readonly string[];
   readonly contentTemplate: string;
-  readonly position: EntryPosition;
+  readonly position?: EntryPosition;
 }
 
 /** {@link PluginWorldEntryUpsert} as the sandbox boundary reads it: guest data, parsed on both sides of the broker. */
@@ -82,7 +83,7 @@ export const pluginWorldEntryUpsertSchema = z
     entryKey: z.string(),
     keys: z.array(z.string()).readonly(),
     contentTemplate: z.string(),
-    position: z.enum(ENTRY_POSITIONS),
+    position: z.enum(ENTRY_POSITIONS).exactOptional(),
   })
   .strip() satisfies z.ZodType<PluginWorldEntryUpsert>;
 

@@ -41,6 +41,8 @@ export {
 export { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
 export { captureCorpusRead } from "./corpus-capture.ts";
 export { createFirstBootHarness } from "./corpus-first-boot.ts";
+export type { CorpusPluginGit } from "./corpus-plugin-git.ts";
+export { CORPUS_PLUGIN_GIT_URL, createCorpusPluginGit } from "./corpus-plugin-git.ts";
 export {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,

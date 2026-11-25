@@ -72,6 +72,7 @@ import type {
   ListSurfacesParams,
   PreviewFromGitParams,
   PreviewFromUrlParams,
+  PreviewStoredUpgradeParams,
   ReportUiCrashParams,
   RunSnippetParams,
   SetPluginEnabledParams,
@@ -90,6 +91,7 @@ import type {
   PluginDisplayTransformResult,
   PluginFrameAsset,
   PluginGitPreview,
+  PluginStoredUpgradePreview,
   PluginUiHostCallResult,
   PluginUpdateCheck,
   PluginUrlPreview,
@@ -436,6 +438,10 @@ export interface PluginService {
    *  foreign pluginId is a leak-free NOT_FOUND checked BEFORE any fetch; a file (`upload`) install has no source
    *  and is a typed `PluginNoSourceUrlError`. */
   readonly upgradeFromStoredUrl: (params: UpgradeFromStoredUrlParams) => Promise<PluginView>;
+  /** The review step before a stored-source upgrade: fetch the URL or clone the repository the row remembers,
+   *  and return the version, the reach the new manifest widens and the identity the upgrade must echo.
+   *  Owner-scoped before any egress; writes nothing. A row with neither source is a typed `PluginNoSourceUrlError`. */
+  readonly previewStoredUpgrade: (params: PreviewStoredUpgradeParams) => Promise<PluginStoredUpgradePreview>;
   /** THE SEEDED-EXAMPLE TWIN: the same one-click upgrade, from the bundle this build SHIPS rather than a
    *  remembered URL — the only path a DIVERGED showcase install has, since the boot auto-upgrade passes those
    *  over on purpose. Owner-scoped identically (foreign pluginId ⇒ leak-free NOT_FOUND before anything is

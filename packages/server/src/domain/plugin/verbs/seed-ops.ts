@@ -10,7 +10,7 @@ export function createPluginSeedOps(plugin: PluginSeedSource): PluginSeedOps {
     upgrade: async (args): Promise<void> => {
       await plugin.upgrade(args);
     },
-    listHeld: async (caller) => (await plugin.list({ caller })).map((row) => ({ slug: row.slug, pluginId: row.id, version: row.version })),
+    listHeld: async (caller) => (await plugin.list({ caller })).map((row) => ({ slug: row.slug, pluginId: row.id, version: row.version, origin: row.origin })),
     apply: async (principal) => await plugin.applyDistributedPlugins({ caller: principal }),
   };
 }

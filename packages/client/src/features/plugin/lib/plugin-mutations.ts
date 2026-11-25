@@ -130,6 +130,18 @@ export const useCheckForUpdates = createEntityMutation<inferInput<Trpc["plugin"]
   errorToast: serverReason("Couldn't check for updates."),
 });
 
+/** The review step before a stored URL or Git upgrade: the server fetches the remembered source and returns what
+ *  the next version changes, plus the identity the upgrade echoes. A mutation for the same egress reason as the
+ *  check, and it writes nothing, so it reconciles nothing. */
+export const usePreviewStoredUpgrade = createEntityMutation<
+  inferInput<Trpc["plugin"]["previewStoredUpgrade"]>,
+  inferOutput<Trpc["plugin"]["previewStoredUpgrade"]>
+>({
+  options: (trpc) => trpc.plugin.previewStoredUpgrade.mutationOptions(),
+  invalidates: () => [],
+  errorToast: serverReason("Couldn't read that update."),
+});
+
 /**
  * U8 2b — the TRUE one-click upgrade: re-fetch the plugin's REMEMBERED `sourceUrl` (re-paste-free) and upgrade in
  * place through the SAME server `upgrade` verb `useUpgradePlugin` drives — so a REACH-WIDENING update lands the

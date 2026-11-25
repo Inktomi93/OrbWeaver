@@ -11,10 +11,82 @@
   const twoTileValue = 2;
   const fourTileValue = 4;
   const highestTileClass = 2048;
+  const bestScoreKey = "best";
   let board: number[][] = [];
   let score = 0;
   let best = 0;
   let over = false;
+
+  // ── the host-call bridge ──────────────────────────────────────────────────────────────────────────────────
+  // A frame has no `orb`: it posts `orbPluginFrameCall` to its parent and reads the `orbPluginFrameResult` reply.
+  // The host re-gates each call against this plugin's grants, so without `storage.kv` every call comes back
+  // refused and the game runs with an unsaved best score.
+  const pendingCalls = new Map<string, { readonly resolve: (value: unknown) => void; readonly reject: () => void }>();
+  let nextCallId = 0;
+
+  function hostCall(fn: string, args: readonly unknown[]): Promise<unknown> {
+    nextCallId += 1;
+    const callId = `call-${String(nextCallId)}`;
+    return new Promise((resolve, reject) => {
+      pendingCalls.set(callId, { resolve, reject: (): void => reject(new Error(`${fn} was refused`)) });
+      const message: OrbPluginFrameCall = { orbPluginFrameCall: { callId, fn, args } };
+      parent.postMessage(message, "*");
+    });
+  }
+
+  function isFrameResult(data: unknown): data is OrbPluginFrameResult {
+    return typeof data === "object" && data !== null && "orbPluginFrameResult" in data;
+  }
+
+  window.addEventListener("message", (event) => {
+    // Another frame on the page can post here too; only the parent answers host calls.
+    if (event.source !== parent || !isFrameResult(event.data)) {
+      return;
+    }
+    const result = event.data.orbPluginFrameResult;
+    const pending = pendingCalls.get(result.callId);
+    if (pending === undefined) {
+      return;
+    }
+    pendingCalls.delete(result.callId);
+    if (result.ok) {
+      pending.resolve(result.value);
+    } else {
+      pending.reject();
+    }
+  });
+
+  // One save at a time: the host admits a few calls in flight per frame, and a later best overwrites an earlier one.
+  let saving = false;
+  let unsaved = false;
+  function saveBest(): void {
+    if (saving) {
+      unsaved = true;
+      return;
+    }
+    saving = true;
+    unsaved = false;
+    hostCall("storage.set", [bestScoreKey, String(best)])
+      .catch(() => undefined)
+      .finally(() => {
+        saving = false;
+        if (unsaved) {
+          saveBest();
+        }
+      });
+  }
+
+  function loadBest(): void {
+    hostCall("storage.get", [bestScoreKey])
+      .then((value) => {
+        const stored = typeof value === "string" ? Number.parseInt(value, 10) : Number.NaN;
+        if (Number.isSafeInteger(stored) && stored > best) {
+          best = stored;
+          draw();
+        }
+      })
+      .catch(() => undefined);
+  }
 
   function element(id: string): HTMLElement {
     const found = document.getElementById(id);
@@ -131,6 +203,7 @@
     spawn();
     if (score > best) {
       best = score;
+      saveBest();
     }
     over = stuck();
     draw();
@@ -209,5 +282,6 @@
   });
   element("new").addEventListener("click", reset);
   reset();
+  loadBest();
   element("board").focus();
 })();

@@ -106,6 +106,14 @@ export interface UpgradeFromStoredUrlParams {
   readonly expectedBundleHash: PluginBundleHash;
 }
 
+/** `previewStoredUpgrade` — fetch the next version from the row's STORED source (a bundle URL, or a Git
+ *  repository cloned through the guard) and return what applying it would change, with the byte or commit
+ *  identity the matching stored upgrade must echo. Owner-scoped load BEFORE any egress; writes nothing. */
+export interface PreviewStoredUpgradeParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+}
+
 /** `upgradeFromShowcase` — the same one-click upgrade for a SEEDED showcase install. The byte source is
  *  the bundle this build SHIPS (`@orb/showcase-plugins`, injected as `ctx.showcase.bundle`) rather than a
  *  remembered URL, and everything else is the stored-url verb's shape exactly: owner-scoped row load FIRST

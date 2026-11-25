@@ -235,7 +235,7 @@ export {
   resolvePluginNodeShown,
   resolvePluginPrimaryButton,
 } from "./ui.ts";
-export type { PluginUiHostCallCode } from "./ui-host.ts";
+export type { PluginUiGuestEvent, PluginUiHostCallCode } from "./ui-host.ts";
 export {
   isPluginUiHostCallCode,
   PLUGIN_UI_HOST_CALL_CODES,

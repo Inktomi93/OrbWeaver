@@ -12,6 +12,7 @@ import type {
   PluginPageHero as ContractPageHero,
   PluginHostRefusalCode as ContractRefusalCode,
   PluginToastLevel as ContractToastLevel,
+  PluginUiGuestEvent as ContractUiGuestEvent,
   PluginUiHostCallCode as ContractUiHostCallCode,
   PluginFrameCall,
   pluginFrameResultMessage,
@@ -143,6 +144,13 @@ test("scripted UI proxy names and guest arguments match the authoritative relay 
   expectTypeOf<Parameters<PluginUiV1["host"]["storage"]["list"]>>().toEqualTypeOf<RelayArgs<"storage.list">>();
   expectTypeOf<Parameters<PluginUiV1["host"]["storage"]["compareAndSet"]>>().toEqualTypeOf<RelayArgs<"storage.compareAndSet">>();
   expectTypeOf<PluginUiV1["version"]>().toEqualTypeOf<ContractHost["version"]>();
+  // The scripted realm's grant list is display-only and typed as plain strings; the host's list must still fit it.
+  expectTypeOf<ContractHost["grants"]>().toExtend<PluginUiV1["grants"]>();
+  expectTypeOf<PluginUiV1["clock"]>().toEqualTypeOf<DeepUnbrand<ContractHost["clock"]>>();
+  expectTypeOf<PluginUiV1["random"]>().toEqualTypeOf<DeepUnbrand<ContractHost["random"]>>();
+  expectTypeOf<PluginUiV1["log"]>().toEqualTypeOf<DeepUnbrand<ContractHost["log"]>>();
+  expectTypeOf<PluginUiV1["tokens"]>().toEqualTypeOf<DeepUnbrand<ContractHost["tokens"]>>();
+  expectTypeOf<PluginUiEvent["event"]>().toEqualTypeOf<ContractUiGuestEvent>();
   expectTypeOf<Parameters<PluginUiV1["render"]>[1]>().toExtend<DeepUnbrand<ContractNode>>();
   expectTypeOf<keyof PluginUiV1>().toEqualTypeOf<"version" | "grants" | "clock" | "random" | "log" | "tokens" | "render" | "onEvent" | "host">();
 });

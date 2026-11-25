@@ -1,8 +1,9 @@
 // plugin-row leaf components — the two sub-rows `PluginRow` composes, apart from it (the
 // `plugin-leaf-nodes.tsx` precedent). Both close over their OWN mutation hooks and local UI state, so they are
 // genuine leaves the parent only mounts:
-//   · UpdateCheckRow — the U8 2b auto update-check + one-click update, for the source the server names on the
-//     row (`updateSource`: remembered bundle URL, remembered Git repository, or shipped showcase copy).
+//   · UpdateCheckRow — the U8 2b auto update-check + update, for the source the server names on the row
+//     (`updateSource`: remembered bundle URL, remembered Git repository, or shipped showcase copy). A stored URL
+//     or Git update shows its review before it applies.
 //   · ReConsentNotice — the #650/#658 re-consent surface a reach-widening upgrade forces (rendered by the
 //     parent whenever `plugin.reconsentPending` is the server's own durable verdict).
 
@@ -18,23 +19,29 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { rethrowUnlessTrpcFailure } from "#lib";
 import {
+  APPLY_UPDATE_LABEL,
   approveLabel,
   CHECK_FOR_UPDATES_LABEL,
   consentAskKind,
   firstConsentLine,
   grantSummaryLine,
+  pluginApplyUpdateLabel,
   pluginCheckForUpdatesLabel,
   pluginUpdateFromCommitLabel,
   pluginUpdateToLabel,
   REMOVE_PLUGIN_DESCRIPTION,
   reConsentLine,
+  STORED_UPDATE_NOTHING_NEW,
+  storedUpdateChangeLines,
+  storedUpdateHeading,
+  UPDATE_REVIEW_DISMISS_LABEL,
   UPDATE_UNREACHABLE_LINE,
   UPDATE_UP_TO_DATE_LINE,
   updateAvailableLabel,
   updateCommitAvailableLabel,
 } from "../lib/plugin-copy.ts";
 import { useUpgradePluginFromStoredGit } from "../lib/plugin-distribution-mutations.ts";
-import { useCheckForUpdates, useUpgradePluginFromShowcase, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
+import { useCheckForUpdates, usePreviewStoredUpgrade, useUpgradePluginFromShowcase, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
 import { notifyUpgradeStayedOff } from "../lib/plugin-upgrade-notice.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 
@@ -42,10 +49,12 @@ import { PluginGrantList } from "./plugin-grant-list.tsx";
  *  parent `PluginRow`; a 1-line `inferOutput` derivation, not an exported shape a type home would own). */
 type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
 type AvailableUpdate = Extract<inferOutput<Trpc["plugin"]["checkForUpdates"]>[number], { readonly status: "update-available" | "source-changed" }>;
+type StoredUpdatePreview = inferOutput<Trpc["plugin"]["previewStoredUpgrade"]>;
 
 /** The auto update-check's local verdict for ONE row (U8 2b). Local, not server state: the check writes
- *  nothing, so its result is transient UI feedback until the person acts on it (a one-click upgrade is what
- *  makes a DURABLE change, and that rides the list refetch). `idle` before the first check. */
+ *  nothing, so its result is transient UI feedback until the person acts on it (an applied upgrade is what
+ *  makes a DURABLE change, and that rides the list refetch). `idle` before the first check. `review` holds a
+ *  stored URL or Git source's preview: the owner reads what the next version changes before it applies. */
 export type UpdateVerdict =
   | { readonly kind: "idle" | "up-to-date" | "unreachable" }
   | {
@@ -53,14 +62,16 @@ export type UpdateVerdict =
       readonly label: string;
       readonly ariaLabel: string;
       readonly proof: AvailableUpdate;
-    };
+    }
+  | { readonly kind: "review"; readonly preview: StoredUpdatePreview };
 
-/** The update-check + one-click upgrade affordance for a plugin SOMETHING can serve a newer version for (U8 2b —
+/** The update-check + upgrade affordance for a plugin SOMETHING can serve a newer version for (U8 2b —
  *  the thing ST's loader does). "Check for updates" runs the server batch check and shows this row's verdict;
- *  when a newer version is available, "Update to X" upgrades in place through the SAME server upgrade verb the
+ *  when a newer version is available, "Update to X" first shows a stored URL or Git source's review (what the
+ *  next version widens), and "Apply update" then upgrades in place through the SAME server upgrade verb the
  *  file upload uses — so a reach-widening update lands the row `disabled` and the parent's ReConsentNotice
- *  renders (never silent). The verdict resets after a successful one-click: the list refetch carries the new
- *  version/consent state, which is the durable truth.
+ *  renders (never silent). A shipped showcase copy applies on the first press. The verdict resets after a
+ *  successful upgrade: the list refetch carries the new version/consent state, which is the durable truth.
  *
  *  ONE ROW, THREE SOURCES (#1740/#0081). `plugin.updateSource` is the SERVER's answer to "who can serve the
  *  next version": `"url"` re-fetches the remembered bundle, `"git"` clones the remembered repository, and
@@ -75,7 +86,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const upgradeStored = useUpgradePluginFromStoredUrl({ trpc, invalidation });
   const upgradeShowcase = useUpgradePluginFromShowcase({ trpc, invalidation });
   const upgradeGit = useUpgradePluginFromStoredGit({ trpc, invalidation });
+  const previewStored = usePreviewStoredUpgrade({ trpc, invalidation });
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
+  const applying = upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending;
 
   const runCheck = async (): Promise<void> => {
     // useCheckForUpdates (lib/plugin-mutations.ts) carries
@@ -116,20 +129,30 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     setVerdict({ kind: "up-to-date" });
   };
 
+  // A stored URL or Git source is reviewed first: the preview fetches the next version and the apply echoes its
+  // identity, so the bytes that land are the bytes the owner read. A shipped showcase copy is first-party and
+  // applies in one press.
+  const reviewUpgrade = async (): Promise<void> => {
+    // usePreviewStoredUpgrade (lib/plugin-mutations.ts) carries an errorToast; undefined leaves the verdict as-is.
+    // Ends if that mutation drops its errorToast.
+    const preview = await previewStored.mutateAsync({ pluginId: plugin.id }).catch(rethrowUnlessTrpcFailure);
+    if (preview !== undefined) {
+      setVerdict({ kind: "review", preview });
+    }
+  };
+
   const applyUpgrade = async (): Promise<void> => {
     let pending: Promise<PluginView>;
-    if (plugin.updateSource === "git") {
-      if (verdict.kind !== "available" || verdict.proof.status !== "source-changed") {
-        return;
-      }
-      pending = upgradeGit.mutateAsync({ pluginId: plugin.id, expectedCommit: verdict.proof.sourceCommit });
+    if (verdict.kind === "review") {
+      const { identity } = verdict.preview;
+      pending =
+        identity.source === "git"
+          ? upgradeGit.mutateAsync({ pluginId: plugin.id, expectedCommit: identity.sourceCommit })
+          : upgradeStored.mutateAsync({ pluginId: plugin.id, expectedBundleHash: identity.bundleHash });
     } else if (plugin.updateSource === "showcase") {
       pending = upgradeShowcase.mutateAsync({ pluginId: plugin.id });
     } else {
-      if (verdict.kind !== "available" || verdict.proof.status !== "update-available" || verdict.proof.source !== "url") {
-        return;
-      }
-      pending = upgradeStored.mutateAsync({ pluginId: plugin.id, expectedBundleHash: verdict.proof.bundleHash });
+      return;
     }
     // `pending` is useUpgradePluginFromStoredGit (lib/plugin-distribution-mutations.ts),
     // useUpgradePluginFromShowcase or useUpgradePluginFromStoredUrl (lib/plugin-mutations.ts); each carries an errorToast.
@@ -146,50 +169,103 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   };
 
   return (
-    <Row align="center" wrap={true} gap="field" justify="start">
-      <Button
-        aria-label={pluginCheckForUpdatesLabel(plugin.name)}
-        variant="outline"
-        loading={check.isPending}
-        onClick={(): void => {
-          // runCheck already catches its own
-          // mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops
-          // catching internally.
-          void runCheck().catch(rethrowUnlessTrpcFailure);
-        }}
-        size="sm"
-        wrap={true}
-      >
-        {CHECK_FOR_UPDATES_LABEL}
-      </Button>
-      {verdict.kind === "available" ? (
+    <Stack gap="field">
+      <Row align="center" wrap={true} gap="field" justify="start">
         <Button
-          aria-label={verdict.ariaLabel}
-          cap="fit"
-          loading={upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending}
+          aria-label={pluginCheckForUpdatesLabel(plugin.name)}
+          variant="outline"
+          loading={check.isPending}
           onClick={(): void => {
-            // applyUpgrade already
-            // catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends
-            // if applyUpgrade stops catching internally.
-            void applyUpgrade().catch(rethrowUnlessTrpcFailure);
+            // runCheck already catches its own
+            // mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops
+            // catching internally.
+            void runCheck().catch(rethrowUnlessTrpcFailure);
           }}
           size="sm"
           wrap={true}
         >
-          {verdict.label}
+          {CHECK_FOR_UPDATES_LABEL}
         </Button>
+        {verdict.kind === "available" ? (
+          <Button
+            aria-label={verdict.ariaLabel}
+            cap="fit"
+            loading={applying || previewStored.isPending}
+            onClick={(): void => {
+              // reviewUpgrade and applyUpgrade already catch their own mutation's rejection internally, so
+              // neither rejects. Ends if either stops catching internally.
+              void (plugin.updateSource === "showcase" ? applyUpgrade() : reviewUpgrade()).catch(rethrowUnlessTrpcFailure);
+            }}
+            size="sm"
+            wrap={true}
+          >
+            {verdict.label}
+          </Button>
+        ) : null}
+        {verdict.kind === "up-to-date" ? (
+          <Text cap="prose" prose={true} voice="gloss">
+            {UPDATE_UP_TO_DATE_LINE}
+          </Text>
+        ) : null}
+        {verdict.kind === "unreachable" ? (
+          <Text cap="prose" prose={true} voice="gloss">
+            {UPDATE_UNREACHABLE_LINE}
+          </Text>
+        ) : null}
+      </Row>
+      {verdict.kind === "review" ? (
+        <StoredUpdateReview
+          applying={applying}
+          onApply={(): void => {
+            // applyUpgrade catches its own mutation's rejection internally. Ends if it stops catching.
+            void applyUpgrade().catch(rethrowUnlessTrpcFailure);
+          }}
+          onDismiss={(): void => setVerdict({ kind: "idle" })}
+          pluginName={plugin.name}
+          preview={verdict.preview}
+        />
       ) : null}
-      {verdict.kind === "up-to-date" ? (
+    </Stack>
+  );
+}
+
+interface StoredUpdateReviewProps {
+  readonly preview: StoredUpdatePreview;
+  readonly pluginName: string;
+  readonly applying: boolean;
+  readonly onApply: () => void;
+  readonly onDismiss: () => void;
+}
+
+/** What the next version from a stored source changes, read before it applies. The lines are the reach it widens
+ *  beyond the owner's consent plus the browser-script fact; the apply echoes the preview's identity. */
+function StoredUpdateReview({ preview, pluginName, applying, onApply, onDismiss }: StoredUpdateReviewProps): ReactElement {
+  const lines = storedUpdateChangeLines(preview);
+  return (
+    <Stack aria-label={pluginApplyUpdateLabel(pluginName)} gap="field" role="group">
+      <Text voice="label">{storedUpdateHeading(preview.fromVersion, preview.toVersion)}</Text>
+      {lines.length === 0 ? (
         <Text cap="prose" prose={true} voice="gloss">
-          {UPDATE_UP_TO_DATE_LINE}
+          {STORED_UPDATE_NOTHING_NEW}
         </Text>
-      ) : null}
-      {verdict.kind === "unreachable" ? (
-        <Text cap="prose" prose={true} voice="gloss">
-          {UPDATE_UNREACHABLE_LINE}
-        </Text>
-      ) : null}
-    </Row>
+      ) : (
+        <Stack gap="tight">
+          {lines.map((line) => (
+            <Text cap="prose" key={line} prose={true}>
+              {line}
+            </Text>
+          ))}
+        </Stack>
+      )}
+      <Row wrap={true} gap="field" justify="start">
+        <Button aria-label={pluginApplyUpdateLabel(pluginName)} loading={applying} onClick={onApply} size="sm" variant="outline" wrap={true}>
+          {APPLY_UPDATE_LABEL}
+        </Button>
+        <Button onClick={onDismiss} size="sm" variant="ghost" wrap={true}>
+          {UPDATE_REVIEW_DISMISS_LABEL}
+        </Button>
+      </Row>
+    </Stack>
   );
 }
 

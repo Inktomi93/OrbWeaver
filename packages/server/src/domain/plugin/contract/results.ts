@@ -1,6 +1,7 @@
 // Canonical plugin wire outputs live in contracts; this module owns the remaining domain-only results.
-import type { PluginBundleHash, PluginManifest } from "@orb/contracts/plugin";
-import { pluginBundleHashSchema, pluginManifestSchema } from "@orb/contracts/plugin";
+import { providerIdSchema } from "@orb/contracts/inference";
+import type { PluginBundleHash, PluginManifest, PluginReachWidening } from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, pluginBundleHashSchema, pluginManifestSchema, pluginNetHostSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { SNIFFED_IMAGE_MIMES } from "@orb/kit/image-sniff";
@@ -91,3 +92,39 @@ export const pluginUpdateCheckSchema = z.union([
   z.strictObject({ pluginId: pluginIdSchema, status: z.literal("source-changed"), sourceCommit: z.string() }),
   z.strictObject({ pluginId: pluginIdSchema, status: z.literal("unreachable") }),
 ]) satisfies z.ZodType<PluginUpdateCheck>;
+
+// The re-consent widening type has no wire schema of its own; the preview is its only wire carrier.
+const pluginReachWideningSchema = z.strictObject({
+  capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).readonly(),
+  netHosts: z.array(pluginNetHostSchema).readonly(),
+  providerIds: z.array(providerIdSchema).readonly(),
+  matchAutomationEvents: z.boolean(),
+}) satisfies z.ZodType<PluginReachWidening>;
+
+/** The identity a stored upgrade must echo so the bytes it applies are the bytes this preview showed. */
+export type PluginStoredUpgradeIdentity =
+  | { readonly source: "url"; readonly bundleHash: PluginBundleHash }
+  | { readonly source: "git"; readonly sourceCommit: string };
+
+/** What applying the stored source's current version would change. `widening` is the consent question; the
+ *  version and the browser script are display facts beside it, and neither widens reach. */
+export interface PluginStoredUpgradePreview {
+  readonly pluginId: PluginId;
+  readonly fromVersion: string;
+  readonly toVersion: string;
+  readonly shipsUiScript: { readonly before: boolean; readonly after: boolean };
+  readonly widening: PluginReachWidening;
+  readonly identity: PluginStoredUpgradeIdentity;
+}
+
+export const pluginStoredUpgradePreviewSchema = z.strictObject({
+  pluginId: pluginIdSchema,
+  fromVersion: z.string(),
+  toVersion: z.string(),
+  shipsUiScript: z.strictObject({ before: z.boolean(), after: z.boolean() }),
+  widening: pluginReachWideningSchema,
+  identity: z.discriminatedUnion("source", [
+    z.strictObject({ source: z.literal("url"), bundleHash: pluginBundleHashSchema }),
+    z.strictObject({ source: z.literal("git"), sourceCommit: z.string() }),
+  ]),
+}) satisfies z.ZodType<PluginStoredUpgradePreview>;

@@ -36,6 +36,11 @@ export function isPluginUiHostCallCode(reason: string): reason is PluginUiHostCa
  *  {@link PLUGIN_UI_HOST_CALL_CODES} never reaches plugin code. */
 export const PLUGIN_UI_HOST_CALL_FAILED = "plugin host: the call could not be completed";
 
+/** The interaction a scripted surface's `ui.js` handler receives: a pressed action, or one field's new value. */
+export type PluginUiGuestEvent =
+  | { readonly type: "action"; readonly actionId: string }
+  | { readonly type: "field"; readonly name: string; readonly value: string };
+
 /** The bounded transcript page accepted by the scripted UI relay. */
 export const PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX = 50;
 // Each schema is at least as strict as the column it reaches, so a refusal is the relay's coded answer and never the

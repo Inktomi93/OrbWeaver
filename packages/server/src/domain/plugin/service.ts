@@ -41,6 +41,7 @@ import { createListMacros } from "./verbs/list-macros.ts";
 import { createListPlugins } from "./verbs/list-plugins.ts";
 import { createListSurfaces } from "./verbs/list-surfaces.ts";
 import { createPreviewFromUrl } from "./verbs/preview-from-url.ts";
+import { createPreviewStoredUpgrade } from "./verbs/preview-stored-upgrade.ts";
 import { createReportUiCrash } from "./verbs/report-ui-crash.ts";
 import { createRunSnippet } from "./verbs/run-snippet.ts";
 import { createSetEnabled } from "./verbs/set-enabled.ts";
@@ -112,6 +113,9 @@ export function createPluginService(
     // match, keeping the re-consent wall.
     checkForUpdates: createCheckForUpdates(ctx),
     upgradeFromStoredUrl: createUpgradeFromStoredUrl(ctx, { upgrade }),
+    // The review step before either stored-source upgrade: it shows what the next version changes and returns
+    // the identity that upgrade must echo.
+    previewStoredUpgrade: createPreviewStoredUpgrade(ctx),
     // …and its SEEDED-EXAMPLE twin: the same one-click, sourced from the bundle this build ships
     // (`ctx.showcase`) instead of a remembered URL, so a DIVERGED showcase install — the one the boot
     // auto-upgrade deliberately leaves alone — has a way for its owner to take a newer bundle on purpose.

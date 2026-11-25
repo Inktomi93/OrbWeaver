@@ -19,10 +19,12 @@
 //     `host.grants.includes("…")` before every registration (the guard idiom).
 //   - There is no `Date`, no `Math.random`, no timers, no `fetch`, no module loader. Time and entropy are
 //     the injected seams below.
-//   - Every host call rejects after a 5 s real-time bound, with an error whose `name` is
+//   - Every host call rejects after a fixed real-time bound, with an error whose `name` is
 //     `"PluginHostDeadlineError"` (and `hostFunction` the call that ran long). The host stops waiting but
-//     does not cancel the work, so treat it as "no answer yet", not a refusal. Three consecutive crashed
-//     invocations auto-disable the plugin.
+//     does not cancel the work, so treat it as "no answer yet", not a refusal. A run of consecutive crashed
+//     invocations auto-disables the plugin.
+//   - Rate ceilings are per plugin and per hour. A call past its ceiling rejects; the host sets each ceiling and
+//     may change it, so debounce rather than spend up to it.
 //   - A host call the host could not serve fails with `name` `"PluginHostUnavailable"`: an async call rejects, and a
 //     synchronous seam (the clock, entropy, ids) throws. Both kinds are retryable. With `code` `"channel_full"`
 //     (`PluginHostRefusalCode`), a channel inside the host was full and only this call was refused: retry it soon.
@@ -156,15 +158,16 @@ interface PluginVariablePrecondition {
  *  unset) so you can re-derive and try again. A lost race is DATA, not an exception. */
 type PluginVariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
-/** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). `position`
- *  names a seat (before or after the character definitions, the top or bottom of the chat's Author's Note or of the
- *  example messages), but the host does not read it: the entry lands at the lore writer's default seat. */
+/** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). The
+ *  optional `position` names a seat (before or after the character definitions, the top or bottom of the chat's
+ *  Author's Note or of the example messages), but the host does not read it: the entry lands at the lore writer's
+ *  default seat. */
 interface PluginWorldEntryUpsert {
   readonly bookId: string;
   readonly entryKey: string;
   readonly keys: readonly string[];
   readonly contentTemplate: string;
-  readonly position: "before" | "after" | "authors_note_top" | "authors_note_bottom" | "example_messages_top" | "example_messages_bottom";
+  readonly position?: "before" | "after" | "authors_note_top" | "authors_note_bottom" | "example_messages_top" | "example_messages_bottom";
 }
 
 /** One lore book ATTACHED to the invocation chat (`worldInfo.listBooks`). `id` is what you pass to
@@ -184,7 +187,7 @@ interface PluginWorldEntryView {
 }
 
 /** What `assets.read` answers for an asset in the INSTALLER's OWN CAS. Bytes cross as base64 (there are no
- *  bytes in the realm); an owned asset over 1 MiB returns its metadata with `dataBase64: null` (never a
+ *  bytes in the realm); an owned asset over `PLUGIN_ASSET_READ_MAX_BYTES` returns its metadata with `dataBase64: null` (never a
  *  truncated read — you must not mistake a clipped image for the whole one). A foreign or absent id is the
  *  call answering `null` instead of this shape. */
 interface PluginAssetView {
@@ -211,7 +214,7 @@ interface PluginQuietSchema {
   readonly schema: Record<string, unknown>;
 }
 
-/** `llm.quiet`'s optional second argument — both arms independent. `imageAssetIds` (≤ 4) names assets in the
+/** `llm.quiet`'s optional second argument — both arms independent. `imageAssetIds` (at most `PLUGIN_QUIET_IMAGES_MAX`) names assets in the
  *  INSTALLER's own CAS for vision-capable models; text-only models ignore them. */
 interface PluginQuietOptions {
   readonly schema?: PluginQuietSchema;
@@ -307,14 +310,14 @@ type PluginTriggerFact =
 type PromptTransformPoint = "user_input" | "assembled_dynamic";
 
 /** A transform's answer: the rewritten draft, or a deliberate ABORT of the generation (`abort` is the
- *  author-facing reason, ≤ 200 chars). A throw or a deadline overrun is neither — it is a SKIP. */
+ *  author-facing reason, length-capped). A throw or a deadline overrun is neither — it is a SKIP. */
 type PromptTransformOutcome = string | { readonly abort: string };
 
 // ── the declarative UI vocabulary (`ui.surface`) ────────────────────────────────────────────────────────────
 
 /** Where a surface may mount. `dialog` mounts nowhere by itself — it opens via `ui.openDialog`, only as the
  *  outcome of a round-trip the person just made. `message-footer` is static-only decoration under EVERY
- *  committed row (≤ 8 nodes, depth ≤ 2, no bindings, no interactive/bulk/prose kinds). */
+ *  committed row (`PLUGIN_FOOTER_MAX_NODES` nodes, `PLUGIN_FOOTER_MAX_DEPTH` deep, no bindings, no interactive/bulk/prose kinds). */
 type PluginSurfaceAnchor = "settings" | "chat-flank" | "chat-settings-section" | "tool-card" | "message-footer" | "page" | "dialog";
 
 /** Who computes the pixels: `static` (this spec + published state), `scripted` (your `ui.js` publishes
@@ -513,7 +516,7 @@ interface PluginIconNode {
   readonly name: PluginIconName;
   readonly label?: string | undefined;
 }
-/** The ONE-OF-N segmented strip — the page's own axis, every option visible (max 8; a bigger vocabulary is a
+/** The ONE-OF-N segmented strip — the page's own axis, every option visible (a small capped count; a bigger vocabulary is a
  *  `select`). Same option arms as `select`: exactly one of `options`/`optionsFrom`. A pick fires `actionId`
  *  immediately. It is NOT a tab panel container: what a pick changes is whatever you republish. */
 type PluginTabsNode = PluginOneSource<
@@ -572,7 +575,7 @@ type PluginGridTile = PluginOptionalSource<
 >;
 /** One BOUND grid tile as you publish it in state (the `tilesFrom` arm) — plain strings, no per-tile action
  *  (the grid-level `tileAction` owns the round-trip). Entries are validated at resolve; malformed ones are
- *  dropped; the count clamps to 64. */
+ *  dropped; the count is clamped. */
 interface PluginBoundGridTile {
   readonly id: string;
   readonly title: string;
@@ -636,7 +639,7 @@ interface PluginSearchBarNode {
   readonly filtersLabel?: string | undefined;
 }
 
-/** The closed node union. Global caps per spec: 32 KiB serialized, 256 nodes, depth 8, every string bounded.
+/** The closed node union. Each spec is capped by `PLUGIN_SPEC_MAX_BYTES`, `PLUGIN_SPEC_MAX_NODES` and `PLUGIN_SPEC_MAX_DEPTH`, and every string is bounded.
  *  What it deliberately CANNOT express: HTML/CSS, host chrome, modals, focus theft, any write channel. */
 type PluginSurfaceNode = PluginNodeVisibility &
   (
@@ -771,7 +774,7 @@ interface PluginHostV1 {
     /** The invocation's admitted room. THROWS outside a chat scope (a domain fact, the palette or top bar on a
      *  non-chat screen) — the honest answer, not a synthesized room. capability: chat.read */
     current: () => ChatHandle;
-    /** Recent canon, oldest→newest, ≤ 50 (default 20), clamped to the installer's visibility.
+    /** Recent canon, oldest→newest, a capped count, clamped to the installer's visibility.
      *  capability: chat.read */
     listMessages: (chat: ChatHandle, opts?: { limit?: number }) => Promise<readonly PluginMessageView[]>;
     /** The room's runtime variable fold (read). capability: chat.read */
@@ -791,7 +794,7 @@ interface PluginHostV1 {
       ops: readonly PluginVariableOp[],
       expect?: readonly PluginVariablePrecondition[],
     ) => Promise<PluginVariableWriteResult>;
-    /** Quick-reply chips (≤ 4), always compose-mode, host authority required. capability: chat.quick_reply */
+    /** Quick-reply chips (a capped count), always compose-mode, host authority required. capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Ask for an autonomous turn — SPEND, budget-gated; without host authority it becomes a confirm card
      *  and throws `PluginSuggestedError` ("it became a question"). capability: turn.trigger */
@@ -805,7 +808,7 @@ interface PluginHostV1 {
     /** One attached book's entries. A `bookId` not attached to this room (or not yours to see) answers `[]`
      *  — indistinguishable from an empty book, by design (no existence oracle). capability: worldinfo.read */
     listEntries: (chat: ChatHandle, bookId: string) => Promise<readonly PluginWorldEntryView[]>;
-    /** Attached-book-only, `entryKey`-idempotent, 64 entries/book/plugin; without host authority it becomes
+    /** Attached-book-only, `entryKey`-idempotent, at most `PLUGIN_LORE_ENTRIES_PER_BOOK_MAX` entries per book per plugin; without host authority it becomes
      *  a confirm card (`PluginSuggestedError`). capability: worldinfo.write */
     upsertEntry: (chat: ChatHandle, e: PluginWorldEntryUpsert) => Promise<void>;
   };
@@ -813,14 +816,14 @@ interface PluginHostV1 {
   readonly assets: {
     /** Read back one asset from the INSTALLER's OWN CAS — e.g. the id `imagery.generatePicture` just
      *  returned. A foreign or absent id answers `null` (leak-free, no existence oracle); an owned asset over
-     *  1 MiB answers its metadata with `dataBase64: null`. capability: assets.read */
+     *  `PLUGIN_ASSET_READ_MAX_BYTES` answers its metadata with `dataBase64: null`. capability: assets.read */
     read: (assetId: string) => Promise<PluginAssetView | null>;
   };
 
   readonly search: {
     /** Semantic search over the INSTALLER's OWN indexed corpus (their databank shelves — including what your
      *  `databank.ingest` wrote). Query text may reach the installer's hosted embedding provider and cost
-     *  money; the host admits at most 120 calls/hour per plugin. Ranked hits, ≤ 20 per call (default 10). No chat scope needed.
+     *  money, so it has an hourly rate ceiling. Ranked hits, at most `PLUGIN_SEARCH_RESULTS_MAX` per call. No chat scope needed.
      *  capability: search.query */
     documents: (queryText: string, opts?: { limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };
@@ -833,7 +836,7 @@ interface PluginHostV1 {
     delete: (key: string) => Promise<void>;
   };
 
-  /** Your plugin-PRIVATE KV (per plugin × installer): ≤ 256 keys, ≤ 64 KiB per value. A key or value holding a NUL
+  /** Your plugin-PRIVATE KV (per plugin × installer): at most `PLUGIN_KV_MAX_KEYS` keys, `PLUGIN_KV_VALUE_MAX_BYTES` per value. A key or value holding a NUL
    *  character is refused: stored text reads back cut at its first NUL. capability: storage.kv */
   readonly storage: {
     get: (key: string) => Promise<string | null>;
@@ -867,7 +870,8 @@ interface PluginHostV1 {
   };
 
   readonly notifications: {
-    /** The DURABLE notice channel — participants only, 200-char cap, 60 s per-room cooldown.
+    /** The DURABLE notice channel — participants only, `AUTOMATION_NOTICE_MESSAGE_MAX` chars, a
+     *  per-room cooldown of `AUTOMATION_NOTICE_COOLDOWN_SECONDS`.
      *  capability: notify */
     post: (chat: ChatHandle, recipient: PluginNotificationRecipient, message: string) => Promise<void>;
   };
@@ -879,7 +883,7 @@ interface PluginHostV1 {
   };
 
   readonly llm: {
-    /** SPEND — one bounded, non-canon generation on the installer's own connection (30/hour per plugin).
+    /** SPEND — one bounded, non-canon generation on the installer's own connection, under an hourly rate ceiling.
      *  No chat scope needed; writes nothing; you get a string. `opts.schema` = structured output;
      *  `opts.imageAssetIds` = vision inputs from the installer's own CAS. A provider failure rejects with a
      *  {@link PluginLlmFailure}. capability: llm.quiet */
@@ -912,7 +916,7 @@ interface PluginHostV1 {
     /** The installer's OWN characters whose blob from YOUR plugin holds any of `values` as a string, at any depth,
      *  each with its whole blob. Characters with identical blobs collapse to one match, so `characterId` names one
      *  holder, not every holder. Imported cards carry blobs too, so treat a match as data, not proof. Refuses more
-     *  than 64 values; answers at most 64 distinct blobs. capability: character.card_state */
+     *  than `PLUGIN_CARD_DATA_FIND_MAX` values and answers at most that many distinct blobs. capability: character.card_state */
     findCardData: (values: readonly string[]) => Promise<readonly { characterId: string; data: Record<string, unknown> }[]>;
   };
 
@@ -928,8 +932,8 @@ interface PluginHostV1 {
   /** The PRIVATE event plane between the SAME installer's plugins — `plugin:<slug>:<name>` channels. Never a
    *  domain event, never automation, never another user. capability: plugin_events */
   readonly pubsub: {
-    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. 360 emits per hour
-     *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. A handler may
+    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. The payload is at most `PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES`. Emits have an hourly
+     *  rate ceiling; past it the emit rejects until the hour turns, whether anyone listens or not. A handler may
      *  answer an announcement with one of its own, but an emit from inside that answer's own delivery rejects with
      *  `PluginPubsubDepthError`, so plugins cannot wake each other, or themselves, in a loop. The same chain counts a
      *  trigger fact your plugins raised (see `events.on`), so a loop through either plane stops at the same depth. */
@@ -956,7 +960,7 @@ interface PluginHostV1 {
   };
 
   readonly transforms: {
-    /** A PROMPT transform: rewrites text on its way to the model. 250 ms deadline, skip-on-failure, rooms
+    /** A PROMPT transform: rewrites text on its way to the model. A short deadline, skip-on-failure, rooms
      *  the installer hosts only. `input.env.vars` arrives synchronously — no host call needed inside the
      *  deadline. capability: chat.transform */
     register: (def: {
@@ -977,14 +981,14 @@ interface PluginHostV1 {
   };
 
   readonly net: {
-    /** Host-performed fetch: allowlisted to your manifest's `netHosts` ONLY, GET/POST, 5 s deadline, 1 MiB
-     *  response cap, SSRF-guarded, 360/hour per plugin. The body is text — there are no bytes in the realm.
+    /** Host-performed fetch: allowlisted to your manifest's `netHosts` ONLY, GET/POST, with a deadline, a
+     *  response size cap and an hourly rate ceiling, SSRF-guarded. The body is text — there are no bytes in the realm.
      *  capability: net.fetch */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
     /** Download a remote IMAGE into the installer's OWN storage and get back an assetId — allowlisted to your
-     *  manifest's `netHosts` ONLY (the same hosts; its OWN art-sized 1200/hour belt, so covers never starve
+     *  manifest's `netHosts` ONLY (the same hosts; its OWN larger hourly rate ceiling, so covers never starve
      *  your `fetch` budget), SSRF-guarded, and
-     *  image-validated (magic bytes, not the server's Content-Type; dimension/size caps; 5 MiB). You never see
+     *  image-validated (magic bytes, not the server's Content-Type; dimension and size caps). You never see
      *  the bytes or a URL — only the assetId, which you can render in an `image`/`hero` node or hand to
      *  `character.ingestAsset`. Rejects on a non-image, an oversize download, or a blocked host.
      *  capability: net.fetch_asset */
@@ -1005,11 +1009,11 @@ interface PluginHostV1 {
       spec?: TSpec;
       onAction?: (a: { actionId: PluginSurfaceActionId<TSpec>; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
-    /** Publish the state your spec's `{ $state }` bindings resolve against (≤ 16 KiB, replaces whole).
+    /** Publish the state your spec's `{ $state }` bindings resolve against (size-capped, replaces whole).
      *  With `chat`: a PER-ROOM row (only that room sees it); without: one plugin-wide row. */
     setState: (surfaceId: string, state: Record<string, unknown>, chat?: ChatHandle) => Promise<void>;
     /** Register a command: `/plugin <slug> <name> …`, the palette, and optional host-owned placements.
-     *  A command with no placement stays reachable through those two doors. Declare typed `args` (≤ 16) and `values` arrives validated; the raw
+     *  A command with no placement stays reachable through those two doors. Declare typed `args` (at most `PLUGIN_COMMAND_ARGS_DECLARED_MAX`) and `values` arrives validated; the raw
      *  remainder always arrives as `args`. Inside a room the command's invocation carries that room — reach
      *  it via `chat.current()`. */
     registerCommand: <const TArgs extends readonly PluginCommandArgDeclaration[] = readonly []>(
@@ -1025,19 +1029,20 @@ interface PluginHostV1 {
         | { composerDraft?: never; onRun: (a: { args: string; values: PluginCommandValuesFor<TArgs> }) => void | Promise<void> }
       ),
     ) => void;
-    /** A transient house toast, prefixed with your plugin's name (host-stamped), ≤ 200 chars, rate-floored
-     *  (10 s per plugin). Delivered on the round-trip the person just made — the durable channel is
+    /** A transient house toast, prefixed with your plugin's name (host-stamped), at most `PLUGIN_TOAST_MAX_CHARS`
+     *  chars, with a per-plugin cooldown of `PLUGIN_TOAST_COOLDOWN_SECONDS`. Delivered on the round-trip the person just made — the durable channel is
      *  `notifications.post`. */
     toast: (level: PluginToastLevel, message: string) => Promise<void>;
     /** Open one of YOUR OWN registered `dialog` surfaces — only ever as the outcome of a round-trip the
      *  person initiated (a spontaneous modal is unspellable). An unknown id is dropped. */
     openDialog: (surfaceId: string) => Promise<void>;
     /** THE ESCAPE HATCH — your own document (html + css, verbatim) in an isolated frame: opaque origin, no
-     *  network, ≤ 64 000/16 000 chars, ≤ 8 frames. Anchors: settings, chat-flank, tool-card.
+     *  network, html and css each length-capped, at most `PLUGIN_FRAME_SURFACES_MAX` frames. Anchors: the application's `PLUGIN_ANCHOR_TIERS` map decides;
+     *  today every anchor except `chat-settings-section` and `message-footer`.
      *  There is no `orb` inside a frame. It reaches the host by
      *  `parent.postMessage({ orbPluginFrameCall: { callId, fn, args } }, "*")`, where `fn` is one of the
      *  functions `ui.host` proxies for a scripted surface, `args` is that function's opaque wire input, and the call is
-     *  re-gated against this plugin's grants. The answer arrives as `{ orbPluginFrameResult: { callId, ok, value } }` or, on any refusal, `{ callId, ok: false, error: "refused" }`, with at most 4 calls in flight.
+     *  re-gated against this plugin's grants. The answer arrives as `{ orbPluginFrameResult: { callId, ok, value } }` or, on any refusal, `{ callId, ok: false, error: "refused" }`, with at most the application's `PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX` calls in flight.
      *  Frame code must check that `event.source === parent` before obeying a received message, because other
      *  frames on the same page can post to it. See the pocket-arcade example. capability: ui.frame */
     registerFrame: (def: { id: string; anchor: PluginSurfaceAnchor; title: string; html: string; css?: string }) => void;
@@ -1057,7 +1062,9 @@ interface PluginUiEvent {
 /** The `ui.js` realm: compute trees locally, at native latency. Same determinism law as the server guest
  *  (no Date, no Math.random); a hung handler is terminated from outside and the surface collapses to null.
  *  The three rules that keep a scripted surface alive: render something immediately, never block, and batch
- *  host calls at startup (each one is a real network round-trip). */
+ *  host calls at startup (each one is a real network round-trip). Its contract is the application's
+ *  `PluginHostV1` members it shares, the `UI_PROXYABLE_HOST_FUNCTIONS` relay with its argument schemas, and
+ *  `PluginUiGuestEvent`. */
 interface PluginUiV1 {
   readonly version: 1;
   /** Display-only feature detection — the server re-gates every relayed call against the stored grant. */

@@ -19,7 +19,7 @@ scene-chips/           room surface       quick-reply chips the room can see; su
 story-clocks/          room mechanics     writes CHAT VARIABLES (the member-visible plane), host controls
                                           in the room band, a model tool, a turn on a filled clock
 keepsake-camera/       spend pipeline     llm.quiet with a SCHEMA → imagery.generate, designed around the
-                                          5 s host bound; an ARM-C bound-grid album page
+                                          host-call deadline; an ARM-C bound-grid album page
 pocket-arcade/         escape hatch       ui.frame — its own pixels (a playable 2048) in an isolated frame
 card-atlas/            hub browser        the flagship: search the community card hubs, preview, and import
                                           cards with provenance stamps — the product-sized template
@@ -76,7 +76,7 @@ External projects install the zero-dependency `@orb/plugin-sdk` declarations and
 `@orb/plugin-toolchain` CLI from a public `plugin-authoring-v<version>` GitHub Release. The SDK has separate
 `main`, `ui`, and `frame` entry points; the toolchain selects the matching entry automatically and has no
 Orbweaver application dependency. There is no npm-registry publication or credential requirement. The
-example pins 0.1.0; use the newest version on the [releases page](https://github.com/Inktomi93/OrbWeaver/releases?q=plugin-authoring&expanded=true):
+example pins 0.1.0; use the newest version on the [releases page](https://github.com/Inktomi93/OrbWeaver/releases?q=plugin-authoring\&expanded=true):
 
 ```bash
 pnpm add -D \
@@ -132,20 +132,20 @@ want while experimenting.
 
 | Field | Rule |
 | - | - |
-| `id` | Lowercase slug, 2–64 chars, `[a-z0-9][a-z0-9-]*`. Unique **per user**; the namespace root for your tools (`plugin_<id_with_each_hyphen_doubled_to___>_<toolname>` — `oracle-deck` ⇒ `plugin_oracle__deck_<toolname>`; the doubling is what keeps two plugins' namespaces from ever colliding), your macro, and your per-card stamp (`plugin_<id>`). Changing it makes a different plugin. |
-| `name` | ≤ 80 chars. What the pane and every attribution frame call it. |
+| `id` | Lowercase slug, 2 to `PLUGIN_SLUG_MAX` chars, `[a-z0-9][a-z0-9-]*` (`packages/contracts/src/plugin/manifest.ts`). Unique **per user**; the namespace root for your tools (`plugin_<id_with_each_hyphen_doubled_to___>_<toolname>` — `oracle-deck` ⇒ `plugin_oracle__deck_<toolname>`; the doubling is what keeps two plugins' namespaces from ever colliding), your macro, and your per-card stamp (`plugin_<id>`). Changing it makes a different plugin. |
+| `name` | At most `NAME_MAX` chars (`packages/contracts/src/plugin/manifest.ts`). What the pane and every attribution frame call it. |
 | `version` | Exactly `major.minor.patch`. Display + downgrade refusal only. |
 | `hostVersion` | `1`. The membrane major. A future host that no longer serves 1 refuses your bundle loudly rather than half-running it. |
 | `entry` | Always the literal `"main.js"`, emitted from `main.ts`. One runtime file, no module loader. |
 | `uiEntry` | Optional, always the literal `"ui.js"` — the browser-side guest for `tier:"scripted"` surfaces. Requires `ui.surface` in `capabilities`. |
-| `description` | ≤ 500 chars. Shown beside the grant list; write it for the person deciding. |
-| `author` | Optional, ≤ 120 chars. |
+| `description` | At most `DESCRIPTION_MAX` chars (same file). Shown beside the grant list; write it for the person deciding. |
+| `author` | Optional, at most `AUTHOR_MAX` chars (same file). |
 | `capabilities` | A subset of the closed list below. **Declaring is asking**, not receiving. |
-| `netHosts` | Exact hostnames, ≤ 8. Required iff you declare `net.fetch` or `net.fetch_asset`. |
+| `netHosts` | Exact hostnames, at most `NET_HOSTS_MAX` (same file). Required iff you declare `net.fetch` or `net.fetch_asset`. |
 | `matchAutomationEvents` | Optional, default `false`: your event handlers see only human-caused (depth-0) facts. `true` opts into automation-caused ones, under the hard cascade cap. |
 | `builtAgainst` | Optional `{engineVersion, engineCommit?}` provenance; displayed, never a gate. |
 
-Caps: `manifest.json` ≤ 64 KiB, `main.js` and `ui.js` ≤ 1 MiB each, the zip ≤ 1 MiB.
+Caps (`packages/contracts/src/plugin/manifest.ts`): `manifest.json` at most `PLUGIN_MANIFEST_ENTRY_MAX_BYTES`, `main.js` and `ui.js` at most `PLUGIN_SCRIPT_ENTRY_MAX_BYTES` each, the zip at most `PLUGIN_BUNDLE_MAX_BYTES`.
 
 ---
 
@@ -160,39 +160,39 @@ actually allowed — which can be narrower than what you declared. Feature-detec
 | `chat.read` | `chat.current()`, `chat.listMessages()`, `chat.getVariables()`, `chat.listCharacters()` | Needed for `current()` even if all you want is the handle. Reads are clamped to what the INSTALLER may see. `listCharacters` is the room's present CHARACTER seats (id/name/avatar) — never humans, never full cards. |
 | `chat.variables.write` | `chat.applyVariableOps()` | The room's member-visible plane (macros/CEL/rules read it). Host authority required — flat refusal without it. |
 | `chat.quick_reply` | `chat.surfaceQuickReply()` | Host authority required. Always compose-mode. |
-| `chat.transform` | `transforms.register()`, `transforms.registerDisplay()`, `macros.register()` | One capability, three seams: prompt (250 ms, host-only rooms), display (your own screen), and value macros. |
+| `chat.transform` | `transforms.register()`, `transforms.registerDisplay()`, `macros.register()` | One capability, three seams: prompt (a short deadline, host-only rooms), display (your own screen), and value macros. |
 | `worldinfo.read` | `worldInfo.listBooks()`, `worldInfo.listEntries()` | The room's ATTACHED lore, member-gated. A book id that is not attached (or not visible to you) answers `[]` — indistinguishable from an empty book, by design. A separate consent line from the write. |
-| `worldinfo.write` | `worldInfo.upsertEntry()` | Host authority → otherwise a confirm card. Attached books only; 64 entries per book per plugin. |
+| `worldinfo.write` | `worldInfo.upsertEntry()` | Host authority → otherwise a confirm card. Attached books only; at most `PLUGIN_LORE_ENTRIES_PER_BOOK_MAX` entries per book per plugin (`packages/contracts/src/plugin/host-v1.ts`). |
 | `global_vars` | `variables.get/set/delete()` | The installing user's `{{getglobalvar}}` namespace. |
-| `storage.kv` | `storage.get/set/delete/list()` | Your private KV: ≤ 256 keys, ≤ 64 KiB per value, per plugin × owner. |
-| `notify` | `notifications.post()` | Participants only. 200-char cap, 60 s per-room cooldown. The DURABLE channel (contrast `ui.toast`). |
+| `storage.kv` | `storage.get/set/delete/list()` | Your private KV: at most `PLUGIN_KV_MAX_KEYS` keys and `PLUGIN_KV_VALUE_MAX_BYTES` per value (`packages/contracts/src/plugin/host-v1.ts`), per plugin × owner. |
+| `notify` | `notifications.post()` | Participants only. At most `AUTOMATION_NOTICE_MESSAGE_MAX` chars, one notice per `AUTOMATION_NOTICE_COOLDOWN_SECONDS` per room (`packages/contracts/src/notifications/index.ts`). The DURABLE channel (contrast `ui.toast`). |
 | `ui.surface` | the whole declarative UI plane: `ui.register`, `ui.setState`, `ui.registerCommand`, `ui.toast`, `ui.openDialog` | See "The UI plane" below. Renders only for the installer. |
 | `ui.frame` | `ui.registerFrame()` | The escape hatch: your own pixels in an isolated frame. Its consent line names the WebRTC residual out loud. See pocket-arcade. |
 | `turn.trigger` | `chat.requestTurn()` | **Spend.** Host authority → otherwise a confirm card. |
 | `imagery.generate` | `imagery.generatePicture()` | **Spend.** Host authority → otherwise a confirm card. Same args vocabulary as the automation `generate_image` arm. |
 | `assets.read` | `assets.read(assetId)` | Read back one of the installer's OWN CAS assets (e.g. the id `generatePicture` just returned) as base64 + mime. Foreign/absent → `null`, leak-free; owned-but-over-1-MiB → metadata with `dataBase64: null`, never a truncated read. |
-| `llm.quiet` | `llm.quiet(prompt, opts?)` | **Spend.** 30 calls/hour per plugin. `opts.schema` = structured output on the `structured` role (see keepsake-camera); `opts.imageAssetIds` attaches your installer's own CAS images for vision-capable models. Writes nothing — you get a string. |
+| `llm.quiet` | `llm.quiet(prompt, opts?)` | **Spend.** `PLUGIN_QUIET_LLM_PER_HOUR` calls per hour per plugin (`packages/server/src/domain/plugin/substrate/rate-floor.ts`). `opts.schema` = structured output on the `structured` role (see keepsake-camera); `opts.imageAssetIds` attaches your installer's own CAS images for vision-capable models. Writes nothing — you get a string. |
 | `databank.ingest` | `databank.ingest({name, text})` | A canon write into the installer's OWN databank. Content-hash deduped; the indexer auto-runs. No host authority — your shelves are yours. |
-| `search.query` | `search.documents(queryText, opts?)` | Semantic search over the installer's OWN indexed corpus — including what your `databank.ingest` wrote. Query text may go to your configured hosted embedding provider and cost money. 120 calls/hour per plugin; ranked hits, ≤ 20 per call (default 10). |
+| `search.query` | `search.documents(queryText, opts?)` | Semantic search over the installer's OWN indexed corpus — including what your `databank.ingest` wrote. Query text may go to your configured hosted embedding provider and cost money. `PLUGIN_SEARCH_QUERY_PER_HOUR` calls per hour per plugin (`packages/server/src/domain/plugin/substrate/rate-floor.ts`); ranked hits, at most `PLUGIN_SEARCH_RESULTS_MAX` per call (`packages/contracts/src/plugin/host-v1.ts`). |
 | `character.ingest` | `character.ingest(card)` | Import a V2/V3 card (plain JSON) into the installer's OWN library. Byte-identical re-ingests dedupe (`created: false`). |
-| `character.card_state` | `character.setCardData()`, `getCardData()`, `findCardData()` | Your plugin's OWN portable blob on one of the installer's OWN characters (`data.extensions.plugin_<slug>` — host-stamped, unforgeable, survives export→import). `findCardData(values)` finds the distinct blobs on the installer's characters that hold any of up to 64 strings, with one holder each. Imported cards carry blobs too, so treat a match as data, not proof. |
+| `character.card_state` | `character.setCardData()`, `getCardData()`, `findCardData()` | Your plugin's OWN portable blob on one of the installer's OWN characters (`data.extensions.plugin_<slug>` — host-stamped, unforgeable, survives export→import). `findCardData(values)` finds the distinct blobs on the installer's characters that hold any of up to `PLUGIN_CARD_DATA_FIND_MAX` strings, with one holder each. Imported cards carry blobs too, so treat a match as data, not proof. |
 | `events.subscribe` | `events.on(type, handler)` | The closed trigger taxonomy (`messageCommitted`, `chatOpened`, `turnCompleted`, …). Installed plugins only. |
-| `plugin_events` | `pubsub.emit()`, `pubsub.on()` | The PRIVATE plane between YOUR OWN plugins: `plugin:<slug>:<name>` channels, installer-scoped, never a domain event, never automation. 360 emits/hour per plugin. See oracle-deck (emit) + scene-chips (listen). |
+| `plugin_events` | `pubsub.emit()`, `pubsub.on()` | The PRIVATE plane between YOUR OWN plugins: `plugin:<slug>:<name>` channels, installer-scoped, never a domain event, never automation. `PLUGIN_PUBSUB_EMIT_PER_HOUR` emits per hour per plugin (`packages/server/src/domain/plugin/substrate/rate-floor.ts`). See oracle-deck (emit) + scene-chips (listen). |
 | `tools.register` | `tools.register()` | Into the one tool registry the model already uses. |
-| `net.fetch` | `net.fetch()` | Requires `netHosts`. 360 calls/hour per plugin, 5 s deadline, 1 MiB response cap, SSRF-guarded, GET/POST. |
-| `net.fetch_asset` | `net.fetchAsset()` | Requires `netHosts`. Downloads a validated remote image into your OWN asset storage and returns its id. Separate 1200 calls/hour per plugin; shares the allowlist and SSRF guard with `net.fetch`, not its rate budget. |
+| `net.fetch` | `net.fetch()` | Requires `netHosts`. `PLUGIN_EGRESS_PER_HOUR` calls per hour per plugin (`packages/server/src/domain/plugin/substrate/rate-floor.ts`), the host-call deadline, a `PLUGIN_NET_MAX_BYTES` response cap (`packages/server/src/infra/plugin-host/budgets.ts`), SSRF-guarded, GET/POST. |
+| `net.fetch_asset` | `net.fetchAsset()` | Requires `netHosts`. Downloads a validated remote image into your OWN asset storage and returns its id. A separate `PLUGIN_ASSET_EGRESS_PER_HOUR` calls per hour per plugin; shares the allowlist and SSRF guard with `net.fetch`, not its rate budget. |
 
 ### The postures — why a call can "succeed" without doing anything
 
 Room-state writes need **host authority** — the installer must host the room the invocation is in. Where
 they do not:
 
-* **`worldInfo.upsertEntry`, `chat.requestTurn`, `imagery.generatePicture`** become an **ask**: a card the
+- **`worldInfo.upsertEntry`, `chat.requestTurn`, `imagery.generatePicture`** become an **ask**: a card the
   room's host confirms, and your call throws `PluginSuggestedError`. Not a failure — "it became a question".
   Do not retry; retrying only replaces your own pending card.
-* **`chat.applyVariableOps` and `chat.surfaceQuickReply`** stay a **flat refusal** — a variable delta is not
+- **`chat.applyVariableOps` and `chat.surfaceQuickReply`** stay a **flat refusal** — a variable delta is not
   a human-weighable question, and a chip approved after being read is just the chip, delivered late.
-* The **library writes** (`databank.ingest`, `character.ingest`, `card_state`) and **`llm.quiet`** need no
+- The **library writes** (`databank.ingest`, `character.ingest`, `card_state`) and **`llm.quiet`** need no
   host authority at all — they touch the installer's own things, not room state.
 
 ### THE GUARD IDIOM (the one bug every new author writes)
@@ -224,12 +224,12 @@ answer in both realms (a budgeting heuristic, not the model's tokenizer).
 
 Budgets you cannot see but will meet:
 
-* an invocation has a CPU deadline and a settlement deadline — a handler that never resolves is ended;
-* **every HOST CALL rejects after 5 seconds**, however long the underlying work takes. Design slow calls so
+- an invocation has a CPU deadline and a settlement deadline — a handler that never resolves is ended;
+- **every HOST CALL rejects after `HOST_FN_DEADLINE_MS`** (`packages/server/src/infra/plugin-host/budgets.ts`), however long the underlying work takes. Design slow calls so
   their real deliverable does not depend on the answer (keepsake-camera is the worked example);
-* at most 32 host calls in flight per invocation; invocations on one plugin are serialized;
-* the log ring is bounded; flooding it drops lines, it does not error;
-* **three consecutive crashed invocations auto-disable your plugin** and notify the installer.
+- at most `HOST_CALLS_IN_FLIGHT_MAX` host calls in flight per invocation (same file); invocations on one plugin are serialized;
+- the log ring is bounded; flooding it drops lines, it does not error;
+- **`PLUGIN_CRASH_DISABLE_THRESHOLD` consecutive crashed invocations auto-disable your plugin** (`packages/server/src/domain/plugin/activation/crash-policy.ts`) and notify the installer.
 
 That last number is the most important one in this document. **A handler must never throw.** Wrap the body,
 log the failure, return. A flaky network, a model having a bad minute, a refusal you expected — none are
@@ -256,17 +256,18 @@ host.ui.register({ id, anchor, title, tier, spec, onAction });
 | `tool-card` | how one of your tools' calls renders (`toolName` links it) | oracle-deck |
 | `page` | a full page behind the app's one **Plugin pages** rail entry | oracle-deck, keepsake-camera, card-atlas |
 | `dialog` | a house modal, opened only by `host.ui.openDialog` from your own action/command | oracle-deck |
-| `message-footer` | one STATIC decoration strip under every committed message — static-only, no bindings, ≤ 8 nodes; say one thing quietly | none shipped |
+| `message-footer` | one STATIC decoration strip under every committed message — static-only, no bindings, at most `PLUGIN_FOOTER_MAX_NODES` nodes; say one thing quietly | none shipped |
 
 **Tiers** — who computes the tree: `static` (the spec lives server-side; values bind with `{ $state }` to
 state you publish via `host.ui.setState`) · `scripted` (your `ui.js` computes whole trees in the browser at
 native latency — see below) · `frame` (not this plane at all — `ui.registerFrame`, its own capability).
 
-**Nodes**: `stack`/`row`/`section` (layout) · `text`/`badge`/`meter`/`keyValue`/`list`/`image`/`markdown`
-(display) · `textField`/`numberField`/`toggle`/`select`/`slider` (form — values are client-side until an
+**Nodes** (the full set is `PLUGIN_NODE_KINDS` in `packages/contracts/src/plugin/ui.ts`): `stack`/`row`/`section`
+(layout) · `text`/`badge`/`meter`/`keyValue`/`list`/`image`/`markdown`/`icon` (display; `icon` takes a curated
+glyph name) · `textField`/`numberField`/`toggle`/`select`/`slider` (form — values are client-side until an
 action submits the whole bag) · `button`/`confirmButton` (actions; `confirmButton` gets the HOUSE confirm
-dialog — you cannot draw your own) · `grid`/`masterDetail`/`searchBar` (the browse genre — card-atlas is the
-tour). Bounds: 32 KiB / 256 nodes / depth 8 per spec; strings capped; no HTML, no CSS, no host chrome — the
+dialog — you cannot draw your own) · `grid`/`masterDetail`/`searchBar`/`tabs` (the browse genre, with `tabs` as a
+one-of-N strip — card-atlas is the tour). Bounds: `PLUGIN_SPEC_MAX_BYTES`, `PLUGIN_SPEC_MAX_NODES` and `PLUGIN_SPEC_MAX_DEPTH` per spec (`packages/contracts/src/plugin/ui.ts`); strings capped; no HTML, no CSS, no host chrome — the
 impersonation walls are unspellable, not policed.
 
 **Bindings and state.** Any display value may be `{ $state: "path.in.state" }`, resolved against what you
@@ -289,7 +290,7 @@ its `enumValues`. A static surface's `onAction` receives only the action ids its
 toolchain refuses a `setState` or `openDialog` target that names no registered surface. Optional `group` nests a command inside its attributed placement; optional
 `placements` exposes it at most once in each closed target (`composer-action`, `composer-media`, `topbar`) with
 a bounded label and curated icon. `topbar` shows one icon button, and the top bar shows nothing for a plugin that places nothing there. **Toasts** (`ui.toast`) are transient, app-stamped with your name, rate-floored
-(10 s per plugin), and delivered on the round-trip the person just made — durable notices are `notify`.
+(one per `PLUGIN_TOAST_COOLDOWN_SECONDS` per plugin, `packages/contracts/src/plugin/ui.ts`), and delivered on the round-trip the person just made — durable notices are `notify`.
 **Dialogs** open only via `ui.openDialog(id)` of your OWN registered `dialog` surface, only as a round-trip
 outcome: spontaneous modals are unspellable.
 
@@ -299,8 +300,9 @@ For surfaces that must THINK between keystrokes (a filter box, local sorting), s
 sandboxed interpreter in the user's browser. `orb.ui(1)` gives you `render(surfaceId, tree)` (publish a whole
 tree — same vocabulary), `onEvent(handler)` (receives `{surfaceId, event, values}`, where `event` is
 `{type:"action", actionId}` or `{type:"field", name, value}`), the same `log`/`clock`/`random` seams, and
-`host.*` — a READ-ONLY-ish relay of exactly nine functions (`chat.listMessages`, `chat.getVariables`, the
-`variables` and `storage` planes), each re-gated server-side per call. No fetch, no writes, no registrations
+`host.*` — a READ-ONLY-ish relay of the functions in `UI_PROXYABLE_HOST_FUNCTIONS`
+(`packages/contracts/src/plugin/host-v1.ts`: `chat.listMessages`, `chat.getVariables`, the `variables` plane and
+the `storage` plane including `storage.compareAndSet`), each re-gated server-side per call. No fetch, no writes, no registrations
 — effects belong to the server half. The affinity-tracker's `ui.js` is the annotated template, including the
 three rules that keep a scripted surface alive (render immediately; never block; batch host calls).
 
@@ -308,44 +310,45 @@ three rules that keep a scripted surface alive (render immediately; never block;
 
 ## The other seams, each with its worked example
 
-* **Tools** (`tools.register`) — oracle-deck. Your name is prefixed to `plugin_<slug>_<name>`; the returned
+- **Tools** (`tools.register`) — oracle-deck. Your name is prefixed to `plugin_<slug>_<name>`; the returned
   STRING is what the model reads, verbatim; return a JSON document if you also draw a card from it.
   Set `displayName` to the transcript label and include a `summary` string in JSON results for a readable generic card.
   Completed calls replay from the active swipe on later tool-capable turns. Set `replayHistory: false` for transient results.
   Hiding or deleting a card removes its replay without undoing its effects. The history budget trims exchanges with their message row.
   RPG turn-tool display records remain display-only.
-* **Prompt transforms** (`transforms.register`) — draft-polish. 250 ms, no I/O, rooms you host.
-* **Display transforms** (`transforms.registerDisplay`) — draft-polish. Your own screen only, after your
+- **Prompt transforms** (`transforms.register`) — draft-polish. A short deadline, no I/O, rooms you host.
+- **Display transforms** (`transforms.registerDisplay`) — draft-polish. Your own screen only, after your
   macros and display regex, before markdown; skip-on-failure.
-* **Macros** (`macros.register`) — oracle-deck. A VALUE macro: no arguments, resolved once per turn,
+- **Macros** (`macros.register`) — oracle-deck. A VALUE macro: no arguments, resolved once per turn,
   host-namespaced to `plugin_<slug>_<name>`, degrades to `""`.
-* **Events** (`events.on`) — research-familiar, scene-chips, story-clocks. Delivery is pre-filtered to what
+- **Events** (`events.on`) — research-familiar, scene-chips, story-clocks. Delivery is pre-filtered to what
   the INSTALLER may see; `chatOpened` is the hydration moment for per-room surfaces.
-* **The private event plane** (`pubsub.emit`/`on`) — oracle-deck announces, scene-chips listens. Installer-
+- **The private event plane** (`pubsub.emit`/`on`) — oracle-deck announces, scene-chips listens. Installer-
   scoped, absence-tolerant, payload-complete (a subscriber has no chat scope).
-* **The library writes** — research-familiar (`databank.ingest`), card-atlas (`character.ingest` +
+- **The library writes** — research-familiar (`databank.ingest`), card-atlas (`character.ingest` +
   `card_state` provenance stamps).
 
 ## Debouncing is your job
 
-Four capabilities carry separate host-side hourly floors (`net.fetch` 360, `net.fetchAsset` 1200,
-`llm.quiet` 30, `search.query` 120). Event delivery has no rate belt. The floors are backstops, not budgets. Every example debounces
+Four capabilities carry separate host-side hourly floors, each a constant in `packages/server/src/domain/plugin/substrate/rate-floor.ts`:
+`net.fetch` (`PLUGIN_EGRESS_PER_HOUR`), `net.fetchAsset` (`PLUGIN_ASSET_EGRESS_PER_HOUR`), `llm.quiet`
+(`PLUGIN_QUIET_LLM_PER_HOUR`) and `search.query` (`PLUGIN_SEARCH_QUERY_PER_HOUR`). Event delivery has no rate belt. The floors are backstops, not budgets. Every example debounces
 differently on purpose: the familiar's explicit marker + memory + gap; the tracker's every-Nth counter; the
 chips' claimed-before-spent cooldown. Claim a budget BEFORE you spend it — two deliveries can be in flight.
 
 ## What plugins cannot do (stated so you do not design around it)
 
-* **No host DOM, ever.** The declarative plane + the frame hatch ARE the UI story.
-* **No arbitrary pixels in the vocabulary** — that is what `ui.frame` is for, behind its own consent line
+- **No host DOM, ever.** The declarative plane + the frame hatch ARE the UI story.
+- **No arbitrary pixels in the vocabulary** — that is what `ui.frame` is for, behind its own consent line
   (and with no network inside; its host calls ride `postMessage`, see pocket-arcade). A surface expressible
   in the vocabulary must ship in the vocabulary.
-* **No remote images.** An `image`/tile cover is an asset in the installer's own CAS — a URL is unspellable.
-* **No stable room identity in a tool handler** (the handle is per-invocation; key tool state per install).
-* **No fetching transform** (250 ms vs 5 s — structurally incompatible), and no timers anywhere: time-driven
+- **No remote images.** An `image`/tile cover is an asset in the installer's own CAS — a URL is unspellable.
+- **No stable room identity in a tool handler** (the handle is per-invocation; key tool state per install).
+- **No fetching transform** (a prompt transform's deadline is far shorter than the host-call deadline — structurally incompatible), and no timers anywhere: time-driven
   behavior rides automation rules, not sleeping guests.
-* **No cross-plugin or cross-user reach.** Storage, surfaces, channels and stamps are all keyed to you and
+- **No cross-plugin or cross-user reach.** Storage, surfaces, channels and stamps are all keyed to you and
   your installer; the pubsub plane reaches only the same installer's plugins.
-* **No module system at runtime.** One file per entry; bundle ahead of time.
+- **No module system at runtime.** One file per entry; bundle ahead of time.
 
 ---
 
