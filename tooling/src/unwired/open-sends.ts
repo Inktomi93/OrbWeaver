@@ -20,9 +20,9 @@
 //   pattern move the path as the platform moves the data.
 // - A message door's send is a crossing, decided where every door is paired (graph/message-doors.ts): the chase goes
 //   on from the receiving listener's parameter at the path the sent value held the data.
-// - The depth bound counts the hops that fan out: a return to every caller, a port's fills and writes, a door
-//   crossing. A call into one callee, a `const` and a platform rebuild are one step each; a node the chase already
-//   reached with the same path and call adds nothing, which ends a cycle.
+// - The depth bound counts the hops that fan out: a return to several callers, a port with several fills and writes,
+//   a door with several listeners. A hop with one target, a call into one callee, a `const` and a platform rebuild
+//   are one step each; a node the chase already reached with the same path and call adds nothing, which ends a cycle.
 import type {
   BindingElement,
   CallExpression,
@@ -857,10 +857,11 @@ export function sendChase(world: NativeWorld, value: Node, scope: ChaseScope): A
 }
 
 /** Where a message a door delivers goes: the uses of the listener's parameter, through a DOM event's `data`, chased from
- *  the path the sent value held the data at. One crossing deeper than the chase that reached the send. */
+ *  the path the sent value held the data at, at the crossing's depth: the door reader counts a send with several
+ *  listeners as a fan-out, and a fan past the bound stops. */
 export function* receivedChase(world: NativeWorld, listener: Listener, crossing: Crossing, scope: ChaseScope): APIRequestGenerator<Chase> {
   const run = newRun(scope);
-  if (crossing.depth >= CHASE_DEPTH) {
+  if (crossing.depth > CHASE_DEPTH) {
     return depthStopped(run);
   }
   const taken = parameterIn(listener.fn, listener.index);
@@ -868,7 +869,7 @@ export function* receivedChase(world: NativeWorld, listener: Listener, crossing:
     return UNSEEN_CHASE;
   }
   const path: KeyPath = listener.event ? [{ kind: "key", key: EVENT_DATA }, ...crossing.path] : crossing.path;
-  return yield* bodyChase(world, parameterUses(taken, path), { depth: crossing.depth + 1, context: [], path, run });
+  return yield* bodyChase(world, parameterUses(taken, path), { depth: crossing.depth, context: [], path, run });
 }
 
 // --- Returns and bindings -----------------------------------------------------------------------------------
@@ -900,7 +901,8 @@ interface Walk {
 }
 
 const entered = (walk: Walk, frame: Frame): Walk => ({ ...walk, context: [...walk.context, frame] });
-const fanned = (walk: Walk): Walk => ({ ...walk, depth: walk.depth + 1 });
+// A hop to one target is linear and costs no depth; only a hop to several fans out.
+const fanned = (walk: Walk, width: number): Walk => (width > 1 ? { ...walk, depth: walk.depth + 1 } : walk);
 
 const UNSEEN_CHASE: Chase = sentChase([{ destination: "unclassified", receiver: null }]);
 
@@ -984,7 +986,7 @@ function* returnedTo(world: NativeWorld, fn: FunctionLike, walk: Walk): APIReque
   if (calls.length === 0) {
     return UNSEEN_CHASE;
   }
-  const chased = yield* all(...calls.flatMap((call) => (call === null ? [] : [destinationsOf(world, call, fanned(walk))])));
+  const chased = yield* all(...calls.flatMap((call) => (call === null ? [] : [destinationsOf(world, call, fanned(walk, calls.length))])));
   return joinChases(calls.includes(null) ? [...chased, UNSEEN_CHASE] : chased);
 }
 
@@ -1058,7 +1060,7 @@ function* portChase(world: NativeWorld, call: Invocation, index: number, walk: W
   const members = member === undefined ? interfaceMembers(port) : [member];
   const writes = yield* all(...members.map((each) => keyWrites(world, each)));
   const functions = writes.flatMap((written) => written.functions);
-  const chases = yield* all(...functions.map((fn) => functionChase(world, { call, fn }, index, fanned(walk))));
+  const chases = yield* all(...functions.map((fn) => functionChase(world, { call, fn }, index, fanned(walk, functions.length))));
   const filled = port !== undefined && isInterfaceDeclaration(port) ? yield* portFills(world, port) : NO_FILLS;
   const to: Destination[] = [
     ...chases.flatMap((chase) => chase.to),
@@ -1438,6 +1440,10 @@ function* stringGoes(world: NativeWorld, start: Node, depth: number): APIRequest
     return sent("error");
   }
   if (isPropertyAssignment(parent) && parent.initializer === node && isObjectLiteralExpression(parent.parent)) {
+    return yield* keyTakes(world, parent.parent, parent.name);
+  }
+  // a shorthand key, `{ body }`, puts the string under its own name
+  if (isShorthandPropertyAssignment(parent) && isObjectLiteralExpression(parent.parent)) {
     return yield* keyTakes(world, parent.parent, parent.name);
   }
   if (isVariableDeclaration(parent) && isIdentifier(parent.name)) {

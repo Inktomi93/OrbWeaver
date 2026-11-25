@@ -255,8 +255,10 @@ export class MessageDoors implements DoorCrossings {
         state.count(name, by);
       },
     };
+    // several listeners fan the chase out one hop; one listener carries it on at its depth
+    const reached: Crossing = { ...crossing, depth: receivers.length > 1 ? crossing.depth + 1 : crossing.depth };
     const chases = yield* allOf(
-      receivers.map(({ listener }) => (listener === null ? answer(sentChase([UNSEEN_LISTENER])) : receivedChase(state.world, listener, crossing, scope))),
+      receivers.map(({ listener }) => (listener === null ? answer(sentChase([UNSEEN_LISTENER])) : receivedChase(state.world, listener, reached, scope))),
     );
     const further = yield* allOf(chases.flatMap((chase) => chase.crossed).map((next) => this.#crossed(next, seen)));
     return joinChases([...chases.map((chase) => ({ ...chase, crossed: [] })), ...further]);

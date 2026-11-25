@@ -35,6 +35,8 @@ const HEAD = [
   'const log = (text: string): void => { writeFileSync("l", text); };',
   "class Channel { send(text: string): void { void text; } }",
   "interface Envelope { readonly body: string }",
+  'const post = (body: string): Promise<unknown> => fetch("/x", { body });',
+  "const wrap = (body: string): Envelope => ({ body });",
   "class FailError extends Error {}",
   "class ParseError { constructor(message: string) { void message; } }",
 ];
@@ -56,6 +58,9 @@ const CASES: Readonly<Record<string, { readonly use: string; readonly sent: Send
   socket: { use: "new WebSocket().send(JSON.stringify(v));", sent: "wire" },
   lookalikeSocket: { use: "new Channel().send(JSON.stringify(v));", sent: "unclassified" },
   requestBody: { use: 'void fetch("/x", { body: JSON.stringify(v) });', sent: "wire" },
+  // a helper that puts its parameter under a shorthand key of the request sends it; one that builds our own envelope does not
+  requestHelper: { use: "void post(JSON.stringify({ note: 1, client: v }));", sent: "wire" },
+  ownShorthand: { use: "void wrap(JSON.stringify(v));", sent: "unclassified" },
   ownBody: { use: "const envelope: Envelope = { body: JSON.stringify(v) }; void envelope;", sent: "unclassified" },
   sqlTag: { use: `void sql\`${SUBSTITUTED}\`;`, sent: "stored" },
   ownSqlTag: {

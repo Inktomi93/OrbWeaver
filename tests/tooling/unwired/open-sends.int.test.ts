@@ -214,6 +214,94 @@ test("a send chase crosses a message door through its paired listener, at the ke
   expect(zqRows(report)).toEqual(["Aside.zqAside ask unclassified", "Crossed.zqCrossed ask log pino", "Lone.zqLone ask wire"]);
 });
 
+// The inference log chain as the tree writes it: a backend emits through `log[level]` on an injected log port, one
+// filler of that port is a worker's per-level closures over a `post` that sends on a `MessagePort` parameter the
+// worker's entry hands `parentPort`, and the host logs each `type: "log"` message through the same port.
+const PORT_LOG = {
+  [`${GRAPH_SOURCE}/port.ts`]: [
+    "export interface PortLog {",
+    "  readonly debug: (fields: Readonly<Record<string, unknown>>, message: string) => void;",
+    "  readonly info: (fields: Readonly<Record<string, unknown>>, message: string) => void;",
+    "}",
+    "export type PortLevel = keyof PortLog;",
+    "export type PortMessage =",
+    '  | { readonly type: "reply"; readonly id: number }',
+    '  | { readonly type: "log"; readonly level: PortLevel; readonly fields: Record<string, unknown>; readonly message: string };',
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/globals.ts`]: [
+    'import type * as threads from "worker_threads";',
+    "declare global {",
+    "  interface MessagePort extends threads.MessagePort {}",
+    "}",
+    "export {};",
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/emitter.ts`]: [
+    'import type { PortLevel, PortLog } from "./port.ts";',
+    "export interface TurnLine { readonly zqTurn: string }",
+    "export interface Emitter { readonly emit: (level: PortLevel, event: string, fields?: Readonly<Record<string, unknown>>) => void }",
+    "export interface TurnLog { readonly turn: (entry: TurnLine) => void }",
+    "const emitterOf = (log: PortLog): Emitter => {",
+    '  const emit: Emitter["emit"] = (level, event, fields = {}) => {',
+    "    log[level]({ provider: true, event, ...fields }, event);",
+    "  };",
+    "  return { emit };",
+    "};",
+    "export const createTurnLog = (log: PortLog): TurnLog => {",
+    "  const base = emitterOf(log);",
+    '  return { turn: (entry) => base.emit("info", "provider.turn", { ...entry }) };',
+    "};",
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/port-worker.ts`]: [
+    '/// <reference types="node" />',
+    'import { parentPort } from "worker_threads";',
+    'import type { PortLevel, PortLog, PortMessage } from "./port.ts";',
+    "async function main(port: MessagePort): Promise<void> {",
+    "  const post = (message: PortMessage, transferList: unknown[] = []): void => {",
+    "    port.postMessage(message, transferList);",
+    "  };",
+    "  const logAt =",
+    "    (level: PortLevel) =>",
+    "    (fields: Readonly<Record<string, unknown>>, message: string): void => {",
+    '      post({ type: "log", level, fields: { ...fields }, message });',
+    "    };",
+    '  const log: PortLog = { debug: logAt("debug"), info: logAt("info") };',
+    '  log.debug({}, "ready");',
+    "}",
+    "if (parentPort !== null) {",
+    "  await main(parentPort);",
+    "}",
+  ].join("\n"),
+  [`${GRAPH_SOURCE}/port-host.ts`]: [
+    '/// <reference types="node" />',
+    'import { Worker } from "worker_threads";',
+    'import type { Logger } from "pino";',
+    'import { createTurnLog } from "./emitter.ts";',
+    'import type { PortLog, PortMessage } from "./port.ts";',
+    "declare const pino: Logger;",
+    "const host: PortLog = { debug: (fields, message) => pino.debug(fields, message), info: (fields, message) => pino.debug(fields, message) };",
+    "const onMessage = (state: { readonly id: number }, message: PortMessage): void => {",
+    '  if (message.type === "log") {',
+    "    host[message.level](message.fields, message.message);",
+    "    return;",
+    "  }",
+    "  void state;",
+    "};",
+    'const worker = new Worker(new URL("./port-worker.ts", import.meta.url));',
+    "const state = { id: 1 };",
+    'worker.on("message", (message: PortMessage) => {',
+    "  onMessage(state, message);",
+    "});",
+    'export const turn = (): void => createTurnLog(host).turn({ zqTurn: "t" });',
+  ].join("\n"),
+};
+
+test("a log line that one filler of its port posts to a worker's parent crosses that door and lands on the parent's logger", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const report = await fieldsScan(plantedTree, { ...LIBRARIES, ...NODE_TYPES, ...PORT_LOG });
+  expect(zqRows(report)).toEqual(["TurnLine.zqTurn ask log pino"]);
+});
+
 // The platform's `Object.entries` and `Object.fromEntries` move a value to an entry's slot 1 and back to a member, so a
 // record rebuilt from its entries carries the value on to the console. A rebuild that keeps only the entries' keys
 // drops the values.
