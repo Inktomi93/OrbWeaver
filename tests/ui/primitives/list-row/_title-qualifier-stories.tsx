@@ -1,13 +1,18 @@
+import { createTimeLib } from "@orb/kit/time";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
 import { Container } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 
+// The stamps a row carries are the ones production prints, so a story wraps where a real stamp can break.
+const { formatDateTime } = createTimeLib({ locale: "en-US", timeZone: "UTC" });
+const stamp = (instant: string): string => formatDateTime(Date.parse(instant));
+
 const SHORT_QUALIFIER = "2d";
-const LONG_QUALIFIER = "Jun 15, 2025, 04:09 PM · #1 · Keeper of the Orbital Loom, companion to the Ninth Epoch";
+const LONG_QUALIFIER = `${stamp("2025-06-15T16:09:00Z")} · #1 · Keeper of the Orbital Loom, companion to the Ninth Epoch`;
 /** Two rows of one name that only their stamp tells apart. */
-const PAIR_QUALIFIERS = ["Oct 5, 2026, 07:57 AM · 14 messages", "Oct 5, 2026, 07:58 AM · 14 messages"] as const;
+const PAIR_QUALIFIERS = [`${stamp("2026-10-05T07:57:00Z")} · 14 messages`, `${stamp("2026-10-05T07:58:00Z")} · 14 messages`] as const;
 
 /** A short-qualified and a long-qualified row, each with the same markers, in a pane of a fixed width. */
 export function TitleQualifierStory({ width }: { readonly width: number }): ReactElement {
@@ -26,7 +31,7 @@ export function TitleQualifierStory({ width }: { readonly width: number }): Reac
   );
 }
 
-const DATE_QUALIFIER = "Jun 15, 2025, 04:06 PM";
+const DATE_QUALIFIER = stamp("2025-06-15T16:06:00Z");
 const SHORT_NAME = "Keeper";
 const LONG_NAME = "The long vigil kept at the Ninth Epoch's orbital loom, told in full for whoever asks";
 
@@ -72,7 +77,7 @@ export function MetaSlotStory({ width }: { readonly width: number }): ReactEleme
   );
 }
 
-const WRAPPING_STAMP = "Oct 5, 2026, 07:57 AM";
+const WRAPPING_STAMP = stamp("2026-10-05T07:57:00Z");
 
 /** A clickable row whose stamp tells it from a same-titled sibling and runs past the line, in a pane of a fixed width. */
 export function WrappedStampStory({ width }: { readonly width: number }): ReactElement {

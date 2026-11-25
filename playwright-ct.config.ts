@@ -99,13 +99,14 @@ export default defineConfig<CtCorpusOptions>({
         "**/primitives/room-island/room-island.ct.tsx",
         "**/primitives/floating-chip/floating-chip.ct.tsx",
         "**/content/theme-swatch/preview-pane.ct.tsx",
+        "**/features/plugin/components/consent-reach.ct.tsx",
       ],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
     },
-    // Opt-in (`pnpm test:ct:firefox`) on Playwright's Firefox build, for the frame cases whose outcome differs by engine.
+    // Opt-in (`pnpm test:ct:firefox`) on Playwright's Firefox build, for the frame cases and the consent card's one-word marks, whose outcome differs by engine.
     {
       name: "firefox",
-      testMatch: ["**/content/sandbox-frame/sandbox-frame-resource-hints.ct.tsx"],
+      testMatch: ["**/content/sandbox-frame/sandbox-frame-resource-hints.ct.tsx", "**/features/plugin/components/consent-reach.ct.tsx"],
       use: { ...devices["Desktop Firefox"], launchOptions: nativeBrowserLaunchOptions("firefox") },
     },
     { name: "tooling", testDir: "tests/tooling" },

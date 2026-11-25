@@ -27,12 +27,19 @@ export interface PluginReachWidening {
   readonly netHosts: readonly string[];
   /** Provider ids the prior manifest did not declare with the same definition, in the replacement's order. */
   readonly providerIds: readonly ProviderId[];
+  /** The part of {@link providerIds} the prior manifest declared under another definition: a redefined provider, as against a new one. */
+  readonly changedProviderIds: readonly ProviderId[];
   /** The replacement turns on delivery of automation-caused events, which the prior manifest left off. */
   readonly matchAutomationEvents: boolean;
 }
 
 /** One declared provider as a consent surface names it: the id and the label the owner reads. The full definition stays server-side. */
-export const pluginProviderViewSchema = z.strictObject({ id: providerIdSchema, label: z.string() });
+export const pluginProviderViewSchema = z.strictObject({
+  id: providerIdSchema,
+  label: z.string(),
+  /** The host of the provider's fixed endpoint: where a connection made on it sends its prompts and key. Null when the connection supplies the endpoint. */
+  host: z.string().nullable(),
+});
 export type PluginProviderView = z.output<typeof pluginProviderViewSchema>;
 
 /** Owner-facing management data keeps the declared ask separate from the consented grant. */
@@ -57,6 +64,8 @@ export const pluginViewSchema = z.strictObject({
   matchAutomationEvents: z.boolean(),
   /** The provider ids and the automation opt-in a pending re-consent added, recorded as `widenedNetHosts` is. */
   widenedProviderIds: providerIdListSchema,
+  /** The part of `widenedProviderIds` that redefines a provider the owner already saw; the rest are new. Set only by the server's widening check. */
+  widenedChangedProviderIds: providerIdListSchema,
   widenedMatchAutomationEvents: z.boolean(),
   builtAgainst: pluginBuiltAgainstSchema.nullable(),
   description: z.string(),
