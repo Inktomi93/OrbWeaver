@@ -1,10 +1,11 @@
 // @subject packages/server/src/infra/plugin-host/process-runtime.ts
 import { ChildProcess } from "node:child_process";
 import { once } from "node:events";
-import { PLUGIN_QUIET_IMAGES_MAX } from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, PLUGIN_QUIET_IMAGES_MAX, PLUGIN_SEARCH_RESULTS_MAX } from "@orb/contracts/plugin";
 import type { JsonValue } from "@orb/kit/json";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { PLUGIN_QUIET_PROMPT_MAX_CHARS } from "#server/infra/plugin-host/budgets.ts";
 import {
   bridgeRequest,
   createPluginProcessEdge,
@@ -50,14 +51,14 @@ const MALFORMED_REFUSAL = `refused=${TypeError.name}`;
 const assetIds = (count: number): string[] => Array.from({ length: count }, (_, index) => `asset-${String(index)}`);
 
 /** Run the quiet command with its broker frame replaced, and return what the guest was told. */
-async function forgedQuietOutcome(opts: JsonValue): Promise<readonly string[]> {
+async function forgedQuietOutcome(opts: JsonValue, prompt = "Report."): Promise<readonly string[]> {
   const edge = createPluginProcessEdge();
   await using root = await createServerHarness({ pluginSpawn: edge.spawn });
   const guest = await installGuest(root, "quiet-frame", QUIET_GUEST, ["ui.surface", "llm.quiet"]);
   await guest.enable();
   using delivery = edge.holdNext((value) => hasOperation(value, QUIET_OPERATION));
   const running = guest.invoke(QUIET_COMMAND);
-  delivery.release(bridgeRequest(await delivery.reached, QUIET_OPERATION, ["Report.", opts]));
+  delivery.release(bridgeRequest(await delivery.reached, QUIET_OPERATION, [prompt, opts]));
   await running;
   return (await guest.log()).map(({ message }) => message);
 }
@@ -78,6 +79,47 @@ test("the app process admits quiet options at the image cap", { timeout: NATIVE_
   const outcome = await forgedQuietOutcome({ imageAssetIds: assetIds(PLUGIN_QUIET_IMAGES_MAX) });
   expect(outcome).toContainEqual(expect.stringContaining("refused="));
   expect(outcome).not.toContainEqual(expect.stringContaining(MALFORMED_REFUSAL));
+});
+
+// The membrane refuses a prompt past the cap, so only a broker that is not the membrane sends one; the app's own
+// check is what keeps that spend bounded. The control at the cap crosses the boundary and fails later.
+test.for([
+  { name: "one past the prompt cap", length: PLUGIN_QUIET_PROMPT_MAX_CHARS + 1, refused: true },
+  { name: "exactly the prompt cap", length: PLUGIN_QUIET_PROMPT_MAX_CHARS, refused: false },
+])("the app process judges a broker's quiet prompt $name", { timeout: NATIVE_TIMEOUT_MS }, async ({ length, refused }) => {
+  const outcome = await forgedQuietOutcome({}, "x".repeat(length));
+  expect(outcome).toContainEqual(expect.stringContaining("refused="));
+  expect(outcome.some((line) => line.includes(MALFORMED_REFUSAL))).toBe(refused);
+});
+
+const SEARCH_OPERATION = "search.documents";
+const SEARCH_COMMAND = "search";
+const SEARCH_ANSWERED = "search answered";
+const SEARCH_GUEST = `const h=orb.host(1);
+  h.ui.registerCommand({name:${JSON.stringify(SEARCH_COMMAND)},describe:"Native search call",onRun:async()=>{
+    try{await h.search.documents("lanterns",{limit:1});h.log.info(${JSON.stringify(SEARCH_ANSWERED)});}catch(e){h.log.warn("refused="+e.name);}
+  }});`;
+
+// The membrane clamps a guest's search limit to the page cap, so an out-of-range limit reaches the app only from a
+// broker that is not the membrane; the app refuses it rather than paging the installer's corpus without bound.
+test.for([
+  { name: "a limit past the page cap", limit: PLUGIN_SEARCH_RESULTS_MAX + 1, refused: true },
+  { name: "a zero limit", limit: 0, refused: true },
+  { name: "a fractional limit", limit: 1.5, refused: true },
+  { name: "a limit at the page cap", limit: PLUGIN_SEARCH_RESULTS_MAX, refused: false },
+])("the app process judges a broker's search limit: $name", { timeout: NATIVE_TIMEOUT_MS }, async ({ limit, refused }) => {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const guest = await installGuest(root, "search-frame", SEARCH_GUEST, ["ui.surface", HOST_FUNCTION_CAPABILITY[SEARCH_OPERATION]]);
+  await guest.enable();
+  using delivery = edge.holdNext((value) => hasOperation(value, SEARCH_OPERATION));
+  const running = guest.invoke(SEARCH_COMMAND);
+  delivery.release(bridgeRequest(await delivery.reached, SEARCH_OPERATION, ["lanterns", limit]));
+  await running;
+  const outcome = (await guest.log()).map(({ message }) => message);
+  expect(outcome.some((line) => line.includes(MALFORMED_REFUSAL))).toBe(refused);
+  // Every case ends in a reported outcome, so an absent refusal is a call that crossed, never a silent one.
+  expect(outcome.some((line) => line.includes("refused=") || line.includes(SEARCH_ANSWERED))).toBe(true);
 });
 
 test("holding an actual synchronous IPC message preserves its identity, result and live child ownership", { timeout: NATIVE_TIMEOUT_MS }, async () => {

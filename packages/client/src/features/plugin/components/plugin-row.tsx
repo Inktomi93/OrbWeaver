@@ -312,7 +312,9 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                           capabilitiesLabel={pluginPermissionsLabel(plugin.name)}
                           declared={plugin.declaredCapabilities}
                           granted={plugin.grantedCapabilities}
+                          matchAutomationEvents={plugin.matchAutomationEvents}
                           netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
+                          providers={plugin.providers}
                         />
                       )}
                     </Stack>

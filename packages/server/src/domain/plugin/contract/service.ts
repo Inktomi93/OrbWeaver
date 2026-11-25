@@ -22,6 +22,7 @@ import type {
   PluginInstanceCreateData,
   PluginLogView,
   PluginMacroView,
+  PluginReachWidening,
   PluginSurfaceState,
   PluginSurfaceView,
   PluginToastLevel,
@@ -160,14 +161,17 @@ export interface ActivateInput {
   readonly pluginId: PluginId;
   readonly bundleAssetId: AssetId;
   readonly grants: readonly PluginCapability[];
-  /** The declared `netHosts` this activation must WITHHOLD from the egress wall — the destinations the owner
-   *  has not answered for (a standing re-consent). Activation subtracts them from the re-validated manifest's
-   *  list (`consentedNetHosts`), so the wall can only ever be NARROWER than the manifest and never wider: the
-   *  allowlist is still DERIVED from the validated bundle, never caller-supplied. `[]` = nothing withheld.
-   *  Required, not optional, on purpose — a new activation site must state its consent fact rather than
-   *  inherit full reach by forgetting a field. */
-  readonly withheldNetHosts: readonly string[];
+  /** The declared reach this activation must WITHHOLD — what a standing re-consent asks for and the owner has not
+   *  answered. Activation subtracts it from the re-validated manifest (`consentedNetHosts`, `consentedProviders`,
+   *  and the automation opt-in), so reach can only ever be NARROWER than the manifest and never wider: it is still
+   *  DERIVED from the validated bundle, never caller-supplied. Required, not optional, on purpose — a new
+   *  activation site must state its consent fact rather than inherit full reach by forgetting a field. */
+  readonly withheld: UnansweredReach;
 }
+
+/** The reach a pending re-consent asks for beyond what the owner answered: the widening fields other than
+ *  capabilities, whose unanswered half the grant already holds. Persisted on the row as the `widened_*` columns. */
+export type UnansweredReach = Omit<PluginReachWidening, "capabilities">;
 
 /** Activation result — success (resident + enabled), or a contained failure whose detail is on the errored row. */
 export type ActivateOutcome = { readonly ok: true } | { readonly ok: false; readonly error: string };

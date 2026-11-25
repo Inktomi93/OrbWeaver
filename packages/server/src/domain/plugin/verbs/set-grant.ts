@@ -35,9 +35,9 @@ import type { PluginCapability } from "@orb/contracts/plugin";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginConsentPrompt } from "../contract/ops.ts";
 import type { SetPluginGrantParams } from "../contract/params.ts";
-import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
-import { applyGrant, getById, toPluginView } from "../persistence/plugins.ts";
-import { normalizeGrant, ungrantableCapabilities, widenedNetHosts } from "../substrate/grants.ts";
+import type { ActivationDeps, PluginContext, PluginService, UnansweredReach } from "../contract/service.ts";
+import { applyGrant, getById, toPluginView, unansweredReachOf } from "../persistence/plugins.ts";
+import { NO_UNANSWERED_REACH, normalizeGrant, ungrantableCapabilities, widenedNetHosts } from "../substrate/grants.ts";
 
 /** The refusal the row carries OUT of the consent act — whether one still stands, and which hosts it is
  *  about. The mirror of `refusalAfterUpgrade` (`verbs/upgrade.ts`), and one function for the same reason:
@@ -58,10 +58,10 @@ import { normalizeGrant, ungrantableCapabilities, widenedNetHosts } from "../sub
 function refusalAfterGrant(
   declared: readonly PluginCapability[],
   granted: readonly PluginCapability[],
-  prior: { readonly widenedNetHosts: readonly string[] },
-): { readonly pending: boolean; readonly hosts: readonly string[] } {
+  prior: UnansweredReach,
+): { readonly pending: boolean; readonly unanswered: UnansweredReach } {
   const pending = ungrantableCapabilities(granted, declared).length > 0;
-  return { pending, hosts: pending ? prior.widenedNetHosts : [] };
+  return { pending, unanswered: pending ? prior : NO_UNANSWERED_REACH };
 }
 
 // THE EGRESS ACKNOWLEDGEMENT. Every other capability is consented to BY NAME, so a manifest that moved under the
@@ -101,7 +101,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
     const wasEnabled = existing.status === "enabled";
     // Both halves of the recorded refusal, in one call — see `refusalAfterGrant` for why a PARTIAL re-grant
     // leaves both standing and why the host delta is carried verbatim rather than recomputed.
-    const refusal = refusalAfterGrant(declared, granted, existing);
+    const refusal = refusalAfterGrant(declared, granted, unansweredReachOf(existing));
 
     // Tear the resident down BEFORE the write (idempotent on a non-resident) — see the header: a running guest
     // holds the grants it was activated with, so the write must never leave one enforcing a superseded subset.
@@ -110,7 +110,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
       grantedCapabilities: granted,
       status: "disabled",
       pendingReconsent: refusal.pending,
-      widenedNetHosts: refusal.hosts,
+      unanswered: refusal.unanswered,
       updatedAt: ctx.now(),
     });
     if (wasEnabled || enable) {
@@ -119,9 +119,9 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
       // (activate's own posture) and surfaces in the returned view — the grant write stands either way, which
       // is the honest outcome: consent was given.
       //
-      // WHILE A RE-CONSENT STILL STANDS, ITS HOSTS STAY WITHHELD FROM THE WALL — the SAME rule `setEnabled`
-      // holds, at the SAME `refusal.hosts` set (empty on a COVERING grant → full reach restored; non-empty on
-      // a PARTIAL one → the still-unanswered destinations stay off the wall). A COVERING grant is exactly the
+      // WHILE A RE-CONSENT STILL STANDS, ITS REACH STAYS WITHHELD — the SAME rule `setEnabled` holds, at the SAME
+      // `refusal.unanswered` set (empty on a COVERING grant → full reach restored; non-empty on a PARTIAL one →
+      // the still-unanswered destinations, providers and automation opt-in stay off). A COVERING grant is exactly the
       // case that clears the delta, so the common "you allowed the whole ask" path restores full reach here as
       // it always did. What this closes is the divergence a uniform-withholding review found: a
       // PARTIAL re-grant of an already-ENABLED row reactivating with `[]` — restoring reach to a host the
@@ -129,7 +129,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
       // while a partial re-grant of a DISABLED row, then enable, withheld it. Same consent state, different
       // reach, decided only by whether the row happened to be on. Fail-closed and uniform: a standing
       // re-consent withholds its hosts everywhere until it is fully answered.
-      await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheldNetHosts: refusal.hosts });
+      await deps.activate({ caller, pluginId, bundleAssetId: existing.bundleAssetId, grants: granted, withheld: refusal.unanswered });
     }
 
     // THE ASK IS ANNOUNCED WHERE IT IS RAISED AND ANSWERED. This verb is BOTH ends of the consent

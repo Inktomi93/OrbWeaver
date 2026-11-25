@@ -118,7 +118,8 @@ export type EvalOutcome =
   | { readonly ok: true; readonly value: string; readonly error?: never; readonly logs: readonly string[] }
   | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[]; readonly ended?: true };
 
-/** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
+/** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape) or the read
+ *  refuses it (a value past the depth or node guard). */
 const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
 /** What a guest that throws or rejects with a promise ends with: the host refuses a promise unread (`marshal.ts`). */
 const GUEST_THREW_PROMISE = "plugin host: the guest threw or rejected with a promise; throw the value it settles to";
@@ -129,7 +130,7 @@ function readOutcome(
   marshal: GuestMarshal,
   handle: QuickJSHandle,
 ): { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly message: string } {
-  const read = marshal.fromGuest(handle);
+  const read = marshal.fromSettledGuest(handle);
   switch (read.kind) {
     case "value":
       return { ok: true, value: read.value };
@@ -137,6 +138,8 @@ function readOutcome(
       return { ok: false, message: GUEST_THREW_PROMISE };
     case "thrown":
       read.error.dispose();
+      return { ok: false, message: UNREADABLE_GUEST_VALUE };
+    case "unreadable":
       return { ok: false, message: UNREADABLE_GUEST_VALUE };
     default: {
       const exhaustive: never = read;
@@ -640,7 +643,7 @@ export class Sandbox implements Disposable {
     if (settled === ENDED) {
       return this.endInvocation(handle);
     }
-    // Reading the settled value can run its getters and `toJSON`: guest code, so a span on the same account.
+    // Reading the settled value can run its getters and proxy traps: guest code, so a span on the same account.
     const closeSpan = openCpuWindow(this.ctx);
     try {
       return this.readSettled(handle, settled);

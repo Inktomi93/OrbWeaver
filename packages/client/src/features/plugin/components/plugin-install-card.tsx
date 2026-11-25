@@ -395,7 +395,9 @@ export function PluginInstallCard(): ReactElement {
               capabilitiesLabel="What it's asking for"
               declared={state.manifest.capabilities}
               granted={state.manifest.capabilities}
+              matchAutomationEvents={state.manifest.matchAutomationEvents === true}
               netHosts={state.manifest.netHosts ?? []}
+              providers={state.manifest.providers ?? []}
             />
           </Stack>
 

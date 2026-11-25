@@ -2,10 +2,12 @@ import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { handleSchema } from "../identity/index.ts";
+import type { ProviderId } from "../inference/provider-id.ts";
+import { providerIdSchema } from "../inference/provider-id.ts";
 import type { PluginLogLevel } from "./host-v1.ts";
 import { PLUGIN_LOG_LEVELS } from "./host-v1.ts";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-import type { PluginSlug } from "./manifest.ts";
+import type { PluginCapability, PluginSlug } from "./manifest.ts";
 import { PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginNetHostSchema, pluginSlugSchema } from "./manifest.ts";
 import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
 import { pluginSurfaceRegistrationMetaSchema } from "./ui.ts";
@@ -15,6 +17,19 @@ const PLUGIN_UPDATE_SOURCES = ["url", "git", "showcase"] as const;
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 const capabilityListSchema = z.array(z.enum(PLUGIN_CAPABILITIES)).readonly();
+const providerIdListSchema = z.array(providerIdSchema).readonly();
+
+/** What a replacement manifest reaches that the owner has not consented to, field by field. Each key is a manifest
+ *  field whose reach activation reads: an upgrade with any non-empty member lands disabled for re-consent.
+ *  `capabilities` is judged against the prior grant; the other members against the prior manifest. */
+export interface PluginReachWidening {
+  readonly capabilities: readonly PluginCapability[];
+  readonly netHosts: readonly string[];
+  /** Provider ids the prior manifest did not declare, in the replacement's order. */
+  readonly providerIds: readonly ProviderId[];
+  /** The replacement turns on delivery of automation-caused events, which the prior manifest left off. */
+  readonly matchAutomationEvents: boolean;
+}
 
 /** Owner-facing management data keeps the declared ask separate from the consented grant. */
 export const pluginViewSchema = z.strictObject({
@@ -32,6 +47,13 @@ export const pluginViewSchema = z.strictObject({
   netHosts: z.array(pluginNetHostSchema).readonly().nullable(),
   reconsentPending: z.boolean(),
   widenedNetHosts: z.array(pluginNetHostSchema).readonly(),
+  /** The declared providers a consent card names; the full definitions stay server-side. */
+  providers: z.array(z.strictObject({ id: providerIdSchema, label: z.string() })).readonly(),
+  /** The manifest opts its event handlers into automation-caused facts. */
+  matchAutomationEvents: z.boolean(),
+  /** The provider ids and the automation opt-in a pending re-consent added, recorded as `widenedNetHosts` is. */
+  widenedProviderIds: providerIdListSchema,
+  widenedMatchAutomationEvents: z.boolean(),
   builtAgainst: pluginBuiltAgainstSchema.nullable(),
   description: z.string(),
   lastError: z.string().nullable(),

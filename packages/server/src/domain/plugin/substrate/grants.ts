@@ -13,8 +13,15 @@
 // So the re-grant trigger is any widening of DECLARED REACH: a new capability, OR a new host. An upgrade that
 // keeps `net.fetch` but swaps `api.vendor.example` for `collector.attacker.example` re-arms the egress wall at a
 // destination nobody confirmed, and comparing capability sets alone cannot see it.
+//
+// `netHosts` is not the only manifest field whose reach activation reads with the grant unchanged. `providers` adds
+// rows to the owner's connection choices, and `matchAutomationEvents` lets already-granted event handlers receive
+// automation-caused facts. {@link manifestWidening} is the one home of the field set an upgrade compares; the
+// upgrade verb and any upgrade preview read it, so the two cannot disagree about what widens.
 
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
+import type { PluginCapability, PluginManifest, PluginReachWidening } from "@orb/contracts/plugin";
+import type { UnansweredReach } from "../contract/service.ts";
 
 /** The capabilities in `requested` that the manifest does NOT declare — a non-empty result is an invalid
  *  grant (the verb throws `CapabilityNotGrantedError`). De-duplicated, `requested`-ordered. */
@@ -30,9 +37,9 @@ export function normalizeGrant(declared: readonly PluginCapability[], requested:
   return declared.filter((cap) => requestedSet.has(cap));
 }
 
-/** The capabilities a re-uploaded manifest DECLARES that the prior grant never confirmed. Non-empty ⇒ the
- *  upgrade lands `disabled` pending re-grant; empty ⇒ the prior grant carries forward. */
-export function newlyDeclaredCapabilities(newlyDeclared: readonly PluginCapability[], priorGranted: readonly PluginCapability[]): PluginCapability[] {
+// The capabilities a re-uploaded manifest DECLARES that the prior grant never confirmed. Non-empty means the upgrade
+// lands `disabled` pending re-grant; empty means the prior grant carries forward.
+function newlyDeclaredCapabilities(newlyDeclared: readonly PluginCapability[], priorGranted: readonly PluginCapability[]): PluginCapability[] {
   const grantedSet = new Set(priorGranted);
   return [...new Set(newlyDeclared)].filter((cap) => !grantedSet.has(cap));
 }
@@ -120,8 +127,8 @@ export function consentedNetHosts(declared: readonly string[], unanswered: reado
  *  nothing left to consent to. Host identity is {@link foldNetHost}, the one fold the enforcer and the
  *  re-consent trigger already share — the client never re-implements it, because the persisted delta is a
  *  literal subset of the same array the client renders. */
-export function pendingWidenedNetHosts(newlyDeclared: readonly string[], priorDeclared: readonly string[], carriedPending: readonly string[]): string[] {
-  const unanswered = new Set([...widenedNetHosts(newlyDeclared, priorDeclared), ...carriedPending].map(foldNetHost));
+function pendingWidenedNetHosts(newlyDeclared: readonly string[], widened: readonly string[], carriedPending: readonly string[]): string[] {
+  const unanswered = new Set([...widened, ...carriedPending].map(foldNetHost));
   const seen = new Set<string>();
   return newlyDeclared.filter((host) => {
     const folded = foldNetHost(host);
@@ -131,4 +138,60 @@ export function pendingWidenedNetHosts(newlyDeclared: readonly string[], priorDe
     seen.add(folded);
     return true;
   });
+}
+
+/** The reach a settled row withholds: nothing. */
+export const NO_UNANSWERED_REACH: UnansweredReach = { netHosts: [], providerIds: [], matchAutomationEvents: false };
+
+/** Provider ids `next` declares that `prior` did not, in `next` order. Compared by id alone: the connection domain's
+ *  per-owner claim binds an id to its first definition and refuses a changed one at activation, so a changed
+ *  definition under a known id cannot reach anything new. */
+function widenedProviderIds(next: readonly ProviderDef[], prior: readonly ProviderDef[]): ProviderId[] {
+  const priorIds = new Set(prior.map((row) => row.id));
+  return next.map((row) => row.id).filter((id) => !priorIds.has(id));
+}
+
+/** What `next` reaches that the owner of `prior` never consented to, per widening field. `capabilities` is judged
+ *  against the prior GRANT (a capability declared and never confirmed asks again on every upgrade); every other
+ *  field against the prior MANIFEST, the record of what the owner last saw. Narrowing never widens. */
+export function manifestWidening(
+  prior: { readonly manifest: PluginManifest; readonly grantedCapabilities: readonly PluginCapability[] },
+  next: PluginManifest,
+): PluginReachWidening {
+  return {
+    capabilities: newlyDeclaredCapabilities(next.capabilities, prior.grantedCapabilities),
+    netHosts: widenedNetHosts(next.netHosts ?? [], prior.manifest.netHosts ?? []),
+    providerIds: widenedProviderIds(next.providers ?? [], prior.manifest.providers ?? []),
+    matchAutomationEvents: next.matchAutomationEvents === true && prior.manifest.matchAutomationEvents !== true,
+  };
+}
+
+/** An upgrade with this widening lands `disabled` for re-consent. */
+export function isReachWidened(widening: PluginReachWidening): boolean {
+  return widening.capabilities.length > 0 || widening.netHosts.length > 0 || widening.providerIds.length > 0 || widening.matchAutomationEvents;
+}
+
+/** The reach still unanswered after an upgrade to `next`: this upgrade's widening plus whatever an earlier one left
+ *  unanswered (`carried`), filtered to what `next` still declares. It accumulates so that a follow-up bundle that
+ *  widens nothing relative to a refused one cannot erase the refusal; it is filtered so that a field the new
+ *  manifest dropped leaves nothing to consent to. */
+export function unansweredReachAfter(next: PluginManifest, widening: PluginReachWidening, carried: UnansweredReach): UnansweredReach {
+  const providerIds = new Set<ProviderId>([...widening.providerIds, ...carried.providerIds]);
+  return {
+    netHosts: pendingWidenedNetHosts(next.netHosts ?? [], widening.netHosts, carried.netHosts),
+    providerIds: (next.providers ?? []).map((row) => row.id).filter((id) => providerIds.has(id)),
+    matchAutomationEvents: next.matchAutomationEvents === true && (widening.matchAutomationEvents || carried.matchAutomationEvents),
+  };
+}
+
+/** Is any reach still unanswered? Paired with an ungranted declared capability, this is what `pending_reconsent`
+ *  records. */
+export function hasUnansweredReach(reach: UnansweredReach): boolean {
+  return reach.netHosts.length > 0 || reach.providerIds.length > 0 || reach.matchAutomationEvents;
+}
+
+/** The declared providers an activation may contribute: the manifest's rows minus the ids still unanswered. */
+export function consentedProviders(declared: readonly ProviderDef[], withheld: readonly ProviderId[]): ProviderDef[] {
+  const held = new Set(withheld);
+  return declared.filter((row) => !held.has(row.id));
 }

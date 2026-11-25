@@ -80,9 +80,12 @@ import {
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
-  PLUGIN_DUMP_DEPTH_GUARD,
-  PLUGIN_DUMP_NODE_GUARD,
+  PLUGIN_COMMANDS_MAX,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
+  PLUGIN_SURFACES_MAX,
+  PLUGIN_TOOL_DESCRIPTION_MAX_CHARS,
+  PLUGIN_TOOL_PARAMETERS_MAX_BYTES,
+  PLUGIN_TOOLS_MAX,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { LocalPluginHostSeams } from "./contract/port.ts";
@@ -221,6 +224,11 @@ function requireCapability(runtime: MembraneRuntime, ref: HostFunctionRef): void
   }
 }
 
+/** The property name a host function is attached under: the last segment of its `namespace.method` ref. */
+function hostFunctionName(ref: HostFunctionRef): string {
+  return ref.slice(ref.lastIndexOf(".") + 1);
+}
+
 /** A guest argument the contract types as a string, refused at the door when it is anything else, with the plain
  *  refusal every other string argument here throws. Coercing it would hand the host a string the guest never passed
  *  (an array's join), and an array crosses the dump by a different path than a top-level string, so one key would
@@ -252,9 +260,11 @@ function invocationLiveness(signal: AbortSignal): PluginInvocationLiveness {
 }
 
 /** One async host-fn spec — bundled so `attachAsync` stays ≤ 4 params (the per-instance counter threads with
- *  the name + impl). */
+ *  the ref + impl). `ref` names the function and its capability; `attachAsync` refuses an ungranted call before
+ *  it reads an argument, so the impl never re-checks it. */
 interface AsyncFnSpec {
-  readonly name: string;
+  readonly ref: HostFunctionRef;
+  readonly grants: ReadonlySet<PluginCapability>;
   readonly inFlight: InFlightCounter;
   readonly pending: Set<QuickJSDeferredPromise>;
   readonly log: Logger;
@@ -320,81 +330,6 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
   setUi(ctx, surface, runtime);
 }
 
-interface DumpWalkFrame {
-  readonly handle: QuickJSHandle;
-  readonly depth: number;
-  readonly owned: boolean;
-}
-
-/** Push each own-property value of an object/array HANDLE onto the walk stack at `depth + 1` — a single-level,
- *  non-recursive read (array indices are own props), so it cannot itself overflow the host stack. A non-object
- *  (or `null`, which is also `typeof "object"` but enumerates empty) contributes no children. Every read here can run
- *  a guest proxy trap or getter, so each asks the window first (`stopPastWindow`, `readGuestProp`, D346). */
-function pushDumpChildren(ctx: QuickJSContext, marshal: GuestMarshal, frame: DumpWalkFrame, frames: DumpWalkFrame[]): void {
-  if (ctx.typeof(frame.handle) !== "object") {
-    return;
-  }
-  marshal.stopPastWindow();
-  const names = ctx.getOwnPropertyNames(frame.handle);
-  if (names.error) {
-    names.error.dispose();
-    return;
-  }
-  // `using` disposes the enumerated key handles on every exit (the read child handles are separate and owned).
-  using keys = names.value;
-  for (const nameH of keys) {
-    frames.push({ handle: marshal.readGuestProp(frame.handle, nameH), depth: frame.depth + 1, owned: true });
-  }
-}
-
-/** Refuse a guest HANDLE too DEEPLY NESTED to hand to `ctx.dump` safely, WITHOUT materializing it. `ctx.dump`
- *  walks the guest tree on the HOST call stack, and an overflow there does not merely throw — it CORRUPTS the
- *  shared WASM runtime (the dispose-time `list_empty` abort, a crash of every co-resident plugin; see
- *  `budgets.ts`). Guards BOTH the `ui.register` spec (before the additionally-recursive `z.lazy` parse, whose
- *  cliff is tighter still) and every async host-fn ARG (`attachAsync`). This walk uses an EXPLICIT frame stack
- *  (never the host call stack, so the guard itself cannot overflow) and a single-level property enumeration per
- *  node, refusing the moment depth or the visited-node count exceeds its guard. It does NOT re-enforce the precise
- *  downstream caps (the spec's superRefine, the arg-byte budget) — those run safely once a shallow, bounded tree
- *  is guaranteed. The root handle is caller-owned (left alone); every handle THIS opens is disposed here —
- *  including any still queued when it short-circuits. Returns `false` ⇒ the caller refuses (soft for a spec, a
- *  rejected guest promise for an arg). */
-function handleSafeToDump(ctx: QuickJSContext, marshal: GuestMarshal, rootH: QuickJSHandle): boolean {
-  let visited = 0;
-  // Root frame is caller-owned (`owned:false`); every child handle `pushDumpChildren` opens is ours to dispose.
-  const frames: DumpWalkFrame[] = [{ handle: rootH, depth: 1, owned: false }];
-  try {
-    while (frames.length > 0) {
-      const frame = frames.pop();
-      if (frame === undefined) {
-        break;
-      }
-      visited += 1;
-      const overGuard = frame.depth > PLUGIN_DUMP_DEPTH_GUARD || visited > PLUGIN_DUMP_NODE_GUARD;
-      try {
-        if (!overGuard) {
-          pushDumpChildren(ctx, marshal, frame, frames);
-        }
-      } finally {
-        // Released on every exit, a window refusal mid-read included.
-        if (frame.owned) {
-          frame.handle.dispose();
-        }
-      }
-      if (overGuard) {
-        return false;
-      }
-    }
-    return true;
-  } finally {
-    // On a short-circuit `return false`, dispose every owned handle still queued (the root is never ours).
-    for (const frame of frames) {
-      if (frame.owned) {
-        frame.handle.dispose();
-      }
-    }
-  }
-}
-
 /** A guest argument read for a host function, or why it was refused unread. */
 type ArgRead = { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly reason: string };
 
@@ -402,24 +337,20 @@ type ArgRead = { readonly ok: true; readonly value: unknown } | { readonly ok: f
 const UNREADABLE_ARGUMENT = "too deeply nested or too large to read";
 const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
 
-/** The ONE guest-handle materialization doorway. The explicit walk is deliberately inside the helper so a
- *  caller cannot remember the guard but accidentally put it after the read (`fromGuest`).
- *
- *  The read serializes an object with the realm's own `JSON.stringify`, and when that throws (a value too
- *  large for the realm's memory limit) it returns the realm's string fallback instead of failing. An object
- *  that reads back as a string is that fallback, so it refuses here rather than reaching a host fn as a
- *  string its parser degrades to an empty default.
+/** The ONE guest-handle materialization doorway for a host function's argument or definition value. The read is the
+ *  marshal's bounded walk (`marshal.ts`), which refuses a value past the depth or node guard (`budgets.ts`) as it
+ *  builds it, so there is no second read for a getter, proxy trap or `toJSON` to answer differently.
  *
  *  Call it only inside a host function built by `marshal.newHostFunction`: a realm failure during the read (the
- *  CPU interrupt, the memory limit) throws {@link GuestCallFailure}, which that function hands back to the guest. */
-function tryDumpGuestValue(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHandle): ArgRead {
-  if (!handleSafeToDump(ctx, marshal, handle)) {
-    return { ok: false, reason: UNREADABLE_ARGUMENT };
-  }
+ *  CPU interrupt, the memory limit, a guest trap that throws) throws {@link GuestCallFailure}, which that function
+ *  hands back to the guest. */
+function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle): ArgRead {
   const read = marshal.fromGuest(handle);
   switch (read.kind) {
     case "value":
-      return ctx.typeof(handle) === "object" && typeof read.value === "string" ? { ok: false, reason: UNREADABLE_ARGUMENT } : { ok: true, value: read.value };
+      return { ok: true, value: read.value };
+    case "unreadable":
+      return { ok: false, reason: UNREADABLE_ARGUMENT };
     case "promise":
       return { ok: false, reason: PROMISE_ARGUMENT };
     case "thrown":
@@ -444,14 +375,13 @@ const FRAME_DEF_PROPS = ["id", "anchor", "title"] as const;
 const FRAME_BODY_PROPS = ["html", "css"] as const;
 
 /** Materialize a fixed list of a def's own props into one plain object, or `undefined` when ANY of them is too
- *  deeply nested / too large to hand to `ctx.dump` safely. Shared by both registrars so the deep-nesting belt —
- *  which protects the shared WASM runtime, not merely this call (see {@link handleSafeToDump}) — is applied
- *  identically at both doors. Every handle it opens is disposed here. */
-function dumpDefProps(ctx: QuickJSContext, marshal: GuestMarshal, defHandle: QuickJSHandle, names: readonly string[]): Record<string, unknown> | undefined {
+ *  deeply nested or too large to read (see {@link tryDumpGuestValue}). Shared by both registrars so the depth guard
+ *  is applied identically at both doors. Every handle it opens is disposed here. */
+function dumpDefProps(marshal: GuestMarshal, defHandle: QuickJSHandle, names: readonly string[]): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   for (const name of names) {
     using handle = marshal.readGuestProp(defHandle, name);
-    const dumped = tryDumpGuestValue(ctx, marshal, handle);
+    const dumped = tryDumpGuestValue(marshal, handle);
     if (!dumped.ok) {
       return;
     }
@@ -471,7 +401,7 @@ function isDeclarativeTier(tier: PluginSurfaceRegistrationMeta["tier"]): tier is
  * Materialize `props` off a guest def, apply `overrides` (HOST-supplied fields the guest may not name), and
  * validate the result at the trust boundary. Shared by both registrars.
  *
- * IT RUNS UNDER A BELT: any throw — a residual `RangeError` the deep-nesting pre-walk did not pre-empt, a
+ * IT RUNS UNDER A BELT: any throw — a residual `RangeError` the bounded read did not pre-empt, a
  * marshalling failure — becomes the §4.9 soft refusal, never an activation-fatal throw. `safeParse` catches a
  * `ZodError` but NOT a `RangeError`, so the try/catch is load-bearing, not decoration.
  *
@@ -479,13 +409,12 @@ function isDeclarativeTier(tier: PluginSurfaceRegistrationMeta["tier"]): tier is
  * shadowed by a guest property of the same name.
  */
 function parseSurfaceMeta(
-  ctx: QuickJSContext,
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
   { props, overrides }: { readonly props: readonly string[]; readonly overrides: Readonly<Record<string, unknown>> },
 ): SurfaceMetaParse {
   try {
-    const raw = dumpDefProps(ctx, marshal, defHandle, props);
+    const raw = dumpDefProps(marshal, defHandle, props);
     if (raw === undefined) {
       return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
     }
@@ -507,6 +436,8 @@ function parseSurfaceMeta(
  *  collect a surface registration. An INVALID def is logged + SKIPPED, NEVER thrown: a stale panel spec must not
  *  kill the activation that also registered the plugin's tools/events (§4.9). capability: `ui.surface`. */
 function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHandle {
+  // Distinct ids, because a repeated id replaces its surface and holds nothing more.
+  const held = new Set<string>();
   return runtime.marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "ui.register");
     if (defHandle === undefined) {
@@ -515,7 +446,7 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
     // Absent props dump as `undefined`, which the schema's optional `spec`/`toolName` accept — and which the
     // U3 `tool-card` biconditional REFUSES for that one anchor. Parsed BEFORE `onAction` is taken, so a realm
     // failure the parse hands back to the guest leaves no handle of ours behind.
-    const parsed = parseSurfaceMeta(ctx, runtime.marshal, defHandle, { props: SURFACE_DEF_PROPS, overrides: {} });
+    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: SURFACE_DEF_PROPS, overrides: {} });
     // `onAction` is NOT scope-owned: on the collect path its ownership TRANSFERS to the Sandbox (kept alive for
     // the instance lifetime); on every other path it is hand-disposed — a `using` would double-free the
     // transferred handle (`Lifetime.dispose` throws on a second call). `refuse` owns that discipline for every
@@ -538,6 +469,10 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
     if (!isDeclarativeTier(tier)) {
       return refuse(`the '${parsed.meta.tier}' tier is registered through host.ui.registerFrame`);
     }
+    if (!held.has(parsed.meta.id) && held.size >= PLUGIN_SURFACES_MAX) {
+      return refuse(`at most ${PLUGIN_SURFACES_MAX} surfaces per plugin`);
+    }
+    held.add(parsed.meta.id);
     if (ctx.typeof(onAction) === "function") {
       runtime.collectSurface({ ...parsed.meta, tier }, onAction);
     } else {
@@ -555,9 +490,9 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
  *  handed to `collectSurface` as its own argument. */
 type FrameBodyParse = { readonly ok: true; readonly body: PluginFrameBody } | { readonly ok: false; readonly reason: string };
 
-function parseFrameBody(ctx: QuickJSContext, marshal: GuestMarshal, defHandle: QuickJSHandle): FrameBodyParse {
+function parseFrameBody(marshal: GuestMarshal, defHandle: QuickJSHandle): FrameBodyParse {
   try {
-    const raw = dumpDefProps(ctx, marshal, defHandle, FRAME_BODY_PROPS);
+    const raw = dumpDefProps(marshal, defHandle, FRAME_BODY_PROPS);
     if (raw === undefined) {
       return { ok: false, reason: "the frame body is too deeply nested or too large to validate" };
     }
@@ -602,11 +537,11 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
     // `tier` is an OVERRIDE, not a read: the guest never names one at this door (see FRAME_DEF_PROPS). The meta
     // parse still applies every shared belt — the id grammar, the title cap, and the anchor × tier admission
     // that refuses `message-footer` permanently (`PLUGIN_ANCHOR_TIERS`).
-    const parsed = parseSurfaceMeta(ctx, runtime.marshal, defHandle, { props: FRAME_DEF_PROPS, overrides: { tier: "frame" } });
+    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: FRAME_DEF_PROPS, overrides: { tier: "frame" } });
     if (!parsed.ok) {
       return refuse(parsed.reason);
     }
-    const body = parseFrameBody(ctx, runtime.marshal, defHandle);
+    const body = parseFrameBody(runtime.marshal, defHandle);
     if (!body.ok) {
       return refuse(body.reason);
     }
@@ -614,6 +549,46 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
     runtime.collectSurface({ ...parsed.meta, tier: "frame" }, null, body.body);
     return ctx.undefined;
   });
+}
+
+type CommandMetaParse =
+  | { readonly ok: true; readonly meta: z.output<typeof pluginCommandRegistrationMetaSchema> }
+  | { readonly ok: false; readonly reason: string };
+
+/** A command definition's metadata, read and validated. The handles it opens are scope-owned. */
+function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle): CommandMetaParse {
+  using nameH = marshal.readGuestProp(defHandle, "name");
+  using describeH = marshal.readGuestProp(defHandle, "describe");
+  // The DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Read through the SAME depth guard as every
+  // other guest def value; the schema (enum biconditional, unique names, the arg caps) is what turns a malformed arg
+  // into a REGISTRATION refusal rather than a live-value surprise at invoke time.
+  using argsH = marshal.readGuestProp(defHandle, "args");
+  using groupH = marshal.readGuestProp(defHandle, "group");
+  using placementsH = marshal.readGuestProp(defHandle, "placements");
+  using composerDraftH = marshal.readGuestProp(defHandle, "composerDraft");
+  const name = tryDumpGuestValue(marshal, nameH);
+  const describe = tryDumpGuestValue(marshal, describeH);
+  const args = tryDumpGuestValue(marshal, argsH);
+  const group = tryDumpGuestValue(marshal, groupH);
+  const placements = tryDumpGuestValue(marshal, placementsH);
+  const composerDraft = tryDumpGuestValue(marshal, composerDraftH);
+  if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok && composerDraft.ok)) {
+    return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
+  }
+  // The recursive arg schema can throw past `safeParse` on a value the depth guard admits; that is a refusal too.
+  try {
+    const parsed = pluginCommandRegistrationMetaSchema.safeParse({
+      name: name.value,
+      describe: describe.value,
+      args: args.value,
+      group: group.value,
+      placements: placements.value,
+      composerDraft: composerDraft.value,
+    });
+    return parsed.success ? { ok: true, meta: parsed.data } : { ok: false, reason: z.prettifyError(parsed.error) };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 /** The plugin UI plane's guest-facing namespace. `register`/`setState` are the DECLARATIVE arm (capability
@@ -631,13 +606,13 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
   runtime.marshal.setHostProp(ui, "registerFrame", registerFrameFn);
 
   attachAsync(ctx, ui, {
-    name: "setState",
+    ref: "ui.setState",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "ui.setState");
       const surfaceId = args[0];
       if (typeof surfaceId !== "string") {
         throw new Error("plugin host: ui.setState requires a surfaceId string");
@@ -671,61 +646,32 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
   // malformed command must not kill the activation that also registered the plugin's tools, events and panels.
   // Unlike a surface the handler is REQUIRED — a command with no `onRun` is a menu row that does nothing, which
   // is worse than an absent one, so a non-function `onRun` is a refusal rather than a display-only arm.
+  let commands = 0;
   using registerCommandFn = marshal.newHostFunction("registerCommand", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "ui.registerCommand");
     if (defHandle === undefined) {
       throw new Error("plugin host: ui.registerCommand requires a definition object");
     }
-    // The metadata handles are scope-owned. `onRun` is taken only after the metadata reads, so a realm failure a
-    // read hands back to the guest leaves no handle of ours behind; its ownership then TRANSFERS to the Sandbox on
-    // the collect path and is hand-disposed on every other, so it is never `using`.
-    using nameH = marshal.readGuestProp(defHandle, "name");
-    using describeH = marshal.readGuestProp(defHandle, "describe");
-    // The DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Dumped through the SAME deep-nesting
-    // belt as every other guest def value; the schema (enum biconditional, unique names, the arg caps) is what
-    // turns a malformed arg into a REGISTRATION refusal rather than a live-value surprise at invoke time.
-    using argsH = marshal.readGuestProp(defHandle, "args");
-    using groupH = marshal.readGuestProp(defHandle, "group");
-    using placementsH = marshal.readGuestProp(defHandle, "placements");
-    using composerDraftH = marshal.readGuestProp(defHandle, "composerDraft");
-    const name = tryDumpGuestValue(ctx, marshal, nameH);
-    const describe = tryDumpGuestValue(ctx, marshal, describeH);
-    const args = tryDumpGuestValue(ctx, marshal, argsH);
-    const group = tryDumpGuestValue(ctx, marshal, groupH);
-    const placements = tryDumpGuestValue(ctx, marshal, placementsH);
-    const composerDraft = tryDumpGuestValue(ctx, marshal, composerDraftH);
+    if (commands >= PLUGIN_COMMANDS_MAX) {
+      runtime.logWarn(`ui.registerCommand refused a command: at most ${PLUGIN_COMMANDS_MAX} commands per plugin`);
+      return ctx.undefined;
+    }
+    const parsed = commandMeta(marshal, defHandle);
+    if (!parsed.ok) {
+      runtime.logWarn(`ui.registerCommand refused a command: ${parsed.reason}`);
+      return ctx.undefined;
+    }
+    // Taken after the metadata reads, so a realm failure a read hands back to the guest leaves no handle of ours
+    // behind; its ownership then TRANSFERS to the Sandbox on the collect path and is hand-disposed otherwise.
     const onRun = marshal.readGuestProp(defHandle, "onRun");
-    let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
-    // a guest command definition that fails to dump or validate is refused: the onRun handle is disposed and runtime.logWarn records the message into the sandbox log (Sandbox.create's logWarn pushes a warn line), then ctx.undefined is returned so no live command registers. Ends if logWarn stops reaching the sandbox log or a dump failure returns a live command.
-    try {
-      if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok && composerDraft.ok)) {
-        throw new Error("metadata is too deeply nested or too large to validate");
-      }
-      parsed = pluginCommandRegistrationMetaSchema.safeParse({
-        name: name.value,
-        describe: describe.value,
-        args: args.value,
-        group: group.value,
-        placements: placements.value,
-        composerDraft: composerDraft.value,
-      });
-    } catch (err) {
-      onRun.dispose();
-      runtime.logWarn(`ui.registerCommand refused a command: ${err instanceof Error ? err.message : String(err)}`);
-      return ctx.undefined;
-    }
-    if (!parsed.success) {
-      onRun.dispose();
-      runtime.logWarn(`ui.registerCommand refused a command: ${z.prettifyError(parsed.error)}`);
-      return ctx.undefined;
-    }
     if (ctx.typeof(onRun) !== "function") {
       onRun.dispose();
-      runtime.logWarn(`ui.registerCommand refused '${parsed.data.name}': onRun must be a function`);
+      runtime.logWarn(`ui.registerCommand refused '${parsed.meta.name}': onRun must be a function`);
       return ctx.undefined;
     }
-    const handler = commandHandler(ctx, onRun, parsed.data.composerDraft === true);
-    runtime.collectCommand(parsed.data, handler);
+    const handler = commandHandler(ctx, onRun, parsed.meta.composerDraft === true);
+    commands += 1;
+    runtime.collectCommand(parsed.meta, handler);
     return ctx.undefined;
   });
   runtime.marshal.setHostProp(ui, "registerCommand", registerCommandFn);
@@ -736,13 +682,13 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
   // The MESSAGE is guest text; the domain stamps the plugin-name prefix, applies the length cap and claims the
   // per-plugin rate floor — infra holds none of those and must not pretend to.
   attachAsync(ctx, ui, {
-    name: "toast",
+    ref: "ui.toast",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "ui.toast");
       const named = args[0];
       const level: PluginToastLevel = PLUGIN_TOAST_LEVELS.find((member) => member === named) ?? "info";
       const message = args[1];
@@ -759,13 +705,13 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
   // registered surfaces when the outbox drains, so infra cannot leak whether a surface exists and a guest
   // cannot open another plugin's dialog (the outbox is keyed by the plugin the guest is).
   attachAsync(ctx, ui, {
-    name: "openDialog",
+    ref: "ui.openDialog",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "ui.openDialog");
       const surfaceId = args[0];
       if (typeof surfaceId !== "string" || !PLUGIN_SURFACE_ID_RE.test(surfaceId)) {
         throw new Error("plugin host: ui.openDialog requires a valid surfaceId (/^[a-z][a-z0-9_]{0,40}$/)");
@@ -813,13 +759,13 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   runtime.marshal.setHostProp(chat, "current", currentFn);
 
   attachAsync(ctx, chat, {
-    name: "listMessages",
+    ref: "chat.listMessages",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "chat.listMessages");
       const { chatId } = resolveChat(runtime, args[0]);
       const opts = args[1];
       const limit = isPlainObject(opts) && typeof opts["limit"] === "number" ? opts["limit"] : undefined;
@@ -828,13 +774,13 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   });
 
   attachAsync(ctx, chat, {
-    name: "getVariables",
+    ref: "chat.getVariables",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "chat.getVariables");
       const { chatId } = resolveChat(runtime, args[0]);
       return await runtime.bridge.chat.getVariables(chatId, invocationLiveness(signal));
     },
@@ -843,26 +789,26 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   // listCharacters(chat) — the present CHARACTER roster of the ADMITTED chat. The bridge resolves the
   // installer's membership and returns `[]` for a non-member; a forged/stale handle fails `resolveChat` first.
   attachAsync(ctx, chat, {
-    name: "listCharacters",
+    ref: "chat.listCharacters",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "chat.listCharacters");
       const { chatId } = resolveChat(runtime, args[0]);
       return await runtime.bridge.chat.listCharacters(chatId, invocationLiveness(signal));
     },
   });
 
   attachAsync(ctx, chat, {
-    name: "applyVariableOps",
+    ref: "chat.applyVariableOps",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "chat.applyVariableOps");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
         // NOT POSTURE 2, deliberately — one of the two `canWrite` arms that stays a flat refusal, and the
@@ -891,13 +837,13 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   });
 
   attachAsync(ctx, chat, {
-    name: "requestTurn",
+    ref: "chat.requestTurn",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "chat.requestTurn");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
         // POSTURE 2 — the installer holds the grant but not standing authority here, so the act becomes an
@@ -915,13 +861,13 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   });
 
   attachAsync(ctx, chat, {
-    name: "surfaceQuickReply",
+    ref: "chat.surfaceQuickReply",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "chat.surfaceQuickReply");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
         // NOT POSTURE 2, deliberately — the second of the two arms that stays a flat refusal. Surfacing
@@ -1013,7 +959,7 @@ function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: SandboxWi
 function parseWorldEntry(raw: unknown): PluginWorldEntryUpsert {
   const parsed = pluginWorldEntryUpsertSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new Error("plugin host: worldInfo.upsertEntry requires { bookId, entryKey, keys, contentTemplate, position }");
+    throw new Error("plugin host: worldInfo.upsertEntry requires { bookId, entryKey, keys, contentTemplate }");
   }
   return parsed.data;
 }
@@ -1037,13 +983,13 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   // listBooks(chat) — the books ATTACHED to the admitted chat (worldinfo.read). The bridge resolves
   // the installer + member-gates the attachment list; a non-member gets `[]`.
   attachAsync(ctx, worldInfo, {
-    name: "listBooks",
+    ref: "worldInfo.listBooks",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "worldInfo.listBooks");
       const { chatId } = resolveChat(runtime, args[0]);
       return await runtime.bridge.worldInfo.listBooks(chatId, invocationLiveness(signal));
     },
@@ -1052,13 +998,13 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   // the bookId; the bridge applies the ATTACHMENT gate before the read, so a book not attached to THIS chat
   // resolves to `[]`, leak-free. A non-string bookId is refused here rather than serialized into a bad query.
   attachAsync(ctx, worldInfo, {
-    name: "listEntries",
+    ref: "worldInfo.listEntries",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "worldInfo.listEntries");
       const { chatId } = resolveChat(runtime, args[0]);
       const bookId = args[1];
       if (typeof bookId !== "string") {
@@ -1068,13 +1014,13 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     },
   });
   attachAsync(ctx, worldInfo, {
-    name: "upsertEntry",
+    ref: "worldInfo.upsertEntry",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "worldInfo.upsertEntry");
       const scope = resolveChat(runtime, args[0]);
       const entry = parseWorldEntry(args[1]);
       if (!scope.canWrite) {
@@ -1102,13 +1048,13 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
 function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using assets = ctx.newObject();
   attachAsync(ctx, assets, {
-    name: "read",
+    ref: "assets.read",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "assets.read");
       const assetId = args[0];
       if (typeof assetId !== "string") {
         throw new Error("plugin host: assets.read requires an assetId string");
@@ -1127,13 +1073,13 @@ function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
 function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using search = ctx.newObject();
   attachAsync(ctx, search, {
-    name: "documents",
+    ref: "search.documents",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "search.documents");
       const queryText = args[0];
       if (typeof queryText !== "string") {
         throw new Error("plugin host: search.documents requires a queryText string");
@@ -1158,13 +1104,13 @@ function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
 function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using imagery = ctx.newObject();
   attachAsync(ctx, imagery, {
-    name: "generatePicture",
+    ref: "imagery.generatePicture",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "imagery.generatePicture");
       const scope = resolveChat(runtime, args[0]);
       const pictureArgs = parsePictureArgs(args[1]);
       if (!scope.canWrite) {
@@ -1181,36 +1127,34 @@ function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
 function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using vars = ctx.newObject();
   attachAsync(ctx, vars, {
-    name: "get",
+    ref: "variables.get",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
-    impl: async (args, signal) => {
-      requireCapability(runtime, "variables.get");
-      return await runtime.bridge.variables.get(stringArg(args, 0, "variables.get", "key"), invocationLiveness(signal));
-    },
+    impl: async (args, signal) => await runtime.bridge.variables.get(stringArg(args, 0, "variables.get", "key"), invocationLiveness(signal)),
   });
   attachAsync(ctx, vars, {
-    name: "set",
+    ref: "variables.set",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "variables.set");
       await runtime.bridge.variables.set(stringArg(args, 0, "variables.set", "key"), stringArg(args, 1, "variables.set", "value"), invocationLiveness(signal));
       return null;
     },
   });
   attachAsync(ctx, vars, {
-    name: "delete",
+    ref: "variables.delete",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "variables.delete");
       await runtime.bridge.variables.delete(stringArg(args, 0, "variables.delete", "key"), invocationLiveness(signal));
       return null;
     },
@@ -1225,24 +1169,22 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
 function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using storage = ctx.newObject();
   attachAsync(ctx, storage, {
-    name: "get",
+    ref: "storage.get",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
-    impl: async (args, signal) => {
-      requireCapability(runtime, "storage.get");
-      return await runtime.bridge.storage.get(stringArg(args, 0, "storage.get", "key"), invocationLiveness(signal));
-    },
+    impl: async (args, signal) => await runtime.bridge.storage.get(stringArg(args, 0, "storage.get", "key"), invocationLiveness(signal)),
   });
   attachAsync(ctx, storage, {
-    name: "set",
+    ref: "storage.set",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "storage.set");
       await runtime.bridge.storage.set(stringArg(args, 0, "storage.set", "key"), stringArg(args, 1, "storage.set", "value"), invocationLiveness(signal));
       return null;
     },
@@ -1253,13 +1195,13 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
   // race arrives as DATA the guest branches on rather than a throw (three throws auto-disable a plugin, and losing a
   // race is the ordinary outcome this call reports).
   attachAsync(ctx, storage, {
-    name: "compareAndSet",
+    ref: "storage.compareAndSet",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "storage.compareAndSet");
       const expected = args[1] === null || args[1] === undefined ? null : stringArg(args, 1, "storage.compareAndSet", "expected value");
       const key = stringArg(args, 0, "storage.compareAndSet", "key");
       const next = stringArg(args, 2, "storage.compareAndSet", "next value");
@@ -1267,25 +1209,25 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     },
   });
   attachAsync(ctx, storage, {
-    name: "delete",
+    ref: "storage.delete",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "storage.delete");
       await runtime.bridge.storage.delete(stringArg(args, 0, "storage.delete", "key"), invocationLiveness(signal));
       return null;
     },
   });
   attachAsync(ctx, storage, {
-    name: "list",
+    ref: "storage.list",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "storage.list");
       const prefix = typeof args[0] === "string" ? args[0] : undefined;
       return await runtime.bridge.storage.list(prefix, invocationLiveness(signal));
     },
@@ -1312,13 +1254,13 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
 function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using notifications = ctx.newObject();
   attachAsync(ctx, notifications, {
-    name: "post",
+    ref: "notifications.post",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "notifications.post");
       const scope = resolveChat(runtime, args[0]);
       const named = args[1];
       const recipient: PluginNotificationRecipient = PLUGIN_NOTIFICATION_RECIPIENTS.find((member) => member === named) ?? "host";
@@ -1346,13 +1288,13 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
 function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using llm = ctx.newObject();
   attachAsync(ctx, llm, {
-    name: "quiet",
+    ref: "llm.quiet",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "llm.quiet");
       const prompt = args[0];
       if (typeof prompt !== "string") {
         throw new Error("plugin host: llm.quiet requires a prompt string");
@@ -1376,13 +1318,13 @@ function setLlm(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
 function setDatabank(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using databank = ctx.newObject();
   attachAsync(ctx, databank, {
-    name: "ingest",
+    ref: "databank.ingest",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "databank.ingest");
       const doc = (typeof args[0] === "object" && args[0] !== null ? args[0] : {}) as { name?: unknown; text?: unknown };
       if (typeof doc.name !== "string" || typeof doc.text !== "string") {
         throw new Error("plugin host: databank.ingest requires { name: string, text: string }");
@@ -1402,13 +1344,13 @@ function setDatabank(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membr
 function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using character = ctx.newObject();
   attachAsync(ctx, character, {
-    name: "ingest",
+    ref: "character.ingest",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "character.ingest");
       const card = args[0];
       // A card is a JSON OBJECT — an array/scalar/null is not a card and is refused here rather than serialized
       // into a shape `parseCardJson` would reject downstream with a less legible error.
@@ -1425,13 +1367,13 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   // importCharacter funnel `ingest` does — so the character arrives WITH its embedded avatar. Rides the SAME
   // `character.ingest` grant (identical reach, only the input form differs). A non-string id is refused here.
   attachAsync(ctx, character, {
-    name: "ingestAsset",
+    ref: "character.ingestAsset",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "character.ingestAsset");
       const assetId = args[0];
       if (typeof assetId !== "string") {
         throw new Error("plugin host: character.ingestAsset requires an assetId string");
@@ -1446,13 +1388,13 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   // the admitted (validated-shape) payload. `data` must be a plain object (an array/scalar/null is not per-card
   // state and is refused here, the `ingest` posture) so a guest cannot smuggle a scalar into the residual bag.
   attachAsync(ctx, character, {
-    name: "setCardData",
+    ref: "character.setCardData",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "character.setCardData");
       const characterId = args[0];
       if (typeof characterId !== "string") {
         throw new Error("plugin host: character.setCardData requires a characterId string");
@@ -1469,13 +1411,13 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   // getCardData(characterId) — the D148 per-card state READ. Same host-stamped-slug + owner-scope walls as the
   // write; a foreign/absent character rejects leak-free DOMAIN-side. Returns the stored blob or null.
   attachAsync(ctx, character, {
-    name: "getCardData",
+    ref: "character.getCardData",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "character.getCardData");
       const characterId = args[0];
       if (typeof characterId !== "string") {
         throw new Error("plugin host: character.getCardData requires a characterId string");
@@ -1487,13 +1429,13 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
   // findCardData(values) — the D148 lookup across the installer's own characters. Infra checks only the shape and
   // the cap; the slug and owner scope are the domain's.
   attachAsync(ctx, character, {
-    name: "findCardData",
+    ref: "character.findCardData",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "character.findCardData");
       const values: unknown = args[0];
       if (!(Array.isArray(values) && values.every((value): value is string => typeof value === "string"))) {
         throw new Error("plugin host: character.findCardData requires an array of strings");
@@ -1564,7 +1506,7 @@ function toolDisplayMetadata(
   if ((displayType !== "string" && displayType !== "undefined") || (replayType !== "boolean" && replayType !== "undefined")) {
     throw new Error("plugin host: tool displayName must be nonempty text and replayHistory must be boolean");
   }
-  const display = displayType === "string" ? tryDumpGuestValue(ctx, marshal, displayHandle) : { ok: true, value: name.replaceAll("_", " ") };
+  const display = displayType === "string" ? tryDumpGuestValue(marshal, displayHandle) : { ok: true, value: name.replaceAll("_", " ") };
   const displayName = display.ok && typeof display.value === "string" ? display.value : "";
   if (displayName.trim().length === 0) {
     throw new Error("plugin host: tool displayName must be nonempty text");
@@ -1572,59 +1514,85 @@ function toolDisplayMetadata(
   if (replayType === "undefined") {
     return { displayName };
   }
-  const replay = tryDumpGuestValue(ctx, marshal, replayHandle);
+  const replay = tryDumpGuestValue(marshal, replayHandle);
   if (!replay.ok || typeof replay.value !== "boolean") {
     throw new Error("plugin host: tool replayHistory could not be read as boolean");
   }
   return { displayName, replayHistory: replay.value };
 }
 
+/** A tool definition's metadata, read and bounded. Every handle it opens is scope-owned, so a refusal here leaves no
+ *  handle behind and the handler is taken only after it. */
+function toolDefinition(
+  marshal: GuestMarshal,
+  defHandle: QuickJSHandle,
+): { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> } {
+  // Metadata stays scope-owned; acquire the transferred handler only after every metadata refusal.
+  using nameHandle = marshal.readGuestProp(defHandle, "name");
+  using descHandle = marshal.readGuestProp(defHandle, "description");
+  using paramsHandle = marshal.readGuestProp(defHandle, "parameters");
+  const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+  const dumpedDescription = tryDumpGuestValue(marshal, descHandle);
+  const dumpedParameters = tryDumpGuestValue(marshal, paramsHandle);
+  if (!(dumpedName.ok && dumpedDescription.ok && dumpedParameters.ok)) {
+    throw new Error("plugin host: tools.register metadata is too deeply nested");
+  }
+  const name = dumpedName.value;
+  const description = dumpedDescription.value;
+  const parameters = dumpedParameters.value;
+  if (typeof name !== "string" || typeof description !== "string" || !isPlainObject(parameters)) {
+    throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
+  }
+  // THE TOOL NAME IS GUEST INPUT AND THIS IS ITS TRUST BOUNDARY. `PLUGIN_TOOL_NAME_RE` is the grammar
+  // `host-v1.ts` promises a plugin author and the one a `tool-card` surface's `toolName` is already held to
+  // — but this seam used to check `typeof name === "string"` only, so an unbounded, arbitrary-charset guest
+  // string was collected, retained for the instance lifetime, and carried into `pluginToolWireName` to
+  // become a MODEL-VISIBLE function name. Bounding it HERE keeps the two spellings of one grammar
+  // (registration and the card linkage) from admitting different names, and makes a bad name the guest's
+  // own contained `tools.register` throw instead of a downstream registrar refusal that fails the whole
+  // activation. `PLUGIN_TOOL_NAME_RE`'s LENGTH (not just its charset) is also load-bearing here —
+  // it is one half of the wire-mint's byte budget (`manifest.ts` `PLUGIN_TOOL_NAME_LOCAL_MAX`, the other
+  // half is the manifest's `slug` cap), so a too-long name is refused right here, at the guest's own call,
+  // rather than surfacing as a length failure at the registry two boundaries downstream.
+  if (!PLUGIN_TOOL_NAME_RE.test(name)) {
+    throw new Error(`plugin host: tools.register name must match ${PLUGIN_TOOL_NAME_RE.source}`);
+  }
+  if (description.length > PLUGIN_TOOL_DESCRIPTION_MAX_CHARS) {
+    throw new Error(`plugin host: tools.register description exceeds ${PLUGIN_TOOL_DESCRIPTION_MAX_CHARS} characters`);
+  }
+  if (Buffer.byteLength(JSON.stringify(parameters), "utf8") > PLUGIN_TOOL_PARAMETERS_MAX_BYTES) {
+    throw new Error(`plugin host: tools.register parameters exceed ${PLUGIN_TOOL_PARAMETERS_MAX_BYTES} bytes`);
+  }
+  return { name, description, parameters };
+}
+
 /** Collect activation-time tools through the capability-gated resident registration path. */
 function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   const { marshal } = runtime;
   using tools = ctx.newObject();
+  let registered = 0;
   using registerFn = marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "tools.register");
     if (defHandle === undefined) {
       throw new Error("plugin host: tools.register requires a definition object");
     }
-    // Metadata stays scope-owned; acquire the transferred handler only after every metadata refusal.
-    using nameHandle = marshal.readGuestProp(defHandle, "name");
-    using descHandle = marshal.readGuestProp(defHandle, "description");
-    using paramsHandle = marshal.readGuestProp(defHandle, "parameters");
-    const dumpedName = tryDumpGuestValue(ctx, marshal, nameHandle);
-    const dumpedDescription = tryDumpGuestValue(ctx, marshal, descHandle);
-    const dumpedParameters = tryDumpGuestValue(ctx, marshal, paramsHandle);
-    if (!(dumpedName.ok && dumpedDescription.ok && dumpedParameters.ok)) {
-      throw new Error("plugin host: tools.register metadata is too deeply nested");
+    if (registered >= PLUGIN_TOOLS_MAX) {
+      throw new Error(`plugin host: tools.register holds at most ${PLUGIN_TOOLS_MAX} tools per plugin`);
     }
-    const name = dumpedName.value;
-    const description = dumpedDescription.value;
-    const parameters = dumpedParameters.value;
-    if (typeof name !== "string" || typeof description !== "string" || typeof parameters !== "object" || parameters === null) {
-      throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
-    }
-    // THE TOOL NAME IS GUEST INPUT AND THIS IS ITS TRUST BOUNDARY. `PLUGIN_TOOL_NAME_RE` is the grammar
-    // `host-v1.ts` promises a plugin author and the one a `tool-card` surface's `toolName` is already held to
-    // — but this seam used to check `typeof name === "string"` only, so an unbounded, arbitrary-charset guest
-    // string was collected, retained for the instance lifetime, and carried into `pluginToolWireName` to
-    // become a MODEL-VISIBLE function name. Bounding it HERE keeps the two spellings of one grammar
-    // (registration and the card linkage) from admitting different names, and makes a bad name the guest's
-    // own contained `tools.register` throw instead of a downstream registrar refusal that fails the whole
-    // activation. `PLUGIN_TOOL_NAME_RE`'s LENGTH (not just its charset) is also load-bearing here —
-    // it is one half of the wire-mint's byte budget (`manifest.ts` `PLUGIN_TOOL_NAME_LOCAL_MAX`, the other
-    // half is the manifest's `slug` cap), so a too-long name is refused right here, at the guest's own call,
-    // rather than surfacing as a length failure at the registry two boundaries downstream.
-    if (!PLUGIN_TOOL_NAME_RE.test(name)) {
-      throw new Error(`plugin host: tools.register name must match ${PLUGIN_TOOL_NAME_RE.source}`);
-    }
+    const { name, description, parameters } = toolDefinition(marshal, defHandle);
     const presentation = toolDisplayMetadata(ctx, marshal, defHandle, name);
+    // Taken last, so every refusal above leaves no handle of ours; its ownership transfers to the Sandbox below.
     const handler = marshal.readGuestProp(defHandle, "handler");
+    if (ctx.typeof(handler) !== "function") {
+      handler.dispose();
+      throw new Error("plugin host: tools.register handler must be a function");
+    }
+    registered += 1;
     runtime.collectTool(
       {
         name,
         description,
-        parameters: parameters as Record<string, unknown>,
+        parameters,
         ...presentation,
       },
       handler,
@@ -1654,8 +1622,8 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
     // after the metadata reads, whose realm failure goes back to the guest.
     using nameHandle = marshal.readGuestProp(defHandle, "name");
     using pointHandle = marshal.readGuestProp(defHandle, "point");
-    const dumpedName = tryDumpGuestValue(ctx, marshal, nameHandle);
-    const dumpedPoint = tryDumpGuestValue(ctx, marshal, pointHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+    const dumpedPoint = tryDumpGuestValue(marshal, pointHandle);
     const apply = marshal.readGuestProp(defHandle, "apply");
     if (!(dumpedName.ok && dumpedPoint.ok)) {
       apply.dispose();
@@ -1682,7 +1650,7 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
       throw new Error("plugin host: transforms.registerDisplay requires a definition object");
     }
     using nameHandle = marshal.readGuestProp(defHandle, "name");
-    const dumpedName = tryDumpGuestValue(ctx, marshal, nameHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
     const apply = marshal.readGuestProp(defHandle, "apply");
     if (!dumpedName.ok) {
       apply.dispose();
@@ -1715,8 +1683,8 @@ function setMacros(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     // `collectMacro` on success and is hand-disposed only on the reject path. It is taken after the metadata reads.
     using nameHandle = marshal.readGuestProp(defHandle, "name");
     using descHandle = marshal.readGuestProp(defHandle, "description");
-    const dumpedName = tryDumpGuestValue(ctx, marshal, nameHandle);
-    const dumpedDescription = tryDumpGuestValue(ctx, marshal, descHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+    const dumpedDescription = tryDumpGuestValue(marshal, descHandle);
     const resolve = marshal.readGuestProp(defHandle, "resolve");
     if (!(dumpedName.ok && dumpedDescription.ok)) {
       resolve.dispose();
@@ -1751,13 +1719,16 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     if (typeHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: events.on requires (type, handler)");
     }
-    const dumpedType = tryDumpGuestValue(ctx, marshal, typeHandle);
+    const dumpedType = tryDumpGuestValue(marshal, typeHandle);
     if (!dumpedType.ok) {
       throw new Error("plugin host: events.on type is too deeply nested");
     }
     const type = dumpedType.value;
     if (typeof type !== "string" || !TRIGGER_TYPES.has(type)) {
       throw new Error("plugin host: events.on type must be a Tier-1 trigger type (chat/domain taxonomy)");
+    }
+    if (ctx.typeof(handlerHandle) !== "function") {
+      throw new Error("plugin host: events.on handler must be a function");
     }
     // Retain the guest handler ACROSS activation (a resident subscriber) — a positional arg handle is
     // auto-disposed when this callback returns, so `dup()` it and transfer ownership to the Sandbox.
@@ -1792,8 +1763,8 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     if (slugHandle === undefined || nameHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: pubsub.on requires (emitterSlug, name, handler)");
     }
-    const dumpedSlug = tryDumpGuestValue(ctx, marshal, slugHandle);
-    const dumpedName = tryDumpGuestValue(ctx, marshal, nameHandle);
+    const dumpedSlug = tryDumpGuestValue(marshal, slugHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
     if (!(dumpedSlug.ok && dumpedName.ok)) {
       runtime.logWarn("pubsub.on refused a subscription: a coordinate is too deeply nested");
       return ctx.undefined;
@@ -1802,6 +1773,10 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     const name = dumpedName.value;
     if (typeof emitterSlug !== "string" || !pluginSlugSchema.safeParse(emitterSlug).success || typeof name !== "string" || !PLUGIN_PUBSUB_NAME_RE.test(name)) {
       runtime.logWarn("pubsub.on refused a subscription: emitterSlug/name grammar (must be colon-free bounded idents)");
+      return ctx.undefined;
+    }
+    if (ctx.typeof(handlerHandle) !== "function") {
+      runtime.logWarn("pubsub.on refused a subscription: the handler must be a function");
       return ctx.undefined;
     }
     if (subscribed >= PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX) {
@@ -1815,13 +1790,13 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   runtime.marshal.setHostProp(pubsub, "on", onFn);
 
   attachAsync(ctx, pubsub, {
-    name: "emit",
+    ref: "pubsub.emit",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "pubsub.emit");
       const name = args[0];
       if (typeof name !== "string" || !PLUGIN_PUBSUB_NAME_RE.test(name)) {
         throw new Error("plugin host: pubsub.emit requires a valid event name (/^[a-z][a-z0-9_]{0,40}$/)");
@@ -1848,13 +1823,13 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
 function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using net = ctx.newObject();
   attachAsync(ctx, net, {
-    name: "fetch",
+    ref: "net.fetch",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "net.fetch");
       const url = args[0];
       if (typeof url !== "string") {
         throw new Error("plugin host: net.fetch requires a URL string");
@@ -1863,13 +1838,13 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     },
   });
   attachAsync(ctx, net, {
-    name: "fetchAsset",
+    ref: "net.fetchAsset",
+    grants: runtime.grants,
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
     impl: async (args, signal) => {
-      requireCapability(runtime, "net.fetchAsset");
       const url = args[0];
       if (typeof url !== "string") {
         throw new Error("plugin host: net.fetchAsset requires a URL string");
@@ -1889,8 +1864,8 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
  *  WHAT THIS BOUNDS, precisely: everything that crosses into a domain op, and everything RETAINED host-side for
  *  the life of the async impl — which is the amplification (`HOST_CALLS_IN_FLIGHT_MAX` concurrent calls, each
  *  previously free to hold the guest's whole 32 MiB heap, plus whatever the op then did with it: a
- *  `storage.set` writes it, a `net.fetch` body sends it). What it does NOT bound is the TRANSIENT `ctx.dump`
- *  materialization it must measure — one at a time per context, and already bounded by the instance memory cap.
+ *  `storage.set` writes it, a `net.fetch` body sends it). What it does NOT bound is the TRANSIENT read
+ *  (`marshal.ts` `fromGuest`) it must measure — one at a time per context, and already bounded by the instance memory cap.
  *  Do not read this cap as a bound on peak host memory; it is a bound on retained and forwarded bytes. */
 function exceedsArgBudget(args: readonly unknown[], cap: number): boolean {
   let bytes = 0;
@@ -1952,7 +1927,7 @@ function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise,
     settle(settled);
   } catch (error) {
     deferred.dispose();
-    spec.log.warn({ err: error, hostFunction: spec.name }, "plugin host: the realm could not settle a host call's guest promise");
+    spec.log.warn({ err: error, hostFunction: hostFunctionName(spec.ref) }, "plugin host: the realm could not settle a host call's guest promise");
   }
 }
 
@@ -1976,20 +1951,27 @@ function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise,
  *  this does NOT claim to be: a spend CEILING (the D46 amendment retired the plugin spend tier
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
-  const { name, inFlight, pending, impl, log, marshal } = spec;
+  const { ref, grants, inFlight, pending, impl, log, marshal } = spec;
+  const name = hostFunctionName(ref);
+  const capability = HOST_FUNCTION_CAPABILITY[ref];
   // The membrane runs in the broker Worker, whose spans reach no debug surface.
   const { superviseDetached } = createDetachedSupervision(log, null);
   using fn = marshal.newHostFunction(name, (...argHandles) => {
     // The positional `argHandles` are quickjs-emscripten's; it disposes them itself.
     //
-    // THE INBOUND DEPTH GUARD — checked BEFORE the read materializes the args, because a deeply-nested guest
-    // arg overflows the dump HOST-side and CORRUPTS the shared WASM runtime (the `list_empty` dispose abort, a
-    // crash of every co-resident plugin), which is NOT a contained refusal (reachable from any
-    // async host fn with any grant). A refusal is an already-rejected promise and registers nothing in `pending`.
+    // THE CAPABILITY GATE COMES FIRST. An ungranted call is refused before any argument is read, walked or
+    // charged and before it takes an in-flight slot, so a plugin without the grant cannot spend host work here.
+    if (!grants.has(capability)) {
+      return marshal.rejectedWith(new PluginCapabilityError(capability));
+    }
+    //
+    // THE INBOUND DEPTH GUARD — the marshal's bounded walk refuses a too-deep or too-wide arg as it reads it,
+    // because a deeply-nested guest arg handed to the binding's dump would overflow it host-side and corrupt the
+    // WASM runtime (`budgets.ts`). A refusal is an already-rejected promise and registers nothing in `pending`.
     // The reads come before any handle of ours exists: a realm failure during one goes back to the guest as it is.
     const args: unknown[] = [];
     for (const handle of argHandles) {
-      const dumped = tryDumpGuestValue(ctx, marshal, handle);
+      const dumped = tryDumpGuestValue(marshal, handle);
       if (!dumped.ok) {
         return marshal.rejectedWith({ name: "Error", message: `plugin host: ${name} argument is ${dumped.reason}` });
       }

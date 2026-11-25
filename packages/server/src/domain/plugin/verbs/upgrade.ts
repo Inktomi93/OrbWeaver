@@ -16,8 +16,9 @@
 // does, rather than leaving them to the weekly `assets-gc` sweep). The swap itself is the one remaining
 // window, and its catch repairs the row to `disabled` rather than leaving an `enabled` row with no instance.
 //
-// Re-grant on WIDENED REACH: a manifest that declares a capability the prior grant never confirmed — OR a
-// `netHosts` entry the prior manifest never declared — lands the row `disabled`, and the grant carried forward
+// Re-grant on WIDENED REACH: a manifest that declares a capability the prior grant never confirmed — OR any other
+// reach field `manifestWidening` (`substrate/grants.ts`) compares: a `netHosts` entry, a provider id, or the
+// automation-event opt-in the prior manifest never declared — lands the row `disabled`, and the grant carried forward
 // is the INTERSECTION (`normalizeGrant`), so the newly-declared capability is NOT granted. Re-confirming is the
 // separate `setGrant` verb (`verbs/set-grant.ts`), whose approval may also turn the plugin back on.
 //
@@ -34,18 +35,18 @@
 // WITHOUT widened reach, a plugin that was ENABLED is re-activated on the NEW bundle (the enabled state is
 // preserved — only a superset forces re-confirmation).
 
-import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
+import type { PluginManifest, PluginReachWidening } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import type { AssetId, PluginId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { ManifestInvalidError, PluginCrashedError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { PluginConsentPrompt } from "../contract/ops.ts";
 import type { UpgradePluginParams } from "../contract/params.ts";
-import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
+import type { ActivationDeps, PluginContext, PluginService, UnansweredReach } from "../contract/service.ts";
 import { listPluginBundleAssets } from "../persistence/plugin-assets.ts";
-import { applyUpgrade, getById, setStatus, toPluginView } from "../persistence/plugins.ts";
+import { applyUpgrade, getById, setStatus, toPluginView, unansweredReachOf } from "../persistence/plugins.ts";
 import { storeBundleAssets } from "../substrate/bundle-assets.ts";
-import { newlyDeclaredCapabilities, normalizeGrant, pendingWidenedNetHosts, widenedNetHosts } from "../substrate/grants.ts";
+import { hasUnansweredReach, isReachWidened, manifestWidening, normalizeGrant, unansweredReachAfter } from "../substrate/grants.ts";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 import { reapReleasedAssets } from "../substrate/reap-released.ts";
 
@@ -74,23 +75,22 @@ function requireActivated(outcome: Awaited<ReturnType<ActivationDeps["activate"]
  *
  *  It is NOT a latch either, which is the opposite error: a v3 that DROPS the refused capability or host
  *  leaves nothing to consent to, and the notice must go with it. So both halves are recomputed from the new
- *  manifest every time — `newCaps` is already `declared \ granted` (the existing rule: a capability declared
- *  but never confirmed re-prompts on every upgrade), and the host half is the accumulated unanswered set
- *  filtered to what the new manifest still declares.
+ *  manifest every time — the capability half is already `declared \ granted` (the existing rule: a capability
+ *  declared but never confirmed re-prompts on every upgrade), and the other reach fields are the accumulated
+ *  unanswered set filtered to what the new manifest still declares (`unansweredReachAfter`).
  *
  *  The resulting invariant, which the client's notice is built on: `pending` ⟺ the row has an ungranted
- *  declared capability OR a non-empty host delta. A notice with nothing in it is unreachable.
+ *  declared capability OR a non-empty reach delta. A notice with nothing in it is unreachable.
  *
- *  `prior.widenedNetHosts` is read unconditionally: the CHECK guarantees a settled row's delta is empty, so
+ *  The prior row's delta is read unconditionally: the CHECKs guarantee a settled row's delta is empty, so
  *  re-testing the flag here would be a second copy of an invariant the database already holds. */
 function refusalAfterUpgrade(
-  newCaps: readonly PluginCapability[],
-  prior: { readonly widenedNetHosts: readonly string[] },
-  declaredHosts: readonly string[],
-  priorHosts: readonly string[],
-): { readonly pending: boolean; readonly hosts: readonly string[] } {
-  const hosts = pendingWidenedNetHosts(declaredHosts, priorHosts, prior.widenedNetHosts);
-  return { pending: newCaps.length > 0 || hosts.length > 0, hosts };
+  next: PluginManifest,
+  widening: PluginReachWidening,
+  carried: UnansweredReach,
+): { readonly pending: boolean; readonly unanswered: UnansweredReach } {
+  const unanswered = unansweredReachAfter(next, widening, carried);
+  return { pending: widening.capabilities.length > 0 || hasUnansweredReach(unanswered), unanswered };
 }
 
 /** Put the row back in agreement with reality after the swap failed, and reap what the attempt wrote.
@@ -148,22 +148,19 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
     assertReplaces(manifest, existing);
     const nextSource = source ?? { origin: "upload" as const, sourceUrl: null, sourceCommit: null };
 
-    const newCaps = newlyDeclaredCapabilities(manifest.capabilities, existing.grantedCapabilities);
-    // The egress half of the same re-consent rule. Compared against the PRIOR MANIFEST's `netHosts` (the row's
-    // persisted manifest json is the record of what was confirmed at install/last re-grant) — there is no
-    // `granted_net_hosts` column: `granted_capabilities ⊆ declared` is the capability ledger, and the manifest
-    // plus the row's UNANSWERED delta are the host ledger. Activation never forwards
-    // the manifest's list "verbatim" to the SSRF wall: one `setEnabled` toggle would arm `safeFetch` at a destination
-    // a standing re-consent covers. Activation forwards `declared \ withheldNetHosts` (`consentedNetHosts`), so the
-    // wall carries the owner's CONFIRMED reach and never more.
-    const declaredHosts = manifest.netHosts ?? [];
-    const priorHosts = existing.manifest.netHosts ?? [];
-    const newHosts = widenedNetHosts(declaredHosts, priorHosts);
+    // Every reach field is compared in one place (`manifestWidening`). The non-capability fields are judged against
+    // the PRIOR MANIFEST (the row's persisted manifest json is the record of what was confirmed at install/last
+    // re-grant) — there is no `granted_net_hosts` column: `granted_capabilities ⊆ declared` is the capability
+    // ledger, and the manifest plus the row's UNANSWERED delta are the reach ledger. Activation never forwards
+    // the manifest's reach "verbatim": one `setEnabled` toggle would arm `safeFetch` at a destination, offer a
+    // provider, or deliver automation-caused facts a standing re-consent covers. Activation subtracts the
+    // unanswered delta (`ActivateInput.withheld`), so it carries the owner's CONFIRMED reach and never more.
+    const widening = manifestWidening(existing, manifest);
     const granted = normalizeGrant(manifest.capabilities, existing.grantedCapabilities);
-    const widened = newCaps.length > 0 || newHosts.length > 0;
+    const widened = isReachWidened(widening);
     // Both halves of the recorded refusal, in one call — see `refusalAfterUpgrade` for why it asks what is
-    // still UNANSWERED rather than what this upgrade changed, and why the host delta accumulates.
-    const refusal = refusalAfterUpgrade(newCaps, existing, declaredHosts, priorHosts);
+    // still UNANSWERED rather than what this upgrade changed, and why the reach delta accumulates.
+    const refusal = refusalAfterUpgrade(manifest, widening, unansweredReachOf(existing));
     // Re-activation still turns on THIS upgrade's own widening, deliberately: a plugin the owner enabled
     // while a re-consent stood (which `setEnabled` allows — enabling grants nothing) keeps the state they
     // chose across a bundle swap that asks for nothing new.
@@ -218,9 +215,9 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
           // refusal as their decision. A non-widening upgrade on a SETTLED row writes `false`, which is equally
           // honest; one on a row whose refusal still stands does not get to erase it.
           pendingReconsent: refusal.pending,
-          // …and WHICH HOSTS it is about, the half no read surface can reconstruct once this line overwrites the
+          // …and WHICH REACH it is about, the half no read surface can reconstruct once this line overwrites the
           // manifest it was computed against. Empty in lockstep with the flag.
-          widenedNetHosts: refusal.hosts,
+          unanswered: refusal.unanswered,
           updatedAt: now,
         },
         bundleAssets.links,
@@ -248,10 +245,10 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
 
     if (reactivate) {
       // `reactivate` only happens when THIS upgrade widened nothing — but a re-consent carried in from an
-      // EARLIER one can still be standing (`refusal.hosts`, the accumulated unanswered set filtered to what
-      // this manifest still declares), and those destinations stay withheld from the wall until they are
-      // answered. Same rule as `setEnabled`'s, at the other activation site.
-      const outcome = await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted, withheldNetHosts: refusal.hosts });
+      // EARLIER one can still be standing (`refusal.unanswered`, the accumulated unanswered set filtered to what
+      // this manifest still declares), and that reach stays withheld until it is answered. Same rule as
+      // `setEnabled`'s, at the other activation site.
+      const outcome = await deps.activate({ caller, pluginId, bundleAssetId: stored.assetId, grants: granted, withheld: refusal.unanswered });
       requireActivated(outcome);
     }
 

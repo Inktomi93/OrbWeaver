@@ -250,6 +250,7 @@ export type {
   PluginFanoutResult,
   PluginFanoutSkip,
   PluginLogView,
+  PluginReachWidening,
   PluginSurfaceState,
   PluginSurfaceView,
   PluginView,

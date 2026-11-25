@@ -82,6 +82,8 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       // start empty or a "New" badge would resurrect for an update this row never saw.
       pendingReconsent: false,
       widenedNetHosts: [],
+      widenedProviderIds: [],
+      widenedMatchAutomationEvents: false,
       consecutiveCrashes: 0,
       lastError: null,
       installedAt: now,

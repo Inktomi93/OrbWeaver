@@ -30,7 +30,7 @@ A plugin guest gets a CPU budget per invocation, and its continuations run in jo
 - `openCpuInvocation`, `openCpuWindow`, `withinCpuWindow`, `withoutCpuCharge`, `settleInCpuWindow`, `releaseParkedSettlements`, `pumpGuestJobs` and `cpuWindowPassed` in `packages/server/src/infra/plugin-host/cpu-guard.ts`.
 - `runToSettlement`, `raceSettlement` and `settleActivationJobs` in `packages/server/src/infra/plugin-host/sandbox.ts`; the limits each runs under, `settlementWallMs` and `PLUGIN_SYNC_WAIT_STALL_MS` in `packages/server/src/infra/plugin-host/budgets.ts`.
 - `newHostFunction`, `newHostError`, `settlementOf`, `stopPastWindow`, `readGuestProp` and `setHostProp` in `packages/server/src/infra/plugin-host/marshal.ts`.
-- `handleSafeToDump` and `attachAsync` in `packages/server/src/infra/plugin-host/membrane.ts`; `logText`, `buildHostSurface` and `orb.host` in `packages/server/src/infra/plugin-host/realm.ts`.
+- `attachAsync` in `packages/server/src/infra/plugin-host/membrane.ts` and `fromGuest` in `packages/server/src/infra/plugin-host/marshal.ts`; `logText`, `buildHostSurface` and `orb.host` in `packages/server/src/infra/plugin-host/realm.ts`.
 - Tests: `tests/server/infra/plugin-host/membrane.int.test.ts` and `tests/server/infra/plugin-host/cpu-guard.test.ts`; the synchronous wait, `tests/server/infra/plugin-host/persistence/relayed-refusal-strikes.int.test.ts`.
 
 ## Consequences

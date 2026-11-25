@@ -5,7 +5,7 @@
 // (`getString`/`newString`, object keys through `newString`), so a NUL ended the string: a guest key `a\0b` reached
 // the host as `a`, and a stored `p\0q` read back as `p`. JSON text escapes a NUL as `\u0000` (and a lone surrogate
 // as `\udXXX`), so it holds no byte the C read stops at. Guest to host, a top-level string goes through the realm's
-// pristine `JSON.stringify`; objects already cross through the binding's `dump`, which is the realm's JSON. Host to
+// pristine `JSON.stringify`, and so does every string an object walk reads, key or value. Host to
 // guest, a value that can hold guest or stored text crosses as `JSON.stringify` text handed to the realm's pristine
 // `JSON.parse` — never `eval`, and with every captured handle taken before any guest code runs, so a guest that
 // reassigns `JSON` or `Promise` cannot reach the marshalling.
@@ -35,21 +35,32 @@
 // It is the engine's interrupt, the one exception a guest `catch` or `finally` cannot hold, so the invocation ends
 // exactly as a busy loop does; a host-built error would be caught and the loop would go on.
 //
+// AN OBJECT IS READ ONCE, BY THE WALK THAT BOUNDS IT. The binding's `dump` serializes on the host call stack, and a
+// deep enough tree overflows it and corrupts the runtime (`budgets.ts`). A bound checked by one walk and a `dump` that
+// walks again can see two different trees: a getter, a proxy trap or a `toJSON` can answer shallow to the check and
+// deep to the dump. So no guest object reaches `dump`. `fromGuest` walks it with an explicit stack under the depth and
+// node guards and builds the host value from the very reads it bounded, so what the host holds is exactly what was
+// checked. A `toJSON` would be guest code choosing a second tree after the check; the walk does not call it.
+//
 // A PROMISE IS REFUSED BEFORE ANY READ. The binding's `dump` disposes the handle of a promise it reads, a handle the
 // host still owns, which then aborts the engine at teardown. `fromGuest` asks the engine's promise state first, which
 // runs nothing.
 // No other module reads or writes a guest string.
 
 import type { QuickJSContext, QuickJSHandle, VmCallResult, VmFunctionImplementation } from "quickjs-emscripten-core";
+import { PLUGIN_DUMP_DEPTH_GUARD, PLUGIN_DUMP_NODE_GUARD } from "./budgets.ts";
 import { cpuWindowPassed } from "./cpu-guard.ts";
 import { CodedHostUnavailableError, PluginLlmFailureError } from "./process-protocol.ts";
 
 /** A guest value read into the host. `promise`: the value is a promise, refused unread. `thrown`: the realm failed
- *  while serializing it (the CPU interrupt, or its memory limit); the caller owns that exception handle. */
+ *  while serializing it (the CPU interrupt, its memory limit, or a guest trap or getter that threw); the caller owns
+ *  that exception handle. `unreadable`: an object past the read's depth or node guard, or holding a value JSON
+ *  cannot write, refused before any of it reached the host. */
 export type GuestRead =
   | { readonly kind: "value"; readonly value: unknown }
   | { readonly kind: "promise" }
-  | { readonly kind: "thrown"; readonly error: QuickJSHandle };
+  | { readonly kind: "thrown"; readonly error: QuickJSHandle }
+  | { readonly kind: "unreadable" };
 
 /** A call into the realm, made inside a host function, failed. Thrown inside a host function built by
  *  {@link GuestMarshal.newHostFunction}, which hands `thrown` back to the guest unchanged. */
@@ -71,9 +82,15 @@ export interface HostErrorFields {
 
 /** One context's marshal. Disposing it releases the captured realm handles; do that before `ctx.dispose`. */
 export interface GuestMarshal extends Disposable {
-  /** Read a guest value into the host. A string is whole, NUL and lone surrogate included. Any other value keeps the
-   *  binding's `dump`: numbers, bigints and symbols as themselves, objects through the realm's JSON. */
+  /** Read a guest value into the host. A string is whole, NUL and lone surrogate included. A non-object primitive keeps
+   *  the binding's `dump`. An object is read in one bounded walk that builds the host value as it goes, with JSON's
+   *  shape rules (own enumerable string keys, arrays by `length`, `undefined` and functions dropped or `null`); a guest
+   *  `toJSON` is not called. Call it inside a host function: the walk runs guest getters and proxy traps. */
   readonly fromGuest: (handle: QuickJSHandle) => GuestRead;
+  /** {@link GuestMarshal.fromGuest} for a value a guest invocation settled to, read inside that invocation's span and
+   *  outside any host function. The engine's interrupt bounds the guest code the read runs there, so the read asks no
+   *  window first: a past-window invocation's own error still reads. */
+  readonly fromSettledGuest: (handle: QuickJSHandle) => GuestRead;
   /** Build a guest value from JSON text with the realm's pristine `JSON.parse`. The caller owns the handle or error. */
   readonly parseIntoGuest: (json: string) => VmCallResult<QuickJSHandle>;
   /** A guest string from host text. The caller owns the handle. */
@@ -96,8 +113,8 @@ export interface GuestMarshal extends Disposable {
   /** Throw {@link GuestCallFailure} carrying the engine's interrupt when the guest's CPU window has passed. Call it
    *  inside a host function before a read that can run guest code. */
   readonly stopPastWindow: () => void;
-  /** Read a property of a guest object — which can run a guest getter or proxy trap — after the window check. The
-   *  caller owns the handle. */
+  /** Read a property of a guest object — which can run a guest getter or proxy trap — after the window check. A getter
+   *  or trap that throws throws {@link GuestCallFailure} carrying the guest's exception. The caller owns the handle. */
   readonly readGuestProp: (target: QuickJSHandle, key: string | QuickJSHandle) => QuickJSHandle;
   /** Set a property on a host-made object the guest receives — which can run a guest setter on a prototype — after
    *  the window check. `defineProp` would run none, but the binding cannot make it writable, and the surface stays
@@ -127,6 +144,27 @@ function hostText(text: string): string {
   return text.replaceAll(NUL, NUL_SHOWN);
 }
 
+/** What the realm-side classifier answers for an object handle. */
+const OBJECT_KIND = { null: 0, array: 1, record: 2, error: 3 } as const;
+// Evaluated before any guest code runs, with `Array.isArray` and `Error.isError` bound then, so a guest that replaces
+// either later is not asked. Both are brand checks: they read no property and run no proxy trap.
+const CLASSIFY_OBJECT_SOURCE = `((isArray, isError) => (value) => (value === null ? ${OBJECT_KIND.null} : isArray(value) ? ${OBJECT_KIND.array} : isError(value) ? ${OBJECT_KIND.error} : ${OBJECT_KIND.record}))(Array.isArray, Error.isError)`;
+/** The fields the binding's `dump` adds for an error at the root of a read, which the walk reads the same way:
+ *  `message` and `stack` are own non-enumerable and `name` is inherited, so own enumerable keys alone would drop them. */
+const ROOT_ERROR_FIELDS = ["name", "message", "stack"] as const;
+
+/** A walked value JSON drops from an object and writes as `null` in an array: `undefined`, a function, a symbol. */
+const DROPPED = Symbol("dropped");
+
+/** One value the object walk still has to read: its handle, its depth from the root, whether the walk owns the
+ *  handle, and where the value it reads goes. */
+interface WalkFrame {
+  readonly handle: QuickJSHandle;
+  readonly depth: number;
+  readonly owned: boolean;
+  readonly place: (value: unknown) => void;
+}
+
 // The release half of a promise-state read: a settled promise's state holds a fresh handle; a non-promise's holds the
 // caller's own handle, which is not ours to release.
 function isPromise(ctx: QuickJSContext, handle: QuickJSHandle): boolean {
@@ -150,6 +188,218 @@ function isPromise(ctx: QuickJSContext, handle: QuickJSHandle): boolean {
   }
 }
 
+/** What the object walk needs from one context's marshal: the context, the realm's captured `JSON.stringify`, object
+ *  classifier and property read, and the window check each read that can run guest code asks first. */
+interface ObjectWalk {
+  readonly ctx: QuickJSContext;
+  readonly stringify: QuickJSHandle;
+  readonly classify: QuickJSHandle;
+  readonly getProperty: QuickJSHandle;
+  readonly checkWindow: () => void;
+}
+
+type StringRead = { readonly text: string } | { readonly thrown: QuickJSHandle };
+
+// A guest string as host text, through the realm's own JSON so a NUL survives.
+function stringOf(walk: ObjectWalk, handle: QuickJSHandle): StringRead {
+  const quoted = walk.ctx.callFunction(walk.stringify, walk.ctx.undefined, handle);
+  if (quoted.error) {
+    return { thrown: quoted.error };
+  }
+  using json = quoted.value;
+  // The realm's JSON of a string is a JSON string literal, so it parses back to that string.
+  return { text: String(JSON.parse(walk.ctx.getString(json))) };
+}
+
+// One property read, which can run a guest getter or proxy trap. It goes through the realm's own captured read rather
+// than the binding's `getProp`, whose answer to a throwing getter is no value and an exception left pending in the
+// context; a call hands the guest's throw back as the result's error.
+function propertyOf(walk: ObjectWalk, target: QuickJSHandle, key: WalkEntry["read"]): VmCallResult<QuickJSHandle> {
+  walk.checkWindow();
+  const { ctx } = walk;
+  if (typeof key !== "string" && typeof key !== "number") {
+    return ctx.callFunction(walk.getProperty, ctx.undefined, target, key);
+  }
+  using keyHandle = typeof key === "string" ? ctx.newString(key) : ctx.newNumber(key);
+  return ctx.callFunction(walk.getProperty, ctx.undefined, target, keyHandle);
+}
+
+function disposeFrames(frames: readonly WalkFrame[]): void {
+  for (const frame of frames) {
+    if (frame.owned) {
+      frame.handle.dispose();
+    }
+  }
+}
+
+/** One value a container holds: the key it is read by and where its read goes. */
+interface WalkEntry {
+  readonly read: string | number | QuickJSHandle;
+  readonly place: WalkFrame["place"];
+}
+
+// Queue `frame`'s values. They are pushed straight onto the walk's own stack, so a read that fails midway leaves
+// nothing the walk's release does not reach, and then the pushed run is reversed so each container receives its values
+// in the guest's own order.
+function queueValues(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, entries: readonly WalkEntry[]): GuestRead | undefined {
+  const start = frames.length;
+  for (const { read, place } of entries) {
+    const value = propertyOf(walk, frame.handle, read);
+    if (value.error) {
+      return { kind: "thrown", error: value.error };
+    }
+    frames.push({ handle: value.value, depth: frame.depth + 1, owned: true, place });
+  }
+  frames.push(...frames.splice(start).reverse());
+  return undefined;
+}
+
+// An array's elements by `length`, as JSON reads it. An array longer than the node guard has room left for is refused
+// before any element is read.
+function readArray(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, room: number): GuestRead | undefined {
+  const { ctx } = walk;
+  const lengthRead = propertyOf(walk, frame.handle, "length");
+  if (lengthRead.error) {
+    return { kind: "thrown", error: lengthRead.error };
+  }
+  using lengthHandle = lengthRead.value;
+  const length = ctx.typeof(lengthHandle) === "number" ? ctx.getNumber(lengthHandle) : Number.NaN;
+  if (!Number.isInteger(length) || length < 0 || length > room) {
+    return { kind: "unreadable" };
+  }
+  const array: unknown[] = Array.from({ length }, () => null);
+  frame.place(array);
+  const entries = Array.from(
+    { length },
+    (_unused, index): WalkEntry => ({
+      read: index,
+      place: (value: unknown): void => {
+        array[index] = value === DROPPED ? null : value;
+      },
+    }),
+  );
+  return queueValues(walk, frames, frame, entries);
+}
+
+// An object's own enumerable string keys, as JSON reads them, after any `extra` fields read by name.
+function readRecord(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, extra: readonly string[]): GuestRead | undefined {
+  walk.checkWindow();
+  const names = walk.ctx.getOwnPropertyNames(frame.handle, { strings: true, numbersAsStrings: true, onlyEnumerable: true });
+  if (names.error) {
+    return { kind: "thrown", error: names.error };
+  }
+  using keys = names.value;
+  const record: Record<string, unknown> = {};
+  const entryFor = (key: string, read: string | QuickJSHandle): WalkEntry => ({
+    read,
+    place: (value: unknown): void => {
+      if (value !== DROPPED) {
+        // Defined, never assigned: a guest key `__proto__` is an own property here, as JSON makes it.
+        Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true });
+      }
+    },
+  });
+  const entries = extra.map((key) => entryFor(key, key));
+  for (const keyHandle of keys) {
+    const key = stringOf(walk, keyHandle);
+    if ("thrown" in key) {
+      return { kind: "thrown", error: key.thrown };
+    }
+    if (!extra.includes(key.text)) {
+      entries.push(entryFor(key.text, keyHandle));
+    }
+  }
+  frame.place(record);
+  return queueValues(walk, frames, frame, entries);
+}
+
+// Read one object or `null` into its place and queue its values, or answer the failure that ends the read.
+function readContainer(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, room: number): GuestRead | undefined {
+  const kind = walk.ctx.callFunction(walk.classify, walk.ctx.undefined, frame.handle);
+  if (kind.error) {
+    return { kind: "thrown", error: kind.error };
+  }
+  switch (kind.value.consume((answer) => walk.ctx.getNumber(answer))) {
+    case OBJECT_KIND.null:
+      frame.place(null);
+      return;
+    case OBJECT_KIND.array:
+      return readArray(walk, frames, frame, room);
+    case OBJECT_KIND.error:
+      return readRecord(walk, frames, frame, frame.depth === 1 ? ROOT_ERROR_FIELDS : []);
+    default:
+      return readRecord(walk, frames, frame, []);
+  }
+}
+
+// Read one walked value into its place and queue the values it holds, or answer the failure that ends the read.
+function readFrame(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, room: number): GuestRead | undefined {
+  const { ctx } = walk;
+  switch (ctx.typeof(frame.handle)) {
+    case "string": {
+      const read = stringOf(walk, frame.handle);
+      if ("thrown" in read) {
+        return { kind: "thrown", error: read.thrown };
+      }
+      frame.place(read.text);
+      return;
+    }
+    case "number": {
+      const number = ctx.getNumber(frame.handle);
+      frame.place(Number.isFinite(number) ? number : null);
+      return;
+    }
+    case "boolean":
+      frame.place(ctx.dump(frame.handle));
+      return;
+    case "bigint":
+      return { kind: "unreadable" };
+    case "object":
+      return readContainer(walk, frames, frame, room);
+    default:
+      frame.place(DROPPED);
+      return;
+  }
+}
+
+// The bounded object walk `fromGuest` reads with (see the header): the depth and node guards are checked on the same
+// reads that build the value. Every handle the walk opens is released here, on every exit.
+function readObject(walk: ObjectWalk, root: QuickJSHandle): GuestRead {
+  let value: unknown;
+  let visited = 0;
+  const frames: WalkFrame[] = [
+    {
+      handle: root,
+      depth: 1,
+      owned: false,
+      place: (read: unknown): void => {
+        value = read;
+      },
+    },
+  ];
+  try {
+    for (let frame = frames.pop(); frame !== undefined; frame = frames.pop()) {
+      visited += 1;
+      try {
+        if (frame.depth > PLUGIN_DUMP_DEPTH_GUARD || visited > PLUGIN_DUMP_NODE_GUARD) {
+          return { kind: "unreadable" };
+        }
+        const failed = readFrame(walk, frames, frame, PLUGIN_DUMP_NODE_GUARD - visited);
+        if (failed !== undefined) {
+          return failed;
+        }
+      } finally {
+        if (frame.owned) {
+          frame.handle.dispose();
+        }
+      }
+    }
+    return { kind: "value", value };
+  } finally {
+    disposeFrames(frames);
+  }
+}
+
 /** Capture the realm's own `JSON.stringify`, `JSON.parse`, `Promise`, `Promise.reject`, `Promise.resolve`,
  *  `Promise.prototype.then` and `Error.prototype` for `ctx`. Call it once,
  *  right after the context is created and before any guest source runs. */
@@ -167,6 +417,8 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const errorPrototype = captured.adopt(ctx.getProp(errorConstructor, "prototype"), (handle) => handle.dispose());
   // A host-owned step that never returns on its own. No window is open yet, so evaluating it cannot be interrupted.
   const endless = captured.adopt(ctx.unwrapResult(ctx.evalCode("(() => { for (;;) {} })")), (handle) => handle.dispose());
+  const classify = captured.adopt(ctx.unwrapResult(ctx.evalCode(CLASSIFY_OBJECT_SOURCE)), (handle) => handle.dispose());
+  const getProperty = captured.adopt(ctx.unwrapResult(ctx.evalCode("((target, key) => target[key])")), (handle) => handle.dispose());
   const owned = captured.move();
 
   // `defineProp`, never `setProp`: a guest can put a setter for any key on a prototype, and `setProp` would run it.
@@ -214,22 +466,27 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     throw new Error("plugin host: the guest's CPU window has passed");
   };
 
+  // Inside a host function the binding drops a callback's interrupt, so every read asks the window first (D346).
+  const checkedWalk: ObjectWalk = { ctx, stringify, classify, getProperty, checkWindow: stopPastWindow };
+  // A settled value is read inside its invocation's span and outside any host function, where the engine's own
+  // interrupt ends a getter that runs past the window and so ends the read.
+  const settledWalk: ObjectWalk = { ...checkedWalk, checkWindow: (): void => undefined };
+
+  const readFrom = (walk: ObjectWalk, handle: QuickJSHandle): GuestRead => {
+    const type = ctx.typeof(handle);
+    if (type === "object") {
+      return isPromise(ctx, handle) ? { kind: "promise" } : readObject(walk, handle);
+    }
+    if (type !== "string") {
+      return { kind: "value", value: ctx.dump(handle) };
+    }
+    const read = stringOf(walk, handle);
+    return "thrown" in read ? { kind: "thrown", error: read.thrown } : { kind: "value", value: read.text };
+  };
+
   return {
-    fromGuest: (handle): GuestRead => {
-      const type = ctx.typeof(handle);
-      if (type === "object" && isPromise(ctx, handle)) {
-        return { kind: "promise" };
-      }
-      if (type !== "string") {
-        return { kind: "value", value: ctx.dump(handle) };
-      }
-      const text = ctx.callFunction(stringify, ctx.undefined, handle);
-      if (text.error) {
-        return { kind: "thrown", error: text.error };
-      }
-      using quoted = text.value;
-      return { kind: "value", value: JSON.parse(ctx.getString(quoted)) };
-    },
+    fromGuest: (handle): GuestRead => readFrom(checkedWalk, handle),
+    fromSettledGuest: (handle): GuestRead => readFrom(settledWalk, handle),
     parseIntoGuest: (text): VmCallResult<QuickJSHandle> => {
       using handle = ctx.newString(text);
       return ctx.callFunction(parse, ctx.undefined, handle);
@@ -288,8 +545,11 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
       }),
     stopPastWindow,
     readGuestProp: (target, key): QuickJSHandle => {
-      stopPastWindow();
-      return ctx.getProp(target, key);
+      const read = propertyOf(checkedWalk, target, key);
+      if (read.error) {
+        throw new GuestCallFailure(read.error);
+      }
+      return read.value;
     },
     setHostProp: (target, key, value): void => {
       stopPastWindow();

@@ -259,7 +259,13 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       tone="warning"
     >
       <Text cap="prose" voice="promoted">
-        {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length) : reConsentLine(ungranted, plugin.widenedNetHosts)}
+        {firstAsk
+          ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length)
+          : reConsentLine(ungranted, {
+              netHosts: plugin.widenedNetHosts,
+              providerIds: plugin.widenedProviderIds,
+              matchAutomationEvents: plugin.widenedMatchAutomationEvents,
+            })}
       </Text>
       {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
           copy ran edge-to-edge near ~90ch, past the comfortable line length. THE TOKEN, NOT `max-w-(--reading-measure-min)`
@@ -281,11 +287,15 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
         roleScope={{ kind: "plugin", pluginId: plugin.id }}
         addedCapabilities={newCapabilities}
         addedNetHosts={plugin.widenedNetHosts}
+        addedProviderIds={plugin.widenedProviderIds}
         capabilitiesLabel={`What ${plugin.name} asks for`}
         declared={plugin.declaredCapabilities}
         granted={plugin.grantedCapabilities}
+        matchAutomationEvents={plugin.matchAutomationEvents}
+        matchAutomationEventsAdded={plugin.widenedMatchAutomationEvents}
         netHosts={plugin.netHosts ?? []}
         netHostsHeading="Hosts this version can reach"
+        providers={plugin.providers}
       />
       {/* The roll-up line at the decision point (#1855: always the full declared set). */}
       {summary === null ? null : <Text voice="label">{summary}</Text>}
