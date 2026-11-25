@@ -5,7 +5,8 @@
 // their own walk and fixpoint.
 //
 // Memory: Node's peak is its own high-water mark (process.resourceUsage, every platform). A compiler's peak is the
-// kernel's high-water mark for its process, read under /proc on Linux at every sample and before the report; other
+// kernel's high-water mark for its process, read under /proc on Linux at every sample, just before each compiler
+// closes (native.ts COMPILER_ENDING_CHANNEL) and before the report; other
 // platforms leave it unmeasured and never fail. A run's combined peak lies between the largest sampled sum of the live
 // processes' resident memory and the sum of every process's own peak, so the report gives both.
 //
@@ -210,6 +211,12 @@ export class GraphProfile {
   /** Measure a compiler process the run started, from now on. */
   watch(start: CompilerStart): void {
     this.#compilers.push({ start, startedIn: this.phase, peak: null });
+    this.#sample();
+  }
+
+  /** A compiler process is about to close: read every live compiler's memory a last time, since the high-water mark is
+   *  gone at exit and a compiler that starts, serves and closes in one synchronous call is in no timed sample. */
+  beforeClose(): void {
     this.#sample();
   }
 

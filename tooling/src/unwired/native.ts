@@ -69,7 +69,13 @@ export interface CompilerStart {
   readonly config: string;
 }
 
+/** The channel each compiler process is published on again, as a {@link CompilerStart}, just before its API closes it. A
+ *  compiler's kernel high-water mark is gone once it exits, and one can start, serve and close inside a single
+ *  synchronous call that no timed sample falls in, so a sampler reads each compiler's memory a last time here. */
+export const COMPILER_ENDING_CHANNEL = "orbweaver:unwired:compiler-ending";
+
 const compilerStarts = channel(COMPILER_CHANNEL);
+const compilerEndings = channel(COMPILER_ENDING_CHANNEL);
 // What a compiler that parses texts outside any program serves.
 const PARSE_ALONE = "(texts parsed alone)";
 // Node publishes each spawned process here, as `{ process }`, synchronously inside the spawn.
@@ -83,10 +89,30 @@ export function compilerStartOf(message: unknown): CompilerStart | undefined {
     : undefined;
 }
 
+// An API that announces its compiler processes on COMPILER_ENDING_CHANNEL before its dispose closes them; `using` and
+// NativeWorld both close through dispose.
+class MeasuredAPI extends API {
+  readonly #starts: readonly CompilerStart[];
+
+  constructor(options: ConstructorParameters<typeof API>[0], starts: readonly CompilerStart[]) {
+    super(options);
+    this.#starts = starts;
+  }
+
+  override [Symbol.dispose](): void {
+    for (const start of this.#starts) {
+      compilerEndings.publish(start);
+    }
+    super[Symbol.dispose]();
+  }
+}
+
 /** An API whose compiler process is published on {@link COMPILER_CHANNEL}: the constructor spawns it synchronously, so
- *  every process spawned meanwhile is the API's. */
+ *  every process spawned meanwhile is the API's. Dispose it, never `close` it, so the process is also published on
+ *  {@link COMPILER_ENDING_CHANNEL}. */
 export function startAPI(options: ConstructorParameters<typeof API>[0], config: string): API {
   const spawned: ChildProcess[] = [];
+  const starts: CompilerStart[] = [];
   const take = (message: unknown): void => {
     const child = spawnedChild(message);
     if (child !== undefined) {
@@ -95,11 +121,13 @@ export function startAPI(options: ConstructorParameters<typeof API>[0], config: 
   };
   subscribe(CHILD_PROCESS_CHANNEL, take);
   try {
-    return new API(options);
+    return new MeasuredAPI(options, starts);
   } finally {
     unsubscribe(CHILD_PROCESS_CHANNEL, take);
     for (const child of spawned) {
-      compilerStarts.publish({ process: child, config } satisfies CompilerStart);
+      const start = { process: child, config } satisfies CompilerStart;
+      starts.push(start);
+      compilerStarts.publish(start);
     }
   }
 }
@@ -590,7 +618,7 @@ export class NativeWorld implements Disposable {
   }
 
   [Symbol.dispose](): void {
-    this.#api.close();
+    this.#api[Symbol.dispose]();
   }
 
   /** The answers to `requests`, asked of the program of a throwaway snapshot where each absolute file in `files` reads

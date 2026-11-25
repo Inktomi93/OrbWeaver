@@ -17,7 +17,7 @@ import { join } from "node:path";
 import process from "node:process";
 import type { TimingAccumulators } from "@typescript/native/sync";
 import type { CompilerProfile, GraphProfileReport, NativeWorld, ProfileKind } from "../unwired/index.ts";
-import { COMPILER_CHANNEL, compilerStartOf, GraphProfile, readPprof, summarizeNodeHeap } from "../unwired/index.ts";
+import { COMPILER_CHANNEL, COMPILER_ENDING_CHANNEL, compilerStartOf, GraphProfile, readPprof, summarizeNodeHeap } from "../unwired/index.ts";
 
 type WorldStats = NativeWorld["stats"];
 
@@ -70,12 +70,14 @@ export class BrandFlowProfile implements Disposable {
       this.#graph.watch(start);
     }
   };
+  readonly #onEnding = (): void => this.#graph.beforeClose();
 
   private constructor(kinds: readonly ProfileKind[], dir: string, root: string) {
     this.#kinds = new Set(kinds);
     this.#dir = dir;
     this.#root = root;
     subscribe(COMPILER_CHANNEL, this.#onCompiler);
+    subscribe(COMPILER_ENDING_CHANNEL, this.#onEnding);
   }
 
   /** A profile that measures from now on; under `heap`, Node's heap sampling has started when it resolves. */
@@ -134,6 +136,7 @@ export class BrandFlowProfile implements Disposable {
    *  started after this: the optional-pairs graph session measures its own. */
   async finish(counts: ReadonlyMap<string, number>): Promise<GraphProfileReport> {
     unsubscribe(COMPILER_CHANNEL, this.#onCompiler);
+    unsubscribe(COMPILER_ENDING_CHANNEL, this.#onEnding);
     let nodeHeap: GraphProfileReport["nodeHeap"] = null;
     if (this.#inspector !== null) {
       const { profile } = await this.#inspector.post("HeapProfiler.stopSampling");
@@ -153,6 +156,7 @@ export class BrandFlowProfile implements Disposable {
 
   [Symbol.dispose](): void {
     unsubscribe(COMPILER_CHANNEL, this.#onCompiler);
+    unsubscribe(COMPILER_ENDING_CHANNEL, this.#onEnding);
     this.#inspector?.disconnect();
   }
 }

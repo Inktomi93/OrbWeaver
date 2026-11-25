@@ -1,7 +1,7 @@
 // Canonical plugin wire outputs live in contracts; this module owns the remaining domain-only results.
 import { providerIdSchema } from "@orb/contracts/inference";
-import type { PluginBundleHash, PluginManifest, PluginReachWidening } from "@orb/contracts/plugin";
-import { PLUGIN_CAPABILITIES, pluginBundleHashSchema, pluginManifestSchema, pluginNetHostSchema } from "@orb/contracts/plugin";
+import type { PluginBundleHash, PluginManifest, PluginProviderView, PluginReachWidening } from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, pluginBundleHashSchema, pluginManifestSchema, pluginNetHostSchema, pluginProviderViewSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { SNIFFED_IMAGE_MIMES } from "@orb/kit/image-sniff";
@@ -106,14 +106,29 @@ export type PluginStoredUpgradeIdentity =
   | { readonly source: "url"; readonly bundleHash: PluginBundleHash }
   | { readonly source: "git"; readonly sourceCommit: string };
 
+/** The reach an earlier update left unanswered that the next version still declares, so applying it leaves the
+ *  plugin off until the owner answers. Hosts, providers and the automation opt-in only: the capability half is
+ *  already in `widening.capabilities`, which is judged against the grant. */
+type PluginStandingRefusal = Omit<PluginReachWidening, "capabilities">;
+
+const pluginStandingRefusalSchema = z.strictObject({
+  netHosts: z.array(pluginNetHostSchema).readonly(),
+  providerIds: z.array(providerIdSchema).readonly(),
+  matchAutomationEvents: z.boolean(),
+}) satisfies z.ZodType<PluginStandingRefusal>;
+
 /** What applying the stored source's current version would change. `widening` is the consent question; the
- *  version and the browser script are display facts beside it, and neither widens reach. */
+ *  version and the browser script are display facts beside it, and neither widens reach. `standing` is the
+ *  refusal the owner has not answered yet, and `providers` names the next version's providers as the consent
+ *  card does, so a review reads a label where the wire carries an id. */
 export interface PluginStoredUpgradePreview {
   readonly pluginId: PluginId;
   readonly fromVersion: string;
   readonly toVersion: string;
   readonly shipsUiScript: { readonly before: boolean; readonly after: boolean };
   readonly widening: PluginReachWidening;
+  readonly standing: PluginStandingRefusal;
+  readonly providers: readonly PluginProviderView[];
   readonly identity: PluginStoredUpgradeIdentity;
 }
 
@@ -123,6 +138,8 @@ export const pluginStoredUpgradePreviewSchema = z.strictObject({
   toVersion: z.string(),
   shipsUiScript: z.strictObject({ before: z.boolean(), after: z.boolean() }),
   widening: pluginReachWideningSchema,
+  standing: pluginStandingRefusalSchema,
+  providers: z.array(pluginProviderViewSchema).readonly(),
   identity: z.discriminatedUnion("source", [
     z.strictObject({ source: z.literal("url"), bundleHash: pluginBundleHashSchema }),
     z.strictObject({ source: z.literal("git"), sourceCommit: z.string() }),

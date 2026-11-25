@@ -1,4 +1,4 @@
-import { appearanceEffectsSection, appearanceSizingSection } from "@orb/client/features/app-shell";
+import { appearanceAccessibilitySection, appearanceSizingSection } from "@orb/client/features/app-shell";
 import { CtClientProviders } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 
@@ -9,7 +9,7 @@ export function SizingSectionStory(): ReactElement {
   return <CtClientProviders>{appearanceSizingSection.body(ANCHOR_ID)}</CtClientProviders>;
 }
 
-/** The production Effects settings section, mounted over the CT runtime. */
-export function EffectsSectionStory(): ReactElement {
-  return <CtClientProviders>{appearanceEffectsSection.body(ANCHOR_ID)}</CtClientProviders>;
+/** The production Accessibility settings section, mounted over the CT runtime. */
+export function AccessibilitySectionStory(): ReactElement {
+  return <CtClientProviders>{appearanceAccessibilitySection.body(ANCHOR_ID)}</CtClientProviders>;
 }

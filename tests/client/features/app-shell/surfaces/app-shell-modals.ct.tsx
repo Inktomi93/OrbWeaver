@@ -788,8 +788,9 @@ for (const density of ["comfortable", "compact"] as const) {
   });
 }
 
-test("a custom theme's own density wins over the viewer's appearance density, in the shell and its portal alike", async ({ corpus, mount, page }) => {
-  const { root } = await themedRoot({ density: "compact" }, { density: "comfortable" });
+// A theme carries no density: the viewer's appearance density is its one home, so a selected custom theme leaves it in charge.
+test("a selected custom theme leaves the viewer's appearance density in charge, in the shell and its portal alike", async ({ corpus, mount, page }) => {
+  const { root } = await themedRoot(CUSTOM_DARK, { density: "compact" });
   await using _root = root;
   await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SERVED);
   await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
