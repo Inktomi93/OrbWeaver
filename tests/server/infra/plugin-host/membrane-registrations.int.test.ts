@@ -2,6 +2,7 @@
 // tool's model-facing description and parameters stay under their caps, and a handler that is not a function is
 // refused at the door rather than stored for a later failed call. Each refusal has its control at the cap. The counts
 // belong to the plugin instance, so a guest that asks `orb.host` for a second surface meets what the first one spent.
+// An activation that throws at an ungranted door errors, and its last error names the capability it was refused.
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { CHAT_TRIGGER_TYPES } from "@orb/contracts/automation";
@@ -12,6 +13,7 @@ import {
   PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
+  PluginCapabilityError,
   pluginManifestSchema,
 } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
@@ -35,11 +37,12 @@ const REGISTERED = "registered";
 const REFUSED = Error.name;
 const WARN = "warn";
 
-/** An activated guest: its owner, its id, the status the enable left it in, and its log. */
+/** An activated guest: its owner, its id, the status and last error the enable left it with, and its log. */
 interface ActivatedGuest {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly status: PluginStatus;
+  readonly lastError: string | null;
   readonly log: readonly string[];
 }
 
@@ -62,6 +65,7 @@ async function activate(root: ServerTestHarness, slug: string, capabilities: rea
     caller,
     pluginId: installed.id,
     status: enabled.status,
+    lastError: enabled.lastError,
     log: lines.map(({ level, message }) => (level === WARN ? WARN : message)),
   };
 }
@@ -196,4 +200,25 @@ again.pubsub.on(${JSON.stringify(slug)}, "past", () => null);`,
   const surfaces = (await root.services.plugin.listSurfaces({ caller: guest.caller })).filter(({ pluginId }) => pluginId === guest.pluginId);
   expect(commands).toHaveLength(PLUGIN_COMMANDS_MAX);
   expect(surfaces).toHaveLength(PLUGIN_SURFACES_MAX);
+});
+
+test("an activation that throws at an ungranted door errors with the refused capability as its last error", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const frameCapability = HOST_FUNCTION_CAPABILITY["ui.registerFrame"];
+  const refused = await activate(
+    root,
+    "ungranted-frame",
+    [HOST_FUNCTION_CAPABILITY["ui.register"]],
+    `h.ui.registerFrame({ id: "frame", anchor: "page", title: "Frame", html: "<p>frame</p>" });`,
+  );
+  expect(refused.status).toBe("errored");
+  expect(refused.lastError).toContain(new PluginCapabilityError(frameCapability).message);
+
+  const granted = await activate(
+    root,
+    "granted-frame",
+    [HOST_FUNCTION_CAPABILITY["ui.register"], frameCapability],
+    `h.ui.registerFrame({ id: "frame", anchor: "page", title: "Frame", html: "<p>frame</p>" });`,
+  );
+  expect(granted).toMatchObject({ status: "enabled", lastError: null });
 });

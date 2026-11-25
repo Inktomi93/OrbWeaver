@@ -146,9 +146,14 @@ function hostText(text: string): string {
 
 /** What the realm-side classifier answers for an object handle. */
 const OBJECT_KIND = { null: 0, array: 1, record: 2, error: 3 } as const;
-// Evaluated before any guest code runs, with `Array.isArray` and `Error.isError` bound then, so a guest that replaces
-// either later is not asked. Both are brand checks: they read no property and run no proxy trap.
-const CLASSIFY_OBJECT_SOURCE = `((isArray, isError) => (value) => (value === null ? ${OBJECT_KIND.null} : isArray(value) ? ${OBJECT_KIND.array} : isError(value) ? ${OBJECT_KIND.error} : ${OBJECT_KIND.record}))(Array.isArray, Error.isError)`;
+// Evaluated before any guest code runs, with every builtin it calls bound then, so a guest that replaces one later is
+// not asked. Each check is a brand check: it reads no property and runs no proxy trap. A host-built error (see
+// `newHostError`) is an object on `Error.prototype`, which `Error.isError` refuses, so it carries its own brand: a
+// `WeakSet` only the classifier and the second function, which adds to it, can reach.
+const CLASSIFY_OBJECT_SOURCE = `((isArray, isError, apply, has, add, hostErrors) => [
+  (value) => (value === null ? ${OBJECT_KIND.null} : isArray(value) ? ${OBJECT_KIND.array} : isError(value) || apply(has, hostErrors, [value]) ? ${OBJECT_KIND.error} : ${OBJECT_KIND.record}),
+  (value) => { apply(add, hostErrors, [value]); },
+])(Array.isArray, Error.isError, Reflect.apply, WeakSet.prototype.has, WeakSet.prototype.add, new WeakSet())`;
 /** The fields the binding's `dump` adds for an error at the root of a read, which the walk reads the same way:
  *  `message` and `stack` are own non-enumerable and `name` is inherited, so own enumerable keys alone would drop them. */
 const ROOT_ERROR_FIELDS = ["name", "message", "stack"] as const;
@@ -417,7 +422,9 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const errorPrototype = captured.adopt(ctx.getProp(errorConstructor, "prototype"), (handle) => handle.dispose());
   // A host-owned step that never returns on its own. No window is open yet, so evaluating it cannot be interrupted.
   const endless = captured.adopt(ctx.unwrapResult(ctx.evalCode("(() => { for (;;) {} })")), (handle) => handle.dispose());
-  const classify = captured.adopt(ctx.unwrapResult(ctx.evalCode(CLASSIFY_OBJECT_SOURCE)), (handle) => handle.dispose());
+  using classifiers = ctx.unwrapResult(ctx.evalCode(CLASSIFY_OBJECT_SOURCE));
+  const classify = captured.adopt(ctx.getProp(classifiers, 0), (handle) => handle.dispose());
+  const brandHostError = captured.adopt(ctx.getProp(classifiers, 1), (handle) => handle.dispose());
   const getProperty = captured.adopt(ctx.unwrapResult(ctx.evalCode("((target, key) => target[key])")), (handle) => handle.dispose());
   const owned = captured.move();
 
@@ -447,6 +454,8 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     for (const [key, text] of Object.entries(fields)) {
       defineText(handle, key, text);
     }
+    // The brand lets the walk read `name` and `message` when this error crosses back, as it reads a real error's.
+    ctx.unwrapResult(ctx.callFunction(brandHostError, ctx.undefined, handle)).dispose();
     built.move();
     return handle;
   };
