@@ -121,6 +121,7 @@ import {
   NO_IMAGE_MODEL_NOTE,
   PLUGIN_ADDED_MARK,
   PLUGIN_AUTOMATION_EVENTS_LINE,
+  PLUGIN_PROVIDER_WIDENED_MARK,
   PLUGIN_PROVIDERS_CONSEQUENCE,
   PLUGIN_PROVIDERS_HEADING,
   SPEND_ROLE_TASKS,
@@ -411,7 +412,8 @@ export function PluginGrantList({
       ) : null}
 
       {/* Providers and the automation opt-in are reach the manifest sets with no capability name, the same
-          shape as `netHosts`, so they render whenever declared and carry the server's "New" mark verbatim. */}
+          shape as `netHosts`, so they render whenever declared and carry the server's widening mark verbatim. A
+          provider's mark also covers a redefined id, which the recorded delta does not tell from an added one. */}
       {providers.length > 0 ? (
         <Stack gap="field">
           <Stack gap="tight">
@@ -428,7 +430,7 @@ export function PluginGrantList({
                 </Text>
                 {addedProviderSet.has(provider.id) ? (
                   <Badge whitespace="normal" cap="fit" tone="info" size="sm">
-                    {PLUGIN_ADDED_MARK}
+                    {PLUGIN_PROVIDER_WIDENED_MARK}
                   </Badge>
                 ) : null}
               </Row>

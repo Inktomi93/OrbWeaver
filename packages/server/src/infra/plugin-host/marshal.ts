@@ -51,7 +51,8 @@
 // A STRING PAST ITS ALLOWANCE IS REFUSED UNREAD. Reading a string copies it several times over: the realm's JSON
 // text, the host string, its parse. A value refused for its size after that read has already cost those copies, and
 // Workers looping such calls can carry the broker past its memory ceiling. A read given a `ReadAllowance` measures
-// each string's length first, which copies nothing.
+// each string's length first, which copies nothing. A caller that keeps only a prefix, the log, cuts the string with
+// the realm's own `slice` first, so the rest is never copied either.
 // No other module reads or writes a guest string.
 
 import type { QuickJSContext, QuickJSHandle, VmCallResult, VmFunctionImplementation } from "quickjs-emscripten-core";
@@ -103,6 +104,9 @@ export interface GuestMarshal extends Disposable {
    *  `toJSON` is not called. Call it inside a host function: the walk runs guest getters and proxy traps. With an
    *  `allowance`, every string is measured against it before it is read. */
   readonly fromGuest: (handle: QuickJSHandle, allowance?: ReadAllowance) => GuestRead;
+  /** {@link GuestMarshal.fromGuest} for a value whose text the caller keeps only the first `units` UTF-16 units of. A
+   *  longer string is cut inside the realm first, so the rest is never copied out. */
+  readonly fromGuestPrefix: (handle: QuickJSHandle, units: number) => GuestRead;
   /** {@link GuestMarshal.fromGuest} for a value a guest invocation settled to, read inside that invocation's span and
    *  outside any host function. The engine's interrupt bounds the guest code the read runs there, so the read asks no
    *  window first: a past-window invocation's own error still reads. */
@@ -464,6 +468,11 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const classify = captured.adopt(ctx.getProp(classifiers, 0), (handle) => handle.dispose());
   const brandHostError = captured.adopt(ctx.getProp(classifiers, 1), (handle) => handle.dispose());
   const getProperty = captured.adopt(ctx.unwrapResult(ctx.evalCode("((target, key) => target[key])")), (handle) => handle.dispose());
+  // The realm's own `slice`, bound before any guest code runs, so a guest that replaces it later is not asked.
+  const prefixOf = captured.adopt(
+    ctx.unwrapResult(ctx.evalCode("((apply, slice) => (text, end) => apply(slice, text, [0, end]))(Reflect.apply, String.prototype.slice)")),
+    (handle) => handle.dispose(),
+  );
   const owned = captured.move();
 
   // `defineProp`, never `setProp`: a guest can put a setter for any key on a prototype, and `setProp` would run it.
@@ -553,6 +562,26 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
 
   return {
     fromGuest: (handle, allowance): GuestRead => readFrom(allowance === undefined ? checkedWalk : { ...checkedWalk, allowance }, handle),
+    fromGuestPrefix: (handle, units): GuestRead => {
+      if (ctx.typeof(handle) !== "string") {
+        return readFrom(checkedWalk, handle);
+      }
+      const length = propertyOf(checkedWalk, handle, "length");
+      if (length.error) {
+        return { kind: "thrown", error: length.error };
+      }
+      if (length.value.consume((read) => ctx.getNumber(read)) <= units) {
+        return readFrom(checkedWalk, handle);
+      }
+      stopPastWindow();
+      using end = ctx.newNumber(units);
+      const cut = ctx.callFunction(prefixOf, ctx.undefined, handle, end);
+      if (cut.error) {
+        return { kind: "thrown", error: cut.error };
+      }
+      using text = cut.value;
+      return readFrom(checkedWalk, text);
+    },
     fromSettledGuest: (handle): GuestRead => readFrom(settledWalk, handle),
     parseIntoGuest: (text): VmCallResult<QuickJSHandle> => {
       using handle = ctx.newString(text);

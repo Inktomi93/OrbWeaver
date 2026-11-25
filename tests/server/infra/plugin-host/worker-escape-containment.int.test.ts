@@ -234,12 +234,11 @@ test("a guest Worker grown past its heap ceiling ends alone, and the same broker
   expect(broker.reports).toEqual([]);
 
   // Positive control: the broker that ran it is still serving, and the ceiling holds the largest transient an honest
-  // guest makes the host build, a whole-string read it serves. A host call refuses a value this long unread.
+  // guest makes the host build, the whole read of its settled result. A host call refuses an argument this long unread.
   const code = `const h = orb.host(1);
-    h.log.info("counted " + typeof h.tokens.count("x".repeat(${String(LARGEST_DUMP_CHARS)})));
-    h.variables.get("held").then((value) => h.log.info("served " + value));`;
+    h.variables.get("held").then((value) => { h.log.info("served " + value); return "x".repeat(${String(LARGEST_DUMP_CHARS)}); });`;
   const served = await broker.snippet(ids.uuid(), code, Promise.resolve());
-  expect(served).toMatchObject({ ok: true, value: { logLines: ["[info] counted number", "[info] served after the probe"] } });
+  expect(served).toMatchObject({ ok: true, value: { logLines: ["[info] served after the probe"] } });
   expect(broker.alive()).toBe(true);
 });
 

@@ -20,8 +20,9 @@ import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
+import { HOST_FN_ARGS_MAX_BYTES } from "./budgets.ts";
 import { withoutCpuCharge } from "./cpu-guard.ts";
-import type { GuestMarshal } from "./marshal.ts";
+import type { GuestMarshal, GuestRead } from "./marshal.ts";
 import { GuestCallFailure } from "./marshal.ts";
 import type { MembraneRuntime } from "./membrane.ts";
 import { attachMembrane } from "./membrane.ts";
@@ -73,8 +74,13 @@ export class LogRing {
     this.mirror = mirror;
   }
 
+  /** How much of a message the next push can keep, in UTF-16 units: none once the ring is full. */
+  room(): number {
+    return this.lines.length >= PLUGIN_LOG_LINES_MAX ? 0 : Math.max(0, PLUGIN_LOG_CHARS_MAX - this.bytes);
+  }
+
   push(level: PluginLogLevel, message: string): void {
-    if (this.lines.length >= PLUGIN_LOG_LINES_MAX || this.bytes >= PLUGIN_LOG_CHARS_MAX) {
+    if (this.room() === 0) {
       return;
     }
     const line = `[${level}] ${message}`;
@@ -133,28 +139,30 @@ export interface RealmHost {
   readonly marshal: GuestMarshal;
 }
 
-// The text a log line or a token count takes from a guest value. The contract takes a string, which reads whole
-// through the marshal; another primitive reads as its own text, which runs no guest code. An object or a function
-// reads as its kind alone: its text would come from its `toString` or its getters, guest code a host read must not
-// run (D346), and dumping it here would have no depth guard. `null` reads as an object too: this engine build offers
-// no equality check to tell it apart without a read.
-function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHandle): string {
+// The text a log line or a token count takes from a guest value, read by `read`, or `undefined` for a string past
+// the read's bound. The contract takes a string, which reads through the marshal under that bound; another primitive
+// reads as its own text, which runs no guest code. An object or a function reads as its kind alone: its text would
+// come from its `toString` or its getters, guest code a host read must not run (D346), and dumping it here would
+// have no depth guard. `null` reads as an object too: this engine build offers no equality check to tell it apart
+// without a read.
+function logText(ctx: QuickJSContext, handle: QuickJSHandle, read: (primitive: QuickJSHandle) => GuestRead): string | undefined {
   const type = ctx.typeof(handle);
   if (type === "function" || type === "object") {
     return `[${type}]`;
   }
-  const read = marshal.fromGuest(handle);
-  switch (read.kind) {
+  const text = read(handle);
+  switch (text.kind) {
     case "value":
-      return typeof read.value === "string" ? read.value : String(read.value);
+      return typeof text.value === "string" ? text.value : String(text.value);
     case "thrown":
-      throw new GuestCallFailure(read.error);
-    // Only a primitive reaches this read, and a primitive is never a promise or a walked object.
+      throw new GuestCallFailure(text.error);
+    // Only a primitive reaches this read, and a primitive is never a promise or a walked object: an unreadable one is
+    // a string past the bound.
     case "promise":
     case "unreadable":
-      return "";
+      return undefined;
     default: {
-      const exhaustive: never = read;
+      const exhaustive: never = text;
       throw new Error(`plugin realm: unknown guest read ${JSON.stringify(exhaustive)}`);
     }
   }
@@ -197,7 +205,8 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   using logObj = ctx.newObject();
   for (const level of LOG_LEVELS) {
     using fn = marshal.newHostFunction(level, (msgHandle?: QuickJSHandle) => {
-      log.push(level, msgHandle === undefined ? "" : logText(ctx, marshal, msgHandle));
+      // The ring keeps at most its room of the message, so the read takes no more than that out of the realm.
+      log.push(level, msgHandle === undefined ? "" : (logText(ctx, msgHandle, (text) => marshal.fromGuestPrefix(text, log.room())) ?? ""));
     });
     marshal.setHostProp(logObj, level, fn);
   }
@@ -206,11 +215,19 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   // tokens.count(text) — a FREE (always-granted) namespace: the pure, isomorphic `estimateTokens` engine
   // computed host-side. Zero reach — a deterministic function of the guest's OWN string — so it needs
   // no capability and sits beside `log` in the determinism/utility floor. A non-string arg is estimated as the
-  // empty string (0), the fail-safe projection the rest of this realm uses rather than a throw.
+  // empty string (0), the fail-safe projection the rest of this realm uses rather than a throw. The estimate needs the
+  // whole text, so a text past the inbound cap every host call has is refused before it is read.
   using tokens = ctx.newObject();
-  using countFn = marshal.newHostFunction("count", (textHandle?: QuickJSHandle) =>
-    ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : logText(ctx, marshal, textHandle))),
-  );
+  using countFn = marshal.newHostFunction("count", (textHandle?: QuickJSHandle) => {
+    if (textHandle === undefined || ctx.typeof(textHandle) !== "string") {
+      return ctx.newNumber(0);
+    }
+    const text = logText(ctx, textHandle, (primitive) => marshal.fromGuest(primitive, { units: HOST_FN_ARGS_MAX_BYTES }));
+    if (text === undefined) {
+      throw new Error(`plugin host: tokens.count text exceeds the ${String(HOST_FN_ARGS_MAX_BYTES)}-byte inbound cap`);
+    }
+    return ctx.newNumber(estimateTokens(text));
+  });
   marshal.setHostProp(tokens, "count", countFn);
   marshal.setHostProp(surface, "tokens", tokens);
 

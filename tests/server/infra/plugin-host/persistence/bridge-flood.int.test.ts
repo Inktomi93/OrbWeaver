@@ -3,6 +3,7 @@
 // the watchdog or the parent's channel; each plugin runtime has its own share of every queue, so one owner's flood
 // leaves another owner's plugin served and unstruck. The strike count is read from the plugin's row, which no door shows.
 import { readFileSync } from "node:fs";
+import process from "node:process";
 import type { PluginStatus } from "@orb/contracts/plugin";
 import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -15,7 +16,7 @@ import { capturePluginRows } from "@orb/testkit/node/rows";
 import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, PLUGIN_BROKER_LIVENESS_BOUND_MS, PLUGIN_NET_MAX_BYTES } from "#server/infra/plugin-host/budgets.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import { PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
-import { createPluginProcessEdge, firstChild } from "../process-runtime.fixtures.ts";
+import { brokerOf, createPluginProcessEdge, firstChild } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
 const BROKER_STOPPED = "stopped" satisfies NonNullable<ReturnType<typeof parsePluginIpcMessage>>["kind"];
@@ -107,24 +108,27 @@ async function ownersOnOneBroker(arrived = true): Promise<Owners> {
   };
 }
 
-// The broker is the watchdog's one child process, and no production surface names its pid, so this reads it from the
-// watchdog's Linux process entry.
 function brokerPid(edge: Owners["edge"]): number {
   const watchdog = firstChild(edge).pid;
-  const children = readFileSync(`/proc/${String(watchdog)}/task/${String(watchdog)}/children`, "utf8")
-    .trim()
-    .split(" ");
-  expect(children).toHaveLength(1);
-  return Number(children[0]);
+  if (watchdog === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+  return brokerOf(watchdog);
 }
 
-// The broker's peak resident memory, from its Linux process entry, as `brokerPid` reads its pid.
-function brokerPeakResidentBytes(broker: number): number {
+// The broker's peak resident memory stays under its ceiling. The watchdog reads the broker's memory once a beat, so a
+// peak between two beats is read from the kernel: only Linux keeps a process's peak, in its process entry, and the
+// process table the other platforms read names no memory. There the broker kept for the whole flood is the evidence,
+// because the watchdog ends a broker it reads past its ceiling.
+function expectPeakUnderCeiling(broker: number, ceilingBytes: number): void {
+  if (process.platform !== "linux") {
+    return;
+  }
   const kibibytes = /^VmHWM:\s+(\d+) kB$/mu.exec(readFileSync(`/proc/${String(broker)}/status`, "utf8"))?.[1];
   if (kibibytes === undefined) {
     throw new Error("the broker's process entry names its peak resident memory");
   }
-  return Number(kibibytes) * BYTES_PER_KIBIBYTE;
+  expect(Number(kibibytes) * BYTES_PER_KIBIBYTE).toBeLessThanOrEqual(ceilingBytes);
 }
 
 async function floodingPlugins(root: NativeServerTestHarness, count: number): Promise<readonly GuestRun[]> {
@@ -322,8 +326,7 @@ test("one owner's plugins looping refused megabyte values on every Worker keep t
   expect(Math.max(...sharedRounds)).toBeGreaterThan(1);
   expect(answers.length).toBeGreaterThan(0);
   expect(answers.filter((answer) => JSON.stringify(answer) !== JSON.stringify({ ok: true, value: null }))).toEqual([]);
-  // The watchdog reads the broker's memory once a beat, so a peak between two beats is read from the kernel instead.
-  expect(brokerPeakResidentBytes(broker)).toBeLessThanOrEqual(owners.root.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES);
+  expectPeakUnderCeiling(broker, owners.root.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES);
 });
 
 // A quarter of the allowance of megabyte values: enough to refuse by the host's size cap, few enough that the guest

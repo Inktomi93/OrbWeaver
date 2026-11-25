@@ -26,7 +26,7 @@ import {
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
 import { z } from "zod";
-import { PLUGIN_MEMORY_LIMIT_BYTES } from "#server/infra/plugin-host/budgets.ts";
+import { HOST_FN_ARGS_MAX_BYTES } from "#server/infra/plugin-host/budgets.ts";
 
 const NUL = "\0";
 const WITH_NUL = `head${NUL}tail`;
@@ -60,15 +60,21 @@ test("a host string with a NUL, a quiet generation's reply, reaches the guest wh
   expect(await guestRunner({ root, caller: owner, pluginId, chatId: null })("quiet")).toEqual({ ok: true, value: WITH_NUL });
 });
 
-// Fits the guest's heap as one byte per NUL, and cannot be escaped within it at six bytes per NUL.
-const UNESCAPABLE_NULS = Math.floor(PLUGIN_MEMORY_LIMIT_BYTES / 5);
-// The same string meets the realm's own memory failure twice: in a host call's read of its argument, and in the guest's
-// own JSON. The snippet reports the name each failure reached it with, as JSON text.
+// Within the inbound cap, so `tokens.count` reads it whole; its JSON escapes each NUL to six bytes.
+const CAPPED_NULS = HOST_FN_ARGS_MAX_BYTES / 2;
+// Far smaller than that escaped copy, so a heap filled to its limit in these steps has no room for it.
+const BALLAST_STEP_CHARS = 65_536;
+// The guest fills its heap until an allocation fails, so the same string then meets the realm's own memory failure
+// twice: in a host call's read of its argument, and in the guest's own JSON. The snippet frees the ballast and reports
+// the name each failure reached it with, as JSON text.
 const READ_FAILS = `const h = orb.host(1);
-const s = "\\0".repeat(${String(UNESCAPABLE_NULS)});
+const s = "\\0".repeat(${String(CAPPED_NULS)});
+let ballast = [];
+try { for (;;) ballast.push("x".repeat(${String(BALLAST_STEP_CHARS)}) + ballast.length); } catch {}
 const seen = [];
-try { h.log.info(s); seen.push("read"); } catch (e) { seen.push(e.name); }
+try { h.tokens.count(s); seen.push("read"); } catch (e) { seen.push(e.name); }
 try { JSON.stringify(s); seen.push("read"); } catch (e) { seen.push(e.name); }
+ballast = null;
 h.log.info(JSON.stringify(seen));`;
 
 test("a host call whose read of the guest's argument fails hands the guest the realm's own failure, not a host error", { tags: ["slow"] }, async () => {

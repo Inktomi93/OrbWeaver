@@ -12,6 +12,7 @@ import {
   HostVersionError,
   PLUGIN_HOST_VERSIONS,
   PLUGIN_KV_VALUE_MAX_BYTES,
+  PLUGIN_LOG_CHARS_MAX,
   PluginCapabilityError,
   PluginHostDeadlineError,
 } from "@orb/contracts/plugin";
@@ -25,6 +26,7 @@ import {
   HOST_FN_RESULT_CAP_BYTES,
   PLUGIN_DUMP_DEPTH_GUARD,
   PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_MEMORY_LIMIT_BYTES,
   PLUGIN_RESIDENT_LIMITS,
   PLUGIN_SNIPPET_LIMITS,
   SNIPPET_WALL_MS,
@@ -225,6 +227,62 @@ test.for([
     expect(await run(op, { length: atCap })).toEqual({ ok: true, value: ["stored", true] });
   },
 );
+
+// A string longer than half the guest's memory: a host read that copies it whole runs the realm's JSON over it, and
+// the second copy cannot fit, so the guest meets the realm's own memory failure. A door that measures first refuses or
+// clamps it without that copy.
+const PAST_HALF_GUEST_MEMORY = Math.ceil((PLUGIN_MEMORY_LIMIT_BYTES * 3) / 5);
+const OUTCOME = "try { CALL; return 'returned'; } catch (e) { return e.name; }";
+// `tokens` is a free namespace; every registrar takes its own capability. The log is its own case below, because the
+// runner reads a command's outcome from the log the case fills.
+const SYNC_DOORS = [
+  { door: "tokens.count", call: "h.tokens.count(s)", outcome: Error.name, capability: null },
+  { door: "ui.register", call: "h.ui.register({ id: s })", outcome: "returned", capability: HOST_FUNCTION_CAPABILITY["ui.register"] },
+  { door: "ui.registerFrame", call: "h.ui.registerFrame({ id: s })", outcome: "returned", capability: HOST_FUNCTION_CAPABILITY["ui.registerFrame"] },
+  { door: "ui.registerCommand", call: "h.ui.registerCommand({ name: s })", outcome: "returned", capability: HOST_FUNCTION_CAPABILITY["ui.registerCommand"] },
+  { door: "tools.register", call: "h.tools.register({ name: s })", outcome: Error.name, capability: HOST_FUNCTION_CAPABILITY["tools.register"] },
+  { door: "transforms.register", call: "h.transforms.register({ name: s })", outcome: Error.name, capability: HOST_FUNCTION_CAPABILITY["transforms.register"] },
+  {
+    door: "transforms.registerDisplay",
+    call: "h.transforms.registerDisplay({ name: s })",
+    outcome: Error.name,
+    capability: HOST_FUNCTION_CAPABILITY["transforms.registerDisplay"],
+  },
+  { door: "macros.register", call: "h.macros.register({ name: s })", outcome: Error.name, capability: HOST_FUNCTION_CAPABILITY["macros.register"] },
+  { door: "events.on", call: "h.events.on(s, () => undefined)", outcome: Error.name, capability: HOST_FUNCTION_CAPABILITY["events.on"] },
+  { door: "pubsub.on", call: "h.pubsub.on(s, 'n', () => undefined)", outcome: "returned", capability: HOST_FUNCTION_CAPABILITY["pubsub.on"] },
+] as const;
+const SYNC_DOOR_OPS = Object.fromEntries(
+  SYNC_DOORS.map(({ door, call }) => [door, `(h, room, a) => { const s = 'x'.repeat(a.length); ${OUTCOME.replace("CALL", call)} }`]),
+) satisfies GuestOps;
+const SYNC_DOOR_CAPABILITIES = [...new Set(SYNC_DOORS.flatMap(({ capability }) => (capability === null ? [] : [capability])))];
+
+test.for(SYNC_DOORS)(
+  "$door refuses or clamps a string longer than half the guest's memory without copying it whole",
+  { tags: ["slow"] },
+  async ({ door, outcome }) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const pluginId = await installGuest(root, owner, { slug: "sync-doors", capabilities: SYNC_DOOR_CAPABILITIES }, SYNC_DOOR_OPS);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    expect(await run(door, { length: PAST_HALF_GUEST_MEMORY })).toEqual({ ok: true, value: outcome });
+  },
+);
+
+test("a log line longer than half the guest's memory keeps its first part without the host copying it whole", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+
+  const logged = await caller.plugin.runSnippet({ chatId: room.id, code: `orb.host(1).log.info("x".repeat(${String(PAST_HALF_GUEST_MEMORY)}));` });
+  expect(logged.error).toBeUndefined();
+  const [line, ...rest] = logged.logLines;
+  expect(rest).toEqual([]);
+  // The line is the message's first part, cut to what the ring keeps.
+  expect(line).toMatch(/^\[info\] x+$/u);
+  expect(line?.length).toBe(PLUGIN_LOG_CHARS_MAX);
+});
 
 test.for(["nestedKey", "nestedValue"] as const)(
   "an argument whose %s is past the inbound cap is refused before any later argument is read",

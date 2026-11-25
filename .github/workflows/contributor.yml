@@ -94,6 +94,10 @@ jobs:
       - name: Bound and share the broker's queues
         if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/infra/plugin-host/broker-bounds.test.ts tests/server/infra/plugin-host/broker-share-release.int.test.ts
+      # The case reads the broker's peak memory on Linux only; here it holds the kept broker and the second owner's answers.
+      - name: Keep the broker through one owner's flood of oversized arguments, and answer an arriving owner
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
+        run: pnpm test tests/server/infra/plugin-host/persistence/bridge-flood.int.test.ts -t "an arriving owner's plugin answers"
   contributor:
     needs: [head]
     name: contributor (${{ matrix.os }})

@@ -301,6 +301,9 @@ export const HOSTS_COLLAPSE_AT = 5;
 
 /** The mark on a consent row this update added. */
 export const PLUGIN_ADDED_MARK = "New";
+/** The mark on a provider row the update widened: an id it adds, or one it redefines. The recorded delta does not
+ *  say which, because the prior manifest is gone once the update lands. */
+export const PLUGIN_PROVIDER_WIDENED_MARK = "New or changed";
 /** The heading over the model providers a plugin adds to the owner's connection choices while it runs. */
 export const PLUGIN_PROVIDERS_HEADING = "Model providers it adds";
 /** What adding a provider means: a connection made on it sends that connection's prompts and key where it says. */
@@ -371,8 +374,8 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
   return `${pluginName} needs your OK for ${askedCount === 1 ? "1 permission" : `${askedCount} permissions`} before it can run.`;
 }
 
-/** The re-consent sentence's clause for one added provider, and for the automation opt-in it turns on. */
-export const RE_CONSENT_ONE_PROVIDER = "a new model provider";
+/** The re-consent sentence's clause for one added or redefined provider, and for the automation opt-in it turns on. */
+export const RE_CONSENT_ONE_PROVIDER = "a new or changed model provider";
 export const RE_CONSENT_AUTOMATION_EVENTS = "events from automations";
 
 /**
@@ -398,7 +401,9 @@ export function reConsentLine(
   const permissions = addedCapabilities.length === 1 ? "a permission you hadn't allowed" : `${addedCapabilities.length} permissions you hadn't allowed`;
   const additions = [
     ...(added.netHosts.length === 0 ? [] : [added.netHosts.length === 1 ? "a new host it can reach" : `${added.netHosts.length} new hosts it can reach`]),
-    ...(added.providerIds.length === 0 ? [] : [added.providerIds.length === 1 ? RE_CONSENT_ONE_PROVIDER : `${added.providerIds.length} new model providers`]),
+    ...(added.providerIds.length === 0
+      ? []
+      : [added.providerIds.length === 1 ? RE_CONSENT_ONE_PROVIDER : `${added.providerIds.length} new or changed model providers`]),
     ...(added.matchAutomationEvents ? [RE_CONSENT_AUTOMATION_EVENTS] : []),
   ];
   const clauses = [...(addedCapabilities.length > 0 ? [`asks for ${permissions}`] : []), ...(additions.length > 0 ? [`adds ${joinedWithAnd(additions)}`] : [])];
@@ -487,7 +492,7 @@ export function storedUpdateChangeLines({ widening, standing, providers, shipsUi
     lines.push(`Can reach new hosts: ${widening.netHosts.join(", ")}.`);
   }
   if (widening.providerIds.length > 0) {
-    lines.push(`Adds model connections: ${providerLabels(providers, widening.providerIds).join(", ")}.`);
+    lines.push(`Adds or changes model connections: ${providerLabels(providers, widening.providerIds).join(", ")}.`);
   }
   if (widening.matchAutomationEvents) {
     lines.push("Also hears events that automations and other plugins cause.");

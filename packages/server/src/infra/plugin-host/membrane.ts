@@ -353,6 +353,12 @@ type ArgRead = { readonly ok: true; readonly value: unknown } | { readonly ok: f
 
 /** Why an argument the depth guard or the read refused crosses no further. */
 const UNREADABLE_ARGUMENT = "too deeply nested or too large to read";
+
+/** What one synchronous host call may copy out of the realm: the inbound cap every async call has too, so a
+ *  registration past it is refused before it is read (`marshal.ts`). Every registration schema admits far less. */
+function inboundAllowance(): ReadAllowance {
+  return { units: HOST_FN_ARGS_MAX_BYTES };
+}
 const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
 
 /** The ONE guest-handle materialization doorway for a host function's argument or definition value. The read is the
@@ -362,7 +368,7 @@ const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
  *  Call it only inside a host function built by `marshal.newHostFunction`: a realm failure during the read (the
  *  CPU interrupt, the memory limit, a guest trap that throws) throws {@link GuestCallFailure}, which that function
  *  hands back to the guest. */
-function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle, allowance?: ReadAllowance): ArgRead {
+function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle, allowance: ReadAllowance): ArgRead {
   const read = marshal.fromGuest(handle, allowance);
   switch (read.kind) {
     case "value":
@@ -395,11 +401,16 @@ const FRAME_BODY_PROPS = ["html", "css"] as const;
 /** Materialize a fixed list of a def's own props into one plain object, or `undefined` when ANY of them is too
  *  deeply nested or too large to read (see {@link tryDumpGuestValue}). Shared by both registrars so the depth guard
  *  is applied identically at both doors. Every handle it opens is disposed here. */
-function dumpDefProps(marshal: GuestMarshal, defHandle: QuickJSHandle, names: readonly string[]): Record<string, unknown> | undefined {
+function dumpDefProps(
+  marshal: GuestMarshal,
+  defHandle: QuickJSHandle,
+  names: readonly string[],
+  allowance: ReadAllowance,
+): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   for (const name of names) {
     using handle = marshal.readGuestProp(defHandle, name);
-    const dumped = tryDumpGuestValue(marshal, handle);
+    const dumped = tryDumpGuestValue(marshal, handle, allowance);
     if (!dumped.ok) {
       return;
     }
@@ -429,10 +440,14 @@ function isDeclarativeTier(tier: PluginSurfaceRegistrationMeta["tier"]): tier is
 function parseSurfaceMeta(
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
-  { props, overrides }: { readonly props: readonly string[]; readonly overrides: Readonly<Record<string, unknown>> },
+  {
+    props,
+    overrides,
+    allowance,
+  }: { readonly props: readonly string[]; readonly overrides: Readonly<Record<string, unknown>>; readonly allowance: ReadAllowance },
 ): SurfaceMetaParse {
   try {
-    const raw = dumpDefProps(marshal, defHandle, props);
+    const raw = dumpDefProps(marshal, defHandle, props, allowance);
     if (raw === undefined) {
       return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
     }
@@ -463,7 +478,7 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
     // Absent props dump as `undefined`, which the schema's optional `spec`/`toolName` accept — and which the
     // U3 `tool-card` biconditional REFUSES for that one anchor. Parsed BEFORE `onAction` is taken, so a realm
     // failure the parse hands back to the guest leaves no handle of ours behind.
-    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: SURFACE_DEF_PROPS, overrides: {} });
+    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: SURFACE_DEF_PROPS, overrides: {}, allowance: inboundAllowance() });
     // `onAction` is NOT scope-owned: on the collect path its ownership TRANSFERS to the Sandbox (kept alive for
     // the instance lifetime); on every other path it is hand-disposed — a `using` would double-free the
     // transferred handle (`Lifetime.dispose` throws on a second call). `refuse` owns that discipline for every
@@ -507,9 +522,9 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
  *  handed to `collectSurface` as its own argument. */
 type FrameBodyParse = { readonly ok: true; readonly body: PluginFrameBody } | { readonly ok: false; readonly reason: string };
 
-function parseFrameBody(marshal: GuestMarshal, defHandle: QuickJSHandle): FrameBodyParse {
+function parseFrameBody(marshal: GuestMarshal, defHandle: QuickJSHandle, allowance: ReadAllowance): FrameBodyParse {
   try {
-    const raw = dumpDefProps(marshal, defHandle, FRAME_BODY_PROPS);
+    const raw = dumpDefProps(marshal, defHandle, FRAME_BODY_PROPS, allowance);
     if (raw === undefined) {
       return { ok: false, reason: "the frame body is too deeply nested or too large to validate" };
     }
@@ -554,11 +569,13 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
     // `tier` is an OVERRIDE, not a read: the guest never names one at this door (see FRAME_DEF_PROPS). The meta
     // parse still applies every shared belt — the id grammar, the title cap, and the anchor × tier admission
     // that refuses `message-footer` permanently (`PLUGIN_ANCHOR_TIERS`).
-    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: FRAME_DEF_PROPS, overrides: { tier: "frame" } });
+    // One allowance for the whole call: the metadata and the body are one definition.
+    const allowance = inboundAllowance();
+    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: FRAME_DEF_PROPS, overrides: { tier: "frame" }, allowance });
     if (!parsed.ok) {
       return refuse(parsed.reason);
     }
-    const body = parseFrameBody(runtime.marshal, defHandle);
+    const body = parseFrameBody(runtime.marshal, defHandle, allowance);
     if (!body.ok) {
       return refuse(body.reason);
     }
@@ -573,7 +590,7 @@ type CommandMetaParse =
   | { readonly ok: false; readonly reason: string };
 
 /** A command definition's metadata, read and validated. The handles it opens are scope-owned. */
-function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle): CommandMetaParse {
+function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle, allowance: ReadAllowance): CommandMetaParse {
   using nameH = marshal.readGuestProp(defHandle, "name");
   using describeH = marshal.readGuestProp(defHandle, "describe");
   // The DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Read through the SAME depth guard as every
@@ -583,12 +600,12 @@ function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle): CommandMe
   using groupH = marshal.readGuestProp(defHandle, "group");
   using placementsH = marshal.readGuestProp(defHandle, "placements");
   using composerDraftH = marshal.readGuestProp(defHandle, "composerDraft");
-  const name = tryDumpGuestValue(marshal, nameH);
-  const describe = tryDumpGuestValue(marshal, describeH);
-  const args = tryDumpGuestValue(marshal, argsH);
-  const group = tryDumpGuestValue(marshal, groupH);
-  const placements = tryDumpGuestValue(marshal, placementsH);
-  const composerDraft = tryDumpGuestValue(marshal, composerDraftH);
+  const name = tryDumpGuestValue(marshal, nameH, allowance);
+  const describe = tryDumpGuestValue(marshal, describeH, allowance);
+  const args = tryDumpGuestValue(marshal, argsH, allowance);
+  const group = tryDumpGuestValue(marshal, groupH, allowance);
+  const placements = tryDumpGuestValue(marshal, placementsH, allowance);
+  const composerDraft = tryDumpGuestValue(marshal, composerDraftH, allowance);
   if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok && composerDraft.ok)) {
     return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
   }
@@ -673,7 +690,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       runtime.logWarn(`ui.registerCommand refused a command: at most ${PLUGIN_COMMANDS_MAX} commands per plugin`);
       return ctx.undefined;
     }
-    const parsed = commandMeta(marshal, defHandle);
+    const parsed = commandMeta(marshal, defHandle, inboundAllowance());
     if (!parsed.ok) {
       runtime.logWarn(`ui.registerCommand refused a command: ${parsed.reason}`);
       return ctx.undefined;
@@ -1518,7 +1535,7 @@ function toolDisplayMetadata(
   ctx: QuickJSContext,
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
-  name: string,
+  { name, allowance }: { readonly name: string; readonly allowance: ReadAllowance },
 ): Pick<Parameters<MembraneRuntime["collectTool"]>[0], "displayName" | "replayHistory"> {
   using displayHandle = marshal.readGuestProp(defHandle, "displayName");
   using replayHandle = marshal.readGuestProp(defHandle, "replayHistory");
@@ -1527,7 +1544,7 @@ function toolDisplayMetadata(
   if ((displayType !== "string" && displayType !== "undefined") || (replayType !== "boolean" && replayType !== "undefined")) {
     throw new Error("plugin host: tool displayName must be nonempty text and replayHistory must be boolean");
   }
-  const display = displayType === "string" ? tryDumpGuestValue(marshal, displayHandle) : { ok: true, value: name.replaceAll("_", " ") };
+  const display = displayType === "string" ? tryDumpGuestValue(marshal, displayHandle, allowance) : { ok: true, value: name.replaceAll("_", " ") };
   const displayName = display.ok && typeof display.value === "string" ? display.value : "";
   if (displayName.trim().length === 0) {
     throw new Error("plugin host: tool displayName must be nonempty text");
@@ -1535,7 +1552,7 @@ function toolDisplayMetadata(
   if (replayType === "undefined") {
     return { displayName };
   }
-  const replay = tryDumpGuestValue(marshal, replayHandle);
+  const replay = tryDumpGuestValue(marshal, replayHandle, allowance);
   if (!replay.ok || typeof replay.value !== "boolean") {
     throw new Error("plugin host: tool replayHistory could not be read as boolean");
   }
@@ -1547,16 +1564,17 @@ function toolDisplayMetadata(
 function toolDefinition(
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
+  allowance: ReadAllowance,
 ): { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> } {
   // Metadata stays scope-owned; acquire the transferred handler only after every metadata refusal.
   using nameHandle = marshal.readGuestProp(defHandle, "name");
   using descHandle = marshal.readGuestProp(defHandle, "description");
   using paramsHandle = marshal.readGuestProp(defHandle, "parameters");
-  const dumpedName = tryDumpGuestValue(marshal, nameHandle);
-  const dumpedDescription = tryDumpGuestValue(marshal, descHandle);
-  const dumpedParameters = tryDumpGuestValue(marshal, paramsHandle);
+  const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
+  const dumpedDescription = tryDumpGuestValue(marshal, descHandle, allowance);
+  const dumpedParameters = tryDumpGuestValue(marshal, paramsHandle, allowance);
   if (!(dumpedName.ok && dumpedDescription.ok && dumpedParameters.ok)) {
-    throw new Error("plugin host: tools.register metadata is too deeply nested");
+    throw new Error("plugin host: tools.register metadata is too deeply nested or too large to read");
   }
   const name = dumpedName.value;
   const description = dumpedDescription.value;
@@ -1600,8 +1618,9 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     if (holdings.tools >= PLUGIN_TOOLS_MAX) {
       throw new Error(`plugin host: tools.register holds at most ${PLUGIN_TOOLS_MAX} tools per plugin`);
     }
-    const { name, description, parameters } = toolDefinition(marshal, defHandle);
-    const presentation = toolDisplayMetadata(ctx, marshal, defHandle, name);
+    const allowance = inboundAllowance();
+    const { name, description, parameters } = toolDefinition(marshal, defHandle, allowance);
+    const presentation = toolDisplayMetadata(ctx, marshal, defHandle, { name, allowance });
     // Taken last, so every refusal above leaves no handle of ours; its ownership transfers to the Sandbox below.
     const handler = marshal.readGuestProp(defHandle, "handler");
     if (ctx.typeof(handler) !== "function") {
@@ -1635,6 +1654,7 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
   using transforms = ctx.newObject();
   using registerFn = marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "transforms.register");
+    const allowance = inboundAllowance();
     if (defHandle === undefined) {
       throw new Error("plugin host: transforms.register requires a definition object");
     }
@@ -1643,12 +1663,12 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
     // after the metadata reads, whose realm failure goes back to the guest.
     using nameHandle = marshal.readGuestProp(defHandle, "name");
     using pointHandle = marshal.readGuestProp(defHandle, "point");
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
-    const dumpedPoint = tryDumpGuestValue(marshal, pointHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
+    const dumpedPoint = tryDumpGuestValue(marshal, pointHandle, allowance);
     const apply = marshal.readGuestProp(defHandle, "apply");
     if (!(dumpedName.ok && dumpedPoint.ok)) {
       apply.dispose();
-      throw new Error("plugin host: transforms.register metadata is too deeply nested");
+      throw new Error("plugin host: transforms.register metadata is too deeply nested or too large to read");
     }
     const name = dumpedName.value;
     const point = dumpedPoint.value;
@@ -1667,15 +1687,16 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
   // may annotate its installer's screen and one that may not, may not.
   using registerDisplayFn = marshal.newHostFunction("registerDisplay", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "transforms.registerDisplay");
+    const allowance = inboundAllowance();
     if (defHandle === undefined) {
       throw new Error("plugin host: transforms.registerDisplay requires a definition object");
     }
     using nameHandle = marshal.readGuestProp(defHandle, "name");
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
     const apply = marshal.readGuestProp(defHandle, "apply");
     if (!dumpedName.ok) {
       apply.dispose();
-      throw new Error("plugin host: transforms.registerDisplay metadata is too deeply nested");
+      throw new Error("plugin host: transforms.registerDisplay metadata is too deeply nested or too large to read");
     }
     if (typeof dumpedName.value !== "string" || ctx.typeof(apply) !== "function") {
       apply.dispose();
@@ -1697,6 +1718,7 @@ function setMacros(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   using macros = ctx.newObject();
   using registerFn = marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "macros.register");
+    const allowance = inboundAllowance();
     if (defHandle === undefined) {
       throw new Error("plugin host: macros.register requires a definition object");
     }
@@ -1704,12 +1726,12 @@ function setMacros(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     // `collectMacro` on success and is hand-disposed only on the reject path. It is taken after the metadata reads.
     using nameHandle = marshal.readGuestProp(defHandle, "name");
     using descHandle = marshal.readGuestProp(defHandle, "description");
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
-    const dumpedDescription = tryDumpGuestValue(marshal, descHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
+    const dumpedDescription = tryDumpGuestValue(marshal, descHandle, allowance);
     const resolve = marshal.readGuestProp(defHandle, "resolve");
     if (!(dumpedName.ok && dumpedDescription.ok)) {
       resolve.dispose();
-      throw new Error("plugin host: macros.register metadata is too deeply nested");
+      throw new Error("plugin host: macros.register metadata is too deeply nested or too large to read");
     }
     const name = dumpedName.value;
     const description = dumpedDescription.value;
@@ -1737,12 +1759,13 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   using events = ctx.newObject();
   using onFn = marshal.newHostFunction("on", (typeHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
     requireCapability(runtime, "events.on");
+    const allowance = inboundAllowance();
     if (typeHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: events.on requires (type, handler)");
     }
-    const dumpedType = tryDumpGuestValue(marshal, typeHandle);
+    const dumpedType = tryDumpGuestValue(marshal, typeHandle, allowance);
     if (!dumpedType.ok) {
-      throw new Error("plugin host: events.on type is too deeply nested");
+      throw new Error("plugin host: events.on type is too deeply nested or too large to read");
     }
     const type = dumpedType.value;
     if (typeof type !== "string" || !TRIGGER_TYPES.has(type)) {
@@ -1781,13 +1804,14 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   // every refuse path.
   using onFn = marshal.newHostFunction("on", (slugHandle?: QuickJSHandle, nameHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
     requireCapability(runtime, "pubsub.on");
+    const allowance = inboundAllowance();
     if (slugHandle === undefined || nameHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: pubsub.on requires (emitterSlug, name, handler)");
     }
-    const dumpedSlug = tryDumpGuestValue(marshal, slugHandle);
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+    const dumpedSlug = tryDumpGuestValue(marshal, slugHandle, allowance);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
     if (!(dumpedSlug.ok && dumpedName.ok)) {
-      runtime.logWarn("pubsub.on refused a subscription: a coordinate is too deeply nested");
+      runtime.logWarn("pubsub.on refused a subscription: a coordinate is too deeply nested or too large to read");
       return ctx.undefined;
     }
     const emitterSlug = dumpedSlug.value;

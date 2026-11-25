@@ -230,7 +230,8 @@ export interface PluginHostV1 {
    *  utility, "always granted"). SYNC like `clock`/`ids` (the estimator is synchronous), and because it is
    *  isomorphic kit it is computed LOCALLY in BOTH realms — the server guest (`orb.host(1)`) and the client Tier-C
    *  guest (`orb.ui(1)`) each estimate host-side with no round-trip, so it is reachable at native latency on both
-   *  without a bridge op or a proxy-tuple entry. */
+   *  without a bridge op or a proxy-tuple entry. The server realm refuses a text past the inbound argument cap every
+   *  host call has, before it reads it. */
   readonly tokens: {
     count: (text: string) => number;
   };
