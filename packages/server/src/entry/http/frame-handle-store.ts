@@ -59,6 +59,7 @@
 import { Buffer } from "node:buffer";
 import { randomBytes } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
+import type { PluginFrameBody } from "@orb/contracts/plugin";
 import type { CardFrameMediaPolicy, CardFramePosture } from "@orb/kit/card-frame";
 import type { CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { MS_PER_MINUTE } from "@orb/kit/time";
@@ -108,7 +109,8 @@ export const FRAME_HANDLE_SHAPE = /^[0-9a-f]{32}$/u;
 
 /** One stored document. `csp` rides WITH the bytes rather than being recomputed at serve time: the policy a
  *  document is served under must be the one decided when it was minted, not one re-derived later from settings
- *  that may since have changed. The one exception only TIGHTENS: `grant`. Not exported: consumers hand
+ *  that may since have changed. The one exception only TIGHTENS: `grant`. A plugin entry serves its surface's current
+ *  body through `render`, under the policy it was minted with. Not exported: consumers hand
  *  `put` an object literal and read `take`'s result through {@link FrameHandleStore}, so this shape has no
  *  cross-module caller (knip). */
 type FrameHandleScope = {
@@ -136,6 +138,9 @@ type FrameHandleScope = {
         readonly caller: Principal;
         readonly pluginId: PluginId;
         readonly surfaceId: string;
+        /** Builds the document from the surface's frame body as it is at serve, with the mint's theme values: an
+         *  upgrade since the mint replaces the body, and the handle serves the current one. */
+        readonly render: (id: string, frame: PluginFrameBody) => string;
       };
       readonly grant?: never;
       readonly formingIn?: never;

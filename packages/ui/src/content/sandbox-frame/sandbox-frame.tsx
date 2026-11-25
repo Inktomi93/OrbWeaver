@@ -277,7 +277,8 @@ export function SandboxFrame({
       // The sender is proven to be THIS frame's window (`frameWindow` is non-null here — the guard above
       // returned otherwise); the consumer decides what the message means. `reply` targets that same window
       // (`"*"` because an opaque-origin document has no origin to name — the message still reaches exactly the
-      // one window handle captured here).
+      // one window handle captured here). That handle can hold only a document the app's `frame-src 'self'` admits and
+      // `X-Frame-Options: DENY` does not refuse, so `"*"` reaches no foreign one; loosening either policy breaks this.
       onHostMessage?.(event.data, (message) => frameWindow.postMessage(message, "*"));
     };
     window.addEventListener("message", onMessage);

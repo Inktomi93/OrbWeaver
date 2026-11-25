@@ -8,13 +8,14 @@
 // `PLUGIN_WORKER_OVERRUN_MAX_MS` past its window terminates that Worker. Nothing a command does ends this broker: only
 // its watchdog does, when this thread's heartbeat stops, and the heartbeat timer runs whatever the Workers are doing.
 
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { write } from "node:fs";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 import {
   PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
   PLUGIN_COMMAND_CPU_BUDGET_MS,
+  PLUGIN_WORKER_HEAP_MAX_MEBIBYTES,
   PLUGIN_WORKER_OVERRUN_MAX_MS,
   PLUGIN_WORKER_SPAN_CHECK_MS,
   pluginIpcShareBytes,
@@ -33,6 +34,7 @@ import {
   channelFullBridgeResult,
   channelFullResponse,
   encodeProcessValue,
+  PLUGIN_BROKER_BEAT_KEY_BYTES,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   PLUGIN_HOST_UNAVAILABLE,
   PLUGIN_INVOCATION_ENDED,
@@ -72,6 +74,10 @@ function supervised(): boolean {
 // Once Node has opened `process.stderr` on a POSIX pipe the descriptor is non-blocking, so a full pipe answers `EAGAIN`
 // (the beat is dropped whole) or takes part of a line (the rest goes first next time, so every line stays one beat).
 // `EPIPE` means the watchdog is gone, and an unsupervised broker serves nothing.
+//
+// Each beat carries the key this thread sent its watchdog with its readiness, before any Worker existed, so a beat-shaped
+// line a Worker writes on stderr is not a beat (watchdog-policy.ts).
+const beatKey = randomBytes(PLUGIN_BROKER_BEAT_KEY_BYTES).toString("base64url");
 const beatDescriptor = process.stderr.fd;
 let beatPending = false;
 let unwrittenBeat: Buffer | null = null;
@@ -103,6 +109,7 @@ const heartbeat = setInterval(() => {
   }
   const beat = {
     kind: "plugin-broker-memory",
+    key: beatKey,
     sentAtMs: performance.now(),
     rssBytes: process.memoryUsage.rss(),
     peakPhysicalWorkers,
@@ -411,6 +418,10 @@ function createRuntime(runtimeId: string): Runtime {
     // Guest Workers receive no app environment or inherited IPC authority, so do not inherit
     // process.env across this trust boundary even though QuickJS itself has no ambient Node surface.
     env: { ["NODE_ENV"]: nodeEnvironment },
+    // A Worker past its heap ceiling ends alone, through its `error` and `exit` below, instead of growing this process
+    // into its watchdog's RSS ceiling, which would end every Worker. No `--max-old-space-size` reaches this process, so
+    // the limit is not overridden.
+    resourceLimits: { maxOldGenerationSizeMb: PLUGIN_WORKER_HEAP_MAX_MEBIBYTES },
   });
   const runtime: Runtime = {
     worker,
@@ -656,5 +667,5 @@ process.on("message", (value: unknown) => {
   }
 });
 // The watchdog stops this broker by closing the channel (broker-watchdog.ts `stopBroker`); a dead watchdog closes it too.
-sender.send({ kind: "ready", generation });
+sender.send({ kind: "ready", generation, beatKey });
 process.on("disconnect", abandon);

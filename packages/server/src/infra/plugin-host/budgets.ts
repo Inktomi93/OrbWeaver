@@ -116,6 +116,16 @@ export const PLUGIN_WASM_MEMORY_INITIAL_BYTES = WASM_INITIAL_MEBIBYTES * BYTES_P
  *  and terminates the isolated process when its aggregate crosses the configured ceiling. */
 export const PLUGIN_WASM_MEMORY_MAX_BYTES = WASM_MAX_MEBIBYTES * BYTES_PER_MEBIBYTE;
 
+/** The V8 old-generation ceiling of ONE broker Worker, in MiB: the host code's own heap, which the WASM linear memory
+ *  above is not part of. A Worker that reaches it is terminated alone and its runtime fails as crashed, so one
+ *  Worker's host-side growth cannot carry the broker past its RSS ceiling and end every owner's runtimes with it.
+ *
+ *  @remarks It bounds one Worker, not the pool: the broker RSS watchdog stays the aggregate backstop. It holds an
+ *  honest Worker's largest transients, a 12 MiB string dump and its copies (`worker-escape-containment.int.test.ts`)
+ *  and a full allowance of megabyte fetch results in flight (`bridge-flood.int.test.ts`); 64 MiB ended a Worker on
+ *  the second. */
+export const PLUGIN_WORKER_HEAP_MAX_MEBIBYTES = 160;
+
 /** Direct-adapter admission used by `createLocalPluginHost` tests and non-broker embeddings. The production
  *  broker never treats this as an enabled-plugin or warm-Worker ceiling; its measured configured pool owns
  *  that bound. A broker Worker still receives only one logical guest from `worker-runtime.ts`. */

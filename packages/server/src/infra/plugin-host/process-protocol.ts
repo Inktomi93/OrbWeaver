@@ -41,6 +41,10 @@ export const SPAN_SLOTS_BYTES = (SPAN_CLOSED_TOTAL_SLOT + 1) * Int32Array.BYTES_
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
 /** The longest line the watchdog reads as a heartbeat; a longer line on the broker's stderr is passed on as text. */
 export const PLUGIN_BROKER_BEAT_MAX_BYTES = 8192;
+/** Random bytes in the key a broker gives its watchdog with its readiness, before it starts any Worker; each beat carries
+ *  it, base64url-encoded in {@link PLUGIN_BROKER_BEAT_KEY_CHARS} characters. */
+export const PLUGIN_BROKER_BEAT_KEY_BYTES = 32;
+export const PLUGIN_BROKER_BEAT_KEY_CHARS = Buffer.alloc(PLUGIN_BROKER_BEAT_KEY_BYTES).toString("base64url").length;
 /** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;

@@ -268,7 +268,7 @@ export type {
   UiGuestSettledMessage,
   UiGuestUnavailableMessage,
 } from "./plugin-ui-guest-protocol.ts";
-export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
+export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_BUDGETS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
 export {} from "./probe-mode.ts";
 export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts";
 export { BUILTIN_MACRO_SUGGESTIONS, MACRO_CATEGORY_WORDS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
