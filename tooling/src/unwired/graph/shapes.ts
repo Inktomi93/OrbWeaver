@@ -28,7 +28,7 @@ import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } fr
 import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { Site } from "../classify.ts";
-import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark, DeliberateSide } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { DistinctRegistry } from "../distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "../distinct-lookalikes.ts";
@@ -64,7 +64,7 @@ interface UnwiredShape {
 export interface ShapesReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredShape[];
-  readonly deliberate: readonly (UnwiredShape & { readonly reason: string })[];
+  readonly deliberate: readonly (UnwiredShape & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<UnwiredShape>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */
@@ -93,6 +93,8 @@ const PER_VERB_HOMES = [
   { name: /.Result$/u, file: /^packages\/server\/src\/domain\/[^/]+\/contract\/results\.ts$/u },
 ] as const;
 const isPerVerb = (name: string, file: string): boolean => PER_VERB_HOMES.some((home) => home.name.test(name) && home.file.test(file));
+// The label the per-verb ruling excuses its rows under, beside the deliberate list's entries.
+const PER_VERB_ENTRY = "per-verb restatement";
 const PER_VERB_REASON = "docs/law/Core-0-Architecture-and-Structure.md §4: every verb keeps its own *Params and *Result";
 // Type operators whose result is computed from a schema or a value, so the type is the schema's own shape, by the
 // package that declares them (`null` for the platform's): a local `ReturnType` or a `z` namespace of our own computes
@@ -485,7 +487,7 @@ function bucket(
   for (const finding of sorted.unwired) {
     const pair = sides.get(finding.key);
     if (finding.perVerb) {
-      deliberate.push({ ...finding, reason: PER_VERB_REASON });
+      deliberate.push({ ...finding, reason: PER_VERB_REASON, entry: PER_VERB_ENTRY });
     } else if (pair !== undefined && isDistinctPair(registry, `${pair[0].file}#${pair[0].home}`, `${pair[1].file}#${pair[1].home}`)) {
       distinct.push(finding);
     } else {

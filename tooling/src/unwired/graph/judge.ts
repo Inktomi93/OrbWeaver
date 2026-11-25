@@ -40,7 +40,7 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import type { SendDestination } from "../boundaries.ts";
 import { OBSERVABILITY_SINKS } from "../boundaries.ts";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { FieldPromise, PromiseField, SortEvidence, Verdict } from "../field-sort.ts";
 import { FieldSort, homeAliases, promiseFacts } from "../field-sort.ts";
@@ -119,7 +119,7 @@ interface ReceivedRow {
 /** The member rows split by the deliberate and judged lists, the validate-only schema keys, the acknowledgements and the
  *  received members apart. */
 export type JudgedMembers = JudgedSplit<MemberRow> & {
-  readonly deliberate: readonly (MemberRow & { readonly reason: string })[];
+  readonly deliberate: readonly (MemberRow & DeliberateMark)[];
   readonly validated: readonly MemberRow[];
   readonly acknowledged: readonly MemberRow[];
   /** Never-read members whose every send is an observability sink. */

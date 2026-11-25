@@ -114,7 +114,6 @@ export const ELEMENT_CALLBACKS: ReadonlySet<string> = new Set(["map", "flatMap",
 export const GLOBAL_OBJECTS = ["window", "globalThis", "self"] as const;
 export const MAP = "Map";
 export const OBJECT = "Object";
-export const PROMISE = "Promise";
 export const URL_CONSTRUCTOR = "URL";
 /** The platform's well-known symbols' holder, `Symbol.iterator`. */
 export const WELL_KNOWN_SYMBOLS = "Symbol";
@@ -129,7 +128,7 @@ export const EVENT_DATA = "data";
 export const DATASET = "dataset";
 export const RECORD_NAME = "attributeName";
 export const ATTRIBUTE_FILTER = "attributeFilter";
-/** The DOM and JSX members a URL is written to, with the method a request through each takes. */
+/** The DOM and JSX members a URL is written to (graph/urls.ts holds the method a request through each takes). */
 export const URL_MEMBERS = ["href", "src", "action", "formAction"] as const;
 
 /** drizzle's query builder: the verbs that open a write on a table, the methods that store a value into it, the select
@@ -158,7 +157,7 @@ export const TRPC_MUTATION = "mutation";
 export const TRPC_LINK_URL = "url";
 /** The tRPC options-proxy verb for a paged query. */
 export const PAGED_QUERY = "infiniteQueryOptions";
-/** The tRPC proxy verbs that send their input to the procedure they are called on. */
+/** The tRPC proxy verbs whose input is the input of the procedure they are called on. */
 export const TRPC_SENDS: ReadonlySet<string> = new Set([
   "mutate",
   "query",
@@ -230,7 +229,6 @@ const PLATFORM_NAMES: ReadonlySet<string> = new Set([
   ...GLOBAL_OBJECTS,
   MAP,
   OBJECT,
-  PROMISE,
   URL_CONSTRUCTOR,
   WELL_KNOWN_SYMBOLS,
   INSPECT_CUSTOM,

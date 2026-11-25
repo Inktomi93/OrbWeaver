@@ -34,7 +34,7 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
@@ -171,7 +171,7 @@ export interface ProceduresReport {
   readonly procedures: number;
   readonly routes: number;
   readonly unwired: readonly SurfaceFinding[];
-  readonly deliberate: readonly (SurfaceFinding & { readonly reason: string })[];
+  readonly deliberate: readonly (SurfaceFinding & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<SurfaceFinding>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */

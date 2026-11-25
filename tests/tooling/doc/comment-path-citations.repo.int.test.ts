@@ -32,6 +32,8 @@ import {
   SECTION_SIGN,
   URL_RE,
 } from "../../../tooling/src/eslint/cites.ts";
+import type { DeliberateEntry } from "../../../tooling/src/unwired/deliberate.ts";
+import { DELIBERATE } from "../../../tooling/src/unwired/deliberate.ts";
 import type { Source, Span, Tracked } from "./_sources.ts";
 import { LAW_DOC, MARKDOWN, REPO_ROOT, ROOT_CONFIG, readFromRepo, SCRIPT_KINDS, scriptComments, trackedFiles, VENDORED } from "./_sources.ts";
 
@@ -464,6 +466,14 @@ function unbackedClaims(sources: readonly CitingFile[], universe: Universe): str
 /** A script's comments as the claim rule reads them: a run of `//` lines is one span. */
 const commentSpans = (source: Source): Span[] => foldLineComments(scriptComments(source, SCRIPT_KINDS[extname(source.path)] ?? ts.ScriptKind.TS));
 
+// The deliberate list's home, whose reasons are strings a reader takes as cited rulings.
+const DELIBERATE_HOME = "tooling/src/unwired/deliberate.ts";
+
+/** Each deliberate entry's reason as a comment of the list's home, one line per entry, so its decisions, sections and
+ *  paths resolve as a comment's do. */
+const reasonSource = (entries: readonly DeliberateEntry[]): Source => ({ path: DELIBERATE_HOME, text: entries.map(({ reason }) => `// ${reason}`).join("\n") });
+const reasonSpans = (entries: readonly DeliberateEntry[]): CitingFile => ({ path: DELIBERATE_HOME, spans: commentSpans(reasonSource(entries)) });
+
 /** The comments of every tracked script under the cite roots, and every line of the law documents. */
 function citingSpans(tracked: Tracked): { readonly scripts: Source[]; readonly spans: CitingFile[] } {
   const scripts = [...tracked.paths]
@@ -532,7 +542,12 @@ describe("the real tree", () => {
     ]).toStrictEqual([true, true, true, true]);
     // Claims are read where `orb/enforcement-claim-cites-checker` runs: TypeScript source.
     const typescript = spans.filter(({ path }) => TYPESCRIPT.test(path));
-    expect({ dead: deadCites(spans, universe), claims: unbackedClaims(typescript, universe) }).toStrictEqual({ dead: [], claims: [] });
+    // the deliberate list cites decisions and law sections in strings, which no comment reader sees
+    expect(DELIBERATE.flatMap(({ reason }) => citesIn(reason)).some(({ kind }) => kind === "decision")).toBe(true);
+    expect({ dead: deadCites([...spans, reasonSpans(DELIBERATE)], universe), claims: unbackedClaims(typescript, universe) }).toStrictEqual({
+      dead: [],
+      claims: [],
+    });
   });
 
   test("every path a code comment or law document names is a tracked file", async () => {
@@ -544,7 +559,7 @@ describe("the real tree", () => {
       expect.arrayContaining([".ts", ".yaml", JSONC_EXT]),
     );
     expect([".ts", ".tsx", CSS_EXT, MARKDOWN].filter((ext) => !sources.some((source) => source.path.endsWith(ext)))).toStrictEqual([]);
-    expect(await staleCitations(sources, tracked)).toStrictEqual([]);
+    expect(await staleCitations([...sources, reasonSource(DELIBERATE)], tracked)).toStrictEqual([]);
   });
 });
 
@@ -668,6 +683,20 @@ describe("the cite resolver", () => {
   const comments = (path: string, text: string): CitingFile => ({
     path,
     spans: commentSpans({ path, text }),
+  });
+
+  test("refuses a deliberate reason whose decision, section or path names nothing, and passes one whose cites resolve", async () => {
+    const entry = (reason: string): DeliberateEntry => ({ file: "packages/x/src/real.ts", home: "Real", member: null, reason });
+    const entries = [
+      entry("D9: a ruling nobody minted"),
+      entry(`${basename(lawPath, MARKDOWN)} §4: a section the law lacks`),
+      entry("packages/x/src/gone.ts writes it"),
+      entry("D141 and packages/x/src/real.ts hold it"),
+    ];
+    expect({ dead: deadCites([reasonSpans(entries)], universe), stale: await staleCitations([reasonSource(entries)], universe.tracked) }).toStrictEqual({
+      dead: [`${DELIBERATE_HOME}:1 D9`, `${DELIBERATE_HOME}:2 ${basename(lawPath, MARKDOWN)}§4`],
+      stale: [`${DELIBERATE_HOME}:3 packages/x/src/gone.ts`],
+    });
   });
 
   test("reads the reserved window from the index sentence, and a rephrased sentence reads no window", () => {

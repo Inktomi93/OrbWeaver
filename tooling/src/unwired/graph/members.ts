@@ -17,6 +17,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator } from "@typescript/native/sync";
 import { SignatureKind } from "@typescript/native/sync";
+import type { DeliberateMark } from "../deliberate.ts";
 import type { NativeWorld } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { MemberBucket } from "./analyse.ts";
@@ -53,7 +54,7 @@ export interface MemberScanReport {
   /** The callable members the product declares. */
   readonly scanned: number;
   readonly unwired: readonly ScanRow[];
-  readonly deliberate: readonly (ScanRow & { readonly reason: string })[];
+  readonly deliberate: readonly (ScanRow & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: readonly (ScanRow & Pick<JudgedMembers["judged"][number], "item" | "tie">)[];
   /** Judged entries whose row no longer reports or whose item is no longer open. */
