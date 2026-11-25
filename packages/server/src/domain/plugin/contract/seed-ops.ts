@@ -1,4 +1,5 @@
 import type { Principal } from "@orb/contracts/identity";
+import type { PluginOrigin } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import type { InstallPluginParams, UpgradePluginParams } from "./params.ts";
 import type { PluginRuntimeDeps } from "./runtime-ports.ts";
@@ -9,6 +10,8 @@ export interface HeldSeedPlugin {
   readonly slug: string;
   readonly pluginId: PluginId;
   readonly version: string;
+  /** The seeder installs by upload, so a `url` or `git` row of a shipped slug is the owner's own install. */
+  readonly origin: PluginOrigin;
 }
 export interface PluginSeedOps {
   readonly install: (args: Pick<InstallPluginParams, "caller" | "bundle">) => ReturnType<PluginService["install"]>;

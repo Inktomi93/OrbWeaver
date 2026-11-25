@@ -14,7 +14,7 @@ export const CORPUS_PLUGIN_GIT_URL = "https://git.example.test/ledger.git";
 
 export interface CorpusPluginGit {
   readonly networkExecution: NonNullable<ServerHarnessOptions["networkExecution"]>;
-  readonly advance: () => Promise<string>;
+  readonly advance: (line?: string) => Promise<string>;
   readonly requests: readonly string[];
 }
 
@@ -81,8 +81,9 @@ export async function createCorpusPluginGit(directory: string, at: number): Prom
   return {
     networkExecution: { fetch: execute, resolver: (): Promise<readonly string[]> => Promise.resolve([PUBLIC_PEER_ADDRESS]) },
     requests,
-    advance: async (): Promise<string> => {
-      await writeFile(join(directory, PLUGIN_MAIN_ENTRY), 'orb.host(1).log.info("Next native revision");');
+    // Each call needs its own line: a revision that writes the same bytes again has nothing to commit.
+    advance: async (line = "Next native revision"): Promise<string> => {
+      await writeFile(join(directory, PLUGIN_MAIN_ENTRY), `orb.host(1).log.info(${JSON.stringify(line)});`);
       await git(directory, at, ["add", "--", PLUGIN_MAIN_ENTRY]);
       await git(directory, at, ["commit", "-m", "Next native plugin revision"]);
       return (await git(directory, at, ["rev-parse", "HEAD"])).toString("utf8").trim();

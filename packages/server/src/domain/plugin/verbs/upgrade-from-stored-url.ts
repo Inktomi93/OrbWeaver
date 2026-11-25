@@ -11,9 +11,11 @@
 // ordering of every URL verb. The owned row is loaded first (`getById(ctx.db, caller.userId, pluginId)`); a foreign/missing
 // id is a leak-free `PluginNotFoundError` (NOT_FOUND) thrown BEFORE `ctx.fetchBundle` ever runs, so a stranger
 // holding another user's real pluginId can never make the server fetch that user's remembered URL on their
-// behalf. A file (`upload`) install has NO remembered source: that is a typed `PluginNoSourceUrlError`
-// (BAD_REQUEST — "upload a new bundle instead"), thrown AFTER the owner load and BEFORE any fetch. `upgrade`
-// re-loads + re-checks ownership/slug/downgrade itself (TOCTOU + defense in depth).
+// behalf. Only a `url`-origin row has a bundle URL: a file (`upload`) install has none, and a `git` row's
+// `source_url` names a repository, which this door would fetch as a zip and then rewrite as a URL row with no
+// commit. Both are a typed `PluginNoSourceUrlError` (BAD_REQUEST), thrown AFTER the owner load and BEFORE any
+// fetch; a git row upgrades through `upgradeFromStoredGit`. `upgrade` re-loads + re-checks
+// ownership/slug/downgrade itself (TOCTOU + defense in depth).
 
 import { PluginBundlePreviewStaleError, PluginNoSourceUrlError, PluginNotFoundError } from "../contract/errors.ts";
 import type { UpgradeFromStoredUrlParams } from "../contract/params.ts";
@@ -27,7 +29,7 @@ export function createUpgradeFromStoredUrl(ctx: PluginContext, deps: { readonly 
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
     }
-    if (existing.sourceUrl === null) {
+    if (existing.origin !== "url" || existing.sourceUrl === null) {
       throw new PluginNoSourceUrlError(pluginId);
     }
     const bundle = await ctx.fetchBundle(existing.sourceUrl);

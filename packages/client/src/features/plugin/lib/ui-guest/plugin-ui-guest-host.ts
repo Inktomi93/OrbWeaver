@@ -17,7 +17,7 @@
 // LIFECYCLE: one host per (plugin × worker), created lazily by the mount when one of its scripted surfaces is
 // on screen and disposed on unmount/disable. `dispose()` is idempotent and safe to call from a React cleanup.
 
-import type { PluginLogLevel, PluginSurfaceNode } from "@orb/contracts/plugin";
+import type { PluginLogLevel, PluginSurfaceNode, PluginUiGuestEvent } from "@orb/contracts/plugin";
 import { isPluginUiHostCallCode, PLUGIN_UI_HOST_CALL_FAILED, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
 import { parseJsonText } from "@orb/kit/json";
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "#lib";
@@ -60,11 +60,7 @@ export interface PluginUiGuestOptions {
 export interface PluginUiGuest {
   /** Deliver a UI event INTO the guest. Fire-and-forget by design — the RESULT of an event is whatever tree the
    *  guest publishes next, not a return value, so there is nothing for a caller to await. */
-  readonly deliverEvent: (
-    surfaceId: string,
-    event: { type: "action"; actionId: string } | { type: "field"; name: string; value: string },
-    values: Record<string, string>,
-  ) => void;
+  readonly deliverEvent: (surfaceId: string, event: PluginUiGuestEvent, values: Record<string, string>) => void;
   /** Terminate and release. Idempotent. */
   readonly dispose: () => void;
 }

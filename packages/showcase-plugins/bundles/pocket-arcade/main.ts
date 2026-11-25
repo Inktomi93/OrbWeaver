@@ -1,8 +1,8 @@
 // Pocket Arcade — the ESCAPE-HATCH archetype of an Orbweaver plugin (`ui.frame`).
 //
 // WHAT IT DOES. A complete, playable 2048 in the room's side panel — something to fidget with while the
-// narrator types. Nothing here talks to the model, the room, or the host: it is pure pixels, and that is the
-// point of the archetype.
+// narrator types. Nothing here talks to the model or the room: it is pixels plus one host call, the best score
+// kept in this plugin's own `storage.kv` over the frame bridge.
 //
 // WHEN TO REACH FOR THE FRAME, and when not to — the decision this file exists to teach:
 //   * The DECLARATIVE plane (`ui.register`, every other seeded example) is the DEFAULT: house components,
@@ -14,13 +14,15 @@
 //
 // WHAT A FRAME ACTUALLY GETS, honestly (the consent line the `ui.frame` capability shows says the same):
 //   * An OPAQUE-ORIGIN document: `sandbox allow-scripts`, never `allow-same-origin`. No cookies, no
-//     localStorage (state lives in JS memory and resets on remount — this game says so in its footer), no
+//     localStorage (the board lives in JS memory and resets on remount — this game says so in its footer), no
 //     app DOM, no sibling frames.
 //   * NO NETWORK: `default-src 'none'`, no `connect-src` — fetch/XHR/WebSocket are refused by the document's
 //     own response policy. (The one channel no CSP directive closes is WebRTC — which is why this tier has
 //     its own capability and its own consent sentence instead of riding `ui.surface`.)
-//   * NO HOST CALLS: there is no `orb` in a frame. A frame that needs host data does not exist yet — design
-//     your frame self-contained, or split the data half into a declarative surface beside it.
+//   * HOST CALLS RIDE `postMessage`: there is no `orb` in a frame. The frame posts
+//     `{ orbPluginFrameCall: { callId, fn, args } }` to its parent and reads the `orbPluginFrameResult` reply;
+//     `fn` is one of the functions the scripted relay admits (`UI_PROXYABLE_HOST_FUNCTIONS`), re-gated against
+//     this plugin's grants. `frame.ts` reads and writes the best score this way.
 //   * TWO THEME TOKENS, injected: `--sandbox-bg` and `--sandbox-fg` (plus the app's font and text scale),
 //     re-resolved when the person's theme or font scale changes. Text sizes are rem so they follow the scale. Everything below is mixed from those two with `color-mix`, so the game
 //     lands in ANY theme — light, dark, custom — without shipping a palette.
@@ -51,7 +53,7 @@ const GAME_HTML = `
       <button data-d="right" type="button">▶</button>
     </div>
   </div>
-  <p id="hint">Arrows or the pad. Join the numbers. The board forgets when you leave — an isolated frame keeps nothing.</p>
+  <p id="hint">Arrows or the pad. Join the numbers. The board forgets when you leave; your best score is kept.</p>
 </div>
 <script>
 /* @orb-frame-script */
@@ -118,9 +120,9 @@ const GAME_CSS = `
 // needs its own door. Same feature-detect idiom as every registration: an ungranted call throws, and a throw
 // at activation takes the whole plugin down.
 //
-// Anchors a frame may take today: `settings`, `chat-flank`, `tool-card`. The flank is this game's home — a
-// side-panel toy is exactly flank-shaped. (`message-footer` is refused permanently: one document per
-// transcript row is a cost no toy justifies.)
+// `PLUGIN_ANCHOR_TIERS` (`packages/contracts/src/plugin/ui.ts`) decides which anchors a frame may take; today
+// that is every anchor except `chat-settings-section` and `message-footer` (one document per transcript row is
+// a cost no toy justifies). The flank is this game's home — a side-panel toy is exactly flank-shaped.
 if (host.grants.includes("ui.frame")) {
   host.ui.registerFrame({
     id: "arcade_2048",

@@ -420,6 +420,57 @@ export function updateCommitAvailableLabel(sourceCommit: string): string {
   return `Update from commit ${abbreviateSourceCommit(sourceCommit)}`;
 }
 
+/** What a stored URL or Git update changes, as the review before it applies reads it: the reach the new manifest
+ *  widens beyond the owner's consent, and whether it ships a browser script. Structural, so a reshaped preview
+ *  fails `tsc` at the one call site. */
+export interface StoredUpdateChange {
+  readonly widening: {
+    readonly capabilities: readonly PluginCapability[];
+    readonly netHosts: readonly string[];
+    readonly providerIds: readonly string[];
+    readonly matchAutomationEvents: boolean;
+  };
+  readonly shipsUiScript: { readonly before: boolean; readonly after: boolean };
+}
+
+/** The review's heading: the version it moves to, or a new commit of the same version. */
+export function storedUpdateHeading(fromVersion: string, toVersion: string): string {
+  return fromVersion === toVersion ? `A new commit of version ${toVersion}` : `Version ${fromVersion} to ${toVersion}`;
+}
+
+/** One line per change the owner should weigh before applying; an empty list reads as {@link STORED_UPDATE_NOTHING_NEW}. */
+export function storedUpdateChangeLines({ widening, shipsUiScript }: StoredUpdateChange): readonly string[] {
+  const lines: string[] = [];
+  if (widening.capabilities.length > 0) {
+    const named = widening.capabilities.map((capability) => capabilityCopy(capability)?.label ?? capability);
+    lines.push(`Asks for permissions you haven't allowed: ${named.join(", ")}.`);
+  }
+  if (widening.netHosts.length > 0) {
+    lines.push(`Can reach new hosts: ${widening.netHosts.join(", ")}.`);
+  }
+  if (widening.providerIds.length > 0) {
+    lines.push(`Adds model connections: ${widening.providerIds.join(", ")}.`);
+  }
+  if (widening.matchAutomationEvents) {
+    lines.push("Also hears events that automations and other plugins cause.");
+  }
+  if (shipsUiScript.after !== shipsUiScript.before) {
+    lines.push(shipsUiScript.after ? "Adds a script that runs in your browser." : "Drops its browser script.");
+  }
+  return lines;
+}
+
+export const STORED_UPDATE_NOTHING_NEW = "It asks for nothing beyond what you allowed.";
+
+/** The review's confirm press, and its name once a plugin disambiguates it. */
+export const APPLY_UPDATE_LABEL = "Apply update";
+export function pluginApplyUpdateLabel(pluginName: string): string {
+  return `Apply the update to ${pluginName}`;
+}
+
+/** The review's dismiss press: nothing is fetched or written by leaving it. */
+export const UPDATE_REVIEW_DISMISS_LABEL = "Not now";
+
 /** The one canonical explanation of what removing a plugin does — the row's overflow menu and the
  *  re-consent notice's escape action (P1-3) both trigger the SAME irreversible act, so they read the SAME
  *  sentence rather than two hand-written paraphrases drifting apart. */

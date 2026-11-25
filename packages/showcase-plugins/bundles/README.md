@@ -132,7 +132,7 @@ want while experimenting.
 
 | Field | Rule |
 | - | - |
-| `id` | Lowercase slug, 2–64 chars, `[a-z0-9][a-z0-9-]*`. Unique **per user**; the namespace root for your tools (`plugin_<id_with_each_hyphen_doubled_to___>_<toolname>` — `oracle-deck` ⇒ `plugin_oracle__deck_<toolname>`; the doubling is what keeps two plugins' namespaces from ever colliding), your macro, and your per-card stamp (`plugin_<id>`). Changing it makes a different plugin. |
+| `id` | Lowercase slug, 2 to `PLUGIN_SLUG_MAX` (20) chars, `[a-z0-9][a-z0-9-]*` (`packages/contracts/src/plugin/manifest.ts`). Unique **per user**; the namespace root for your tools (`plugin_<id_with_each_hyphen_doubled_to___>_<toolname>` — `oracle-deck` ⇒ `plugin_oracle__deck_<toolname>`; the doubling is what keeps two plugins' namespaces from ever colliding), your macro, and your per-card stamp (`plugin_<id>`). Changing it makes a different plugin. |
 | `name` | ≤ 80 chars. What the pane and every attribution frame call it. |
 | `version` | Exactly `major.minor.patch`. Display + downgrade refusal only. |
 | `hostVersion` | `1`. The membrane major. A future host that no longer serves 1 refuses your bundle loudly rather than half-running it. |
@@ -141,7 +141,7 @@ want while experimenting.
 | `description` | ≤ 500 chars. Shown beside the grant list; write it for the person deciding. |
 | `author` | Optional, ≤ 120 chars. |
 | `capabilities` | A subset of the closed list below. **Declaring is asking**, not receiving. |
-| `netHosts` | Exact hostnames, ≤ 8. Required iff you declare `net.fetch` or `net.fetch_asset`. |
+| `netHosts` | Exact hostnames, at most `NET_HOSTS_MAX` (16, same file). Required iff you declare `net.fetch` or `net.fetch_asset`. |
 | `matchAutomationEvents` | Optional, default `false`: your event handlers see only human-caused (depth-0) facts. `true` opts into automation-caused ones, under the hard cascade cap. |
 | `builtAgainst` | Optional `{engineVersion, engineCommit?}` provenance; displayed, never a gate. |
 
@@ -262,11 +262,12 @@ host.ui.register({ id, anchor, title, tier, spec, onAction });
 state you publish via `host.ui.setState`) · `scripted` (your `ui.js` computes whole trees in the browser at
 native latency — see below) · `frame` (not this plane at all — `ui.registerFrame`, its own capability).
 
-**Nodes**: `stack`/`row`/`section` (layout) · `text`/`badge`/`meter`/`keyValue`/`list`/`image`/`markdown`
-(display) · `textField`/`numberField`/`toggle`/`select`/`slider` (form — values are client-side until an
+**Nodes** (the full set is `PLUGIN_NODE_KINDS` in `packages/contracts/src/plugin/ui.ts`): `stack`/`row`/`section`
+(layout) · `text`/`badge`/`meter`/`keyValue`/`list`/`image`/`markdown`/`icon` (display; `icon` takes a curated
+glyph name) · `textField`/`numberField`/`toggle`/`select`/`slider` (form — values are client-side until an
 action submits the whole bag) · `button`/`confirmButton` (actions; `confirmButton` gets the HOUSE confirm
-dialog — you cannot draw your own) · `grid`/`masterDetail`/`searchBar` (the browse genre — card-atlas is the
-tour). Bounds: 32 KiB / 256 nodes / depth 8 per spec; strings capped; no HTML, no CSS, no host chrome — the
+dialog — you cannot draw your own) · `grid`/`masterDetail`/`searchBar`/`tabs` (the browse genre, with `tabs` as a
+one-of-N strip — card-atlas is the tour). Bounds: 32 KiB / 256 nodes / depth 8 per spec; strings capped; no HTML, no CSS, no host chrome — the
 impersonation walls are unspellable, not policed.
 
 **Bindings and state.** Any display value may be `{ $state: "path.in.state" }`, resolved against what you
@@ -299,8 +300,9 @@ For surfaces that must THINK between keystrokes (a filter box, local sorting), s
 sandboxed interpreter in the user's browser. `orb.ui(1)` gives you `render(surfaceId, tree)` (publish a whole
 tree — same vocabulary), `onEvent(handler)` (receives `{surfaceId, event, values}`, where `event` is
 `{type:"action", actionId}` or `{type:"field", name, value}`), the same `log`/`clock`/`random` seams, and
-`host.*` — a READ-ONLY-ish relay of exactly nine functions (`chat.listMessages`, `chat.getVariables`, the
-`variables` and `storage` planes), each re-gated server-side per call. No fetch, no writes, no registrations
+`host.*` — a READ-ONLY-ish relay of the functions in `UI_PROXYABLE_HOST_FUNCTIONS`
+(`packages/contracts/src/plugin/host-v1.ts`: `chat.listMessages`, `chat.getVariables`, the `variables` plane and
+the `storage` plane including `storage.compareAndSet`), each re-gated server-side per call. No fetch, no writes, no registrations
 — effects belong to the server half. The affinity-tracker's `ui.js` is the annotated template, including the
 three rules that keep a scripted surface alive (render immediately; never block; batch host calls).
 

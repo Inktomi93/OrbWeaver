@@ -19,10 +19,12 @@
 //     `host.grants.includes("…")` before every registration (the guard idiom).
 //   - There is no `Date`, no `Math.random`, no timers, no `fetch`, no module loader. Time and entropy are
 //     the injected seams below.
-//   - Every host call rejects after a 5 s real-time bound, with an error whose `name` is
+//   - Every host call rejects after a fixed real-time bound, with an error whose `name` is
 //     `"PluginHostDeadlineError"` (and `hostFunction` the call that ran long). The host stops waiting but
-//     does not cancel the work, so treat it as "no answer yet", not a refusal. Three consecutive crashed
-//     invocations auto-disable the plugin.
+//     does not cancel the work, so treat it as "no answer yet", not a refusal. A run of consecutive crashed
+//     invocations auto-disables the plugin.
+//   - Rate ceilings are per plugin and per hour. A call past its ceiling rejects; the host sets each ceiling and
+//     may change it, so debounce rather than spend up to it.
 //   - A host call the host could not serve fails with `name` `"PluginHostUnavailable"`: an async call rejects, and a
 //     synchronous seam (the clock, entropy, ids) throws. Both kinds are retryable. With `code` `"channel_full"`
 //     (`PluginHostRefusalCode`), a channel inside the host was full and only this call was refused: retry it soon.
@@ -156,15 +158,16 @@ interface PluginVariablePrecondition {
  *  unset) so you can re-derive and try again. A lost race is DATA, not an exception. */
 type PluginVariableWriteResult = { readonly outcome: "applied" } | { readonly outcome: "stale"; readonly actual: Record<string, string | null> };
 
-/** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). `position`
- *  names a seat (before or after the character definitions, the top or bottom of the chat's Author's Note or of the
- *  example messages), but the host does not read it: the entry lands at the lore writer's default seat. */
+/** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). The
+ *  optional `position` names a seat (before or after the character definitions, the top or bottom of the chat's
+ *  Author's Note or of the example messages), but the host does not read it: the entry lands at the lore writer's
+ *  default seat. */
 interface PluginWorldEntryUpsert {
   readonly bookId: string;
   readonly entryKey: string;
   readonly keys: readonly string[];
   readonly contentTemplate: string;
-  readonly position: "before" | "after" | "authors_note_top" | "authors_note_bottom" | "example_messages_top" | "example_messages_bottom";
+  readonly position?: "before" | "after" | "authors_note_top" | "authors_note_bottom" | "example_messages_top" | "example_messages_bottom";
 }
 
 /** One lore book ATTACHED to the invocation chat (`worldInfo.listBooks`). `id` is what you pass to
@@ -820,7 +823,7 @@ interface PluginHostV1 {
   readonly search: {
     /** Semantic search over the INSTALLER's OWN indexed corpus (their databank shelves — including what your
      *  `databank.ingest` wrote). Query text may reach the installer's hosted embedding provider and cost
-     *  money; the host admits at most 120 calls/hour per plugin. Ranked hits, ≤ 20 per call (default 10). No chat scope needed.
+     *  money, so it has an hourly rate ceiling. Ranked hits, ≤ 20 per call (default 10). No chat scope needed.
      *  capability: search.query */
     documents: (queryText: string, opts?: { limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };
@@ -879,7 +882,7 @@ interface PluginHostV1 {
   };
 
   readonly llm: {
-    /** SPEND — one bounded, non-canon generation on the installer's own connection (30/hour per plugin).
+    /** SPEND — one bounded, non-canon generation on the installer's own connection, under an hourly rate ceiling.
      *  No chat scope needed; writes nothing; you get a string. `opts.schema` = structured output;
      *  `opts.imageAssetIds` = vision inputs from the installer's own CAS. A provider failure rejects with a
      *  {@link PluginLlmFailure}. capability: llm.quiet */
@@ -928,8 +931,8 @@ interface PluginHostV1 {
   /** The PRIVATE event plane between the SAME installer's plugins — `plugin:<slug>:<name>` channels. Never a
    *  domain event, never automation, never another user. capability: plugin_events */
   readonly pubsub: {
-    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. 360 emits per hour
-     *  per plugin; past that the emit rejects until the hour turns, whether anyone listens or not. A handler may
+    /** Publish on YOUR channel (slug host-stamped). Emitting to nobody is free. Payload ≤ 16 KiB. Emits have an hourly
+     *  rate ceiling; past it the emit rejects until the hour turns, whether anyone listens or not. A handler may
      *  answer an announcement with one of its own, but an emit from inside that answer's own delivery rejects with
      *  `PluginPubsubDepthError`, so plugins cannot wake each other, or themselves, in a loop. The same chain counts a
      *  trigger fact your plugins raised (see `events.on`), so a loop through either plane stops at the same depth. */
@@ -977,14 +980,14 @@ interface PluginHostV1 {
   };
 
   readonly net: {
-    /** Host-performed fetch: allowlisted to your manifest's `netHosts` ONLY, GET/POST, 5 s deadline, 1 MiB
-     *  response cap, SSRF-guarded, 360/hour per plugin. The body is text — there are no bytes in the realm.
+    /** Host-performed fetch: allowlisted to your manifest's `netHosts` ONLY, GET/POST, with a deadline, a
+     *  response size cap and an hourly rate ceiling, SSRF-guarded. The body is text — there are no bytes in the realm.
      *  capability: net.fetch */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
     /** Download a remote IMAGE into the installer's OWN storage and get back an assetId — allowlisted to your
-     *  manifest's `netHosts` ONLY (the same hosts; its OWN art-sized 1200/hour belt, so covers never starve
+     *  manifest's `netHosts` ONLY (the same hosts; its OWN larger hourly rate ceiling, so covers never starve
      *  your `fetch` budget), SSRF-guarded, and
-     *  image-validated (magic bytes, not the server's Content-Type; dimension/size caps; 5 MiB). You never see
+     *  image-validated (magic bytes, not the server's Content-Type; dimension and size caps). You never see
      *  the bytes or a URL — only the assetId, which you can render in an `image`/`hero` node or hand to
      *  `character.ingestAsset`. Rejects on a non-image, an oversize download, or a blocked host.
      *  capability: net.fetch_asset */
@@ -1033,7 +1036,8 @@ interface PluginHostV1 {
      *  person initiated (a spontaneous modal is unspellable). An unknown id is dropped. */
     openDialog: (surfaceId: string) => Promise<void>;
     /** THE ESCAPE HATCH — your own document (html + css, verbatim) in an isolated frame: opaque origin, no
-     *  network, ≤ 64 000/16 000 chars, ≤ 8 frames. Anchors: settings, chat-flank, tool-card.
+     *  network, ≤ 64 000/16 000 chars, ≤ 8 frames. Anchors: the application's `PLUGIN_ANCHOR_TIERS` map decides;
+     *  today every anchor except `chat-settings-section` and `message-footer`.
      *  There is no `orb` inside a frame. It reaches the host by
      *  `parent.postMessage({ orbPluginFrameCall: { callId, fn, args } }, "*")`, where `fn` is one of the
      *  functions `ui.host` proxies for a scripted surface, `args` is that function's opaque wire input, and the call is
@@ -1057,7 +1061,9 @@ interface PluginUiEvent {
 /** The `ui.js` realm: compute trees locally, at native latency. Same determinism law as the server guest
  *  (no Date, no Math.random); a hung handler is terminated from outside and the surface collapses to null.
  *  The three rules that keep a scripted surface alive: render something immediately, never block, and batch
- *  host calls at startup (each one is a real network round-trip). */
+ *  host calls at startup (each one is a real network round-trip). Its contract is the application's
+ *  `PluginHostV1` members it shares, the `UI_PROXYABLE_HOST_FUNCTIONS` relay with its argument schemas, and
+ *  `PluginUiGuestEvent`. */
 interface PluginUiV1 {
   readonly version: 1;
   /** Display-only feature detection — the server re-gates every relayed call against the stored grant. */

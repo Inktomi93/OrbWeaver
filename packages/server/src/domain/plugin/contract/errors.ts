@@ -75,11 +75,11 @@ export class PluginNoGitSourceError extends DomainOperationError {
   }
 }
 
-/** A one-click `upgradeFromStoredUrl` on a plugin that has NO remembered source URL — a file (`upload`-origin)
- *  install (U8 2b). DISTINCT from `PluginNotFoundError`: the plugin exists and is the
- *  caller's own; what is absent is a URL to re-fetch from, and the honest answer is "this one was installed from a
- *  file — upload a new bundle to update it", not "not found". Thrown AFTER the owner-scoped load (so it never
- *  leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */
+/** A one-click `upgradeFromStoredUrl` or `previewStoredUpgrade` on a plugin that has NO remembered bundle URL — a
+ *  file (`upload`-origin) install, or (for the URL upgrade) a Git row, whose source URL names a repository the URL
+ *  door would fetch as a zip and then rewrite as a URL row. DISTINCT from `PluginNotFoundError`: the plugin exists
+ *  and is the caller's own; what is absent is a bundle URL to re-fetch from. Thrown AFTER the owner-scoped load
+ *  (so it never leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */
 export class PluginNoSourceUrlError extends DomainOperationError {
   constructor(
     // echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
@@ -87,7 +87,7 @@ export class PluginNoSourceUrlError extends DomainOperationError {
   ) {
     super(
       "plugin_no_source_url",
-      `plugin ${pluginId} was installed from a file, not a URL — upload a new bundle to update it (there is no remembered source to re-fetch)`,
+      `plugin ${pluginId} was not installed from a bundle URL — update it from the source it came from (there is no remembered bundle URL to re-fetch)`,
     );
   }
 }

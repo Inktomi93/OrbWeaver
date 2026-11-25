@@ -5,14 +5,16 @@
 // @subject packages/server/src/domain/plugin/context.ts
 
 import type { PluginBundleHash, PluginManifest, PluginView } from "@orb/contracts/plugin";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginBundleHashSchema, pluginManifestSchema } from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { CORPUS_PLUGIN_GIT_URL, createCorpusPluginGit, createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import { z } from "zod";
 
 const BUNDLE_URL = "https://plugins.example.test/ledger.zip";
+// A well-formed hash no source served: the refusal must come before any fetch could compare it.
+const UNSEEN_BUNDLE_HASH = pluginBundleHashSchema.parse("0".repeat(64));
 const UPSTREAM_FAULT = "connection reset by the plugin source";
 const SOURCE = 'orb.host(1).ui.registerCommand({ name: "note", describe: "Note a line", onRun: () => {} });';
 const LOG_SCAN_LIMIT = 500;
@@ -83,6 +85,24 @@ test("a stranger's upgrade of another owner's plugin is refused before the serve
   const owner = await root.internalCallerFor(root.ownerId);
   expect(await owner.plugin.upgradeFromStoredUrl({ pluginId, expectedBundleHash: nextHash })).toMatchObject({ id: pluginId, version: "1.1.0" });
   expect(source.requests).toBe(sent + 1);
+});
+
+test("a plugin installed from Git is refused by the URL upgrade before its repository is fetched, and keeps its Git source", { tags: ["slow"] }, async ({
+  importStagingDir,
+  clock,
+}) => {
+  const remote = await createCorpusPluginGit(importStagingDir, clock.now());
+  await using root = await createServerHarness({ networkExecution: remote.networkExecution });
+  const owner = await root.internalCallerFor(root.ownerId);
+  const preview = await owner.plugin.previewFromGit({ url: CORPUS_PLUGIN_GIT_URL });
+  const installed = await owner.plugin.installFromGit({ url: CORPUS_PLUGIN_GIT_URL, expectedCommit: preview.sourceCommit, grant: [] });
+  const sent = remote.requests.length;
+
+  await expect(owner.plugin.upgradeFromStoredUrl({ pluginId: installed.id, expectedBundleHash: UNSEEN_BUNDLE_HASH })).rejects.toMatchObject({
+    code: "BAD_REQUEST",
+  });
+  expect(remote.requests).toHaveLength(sent);
+  expect((await owner.plugin.list())[0]).toMatchObject({ id: installed.id, origin: "git", sourceCommit: preview.sourceCommit });
 });
 
 test("an upgrade whose stored address cannot be fetched is a BAD_REQUEST, and the log keeps its cause once", async () => {

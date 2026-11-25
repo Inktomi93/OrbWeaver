@@ -40,6 +40,7 @@ export type { PluginQuietLlmDeps } from "./contract/quiet-llm.ts";
 export {
   pluginDisplayTransformResultSchema,
   pluginGitPreviewSchema,
+  pluginStoredUpgradePreviewSchema,
   pluginUiHostCallResultSchema,
   pluginUpdateCheckSchema,
   pluginUrlPreviewSchema,

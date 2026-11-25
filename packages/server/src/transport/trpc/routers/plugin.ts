@@ -69,6 +69,7 @@ import { z } from "zod";
 import {
   pluginDisplayTransformResultSchema,
   pluginGitPreviewSchema,
+  pluginStoredUpgradePreviewSchema,
   pluginUiHostCallResultSchema,
   pluginUpdateCheckSchema,
   pluginUrlPreviewSchema,
@@ -176,11 +177,20 @@ export const pluginRouter = t.router({
   //    like `list`/`listSurfaces` (no foreign id). Both stored-source upgrade verbs take a FOREIGN pluginId and
   //    join the PROBED set: each loads the owner-scoped row and NOT_FOUNDs a stranger BEFORE egress, then uses
   //    the unchanged reach-widening→disabled re-consent wall (never a silent update). Git additionally requires
-  //    the exact 40-hex commit the check returned, binding the displayed verdict to the later clone. URL
-  //    upgrades likewise require the exact bundle hash returned by the check.
+  //    the exact 40-hex commit the preview returned, binding the reviewed manifest to the later clone. URL
+  //    upgrades likewise require the exact bundle hash the preview returned.
+  //
+  //    `previewStoredUpgrade` is the review step between the two: a MUTATION for the same egress reason, it
+  //    takes a FOREIGN pluginId and joins the PROBED set (owner-scoped load, NOT_FOUND before egress), and returns
+  //    the version and widened reach the owner reads before choosing to apply.
   checkForUpdates: authedProcedure
     .output(z.array(pluginUpdateCheckSchema).readonly())
     .mutation(({ ctx }) => ctx.services.plugin.checkForUpdates({ caller: ctx.auth })),
+
+  previewStoredUpgrade: authedProcedure
+    .input(pluginIdInputSchema)
+    .output(strictTwin(pluginStoredUpgradePreviewSchema))
+    .mutation(({ ctx, input }) => ctx.services.plugin.previewStoredUpgrade({ caller: ctx.auth, pluginId: input.pluginId })),
 
   upgradeFromStoredUrl: authedProcedure
     .input(z.strictObject({ pluginId: pluginIdSchema, expectedBundleHash: pluginBundleHashSchema }))
