@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-25
 priority: P3
 area: security
+lane: wt/agent-ae6d85b73986b2b04
 ---
 
 # The plugin broker bounds each Worker's heap, keeps its heartbeat under load and trusts only its own beats

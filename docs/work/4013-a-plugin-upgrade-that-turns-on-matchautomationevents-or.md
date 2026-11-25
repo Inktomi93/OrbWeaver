@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-25
 priority: P2
 area: security
+lane: wt/agent-a2085b9ffc1754752
 ---
 
 # A plugin upgrade that turns on matchAutomationEvents or adds provider rows asks for re-consent

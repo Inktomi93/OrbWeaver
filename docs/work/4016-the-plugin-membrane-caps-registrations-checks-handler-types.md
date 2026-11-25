@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-25
 priority: P3
 area: security
+lane: wt/agent-a2085b9ffc1754752
 ---
 
 # The plugin membrane caps registrations, checks handler types and refuses ungranted calls before any work, and the app side rechecks size and spend caps

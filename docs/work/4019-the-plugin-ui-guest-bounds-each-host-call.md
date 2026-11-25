@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-25
 priority: P3
 area: security
+lane: wt/agent-ae6d85b73986b2b04
 ---
 
 # The plugin UI guest bounds each host call, a frame serves the current bundle after an upgrade, and the frame bridge pins its channel
