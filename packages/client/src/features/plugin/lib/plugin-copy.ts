@@ -344,24 +344,18 @@ export const PLUGIN_NO_PERMISSIONS_LINE = "This plugin asks for no permissions. 
  * you"), not a settled state — the row below carries the actual re-consent notice + action. A plugin that was
  * never approved is a first ask, not a refusal, and wears the quiet {@link NEEDS_APPROVAL_LABEL} instead.
  *
- * The granted set feeds the ENABLED-BUT-INERT arm (side-eye 2026-08-29 owner observation): a plugin switched
- * on with ZERO granted capabilities runs and can reach nothing — the least-privilege posture working as
- * designed, but "I turned it on and nothing happened" needed an answer ON THE ROW. The badge says why,
- * and says no more: an installed plugin's grant is only editable through the re-consent path (`setGrant`
- * is reached from the notice, never from the durable disclosure), so this label deliberately does NOT
- * point at a "tick something below" affordance that does not exist. `warning` on the statusCopy doc's own
- * rule — an on-but-inert plugin is an OPEN question, not a settled success.
+ * `reconsentPending` also feeds the ENABLED arm. The Enabled switch stays live beside an open notice, and the server then
+ * starts the plugin with the unanswered reach withheld (a capability nobody granted, a host, a provider or the automation
+ * opt-in), so "On" alone would say it runs whole. The badge says part of it waits, and no more: the grant is only editable
+ * through the notice, so the label does NOT point at a "tick something below" affordance that does not exist. `warning` on
+ * the same rule as the disabled arm: an open question, not a settled success.
  */
-export function statusCopy(
-  plugin: ConsentAskFacts & { readonly declaredCapabilities: readonly PluginCapability[]; readonly status: PluginStatus; readonly reconsentPending: boolean },
-): {
+export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginStatus; readonly reconsentPending: boolean }): {
   readonly label: string;
   readonly tone: Extract<Tone, "success" | "warning" | "neutral" | "destructive">;
 } {
   if (plugin.status === "enabled") {
-    // A plugin that declares no capability has nothing to be granted: its providers and automation opt-in were answered before it ran.
-    const grantStillOwed = plugin.declaredCapabilities.length > 0 && plugin.grantedCapabilities.length === 0;
-    return grantStillOwed ? { label: "On: nothing granted yet", tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
+    return plugin.reconsentPending ? { label: PLUGIN_ON_WAITING_LABEL, tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
   }
   if (plugin.status === "errored") {
     return { label: "Stopped after an error", tone: "destructive" };
@@ -376,6 +370,9 @@ export function statusCopy(
 
 /** The settled state of an enabled plugin with a grant. A row leaves it unpainted, because the Enabled switch already says it. */
 export const PLUGIN_ON_STATUS_LABEL = "On";
+
+/** An enabled plugin that still has reach waiting on its owner's approval: it runs without that reach. */
+export const PLUGIN_ON_WAITING_LABEL = "On: some of it waits for your approval";
 
 /** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the
  *  Plugin pages list alike. */
@@ -397,14 +394,11 @@ export function consentAskKind(plugin: ConsentAskFacts): "first" | "update" {
   return plugin.grantedCapabilities.length === 0 && !reachDelta ? "first" : "update";
 }
 
-/** The headline of a never-approved plugin's ask. */
-export function firstConsentLine(plugin: DeclaredReach & { readonly name: string }): string {
-  const asked = plugin.declaredCapabilities.length;
-  // A count of zero is never said: with no capability the ask is the rest of its reach, or nothing at all.
-  if (asked === 0) {
-    return declaresReach(plugin) ? `${plugin.name} needs your OK for what it reaches before it can run.` : `${plugin.name} needs your OK before it can run.`;
-  }
-  return `${plugin.name} needs your OK for ${asked === 1 ? "1 permission" : `${asked} permissions`} before it can run.`;
+/** The headline of a never-approved plugin's ask. A first ask is pending with nothing granted and no widened reach, and the server
+ *  raises "pending" only for an ungranted capability or a widened reach (`refusalAfterGrant` in
+ *  `packages/server/src/domain/plugin/verbs/set-grant.ts`), so `askedCount` is at least 1. */
+export function firstConsentLine(pluginName: string, askedCount: number): string {
+  return `${pluginName} needs your OK for ${askedCount === 1 ? "1 permission" : `${askedCount} permissions`} before it can run.`;
 }
 
 /** The re-consent sentence's clause for one added provider; the automation opt-in it turns on reads {@link PLUGIN_AUTOMATION_EVENTS_PHRASE}. */

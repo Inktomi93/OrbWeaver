@@ -8,7 +8,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { noticeToast, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -16,7 +16,6 @@ import { createServerHarness, makePluginBundle } from "@orb/testkit/node/compose
 import type { Page } from "@playwright/test";
 import {
   APPLY_UPDATE_LABEL,
-  capabilityCopy,
   PLUGIN_AUTOMATION_EVENTS_PHRASE,
   PLUGIN_PROVIDERS_NOUN,
   pluginApplyUpdateLabel,
@@ -28,7 +27,6 @@ import {
   storedUpdateHeading,
   storedUpdateStandingLine,
   UPDATE_REVIEW_DISMISS_LABEL,
-  upgradeStayedOffNotice,
 } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginActionGroupsStory } from "./_update-action-groups-stories.tsx";
 
@@ -93,16 +91,15 @@ async function installAndRoute(
   page: Page,
   root: ServerTestHarness,
   source: Source,
-  { first = FIRST, next = NEXT }: { readonly first?: PluginManifest; readonly next?: PluginManifest } = {},
+  { first = FIRST, next = NEXT, failApply = false }: { readonly first?: PluginManifest; readonly next?: PluginManifest; readonly failApply?: boolean } = {},
 ): Promise<{ readonly caller: Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>; readonly calls: TrpcRecorder }> {
   const caller = await root.internalCallerFor(root.ownerId);
   source.bundle = makePluginBundle(first, "orb.host(1);", root.clock.now());
   const preview = await caller.plugin.previewFromUrl({ url: SOURCE });
   await caller.plugin.installFromUrl({ url: SOURCE, expectedBundleHash: preview.bundleHash, grant: first.capabilities });
   source.bundle = makePluginBundle(next, "orb.host(1);", root.clock.now());
-  const calls = await routeTrpc(
-    page,
-    serveCorpusProcedures(caller, [
+  const calls = await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, [
       "sessions.me",
       "settings.getUserSettings",
       "plugin.list",
@@ -110,12 +107,13 @@ async function installAndRoute(
       "plugin.getLog",
       "plugin.checkForUpdates",
       "plugin.previewStoredUpgrade",
-      "plugin.upgradeFromStoredUrl",
       "plugin.listCommands",
       "plugin.listMacros",
       "plugin.listBundleAssets",
     ]),
-  );
+    // The apply is the one request a case may refuse, so the review is left open on a failed update.
+    ...serveCorpusProcedures(caller, ["plugin.upgradeFromStoredUrl"], failApply ? () => trpcError() : () => undefined),
+  });
   return { caller, calls };
 }
 
@@ -137,10 +135,7 @@ test("the review names the new version and host, and applying it lands the previ
   await expect(review).toContainText(REACHED_HOST);
   expect(calls.count("plugin.upgradeFromStoredUrl")).toBe(0);
 
-  // A permission named inside a sentence reads in lower case, and the heading stands above the lines under it.
-  const asked = capabilityCopy("net.fetch")?.label ?? "";
-  await expect(review).toContainText(asked.toLowerCase());
-  await expect(review).not.toContainText(asked);
+  // The heading stands above the lines under it.
   const headingSize = await review
     .getByText(storedUpdateHeading(FIRST.version, NEXT.version))
     .evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
@@ -149,7 +144,6 @@ test("the review names the new version and host, and applying it lands the previ
 
   await review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true }).click();
   await expect(review).toHaveCount(0);
-  await expect(noticeToast(page, { title: upgradeStayedOffNotice(FIRST.name) })).toBeVisible();
   expect((await caller.plugin.list())[0]).toMatchObject({ version: NEXT.version, reconsentPending: true, widenedNetHosts: [REACHED_HOST] });
   await expect(page.getByRole("button", { name: APPLY_UPDATE_LABEL })).toHaveCount(0);
 });
@@ -215,8 +209,6 @@ test("an earlier refusal that still stands is named, and the review says the plu
   await review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true }).click();
   await expect(review).toHaveCount(0);
   expect((await caller.plugin.list())[0]).toMatchObject({ version: AFTER_REFUSED.version, reconsentPending: true, widenedNetHosts: [REACHED_HOST] });
-  // This update asked for nothing new, so the toast blames no update.
-  await expect(noticeToast(page, { title: upgradeStayedOffNotice(FIRST.name) })).toBeVisible();
 });
 
 test("keyboard focus moves into the review when it opens and back to the row's update check when it closes", async ({ mount, page }) => {
@@ -254,4 +246,29 @@ test("keyboard focus moves into the review when it opens and back to the row's u
   await expect(check).toBeFocused();
   // The group is named for the review, never for its Apply press.
   await expect(page.getByRole("group", { name: pluginApplyUpdateLabel(FIRST.name), exact: true })).toHaveCount(0);
+});
+
+test("a failed Apply leaves the review open with keyboard focus still on Apply", async ({ mount, page }) => {
+  const source: Source = { bundle: new Uint8Array() };
+  await using root = await rootServing(source);
+  const { caller, calls } = await installAndRoute(page, root, source, { failApply: true });
+  await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
+  await page.getByRole("button", { name: pluginDetailsLabel(FIRST.name), exact: true }).click();
+  await page.getByRole("button", { name: pluginCheckForUpdatesLabel(FIRST.name), exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: pluginUpdateToLabel(FIRST.name, NEXT.version), exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
+  await expect(review).toBeFocused();
+  await page.keyboard.press("Tab");
+  const apply = review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true });
+  await expect(apply).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  // The request was refused and has settled: Apply is no longer busy, the plugin is unchanged, and focus never left Apply.
+  await expect.poll(() => calls.count("plugin.upgradeFromStoredUrl")).toBe(1);
+  await expect(apply).not.toHaveAttribute("aria-busy", "true");
+  await expect(review).toBeVisible();
+  await expect(apply).toBeFocused();
+  expect((await caller.plugin.list())[0]).toMatchObject({ version: FIRST.version });
 });

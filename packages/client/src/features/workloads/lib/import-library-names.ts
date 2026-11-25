@@ -40,6 +40,9 @@ export const IMPORT_INTRO_LEAD = "Restore a backup, or bring your SillyTavern li
 /** The drop zone for a backup zip or a single card. */
 export const IMPORT_FILE_PICKER_NAME = "Import a backup or card file";
 
+/** The line under the drop zone's instructions: what each kind of file it takes carries. */
+export const IMPORT_DROPZONE_HINT = "A .zip carries a whole library or SillyTavern profile; a .png / .json is a single card";
+
 /** The refused zip's one action: leave the preflight and pick again. */
 export const IMPORT_PICK_ANOTHER_NAME = "Pick another file";
 

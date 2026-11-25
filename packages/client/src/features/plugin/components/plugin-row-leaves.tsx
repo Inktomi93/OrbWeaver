@@ -90,20 +90,22 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const previewStored = usePreviewStoredUpgrade({ trpc, invalidation });
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
   const applying = upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending;
-  // The Update press unmounts as the review opens, and the review unmounts as Not now or Apply closes it, so focus is
-  // handed on: the review takes it on open (a screen reader lands on the group's name), the check takes it back on close.
+  // The Update press unmounts as the review opens, and the review (or, on a shipped copy that applies in one press, the Update press
+  // itself) unmounts as the update closes, so focus is handed on: the review takes it on open (a screen reader lands on the group's
+  // name), the check takes it back when the review closes or an update lands.
   const checkRef = useRef<HTMLButtonElement>(null);
   const reviewRef = useRef<HTMLDivElement>(null);
-  const wasReviewing = useRef(false);
-  const reviewing = verdict.kind === "review";
+  const priorKind = useRef(verdict.kind);
+  const kind = verdict.kind;
   useEffect(() => {
-    if (reviewing) {
+    const prior = priorKind.current;
+    priorKind.current = kind;
+    if (kind === "review") {
       reviewRef.current?.focus();
-    } else if (wasReviewing.current) {
+    } else if (prior === "review" || (prior === "available" && kind === "idle")) {
       checkRef.current?.focus();
     }
-    wasReviewing.current = reviewing;
-  }, [reviewing]);
+  }, [kind]);
 
   const runCheck = async (): Promise<void> => {
     // useCheckForUpdates (lib/plugin-mutations.ts) carries
@@ -355,7 +357,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     >
       <Text cap="prose" voice="promoted">
         {firstAsk
-          ? firstConsentLine(plugin)
+          ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length)
           : reConsentLine(ungranted, {
               netHosts: plugin.widenedNetHosts,
               providerIds: plugin.widenedProviderIds,

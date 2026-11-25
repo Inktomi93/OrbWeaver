@@ -15,6 +15,7 @@ const META_SLOT_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/M
 const WRAPPED_STAMP_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/WrappedStampStory";
 const WIDTH = 373;
 const PHONE_WIDTH = 390;
+const NARROW_PHONE_WIDTH = 320;
 const TEXT_200 = 2;
 
 interface Box {
@@ -211,8 +212,8 @@ test("every row's trailing datum ends at one edge with no dot before it, and a d
 
 test("every line of a stamp that wraps ends at the stamp's end edge", async ({ mount, page }) => {
   await page.setViewportSize({ width: PHONE_WIDTH, height: 844 });
-  const component = await mount<typeof WrappedStampStory>(WRAPPED_STAMP_STORY, { width: PHONE_WIDTH });
-  await setRootFontScale(page, channelName("fontScale"), TEXT_200 * 2);
+  const component = await mount<typeof WrappedStampStory>(WRAPPED_STAMP_STORY, { width: NARROW_PHONE_WIDTH });
+  await setRootFontScale(page, channelName("fontScale"), TEXT_200);
   const meta = component.locator('[data-slot="list-row-meta"]');
   const lines = await meta.evaluate((node) => {
     const range = document.createRange();

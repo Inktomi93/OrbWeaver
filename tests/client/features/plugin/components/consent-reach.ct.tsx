@@ -3,8 +3,7 @@
 // carries the same mark. The unmarked first provider is the control for the mark. Approving the card sends the echo the
 // server requires, so the plugin comes up enabled with the provider and the opt-in answered.
 import { spawn } from "node:child_process";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginViewSchema } from "@orb/contracts/plugin";
-import { ID_PREFIX } from "@orb/kit/ids";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePluginProviderRow } from "@orb/testkit/iso";
@@ -13,11 +12,13 @@ import { createServerHarness, makePluginBundle } from "@orb/testkit/node/compose
 import type { Page } from "@playwright/test";
 import {
   approveLabel,
+  enablePluginLabel,
   PLUGIN_ADDED_MARK,
   PLUGIN_AUTOMATION_EVENTS_LINE,
   PLUGIN_AUTOMATION_EVENTS_PHRASE,
   PLUGIN_NO_PERMISSIONS_LINE,
   PLUGIN_NO_REACH_LINE,
+  PLUGIN_ON_WAITING_LABEL,
   pluginCardLabel,
   pluginDetailsLabel,
   pluginPermissionsLabel,
@@ -72,6 +73,7 @@ async function serveWidenedCard(page: Page, root: ServerTestHarness): Promise<Aw
       "plugin.listSurfaces",
       "plugin.listDistributed",
       "plugin.setGrant",
+      "plugin.setEnabled",
       "connection.listBindings",
     ]),
   );
@@ -157,46 +159,19 @@ test("approving the card echoes the provider and the opt-in, and the plugin come
   await expect(page.getByRole("group", { name: pluginCardLabel(MANIFEST_NAME), exact: true }).locator('[data-slot="badge"]')).toHaveCount(0);
 });
 
-test("a first ask that declares a provider and no capability never counts its permissions as zero", async ({ page, mount }) => {
+test("an Enabled switch pressed while a re-consent is open says part of the plugin waits for approval", async ({ page, mount }) => {
   await page.setViewportSize({ width: NARROWEST_WIDTH, height: 844 });
-  await using root = await createServerHarness({ startJobs: false });
-  const caller = await root.internalCallerFor(root.ownerId);
-  // A copy nobody has answered yet: nothing granted, no earlier version to widen from, one provider declared.
-  const unanswered = pluginViewSchema.parse({
-    id: root.idSource.typeId(ID_PREFIX.plugin),
-    slug: PLUGIN,
-    name: MANIFEST_NAME,
-    version: "1.0.0",
-    status: "disabled",
-    origin: "upload",
-    sourceUrl: null,
-    sourceCommit: null,
-    updateSource: null,
-    grantedCapabilities: [],
-    declaredCapabilities: [],
-    netHosts: null,
-    reconsentPending: true,
-    widenedNetHosts: [],
-    providers: [{ id: firstProvider.id, label: FIRST_LABEL }],
-    matchAutomationEvents: false,
-    widenedProviderIds: [],
-    widenedMatchAutomationEvents: false,
-    builtAgainst: null,
-    description: "Adds providers.",
-    lastError: null,
-    installedAt: root.clock.now(),
-    updatedAt: root.clock.now(),
-  });
-  await routeTrpc(page, {
-    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "plugin.listSurfaces", "plugin.listDistributed", "connection.listBindings"]),
-    "plugin.list": [unanswered],
-  });
+  await using root = await createServerHarness({ startJobs: false, pluginSpawn: spawn });
+  const caller = await serveWidenedCard(page, root);
   await mount<typeof PluginConsentLayoutStory>("tests/client/features/plugin/components/_consent-layout-stories/PluginConsentLayoutStory", {
     width: NARROWEST_WIDTH,
   });
+  const card = page.getByRole("group", { name: pluginCardLabel(MANIFEST_NAME), exact: true });
+  await card.getByRole("switch", { name: enablePluginLabel(MANIFEST_NAME), exact: true }).click();
 
-  const notice = page.getByRole("alert").filter({ has: page.getByRole("listitem").filter({ hasText: FIRST_LABEL }) });
-  // The positive control: the notice is the first ask and lists the provider it is asking about.
-  await expect(notice.getByRole("button", { name: approveLabel(MANIFEST_NAME, 0), exact: true })).toBeVisible();
-  await expect(notice).not.toContainText(/\b0 permissions\b/u);
+  // The plugin runs, with the new provider and the opt-in withheld, and the card says so beside the notice that still asks.
+  await expect.poll(async () => (await caller.plugin.list())[0]?.status).toBe("enabled");
+  expect((await caller.plugin.list())[0]).toMatchObject({ reconsentPending: true, widenedProviderIds: [addedProvider.id] });
+  await expect(card.getByText(PLUGIN_ON_WAITING_LABEL, { exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: approveLabel(MANIFEST_NAME, 0), exact: true })).toBeVisible();
 });
