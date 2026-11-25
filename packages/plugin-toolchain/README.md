@@ -50,8 +50,17 @@ and network APIs inside isolated frames are rejected before emit.
   A `tool-card` spec binds the tool call record instead, so it is not linked.
 - A reference whose type is wider than a string literal is not checked.
 - A published state type the checker cannot enumerate, such as an index signature, is not checked.
-- Only a `.setState(…)` or `.openDialog(…)` property call is linked. `host.ui["setState"](…)` and a
-  destructured `setState(…)` are not checked.
+- A call is recognized by the SDK member it invokes, so `host.ui["setState"](…)`, a destructured
+  `setState(…)` and an aliased member link like a property call.
+
+When a `manifest.json` sits beside the plugin, `build`, `check` and `pack` also validate it. `pack` requires one.
+
+- The manifest must pass the manifest schema and name a membrane major the host serves.
+- `uiEntry` and an authored `ui.ts` must agree in both directions, as the install funnel requires.
+- Every host call in `main.ts` and `ui.ts` must have its capability in `capabilities`.
+- A `ui.register`, `ui.registerFrame` or `ui.registerCommand` definition is run through the registration schemas
+  the host applies at activation. The whole schema runs when every property is a literal. Otherwise each literal
+  property meets its own field schema, and a value the checker cannot resolve is never reported.
 
 The application installs only the emitted
 JavaScript and never executes this toolchain or repository build scripts.

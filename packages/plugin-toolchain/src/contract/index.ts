@@ -126,7 +126,7 @@ export const PLUGIN_AUTHOR_SUPPORT_SECTIONS = ["schemaVersion", "runtimes", "cap
 export type PluginAuthorSupportSection = (typeof PLUGIN_AUTHOR_SUPPORT_SECTIONS)[number];
 
 /** A problem located at one node of the checked source. */
-export interface SurfaceLinkProblem {
+export interface SourceProblem {
   readonly node: ts.Node;
   readonly message: string;
 }

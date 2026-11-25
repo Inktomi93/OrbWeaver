@@ -2,15 +2,16 @@
 // checks read the literal ids and bindings the checker inferred and link them across separate statements.
 // A reference the checker cannot resolve to literals is open and is never reported.
 import ts from "typescript";
-import type { SurfaceLinkProblem } from "./contract/index.ts";
+import type { SourceProblem } from "./contract/index.ts";
+import type { HostCall } from "./host-calls.ts";
+import { propertyName } from "./host-calls.ts";
 
 /** The `host.ui` members whose calls are checked. */
 const LINKED_UI_METHOD_NAMES = ["register", "setState", "openDialog"] as const;
 type LinkedUiMethod = (typeof LINKED_UI_METHOD_NAMES)[number];
 
 const LINKED_UI_METHODS: ReadonlySet<string> = new Set<LinkedUiMethod>(LINKED_UI_METHOD_NAMES);
-const HOST_INTERFACE = "PluginHostV1";
-const UI_NAMESPACE = "ui";
+const UI_PATH_PREFIX = "ui.";
 const DIALOG_ANCHOR = "dialog";
 const STATIC_TIER = "static";
 // A tool-card spec binds the tool call record, not state published through `setState`.
@@ -54,33 +55,9 @@ function isLinkedUiMethod(name: string): name is LinkedUiMethod {
   return LINKED_UI_METHODS.has(name);
 }
 
-function propertyName(node: ts.PropertyName): string | undefined {
-  return ts.isIdentifier(node) || ts.isStringLiteral(node) ? node.text : undefined;
-}
-
 function hasTypeFlag(type: ts.Type, flag: ts.TypeFlags): boolean {
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
   return (type.flags & flag) !== 0;
-}
-
-/** A property signature of the SDK's `PluginHostV1["ui"]` type literal, resolved through the checker so an
- *  aliased `const ui = host.ui` still links while an unrelated `setState` does not. */
-function isHostUiMember(declaration: ts.Declaration | undefined): boolean {
-  const literal = declaration?.parent;
-  if (!(literal !== undefined && ts.isTypeLiteralNode(literal) && ts.isPropertySignature(literal.parent))) {
-    return false;
-  }
-  const uiProperty = literal.parent;
-  return propertyName(uiProperty.name) === UI_NAMESPACE && ts.isInterfaceDeclaration(uiProperty.parent) && uiProperty.parent.name.text === HOST_INTERFACE;
-}
-
-function linkedCall(checker: ts.TypeChecker, node: ts.Node): LinkedCall | undefined {
-  if (!(ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression))) {
-    return;
-  }
-  const method = node.expression.name.text;
-  const linked = isLinkedUiMethod(method) && isHostUiMember(checker.getSymbolAtLocation(node.expression.name)?.declarations?.[0]);
-  return linked ? { method, call: node } : undefined;
 }
 
 /** The string literals a type can hold, or `undefined` when any member is wider than a literal. */
@@ -178,17 +155,11 @@ function statePathResolves(checker: ts.TypeChecker, type: ts.Type, segments: rea
   return property !== undefined && statePathResolves(checker, checker.getTypeOfSymbol(property), rest);
 }
 
-function collectCalls(checker: ts.TypeChecker, source: ts.SourceFile): readonly LinkedCall[] {
-  const calls: LinkedCall[] = [];
-  const visit = (node: ts.Node): void => {
-    const linked = linkedCall(checker, node);
-    if (linked !== undefined) {
-      calls.push(linked);
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return calls;
+function linkedCalls(hostCalls: readonly HostCall[]): readonly LinkedCall[] {
+  return hostCalls.flatMap(({ path, call }) => {
+    const method = path.startsWith(UI_PATH_PREFIX) ? path.slice(UI_PATH_PREFIX.length) : undefined;
+    return method !== undefined && isLinkedUiMethod(method) ? [{ method, call }] : [];
+  });
 }
 
 function registeredSurface(checker: ts.TypeChecker, argument: ts.Expression): RegisteredSurface | undefined {
@@ -204,8 +175,8 @@ function registeredSurface(checker: ts.TypeChecker, argument: ts.Expression): Re
   };
 }
 
-function missingSurfaceProblems(calls: readonly LinkedCall[], checker: ts.TypeChecker, surfaces: readonly RegisteredSurface[]): readonly SurfaceLinkProblem[] {
-  const problems: SurfaceLinkProblem[] = [];
+function missingSurfaceProblems(calls: readonly LinkedCall[], checker: ts.TypeChecker, surfaces: readonly RegisteredSurface[]): readonly SourceProblem[] {
+  const problems: SourceProblem[] = [];
   const registered = new Map(surfaces.flatMap((surface) => surface.ids.map((id) => [id, surface] as const)));
   for (const { method, call } of calls) {
     const target = call.arguments[0];
@@ -245,8 +216,8 @@ function unpublishedBindingProblems(
   checker: ts.TypeChecker,
   surfaces: readonly RegisteredSurface[],
   published: readonly StatePublication[],
-): readonly SurfaceLinkProblem[] {
-  const problems: SurfaceLinkProblem[] = [];
+): readonly SourceProblem[] {
+  const problems: SourceProblem[] = [];
   for (const surface of surfaces) {
     const [id, ...aliases] = surface.ids;
     const readsPublishedState =
@@ -274,8 +245,8 @@ function unpublishedBindingProblems(
 
 /** Report `setState` and `openDialog` targets that name no registered surface, and static-spec `$state`
  *  paths that no `setState` for that surface can publish. */
-export function surfaceLinkProblems(checker: ts.TypeChecker, source: ts.SourceFile): readonly SurfaceLinkProblem[] {
-  const calls = collectCalls(checker, source);
+export function surfaceLinkProblems(checker: ts.TypeChecker, hostCalls: readonly HostCall[]): readonly SourceProblem[] {
+  const calls = linkedCalls(hostCalls);
   const surfaces: RegisteredSurface[] = [];
   for (const { method, call } of calls) {
     const [argument] = call.arguments;
