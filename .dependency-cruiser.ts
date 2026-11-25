@@ -492,6 +492,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/infra/plugin-host/budgets.ts": "PLUGIN_ASSET_MAX_BYTES: the fetched-asset byte cap the image-cap suite sends one byte past",
   "packages/server/src/infra/plugin-host/cpu-guard.ts":
     "installCpuGuard and withinCpuWindow: the CPU guard its unit suite drives on a raw context, to plant the missed site no door can reach",
+  "packages/server/src/infra/plugin-host/marshal.ts":
+    "createGuestMarshal and GuestCallFailure: the marshal its unit suite builds host errors with outside any span, the missed site no door can reach",
   "packages/server/src/infra/plugin-host/module.ts": "getPluginQuickJS: the engine module that unit suite takes its raw context from",
   "packages/server/src/infra/plugin-host/process-argv.ts": "formatPluginBrokerArguments: the watchdog's broker launch the permission-drop suite repeats",
   "packages/server/src/infra/plugin-host/process-channel.ts":

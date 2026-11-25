@@ -60,6 +60,8 @@ paths:
 
 - Inside a host function, read a guest property with the marshal's `readGuestProp` and set one on a host-made object with `setHostProp`. Each checks the window first, because the binding drops a callback's interrupt.
 
+- Give a closure the host evaluates into the guest realm no authority. A guest `Error.prepareStackTrace` can take any function on the stack through `CallSite.getFunction`, in strict mode too.
+
 - A guest harness evaluates the shipped bundle in `node:vm` using the realm's exported
   `AMBIENT_STUBS` in `realm.ts`, never a hand-rolled stub set.
 
