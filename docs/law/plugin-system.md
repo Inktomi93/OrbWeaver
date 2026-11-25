@@ -22,6 +22,8 @@ The bundle may come from an upload, a development directory, a bundle URL, or a 
 
 `scripts/generate-plugin-author-support.ts` derives the toolchain's support map from executable contract tuples and maps. `packages/plugin-toolchain/src/support.generated.ts` ships without application imports, so standalone authors need no Orbweaver checkout. Runtime facts without a contract owner live in `packages/plugin-toolchain/src/support-model.ts`.
 
+`orb-plugin pack` validates `manifest.json` and each registration through the schemas in `@orb/contracts/plugin`, never copies of them, and refuses a `uiEntry` with no authored `ui.ts`. `scripts/release-plugin-authoring.ts` bundles those schemas into the toolchain tarball. It builds the bundle twice and refuses differing bytes or any import that is not a declared dependency, so a clean install outside the checkout runs it. The tarball ships declarations for the programmatic entry, with no workspace import in them.
+
 Generate an author guide with `orb-plugin support --write <path>`. Check it with `orb-plugin support --check <path>`; missing or stale output fails without rewriting. Template guides link to that generated guide rather than copying capability, hook, surface, or placement lists. SDK declarations remain separate from runtime support data.
 
 ## Execution planes

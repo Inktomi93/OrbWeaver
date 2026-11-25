@@ -2,8 +2,11 @@ import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
+import type { PluginManifest } from "@orb/contracts/plugin";
+import { PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { zipSync } from "fflate";
 import ts from "typescript";
+import { capabilityProblems } from "./capability-check.ts";
 import type {
   PluginAuthorArtifact,
   PluginAuthorBundleResult,
@@ -13,6 +16,9 @@ import type {
   PluginAuthorResult,
   PluginAuthorRuntime,
 } from "./contract/index.ts";
+import { collectHostCalls } from "./host-calls.ts";
+import { checkManifest } from "./manifest.ts";
+import { registrationProblems } from "./registration-schemas.ts";
 import { PLUGIN_AUTHOR_SUPPORT } from "./support.generated.ts";
 import { surfaceLinkProblems } from "./surface-links.ts";
 
@@ -202,7 +208,10 @@ async function compileSource(
   sdkDirectory: string,
   sourcePath: string,
   runtime: PluginAuthorRuntime,
-  observer?: PluginAuthorCompilerObserver,
+  {
+    observer,
+    declaredCapabilities,
+  }: { readonly observer?: PluginAuthorCompilerObserver | undefined; readonly declaredCapabilities?: ReadonlySet<string> | undefined } = {},
 ): Promise<{ text: string; diagnostics: readonly PluginAuthorDiagnostic[] }> {
   const absolute = resolve(sourcePath);
   const text = await readFile(absolute, "utf8");
@@ -233,10 +242,16 @@ async function compileSource(
   if (source === undefined) {
     return { text: "", diagnostics: [{ file: absolute, line: 1, column: 1, message: "TypeScript did not load the authored source" }] };
   }
+  const checker = program.getTypeChecker();
+  const hostCalls = runtime === "frame" ? [] : collectHostCalls(checker, source);
+  const sourceProblems = [
+    ...(runtime === "main" ? [...surfaceLinkProblems(checker, hostCalls), ...registrationProblems(checker, hostCalls)] : []),
+    ...(declaredCapabilities === undefined ? [] : capabilityProblems(hostCalls, declaredCapabilities)),
+  ];
   const diagnostics = [
     ...syntaxDiagnostics(source, runtime),
     ...ts.getPreEmitDiagnostics(program).map((diagnostic) => formatCompilerDiagnostic(diagnostic, absolute)),
-    ...(runtime === "main" ? surfaceLinkProblems(program.getTypeChecker(), source).map(({ node, message }) => sourcePosition(source, node, message)) : []),
+    ...sourceProblems.map(({ node, message }) => sourcePosition(source, node, message)),
   ];
   return { text: diagnostics.length === 0 ? emitScript(text, absolute, runtime) : "", diagnostics };
 }
@@ -273,6 +288,17 @@ async function readOptionalText(path: string): Promise<string | undefined> {
   return text;
 }
 
+async function readOptionalBytes(path: string): Promise<Uint8Array | undefined> {
+  try {
+    return new Uint8Array(await readFile(path));
+  } catch (error) {
+    if (isMissingFile(error)) {
+      return;
+    }
+    throw error;
+  }
+}
+
 function templateLiteralBody(text: string): string {
   return text.replaceAll("\\", "\\\\").replaceAll("`", "\\`").replaceAll("${", "\\${");
 }
@@ -289,7 +315,7 @@ async function compileFrame(sdkDirectory: string, sourceDirectory: string, obser
   if (sourceText === undefined) {
     return { sourceText: undefined, emittedText: undefined, diagnostics: [] };
   }
-  const compiled = await compileSource(sdkDirectory, sourcePath, "frame", observer);
+  const compiled = await compileSource(sdkDirectory, sourcePath, "frame", { observer });
   return {
     sourceText,
     emittedText: compiled.diagnostics.length === 0 ? compiled.text.trimEnd() : undefined,
@@ -321,6 +347,7 @@ interface RuntimeCompilation {
   readonly runtime: "main" | "ui";
   readonly frame: FrameCompilation;
   readonly observer?: PluginAuthorCompilerObserver;
+  readonly declaredCapabilities?: ReadonlySet<string>;
 }
 
 async function compileRuntime({
@@ -330,6 +357,7 @@ async function compileRuntime({
   runtime,
   frame,
   observer,
+  declaredCapabilities,
 }: RuntimeCompilation): Promise<{ readonly artifact?: PluginAuthorArtifact; readonly diagnostics: readonly PluginAuthorDiagnostic[] }> {
   const sourcePath = join(sourceDirectory, sourceEntry(runtime));
   const sourceText = await readOptionalText(sourcePath);
@@ -338,7 +366,7 @@ async function compileRuntime({
       diagnostics: runtime === "main" ? [{ file: sourcePath, line: 1, column: 1, message: `${sourceEntry("main")} is required` }] : [],
     };
   }
-  const compiled = await compileSource(sdkDirectory, sourcePath, runtime, observer);
+  const compiled = await compileSource(sdkDirectory, sourcePath, runtime, { observer, declaredCapabilities });
   if (compiled.diagnostics.length > 0) {
     return { diagnostics: compiled.diagnostics };
   }
@@ -388,10 +416,34 @@ async function obsoleteUiOutput(sourceDirectory: string, outputDirectory: string
   return [join(outputDirectory, "ui.js")];
 }
 
-export async function compilePluginDirectory(project: PluginAuthorProject): Promise<PluginAuthorResult> {
+interface ManifestFile {
+  readonly bytes: Uint8Array;
+  readonly manifest: PluginManifest | undefined;
+}
+
+// The install funnel refuses a bundle whose `ui.js` and `uiEntry` disagree, in both directions.
+function uiEntryDiagnostics(manifestPath: string, manifest: PluginManifest, authoredUi: boolean): readonly PluginAuthorDiagnostic[] {
+  const uiSource = sourceEntry("ui");
+  const declaresUi = manifest.uiEntry !== undefined;
+  if (declaresUi === authoredUi) {
+    return [];
+  }
+  const message = declaresUi
+    ? `manifest.json declares uiEntry but ${uiSource} is not authored, so the bundle has no ui.js`
+    : `${uiSource} is authored but manifest.json declares no uiEntry`;
+  return [{ file: manifestPath, line: 1, column: 1, message }];
+}
+
+async function compileWithManifest(
+  project: PluginAuthorProject,
+): Promise<{ readonly result: PluginAuthorResult; readonly manifestFile: ManifestFile | undefined }> {
   const { pluginDirectory, sdkDirectory } = project;
   const sourceDirectory = project.sourceDirectory ?? pluginDirectory;
   const outputDirectory = project.outputDirectory ?? join(pluginDirectory, ".orb-plugin", "build");
+  const manifestPath = join(pluginDirectory, PLUGIN_MANIFEST_ENTRY);
+  const manifestBytes = await readOptionalBytes(manifestPath);
+  const checkedManifest = manifestBytes === undefined ? undefined : checkManifest(manifestPath, manifestBytes);
+  const manifest = checkedManifest?.manifest;
   const frame = await compileFrame(sdkDirectory, sourceDirectory, project.compilerObserver);
   const runtimeResults = await Promise.all(
     (["main", "ui"] as const).map((runtime) =>
@@ -402,20 +454,36 @@ export async function compilePluginDirectory(project: PluginAuthorProject): Prom
         runtime,
         frame,
         ...(project.compilerObserver === undefined ? {} : { observer: project.compilerObserver }),
+        ...(manifest === undefined ? {} : { declaredCapabilities: new Set<string>(manifest.capabilities) }),
       }),
     ),
   );
-  const diagnostics = [...(await legacyOutputDiagnostics(sourceDirectory)), ...frame.diagnostics, ...runtimeResults.flatMap((result) => result.diagnostics)];
   const missingUiSource = !(await fileExists(join(sourceDirectory, sourceEntry("ui"))));
+  const diagnostics = [
+    ...(checkedManifest?.diagnostics ?? []),
+    ...(manifest === undefined ? [] : uiEntryDiagnostics(manifestPath, manifest, !missingUiSource)),
+    ...(await legacyOutputDiagnostics(sourceDirectory)),
+    ...frame.diagnostics,
+    ...runtimeResults.flatMap((result) => result.diagnostics),
+  ];
   const sourceUiOutput = join(sourceDirectory, "ui.js");
   if (missingUiSource && (await fileExists(sourceUiOutput))) {
     diagnostics.push({ file: sourceUiOutput, line: 1, column: 1, message: `ui.js exists without authored ${sourceEntry("ui")}` });
   }
   return {
-    artifacts: diagnostics.length === 0 ? runtimeResults.flatMap((result) => (result.artifact === undefined ? [] : [result.artifact])) : [],
-    diagnostics,
-    obsoleteOutputPaths: await obsoleteUiOutput(sourceDirectory, outputDirectory),
+    result: {
+      artifacts: diagnostics.length === 0 ? runtimeResults.flatMap((result) => (result.artifact === undefined ? [] : [result.artifact])) : [],
+      diagnostics,
+      obsoleteOutputPaths: await obsoleteUiOutput(sourceDirectory, outputDirectory),
+    },
+    manifestFile: manifestBytes === undefined ? undefined : { bytes: manifestBytes, manifest },
   };
+}
+
+/** Compile each authored runtime. A `manifest.json` beside the plugin is validated and cross-checked against
+ *  the scripts; a project with none compiles on its own. */
+export async function compilePluginDirectory(project: PluginAuthorProject): Promise<PluginAuthorResult> {
+  return (await compileWithManifest(project)).result;
 }
 
 export function formatPluginAuthorDiagnostics(repoRoot: string, diagnostics: readonly PluginAuthorDiagnostic[]): string {
@@ -491,7 +559,11 @@ async function optionalAssetEntries(pluginDirectory: string): Promise<ReadonlyAr
  * install-funnel validation over these bytes; this function owns artifact construction for first- and
  * third-party authors so templates never copy a private packer. */
 export async function packPluginDirectory(project: PluginAuthorProject): Promise<PluginAuthorBundleResult> {
-  const result = await compilePluginDirectory(project);
+  const { result, manifestFile } = await compileWithManifest(project);
+  if (manifestFile === undefined) {
+    const file = join(project.pluginDirectory, PLUGIN_MANIFEST_ENTRY);
+    return { ...result, diagnostics: [...result.diagnostics, { file, line: 1, column: 1, message: `${PLUGIN_MANIFEST_ENTRY} is required` }], bundle: null };
+  }
   if (result.diagnostics.length > 0) {
     return { ...result, bundle: null };
   }
@@ -500,7 +572,7 @@ export async function packPluginDirectory(project: PluginAuthorProject): Promise
     throw new Error("plugin author compiler produced no main artifact");
   }
   const entries: Record<string, [Uint8Array, { readonly mtime: number }]> = {
-    "manifest.json": [new Uint8Array(await readFile(join(project.pluginDirectory, "manifest.json"))), { mtime: BUNDLE_MTIME_MS }],
+    [PLUGIN_MANIFEST_ENTRY]: [manifestFile.bytes, { mtime: BUNDLE_MTIME_MS }],
     "main.js": [main.bytes, { mtime: BUNDLE_MTIME_MS }],
   };
   const ui = result.artifacts.find((artifact) => artifact.runtime === "ui");

@@ -255,7 +255,8 @@ const PACKAGE_DIRECTION = [
   { name: "showcase-plugins-cake", from: "^packages/showcase-plugins/", allowed: "^packages/(showcase-plugins|kit|contracts)/" },
   { name: "server-cake", from: "^packages/server/", allowed: "^packages/(server|contracts|db|default-content|inference|kit|showcase-plugins)/" },
   { name: "plugin-sdk-cake", from: "^packages/plugin-sdk/", allowed: "^packages/plugin-sdk/" },
-  { name: "plugin-toolchain-cake", from: "^packages/plugin-toolchain/", allowed: "^packages/plugin-toolchain/" },
+  // D266: the toolchain validates a pack through the contracts' own schemas; the release build bundles them into its self-contained tarball.
+  { name: "plugin-toolchain-cake", from: "^packages/plugin-toolchain/", allowed: "^packages/(plugin-toolchain|contracts)/" },
   { name: "ui-cake", from: "^packages/ui/", allowed: "^packages/(ui|kit)/" },
 ].map(({ name, from, allowed }): IForbiddenRuleType => ({ name, severity: "error", from: { path: from }, to: { path: "^packages/", pathNot: allowed } }));
 

@@ -4,8 +4,7 @@ import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
-import type { PluginAuthorSupportFormat } from "./contract/index.ts";
-import { compilePluginDirectory, formatPluginAuthorDiagnostics, packPluginDirectory, stalePluginArtifacts, writePluginArtifacts } from "./index.ts";
+import type { PluginAuthorProject, PluginAuthorSupportFormat } from "./contract/index.ts";
 import { pluginAuthorSupportGuideIsCurrent, renderPluginAuthorSupport, writePluginAuthorSupportGuide } from "./support.ts";
 
 const EXIT_VIOLATION = 1;
@@ -177,7 +176,13 @@ async function runSupport(parsed: ParsedSupportArgs): Promise<void> {
   process.stdout.write(renderPluginAuthorSupport(parsed.format));
 }
 
-async function runPack(parsed: ParsedProjectArgs, project: Parameters<typeof packPluginDirectory>[0]): Promise<void> {
+// The compiler and the contract schemas load only for a project command, so `support` stays a fast call in CI.
+function loadToolchain(): Promise<typeof import("./index.ts")> {
+  return import("./index.ts");
+}
+
+async function runPack(parsed: ParsedProjectArgs, project: PluginAuthorProject): Promise<void> {
+  const { formatPluginAuthorDiagnostics, packPluginDirectory } = await loadToolchain();
   const result = await packPluginDirectory(project);
   if (result.diagnostics.length > 0) {
     fail(formatPluginAuthorDiagnostics(parsed.pluginDirectory, result.diagnostics), EXIT_VIOLATION);
@@ -189,7 +194,8 @@ async function runPack(parsed: ParsedProjectArgs, project: Parameters<typeof pac
   process.stdout.write(`packed ${parsed.bundlePath} (${result.bundle.byteLength} bytes)\n`);
 }
 
-async function runBuildOrCheck(parsed: ParsedProjectArgs, project: Parameters<typeof compilePluginDirectory>[0]): Promise<void> {
+async function runBuildOrCheck(parsed: ParsedProjectArgs, project: PluginAuthorProject): Promise<void> {
+  const { compilePluginDirectory, formatPluginAuthorDiagnostics, stalePluginArtifacts, writePluginArtifacts } = await loadToolchain();
   const result = await compilePluginDirectory(project);
   if (result.diagnostics.length > 0) {
     fail(formatPluginAuthorDiagnostics(parsed.pluginDirectory, result.diagnostics), EXIT_VIOLATION);

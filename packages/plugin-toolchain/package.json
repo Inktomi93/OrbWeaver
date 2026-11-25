@@ -11,9 +11,6 @@
   "files": [
     "src"
   ],
-  "scripts": {
-    "build:package": "tsc -p tsconfig.json --noEmit false --declaration --outDir dist --rootDir src --rewriteRelativeImportExtensions --skipLibCheck false"
-  },
   "bin": {
     "orb-plugin": "./src/cli.ts"
   },
@@ -22,9 +19,11 @@
   },
   "dependencies": {
     "fflate": "^0.8.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "zod": "catalog:"
   },
   "devDependencies": {
+    "@orb/contracts": "workspace:*",
     "@types/node": "catalog:"
   },
   "sideEffects": false
