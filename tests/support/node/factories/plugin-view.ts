@@ -39,6 +39,7 @@ export function makePluginRow(overrides: Partial<TrpcWireOutput<"plugin.list">[n
     providers: [],
     matchAutomationEvents: false,
     widenedProviderIds: [],
+    widenedChangedProviderIds: [],
     widenedMatchAutomationEvents: false,
     builtAgainst: null,
     description: "A fixture plugin.",

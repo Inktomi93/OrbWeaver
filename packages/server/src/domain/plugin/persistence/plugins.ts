@@ -33,19 +33,29 @@ function parsePluginRow(row: PluginRow): PluginRow {
     grantedCapabilities: pluginManifestSchema.shape.capabilities.parse(row.grantedCapabilities),
     widenedNetHosts: pluginManifestSchema.shape.netHosts.unwrap().parse(row.widenedNetHosts),
     widenedProviderIds: providerIdSchema.array().parse(row.widenedProviderIds),
+    widenedChangedProviderIds: providerIdSchema.array().parse(row.widenedChangedProviderIds),
   };
 }
 
 /** The declared providers as a consent surface names them. The row's view and a stored-upgrade preview both read
  *  it, so a card and a review call one provider by one label. */
 export function providerViewsOf(manifest: PluginManifest): readonly PluginProviderView[] {
-  return (manifest.providers ?? []).map((provider) => ({ id: provider.id, label: provider.label }));
+  return (manifest.providers ?? []).map((provider) => ({
+    id: provider.id,
+    label: provider.label,
+    host: provider.baseUrl === undefined ? null : new URL(provider.baseUrl).host,
+  }));
 }
 
 /** The reach a row's standing re-consent still asks for, as an activation withholds it and the next upgrade
  *  carries it. */
 export function unansweredReachOf(row: PluginRow): UnansweredReach {
-  return { netHosts: row.widenedNetHosts, providerIds: row.widenedProviderIds, matchAutomationEvents: row.widenedMatchAutomationEvents };
+  return {
+    netHosts: row.widenedNetHosts,
+    providerIds: row.widenedProviderIds,
+    changedProviderIds: row.widenedChangedProviderIds,
+    matchAutomationEvents: row.widenedMatchAutomationEvents,
+  };
 }
 
 /** WHO CAN SERVE THE NEXT VERSION for one row — never how the bytes arrived. The `url` arm reads
@@ -96,6 +106,7 @@ export function toPluginView(stored: PluginRow, showcaseSlugs: ReadonlySet<strin
     providers: providerViewsOf(row.manifest),
     matchAutomationEvents: row.manifest.matchAutomationEvents === true,
     widenedProviderIds: row.widenedProviderIds,
+    widenedChangedProviderIds: row.widenedChangedProviderIds,
     widenedMatchAutomationEvents: row.widenedMatchAutomationEvents,
     builtAgainst: row.manifest.builtAgainst ?? null,
     description: row.manifest.description,
@@ -163,6 +174,7 @@ function buildInsertPluginStatement(db: Db, row: InsertPluginRow): AwaitableBatc
     pendingReconsent: false,
     widenedNetHosts: [],
     widenedProviderIds: [],
+    widenedChangedProviderIds: [],
     widenedMatchAutomationEvents: false,
     consecutiveCrashes: 0,
     lastError: null,
@@ -318,8 +330,13 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
 
 function unansweredColumns(
   reach: UnansweredReach,
-): Pick<typeof plugins.$inferInsert, "widenedNetHosts" | "widenedProviderIds" | "widenedMatchAutomationEvents"> {
-  return { widenedNetHosts: [...reach.netHosts], widenedProviderIds: [...reach.providerIds], widenedMatchAutomationEvents: reach.matchAutomationEvents };
+): Pick<typeof plugins.$inferInsert, "widenedNetHosts" | "widenedProviderIds" | "widenedChangedProviderIds" | "widenedMatchAutomationEvents"> {
+  return {
+    widenedNetHosts: [...reach.netHosts],
+    widenedProviderIds: [...reach.providerIds],
+    widenedChangedProviderIds: [...reach.changedProviderIds],
+    widenedMatchAutomationEvents: reach.matchAutomationEvents,
+  };
 }
 
 // the upgrade swap. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.

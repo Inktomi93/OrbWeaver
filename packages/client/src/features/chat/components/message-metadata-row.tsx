@@ -32,7 +32,8 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
     return null;
   }
   return (
-    <Text as="span" ink="muted" voice="code" data-slot="message-metadata-timestamp">
+    // The stamp keeps "AM" with its time while it fits; `wrap="anywhere"` lets it break inside when the name row is narrower than the stamp itself.
+    <Text as="span" ink="muted" voice="code" wrap="anywhere" data-slot="message-metadata-timestamp">
       {timeLib.formatTime(message.createdAt)}
     </Text>
   );

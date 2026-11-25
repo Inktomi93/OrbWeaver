@@ -101,9 +101,10 @@
 // refuses, where the eye already is) and the lead column keeps a `w-(--size-checkbox)` spacer, so mixed
 // granted/ungranted rows still share one left rail.
 
-import type { PluginCapability, PluginView } from "@orb/contracts/plugin";
+import type { PluginCapability } from "@orb/contracts/plugin";
 import { NET_HOSTS_MAX } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
+import { sentenceCase } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -111,8 +112,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { MutedLine } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
+import type { DeclaredReach } from "../lib/plugin-copy.ts";
 import {
   CAPABILITY_COPY_ROWS,
   capabilityCopy,
@@ -122,9 +123,10 @@ import {
   noCapabilitiesLine,
   PLUGIN_ADDED_MARK,
   PLUGIN_AUTOMATION_EVENTS_LINE,
-  PLUGIN_PROVIDER_WIDENED_MARK,
+  PLUGIN_PROVIDER_CHANGED_MARK,
   PLUGIN_PROVIDERS_CONSEQUENCE,
   PLUGIN_PROVIDERS_HEADING,
+  providerEndpointNote,
   SPEND_ROLE_TASKS,
 } from "../lib/plugin-copy.ts";
 
@@ -152,10 +154,13 @@ export interface PluginGrantListProps {
   readonly addedNetHosts?: readonly string[];
   /** The providers the manifest adds to the owner's connection choices while it runs. Required so every consent
    *  surface states them: their reach is set by the manifest, not by a capability. */
-  readonly providers: PluginView["providers"];
-  /** Provider ids this update added, straight off `PluginView.widenedProviderIds`; the same pass-through rule as
-   *  {@link addedNetHosts}. */
+  readonly providers: DeclaredReach["providers"];
+  /** Provider ids this update added: the server's recorded `PluginView.widenedProviderIds` less the redefined ones; the same
+   *  pass-through rule as {@link addedNetHosts}. */
   readonly addedProviderIds?: readonly string[];
+  /** Provider ids this update redefined, from `PluginView.widenedChangedProviderIds`. A redefinition can move the endpoint, so
+   *  its row says where the prompts go. */
+  readonly changedProviderIds?: readonly string[];
   /** The manifest opts its event handlers into automation-caused events. */
   readonly matchAutomationEvents: boolean;
   /** This update turned that opt-in on (`PluginView.widenedMatchAutomationEvents`). */
@@ -244,7 +249,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
         {/* "New" reads INFO (informational — this row changed) against "Costs money"'s WARNING (a real
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
-          <Badge id={newMarkId} whitespace="normal" cap="fit" tone="info" size="sm">
+          <Badge id={newMarkId} cap="fit" tone="info" size="sm">
             {PLUGIN_ADDED_MARK}
           </Badge>
         ) : null}
@@ -296,6 +301,44 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
   );
 }
 
+interface ProviderRowProps {
+  readonly label: string;
+  /** The host of the provider's fixed endpoint; null when a connection supplies it. */
+  readonly host: string | null;
+  /** The update added this provider. */
+  readonly added: boolean;
+  /** The update redefined this provider: the owner saw an earlier definition under the id. */
+  readonly changed: boolean;
+}
+
+// A redefinition can move the fixed endpoint and with it every prompt and the connection's key, so a changed row says where its prompts go.
+function ProviderRow({ label, host, added, changed }: ProviderRowProps): ReactElement {
+  return (
+    <Stack gap="tight" role="listitem">
+      <Row align="center" gap="field">
+        <Text voice="label" wrap="anywhere">
+          {label}
+        </Text>
+        {added ? (
+          <Badge cap="fit" tone="info" size="sm">
+            {PLUGIN_ADDED_MARK}
+          </Badge>
+        ) : null}
+        {changed ? (
+          <Badge cap="fit" tone="warning" size="sm">
+            {PLUGIN_PROVIDER_CHANGED_MARK}
+          </Badge>
+        ) : null}
+      </Row>
+      {changed && host !== null ? (
+        <Text cap="prose" prose={true} voice="gloss" wrap="anywhere">
+          {sentenceCase(providerEndpointNote(host))}.
+        </Text>
+      ) : null}
+    </Stack>
+  );
+}
+
 /** The reach list — always read-only (#1855: the consent decision is approve-all or deny, never per row).
  *  Drawn at three moments: the install confirm, the upgrade re-consent notice, and an installed row's
  *  "what it can do" disclosure. */
@@ -307,6 +350,7 @@ export function PluginGrantList({
   addedNetHosts,
   providers,
   addedProviderIds,
+  changedProviderIds,
   matchAutomationEvents,
   matchAutomationEventsAdded = false,
   netHostsHeading = "Hosts it can reach",
@@ -317,6 +361,7 @@ export function PluginGrantList({
   const addedSet = new Set<PluginCapability>(addedCapabilities ?? []);
   const addedHostSet = new Set<string>(addedNetHosts ?? []);
   const addedProviderSet = new Set<string>(addedProviderIds ?? []);
+  const changedProviderSet = new Set<string>(changedProviderIds ?? []);
   const rows = orderedDeclared(declared);
   const unexplained = unexplainedCount(declared);
   const unsetRoles = useUnsetSpendRoles(declared, roleScope);
@@ -335,7 +380,7 @@ export function PluginGrantList({
             {host}
           </Text>
           {addedHostSet.has(host) ? (
-            <Badge whitespace="normal" cap="fit" tone="info" size="sm">
+            <Badge cap="fit" tone="info" size="sm">
               {PLUGIN_ADDED_MARK}
             </Badge>
           ) : null}
@@ -349,7 +394,9 @@ export function PluginGrantList({
       {/* "Nothing" is judged on the whole reach, not on the capabilities: a plugin with providers or automation events and no
           capability still reaches them, listed below. A declared capability this build cannot explain is the alert's, not "none". */}
       {declared.length === 0 ? (
-        <MutedLine>{noCapabilitiesLine({ declaredCapabilities: declared, netHosts, providers, matchAutomationEvents })}</MutedLine>
+        <Text cap="prose" prose={true} voice="gloss">
+          {noCapabilitiesLine({ declaredCapabilities: declared, netHosts, providers, matchAutomationEvents })}
+        </Text>
       ) : null}
       {rows.length === 0 ? null : (
         // `role="group"` + `aria-label` gives the permission set an announced boundary (side-eye P3): the
@@ -416,8 +463,8 @@ export function PluginGrantList({
       ) : null}
 
       {/* Providers and the automation opt-in are reach the manifest sets with no capability name, the same
-          shape as `netHosts`, so they render whenever declared and carry the server's widening mark verbatim. A
-          provider's mark also covers a redefined id, which the recorded delta does not tell from an added one. */}
+          shape as `netHosts`, so they render whenever declared and carry the server's widening mark verbatim. The
+          server records an added id apart from a redefined one, and each wears its own mark. */}
       {providers.length > 0 ? (
         <Stack gap="field">
           <Stack gap="tight">
@@ -428,34 +475,36 @@ export function PluginGrantList({
           </Stack>
           <Stack gap="tight" role="list">
             {providers.map((provider) => (
-              <Row key={provider.id} align="center" gap="field" role="listitem">
-                <Text voice="label" wrap="anywhere">
-                  {provider.label}
-                </Text>
-                {addedProviderSet.has(provider.id) ? (
-                  <Badge whitespace="normal" cap="fit" tone="info" size="sm">
-                    {PLUGIN_PROVIDER_WIDENED_MARK}
-                  </Badge>
-                ) : null}
-              </Row>
+              <ProviderRow
+                changed={changedProviderSet.has(provider.id)}
+                host={provider.host ?? null}
+                added={addedProviderSet.has(provider.id)}
+                key={provider.id}
+                label={provider.label}
+              />
             ))}
           </Stack>
         </Stack>
       ) : null}
 
-      {matchAutomationEvents ? (
-        // The mark leads and the sentence shrinks beside it: a trailing mark in a wrapping row dropped to a line of its own at a phone's width.
-        <Row align="start" gap="field">
-          {matchAutomationEventsAdded ? (
-            <Badge whitespace="normal" cap="fit" tone="info" size="sm">
-              {PLUGIN_ADDED_MARK}
-            </Badge>
-          ) : null}
-          <Text cap="prose" prose={true} voice="gloss">
-            {PLUGIN_AUTOMATION_EVENTS_LINE}
-          </Text>
-        </Row>
-      ) : null}
+      {matchAutomationEvents ? <AutomationEventsLine added={matchAutomationEventsAdded} /> : null}
     </Stack>
+  );
+}
+
+// The mark leads and the sentence shrinks beside it: a trailing mark in a wrapping row dropped to a line of its own at a phone's width.
+// A badge holds one word on one line, so the row's shrink falls on the sentence and never crushes the mark to a letter a line.
+function AutomationEventsLine({ added }: { readonly added: boolean }): ReactElement {
+  return (
+    <Row align="start" gap="field">
+      {added ? (
+        <Badge cap="fit" tone="info" size="sm">
+          {PLUGIN_ADDED_MARK}
+        </Badge>
+      ) : null}
+      <Text cap="prose" prose={true} voice="gloss">
+        {PLUGIN_AUTOMATION_EVENTS_LINE}
+      </Text>
+    </Row>
   );
 }

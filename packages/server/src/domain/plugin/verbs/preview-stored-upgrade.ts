@@ -17,7 +17,13 @@ import { cloneThroughGuard } from "../substrate/git-clone.ts";
 import { manifestWidening, unansweredReachAfter } from "../substrate/grants.ts";
 import { hashPluginBundle, isVersionDowngrade, parseBundle } from "../substrate/manifest.ts";
 
-const NO_WIDENING = { capabilities: [], netHosts: [], providerIds: [], matchAutomationEvents: false } as const satisfies PluginReachWidening;
+const NO_WIDENING = {
+  capabilities: [],
+  netHosts: [],
+  providerIds: [],
+  changedProviderIds: [],
+  matchAutomationEvents: false,
+} as const satisfies PluginReachWidening;
 
 type StoredRow = NonNullable<Awaited<ReturnType<typeof getById>>>;
 

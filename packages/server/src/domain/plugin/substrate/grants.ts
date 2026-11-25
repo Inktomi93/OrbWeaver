@@ -141,16 +141,18 @@ function pendingWidenedNetHosts(newlyDeclared: readonly string[], widened: reado
 }
 
 /** The reach a settled row withholds: nothing. */
-export const NO_UNANSWERED_REACH: UnansweredReach = { netHosts: [], providerIds: [], matchAutomationEvents: false };
+export const NO_UNANSWERED_REACH: UnansweredReach = { netHosts: [], providerIds: [], changedProviderIds: [], matchAutomationEvents: false };
 
 /** Provider ids `next` declares with a definition `prior` did not, in `next` order: a new id, or a known id whose
  *  definition changed. The owner approved the definition they were shown, and the connection domain's per-owner claim
  *  refuses a changed one only once an activation has claimed the id, so an approved id no activation claimed would
  *  otherwise carry a new base URL, models or kind with no re-consent. Definition identity is the one that claim
- *  hashes: the serialized row, which both manifests produce through the same schema parse, so key order is fixed. */
-function widenedProviderIds(next: readonly ProviderDef[], prior: readonly ProviderDef[]): ProviderId[] {
+ *  hashes: the serialized row, which both manifests produce through the same schema parse, so key order is fixed.
+ *  `changed` is the part of `ids` whose id `prior` declared: this is the one moment the two definitions are both known. */
+function widenedProviders(next: readonly ProviderDef[], prior: readonly ProviderDef[]): { readonly ids: ProviderId[]; readonly changed: ProviderId[] } {
   const priorDefinitions = new Map(prior.map((row) => [row.id, JSON.stringify(row)]));
-  return next.filter((row) => priorDefinitions.get(row.id) !== JSON.stringify(row)).map((row) => row.id);
+  const widened = next.filter((row) => priorDefinitions.get(row.id) !== JSON.stringify(row));
+  return { ids: widened.map((row) => row.id), changed: widened.filter((row) => priorDefinitions.has(row.id)).map((row) => row.id) };
 }
 
 /** What `next` reaches that the owner of `prior` never consented to, per widening field. `capabilities` is judged
@@ -160,10 +162,12 @@ export function manifestWidening(
   prior: { readonly manifest: PluginManifest; readonly grantedCapabilities: readonly PluginCapability[] },
   next: PluginManifest,
 ): PluginReachWidening {
+  const providers = widenedProviders(next.providers ?? [], prior.manifest.providers ?? []);
   return {
     capabilities: newlyDeclaredCapabilities(next.capabilities, prior.grantedCapabilities),
     netHosts: widenedNetHosts(next.netHosts ?? [], prior.manifest.netHosts ?? []),
-    providerIds: widenedProviderIds(next.providers ?? [], prior.manifest.providers ?? []),
+    providerIds: providers.ids,
+    changedProviderIds: providers.changed,
     matchAutomationEvents: next.matchAutomationEvents === true && prior.manifest.matchAutomationEvents !== true,
   };
 }
@@ -179,9 +183,16 @@ export function isReachWidened(widening: PluginReachWidening): boolean {
  *  manifest dropped leaves nothing to consent to. */
 export function unansweredReachAfter(next: PluginManifest, widening: PluginReachWidening, carried: UnansweredReach): UnansweredReach {
   const providerIds = new Set<ProviderId>([...widening.providerIds, ...carried.providerIds]);
+  const carriedIds = new Set<ProviderId>(carried.providerIds);
+  const carriedChanged = new Set<ProviderId>(carried.changedProviderIds);
+  const changedNow = new Set<ProviderId>(widening.changedProviderIds);
+  const unansweredIds = (next.providers ?? []).map((row) => row.id).filter((id) => providerIds.has(id));
   return {
     netHosts: pendingWidenedNetHosts(next.netHosts ?? [], widening.netHosts, carried.netHosts),
-    providerIds: (next.providers ?? []).map((row) => row.id).filter((id) => providerIds.has(id)),
+    providerIds: unansweredIds,
+    // An id the owner has never answered keeps the kind it first asked as: a new provider an earlier update added stays new
+    // when a later one redefines it, because the owner has never seen any definition of it.
+    changedProviderIds: unansweredIds.filter((id) => (carriedIds.has(id) ? carriedChanged.has(id) : changedNow.has(id))),
     matchAutomationEvents: next.matchAutomationEvents === true && (widening.matchAutomationEvents || carried.matchAutomationEvents),
   };
 }

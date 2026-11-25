@@ -40,7 +40,7 @@ import {
 } from "../lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
-import { notifyUpgradeStayedOff } from "../lib/plugin-upgrade-notice.ts";
+import { notifyUpgradeNeedsApproval } from "../lib/plugin-upgrade-notice.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
 import { PluginModelBindings } from "./plugin-model-bindings.tsx";
@@ -117,7 +117,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
     if (updated === undefined) {
       return;
     }
-    notifyUpgradeStayedOff(plugin.name, updated);
+    notifyUpgradeNeedsApproval(plugin.name, updated);
   };
 
   const onUpgradeFile = (file: File): void => {
