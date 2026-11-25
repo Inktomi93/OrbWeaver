@@ -87,7 +87,8 @@ jobs:
       - name: Stop the server with no broker or watchdog left running, and end a held one
         if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/infra/plugin-host/watchdog-shutdown.int.test.ts tests/server/infra/plugin-host/watchdog-policy.test.ts
-      - name: Read only the broker's own heartbeat, and replace a silent broker
+      # The heartbeat-pipe file includes the case that never reads the broker's stderr: the beat write must not block it, which Windows alone makes synchronous.
+      - name: Read only the broker's own heartbeat, answer past a full beat pipe, and replace a silent broker
         if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/infra/plugin-host/worker-escape-containment.int.test.ts tests/server/infra/plugin-host/persistence/broker-heartbeat-pipe.int.test.ts tests/server/infra/plugin-host/persistence/broker-liveness.int.test.ts
       - name: Bound and share the broker's queues
