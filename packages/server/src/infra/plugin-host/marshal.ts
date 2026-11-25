@@ -18,7 +18,9 @@
 //
 // HOST VALUES CROSS WITHOUT GUEST CODE. A host refusal's error and the host's own strings (the grant list, a minted
 // id, the chat token) are built with the binding's allocators and `defineProp`, which call no guest function and no
-// guest setter, so building one cannot fail on the guest's account. A host error is an object on the realm's
+// guest setter. A host error also takes its brand through one call into the realm, which runs no guest code but can
+// meet the interrupt past the window; that failure is the guest's and crosses as `GuestCallFailure`, like any other
+// realm call's. A host error is an object on the realm's
 // `Error.prototype`, never `newError()`: the engine's error constructor captures a stack, which runs the guest's
 // `Error.prepareStackTrace`, and the binding's own path for a thrown error (`newError` through `setProp`) also runs a
 // guest setter. A guest result settles through `Promise.resolve` and `Promise.prototype.then` captured here, never
@@ -97,7 +99,9 @@ export interface GuestMarshal extends Disposable {
   readonly newHostString: (text: string) => QuickJSHandle;
   /** A guest array of host strings. The caller owns the handle. */
   readonly newHostStrings: (texts: readonly string[]) => QuickJSHandle;
-  /** A guest `Error` carrying a host error's `name`, `message` and `fields`. The caller owns the handle. */
+  /** A guest `Error` carrying a host error's `name`, `message` and `fields`. The caller owns the handle.
+   *  @throws {@link GuestCallFailure} when the realm fails during the build, as it does past the window; the caller owns
+   *  its exception and hands it back to the guest unchanged or releases it. */
   readonly newHostError: (error: HostErrorFields, fields?: Readonly<Record<string, string>>) => QuickJSHandle;
   /** A guest promise already rejected with a host error, or the realm's own failure to make one — return it from a
    *  host function as it is. */
@@ -146,9 +150,15 @@ function hostText(text: string): string {
 
 /** What the realm-side classifier answers for an object handle. */
 const OBJECT_KIND = { null: 0, array: 1, record: 2, error: 3 } as const;
-// Evaluated before any guest code runs, with `Array.isArray` and `Error.isError` bound then, so a guest that replaces
-// either later is not asked. Both are brand checks: they read no property and run no proxy trap.
-const CLASSIFY_OBJECT_SOURCE = `((isArray, isError) => (value) => (value === null ? ${OBJECT_KIND.null} : isArray(value) ? ${OBJECT_KIND.array} : isError(value) ? ${OBJECT_KIND.error} : ${OBJECT_KIND.record}))(Array.isArray, Error.isError)`;
+// Evaluated before any guest code runs, with every builtin it calls bound then, so a guest that replaces one later is
+// not asked. Each check is a brand check: it reads no property and runs no proxy trap. A host-built error (see
+// `newHostError`) is an object on `Error.prototype`, which `Error.isError` refuses, so it carries its own brand in a
+// `WeakSet` the second function adds to. A guest stack hook can take that function and brand its own object; that
+// gains nothing, because the brand only adds the root `name`, `message` and `stack` reads a real `Error` already gets.
+const CLASSIFY_OBJECT_SOURCE = `((isArray, isError, apply, has, add, hostErrors) => [
+  (value) => (value === null ? ${OBJECT_KIND.null} : isArray(value) ? ${OBJECT_KIND.array} : isError(value) || apply(has, hostErrors, [value]) ? ${OBJECT_KIND.error} : ${OBJECT_KIND.record}),
+  (value) => { apply(add, hostErrors, [value]); },
+])(Array.isArray, Error.isError, Reflect.apply, WeakSet.prototype.has, WeakSet.prototype.add, new WeakSet())`;
 /** The fields the binding's `dump` adds for an error at the root of a read, which the walk reads the same way:
  *  `message` and `stack` are own non-enumerable and `name` is inherited, so own enumerable keys alone would drop them. */
 const ROOT_ERROR_FIELDS = ["name", "message", "stack"] as const;
@@ -417,7 +427,9 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const errorPrototype = captured.adopt(ctx.getProp(errorConstructor, "prototype"), (handle) => handle.dispose());
   // A host-owned step that never returns on its own. No window is open yet, so evaluating it cannot be interrupted.
   const endless = captured.adopt(ctx.unwrapResult(ctx.evalCode("(() => { for (;;) {} })")), (handle) => handle.dispose());
-  const classify = captured.adopt(ctx.unwrapResult(ctx.evalCode(CLASSIFY_OBJECT_SOURCE)), (handle) => handle.dispose());
+  using classifiers = ctx.unwrapResult(ctx.evalCode(CLASSIFY_OBJECT_SOURCE));
+  const classify = captured.adopt(ctx.getProp(classifiers, 0), (handle) => handle.dispose());
+  const brandHostError = captured.adopt(ctx.getProp(classifiers, 1), (handle) => handle.dispose());
   const getProperty = captured.adopt(ctx.unwrapResult(ctx.evalCode("((target, key) => target[key])")), (handle) => handle.dispose());
   const owned = captured.move();
 
@@ -447,8 +459,27 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     for (const [key, text] of Object.entries(fields)) {
       defineText(handle, key, text);
     }
+    // The brand lets the walk read `name` and `message` when this error crosses back, as it reads a real error's.
+    const branded = ctx.callFunction(brandHostError, ctx.undefined, handle);
+    if (branded.error) {
+      throw new GuestCallFailure(branded.error);
+    }
+    branded.value.dispose();
     built.move();
     return handle;
+  };
+
+  // A host error, or the realm's failure while building it. The failure is handed back unchanged, so an interrupt met
+  // during the build stays the one exception a guest cannot catch.
+  const hostErrorOrFailure = (error: HostErrorFields): { readonly failed: boolean; readonly handle: QuickJSHandle } => {
+    try {
+      return { failed: false, handle: newHostError(error) };
+    } catch (failure) {
+      if (failure instanceof GuestCallFailure) {
+        return { failed: true, handle: failure.thrown };
+      }
+      throw failure;
+    }
   };
 
   // Past the window, run the endless step: the interrupt's own reading answers at its first poll, and the engine's
@@ -504,8 +535,12 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     },
     newHostError,
     rejectedWith: (error): VmCallResult<QuickJSHandle> => {
-      using reason = newHostError(error);
-      return ctx.callFunction(reject, promise, reason);
+      const reason = hostErrorOrFailure(error);
+      if (reason.failed) {
+        return { error: reason.handle };
+      }
+      using built = reason.handle;
+      return ctx.callFunction(reject, promise, built);
     },
     settlementOf: (handle): Promise<VmCallResult<QuickJSHandle>> => {
       const resolved = ctx.callFunction(resolve, promise, handle);
@@ -540,7 +575,7 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
           if (error instanceof GuestCallFailure) {
             return { error: error.thrown };
           }
-          return { error: newHostError(error instanceof Error ? error : { name: "Error", message: String(error) }) };
+          return { error: hostErrorOrFailure(error instanceof Error ? error : { name: "Error", message: String(error) }).handle };
         }
       }),
     stopPastWindow,

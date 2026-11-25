@@ -1929,15 +1929,19 @@ function chargeValue(value: unknown, pending: unknown[]): number {
   return jsonBytes(value);
 }
 
-/** Settle a host call's guest promise with `value`, which this releases. Call it inside a span. The resolver runs in the
- *  realm and can fail there: the guest's heap is full, or the span's window passes in a guest `then` getter the
- *  resolve reads. The guest promise then never settles, so its resolvers are released here (an unsettled one aborts
- *  the engine at teardown) and the invocation's settlement wall ends what still awaits it. */
-function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise, settle: QuickJSDeferredPromise["resolve"], value: QuickJSHandle): void {
-  using settled = value;
+/** Settle a host call's guest promise with the value `build` makes, which this releases. Call it inside a span. Building
+ *  a host error and running the resolver both call the realm and can fail there: the interrupt past the window, the
+ *  guest's heap is full, or the span's window passes in a guest `then` getter the resolve reads. The guest promise
+ *  then never settles, so its resolvers and the failure are released here (an unsettled one aborts the engine at
+ *  teardown) and the invocation's settlement wall ends what still awaits it. */
+function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise, settle: QuickJSDeferredPromise["resolve"], build: () => QuickJSHandle): void {
   try {
+    using settled = build();
     settle(settled);
   } catch (error) {
+    if (error instanceof GuestCallFailure) {
+      error.thrown.dispose();
+    }
     deferred.dispose();
     spec.log.warn({ err: error, hostFunction: hostFunctionName(spec.ref) }, "plugin host: the realm could not settle a host call's guest promise");
   }
@@ -2068,20 +2072,17 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           const crossing = Buffer.byteLength(json, "utf8") > HOST_FN_RESULT_CAP_BYTES ? null : json;
           settleHeld(() => {
             if (crossing === null) {
-              settleGuestPromise(
-                spec,
-                deferred,
-                deferred.reject,
+              settleGuestPromise(spec, deferred, deferred.reject, () =>
                 marshal.newHostError({ name: "Error", message: `${name} host result exceeds ${HOST_FN_RESULT_CAP_BYTES}-byte cap` }),
               );
               return;
             }
             const parsed = marshal.parseIntoGuest(crossing);
             if (parsed.error) {
-              settleGuestPromise(spec, deferred, deferred.reject, parsed.error);
+              settleGuestPromise(spec, deferred, deferred.reject, () => parsed.error);
               return;
             }
-            settleGuestPromise(spec, deferred, deferred.resolve, parsed.value);
+            settleGuestPromise(spec, deferred, deferred.resolve, () => parsed.value);
           });
         },
         (reason: unknown) => {
@@ -2093,7 +2094,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           const error = reason instanceof Error ? reason : { name: "Error", message: String(reason) };
           const fields = reason instanceof PluginHostDeadlineError ? { hostFunction: reason.hostFunction } : {};
           settleHeld(() => {
-            settleGuestPromise(spec, deferred, deferred.reject, marshal.newHostError(error, fields));
+            settleGuestPromise(spec, deferred, deferred.reject, () => marshal.newHostError(error, fields));
           });
         },
       )
