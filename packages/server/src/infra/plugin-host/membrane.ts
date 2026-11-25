@@ -1957,6 +1957,28 @@ function readHostArgs(
   return bytes > room ? { ok: false, refusal: argsPastInFlightRoom(name) } : { ok: true, args, bytes };
 }
 
+/** {@link readHostArgs} with the read's whole allowance held in the instance's in-flight budget while it runs. The
+ *  walk runs guest getters, and a getter can make another host call mid-read: that call must see the room this read
+ *  may still fill, or each level of nesting reads a full room. The bytes are judged again after the read, against
+ *  what the calls that nested meanwhile now hold. */
+function readUnderReservation(
+  marshal: GuestMarshal,
+  name: string,
+  argHandles: readonly QuickJSHandle[],
+  { argUnitsMax, inFlight }: { readonly argUnitsMax: number; readonly inFlight: InFlightCounter },
+): ReturnType<typeof readHostArgs> {
+  const room = HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES - inFlight.argBytes;
+  const reserved = Math.max(0, Math.min(argUnitsMax, room));
+  inFlight.argBytes += reserved;
+  let read: ReturnType<typeof readHostArgs>;
+  try {
+    read = readHostArgs(marshal, name, argHandles, { argUnitsMax, room });
+  } finally {
+    inFlight.argBytes -= reserved;
+  }
+  return read.ok && read.bytes > HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES - inFlight.argBytes ? { ok: false, refusal: argsPastInFlightRoom(name) } : read;
+}
+
 /** The serialized bytes of the already-dumped guest arguments, counted until they pass `cap`. An ITERATIVE walk that
  *  SHORT-CIRCUITS the moment the budget is blown — so a hostile payload costs ~`cap` of accounting, not a
  *  second full `JSON.stringify` of the whole graph. Every value is charged its own JSON text, which is the form a
@@ -2072,7 +2094,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     //
     // The reads come before any handle of ours exists: a realm failure during one goes back to the guest as it is.
     // A refusal is an already-rejected promise and registers nothing in `pending`.
-    const read = readHostArgs(marshal, name, argHandles, { argUnitsMax, room: HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES - inFlight.argBytes });
+    const read = readUnderReservation(marshal, name, argHandles, { argUnitsMax, inFlight });
     if (!read.ok) {
       return marshal.rejectedWith({ name: "Error", message: read.refusal });
     }

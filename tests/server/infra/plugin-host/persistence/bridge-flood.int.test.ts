@@ -38,6 +38,8 @@ const FLOOD_OPS = {
   floodGetKey: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.get(big + i))); return settled.map(report); }`,
   // Megabyte messages a door with no tighter cap than the inbound one reads whole and the domain clamps.
   floodToast: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.ui.toast('info', big))); return settled.map(report); }`,
+  // The same messages, each call made by a getter on the last call's later argument while the host reads it.
+  floodToastNested: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const calls = []; const call = (level) => { const later = { get probe() { if (level + 1 < a.calls) { calls.push(call(level + 1)); } return 1; } }; return h.ui.toast('info', big, later); }; calls.push(call(0)); const settled = await Promise.allSettled(calls); return settled.map(report); }`,
   // Megabyte results, the flood in the other direction: tiny to ask for, so the guest spends little, and refused or
   // served when they cross back.
   floodFetch: `async (h, room, a) => { ${REPORT} const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.net.fetch(a.url))); return settled.map(report); }`,
@@ -48,7 +50,7 @@ const FLOOD_OPS = {
 } as const;
 const ARG_BYTES = HOST_FN_ARGS_MAX_BYTES - HOST_CALLS_IN_FLIGHT_MAX;
 // The ops that flood megabyte arguments, as `floodArgs` runs them.
-const ARG_FLOODS = ["floodStore", "floodGetKey", "floodToast"] as const satisfies readonly (keyof typeof FLOOD_OPS)[];
+const ARG_FLOODS = ["floodStore", "floodGetKey", "floodToast", "floodToastNested"] as const satisfies readonly (keyof typeof FLOOD_OPS)[];
 type FloodOp = (typeof ARG_FLOODS)[number];
 // The outcome of one flooding invoke: the name its every call settled as, or the whole invoke ended by the guest's own
 // CPU window while it copied its arguments out — both contained, neither a lost broker.
@@ -293,7 +295,7 @@ test("as many plugins as the broker has Workers, each looping megabyte fetch res
 
 // One owner's plugins fill every Worker the pool holds, each looping megabyte arguments at one door. A store value and
 // a store key are refused for their size before they are read; a toast message is read whole, so only the plugin's
-// in-flight argument budget bounds what its calls hold. Halfway through, a second owner arrives and pings for the rest,
+// in-flight argument budget bounds what its calls hold, also when each call is made inside the last one's read. Halfway through, a second owner arrives and pings for the rest,
 // while the flood goes on within that owner's share. The broker is never replaced, its peak resident memory stays under
 // its ceiling, and the second owner is answered and never struck.
 test.for([
@@ -301,6 +303,7 @@ test.for([
   { door: "storage.get", op: "floodGetKey", answered: [] },
   // The toast notice that the plugin's cooldown lets through is served.
   { door: "ui.toast", op: "floodToast", answered: ["ok"] },
+  { door: "nested ui.toast", op: "floodToastNested", answered: ["ok"] },
 ] as const satisfies readonly { readonly door: string; readonly op: FloodOp; readonly answered: readonly string[] }[])(
   "one owner's plugins looping megabyte $door arguments on every Worker keep the broker under its memory ceiling, and an arriving owner's plugin answers",
   { tags: ["slow"], timeout: FLOOD_TEST_TIMEOUT_MS },

@@ -339,6 +339,20 @@ const IN_FLIGHT_OPS = {
     const burst = await Promise.all(Array.from({ length: a.calls }, call));
     return [...burst, await call()];
   }`,
+  // Each call's later argument makes the next call while the host reads it, so every level but the first starts
+  // inside another call's read. A level whose getter runs was read.
+  nested: `async (h, room, a) => {
+    const message = 'm'.repeat(a.length);
+    const read = [];
+    const calls = [];
+    const call = (level) => {
+      const later = { get probe() { read.push(level); if (level + 1 < a.depth) { calls.push(call(level + 1)); } return 1; } };
+      return h.ui.toast('info', message, later).then(() => 'ok', (e) => e.name);
+    };
+    calls.push(call(0));
+    await Promise.all(calls);
+    return read.length;
+  }`,
 } as const satisfies GuestOps;
 
 test("a call past the arguments a plugin's running host calls may hold is refused before it is read, and served again once they settle", {
@@ -355,6 +369,23 @@ test("a call past the arguments a plugin's running host calls may hold is refuse
   // settled was read again.
   expect(calls.map(([, read]) => read)).toEqual([...Array.from({ length: IN_FLIGHT_CALLS - 1 }, () => true), false, true]);
   expect(calls[IN_FLIGHT_CALLS - 1]?.[0]).toBe(Error.name);
+});
+
+// Deeper than the budget holds at the inbound cap, and far short of the in-flight count cap.
+const NESTED_DEPTH = 3 * IN_FLIGHT_CALLS;
+
+test("a host call an argument getter makes while the host reads that argument is charged the outer read's room", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "nested", capabilities: ["ui.surface"] }, IN_FLIGHT_OPS);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+  // The budget holds this many reads at the inbound cap at once; the next level is refused unread, so its getter
+  // never runs and the chain ends there.
+  expect(await run("nested", { depth: NESTED_DEPTH, length: NEAR_CAP_MESSAGE })).toEqual({
+    ok: true,
+    value: HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES / HOST_FN_ARGS_MAX_BYTES,
+  });
 });
 
 // A guest's own hooks on the reads a symbol or a function invites, counted; the value then goes to a host call.

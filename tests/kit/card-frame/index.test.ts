@@ -103,12 +103,14 @@ test("the routed sandbox grants exactly allow-scripts, on the attribute and in t
   }
 });
 
-test("no delivery or posture opens connect-src, forms or base retargeting, and nothing admits plaintext http", () => {
+test("no delivery or posture opens connect-src, objects, forms or base retargeting, and nothing admits plaintext http", () => {
   for (const delivery of ["document", "meta"] as const) {
     for (const posture of POSTURES) {
       const csp = directives(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, delivery, posture));
       const arm = `${delivery}/${posture}`;
       expect(csp.has("connect-src"), arm).toBe(false);
+      // `<object>` and `<embed>` stay unheld in authored markup because their loads fall back to `default-src 'none'`.
+      expect(csp.has("object-src"), arm).toBe(false);
       expect(csp.get("default-src"), arm).toBe("'none'");
       // Neither falls back to default-src, so each must be named to be closed.
       expect(csp.get("form-action"), arm).toBe("'none'");
