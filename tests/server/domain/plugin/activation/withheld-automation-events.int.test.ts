@@ -61,7 +61,15 @@ test("a refused automation opt-in stays off on re-enable, so a plugin-caused rep
   await root.settleBackground();
   expect(await heard()).not.toContain(`assistant:${WITHHELD_REPLY}`);
 
-  const answered = await root.services.plugin.setGrant({ caller, pluginId, grant: [...CAPABILITIES], acknowledgedNetHosts: [], enable: true });
+  const answered = await root.services.plugin.setGrant({
+    caller,
+    pluginId,
+    grant: [...CAPABILITIES],
+    acknowledgedNetHosts: [],
+    acknowledgedProviderIds: [],
+    acknowledgedMatchAutomationEvents: upgraded.matchAutomationEvents,
+    enable: true,
+  });
   expect(answered).toMatchObject({ status: "enabled", reconsentPending: false, matchAutomationEvents: true });
   await requestTurn();
   await expect.poll(heard).toContain(`assistant:${ANSWERED_REPLY}`);

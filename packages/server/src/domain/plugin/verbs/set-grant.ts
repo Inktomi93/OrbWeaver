@@ -32,7 +32,7 @@
 // grant if the row was `enabled` or the owner asked to enable it.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
-import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "../contract/errors.ts";
+import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError, PluginReachUnacknowledgedError } from "../contract/errors.ts";
 import type { PluginConsentPrompt } from "../contract/ops.ts";
 import type { SetPluginGrantParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService, UnansweredReach } from "../contract/service.ts";
@@ -80,8 +80,28 @@ function requireAcknowledgedHosts(grant: readonly PluginCapability[], manifestHo
   }
 }
 
+// THE REACH ACKNOWLEDGEMENT, the egress acknowledgement's twin for the rest of a widening: a provider id and the
+// automation opt-in are reach the owner never names either. A grant that answers a pending widening must echo every
+// provider id and the opt-in it adds, or a card rendered before a later upgrade would approve what that upgrade added.
+// A grant that leaves the re-consent pending answers nothing, so it needs no echo.
+function requireAcknowledgedReach(
+  answered: UnansweredReach,
+  {
+    acknowledgedProviderIds = [],
+    acknowledgedMatchAutomationEvents = false,
+  }: Pick<SetPluginGrantParams, "acknowledgedProviderIds" | "acknowledgedMatchAutomationEvents">,
+): void {
+  const unacknowledged: string[] = answered.providerIds.filter((id) => !acknowledgedProviderIds.includes(id));
+  if (answered.matchAutomationEvents && !acknowledgedMatchAutomationEvents) {
+    unacknowledged.push("matchAutomationEvents");
+  }
+  if (unacknowledged.length > 0) {
+    throw new PluginReachUnacknowledgedError(unacknowledged);
+  }
+}
+
 export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consentPrompt: PluginConsentPrompt): PluginService["setGrant"] {
-  return async ({ caller, pluginId, grant, acknowledgedNetHosts, enable = false }: SetPluginGrantParams) => {
+  return async ({ caller, pluginId, grant, acknowledgedNetHosts, enable = false, ...acknowledged }: SetPluginGrantParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
@@ -101,7 +121,11 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps, consent
     const wasEnabled = existing.status === "enabled";
     // Both halves of the recorded refusal, in one call — see `refusalAfterGrant` for why a PARTIAL re-grant
     // leaves both standing and why the host delta is carried verbatim rather than recomputed.
-    const refusal = refusalAfterGrant(declared, granted, unansweredReachOf(existing));
+    const unanswered = unansweredReachOf(existing);
+    const refusal = refusalAfterGrant(declared, granted, unanswered);
+    if (!refusal.pending) {
+      requireAcknowledgedReach(unanswered, acknowledged);
+    }
 
     // Tear the resident down BEFORE the write (idempotent on a non-resident) — see the header: a running guest
     // holds the grants it was activated with, so the write must never leave one enforcing a superseded subset.

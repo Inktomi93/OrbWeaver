@@ -242,10 +242,17 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
         {plugin.reconsentPending ? (
           <ReConsentNotice
             allowing={setGrant.isPending}
-            // Echo the displayed hosts independently of the approved capability list.
+            // Echo the displayed hosts, providers and automation opt-in independently of the approved capability list.
             onAllow={(grant): void => {
               setGrant.mutate(
-                { acknowledgedNetHosts: [...(plugin.netHosts ?? [])], enable: true, grant: [...grant], pluginId: plugin.id },
+                {
+                  acknowledgedMatchAutomationEvents: plugin.matchAutomationEvents,
+                  acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
+                  acknowledgedProviderIds: plugin.providers.map(({ id }) => id),
+                  enable: true,
+                  grant: [...grant],
+                  pluginId: plugin.id,
+                },
                 {
                   // The server's settled row says whether it started; a failed start shows its own error line.
                   onSuccess: (view): void => {

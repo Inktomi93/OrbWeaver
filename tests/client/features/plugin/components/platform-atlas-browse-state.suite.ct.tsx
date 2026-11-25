@@ -121,6 +121,8 @@ async function enableAtlas(caller: AtlasCaller, grant: readonly (typeof ATLAS_LI
     pluginId: plugin.id,
     grant: [...grant],
     acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
+    acknowledgedProviderIds: plugin.providers.map(({ id }) => id),
+    acknowledgedMatchAutomationEvents: plugin.matchAutomationEvents,
     enable: true,
   });
   const address = { pluginId: plugin.id, surfaceId: "atlas_page" };

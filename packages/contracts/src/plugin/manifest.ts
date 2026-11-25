@@ -287,7 +287,7 @@ export const PLUGIN_UI_ASSET_MAX_BYTES = 2_097_152;
 export const PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES = 8_388_608;
 // Provider definitions are metadata but each becomes a deployment-global registry row + contribution write
 //  on activation. Bound the fan-out at the manifest trust edge, like capabilities and bundle assets.
-const PLUGIN_PROVIDERS_MAX = 16;
+export const PLUGIN_PROVIDERS_MAX = 16;
 
 interface ProviderManifestFields {
   readonly id: string;
