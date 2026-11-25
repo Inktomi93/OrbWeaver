@@ -121,6 +121,24 @@ test("a guest value that deepens between reads crosses as the one value the dept
   expect(published).toEqual({ ok: true, value: 1 });
 });
 
+// The Proxy twin: the state is a Proxy whose `get` trap answers the same flat-then-deep `tree`, so the race lives in a
+// trap rather than an accessor the host could see on the descriptor.
+const PROXY_SURFACE = "proxied";
+const PROXY_STATE = {
+  publish: `async (h, room, a) => { let gets = 0; const target = { tree: { leaf: 1 } }; const state = new Proxy(target, { get(t, key) { if (key !== 'tree') { return t[key]; } gets += 1; if (gets === 1) { return { leaf: 1 }; } let deep = { leaf: 1 }; for (let i = 0; i < a.depth; i += 1) { deep = { n: deep }; } return deep; } }); await h.ui.setState(${JSON.stringify(PROXY_SURFACE)}, state); return gets; }`,
+} as const satisfies GuestOps;
+
+test("a Proxy whose get trap deepens between reads crosses as the one value the depth guard read", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "proxy-racer", capabilities: [HOST_FUNCTION_CAPABILITY["ui.setState"]] }, PROXY_STATE);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+  const published = await run("publish", { depth: PLUGIN_DUMP_DEPTH_GUARD });
+  expect(await root.services.plugin.getSurfaceState({ caller: owner, pluginId, surfaceId: PROXY_SURFACE })).toEqual({ tree: { leaf: 1 } });
+  expect(published).toEqual({ ok: true, value: 1 });
+});
+
 // A snippet ends by throwing an object whose `message` is its own text, nested `depth` deep under it. The host reads a
 // thrown value for the outcome, and a snippet reports that message, so a read that honors the depth guard reports its
 // own refusal instead of the guest's text.
