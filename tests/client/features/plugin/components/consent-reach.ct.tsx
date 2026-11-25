@@ -14,7 +14,12 @@ import {
   approveLabel,
   PLUGIN_ADDED_MARK,
   PLUGIN_AUTOMATION_EVENTS_LINE,
-  RE_CONSENT_AUTOMATION_EVENTS,
+  PLUGIN_AUTOMATION_EVENTS_PHRASE,
+  PLUGIN_NO_PERMISSIONS_LINE,
+  PLUGIN_NO_REACH_LINE,
+  pluginCardLabel,
+  pluginDetailsLabel,
+  pluginPermissionsLabel,
   RE_CONSENT_ONE_PROVIDER,
 } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
@@ -81,7 +86,7 @@ test("an update's added provider and automation opt-in are named and marked on t
   });
 
   // One sentence names both additions.
-  await expect(page.getByText(RE_CONSENT_ONE_PROVIDER).filter({ hasText: RE_CONSENT_AUTOMATION_EVENTS })).toBeVisible();
+  await expect(page.getByText(RE_CONSENT_ONE_PROVIDER).filter({ hasText: PLUGIN_AUTOMATION_EVENTS_PHRASE })).toBeVisible();
 
   const added = page.getByRole("listitem").filter({ hasText: ADDED_LABEL });
   const first = page.getByRole("listitem").filter({ hasText: FIRST_LABEL });
@@ -91,7 +96,32 @@ test("an update's added provider and automation opt-in are named and marked on t
 
   const automation = page.getByText(PLUGIN_AUTOMATION_EVENTS_LINE, { exact: true });
   await expect(automation).toBeVisible();
-  await expect(automation.locator("..").getByText(PLUGIN_ADDED_MARK, { exact: true })).toBeVisible();
+  const automationMark = automation.locator("..").getByText(PLUGIN_ADDED_MARK, { exact: true });
+  await expect(automationMark).toBeVisible();
+  // At the narrowest width the mark stays beside its sentence: its centre is within the sentence's own height, not on a line under it.
+  const markBox = await automationMark.boundingBox();
+  const sentenceBox = await automation.boundingBox();
+  if (markBox === null || sentenceBox === null) {
+    throw new Error("the automation line is not laid out");
+  }
+  expect(markBox.y + markBox.height / 2).toBeLessThan(sentenceBox.y + sentenceBox.height);
+  // The card and the sentence over it name the automation events with one phrase.
+  await expect(automation).toContainText(PLUGIN_AUTOMATION_EVENTS_PHRASE);
+  await expect(page.getByText(RE_CONSENT_ONE_PROVIDER).filter({ hasText: PLUGIN_AUTOMATION_EVENTS_PHRASE })).toBeVisible();
+});
+
+test("a plugin that asks for no permissions but adds a provider is never told it reaches nothing", async ({ page, mount }) => {
+  await page.setViewportSize({ width: NARROWEST_WIDTH, height: 844 });
+  await using root = await createServerHarness({ startJobs: false });
+  await serveWidenedCard(page, root);
+  await mount<typeof PluginConsentLayoutStory>("tests/client/features/plugin/components/_consent-layout-stories/PluginConsentLayoutStory", {
+    width: NARROWEST_WIDTH,
+  });
+
+  // The providers are listed, so the line over them says what is true of the capabilities alone.
+  await expect(page.getByRole("listitem").filter({ hasText: ADDED_LABEL })).toBeVisible();
+  await expect(page.getByText(PLUGIN_NO_PERMISSIONS_LINE, { exact: true })).toBeVisible();
+  await expect(page.getByText(PLUGIN_NO_REACH_LINE, { exact: true })).toHaveCount(0);
 });
 
 test("approving the card echoes the provider and the opt-in, and the plugin comes up with the question cleared", async ({ page, mount }) => {
@@ -115,4 +145,13 @@ test("approving the card echoes the provider and the opt-in, and the plugin come
     providers: [{ id: firstProvider.id }, { id: addedProvider.id }],
     matchAutomationEvents: true,
   });
+
+  // Once approved, the card's own disclosure still lists what the plugin reaches, and the card does not warn that nothing was granted.
+  await page.getByRole("button", { name: pluginDetailsLabel(MANIFEST_NAME), exact: true }).click();
+  await page.getByRole("button", { name: pluginPermissionsLabel(MANIFEST_NAME), exact: true }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: ADDED_LABEL })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: FIRST_LABEL })).toBeVisible();
+  await expect(page.getByText(PLUGIN_AUTOMATION_EVENTS_LINE, { exact: true })).toBeVisible();
+  await expect(page.getByText(PLUGIN_NO_REACH_LINE, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("group", { name: pluginCardLabel(MANIFEST_NAME), exact: true }).locator('[data-slot="badge"]')).toHaveCount(0);
 });

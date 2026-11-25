@@ -37,8 +37,9 @@
 // display pass such as `chat.transform` do not wear it.
 
 import type { RoutableTask } from "@orb/contracts/inference";
-import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
+import type { PluginBuiltAgainst, PluginCapability, PluginStatus, PluginView } from "@orb/contracts/plugin";
 import { PLUGIN_KV_MAX_KEYS } from "@orb/contracts/plugin";
+import { sentenceCase } from "@orb/kit/strings";
 import type { Tone } from "@orb/ui/tokens";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
@@ -301,12 +302,38 @@ export const HOSTS_COLLAPSE_AT = 5;
 
 /** The mark on a consent row this update added. */
 export const PLUGIN_ADDED_MARK = "New";
+/** The name of what a plugin adds to the owner's connection choices, as every surface spells it: the card, the re-consent
+ *  sentence and the update review. */
+export const PLUGIN_PROVIDERS_NOUN = "model providers";
+/** The events a manifest opts into, as every surface spells them. */
+export const PLUGIN_AUTOMATION_EVENTS_PHRASE = "events that automations and other plugins cause";
 /** The heading over the model providers a plugin adds to the owner's connection choices while it runs. */
-export const PLUGIN_PROVIDERS_HEADING = "Model providers it adds";
+export const PLUGIN_PROVIDERS_HEADING = `${sentenceCase(PLUGIN_PROVIDERS_NOUN)} it adds`;
 /** What adding a provider means: a connection made on it sends that connection's prompts and key where it says. */
 export const PLUGIN_PROVIDERS_CONSEQUENCE = "Each one appears as a choice when you add a connection. A connection you make on it sends its prompts there.";
 /** The reach line for a manifest that opts its event handlers into automation-caused events. */
-export const PLUGIN_AUTOMATION_EVENTS_LINE = "Its event handlers also receive events that automations and other plugins cause, not only what people do.";
+export const PLUGIN_AUTOMATION_EVENTS_LINE = `Its event handlers also receive ${PLUGIN_AUTOMATION_EVENTS_PHRASE}, not only what people do.`;
+
+/** What a plugin can reach, as the server sends it on the row. A plugin reaches something when ANY of these is non-empty:
+ *  a capability, a host, a model provider or the automation opt-in. Every consent surface judges "nothing" through
+ *  {@link declaresReach}, so none can call a plugin with providers or automation events reach-free. */
+export type DeclaredReach = Pick<PluginView, "declaredCapabilities" | "providers" | "matchAutomationEvents"> & {
+  readonly netHosts: PluginView["netHosts"] | undefined;
+};
+
+function declaresReach(reach: DeclaredReach): boolean {
+  return reach.declaredCapabilities.length > 0 || (reach.netHosts ?? []).length > 0 || reach.providers.length > 0 || reach.matchAutomationEvents;
+}
+
+/** The line a plugin that declares no capability is shown: "nothing at all" only when it reaches nothing else either. */
+export function noCapabilitiesLine(reach: DeclaredReach): string {
+  return declaresReach(reach) ? PLUGIN_NO_PERMISSIONS_LINE : PLUGIN_NO_REACH_LINE;
+}
+
+/** A plugin that declares no capability, host, provider or automation opt-in. */
+export const PLUGIN_NO_REACH_LINE = "This plugin asks for no permissions at all. It can run its own code and nothing else.";
+/** A plugin that declares no capability but still reaches something: the list below it holds the rest. */
+export const PLUGIN_NO_PERMISSIONS_LINE = "This plugin asks for no permissions. What else it reaches is listed below.";
 
 /**
  * The lifecycle status as a row's state line — never the raw wire word. `reconsentPending` (#650 P1-1) is
@@ -325,12 +352,16 @@ export const PLUGIN_AUTOMATION_EVENTS_LINE = "Its event handlers also receive ev
  * point at a "tick something below" affordance that does not exist. `warning` on the statusCopy doc's own
  * rule — an on-but-inert plugin is an OPEN question, not a settled success.
  */
-export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginStatus; readonly reconsentPending: boolean }): {
+export function statusCopy(
+  plugin: ConsentAskFacts & { readonly declaredCapabilities: readonly PluginCapability[]; readonly status: PluginStatus; readonly reconsentPending: boolean },
+): {
   readonly label: string;
   readonly tone: Extract<Tone, "success" | "warning" | "neutral" | "destructive">;
 } {
   if (plugin.status === "enabled") {
-    return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
+    // A plugin that declares no capability has nothing to be granted: its providers and automation opt-in were answered before it ran.
+    const grantStillOwed = plugin.declaredCapabilities.length > 0 && plugin.grantedCapabilities.length === 0;
+    return grantStillOwed ? { label: "On: nothing granted yet", tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
   }
   if (plugin.status === "errored") {
     return { label: "Stopped after an error", tone: "destructive" };
@@ -371,9 +402,8 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
   return `${pluginName} needs your OK for ${askedCount === 1 ? "1 permission" : `${askedCount} permissions`} before it can run.`;
 }
 
-/** The re-consent sentence's clause for one added provider, and for the automation opt-in it turns on. */
+/** The re-consent sentence's clause for one added provider; the automation opt-in it turns on reads {@link PLUGIN_AUTOMATION_EVENTS_PHRASE}. */
 export const RE_CONSENT_ONE_PROVIDER = "a new model provider";
-export const RE_CONSENT_AUTOMATION_EVENTS = "events from automations";
 
 /**
  * The headline of the widened-reach notice. The server lands a REACH-WIDENING upgrade `disabled`
@@ -399,10 +429,14 @@ export function reConsentLine(
   const additions = [
     ...(added.netHosts.length === 0 ? [] : [added.netHosts.length === 1 ? "a new host it can reach" : `${added.netHosts.length} new hosts it can reach`]),
     ...(added.providerIds.length === 0 ? [] : [added.providerIds.length === 1 ? RE_CONSENT_ONE_PROVIDER : `${added.providerIds.length} new model providers`]),
-    ...(added.matchAutomationEvents ? [RE_CONSENT_AUTOMATION_EVENTS] : []),
+    ...(added.matchAutomationEvents ? [PLUGIN_AUTOMATION_EVENTS_PHRASE] : []),
   ];
-  const clauses = [...(addedCapabilities.length > 0 ? [`asks for ${permissions}`] : []), ...(additions.length > 0 ? [`adds ${joinedWithAnd(additions)}`] : [])];
-  return clauses.length === 0 ? `This update changed what this plugin can reach, ${tail}` : `This update ${clauses.join(" and ")}, ${tail}`;
+  // "An update", not "this update": the reach can be one an earlier update left unanswered.
+  const clauses = [
+    ...(addedCapabilities.length > 0 ? [`asked for ${permissions}`] : []),
+    ...(additions.length > 0 ? [`added ${joinedWithAnd(additions)}`] : []),
+  ];
+  return clauses.length === 0 ? `An update changed what this plugin can reach, ${tail}` : `An update ${clauses.join(" and ")}, ${tail}`;
 }
 
 // "a", "a and b", "a, b and c".
@@ -470,9 +504,27 @@ export function storedUpdateHeading(fromVersion: string, toVersion: string): str
   return fromVersion === toVersion ? `A new commit of version ${toVersion}` : `Version ${fromVersion} to ${toVersion}`;
 }
 
-/** The standing refusal as the review states it: what is still unanswered, and that the plugin stays off until it is. */
-export function storedUpdateStandingLine(unanswered: readonly string[]): string {
-  return `An earlier update's request is still unanswered: ${joinedWithAnd(unanswered)}. The plugin stays off after this update until you answer it.`;
+/** What an earlier update added that the owner has not approved, named by kind. */
+export interface StoredUpdateStanding {
+  readonly netHosts: readonly string[];
+  /** Provider labels, as the consent card names them. */
+  readonly providers: readonly string[];
+  readonly automationEvents: boolean;
+}
+
+/** The standing refusal as the review states it: what is still unapproved, that the plugin stays off until it is, and where to approve it. */
+export function storedUpdateStandingLine({ netHosts, providers, automationEvents }: StoredUpdateStanding): string {
+  const parts = [
+    ...(netHosts.length === 0 ? [] : [`${netHosts.length === 1 ? "the host" : "the hosts"} ${joinedWithAnd(netHosts)}`]),
+    ...(providers.length === 0 ? [] : [`${providers.length === 1 ? "the model provider" : `the ${PLUGIN_PROVIDERS_NOUN}`} ${joinedWithAnd(providers)}`]),
+    ...(automationEvents ? [PLUGIN_AUTOMATION_EVENTS_PHRASE] : []),
+  ];
+  return `The plugin stays off after this update until you approve what an earlier update added: ${joinedWithAnd(parts)}. Approve it in the notice above.`;
+}
+
+// A permission label read inside a sentence, where its capital would be mid-sentence.
+function inSentence(label: string): string {
+  return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 }
 
 /** One line per change the owner should weigh before applying, then the standing refusal if one will keep the
@@ -480,33 +532,43 @@ export function storedUpdateStandingLine(unanswered: readonly string[]): string 
 export function storedUpdateChangeLines({ widening, standing, providers, shipsUiScript }: StoredUpdateChange): readonly string[] {
   const lines: string[] = [];
   if (widening.capabilities.length > 0) {
-    const named = widening.capabilities.map((capability) => capabilityCopy(capability)?.label ?? capability);
+    const named = widening.capabilities.map((capability) => inSentence(capabilityCopy(capability)?.label ?? capability));
     lines.push(`Asks for permissions you haven't allowed: ${named.join(", ")}.`);
   }
   if (widening.netHosts.length > 0) {
     lines.push(`Can reach new hosts: ${widening.netHosts.join(", ")}.`);
   }
   if (widening.providerIds.length > 0) {
-    lines.push(`Adds model connections: ${providerLabels(providers, widening.providerIds).join(", ")}.`);
+    lines.push(`Adds ${PLUGIN_PROVIDERS_NOUN}: ${providerLabels(providers, widening.providerIds).join(", ")}.`);
   }
   if (widening.matchAutomationEvents) {
-    lines.push("Also hears events that automations and other plugins cause.");
+    lines.push(`Also receives ${PLUGIN_AUTOMATION_EVENTS_PHRASE}.`);
   }
   if (shipsUiScript.after !== shipsUiScript.before) {
     lines.push(shipsUiScript.after ? "Adds a script that runs in your browser." : "Drops its browser script.");
   }
-  const unanswered = [
-    ...standing.netHosts,
-    ...providerLabels(providers, standing.providerIds),
-    ...(standing.matchAutomationEvents ? [RE_CONSENT_AUTOMATION_EVENTS] : []),
-  ];
-  if (unanswered.length > 0) {
+  const unanswered = {
+    netHosts: standing.netHosts,
+    providers: providerLabels(providers, standing.providerIds),
+    automationEvents: standing.matchAutomationEvents,
+  };
+  if (unanswered.netHosts.length > 0 || unanswered.providers.length > 0 || unanswered.automationEvents) {
     lines.push(storedUpdateStandingLine(unanswered));
   }
   return lines;
 }
 
 export const STORED_UPDATE_NOTHING_NEW = "It asks for nothing beyond what you allowed.";
+
+/** The update review's group name: it names the review, never its Apply press. */
+export function pluginUpdateReviewLabel(pluginName: string): string {
+  return `Update review for ${pluginName}`;
+}
+
+/** The toast an upgrade raises when it leaves the plugin off. */
+export function upgradeStayedOffNotice(pluginName: string): string {
+  return `${pluginName} stayed off: it still waits for your approval. Check below.`;
+}
 
 /** The review's confirm press, and its name once a plugin disambiguates it. */
 export const APPLY_UPDATE_LABEL = "Apply update";

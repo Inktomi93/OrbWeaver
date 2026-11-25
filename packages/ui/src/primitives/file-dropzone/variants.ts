@@ -28,9 +28,9 @@ export const fileDropzoneVariants = tv({
     content: "pointer-events-none flex flex-col items-center gap-field",
     icon: "text-muted-foreground",
     // The instructions are a paragraph, so they keep the prose measure on a wide drop target.
-    instructions: `text-body leading-body text-foreground ${CAP.prose}`,
+    instructions: `text-body leading-body text-balance text-foreground ${CAP.prose}`,
     // A hint may name several accepted kinds, so it is prose and wraps at the same measure as the instructions above it.
-    hint: `${CAPTION} ${CAP.prose}`,
+    hint: `${CAPTION} text-balance ${CAP.prose}`,
     // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity. `relative` stacks the
     // line above the covering input, so its text takes the press and can be selected.
     error: `${FIELD_ROW} relative text-label leading-label text-destructive max-inline-full`,

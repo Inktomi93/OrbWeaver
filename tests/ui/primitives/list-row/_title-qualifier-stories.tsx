@@ -71,3 +71,16 @@ export function MetaSlotStory({ width }: { readonly width: number }): ReactEleme
     </CtIsolation>
   );
 }
+
+const WRAPPING_STAMP = "Oct 5, 2026, 07:57 AM";
+
+/** A clickable row whose stamp tells it from a same-titled sibling and runs past the line, in a pane of a fixed width. */
+export function WrappedStampStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtIsolation subject="ListRow meta slot" isolates="Where a wrapped stamp's lines sit needs no application services.">
+      <Container style={{ inlineSize: width }}>
+        <ListRow clickable={true} meta={WRAPPING_STAMP} metaQualifiesTitle={true} onClick={(): void => undefined} title="Chat with Eleni" />
+      </Container>
+    </CtIsolation>
+  );
+}

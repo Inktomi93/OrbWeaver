@@ -12,8 +12,8 @@ import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
-import { useState } from "react";
+import type { ReactElement, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
@@ -28,6 +28,7 @@ import {
   pluginApplyUpdateLabel,
   pluginCheckForUpdatesLabel,
   pluginUpdateFromCommitLabel,
+  pluginUpdateReviewLabel,
   pluginUpdateToLabel,
   REMOVE_PLUGIN_DESCRIPTION,
   reConsentLine,
@@ -89,6 +90,20 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const previewStored = usePreviewStoredUpgrade({ trpc, invalidation });
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
   const applying = upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending;
+  // The Update press unmounts as the review opens, and the review unmounts as Not now or Apply closes it, so focus is
+  // handed on: the review takes it on open (a screen reader lands on the group's name), the check takes it back on close.
+  const checkRef = useRef<HTMLButtonElement>(null);
+  const reviewRef = useRef<HTMLDivElement>(null);
+  const wasReviewing = useRef(false);
+  const reviewing = verdict.kind === "review";
+  useEffect(() => {
+    if (reviewing) {
+      reviewRef.current?.focus();
+    } else if (wasReviewing.current) {
+      checkRef.current?.focus();
+    }
+    wasReviewing.current = reviewing;
+  }, [reviewing]);
 
   const runCheck = async (): Promise<void> => {
     // useCheckForUpdates (lib/plugin-mutations.ts) carries
@@ -175,6 +190,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           aria-label={pluginCheckForUpdatesLabel(plugin.name)}
           variant="outline"
           loading={check.isPending}
+          ref={checkRef}
           onClick={(): void => {
             // runCheck already catches its own
             // mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops
@@ -223,6 +239,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           onDismiss={(): void => setVerdict({ kind: "idle" })}
           pluginName={plugin.name}
           preview={verdict.preview}
+          ref={reviewRef}
         />
       ) : null}
     </Stack>
@@ -235,15 +252,17 @@ interface StoredUpdateReviewProps {
   readonly applying: boolean;
   readonly onApply: () => void;
   readonly onDismiss: () => void;
+  readonly ref: RefObject<HTMLDivElement | null>;
 }
 
 /** What the next version from a stored source changes, read before it applies. The lines are the reach it widens
  *  beyond the owner's consent plus the browser-script fact; the apply echoes the preview's identity. */
-function StoredUpdateReview({ preview, pluginName, applying, onApply, onDismiss }: StoredUpdateReviewProps): ReactElement {
+function StoredUpdateReview({ preview, pluginName, applying, onApply, onDismiss, ref }: StoredUpdateReviewProps): ReactElement {
   const lines = storedUpdateChangeLines(preview);
   return (
-    <Stack aria-label={pluginApplyUpdateLabel(pluginName)} gap="field" role="group">
-      <Text voice="label">{storedUpdateHeading(preview.fromVersion, preview.toVersion)}</Text>
+    // Focusable by script, not a tab stop: the group's name is what a screen reader reads when the review opens.
+    <Stack aria-label={pluginUpdateReviewLabel(pluginName)} focusTarget={true} gap="field" ref={ref} role="group" tabIndex={-1}>
+      <Text voice="promoted">{storedUpdateHeading(preview.fromVersion, preview.toVersion)}</Text>
       {lines.length === 0 ? (
         <Text cap="prose" prose={true} voice="gloss">
           {STORED_UPDATE_NOTHING_NEW}
@@ -352,7 +371,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       <Text cap="prose" prose={true} voice="gloss">
         {firstAsk
           ? `Review what it asks for below. Approving turns ${plugin.name} on; you can turn it off at any time.`
-          : `Orbweaver did not grant the extra permissions, so ${plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}
+          : `Orbweaver kept ${plugin.name} off until you approve what it asks for. Review it below and approve, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}
       </Text>
       {/* #1855: READ-ONLY arm — approve-all/deny replaces per-grant toggles. `addedCapabilities` and
           `addedNetHosts` mark what this update added — the capability half derived from the two projected

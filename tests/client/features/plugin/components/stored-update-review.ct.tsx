@@ -8,7 +8,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { noticeToast, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -16,14 +16,19 @@ import { createServerHarness, makePluginBundle } from "@orb/testkit/node/compose
 import type { Page } from "@playwright/test";
 import {
   APPLY_UPDATE_LABEL,
+  capabilityCopy,
+  PLUGIN_AUTOMATION_EVENTS_PHRASE,
+  PLUGIN_PROVIDERS_NOUN,
   pluginApplyUpdateLabel,
   pluginCheckForUpdatesLabel,
   pluginDetailsLabel,
+  pluginUpdateReviewLabel,
   pluginUpdateToLabel,
   STORED_UPDATE_NOTHING_NEW,
   storedUpdateHeading,
   storedUpdateStandingLine,
   UPDATE_REVIEW_DISMISS_LABEL,
+  upgradeStayedOffNotice,
 } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginActionGroupsStory } from "./_update-action-groups-stories.tsx";
 
@@ -54,7 +59,7 @@ const VISION_PROVIDER = providerDefSchema.parse({
   catalog: "url",
   metered: false,
 });
-const WITH_PROVIDER = pluginManifestSchema.parse({ ...FIRST, version: "1.1.0", providers: [VISION_PROVIDER] });
+const WITH_PROVIDER = pluginManifestSchema.parse({ ...FIRST, version: "1.1.0", providers: [VISION_PROVIDER], matchAutomationEvents: true });
 
 // A plugin the owner already allowed one host. Its refused next version adds a second, which the owner has not answered.
 const ALLOWED_HOST = "api.allowed.example";
@@ -127,13 +132,24 @@ test("the review names the new version and host, and applying it lands the previ
   await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
   await openReview(page);
 
-  const review = page.getByRole("group", { name: pluginApplyUpdateLabel(FIRST.name), exact: true });
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
   await expect(review).toContainText(storedUpdateHeading(FIRST.version, NEXT.version));
   await expect(review).toContainText(REACHED_HOST);
   expect(calls.count("plugin.upgradeFromStoredUrl")).toBe(0);
 
+  // A permission named inside a sentence reads in lower case, and the heading stands above the lines under it.
+  const asked = capabilityCopy("net.fetch")?.label ?? "";
+  await expect(review).toContainText(asked.toLowerCase());
+  await expect(review).not.toContainText(asked);
+  const headingSize = await review
+    .getByText(storedUpdateHeading(FIRST.version, NEXT.version))
+    .evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+  const lineSize = await review.getByText(REACHED_HOST).evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+  expect(headingSize).toBeGreaterThan(lineSize);
+
   await review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true }).click();
   await expect(review).toHaveCount(0);
+  await expect(noticeToast(page, { title: upgradeStayedOffNotice(FIRST.name) })).toBeVisible();
   expect((await caller.plugin.list())[0]).toMatchObject({ version: NEXT.version, reconsentPending: true, widenedNetHosts: [REACHED_HOST] });
   await expect(page.getByRole("button", { name: APPLY_UPDATE_LABEL })).toHaveCount(0);
 });
@@ -145,7 +161,7 @@ test("dismissing the review sends no upgrade and keeps the installed version", a
   await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
   await openReview(page);
 
-  const review = page.getByRole("group", { name: pluginApplyUpdateLabel(FIRST.name), exact: true });
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
   await expect(review).toContainText(REACHED_HOST);
   await review.getByRole("button", { name: UPDATE_REVIEW_DISMISS_LABEL, exact: true }).click();
   await expect(review).toHaveCount(0);
@@ -161,9 +177,12 @@ test("the review names a model provider by the label the consent card shows, not
   await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
   await openReview(page);
 
-  const review = page.getByRole("group", { name: pluginApplyUpdateLabel(FIRST.name), exact: true });
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
   await expect(review).toContainText(VISION_PROVIDER.label);
   await expect(review).not.toContainText(VISION_PROVIDER.id);
+  // The review calls them what the consent card calls them, and the automation events by the card's phrase.
+  await expect(review).toContainText(PLUGIN_PROVIDERS_NOUN);
+  await expect(review).toContainText(PLUGIN_AUTOMATION_EVENTS_PHRASE);
 });
 
 test("an earlier refusal that still stands is named, and the review says the plugin stays off until it is answered", async ({ mount, page }) => {
@@ -189,11 +208,50 @@ test("an earlier refusal that still stands is named, and the review says the plu
   await page.getByRole("button", { name: pluginCheckForUpdatesLabel(FIRST.name), exact: true }).click();
   await page.getByRole("button", { name: pluginUpdateToLabel(FIRST.name, AFTER_REFUSED.version), exact: true }).click();
 
-  const review = page.getByRole("group", { name: pluginApplyUpdateLabel(FIRST.name), exact: true });
-  await expect(review).toContainText(storedUpdateStandingLine([REACHED_HOST]));
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
+  await expect(review).toContainText(storedUpdateStandingLine({ netHosts: [REACHED_HOST], providers: [], automationEvents: false }));
   await expect(review).not.toContainText(STORED_UPDATE_NOTHING_NEW);
 
   await review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true }).click();
   await expect(review).toHaveCount(0);
   expect((await caller.plugin.list())[0]).toMatchObject({ version: AFTER_REFUSED.version, reconsentPending: true, widenedNetHosts: [REACHED_HOST] });
+  // This update asked for nothing new, so the toast blames no update.
+  await expect(noticeToast(page, { title: upgradeStayedOffNotice(FIRST.name) })).toBeVisible();
+});
+
+test("keyboard focus moves into the review when it opens and back to the row's update check when it closes", async ({ mount, page }) => {
+  const source: Source = { bundle: new Uint8Array() };
+  await using root = await rootServing(source);
+  await installAndRoute(page, root, source);
+  await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
+  await page.getByRole("button", { name: pluginDetailsLabel(FIRST.name), exact: true }).click();
+  const check = page.getByRole("button", { name: pluginCheckForUpdatesLabel(FIRST.name), exact: true });
+  const update = page.getByRole("button", { name: pluginUpdateToLabel(FIRST.name, NEXT.version), exact: true });
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
+
+  // Not now: the review takes focus, and the press that closes it hands focus back to the check.
+  await check.focus();
+  await page.keyboard.press("Enter");
+  await update.focus();
+  await page.keyboard.press("Enter");
+  await expect(review).toBeFocused();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await expect(review.getByRole("button", { name: UPDATE_REVIEW_DISMISS_LABEL, exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(review).toHaveCount(0);
+  await expect(check).toBeFocused();
+
+  // Apply update: the same door in, and the applied update leaves focus on the check.
+  await page.keyboard.press("Enter");
+  await update.focus();
+  await page.keyboard.press("Enter");
+  await expect(review).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(review).toHaveCount(0);
+  await expect(check).toBeFocused();
+  // The group is named for the review, never for its Apply press.
+  await expect(page.getByRole("group", { name: pluginApplyUpdateLabel(FIRST.name), exact: true })).toHaveCount(0);
 });
