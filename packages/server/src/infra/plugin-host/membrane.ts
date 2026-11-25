@@ -79,6 +79,7 @@ import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
+  HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
@@ -112,6 +113,8 @@ import { GuestCallFailure, guestJson } from "./marshal.ts";
  *  guest-reachable), and it is the direction to fail in — the alternative it replaces failed OPEN. */
 export interface InFlightCounter {
   count: number;
+  /** The argument bytes the running host work holds, under {@link HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES}. */
+  argBytes: number;
   /** Cooperative cancellations for host work that is still running. The Sandbox aborts the set on teardown;
    *  each operation removes its own controller only when the implementation actually settles. Optional only
    *  for direct membrane unit fixtures; every live Sandbox supplies it. */
@@ -1167,6 +1170,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: GLOBAL_VARIABLE_KEY_MAX_CHARS,
     impl: async (args, signal) => await runtime.bridge.variables.get(stringArg(args, 0, "variables.get", "key"), invocationLiveness(signal)),
   });
   attachAsync(ctx, vars, {
@@ -1189,6 +1193,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: GLOBAL_VARIABLE_KEY_MAX_CHARS,
     impl: async (args, signal) => {
       await runtime.bridge.variables.delete(stringArg(args, 0, "variables.delete", "key"), invocationLiveness(signal));
       return null;
@@ -1200,7 +1205,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
 /** storage.get/set/compareAndSet/delete/list — capability storage.kv. The plugin-PRIVATE KV: the bridge op
  *  is closed DOMAIN-side over the pluginId + installer (owner), so a guest names only the key/prefix and can
  *  NEVER read another plugin's (or owner's) keys. Not host-authority gated (a plugin's own private store is not
- *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op; a writer
+ *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op; a call
  *  whose strings are longer than its key and values together could ever be is refused here, unread. */
 function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using storage = ctx.newObject();
@@ -1211,6 +1216,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS,
     impl: async (args, signal) => await runtime.bridge.storage.get(stringArg(args, 0, "storage.get", "key"), invocationLiveness(signal)),
   });
   attachAsync(ctx, storage, {
@@ -1253,6 +1259,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS,
     impl: async (args, signal) => {
       await runtime.bridge.storage.delete(stringArg(args, 0, "storage.delete", "key"), invocationLiveness(signal));
       return null;
@@ -1265,6 +1272,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS,
     impl: async (args, signal) => {
       const prefix = typeof args[0] === "string" ? args[0] : undefined;
       return await runtime.bridge.storage.list(prefix, invocationLiveness(signal));
@@ -1904,6 +1912,10 @@ function argsOverCap(name: string, cap: number): string {
   return `plugin host: ${name} arguments exceed the ${String(cap)}-byte inbound cap`;
 }
 
+function argsPastInFlightRoom(name: string): string {
+  return `plugin host: ${name} arguments do not fit the ${String(HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES)} bytes this plugin's running host calls may hold`;
+}
+
 /** One host call's arguments read into the host, or why they are refused. Each check runs before the in-flight gate,
  *  so a refused call never charges a slot.
  *
@@ -1914,30 +1926,38 @@ function argsOverCap(name: string, cap: number): string {
  *    because a deeply-nested guest argument handed to the binding's dump would overflow it host-side and corrupt the
  *    WASM runtime (`budgets.ts`).
  *  - THE INBOUND ARG CAP: the mirror of the result cap, on the bytes the read arguments cross as.
+ *  - THE IN-FLIGHT ROOM: what the instance's running calls leave of {@link HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES}. The
+ *    length allowance is never more than the room, so a call past it is refused before the rest is read, and the
+ *    bytes returned are what the caller charges.
  *
  *  Call it inside a host function, as {@link tryDumpGuestValue}. */
 function readHostArgs(
   marshal: GuestMarshal,
   name: string,
   argHandles: readonly QuickJSHandle[],
-  argUnitsMax: number,
-): { readonly ok: true; readonly args: readonly unknown[] } | { readonly ok: false; readonly refusal: string } {
-  const allowance: ReadAllowance = { units: argUnitsMax };
+  { argUnitsMax, room }: { readonly argUnitsMax: number; readonly room: number },
+): { readonly ok: true; readonly args: readonly unknown[]; readonly bytes: number } | { readonly ok: false; readonly refusal: string } {
+  const roomBound = room < argUnitsMax;
+  const allowance: ReadAllowance = { units: Math.min(argUnitsMax, room) };
   const args: unknown[] = [];
   for (const handle of argHandles) {
     const dumped = tryDumpGuestValue(marshal, handle, allowance);
     if (!dumped.ok) {
-      return { ok: false, refusal: allowance.units < 0 ? argsOverCap(name, argUnitsMax) : `plugin host: ${name} argument is ${dumped.reason}` };
+      if (allowance.units >= 0) {
+        return { ok: false, refusal: `plugin host: ${name} argument is ${dumped.reason}` };
+      }
+      return { ok: false, refusal: roomBound ? argsPastInFlightRoom(name) : argsOverCap(name, argUnitsMax) };
     }
     args.push(dumped.value);
   }
-  if (exceedsArgBudget(args, HOST_FN_ARGS_MAX_BYTES)) {
+  const bytes = argBytes(args, HOST_FN_ARGS_MAX_BYTES);
+  if (bytes > HOST_FN_ARGS_MAX_BYTES) {
     return { ok: false, refusal: argsOverCap(name, HOST_FN_ARGS_MAX_BYTES) };
   }
-  return { ok: true, args };
+  return bytes > room ? { ok: false, refusal: argsPastInFlightRoom(name) } : { ok: true, args, bytes };
 }
 
-/** True once the already-dumped guest arguments exceed `cap` serialized bytes. An ITERATIVE walk that
+/** The serialized bytes of the already-dumped guest arguments, counted until they pass `cap`. An ITERATIVE walk that
  *  SHORT-CIRCUITS the moment the budget is blown — so a hostile payload costs ~`cap` of accounting, not a
  *  second full `JSON.stringify` of the whole graph. Every value is charged its own JSON text, which is the form a
  *  guest string crosses in (`marshal.ts`): a string or key its escaped text with quotes, a scalar its digits, plus
@@ -1948,13 +1968,13 @@ function readHostArgs(
  *  previously free to hold the guest's whole 32 MiB heap, plus whatever the op then did with it: a
  *  `storage.set` writes it, a `net.fetch` body sends it). The TRANSIENT read it measures is bounded before it, by the
  *  length allowance in {@link readHostArgs}; this cap adds the exact byte count, which a length cannot give. */
-function exceedsArgBudget(args: readonly unknown[], cap: number): boolean {
+function argBytes(args: readonly unknown[], cap: number): number {
   let bytes = 0;
   const pending: unknown[] = [...args];
   while (pending.length > 0 && bytes <= cap) {
     bytes += chargeValue(pending.pop(), pending);
   }
-  return bytes > cap;
+  return bytes;
 }
 
 /** The comma or colon JSON spends beside each value and key, so a payload of a million empty strings is not
@@ -2052,11 +2072,11 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     //
     // The reads come before any handle of ours exists: a realm failure during one goes back to the guest as it is.
     // A refusal is an already-rejected promise and registers nothing in `pending`.
-    const read = readHostArgs(marshal, name, argHandles, argUnitsMax);
+    const read = readHostArgs(marshal, name, argHandles, { argUnitsMax, room: HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES - inFlight.argBytes });
     if (!read.ok) {
       return marshal.rejectedWith({ name: "Error", message: read.refusal });
     }
-    const { args } = read;
+    const { args, bytes } = read;
 
     // Two counts under one cap: host work still running, and guest promises not yet settled, a settlement held while
     // the account is spent included. The second bounds what held settlements keep in memory to the cap's number of
@@ -2068,6 +2088,8 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     // promise and the Sandbox's `pending` drain owns teardown).
     const deferred = ctx.newPromise();
     inFlight.count += 1;
+    // The arguments stay alive for as long as the implementation runs, so their bytes are held until it settles.
+    inFlight.argBytes += bytes;
     // Track this UNSETTLED deferred so the Sandbox can drain it if the invocation ends before it settles (a
     // fire-and-forget that outlives its scope): an unsettled guest Promise at `ctx.dispose()` aborts the shared
     // WASM module. Deregistered in the `.finally` once the host call settles (or is dropped by the alive guard).
@@ -2091,6 +2113,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     let settlement: Promise<void>;
     const releaseSlot = (): void => {
       inFlight.count -= 1;
+      inFlight.argBytes -= bytes;
       inFlight.controllers?.delete(controller);
       inFlight.settlements?.delete(settlement);
     };

@@ -237,10 +237,17 @@ export const PLUGIN_INVOKE_ARGS_MAX_BYTES = 1_048_576;
  *  life of the async impl — so the real exposure was 32 MiB × `HOST_CALLS_IN_FLIGHT_MAX` of host memory per
  *  instance, plus whatever a domain op did with the value (a `storage.set` writes it, a `net.fetch` body sends
  *  it). What the cap DOES bound: everything that crosses into a domain op and everything retained across the
- *  call. What it deliberately does NOT: the TRANSIENT read (`marshal.ts` `fromGuest`) it has to measure, which stays
- *  bounded by the guest heap cap — one read at a time per context, which is the already-accepted 32 MiB. 1 MiB
+ *  call. The TRANSIENT read it has to measure is bounded before it, by the length allowance `marshal.ts` takes. 1 MiB
  *  = symmetric with the outbound result cap; a legitimate host call carries keys, ids and short strings. */
 export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
+
+/** The argument bytes one plugin instance's unsettled host calls may hold at once: each call's arguments are charged
+ *  as they are read and refunded when its implementation settles, and a call whose arguments would pass it is
+ *  refused, unread past the room left. {@link HOST_FN_ARGS_MAX_BYTES} bounds one call only: an owner's Workers each
+ *  holding {@link HOST_CALLS_IN_FLIGHT_MAX} calls at that cap carried the broker past its memory ceiling. Per owner
+ *  the bound is this times the owner's Worker share (D349). Four calls at the inbound cap fit, and so do
+ *  {@link HOST_CALLS_IN_FLIGHT_MAX} writes at the KV value cap. */
+export const HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES = 4_194_304;
 
 /** The guest-value read guards — a DoS bound that protects EVERY place the membrane materializes an
  *  untrusted guest handle host-side: the `ui.register` SPEC (before the recursive `pluginSurfaceSpecSchema` parse)
@@ -262,7 +269,7 @@ export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
  *  NODE_GUARD bounds the total values the walk visits — pure host-work containment against a pathologically WIDE
  *  (not deep) payload; it is far above any byte-capped payload's value count so it never false-refuses a
  *  legitimate spec or arg. The precise per-surface / per-arg caps stay downstream (the spec's superRefine and
- *  `exceedsArgBudget`), which run SAFELY on the shallow, bounded value the walk built. */
+ *  `argBytes`), which run SAFELY on the shallow, bounded value the walk built. */
 export const PLUGIN_DUMP_DEPTH_GUARD = 64;
 export const PLUGIN_DUMP_NODE_GUARD = 65_536;
 

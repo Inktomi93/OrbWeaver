@@ -138,7 +138,7 @@ test("the built document applies the clamps itself, so hostile tokens never reac
 });
 
 // Each spelling the HTML tokenizer reads as a `<link>` start tag, beside the held form the served bytes must carry.
-const LINK_SPELLINGS: readonly (readonly [string, string])[] = [
+const HELD_SPELLINGS: readonly (readonly [string, string])[] = [
   ['<link rel="preconnect" href="https://beacon.test">', '<wbr rel="preconnect" href="https://beacon.test">'],
   ["<LINK rel=dns-prefetch href=//beacon.test>", "<wbr rel=dns-prefetch href=//beacon.test>"],
   ["<Link\trel=prefetch href=https://beacon.test/p>", "<wbr\trel=prefetch href=https://beacon.test/p>"],
@@ -146,19 +146,26 @@ const LINK_SPELLINGS: readonly (readonly [string, string])[] = [
   ["<link/rel=preconnect/href=https://beacon.test>", "<wbr/rel=preconnect/href=https://beacon.test>"],
   ["<link\frel=preconnect href=https://beacon.test>", "<wbr\frel=preconnect href=https://beacon.test>"],
   ["<link>", "<wbr>"],
+  // A nested srcdoc document is decoded from its attribute, so its escaped link never reaches the text hold.
+  [
+    '<iframe srcdoc="&lt;link rel=preconnect href=https://beacon.test&gt;"></iframe>',
+    '<wbr srcdoc="&lt;link rel=preconnect href=https://beacon.test&gt;"></iframe>',
+  ],
+  ['<IFRAME srcdoc="&#60;link rel=preconnect href=https://beacon.test&#62;">', '<wbr srcdoc="&#60;link rel=preconnect href=https://beacon.test&#62;">'],
+  ["<iframe/srcdoc=x>", "<wbr/srcdoc=x>"],
 ];
-// Start tags whose name only begins with `link`: a different element, so the hold leaves them as written.
-const NOT_LINK_TAGS = ["<link-card>", "<linked>", "<linkx rel=preconnect>"];
+// Start tags whose name only begins with a held name: a different element, so the hold leaves them as written.
+const NOT_HELD_TAGS = ["<link-card>", "<linked>", "<linkx rel=preconnect>", "<iframes>", "<iframe-card>"];
 
-test("every authored link start tag is held in the body and in a stylesheet that closes its own style element", () => {
-  for (const [authored, held] of LINK_SPELLINGS) {
+test("every authored link and iframe start tag is held in the body and in a stylesheet that closes its own style element", () => {
+  for (const [authored, held] of HELD_SPELLINGS) {
     const fromBody = buildCardFrameDocument({ ...CONTENT, html: `<p>card</p>${authored}` });
     expect(fromBody, authored).toContain(`<body><p>card</p>${held}</body>`);
     const fromSheet = buildCardFrameDocument({ ...CONTENT, css: `p{color:red}</style>${authored}<style>` });
     expect(fromSheet, authored).toContain(`p{color:red}</style>${held}<style>`);
     expect(buildCardFrameDocument({ ...CONTENT, html: authored }, "default-src 'none'"), authored).toContain(held);
   }
-  for (const tag of NOT_LINK_TAGS) {
+  for (const tag of NOT_HELD_TAGS) {
     expect(buildCardFrameDocument({ ...CONTENT, html: tag }), tag).toContain(`<body>${tag}</body>`);
   }
 });

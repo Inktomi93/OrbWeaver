@@ -5,12 +5,13 @@
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
+import { GLOBAL_VARIABLE_KEY_MAX_CHARS, GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
 import type { PluginHostV1 } from "@orb/contracts/plugin";
 import {
   HOST_FUNCTION_CAPABILITY,
   HostVersionError,
   PLUGIN_HOST_VERSIONS,
+  PLUGIN_KV_KEY_MAX_CHARS,
   PLUGIN_KV_VALUE_MAX_BYTES,
   PLUGIN_LOG_CHARS_MAX,
   PluginCapabilityError,
@@ -20,8 +21,10 @@ import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps, GuestRun, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
+  HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_RESULT_CAP_BYTES,
   PLUGIN_DUMP_DEPTH_GUARD,
@@ -84,6 +87,8 @@ const MEMBRANE_OPS = {
   mintedHandle: "(h) => h.chat.listMessages(h.ids.mint())",
   chatIdHandle: "(h, room, a) => h.chat.listMessages(a.chatId)",
   readKey: "(h, room, a) => h.storage.get('k'.repeat(a.length))",
+  // A toast message has no cap tighter than the inbound one at the door; the domain clamps it.
+  longToast: "(h, room, a) => h.ui.toast('info', 't'.repeat(a.length))",
   // The key is an object whose every read is counted, so a call that read its argument before refusing shows it.
   countedKey:
     "async (h) => { let reads = 0; const key = { get k() { reads += 1; return 'k'; } }; try { await h.storage.get(key); return ['answered', reads]; } catch (e) { return [e.name, reads]; } }",
@@ -189,22 +194,24 @@ test("a host call whose arguments pass the inbound byte budget is refused before
 }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const owner = await root.principalFor(root.ownerId);
-  const pluginId = await installGuest(root, owner, { slug: "kv-keeper", capabilities: ["storage.kv"] }, MEMBRANE_OPS);
+  const pluginId = await installGuest(root, owner, { slug: "toaster", capabilities: ["ui.surface"] }, MEMBRANE_OPS);
   const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
 
-  expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES / 2 })).toEqual({ ok: true, value: null });
-  expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: false, name: Error.name });
+  expect(await run("longToast", { length: HOST_FN_ARGS_MAX_BYTES / 2 })).toEqual({ ok: true, value: null });
+  expect(await run("longToast", { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: false, name: Error.name });
 });
 
 // Each write passes its value, then an argument whose read the guest sees. A host that reads a value before refusing it
 // for its size has read the later argument too.
-const LATER = "let read = false; const later = { get probe() { read = true; return 1; } };";
+// The probe's one key, a string the door counts with the rest of the call's.
+const LATER_KEY = "probe";
+const LATER = `let read = false; const later = { get ${LATER_KEY}() { read = true; return 1; } };`;
 const STORE_WRITES = {
   "storage.set": `async (h, room, a) => { ${LATER} try { await h.storage.set('k', 'v'.repeat(a.length), later); return ['stored', read]; } catch (e) { return [e.name, read]; } }`,
   "storage.compareAndSet": `async (h, room, a) => { ${LATER} try { await h.storage.compareAndSet('k', null, 'v'.repeat(a.length), later); return ['stored', read]; } catch (e) { return [e.name, read]; } }`,
   "variables.set": `async (h, room, a) => { ${LATER} try { await h.variables.set('k', 'v'.repeat(a.length), later); return ['stored', read]; } catch (e) { return [e.name, read]; } }`,
-  nestedKey: `async (h, room, a) => { ${LATER} try { await h.storage.get({ ['k'.repeat(a.length)]: 1 }, later); return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
-  nestedValue: `async (h, room, a) => { ${LATER} try { await h.storage.get([['v'.repeat(a.length)]], later); return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
+  nestedKey: `async (h, room, a) => { ${LATER} try { await h.ui.toast({ ['k'.repeat(a.length)]: 1 }, later); return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
+  nestedValue: `async (h, room, a) => { ${LATER} try { await h.ui.toast([['v'.repeat(a.length)]], later); return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
 } as const satisfies GuestOps;
 // Far past every store's value cap and inside what any host call carries, so only the store's own size refuses it.
 const PAST_STORE_LENGTH = HOST_FN_ARGS_MAX_BYTES / 2;
@@ -284,17 +291,120 @@ test("a log line longer than half the guest's memory keeps its first part withou
   expect(line?.length).toBe(PLUGIN_LOG_CHARS_MAX);
 });
 
+// Each key-only store door reads its key, then an argument whose read the guest sees.
+const KEY_DOORS = {
+  "storage.get": "h.storage.get(key, later)",
+  "storage.delete": "h.storage.delete(key, later)",
+  "storage.list": "h.storage.list(key, later)",
+  "variables.get": "h.variables.get(key, later)",
+  "variables.delete": "h.variables.delete(key, later)",
+} as const;
+const KEY_DOOR_OPS = Object.fromEntries(
+  Object.entries(KEY_DOORS).map(([door, call]) => [
+    door,
+    `async (h, room, a) => { ${LATER} const key = 'k'.repeat(a.length); try { await ${call}; return ['answered', read]; } catch (e) { return [e.name, read]; } }`,
+  ]),
+) satisfies GuestOps;
+
+test.for([
+  { door: "storage.get", atCap: PLUGIN_KV_KEY_MAX_CHARS },
+  { door: "storage.delete", atCap: PLUGIN_KV_KEY_MAX_CHARS },
+  { door: "storage.list", atCap: PLUGIN_KV_KEY_MAX_CHARS },
+  { door: "variables.get", atCap: GLOBAL_VARIABLE_KEY_MAX_CHARS },
+  { door: "variables.delete", atCap: GLOBAL_VARIABLE_KEY_MAX_CHARS },
+] as const satisfies readonly { readonly door: keyof typeof KEY_DOORS; readonly atCap: number }[])(
+  "a $door call whose strings pass the store's key cap is refused before the host reads it or any later argument, and one that fills it is answered",
+  { tags: ["slow"] },
+  async ({ door, atCap }) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const pluginId = await installGuest(root, owner, { slug: "key-reader", capabilities: [HOST_FUNCTION_CAPABILITY[door]] }, KEY_DOOR_OPS);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    const filling = atCap - LATER_KEY.length;
+    expect(await run(door, { length: filling + 1 })).toEqual({ ok: true, value: [Error.name, false] });
+    expect(await run(door, { length: filling })).toEqual({ ok: true, value: ["answered", true] });
+  },
+);
+
+// One more call than the in-flight argument budget holds at the inbound cap, all issued before any can settle, each
+// with an argument whose read the guest sees; then one more once they have settled.
+const IN_FLIGHT_CALLS = HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES / HOST_FN_ARGS_MAX_BYTES + 1;
+const NEAR_CAP_MESSAGE = HOST_FN_ARGS_MAX_BYTES - 1024;
+const IN_FLIGHT_OPS = {
+  burst: `async (h, room, a) => {
+    const message = 'm'.repeat(a.length);
+    const call = () => { const seen = { read: false }; const later = { get probe() { seen.read = true; return 1; } };
+      return h.ui.toast('info', message, later).then(() => 'ok', (e) => e.name).then((outcome) => [outcome, seen.read]); };
+    const burst = await Promise.all(Array.from({ length: a.calls }, call));
+    return [...burst, await call()];
+  }`,
+} as const satisfies GuestOps;
+
+test("a call past the arguments a plugin's running host calls may hold is refused before it is read, and served again once they settle", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "burst", capabilities: ["ui.surface"] }, IN_FLIGHT_OPS);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+  const outcome = await run("burst", { calls: IN_FLIGHT_CALLS, length: NEAR_CAP_MESSAGE });
+  const calls = z.array(z.tuple([z.string(), z.boolean()])).parse(outcome.ok ? outcome.value : outcome);
+  // Every call the budget holds read its later argument; the one past it was refused unread; the one after the burst
+  // settled was read again.
+  expect(calls.map(([, read]) => read)).toEqual([...Array.from({ length: IN_FLIGHT_CALLS - 1 }, () => true), false, true]);
+  expect(calls[IN_FLIGHT_CALLS - 1]?.[0]).toBe(Error.name);
+});
+
+// A guest's own hooks on the reads a symbol or a function invites, counted; the value then goes to a host call.
+const READ_HOOKS = `let hits = 0;
+  Object.defineProperty(Symbol.prototype, 'description', { configurable: true, get() { hits += 1; return 'd'; } });
+  const keyFor = Symbol.keyFor; Symbol.keyFor = (s) => { hits += 1; return keyFor(s); };
+  const fn = function () {}; Object.defineProperty(fn, 'toJSON', { get() { hits += 1; return undefined; } });
+  fn.toString = () => { hits += 1; return 'f'; };
+  const values = { symbol: Symbol('x'.repeat(a.length)), registered: Symbol.for('x'.repeat(a.length)), fn };`;
+const UNREAD_VALUES = {
+  asArgument: `async (h, room, a) => { ${READ_HOOKS} try { await h.storage.set('k', values[a.kind]); return ['answered', hits]; } catch (e) { return [e.name, hits]; } }`,
+  asLogLine: `(h, room, a) => { ${READ_HOOKS} h.log.info(values[a.kind]); return hits; }`,
+} as const satisfies GuestOps;
+// Past the inbound cap, so a description copied whole would carry what no string argument may.
+const PAST_CAP_DESCRIPTION = 2 * HOST_FN_ARGS_MAX_BYTES;
+
+test.for(["symbol", "registered", "fn"] as const)(
+  "a %s handed to a host call or the log is refused or named by its kind without the host reading it",
+  { tags: ["slow"] },
+  async (kind) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const pluginId = await installGuest(root, owner, { slug: "unread-values", capabilities: ["storage.kv"] }, UNREAD_VALUES);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    expect(await run("asArgument", { kind, length: PAST_CAP_DESCRIPTION })).toEqual({ ok: true, value: [Error.name, 0] });
+    expect(await run("asLogLine", { kind, length: PAST_CAP_DESCRIPTION })).toEqual({ ok: true, value: 0 });
+  },
+);
+
+test("a symbol or a function logged by a snippet reads as its kind", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+
+  const logged = await caller.plugin.runSnippet({ chatId: room.id, code: 'orb.host(1).log.info(Symbol("s")); orb.host(1).log.info(() => 1);' });
+  expect(logged.logLines).toEqual(["[info] [symbol]", "[info] [function]"]);
+});
+
 test.for(["nestedKey", "nestedValue"] as const)(
   "an argument whose %s is past the inbound cap is refused before any later argument is read",
   { tags: ["slow"] },
   async (op) => {
     await using root = await createServerHarness({ pluginSpawn: spawn });
     const owner = await root.principalFor(root.ownerId);
-    const pluginId = await installGuest(root, owner, { slug: "store-writer", capabilities: ["storage.kv"] }, STORE_WRITES);
+    const pluginId = await installGuest(root, owner, { slug: "store-writer", capabilities: ["ui.surface"] }, STORE_WRITES);
     const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
 
     expect(await run(op, { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: true, value: [Error.name, false] });
-    // The same shape inside the cap is read whole, the later argument with it, and refused only as a key.
+    // The same shape inside the cap is read whole, the later argument with it, and refused only as a message.
     expect(await run(op, { length: 1 })).toEqual({ ok: true, value: [Error.name, true] });
   },
 );
@@ -360,7 +470,7 @@ const PAST_WINDOW = {
   // One host call whose read runs many guest callbacks, each a heavy native in a loop, so one interrupt poll period
   // is long: past the window, each callback the host still runs costs a whole period.
   wideGetters:
-    "(h, room, a) => { const arr = new Array(a.width).fill(0); const o = {}; for (let i = 0; i < a.count; i++) { Object.defineProperty(o, 'k' + i, { get() { for (;;) arr.slice(); }, enumerable: true }); } return h.storage.get(o); }",
+    "(h, room, a) => { const arr = new Array(a.width).fill(0); const o = {}; for (let i = 0; i < a.count; i++) { Object.defineProperty(o, 'k' + i, { get() { for (;;) arr.slice(); }, enumerable: true }); } return h.ui.toast('info', o); }",
   surfaceSetters:
     "(h, room, a) => { const arr = new Array(a.width).fill(0); for (const key of a.keys) { Object.defineProperty(Object.prototype, key, { set(v) { for (;;) arr.slice(); }, configurable: true }); } orb.host(1); return null; }",
 } as const satisfies GuestOps;
@@ -409,7 +519,7 @@ test.for([
   async ({ op, args }) => {
     await using root = await createServerHarness({ pluginSpawn: spawn });
     const owner = await root.principalFor(root.ownerId);
-    const pluginId = await installGuest(root, owner, { slug: "overrunner", capabilities: ["storage.kv"] }, PAST_WINDOW);
+    const pluginId = await installGuest(root, owner, { slug: "overrunner", capabilities: ["storage.kv", "ui.surface"] }, PAST_WINDOW);
     const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
     const interrupted: unknown = await run("busyLoop").catch((error: unknown) => error);
     expect(interrupted).toBeInstanceOf(Error);

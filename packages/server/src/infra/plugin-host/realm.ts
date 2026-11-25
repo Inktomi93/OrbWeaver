@@ -141,13 +141,13 @@ export interface RealmHost {
 
 // The text a log line or a token count takes from a guest value, read by `read`, or `undefined` for a string past
 // the read's bound. The contract takes a string, which reads through the marshal under that bound; another primitive
-// reads as its own text, which runs no guest code. An object or a function reads as its kind alone: its text would
-// come from its `toString` or its getters, guest code a host read must not run (D346), and dumping it here would
-// have no depth guard. `null` reads as an object too: this engine build offers no equality check to tell it apart
-// without a read.
+// reads as its own text, which runs no guest code. An object, a function or a symbol reads as its kind alone: its text
+// would come from its `toString`, its getters or its description getter, guest code a host read must not run (D346),
+// and dumping it here would have no depth or length guard. `null` reads as an object too: this engine build offers
+// no equality check to tell it apart without a read.
 function logText(ctx: QuickJSContext, handle: QuickJSHandle, read: (primitive: QuickJSHandle) => GuestRead): string | undefined {
   const type = ctx.typeof(handle);
-  if (type === "function" || type === "object") {
+  if (type === "function" || type === "object" || type === "symbol") {
     return `[${type}]`;
   }
   const text = read(handle);

@@ -34,6 +34,10 @@ const CHANNEL_FULL = `${PLUGIN_HOST_UNAVAILABLE}:${PLUGIN_CHANNEL_FULL_CODE}`;
 const FLOOD_OPS = {
   // Megabyte arguments that cross the channels before the host refuses them for their size: the bytes are the flood.
   floodStore: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.set('k' + i, big))); return settled.map(report); }`,
+  // Megabyte keys, which no store keeps.
+  floodGetKey: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.get(big + i))); return settled.map(report); }`,
+  // Megabyte messages a door with no tighter cap than the inbound one reads whole and the domain clamps.
+  floodToast: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.ui.toast('info', big))); return settled.map(report); }`,
   // Megabyte results, the flood in the other direction: tiny to ask for, so the guest spends little, and refused or
   // served when they cross back.
   floodFetch: `async (h, room, a) => { ${REPORT} const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.net.fetch(a.url))); return settled.map(report); }`,
@@ -43,6 +47,9 @@ const FLOOD_OPS = {
   oneSet: "async (h, room, a) => h.storage.set('one', 'x'.repeat(a.bytes))",
 } as const;
 const ARG_BYTES = HOST_FN_ARGS_MAX_BYTES - HOST_CALLS_IN_FLIGHT_MAX;
+// The ops that flood megabyte arguments, as `floodArgs` runs them.
+const ARG_FLOODS = ["floodStore", "floodGetKey", "floodToast"] as const satisfies readonly (keyof typeof FLOOD_OPS)[];
+type FloodOp = (typeof ARG_FLOODS)[number];
 // The outcome of one flooding invoke: the name its every call settled as, or the whole invoke ended by the guest's own
 // CPU window while it copied its arguments out — both contained, neither a lost broker.
 type FloodOutcome = { readonly kind: "settled"; readonly names: readonly string[] } | { readonly kind: "interrupted"; readonly name: string };
@@ -138,7 +145,7 @@ async function floodingPlugins(root: NativeServerTestHarness, count: number): Pr
     const pluginId = await installGuest(
       root,
       owner,
-      { slug: `flood-${String(index)}`, capabilities: ["storage.kv", "net.fetch"], netHosts: [NET_HOST] },
+      { slug: `flood-${String(index)}`, capabilities: ["storage.kv", "net.fetch", "ui.surface"], netHosts: [NET_HOST] },
       FLOOD_OPS,
     );
     runs.push(guestRunner({ root, caller: owner, pluginId, chatId: null }));
@@ -148,9 +155,9 @@ async function floodingPlugins(root: NativeServerTestHarness, count: number): Pr
 
 // One plugin's flood of megabyte arguments. A guest invoke that overruns its CPU window copying the arguments out
 // surfaces as a throw, not a value, so the harness throw is caught and read as the contained interrupt it is.
-async function floodArgs(run: GuestRun, calls: number): Promise<FloodOutcome> {
+async function floodArgs(run: GuestRun, calls: number, op: FloodOp = "floodStore"): Promise<FloodOutcome> {
   try {
-    const outcome = await run("floodStore", { calls, bytes: ARG_BYTES });
+    const outcome = await run(op, { calls, bytes: ARG_BYTES });
     if (!(outcome.ok && Array.isArray(outcome.value))) {
       throw new Error(`a flood invoke did not report its calls: ${JSON.stringify(outcome)}`);
     }
@@ -284,50 +291,57 @@ test("as many plugins as the broker has Workers, each looping megabyte fetch res
   expect(brokerPid(edge)).toBe(broker);
 });
 
-// One owner's plugins fill every Worker the pool holds, each looping megabyte values the host refuses for their size.
-// Halfway through, a second owner arrives and pings for the rest, while the flood goes on within that owner's share.
-// The broker is never replaced, its peak resident memory stays under its ceiling, and the second owner is answered and
-// never struck.
-test("one owner's plugins looping refused megabyte values on every Worker keep the broker under its memory ceiling, and an arriving owner's plugin answers", {
-  tags: ["slow"],
-  timeout: FLOOD_TEST_TIMEOUT_MS,
-}, async () => {
-  await using owners = await ownersOnOneBroker(false);
-  const runs = await floodingPlugins(owners.root, owners.root.env.PLUGIN_BROKER_WORKER_MAX);
-  const broker = brokerPid(owners.edge);
-  const sizeRefusal = await runs[0]?.("oneSet", { bytes: ARG_BYTES });
-  if (sizeRefusal?.ok !== false) {
-    throw new Error("a megabyte storage value is refused by the host");
-  }
-  const halfway = performance.now() + LOOPED_FLOOD_MS / 2;
-  const floodUntil = async (run: GuestRun, end: number): Promise<number> => {
-    let rounds = 0;
-    while (performance.now() < end) {
-      expectContained([await floodArgs(run, HOST_CALLS_IN_FLIGHT_MAX)], [sizeRefusal.name]);
-      rounds += 1;
+// One owner's plugins fill every Worker the pool holds, each looping megabyte arguments at one door. A store value and
+// a store key are refused for their size before they are read; a toast message is read whole, so only the plugin's
+// in-flight argument budget bounds what its calls hold. Halfway through, a second owner arrives and pings for the rest,
+// while the flood goes on within that owner's share. The broker is never replaced, its peak resident memory stays under
+// its ceiling, and the second owner is answered and never struck.
+test.for([
+  { door: "storage.set", op: "floodStore", answered: [] },
+  { door: "storage.get", op: "floodGetKey", answered: [] },
+  // The toast notice that the plugin's cooldown lets through is served.
+  { door: "ui.toast", op: "floodToast", answered: ["ok"] },
+] as const satisfies readonly { readonly door: string; readonly op: FloodOp; readonly answered: readonly string[] }[])(
+  "one owner's plugins looping megabyte $door arguments on every Worker keep the broker under its memory ceiling, and an arriving owner's plugin answers",
+  { tags: ["slow"], timeout: FLOOD_TEST_TIMEOUT_MS },
+  async ({ op, answered }) => {
+    await using owners = await ownersOnOneBroker(false);
+    const runs = await floodingPlugins(owners.root, owners.root.env.PLUGIN_BROKER_WORKER_MAX);
+    const broker = brokerPid(owners.edge);
+    const sizeRefusal = await runs[0]?.("oneSet", { bytes: ARG_BYTES });
+    if (sizeRefusal?.ok !== false) {
+      throw new Error("a megabyte storage value is refused by the host");
     }
-    return rounds;
-  };
-  const pingUntil = async (end: number): Promise<readonly unknown[]> => {
-    const answers: unknown[] = [];
-    while (performance.now() < end) {
-      answers.push(await owners.ping());
-    }
-    return answers;
-  };
+    const halfway = performance.now() + LOOPED_FLOOD_MS / 2;
+    const floodUntil = async (run: GuestRun, end: number): Promise<number> => {
+      let rounds = 0;
+      while (performance.now() < end) {
+        expectContained([await floodArgs(run, HOST_CALLS_IN_FLIGHT_MAX, op)], [sizeRefusal.name, ...answered]);
+        rounds += 1;
+      }
+      return rounds;
+    };
+    const pingUntil = async (end: number): Promise<readonly unknown[]> => {
+      const answers: unknown[] = [];
+      while (performance.now() < end) {
+        answers.push(await owners.ping());
+      }
+      return answers;
+    };
 
-  const soleRounds = await Promise.all(runs.map((run) => floodUntil(run, halfway)));
-  await owners.arrive();
-  const until = performance.now() + LOOPED_FLOOD_MS / 2;
-  const [answers, ...sharedRounds] = await Promise.all([pingUntil(until), ...runs.map((run) => floodUntil(run, until))]);
+    const soleRounds = await Promise.all(runs.map((run) => floodUntil(run, halfway)));
+    await owners.arrive();
+    const until = performance.now() + LOOPED_FLOOD_MS / 2;
+    const [answers, ...sharedRounds] = await Promise.all([pingUntil(until), ...runs.map((run) => floodUntil(run, until))]);
 
-  await expectBrokerKept(owners, broker);
-  expect(Math.min(...soleRounds)).toBeGreaterThan(1);
-  expect(Math.max(...sharedRounds)).toBeGreaterThan(1);
-  expect(answers.length).toBeGreaterThan(0);
-  expect(answers.filter((answer) => JSON.stringify(answer) !== JSON.stringify({ ok: true, value: null }))).toEqual([]);
-  expectPeakUnderCeiling(broker, owners.root.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES);
-});
+    await expectBrokerKept(owners, broker);
+    expect(Math.min(...soleRounds)).toBeGreaterThan(1);
+    expect(Math.max(...sharedRounds)).toBeGreaterThan(1);
+    expect(answers.length).toBeGreaterThan(0);
+    expect(answers.filter((answer) => JSON.stringify(answer) !== JSON.stringify({ ok: true, value: null }))).toEqual([]);
+    expectPeakUnderCeiling(broker, owners.root.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES);
+  },
+);
 
 // A quarter of the allowance of megabyte values: enough to refuse by the host's size cap, few enough that the guest
 // stays inside its CPU window and handles every refusal, so it keeps its row unstruck.

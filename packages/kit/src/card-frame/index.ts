@@ -67,8 +67,9 @@
 //     ('unsafe-inline' matches no URL, so naming `worker-src 'none'` would be a directive with nothing to
 //     add); a nested `<iframe>` is refused by the `frame-src` fallback; `eval`/`new Function` throw
 //     EvalError (no `'unsafe-eval'`).
-//   • external media ON, script-free card → `<img>`, `<link rel=prefetch>`, `<video>` land.
-//   • external media ON, SCRIPTED card → EXACTLY the same three. Nothing new.
+//   • external media ON, script-free card → `<img>` and `<video>` land. (`<link rel=prefetch>` landed too until
+//     authored `<link>` tags were held; see WEBKIT RESOURCE HINTS.)
+//   • external media ON, SCRIPTED card → EXACTLY the same. Nothing new.
 // So the HTTP exfil channel is the media allowance, it predates the grant, and it stays behind the
 // deployment "Block external media" ceiling. What the grant changes is not WHICH channel exists but what
 // can be encoded in it: a script composes a URL from what it observed, where authored markup could only
@@ -77,9 +78,17 @@
 // `<link rel=preconnect>` names, to any host, from a sandboxed frame under the static card policy and the plugin
 // frame policy alike, while the same frame's `fetch` and off-origin `img` are refused. Chromium and Firefox open
 // nothing there. So every authored `<link>` start tag is rewritten to an inert element before render
-// ({@link buildCardFrameDocument}), which closes it for markup with no script. A `<link>` is dead weight in a card
-// frame anyway: `style-src` admits no sheet URL. A script that inserts the element itself still reaches the host,
-// on WebKit only: residual R2 below.
+// ({@link buildCardFrameDocument}). A `<link>` is dead weight in a card frame anyway: `style-src` admits no sheet URL.
+// A nested `<iframe srcdoc>` is a second door: the browser decodes the attribute (`&lt;link`, `&#60;link`) into the
+// nested document's markup, which the text hold never sees, and a srcdoc navigation fetches nothing, so the
+// `frame-src` fallback does not refuse it. WebKit preconnected from it on the routed arm, inside `<svg>`
+// `foreignObject` and on the srcdoc floor, so every authored `<iframe` start tag is held the same way. Under
+// `default-src 'none'` a nested frame can only ever hold a srcdoc or a blank document, so no card loses a feature.
+// The other nested-document doors opened nothing on WebKit 2370 from a static card and stay unheld: `<object>` and
+// `<embed>` with a `data:` document (refused by the `object-src` fallback), `<frame>` (dropped outside a frameset),
+// `<portal>` (no WebKit or Firefox element), an iframe `src` of `data:`, and a meta refresh to `data:`. Together
+// the two holds close resource hints for markup with no script. A script that inserts the element itself still
+// reaches the host, on WebKit only: residual R2 below.
 // The frame's isolation holds under script: `document.cookie`, `localStorage`, `parent.document` and a
 // SIBLING card frame's document all throw SecurityError, and a sibling frame cannot be navigated
 // ("Unsafe attempt to initiate navigation for frame …"). A card CAN `postMessage` the embedder and its
@@ -742,18 +751,20 @@ export function holdCardFrameMedia(doc: string): string {
   return doc.replace("<style>", () => `<style>${HELD_MEDIA_CSS} `);
 }
 
-// A `<link>` start tag as the HTML tokenizer reads one: its name ends at whitespace, `/` or `>`, in any letter case.
-// Matching every spelling of the tag, never its `rel`, leaves no hint keyword or rel-token spelling to slip past.
-// A match inside a comment, a raw-text element or an attribute value changes only that text.
-const LINK_START_TAG = /<link(?=[\t\n\f\r />])/giu;
-// What a `<link>` start tag becomes: a void element, so nothing after it is re-parented, and one that fetches
-// nothing whatever attributes it keeps.
-const HELD_LINK_START_TAG = "<wbr";
+// A `<link>` or `<iframe>` start tag as the HTML tokenizer reads one: its name ends at whitespace, `/` or `>`, in any
+// letter case. Matching every spelling of the tag, never its `rel` or `srcdoc`, leaves no hint keyword, rel-token or
+// entity spelling to slip past. A match inside a comment, a raw-text element or an attribute value changes only that
+// text.
+const HELD_START_TAG = /<(?:link|iframe)(?=[\t\n\f\r />])/giu;
+// What a held start tag becomes: a void element, so nothing after it is re-parented, and one that fetches nothing
+// and loads no document whatever attributes it keeps. A held `<iframe>`'s raw text is parsed as markup instead,
+// after the same hold ran over it.
+const HELD_TAG_START = "<wbr";
 
-// Authored markup with every `<link>` start tag held (the WEBKIT RESOURCE HINTS note in the header). It runs on the
-// stylesheet too, because a sheet that closes its own `<style>` writes markup into the document head.
-function holdAuthoredLinks(text: string): string {
-  return text.replace(LINK_START_TAG, HELD_LINK_START_TAG);
+// Authored markup with every `<link>` and `<iframe>` start tag held (the WEBKIT RESOURCE HINTS note in the header).
+// It runs on the stylesheet too, because a sheet that closes its own `<style>` writes markup into the document head.
+function holdAuthoredHints(text: string): string {
+  return text.replace(HELD_START_TAG, HELD_TAG_START);
 }
 
 /**
@@ -771,7 +782,7 @@ function holdAuthoredLinks(text: string): string {
  * unclosed `<!--` in the body would) and so the untrusted content has no way to influence the one thing in
  * the document that is allowed to execute. It measures on DOMContentLoaded, hence never runs before a body.
  *
- * The clamps and the `<link>` hold run HERE, on every call, regardless of what the caller already did — the
+ * The clamps and the `<link>` and `<iframe>` hold run HERE, on every call, regardless of what the caller already did — the
  * server's call is a trust boundary and must not inherit the client's word for it.
  */
 export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: string): string {
@@ -789,10 +800,10 @@ export function buildCardFrameDocument(content: CardFrameContent, metaCsp?: stri
     "<!doctype html>",
     `<html${rootAttributes}><head><meta charset="utf-8">`,
     meta,
-    `<style>${themeCss} ${baseBody} ${holdAuthoredLinks(content.css ?? "")}</style>`,
+    `<style>${themeCss} ${baseBody} ${holdAuthoredHints(content.css ?? "")}</style>`,
     script,
     "</head><body>",
-    holdAuthoredLinks(content.html),
+    holdAuthoredHints(content.html),
     "</body></html>",
   ].join("");
 }

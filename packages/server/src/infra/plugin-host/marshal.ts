@@ -550,8 +550,15 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     if (type === "object") {
       return isPromise(ctx, handle) ? { kind: "promise" } : readObject(walk, handle);
     }
-    if (type !== "string") {
+    // The binding reads these primitives without guest code, a bigint's digits bounded by the engine. A symbol's
+    // description would be copied whole and read through a guest getter and a replaceable `Symbol.keyFor`, and a
+    // function would be stringified through its `toJSON` and `toString`, so neither is read: no host value holds
+    // one, as the walk drops both nested.
+    if (type === "number" || type === "boolean" || type === "undefined" || type === "bigint") {
       return { kind: "value", value: ctx.dump(handle) };
+    }
+    if (type !== "string") {
+      return { kind: "unreadable" };
     }
     const read = stringOf(walk, handle);
     if ("overAllowance" in read) {

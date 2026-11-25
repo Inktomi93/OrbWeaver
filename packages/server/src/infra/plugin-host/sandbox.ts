@@ -262,7 +262,7 @@ export class Sandbox implements Disposable {
     const state: ResidentState = {
       chat: null,
       token: null,
-      inFlight: { count: 0, controllers: new Set(), settlements: new Set() },
+      inFlight: { count: 0, argBytes: 0, controllers: new Set(), settlements: new Set() },
       tools: [],
       transforms: [],
       events: [],
