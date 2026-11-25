@@ -6,7 +6,8 @@
 // @subject packages/server/src/domain/plugin/verbs/upgrade-from-stored-url.ts
 // @subject packages/server/src/domain/plugin/verbs/git-source.ts
 
-import { PLUGIN_PROVIDER_ID_PREFIX } from "@orb/contracts/inference";
+import type { ProviderDef } from "@orb/contracts/inference";
+import { PLUGIN_PROVIDER_ID_PREFIX, providerDefSchema } from "@orb/contracts/inference";
 import type { PluginManifest, PluginView } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
@@ -130,8 +131,8 @@ test("a stranger's preview of another owner's plugin is refused before the serve
 });
 
 // A provider the ledger offers, under an id its slug owns; only the id varies between versions.
-function ledgerProvider(name: string): NonNullable<PluginManifest["providers"]>[number] {
-  return {
+function ledgerProvider(name: string): ProviderDef {
+  return providerDefSchema.parse({
     id: `${PLUGIN_PROVIDER_ID_PREFIX}${FIRST.id}/${name}`,
     label: `Ledger ${name}`,
     wire: "openai-compat",
@@ -140,7 +141,7 @@ function ledgerProvider(name: string): NonNullable<PluginManifest["providers"]>[
     apis: ["chat-completions"],
     catalog: "url",
     metered: false,
-  };
+  });
 }
 
 test("reach the installed version already holds is not shown as widening, and a dropped browser script is shown dropped", async () => {
