@@ -1,23 +1,23 @@
-// The Looks note points a person at an Appearance setting by the label its section's model gives it, so each control the Sizing and Effects
+// The Looks note points a person at an Appearance setting by the label its section's model gives it, so each control the Sizing and Accessibility
 // sections render for a setting a theme import can leave behind must wear that same label. The sections are the production ones over a
 // corpus root.
-// @subject packages/client/src/features/app-shell/components/appearance-effects-section.tsx
+// @subject packages/client/src/features/app-shell/components/appearance-accessibility-section.tsx
 import { THEME_LEFTOVER_APPEARANCE_SETTINGS } from "@orb/contracts/portability";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { APPEARANCE_EFFECTS_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-effects-model.ts";
+import { APPEARANCE_ACCESSIBILITY_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-accessibility-model.ts";
 import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
-import type { EffectsSectionStory, SizingSectionStory } from "./_appearance-sizing-stories.tsx";
+import type { AccessibilitySectionStory, SizingSectionStory } from "./_appearance-sizing-stories.tsx";
 
 const STORIES = {
   sizing: "tests/client/features/app-shell/components/_appearance-sizing-stories/SizingSectionStory",
-  effects: "tests/client/features/app-shell/components/_appearance-sizing-stories/EffectsSectionStory",
+  accessibility: "tests/client/features/app-shell/components/_appearance-sizing-stories/AccessibilitySectionStory",
 } as const;
 const SECTIONS = [
   { section: "sizing", model: APPEARANCE_SIZING_SUBCATEGORY },
-  { section: "effects", model: APPEARANCE_EFFECTS_SUBCATEGORY },
+  { section: "accessibility", model: APPEARANCE_ACCESSIBILITY_SUBCATEGORY },
 ] as const;
 const LEFTOVER_KEYS: ReadonlySet<string> = new Set(THEME_LEFTOVER_APPEARANCE_SETTINGS);
 
@@ -26,7 +26,7 @@ for (const { section, model } of SECTIONS) {
     await using root = await createCorpusHarness();
     const caller = await root.internalCallerFor(root.ownerId);
     await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "settings.updateUserSettingsSection"]));
-    await mount<typeof SizingSectionStory | typeof EffectsSectionStory>(STORIES[section], {});
+    await mount<typeof SizingSectionStory | typeof AccessibilitySectionStory>(STORIES[section], {});
 
     // A setting stored as a list (the Frosted glass surfaces) is a set of switches the pane names with the shared row's registry lead, not
     // with a label of its own, so there is no control name in the pane to compare.
