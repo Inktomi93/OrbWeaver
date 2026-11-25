@@ -1,18 +1,16 @@
 // The test worlds, each one typed program, and the reader of what a world's tsconfig names. The lint config, the
-// whole-tree lint parts and the reference scans all read the list and the specs here, so a world's files are matched
-// the same way by each. The order is a ruling: a file two worlds name belongs to the earlier world. Every tsconfig read
-// goes through tsc's own parser here, so the reference graph and the lint split read a config identically.
+// whole-tree lint parts and brand-flow read the list and the specs here, so a world's files are matched the same way by
+// each. The order is a ruling: a file two worlds name belongs to the earlier world. Every tsconfig read
+// here goes through TypeScript 6's own parser, for the lint split and the ports census. The reference graph reads its
+// worlds on the TypeScript 7.1 API (tooling/src/unwired/worlds.ts WorldConfigs).
 import { join } from "node:path";
 import ts from "typescript";
 
 /** The test worlds, the node world first. */
 export const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"] as const;
 
-/** A world's tsconfig as tsc parses it. */
-export type ParsedWorld = ts.ParsedCommandLine;
-
 /** One world's parsed tsconfig, as tsc resolves it through `extends`. `host` overrides how the parse reads the disk. */
-export function loadWorld(root: string, config: string, host: Partial<ts.ParseConfigHost> = {}): ParsedWorld {
+export function loadWorld(root: string, config: string, host: Partial<ts.ParseConfigHost> = {}): ts.ParsedCommandLine {
   const parsed = ts.getParsedCommandLineOfConfigFile(
     join(root, config),
     {},
@@ -28,21 +26,6 @@ export function loadWorld(root: string, config: string, host: Partial<ts.ParseCo
     throw new Error(`${config}: no parsed configuration`);
   }
   return parsed;
-}
-
-/** A tsconfig file's own JSON, comments allowed, with nothing resolved through `extends`. */
-export function readConfigJson(root: string, config: string): unknown {
-  const read = ts.readConfigFile(join(root, config), ts.sys.readFile);
-  if (read.error !== undefined) {
-    throw new Error(`${config}: ${ts.flattenDiagnosticMessageText(read.error.messageText, "\n")}`);
-  }
-  return read.config;
-}
-
-/** The file a world's `types` entry resolves to, as tsc resolves it from the world's own folder, or undefined when the
- *  world cannot resolve it. */
-export function resolveWorldType(root: string, config: string, parsed: ParsedWorld, name: string): string | undefined {
-  return ts.resolveTypeReferenceDirective(name, join(root, config), parsed.options, ts.sys).resolvedTypeReferenceDirective?.resolvedFileName;
 }
 
 interface WorldSpecs {

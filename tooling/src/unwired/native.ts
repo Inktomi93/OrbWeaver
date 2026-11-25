@@ -51,7 +51,7 @@ import { isLibrarySource, packageNameOf } from "../brand-names/index.ts";
 import { spawnedChild } from "../floor/process/proc.ts";
 import { workspacePackageRoots } from "../package-effects/index.ts";
 import type { Site } from "./classify.ts";
-import { bridgedConfigText, MERGED_CONFIG, mergedConfigText } from "./worlds.ts";
+import { bridgedConfigText, MERGED_CONFIG, mergedConfigText, WorldConfigs } from "./worlds.ts";
 
 // Far under the server's batch page and V8's spread-argument ceiling.
 const BATCH = 5000;
@@ -259,6 +259,8 @@ export interface WorldStats {
 export class NativeWorld implements Disposable {
   readonly config: string;
   readonly checker: Checker;
+  /** The world's tsconfig reader, on the world's own compiler session. */
+  readonly worldConfigs: WorldConfigs;
   /** The program, for what the checker does not answer: diagnostics, the files it loads, module resolution. */
   readonly program: Program;
   readonly #languageService: LanguageService;
@@ -276,10 +278,16 @@ export class NativeWorld implements Disposable {
   readonly #snapshot: Snapshot;
   readonly #project: ConfiguredProjectId;
 
-  private constructor(root: string, { config, text }: { readonly config: string; readonly text: string }, api: API, declaration: (file: string) => boolean) {
+  private constructor(
+    root: string,
+    { config, text }: { readonly config: string; readonly text: string },
+    { api, worldConfigs }: { readonly api: API; readonly worldConfigs: WorldConfigs },
+    declaration: (file: string) => boolean,
+  ) {
     this.config = config;
     this.#root = root;
     this.#api = api;
+    this.worldConfigs = worldConfigs;
     const path = `${root}/${config}`;
     const snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: text } } });
     const project = snapshot.getConfiguredProject(path);
@@ -298,21 +306,30 @@ export class NativeWorld implements Disposable {
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
   }
 
-  // The world config is overlaid with the source bridge, so a world resolves workspace imports to their sources.
+  // The world config is overlaid with the source bridge, so a world resolves workspace imports to their sources. The
+  // compiler session that reads the configs is the one that serves the program.
   static open(root: string, config: string, declarations: ReadonlySet<string> = new Set(), timing = false): NativeWorld {
-    return new NativeWorld(root, { config, text: bridgedConfigText(root, config) }, startAPI({ cwd: root, collectTiming: timing }, config), (file) =>
-      declarations.has(file),
-    );
+    return NativeWorld.#start(root, { config, timing, textOf: (configs) => bridgedConfigText(configs, config) }, (file) => declarations.has(file));
   }
 
   /** The merged program over every world (`mergedConfigText`), with the declaration files `declaration` keeps. */
   static openMerged(root: string, declaration: (file: string) => boolean, timing = false): NativeWorld {
-    return new NativeWorld(
-      root,
-      { config: MERGED_CONFIG, text: mergedConfigText(root) },
-      startAPI({ cwd: root, collectTiming: timing }, MERGED_CONFIG),
-      declaration,
-    );
+    return NativeWorld.#start(root, { config: MERGED_CONFIG, timing, textOf: mergedConfigText }, declaration);
+  }
+
+  static #start(
+    root: string,
+    program: { readonly config: string; readonly timing: boolean; readonly textOf: (configs: WorldConfigs) => string },
+    declaration: (file: string) => boolean,
+  ): NativeWorld {
+    // a world that fails to open takes its compiler process down with it; one that opens owns the process
+    using opening = new DisposableStack();
+    // biome-ignore lint/nursery/useDisposables: the stack disposes the session on a failed open, and the world on a good one
+    const api = opening.use(startAPI({ cwd: root, collectTiming: program.timing }, program.config));
+    const worldConfigs = new WorldConfigs(api, root);
+    const world = new NativeWorld(root, { config: program.config, text: program.textOf(worldConfigs) }, { api, worldConfigs }, declaration);
+    opening.move();
+    return world;
   }
 
   get stats(): WorldStats {
@@ -333,7 +350,8 @@ export class NativeWorld implements Disposable {
    *  process per world. */
   static fileLists(root: string, configs: readonly string[], declarations: ReadonlySet<string> = new Set()): ReadonlyMap<string, WorldFiles> {
     using api = startAPI({ cwd: root }, configs.join(","));
-    const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
+    const worldConfigs = new WorldConfigs(api, root);
+    const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(worldConfigs, config)]));
     const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
     const keep = (name: string): boolean => declarations.has(relative(root, name));
     const workspace = workspaceDirs(root);
