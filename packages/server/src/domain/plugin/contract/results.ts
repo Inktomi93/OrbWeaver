@@ -1,5 +1,6 @@
 // Canonical plugin wire outputs live in contracts; this module owns the remaining domain-only results.
-import type { PluginBundleHash, PluginCapability, PluginManifest } from "@orb/contracts/plugin";
+import { providerIdSchema } from "@orb/contracts/inference";
+import type { PluginBundleHash, PluginManifest, PluginReachWidening } from "@orb/contracts/plugin";
 import { PLUGIN_CAPABILITIES, pluginBundleHashSchema, pluginManifestSchema, pluginNetHostSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -92,23 +93,13 @@ export const pluginUpdateCheckSchema = z.union([
   z.strictObject({ pluginId: pluginIdSchema, status: z.literal("unreachable") }),
 ]) satisfies z.ZodType<PluginUpdateCheck>;
 
-/** What a stored-source upgrade widens beyond the owner's consent, keyed by the manifest fields activation reads.
- *  Local to the preview until the re-consent check exports its own widening type; the preview builds it in one
- *  function (`previewWidening` in `verbs/preview-stored-upgrade.ts`) so the two swap together. `providerIds` lists
- *  new provider ids only. */
-export interface PluginStoredUpgradeWidening {
-  readonly capabilities: readonly PluginCapability[];
-  readonly netHosts: readonly string[];
-  readonly providerIds: readonly string[];
-  readonly matchAutomationEvents: boolean;
-}
-
-const pluginStoredUpgradeWideningSchema = z.strictObject({
+// The re-consent widening type has no wire schema of its own; the preview is its only wire carrier.
+const pluginReachWideningSchema = z.strictObject({
   capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).readonly(),
   netHosts: z.array(pluginNetHostSchema).readonly(),
-  providerIds: z.array(z.string()).readonly(),
+  providerIds: z.array(providerIdSchema).readonly(),
   matchAutomationEvents: z.boolean(),
-}) satisfies z.ZodType<PluginStoredUpgradeWidening>;
+}) satisfies z.ZodType<PluginReachWidening>;
 
 /** The identity a stored upgrade must echo so the bytes it applies are the bytes this preview showed. */
 export type PluginStoredUpgradeIdentity =
@@ -122,7 +113,7 @@ export interface PluginStoredUpgradePreview {
   readonly fromVersion: string;
   readonly toVersion: string;
   readonly shipsUiScript: { readonly before: boolean; readonly after: boolean };
-  readonly widening: PluginStoredUpgradeWidening;
+  readonly widening: PluginReachWidening;
   readonly identity: PluginStoredUpgradeIdentity;
 }
 
@@ -131,7 +122,7 @@ export const pluginStoredUpgradePreviewSchema = z.strictObject({
   fromVersion: z.string(),
   toVersion: z.string(),
   shipsUiScript: z.strictObject({ before: z.boolean(), after: z.boolean() }),
-  widening: pluginStoredUpgradeWideningSchema,
+  widening: pluginReachWideningSchema,
   identity: z.discriminatedUnion("source", [
     z.strictObject({ source: z.literal("url"), bundleHash: pluginBundleHashSchema }),
     z.strictObject({ source: z.literal("git"), sourceCommit: z.string() }),

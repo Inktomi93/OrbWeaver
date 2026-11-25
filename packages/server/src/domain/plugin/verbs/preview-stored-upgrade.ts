@@ -7,14 +7,13 @@
 // OWNER-SCOPED BEFORE ANY EGRESS, like every stored-source verb: a stranger holding a real pluginId is a
 // leak-free NOT_FOUND before the server fetches that owner's remembered source. Writes nothing.
 
-import type { PluginManifest } from "@orb/contracts/plugin";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNoSourceUrlError, PluginNotFoundError } from "../contract/errors.ts";
 import type { PreviewStoredUpgradeParams } from "../contract/params.ts";
-import type { PluginStoredUpgradeIdentity, PluginStoredUpgradeWidening } from "../contract/results.ts";
+import type { PluginStoredUpgradeIdentity } from "../contract/results.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
 import { cloneThroughGuard } from "../substrate/git-clone.ts";
-import { newlyDeclaredCapabilities, widenedNetHosts } from "../substrate/grants.ts";
+import { manifestWidening } from "../substrate/grants.ts";
 import { hashPluginBundle, isVersionDowngrade, parseBundle } from "../substrate/manifest.ts";
 
 type StoredRow = NonNullable<Awaited<ReturnType<typeof getById>>>;
@@ -29,21 +28,6 @@ async function fetchStoredSource(ctx: PluginContext, row: StoredRow): Promise<{ 
     return { bundle, identity: { source: "url", bundleHash: hashPluginBundle(bundle) } };
   }
   throw new PluginNoSourceUrlError(row.id);
-}
-
-// The consent question this preview answers, in ONE function so it swaps to the re-consent check's own widening
-// home (`upgrade.ts`) in one line. Capabilities compare against the GRANT and hosts against the prior manifest,
-// as the upgrade wall does; provider ids and the cascade opt-in compare against the prior manifest. Only a NEW
-// provider id widens: a changed definition under an id the row already claims is refused at activation by the
-// connection claim, so it never reaches the owner's connections.
-function previewWidening(prior: StoredRow, next: PluginManifest): PluginStoredUpgradeWidening {
-  const priorProviderIds = new Set((prior.manifest.providers ?? []).map((provider) => provider.id));
-  return {
-    capabilities: newlyDeclaredCapabilities(next.capabilities, prior.grantedCapabilities),
-    netHosts: widenedNetHosts(next.netHosts ?? [], prior.manifest.netHosts ?? []),
-    providerIds: (next.providers ?? []).map((provider) => provider.id).filter((id) => !priorProviderIds.has(id)),
-    matchAutomationEvents: next.matchAutomationEvents === true && prior.manifest.matchAutomationEvents !== true,
-  };
 }
 
 export function createPreviewStoredUpgrade(ctx: PluginContext): PluginService["previewStoredUpgrade"] {
@@ -66,7 +50,7 @@ export function createPreviewStoredUpgrade(ctx: PluginContext): PluginService["p
       fromVersion: existing.version,
       toVersion: manifest.version,
       shipsUiScript: { before: existing.manifest.uiEntry !== undefined, after: manifest.uiEntry !== undefined },
-      widening: previewWidening(existing, manifest),
+      widening: manifestWidening(existing, manifest),
       identity: fetched.identity,
     };
   };
