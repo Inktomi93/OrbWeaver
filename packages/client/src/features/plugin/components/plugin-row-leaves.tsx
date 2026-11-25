@@ -13,7 +13,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { DestructiveAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
@@ -31,19 +31,22 @@ import {
   pluginUpdateReviewLabel,
   pluginUpdateToLabel,
   REMOVE_PLUGIN_DESCRIPTION,
+  reConsentBody,
   reConsentLine,
+  reConsentNoticeLabel,
   STORED_UPDATE_NOTHING_NEW,
   storedUpdateChangeLines,
   storedUpdateHeading,
   UPDATE_REVIEW_DISMISS_LABEL,
   UPDATE_UNREACHABLE_LINE,
   UPDATE_UP_TO_DATE_LINE,
+  unansweredReach,
   updateAvailableLabel,
   updateCommitAvailableLabel,
 } from "../lib/plugin-copy.ts";
 import { useUpgradePluginFromStoredGit } from "../lib/plugin-distribution-mutations.ts";
 import { useCheckForUpdates, usePreviewStoredUpgrade, useUpgradePluginFromShowcase, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
-import { notifyUpgradeStayedOff } from "../lib/plugin-upgrade-notice.ts";
+import { notifyUpgradeNeedsApproval } from "../lib/plugin-upgrade-notice.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 
 /** One projected row of `plugin.list` — the shape both leaves read (a private derived alias, mirrored by the
@@ -182,7 +185,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     // drop the transient verdict. The notice reads the SERVER's own `reconsentPending`, so it can never disagree
     // with the ReConsentNotice the parent renders from the same flag.
     setVerdict({ kind: "idle" });
-    notifyUpgradeStayedOff(plugin.name, updated);
+    notifyUpgradeNeedsApproval(plugin.name, updated);
   };
 
   return (
@@ -260,19 +263,37 @@ interface StoredUpdateReviewProps {
 /** What the next version from a stored source changes, read before it applies. The lines are the reach it widens
  *  beyond the owner's consent plus the browser-script fact; the apply echoes the preview's identity. */
 function StoredUpdateReview({ preview, pluginName, applying, onApply, onDismiss, ref }: StoredUpdateReviewProps): ReactElement {
-  const lines = storedUpdateChangeLines(preview);
+  const { standing, changes } = storedUpdateChangeLines(preview);
+  const idBase = useId();
+  const headingId = `${idBase}-heading`;
+  const standingId = `${idBase}-standing`;
+  const changeId = (index: number): string => `${idBase}-change-${index}`;
+  // The group's name says which review this is; its description is what the review says, so a person who moves on to Apply has heard it.
+  const describedBy = [headingId, ...(standing === null ? [] : [standingId]), ...changes.map((_, index) => changeId(index))].join(" ");
   return (
     // Focusable by script, not a tab stop: the group's name is what a screen reader reads when the review opens.
-    <Stack aria-label={pluginUpdateReviewLabel(pluginName)} focusTarget={true} gap="field" ref={ref} role="group" tabIndex={-1}>
-      <Text voice="promoted">{storedUpdateHeading(preview.fromVersion, preview.toVersion)}</Text>
-      {lines.length === 0 ? (
+    <Stack aria-describedby={describedBy} aria-label={pluginUpdateReviewLabel(pluginName)} focusTarget={true} gap="field" ref={ref} role="group" tabIndex={-1}>
+      <Text id={headingId} voice="promoted">
+        {storedUpdateHeading(preview.fromVersion, preview.toVersion)}
+      </Text>
+      {/* An earlier refusal that stands leads, and wears the re-consent notice's own edge and weight: it decides whether Apply turns
+          anything on, so it reads before the changes it sits beside. */}
+      {standing === null ? null : (
+        <Stack divider="start" dividerWeight="rule" gap="tight" indent={true} tone="warning">
+          <Text cap="prose" id={standingId} voice="promoted">
+            {standing}
+          </Text>
+        </Stack>
+      )}
+      {changes.length === 0 && standing === null ? (
         <Text cap="prose" prose={true} voice="gloss">
           {STORED_UPDATE_NOTHING_NEW}
         </Text>
-      ) : (
+      ) : null}
+      {changes.length === 0 ? null : (
         <Stack gap="tight">
-          {lines.map((line) => (
-            <Text cap="prose" key={line} prose={true}>
+          {changes.map((line, index) => (
+            <Text cap="prose" id={changeId(index)} key={line} prose={true}>
               {line}
             </Text>
           ))}
@@ -321,14 +342,17 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
   // The delta this notice exists to explain: everything currently declared that isn't yet granted. Computed
   // from the SAME two durable fields `reconsentPending` itself is judged against, so the notice can never
   // disagree with the flag that triggered it.
-  const ungranted = plugin.declaredCapabilities.filter((capability) => !plugin.grantedCapabilities.includes(capability));
+  const unanswered = unansweredReach(plugin);
+  // The Enabled switch stays live beside the notice, and the server starts an enabled plugin with this reach withheld, so the
+  // notice speaks for the state the switch is in.
+  const running = plugin.status === "enabled";
   // #1855: approve-all/deny — the grant summary always shows the full declared set.
   const summary = grantSummaryLine(plugin.declaredCapabilities);
   // A never-approved plugin is asking for the first time, so it is not "an update".
   const firstAsk = consentAskKind(plugin) === "first";
   // No capability is "New" relative to a grant that was never given. The host marks always pass through: the
   // server records them only when an update widened reach, so they are empty on a genuine first ask.
-  const newCapabilities = plugin.grantedCapabilities.length === 0 ? [] : ungranted;
+  const newCapabilities = plugin.grantedCapabilities.length === 0 ? [] : unanswered.capabilities;
   return (
     // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
     // the row that NEEDS the owner, and it used to render as more of the same prose wall. It is set apart by
@@ -346,23 +370,9 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     // prose's contrast the same way. So a border-only leading rule is the zero-contrast-tax boundary: it
     // paints no ground behind the pills at all. The ruling survives ("state it apart with a warning edge,
     // never a fill"); its INPUT changed from a full box to a leading rule.
-    <Stack
-      aria-label={`What ${plugin.name} asks for beyond what you've allowed`}
-      indent={true}
-      divider="start"
-      dividerWeight="rule"
-      gap="block"
-      role="alert"
-      tone="warning"
-    >
+    <Stack aria-label={reConsentNoticeLabel(plugin.name)} indent={true} divider="start" dividerWeight="rule" gap="block" role="alert" tone="warning">
       <Text cap="prose" voice="promoted">
-        {firstAsk
-          ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length)
-          : reConsentLine(ungranted, {
-              netHosts: plugin.widenedNetHosts,
-              providerIds: plugin.widenedProviderIds,
-              matchAutomationEvents: plugin.widenedMatchAutomationEvents,
-            })}
+        {firstAsk ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length, running) : reConsentLine(plugin.name, unanswered, running)}
       </Text>
       {/* The measure caps the body + headline (side-eye 2026-08-29 residual P2): at pane width the consent
           copy ran edge-to-edge near ~90ch, past the comfortable line length. THE TOKEN, NOT `max-w-(--reading-measure-min)`
@@ -371,9 +381,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           `ch` resolves in the element's own font. The per-capability consequence lines are capped at their
           own home (plugin-grant-list.tsx). */}
       <Text cap="prose" prose={true} voice="gloss">
-        {firstAsk
-          ? `Review what it asks for below. Approving turns ${plugin.name} on; you can turn it off at any time.`
-          : `Orbweaver kept ${plugin.name} off until you approve what it asks for. Review it below and approve, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}
+        {reConsentBody(running)}
       </Text>
       {/* #1855: READ-ONLY arm — approve-all/deny replaces per-grant toggles. `addedCapabilities` and
           `addedNetHosts` mark what this update added — the capability half derived from the two projected
@@ -384,7 +392,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
         roleScope={{ kind: "plugin", pluginId: plugin.id }}
         addedCapabilities={newCapabilities}
         addedNetHosts={plugin.widenedNetHosts}
-        addedProviderIds={plugin.widenedProviderIds}
+        addedProviderIds={unanswered.addedProviderIds}
+        changedProviderIds={unanswered.changedProviderIds}
         capabilitiesLabel={`What ${plugin.name} asks for`}
         declared={plugin.declaredCapabilities}
         granted={plugin.grantedCapabilities}

@@ -87,7 +87,14 @@ test("an upgrade adding a provider id waits for re-consent, a re-enable withhold
   expect(await plugin.offered()).toEqual([FIRST_ID]);
 
   const upgraded = await plugin.upgrade("1.1.0", withAdded);
-  expect(upgraded).toMatchObject({ status: "disabled", reconsentPending: true, widenedProviderIds: [ADDED_ID], widenedMatchAutomationEvents: false });
+  // A provider id the prior manifest never declared is new, not changed.
+  expect(upgraded).toMatchObject({
+    status: "disabled",
+    reconsentPending: true,
+    widenedProviderIds: [ADDED_ID],
+    widenedChangedProviderIds: [],
+    widenedMatchAutomationEvents: false,
+  });
 
   // Enabling grants nothing: the consented provider runs again, the unanswered one stays withheld.
   await root.services.plugin.setEnabled({ caller: plugin.who, pluginId: plugin.pluginId, enabled: true });
@@ -139,16 +146,69 @@ test("an upgrade that redefines an approved provider id no activation claimed wa
   expect(await plugin.offered()).toEqual([]);
 
   const upgraded = await plugin.upgrade("1.1.0", redefined);
-  expect(upgraded).toMatchObject({ status: "disabled", reconsentPending: true, widenedProviderIds: [FIRST_ID] });
+  expect(upgraded).toMatchObject({ status: "disabled", reconsentPending: true, widenedProviderIds: [FIRST_ID], widenedChangedProviderIds: [FIRST_ID] });
 
   // Enabling grants nothing: the redefined provider stays withheld, so no connection can bind the new definition.
   await root.services.plugin.setEnabled({ caller: plugin.who, pluginId: plugin.pluginId, enabled: true });
   expect(await plugin.offered()).toEqual([]);
 
   const consented = await plugin.approve(upgraded);
-  expect(consented).toMatchObject({ status: "enabled", reconsentPending: false, widenedProviderIds: [] });
+  expect(consented).toMatchObject({ status: "enabled", reconsentPending: false, widenedProviderIds: [], widenedChangedProviderIds: [] });
   const offered = (await root.services.connection.providersAvailable({ principal: plugin.who })).find(({ provider }) => provider.id === FIRST_ID);
   expect(offered?.provider.apis).toEqual(REDEFINED_APIS);
+});
+
+test("an update that redefines one provider and adds another records which is which, and a later update cannot turn a new id into a changed one", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const plugin = await installEnabled(root);
+
+  const redefinedAndAdded = { providers: [...redefined.providers, makePluginProviderRow(PLUGIN, ADDED)] };
+  const upgraded = await plugin.upgrade("1.1.0", redefinedAndAdded);
+  expect(upgraded).toMatchObject({ widenedProviderIds: [FIRST_ID, ADDED_ID], widenedChangedProviderIds: [FIRST_ID] });
+
+  // The next update redefines the id the owner has never seen, and leaves the other alone. The unanswered new id stays new
+  // (the owner never saw any definition of it), and the unanswered redefinition stays changed.
+  const redefinedAgain = { providers: [...redefined.providers, makePluginProviderRow(PLUGIN, ADDED, { apis: [...REDEFINED_APIS] })] };
+  const carried = await plugin.upgrade("1.2.0", redefinedAgain);
+  expect(carried).toMatchObject({ reconsentPending: true, widenedProviderIds: [FIRST_ID, ADDED_ID], widenedChangedProviderIds: [FIRST_ID] });
+
+  // The record is the server's: answering the question clears both lists together.
+  const approved = await plugin.approve(carried);
+  expect(approved).toMatchObject({ reconsentPending: false, widenedProviderIds: [], widenedChangedProviderIds: [] });
+});
+
+test("a provider whose fixed endpoint moves is marked changed, and the row names the host its prompts now go to", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const who = await root.principalFor(root.ownerId);
+  const oldHost = "api.old.example";
+  const newHost = "api.new.example";
+  const hosted = (version: string, host: string): PluginManifest =>
+    manifestOf(version, {
+      capabilities: ["net.fetch"],
+      netHosts: [host],
+      providers: [makePluginProviderRow(PLUGIN, FIRST, { auth: "apiKey", baseUrl: `https://${host}/v1` })],
+    });
+  const installed = await root.services.plugin.install({
+    caller: who,
+    bundle: makePluginBundle(hosted("1.0.0", oldHost), GUEST, root.clock.now()),
+    grant: ["net.fetch"],
+  });
+  expect(installed.providers).toEqual([{ id: FIRST_ID, label: FIRST, host: oldHost }]);
+
+  const upgraded = await root.services.plugin.upgrade({
+    caller: who,
+    pluginId: installed.id,
+    bundle: makePluginBundle(hosted("1.1.0", newHost), GUEST, root.clock.now()),
+  });
+  expect(upgraded).toMatchObject({
+    reconsentPending: true,
+    widenedNetHosts: [newHost],
+    widenedProviderIds: [FIRST_ID],
+    widenedChangedProviderIds: [FIRST_ID],
+    providers: [{ id: FIRST_ID, host: newHost }],
+  });
 });
 
 test("an upgrade that re-declares an approved provider unchanged, its keys spelled in another order, re-activates enabled", { tags: ["slow"] }, async () => {

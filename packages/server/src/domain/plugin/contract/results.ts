@@ -98,6 +98,7 @@ const pluginReachWideningSchema = z.strictObject({
   capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).readonly(),
   netHosts: z.array(pluginNetHostSchema).readonly(),
   providerIds: z.array(providerIdSchema).readonly(),
+  changedProviderIds: z.array(providerIdSchema).readonly(),
   matchAutomationEvents: z.boolean(),
 }) satisfies z.ZodType<PluginReachWidening>;
 
@@ -114,6 +115,7 @@ type PluginStandingRefusal = Omit<PluginReachWidening, "capabilities">;
 const pluginStandingRefusalSchema = z.strictObject({
   netHosts: z.array(pluginNetHostSchema).readonly(),
   providerIds: z.array(providerIdSchema).readonly(),
+  changedProviderIds: z.array(providerIdSchema).readonly(),
   matchAutomationEvents: z.boolean(),
 }) satisfies z.ZodType<PluginStandingRefusal>;
 

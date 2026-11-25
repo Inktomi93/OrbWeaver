@@ -8,7 +8,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { TrpcRecorder } from "@orb/testkit/ct";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { noticeToast, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -23,10 +23,12 @@ import {
   pluginDetailsLabel,
   pluginUpdateReviewLabel,
   pluginUpdateToLabel,
+  providerEndpointNote,
   STORED_UPDATE_NOTHING_NEW,
   storedUpdateHeading,
   storedUpdateStandingLine,
   UPDATE_REVIEW_DISMISS_LABEL,
+  upgradeNeedsApprovalNotice,
 } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginActionGroupsStory } from "./_update-action-groups-stories.tsx";
 
@@ -65,6 +67,21 @@ const ALLOWED = pluginManifestSchema.parse({ ...FIRST, capabilities: ["net.fetch
 const REFUSED = pluginManifestSchema.parse({ ...ALLOWED, version: "1.1.0", netHosts: [ALLOWED_HOST, REACHED_HOST] });
 // The version after the refused one declares what it declared, so it widens nothing against it.
 const AFTER_REFUSED = pluginManifestSchema.parse({ ...REFUSED, version: "1.2.0" });
+
+// A refused version that still stands, then a next version that adds a model provider on top of it: the review has both to say.
+const AFTER_REFUSED_WITH_PROVIDER = pluginManifestSchema.parse({ ...REFUSED, version: "1.2.0", providers: [VISION_PROVIDER] });
+
+// A hosted provider the plugin already runs, and a next version that redefines it at another host.
+const HOSTED_FROM = "api.hosted-before.example";
+const HOSTED_TO = "api.hosted-after.example";
+const hostedVision = (host: string): typeof VISION_PROVIDER => providerDefSchema.parse({ ...VISION_PROVIDER, auth: "apiKey", baseUrl: `https://${host}/v1` });
+const HOSTED_BEFORE = pluginManifestSchema.parse({ ...FIRST, capabilities: ["net.fetch"], netHosts: [HOSTED_FROM], providers: [hostedVision(HOSTED_FROM)] });
+const HOSTED_AFTER = pluginManifestSchema.parse({
+  ...HOSTED_BEFORE,
+  version: "1.1.0",
+  netHosts: [HOSTED_FROM, HOSTED_TO],
+  providers: [hostedVision(HOSTED_TO)],
+});
 
 interface Source {
   bundle: Uint8Array;
@@ -145,6 +162,10 @@ test("the review names the new version and host, and applying it lands the previ
   await review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true }).click();
   await expect(review).toHaveCount(0);
   expect((await caller.plugin.list())[0]).toMatchObject({ version: NEXT.version, reconsentPending: true, widenedNetHosts: [REACHED_HOST] });
+  // The first update that asks for this host leaves the plugin off, and the toast says it waits for approval without saying it waited before.
+  const toast = noticeToast(page, { title: upgradeNeedsApprovalNotice(FIRST.name, false) });
+  await expect(toast).toBeVisible();
+  await expect(toast).not.toContainText("still");
   await expect(page.getByRole("button", { name: APPLY_UPDATE_LABEL })).toHaveCount(0);
 });
 
@@ -209,6 +230,72 @@ test("an earlier refusal that still stands is named, and the review says the plu
   await review.getByRole("button", { name: pluginApplyUpdateLabel(FIRST.name), exact: true }).click();
   await expect(review).toHaveCount(0);
   expect((await caller.plugin.list())[0]).toMatchObject({ version: AFTER_REFUSED.version, reconsentPending: true, widenedNetHosts: [REACHED_HOST] });
+});
+
+test("the review describes itself by what it says, so a keyboard user hears the changes before Apply", async ({ mount, page }) => {
+  const source: Source = { bundle: new Uint8Array() };
+  await using root = await rootServing(source);
+  await installAndRoute(page, root, source, { next: WITH_PROVIDER });
+  await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
+  await openReview(page);
+
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
+  await expect(review).toHaveAccessibleDescription(
+    new RegExp(`${storedUpdateHeading(FIRST.version, WITH_PROVIDER.version)}.*${VISION_PROVIDER.label}.*${PLUGIN_AUTOMATION_EVENTS_PHRASE}`, "u"),
+  );
+  // The description is the review's own text: it names the version, the provider and the events, and no button.
+  await expect(review).not.toHaveAccessibleDescription(new RegExp(APPLY_UPDATE_LABEL, "u"));
+});
+
+test("an earlier refusal that still stands leads the review in the notice's weight, ahead of the changes it sits beside", async ({ mount, page }) => {
+  const source: Source = { bundle: new Uint8Array() };
+  await using root = await rootServing(source);
+  const { caller } = await installAndRoute(page, root, source, { first: ALLOWED, next: REFUSED });
+  const installed = (await caller.plugin.list())[0];
+  if (installed === undefined) {
+    throw new Error("the plugin did not install");
+  }
+  const refused = await caller.plugin.previewStoredUpgrade({ pluginId: installed.id });
+  if (refused.identity.source !== "url") {
+    throw new Error("a url row previewed through a non-url source");
+  }
+  await caller.plugin.upgradeFromStoredUrl({ pluginId: installed.id, expectedBundleHash: refused.identity.bundleHash });
+  source.bundle = makePluginBundle(AFTER_REFUSED_WITH_PROVIDER, "orb.host(1);", root.clock.now());
+
+  await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
+  await page.getByRole("button", { name: pluginDetailsLabel(FIRST.name), exact: true }).click();
+  await page.getByRole("button", { name: pluginCheckForUpdatesLabel(FIRST.name), exact: true }).click();
+  await page.getByRole("button", { name: pluginUpdateToLabel(FIRST.name, AFTER_REFUSED_WITH_PROVIDER.version), exact: true }).click();
+
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
+  const standing = review.getByText(storedUpdateStandingLine({ netHosts: [REACHED_HOST], providers: [], automationEvents: false }));
+  const change = review.getByText(VISION_PROVIDER.label);
+  await expect(standing).toBeVisible();
+  await expect(change).toBeVisible();
+  const standingBox = await standing.boundingBox();
+  const changeBox = await change.boundingBox();
+  if (standingBox === null || changeBox === null) {
+    throw new Error("the review is not laid out");
+  }
+  expect(standingBox.y).toBeLessThan(changeBox.y);
+  const fontSizeOf = (line: typeof standing): Promise<number> => line.evaluate((node) => Number.parseFloat(getComputedStyle(node).fontSize));
+  expect(await fontSizeOf(standing)).toBeGreaterThan(await fontSizeOf(change));
+});
+
+test("a redefined provider is named as changed, with the host its prompts go to, and no line calls it added", async ({ mount, page }) => {
+  const source: Source = { bundle: new Uint8Array() };
+  await using root = await rootServing(source);
+  await installAndRoute(page, root, source, { first: HOSTED_BEFORE, next: HOSTED_AFTER });
+  await mount<typeof PluginActionGroupsStory>(STORY, { width: STORY_WIDTH, appearance: appearanceSettingsSchema.parse({}) });
+  await openReview(page);
+
+  const review = page.getByRole("group", { name: pluginUpdateReviewLabel(FIRST.name), exact: true });
+  const changed = review.getByText(VISION_PROVIDER.label);
+  await expect(changed).toContainText(providerEndpointNote(HOSTED_TO));
+  // The old endpoint is not claimed anywhere in the review: the owner is told where prompts go now.
+  await expect(review).not.toContainText(HOSTED_FROM);
+  await expect(changed).toContainText(`Changes ${PLUGIN_PROVIDERS_NOUN}`);
+  await expect(review).not.toContainText(`Adds ${PLUGIN_PROVIDERS_NOUN}`);
 });
 
 test("keyboard focus moves into the review when it opens and back to the row's update check when it closes", async ({ mount, page }) => {

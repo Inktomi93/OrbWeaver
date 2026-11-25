@@ -83,6 +83,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       pendingReconsent: false,
       widenedNetHosts: [],
       widenedProviderIds: [],
+      widenedChangedProviderIds: [],
       widenedMatchAutomationEvents: false,
       consecutiveCrashes: 0,
       lastError: null,

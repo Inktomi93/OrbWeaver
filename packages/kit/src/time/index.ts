@@ -416,6 +416,22 @@ function relativeSpan(deltaMs: number): { readonly count: number; readonly unit:
   return { count: Math.sign(deltaMs) * count, unit };
 }
 
+const NO_BREAK_SPACE_CODE_POINT = 0xa0;
+const NO_BREAK_SPACE = String.fromCodePoint(NO_BREAK_SPACE_CODE_POINT);
+
+// A stamp narrow enough to wrap breaks at its spaces, and the space before a 12-hour clock's meridiem is one of them: "07:57" stays on
+// a line and "AM" falls to the next. The platform's own space is a breaking one in the browser's ICU, so the gap between a time and its
+// meridiem is made a no-break space here and the date and time still wrap apart.
+function joinMeridiemToTime(parts: readonly Intl.DateTimeFormatPart[]): string {
+  return parts
+    .map((part, index) => {
+      const nextIsMeridiem = parts[index + 1]?.type === "dayPeriod" && parts[index - 1]?.type === "minute";
+      const prevIsMeridiem = parts[index - 1]?.type === "dayPeriod" && parts[index + 1]?.type === "hour";
+      return part.type === "literal" && (nextIsMeridiem || prevIsMeridiem) ? part.value.replaceAll(" ", NO_BREAK_SPACE) : part.value;
+    })
+    .join("");
+}
+
 function positionInZone(epochMs: number, zone: string): CalendarPosition {
   const zoned = Temporal.Instant.fromEpochMilliseconds(Math.trunc(epochMs)).toZonedDateTimeISO(zone);
   // Temporal's ISO weekday runs 1 = Monday … 7 = Sunday; the modulo folds Sunday to 0.
@@ -472,7 +488,7 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
     formatDate,
     formatMonthYear: (epochMs): string => monthYear.format(epochMs),
     formatMonthDay: (epochMs): string => monthDay.format(epochMs),
-    formatDateTime: (epochMs): string => dateTime.format(epochMs),
+    formatDateTime: (epochMs): string => joinMeridiemToTime(dateTime.formatToParts(epochMs)),
     formatRelative: (epochMs): string => {
       const deltaMs = epochMs - now();
       const magnitude = Math.abs(deltaMs);
