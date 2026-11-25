@@ -16,6 +16,7 @@ const READS = [
   "preset.list",
   "preset.get",
   "preset.resolveEffective",
+  "regex.listPresetOnly",
   "connection.resolveChatCapability",
   "connection.providersAvailable",
   "connection.list",

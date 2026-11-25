@@ -62,6 +62,7 @@ async function prepare(
       "persona.list",
       "regex.countScripts",
       "regex.listScripts",
+      "regex.listUnattached",
       "regex.removeScript",
       "worldInfo.countBooks",
       "worldInfo.listBooksWithUsage",

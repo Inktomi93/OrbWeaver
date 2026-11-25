@@ -288,8 +288,11 @@ function LimitSourceLine({
             openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub);
             requestConnectionEditor(chatConnectionId, { fact });
           }}
+          minWidth="shrinks"
           step="label"
+          textAlign="start"
           variant="link"
+          whitespace="normal"
         >
           {presetLimitDoorName(name, source)}
         </InlineAction>

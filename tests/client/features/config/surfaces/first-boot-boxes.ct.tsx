@@ -1,4 +1,5 @@
 import type { ConfigGroupId } from "@orb/client/state";
+import { CONFIG_ADVANCED_FOLD_NAME } from "@orb/client/state";
 import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -37,6 +38,9 @@ const FIXED_KEYS: Readonly<Record<FirstBootGroup, readonly string[]>> = {
   ],
   appearance: ["config.appearance.looks"],
 };
+
+// The groups whose fixed keys above render inside the group's Advanced fold: a closed fold mounts no boundary to reserve a box.
+const FOLDED_GROUPS: ReadonlySet<FirstBootGroup> = new Set(["workloads", "admin"]);
 
 // Every first-boot read runs against the fresh root; routeTrpc refuses a procedure outside this set.
 const FIRST_BOOT_READS = [
@@ -231,6 +235,9 @@ for (const widthClass of WIDTH_CLASSES) {
           width: widthClass.width,
         });
         await held.requested;
+        if (FOLDED_GROUPS.has(group)) {
+          await page.getByRole("button", { name: CONFIG_ADVANCED_FOLD_NAME, exact: true }).click();
+        }
         const pitch = await rowPitch(page);
         const declared = await declaredBoxes(page, keys);
         held.release();

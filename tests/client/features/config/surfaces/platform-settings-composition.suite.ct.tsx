@@ -112,7 +112,7 @@ for (const { name, width, viewport, hasTouch, isMobile } of REGIMES) {
         await expectReadingPair(page, field);
       }
       // The surrounding ordinary setting is a positive control for the existing parent tracks.
-      await expectReadingPair(page, page.locator('[data-setting="prose-shadow"] [data-slot="field-root"]'));
+      await expectReadingPair(page, page.locator('[data-setting="surface-texture"] [data-slot="field-root"]'));
     });
 
     test("Backup keeps its download action with the selected export kinds", async ({ mount, page }) => {
