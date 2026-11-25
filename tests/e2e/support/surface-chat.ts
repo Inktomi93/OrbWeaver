@@ -2235,6 +2235,8 @@ async function withEnabledPlugin(flow: Journey, slug: ShowcaseSlug, id: string, 
     pluginId: installed.id,
     grant: [...installed.declaredCapabilities],
     acknowledgedNetHosts,
+    acknowledgedProviderIds: installed.providers.map((provider) => provider.id),
+    acknowledgedMatchAutomationEvents: installed.matchAutomationEvents,
     enable: true,
   });
   expect(plugin.status, plugin.lastError ?? "The consented plugin must start").toBe("enabled");
@@ -2245,6 +2247,8 @@ async function withEnabledPlugin(flow: Journey, slug: ShowcaseSlug, id: string, 
       pluginId: installed.id,
       grant: [...installed.grantedCapabilities],
       acknowledgedNetHosts,
+      acknowledgedProviderIds: installed.providers.map((provider) => provider.id),
+      acknowledgedMatchAutomationEvents: installed.matchAutomationEvents,
       enable: installed.status === "enabled",
     });
   }

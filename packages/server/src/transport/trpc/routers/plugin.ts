@@ -32,6 +32,7 @@
 // tag could never load but also a thing nothing stops the client from `eval`ing; the route's MIME + `nosniff`
 // make "this is not script" a property of the response rather than of the caller's discipline).
 
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { PluginSurfaceView } from "@orb/contracts/plugin";
 import {
   distributedPluginViewSchema,
@@ -41,6 +42,7 @@ import {
   PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_ARGS_MAX,
   PLUGIN_COMMAND_NAME_RE,
+  PLUGIN_PROVIDERS_MAX,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TEXT_MAX_CHARS,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
@@ -211,7 +213,8 @@ export const pluginRouter = t.router({
   // caller's echo of the exact `PluginView.netHosts` it displayed — the anti-TOCTOU pin the service refuses on
   // when `net.fetch` is in the grant. Validated with the manifest's OWN hostname grammar (`pluginNetHostSchema`)
   // rather than a second hand-rolled host rule; NO default, because a silently-defaulted `[]` would make
-  // "the client forgot to send the echo" indistinguishable from "the owner saw an empty list". `enable` is the
+  // "the client forgot to send the echo" indistinguishable from "the owner saw an empty list". The provider ids and the
+  // automation opt-in are the same echo for the rest of a widening, required for the same reason. `enable` is the
   // owner's approve-and-run, required so a caller states whether its consent act also starts the plugin.
   setGrant: authedProcedure
     .input(
@@ -219,6 +222,8 @@ export const pluginRouter = t.router({
         pluginId: pluginIdSchema,
         grant: grantSchema,
         acknowledgedNetHosts: z.array(pluginNetHostSchema).max(NET_HOSTS_MAX),
+        acknowledgedProviderIds: z.array(providerIdSchema).max(PLUGIN_PROVIDERS_MAX),
+        acknowledgedMatchAutomationEvents: z.boolean(),
         enable: z.boolean(),
       }),
     )
@@ -229,6 +234,8 @@ export const pluginRouter = t.router({
         pluginId: input.pluginId,
         grant: input.grant,
         acknowledgedNetHosts: input.acknowledgedNetHosts,
+        acknowledgedProviderIds: input.acknowledgedProviderIds,
+        acknowledgedMatchAutomationEvents: input.acknowledgedMatchAutomationEvents,
         enable: input.enable,
       }),
     ),

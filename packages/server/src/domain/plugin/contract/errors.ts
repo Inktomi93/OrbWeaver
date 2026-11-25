@@ -152,6 +152,18 @@ export class PluginNetHostsUnacknowledgedError extends DomainOperationError {
   }
 }
 
+/** A covering `setGrant` that would answer a pending provider or automation widening its caller never echoed. A
+ *  provider id and the automation opt-in are reach the owner never names, as `netHosts` is, so a card rendered
+ *  before a later upgrade would otherwise approve what that upgrade added. Fail-closed: no echo answers nothing. */
+export class PluginReachUnacknowledgedError extends DomainOperationError {
+  constructor(unacknowledged: readonly string[]) {
+    super(
+      "plugin_reach_unacknowledged",
+      `this plugin's update asks for reach you have not confirmed: ${unacknowledged.join(", ")} — re-read the permissions and grant again`,
+    );
+  }
+}
+
 /** An install/upgrade whose bundle version is LOWER than the currently-installed version for the same plugin
  *  id (owner-ruled). Refused so a re-uploaded old bundle can never silently
  *  roll a plugin back. */

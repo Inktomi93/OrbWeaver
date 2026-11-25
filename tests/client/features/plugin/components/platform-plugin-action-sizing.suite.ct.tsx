@@ -73,7 +73,14 @@ async function installFixture(root: Root, caller: Caller, kind: keyof typeof SPE
     bundleBase64: Buffer.from(makePluginBundle(manifest, source, root.clock.now())).toString("base64"),
     grant: ["ui.surface"],
   });
-  return await caller.plugin.setGrant({ pluginId: installed.id, grant: ["ui.surface"], acknowledgedNetHosts: [...(installed.netHosts ?? [])], enable: true });
+  return await caller.plugin.setGrant({
+    pluginId: installed.id,
+    grant: ["ui.surface"],
+    acknowledgedNetHosts: [...(installed.netHosts ?? [])],
+    acknowledgedProviderIds: installed.providers.map(({ id }) => id),
+    acknowledgedMatchAutomationEvents: installed.matchAutomationEvents,
+    enable: true,
+  });
 }
 
 async function pageBody(page: Page, pluginName: string): Promise<Locator> {
@@ -147,6 +154,8 @@ for (const regime of REGIMES) {
         pluginId: plugin.id,
         grant: [...plugin.declaredCapabilities],
         acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
+        acknowledgedProviderIds: plugin.providers.map(({ id }) => id),
+        acknowledgedMatchAutomationEvents: plugin.matchAutomationEvents,
         enable: true,
       });
       const calls = await routePage(page, caller);

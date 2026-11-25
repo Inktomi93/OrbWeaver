@@ -123,7 +123,14 @@ async function enableAtlas(root: ServerTestHarness, who: Principal): Promise<Ena
   const seeded = (await caller.plugin.list()).find((plugin) => plugin.slug === ATLAS);
   const enabled =
     seeded === undefined ? await caller.plugin.install({ bundleBase64, grant: [] }) : await caller.plugin.upgrade({ pluginId: seeded.id, bundleBase64 });
-  await caller.plugin.setGrant({ pluginId: enabled.id, grant: [...ATLAS_GRANTS], acknowledgedNetHosts: [...(enabled.netHosts ?? [])], enable: true });
+  await caller.plugin.setGrant({
+    pluginId: enabled.id,
+    grant: [...ATLAS_GRANTS],
+    acknowledgedNetHosts: [...(enabled.netHosts ?? [])],
+    acknowledgedProviderIds: enabled.providers.map(({ id }) => id),
+    acknowledgedMatchAutomationEvents: enabled.matchAutomationEvents,
+    enable: true,
+  });
   await expect.poll(() => caller.plugin.getSurfaceState({ pluginId: enabled.id, surfaceId: "atlas_page" })).toMatchObject({ stage: "browse", loading: false });
   return { caller, pluginId: enabled.id };
 }

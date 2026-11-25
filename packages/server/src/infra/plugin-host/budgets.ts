@@ -227,23 +227,24 @@ export const PLUGIN_INVOKE_ARGS_MAX_BYTES = 1_048_576;
  *  life of the async impl — so the real exposure was 32 MiB × `HOST_CALLS_IN_FLIGHT_MAX` of host memory per
  *  instance, plus whatever a domain op did with the value (a `storage.set` writes it, a `net.fetch` body sends
  *  it). What the cap DOES bound: everything that crosses into a domain op and everything retained across the
- *  call. What it deliberately does NOT: the TRANSIENT `ctx.dump` materialization it has to measure, which stays
- *  bounded by the guest heap cap — one dump at a time per context, which is the already-accepted 32 MiB. 1 MiB
+ *  call. What it deliberately does NOT: the TRANSIENT read (`marshal.ts` `fromGuest`) it has to measure, which stays
+ *  bounded by the guest heap cap — one read at a time per context, which is the already-accepted 32 MiB. 1 MiB
  *  = symmetric with the outbound result cap; a legitimate host call carries keys, ids and short strings. */
 export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
 
-/** The guest-value `ctx.dump` pre-walk guards — a DoS bound that protects EVERY place the membrane materializes an
+/** The guest-value read guards — a DoS bound that protects EVERY place the membrane materializes an
  *  untrusted guest handle host-side: the `ui.register` SPEC (before the recursive `pluginSurfaceSpecSchema` parse)
- *  AND the ARGUMENTS of every async host fn (`attachAsync` dumps them before the arg-budget cap). `ctx.dump` walks
+ *  AND the ARGUMENTS of every async host fn (`attachAsync` reads them before the arg-budget cap), and every result
+ *  or error a guest invocation settles to (`sandbox.ts`). `ctx.dump` walks
  *  the guest tree on the HOST call stack, so a deeply-nested guest value overflows it and CORRUPTS the shared WASM
  *  runtime — the `list_empty(&rt->gc_obj_list)` abort at dispose, a hard crash of EVERY co-resident plugin, not a
  *  contained refusal (measured: ~3000-deep spec via `ui.register`, ~12000-deep arg via any async
  *  host fn with only `chat.read`). The recursive `z.lazy` spec parse has a TIGHTER cliff still — at ~2000 deep it
  *  throws a `RangeError` that ESCAPES `safeParse`, turning the §4.9 soft refusal into an activation-fatal throw.
  *  The SPEC's own semantic caps (`@orb/contracts/plugin/ui`: 256 nodes / depth 8 / 32 KiB) cannot stand in for
- *  this, because they run in a `superRefine` AFTER that base parse. `membrane.ts`'s `handleSafeToDump` walks the
- *  guest HANDLE with an EXPLICIT stack (never the host call stack, so the guard itself can never overflow) and
- *  refuses before dump/parse.
+ *  this, because they run in a `superRefine` AFTER that base parse. `marshal.ts`'s `fromGuest` reads every guest object
+ *  with an EXPLICIT stack (never the host call stack, so the guard itself can never overflow), refuses past these
+ *  guards, and builds the host value from the same reads, so no guest object reaches the binding's dump.
  *
  *  DEPTH_GUARD bounds the JS-graph nesting depth: a VALID spec (≤8 container levels) is ≤~20 graph levels deep
  *  (each container is object→`children`-array→object), and a legitimate host-fn arg is a flat DTO (ids, short
@@ -251,9 +252,25 @@ export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
  *  NODE_GUARD bounds the total values the walk visits — pure host-work containment against a pathologically WIDE
  *  (not deep) payload; it is far above any byte-capped payload's value count so it never false-refuses a
  *  legitimate spec or arg. The precise per-surface / per-arg caps stay downstream (the spec's superRefine and
- *  `exceedsArgBudget`), which run SAFELY once the pre-walk has guaranteed a shallow, bounded tree. */
+ *  `exceedsArgBudget`), which run SAFELY on the shallow, bounded value the walk built. */
 export const PLUGIN_DUMP_DEPTH_GUARD = 64;
 export const PLUGIN_DUMP_NODE_GUARD = 65_536;
+
+/** Registrations one plugin instance may hold at each sync door: `tools.register` calls, `ui.registerCommand` calls,
+ *  and distinct `ui.register` surface ids (a repeated id replaces its surface). Each registration is held for the
+ *  instance lifetime and crosses as part of one activation answer; a tool's definition also rides every model turn
+ *  the plugin's tools join. The largest showcase plugin registers 7 in total, so 32 per door is headroom, not a
+ *  budget a real plugin meets. `ui.registerFrame` keeps its own tighter count (`PLUGIN_FRAME_SURFACES_MAX`). */
+export const PLUGIN_TOOLS_MAX = 32;
+export const PLUGIN_COMMANDS_MAX = 32;
+export const PLUGIN_SURFACES_MAX = 32;
+
+/** A tool's model-facing text: its `description` in UTF-16 units and its `parameters` JSON Schema in UTF-8 bytes.
+ *  Both reach the model on every turn the tool is offered, at the installer's cost, and the generic argument cap
+ *  bounds only the 1 MiB call that carries them. A description is a sentence or a paragraph; a parameters schema is
+ *  a handful of typed fields. */
+export const PLUGIN_TOOL_DESCRIPTION_MAX_CHARS = 2048;
+export const PLUGIN_TOOL_PARAMETERS_MAX_BYTES = 16_384;
 
 /** `host.log` volume per DRAIN INTERVAL — an invocation, or the stretch between two pickups when a floated
  *  continuation logs between invocations — ring-buffered per plugin (256 lines / 16 KiB). The byte budget is a

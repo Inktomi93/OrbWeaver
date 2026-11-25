@@ -12,6 +12,7 @@
 // the FK column that makes a `net.fetchAsset` cover or a bundle-shipped `ui/assets/` image
 // VISIBLE to the asset-GC ref registry; `bundle_path` distinguishes the two and resolves a UI node's path.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES, PLUGIN_ORIGINS, PLUGIN_STATUSES, PLUGIN_UI_ASSETS_DIR } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
@@ -94,6 +95,11 @@ export const plugins = sqliteTable(
     // so a future writer that clears the flag and forgets the list gets a constraint violation instead of a
     // badge claiming an update is asking for something nobody is being asked about.
     widenedNetHosts: text("widened_net_hosts", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    // The other two reach fields an upgrade can widen with the grant unchanged, recorded for the same reason and
+    // on the same lifecycle as `widened_net_hosts`: the provider ids a pending re-consent added, and whether it
+    // turned automation-caused event delivery on. Activation withholds both while the re-consent stands.
+    widenedProviderIds: text("widened_provider_ids", { mode: "json" }).$type<ProviderId[]>().notNull().default(sql`'[]'`),
+    widenedMatchAutomationEvents: integer("widened_match_automation_events", { mode: "boolean" }).notNull().default(false),
     // The 03 §4 auto-disable counter — a clean invocation resets it, 3 consecutive crashes → errored.
     consecutiveCrashes: integer("consecutive_crashes").notNull().default(0),
     lastError: nulFreeText("last_error"),
@@ -125,6 +131,10 @@ export const plugins = sqliteTable(
     // "New" mark for an ask nobody is being asked about. `json_array_length` rather than a `= '[]'` string
     // compare so the constraint holds for any JSON spelling of empty, not just the one drizzle emits today.
     check("plugins_widened_hosts_check", sql.raw("pending_reconsent = 1 or json_array_length(widened_net_hosts) = 0")),
+    check(
+      "plugins_widened_reach_check",
+      sql.raw("pending_reconsent = 1 or (json_array_length(widened_provider_ids) = 0 and widened_match_automation_events = 0)"),
+    ),
   ],
 );
 

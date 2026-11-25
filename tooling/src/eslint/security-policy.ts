@@ -674,12 +674,6 @@ export const AMBIENT_GLOBAL_RESTRICTIONS = [
   },
 ];
 
-const PLUGIN_DUMP_HELPER = "Program > FunctionDeclaration[id.name='tryDumpGuestValue']";
-
-const PLUGIN_DUMP_GUARD_EXIT =
-  "IfStatement[test.operator='!'][test.argument.type='CallExpression'][test.argument.callee.name='handleSafeToDump']" +
-  ":has(> BlockStatement.consequent:has(> :matches(ReturnStatement, ThrowStatement)))";
-
 const PLUGIN_DUMP_SPELLINGS = [
   "MemberExpression[property.name='dump']",
   "Property[key.name='dump']",
@@ -687,23 +681,9 @@ const PLUGIN_DUMP_SPELLINGS = [
 ];
 
 const PLUGIN_DUMP_MESSAGE =
-  "A QuickJS membrane `dump` outside `tryDumpGuestValue` can materialize guest-controlled recursive structure without the iterative handle depth/node guard; the walk runs on the HOST stack, so an overflow corrupts the shared WASM runtime for every plugin in the process (D46). Route guest values through `tryDumpGuestValue`.";
+  "The membrane never calls the QuickJS binding's `dump`: it walks a guest tree on the HOST stack, so a deep value overflows it and corrupts the shared WASM runtime, and a getter or proxy can answer a depth check and the dump with two different trees. Read a guest value through `tryDumpGuestValue`, which takes the marshal's one bounded walk (`marshal.ts` `fromGuest`) (D46).";
 
-const PLUGIN_DUMP_ORDER_MESSAGE =
-  "Inside `tryDumpGuestValue`, `dump` may appear only after `if (!handleSafeToDump(ctx, handle)) { return ... }`: a guard after the materialization cannot stop the host-stack walk that already ran (D46).";
-
-export const PLUGIN_DUMP_SELECTORS = [
-  ...PLUGIN_DUMP_SPELLINGS.map((spelling) => ({ selector: `${spelling}:not(${PLUGIN_DUMP_HELPER} *)`, message: PLUGIN_DUMP_MESSAGE })),
-  ...PLUGIN_DUMP_SPELLINGS.flatMap((spelling) => [
-    { selector: `${PLUGIN_DUMP_HELPER} > BlockStatement > :not(${PLUGIN_DUMP_GUARD_EXIT} ~ *) ${spelling}`, message: PLUGIN_DUMP_ORDER_MESSAGE },
-    // A parameter default or destructure runs before the body, so the guard cannot precede it.
-    { selector: `${PLUGIN_DUMP_HELPER} > :not(BlockStatement) ${spelling}`, message: PLUGIN_DUMP_ORDER_MESSAGE },
-  ]),
-  {
-    selector: ":matches(ImportSpecifier, ImportDefaultSpecifier, ImportNamespaceSpecifier)[local.name='handleSafeToDump']",
-    message: "`handleSafeToDump` is the membrane's own iterative guard; an imported same-named function is not that walk (D46).",
-  },
-];
+export const PLUGIN_DUMP_SELECTORS = PLUGIN_DUMP_SPELLINGS.map((selector) => ({ selector, message: PLUGIN_DUMP_MESSAGE }));
 
 // A key the guest authors and names itself (an action, a surface, a frame call) is not an entity id.
 const GUEST_AUTHORED_KEYS = alternation(["actionId", "surfaceId", "callId"]);

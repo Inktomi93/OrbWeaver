@@ -7,6 +7,7 @@
 // provenance source `PluginView.builtAgainst` lifts from (no denormalized column). Queries only: grant math
 // and CAS ordering live in the verbs.
 
+import { providerIdSchema } from "@orb/contracts/inference";
 import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus, PluginView } from "@orb/contracts/plugin";
 import { pluginManifestSchema, storedPluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
@@ -18,6 +19,7 @@ import { bootDatabaseForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";
+import type { UnansweredReach } from "../contract/service.ts";
 
 import { clearPluginBundleAssetsStatement, linkPluginBundleAssetStatement } from "./plugin-assets.ts";
 
@@ -30,7 +32,14 @@ function parsePluginRow(row: PluginRow): PluginRow {
     manifest: storedPluginManifestSchema.parse(row.manifest),
     grantedCapabilities: pluginManifestSchema.shape.capabilities.parse(row.grantedCapabilities),
     widenedNetHosts: pluginManifestSchema.shape.netHosts.unwrap().parse(row.widenedNetHosts),
+    widenedProviderIds: providerIdSchema.array().parse(row.widenedProviderIds),
   };
+}
+
+/** The reach a row's standing re-consent still asks for, as an activation withholds it and the next upgrade
+ *  carries it. */
+export function unansweredReachOf(row: PluginRow): UnansweredReach {
+  return { netHosts: row.widenedNetHosts, providerIds: row.widenedProviderIds, matchAutomationEvents: row.widenedMatchAutomationEvents };
 }
 
 /** WHO CAN SERVE THE NEXT VERSION for one row — never how the bytes arrived. The `url` arm reads
@@ -78,6 +87,10 @@ export function toPluginView(stored: PluginRow, showcaseSlugs: ReadonlySet<strin
     netHosts: row.manifest.netHosts ?? null,
     reconsentPending: row.pendingReconsent,
     widenedNetHosts: row.widenedNetHosts,
+    providers: (row.manifest.providers ?? []).map((provider) => ({ id: provider.id, label: provider.label })),
+    matchAutomationEvents: row.manifest.matchAutomationEvents === true,
+    widenedProviderIds: row.widenedProviderIds,
+    widenedMatchAutomationEvents: row.widenedMatchAutomationEvents,
     builtAgainst: row.manifest.builtAgainst ?? null,
     description: row.manifest.description,
     lastError: row.lastError,
@@ -143,6 +156,8 @@ function buildInsertPluginStatement(db: Db, row: InsertPluginRow): AwaitableBatc
     // that defaulted from anywhere but "empty" would resurrect a badge for an update this row never saw.
     pendingReconsent: false,
     widenedNetHosts: [],
+    widenedProviderIds: [],
+    widenedMatchAutomationEvents: false,
     consecutiveCrashes: 0,
     lastError: null,
     installedAt: row.installedAt,
@@ -271,11 +286,11 @@ interface UpgradePluginRow {
    *  overwritten. A non-widening upgrade writes `false`, which is also the honest answer: nothing new was
    *  asked for, so nothing is pending. */
   readonly pendingReconsent: boolean;
-  /** WHICH hosts the pending re-consent added — the half of the delta the flag alone cannot name, and the
+  /** WHICH reach the pending re-consent added — the half of the delta the flag alone cannot name, and the
    *  half no read surface can reconstruct (the comparison is against the prior manifest, overwritten by this
-   *  very write). Empty whenever `pendingReconsent` is false; the `plugins_widened_hosts_check` CHECK makes
-   *  the other combination unwritable rather than merely discouraged. */
-  readonly widenedNetHosts: readonly string[];
+   *  very write). Empty whenever `pendingReconsent` is false; the `plugins_widened_hosts_check` and
+   *  `plugins_widened_reach_check` CHECKs make the other combination unwritable rather than merely discouraged. */
+  readonly unanswered: UnansweredReach;
   readonly updatedAt: number;
 }
 
@@ -295,6 +310,12 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
   );
 }
 
+function unansweredColumns(
+  reach: UnansweredReach,
+): Pick<typeof plugins.$inferInsert, "widenedNetHosts" | "widenedProviderIds" | "widenedMatchAutomationEvents"> {
+  return { widenedNetHosts: [...reach.netHosts], widenedProviderIds: [...reach.providerIds], widenedMatchAutomationEvents: reach.matchAutomationEvents };
+}
+
 // the upgrade swap. The `plugins` row's owner is the installing principal; every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a pluginId reaches a plugin write without that load.
 function buildApplyUpgradeStatement(db: Db, pluginId: PluginId, row: UpgradePluginRow): AwaitableBatchStmt<unknown> {
   return db
@@ -310,7 +331,7 @@ function buildApplyUpgradeStatement(db: Db, pluginId: PluginId, row: UpgradePlug
       sourceUrl: row.sourceUrl,
       sourceCommit: row.sourceCommit,
       pendingReconsent: row.pendingReconsent,
-      widenedNetHosts: [...row.widenedNetHosts],
+      ...unansweredColumns(row.unanswered),
       lastError: null,
       updatedAt: row.updatedAt,
     })
@@ -332,10 +353,10 @@ export async function applyGrant(
     /** `false` once the owner has consented to the WHOLE ask; still `true` after a PARTIAL re-grant, because
      *  the plugin is still asking for something they have not allowed and the surface must keep saying so. */
     readonly pendingReconsent: boolean;
-    /** The host delta, carried while the re-consent still stands and emptied the moment it is answered — the
+    /** The reach delta, carried while the re-consent still stands and emptied the moment it is answered — the
      *  notice is the only surface that renders these marks, and it renders iff `pendingReconsent`. Cleared
-     *  here rather than left to rot: the CHECK refuses a settled row that still carries one. */
-    readonly widenedNetHosts: readonly string[];
+     *  here rather than left to rot: the CHECKs refuse a settled row that still carries one. */
+    readonly unanswered: UnansweredReach;
     readonly updatedAt: number;
   },
 ): Promise<void> {
@@ -345,7 +366,7 @@ export async function applyGrant(
       grantedCapabilities: [...update.grantedCapabilities],
       status: update.status,
       pendingReconsent: update.pendingReconsent,
-      widenedNetHosts: [...update.widenedNetHosts],
+      ...unansweredColumns(update.unanswered),
       lastError: null,
       updatedAt: update.updatedAt,
     })

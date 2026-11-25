@@ -299,6 +299,15 @@ export function hostsDisclosureLabel(count: number): string {
  *  stays in view. */
 export const HOSTS_COLLAPSE_AT = 5;
 
+/** The mark on a consent row this update added. */
+export const PLUGIN_ADDED_MARK = "New";
+/** The heading over the model providers a plugin adds to the owner's connection choices while it runs. */
+export const PLUGIN_PROVIDERS_HEADING = "Model providers it adds";
+/** What adding a provider means: a connection made on it sends that connection's prompts and key where it says. */
+export const PLUGIN_PROVIDERS_CONSEQUENCE = "Each one appears as a choice when you add a connection. A connection you make on it sends its prompts there.";
+/** The reach line for a manifest that opts its event handlers into automation-caused events. */
+export const PLUGIN_AUTOMATION_EVENTS_LINE = "Its event handlers also receive events that automations and other plugins cause, not only what people do.";
+
 /**
  * The lifecycle status as a row's state line — never the raw wire word. `reconsentPending` (#650 P1-1) is
  * consulted for the `disabled` arm ONLY: it distinguishes "the owner turned this off" from "the system
@@ -345,13 +354,16 @@ export const NEEDS_APPROVAL_LABEL = "Needs approval";
 interface ConsentAskFacts {
   readonly grantedCapabilities: readonly PluginCapability[];
   readonly widenedNetHosts: readonly string[];
+  readonly widenedProviderIds: readonly string[];
+  readonly widenedMatchAutomationEvents: boolean;
 }
 
 /** Which ask a pending plugin is making. Both a never-approved install (the seeded examples, a distributed
- *  copy) and an update that widened reach raise `reconsentPending`. A held grant, or a host delta recorded by
+ *  copy) and an update that widened reach raise `reconsentPending`. A held grant, or a reach delta recorded by
  *  an update, makes it an update; a first ask has neither. */
 export function consentAskKind(plugin: ConsentAskFacts): "first" | "update" {
-  return plugin.grantedCapabilities.length === 0 && plugin.widenedNetHosts.length === 0 ? "first" : "update";
+  const reachDelta = plugin.widenedNetHosts.length > 0 || plugin.widenedProviderIds.length > 0 || plugin.widenedMatchAutomationEvents;
+  return plugin.grantedCapabilities.length === 0 && !reachDelta ? "first" : "update";
 }
 
 /** The headline of a never-approved plugin's ask. */
@@ -361,8 +373,8 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
 
 /**
  * The headline of the widened-reach notice. The server lands a REACH-WIDENING upgrade `disabled`
- * (`domain/plugin/verbs/upgrade.ts` — a newly-declared capability OR a `netHosts` entry the prior manifest
- * never carried), and this is the sentence that tells a person WHY the plugin stopped.
+ * (`domain/plugin/verbs/upgrade.ts` — a newly-declared capability OR a `netHosts` entry, provider or automation
+ * opt-in the prior manifest never carried), and this is the sentence that tells a person WHY the plugin stopped.
  *
  * BOTH COUNTS ARE NOW EXACT. The capability delta was always computable client-side from the two projected
  * grant fields; the host delta was not — the server compares against the PRIOR manifest, which the same
@@ -374,20 +386,27 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
  * The bare arm survives for the one state that can still reach it: a re-consent whose delta was recorded
  * before this field existed. It says what is true and no more, and the full list is right below.
  */
-export function reConsentLine(addedCapabilities: readonly PluginCapability[], addedNetHosts: readonly string[] = []): string {
+/** The re-consent sentence's clause for one added provider, and for the automation opt-in it turns on. */
+export const RE_CONSENT_ONE_PROVIDER = "a new model provider";
+export const RE_CONSENT_AUTOMATION_EVENTS = "events from automations";
+export function reConsentLine(
+  addedCapabilities: readonly PluginCapability[],
+  added: { readonly netHosts: readonly string[]; readonly providerIds: readonly string[]; readonly matchAutomationEvents: boolean },
+): string {
   const tail = "so it stayed off. Check what it wants below.";
   const permissions = addedCapabilities.length === 1 ? "a permission you hadn't allowed" : `${addedCapabilities.length} permissions you hadn't allowed`;
-  const hosts = addedNetHosts.length === 1 ? "a new host it can reach" : `${addedNetHosts.length} new hosts it can reach`;
-  if (addedCapabilities.length > 0 && addedNetHosts.length > 0) {
-    return `This update asks for ${permissions} and adds ${hosts}, ${tail}`;
-  }
-  if (addedCapabilities.length > 0) {
-    return `This update asks for ${permissions}, ${tail}`;
-  }
-  if (addedNetHosts.length > 0) {
-    return `This update adds ${hosts}, ${tail}`;
-  }
-  return `This update changed what this plugin can reach, ${tail}`;
+  const additions = [
+    ...(added.netHosts.length === 0 ? [] : [added.netHosts.length === 1 ? "a new host it can reach" : `${added.netHosts.length} new hosts it can reach`]),
+    ...(added.providerIds.length === 0 ? [] : [added.providerIds.length === 1 ? RE_CONSENT_ONE_PROVIDER : `${added.providerIds.length} new model providers`]),
+    ...(added.matchAutomationEvents ? [RE_CONSENT_AUTOMATION_EVENTS] : []),
+  ];
+  const clauses = [...(addedCapabilities.length > 0 ? [`asks for ${permissions}`] : []), ...(additions.length > 0 ? [`adds ${joinedWithAnd(additions)}`] : [])];
+  return clauses.length === 0 ? `This update changed what this plugin can reach, ${tail}` : `This update ${clauses.join(" and ")}, ${tail}`;
+}
+
+// "a", "a and b", "a, b and c".
+function joinedWithAnd(items: readonly string[]): string {
+  return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1) ?? ""}`;
 }
 
 /** U8 2b — the auto update-check vocabulary, ONE home so the row and its CT read the same words. It spans every

@@ -59,6 +59,8 @@ async function enableShowcase(caller: PresentationCaller, slug: string): Promise
     pluginId: plugin.id,
     grant: [...plugin.declaredCapabilities],
     acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
+    acknowledgedProviderIds: plugin.providers.map(({ id }) => id),
+    acknowledgedMatchAutomationEvents: plugin.matchAutomationEvents,
     enable: true,
   });
 }
