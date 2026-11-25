@@ -6,7 +6,7 @@ import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { once } from "node:events";
 import { setTimeout as delay } from "node:timers/promises";
 import type { CompilerStart } from "../native.ts";
-import { COMPILER_CHANNEL, compilerStartOf } from "../native.ts";
+import { COMPILER_CHANNEL, COMPILER_ENDING_CHANNEL, compilerStartOf } from "../native.ts";
 
 // How long a failed run waits for a compiler it did not close to report its exit: a dead compiler's pipe fails at once,
 // and Node delivers the exit on the next turns of its loop.
@@ -40,12 +40,16 @@ export class CompilerWatch implements Disposable {
     }
   };
   readonly #onStart: (start: CompilerStart) => void;
+  readonly #onEnding: () => void;
 
-  /** Watch every compiler started from now on; `step` names the step running at each start, `onStart` hears each one. */
-  constructor(step: () => string, onStart: (start: CompilerStart) => void = (): void => undefined) {
+  /** Watch every compiler started from now on; `step` names the step running at each start, `onStart` hears each one,
+   *  and `onEnding` hears each one just before its world closes it, while it still runs. */
+  constructor(step: () => string, onStart: (start: CompilerStart) => void = (): void => undefined, onEnding: () => void = (): void => undefined) {
     this.#step = step;
     this.#onStart = onStart;
+    this.#onEnding = onEnding;
     subscribe(COMPILER_CHANNEL, this.#onCompiler);
+    subscribe(COMPILER_ENDING_CHANNEL, this.#onEnding);
   }
 
   /** Log each compiler that ended on its own before the run failed, with its exit code or signal, when the run failed
@@ -71,5 +75,6 @@ export class CompilerWatch implements Disposable {
 
   [Symbol.dispose](): void {
     unsubscribe(COMPILER_CHANNEL, this.#onCompiler);
+    unsubscribe(COMPILER_ENDING_CHANNEL, this.#onEnding);
   }
 }

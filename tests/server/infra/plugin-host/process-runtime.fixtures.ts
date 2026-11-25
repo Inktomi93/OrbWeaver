@@ -8,6 +8,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import type { PluginHostSeamDeps } from "@orb/server/infra/plugin-host";
 import type { NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { makePluginBundle } from "@orb/testkit/node/composed";
+import { listProcesses } from "@orb/tooling/floor/host/platform";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 
 export const PLUGIN_PROCESS_OPERATIONS = {
@@ -253,6 +254,20 @@ export function firstChild(edge: ReturnType<typeof createPluginProcessEdge>): Ch
     throw new Error("the production host did not spawn its watchdog");
   }
   return child;
+}
+
+/** The broker is the watchdog's one child process, and no production surface names its pid; the process table does on every platform. */
+export function brokerOf(watchdog: number): number {
+  const children = listProcesses().filter((row) => row.ppid === watchdog);
+  const [broker] = children;
+  if (children.length !== 1 || broker === undefined) {
+    throw new Error(`the watchdog runs ${String(children.length)} child processes, not its one broker`);
+  }
+  return broker.pid;
+}
+
+export function isRunning(pid: number): boolean {
+  return listProcesses().some((row) => row.pid === pid);
 }
 
 export function hasOperation(value: unknown, operation: string): boolean {

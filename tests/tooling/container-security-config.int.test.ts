@@ -378,7 +378,13 @@ test("native npm ci executes a matching locked package but rejects altered integ
   const archive = join(scratch, "orb-integrity-control-1.0.0.tgz");
   const integrity = `sha512-${createHash("sha512").update(readFileSync(archive)).digest("base64")}`;
   const dependency = { "orb-integrity-control": `file:${archive}` };
-  writeFileSync(join(install, "package.json"), JSON.stringify({ name: "integrity-consumer", version: "1.0.0", dependencies: dependency }));
+  // npm 12 skips a dependency's install script unless the consumer's `allowScripts` names it, keyed by the resolved
+  // identity (the `file:` archive, not the package name). The container's bundled npm 11 ignores the field and runs
+  // the script. Approving it makes the marker measure integrity ordering under either npm, not the ambient default.
+  writeFileSync(
+    join(install, "package.json"),
+    JSON.stringify({ name: "integrity-consumer", version: "1.0.0", dependencies: dependency, allowScripts: { [`file:${archive}`]: true } }),
+  );
   const lock = (hash: string): void =>
     writeFileSync(
       join(install, "package-lock.json"),

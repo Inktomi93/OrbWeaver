@@ -52,7 +52,7 @@ jobs:
           browsers: "false"
       - name: Staged import custody
         run: pnpm test tests/server/domain/import/persistence/staged-custody.int.test.ts tests/server/domain/import/persistence/staged-params-door.int.test.ts tests/server/infra/storage/zip.int.test.ts
-  # The plugin host's start, heartbeat and stop must work the same on every platform it ships on; Linux runs these in CI.
+  # The plugin host's start, heartbeat, liveness and stop must work the same on every platform it ships on; ci.yml's node job runs the whole suite on Linux.
   plugin-host:
     needs: [head]
     name: plugin host (${{ matrix.os }})
@@ -83,9 +83,17 @@ jobs:
       - name: End a stuck plugin call alone
         if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
         run: pnpm test tests/server/infra/plugin-host/stuck-worker.int.test.ts -t "ends alone at its deadline"
-      - name: Stop the server with no broker or watchdog left running
+      # A case that holds a process with SIGSTOP skips on Windows, and one that counts a broker's threads from /proc runs on Linux only.
+      - name: Stop the server with no broker or watchdog left running, and end a held one
         if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
-        run: pnpm test tests/server/infra/plugin-host/watchdog-shutdown.int.test.ts -t "neither remains"
+        run: pnpm test tests/server/infra/plugin-host/watchdog-shutdown.int.test.ts tests/server/infra/plugin-host/watchdog-policy.test.ts
+      # The heartbeat-pipe file includes the case that never reads the broker's stderr: the beat write must not block it, which Windows alone makes synchronous.
+      - name: Read only the broker's own heartbeat, answer past a full beat pipe, and replace a silent broker
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
+        run: pnpm test tests/server/infra/plugin-host/worker-escape-containment.int.test.ts tests/server/infra/plugin-host/persistence/broker-heartbeat-pipe.int.test.ts tests/server/infra/plugin-host/persistence/broker-liveness.int.test.ts
+      - name: Bound and share the broker's queues
+        if: ${{ !cancelled() && steps.bundles.outcome == 'success' }}
+        run: pnpm test tests/server/infra/plugin-host/broker-bounds.test.ts tests/server/infra/plugin-host/broker-share-release.int.test.ts
   contributor:
     needs: [head]
     name: contributor (${{ matrix.os }})
