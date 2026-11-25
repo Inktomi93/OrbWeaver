@@ -39,10 +39,16 @@ export function titleReach(row: Locator, floorPx: number): Promise<TitleReach> {
   );
 }
 
-/** @param floorPx - the title floor token resolved to px under the page's font setting. */
-export function titleFit(row: Locator, floorPx: number): Promise<TitleFit> {
+/** The part that carries a row's qualifier: its own slot under `titleQualifier`, or the trailing datum under `metaQualifiesTitle`. */
+type QualifierSlot = "list-row-title-qualifier" | "list-row-meta";
+
+/**
+ * @param floorPx - the title floor token resolved to px under the page's font setting.
+ * @param qualifierSlot - the part that holds this row's qualifier; a row that sets `titleQualifier` and one that sets `metaQualifiesTitle` differ.
+ */
+export function titleFit(row: Locator, floorPx: number, qualifierSlot: QualifierSlot = "list-row-title-qualifier"): Promise<TitleFit> {
   return row.evaluate(
-    (root, { floor, subpixel }) => {
+    (root, { floor, subpixel, qualifierPart }) => {
       const part = (slot: string): HTMLElement => {
         const found = root.querySelector<HTMLElement>(`[data-slot="${slot}"]`);
         if (found === null) {
@@ -51,7 +57,7 @@ export function titleFit(row: Locator, floorPx: number): Promise<TitleFit> {
         return found;
       };
       const title = part("list-row-title");
-      const qualifier = part("list-row-title-qualifier");
+      const qualifier = part(qualifierPart);
       const titleBox = title.getBoundingClientRect();
       const qualifierBox = qualifier.getBoundingClientRect();
       const rowBox = root.getBoundingClientRect();
@@ -68,6 +74,6 @@ export function titleFit(row: Locator, floorPx: number): Promise<TitleFit> {
         qualifierWhole: qualifierBox.left >= rowBox.left && qualifierBox.right <= rowBox.right && qualifier.scrollWidth <= qualifier.clientWidth,
       };
     },
-    { floor: floorPx, subpixel: LAYOUT_SUBPIXEL_PX },
+    { floor: floorPx, subpixel: LAYOUT_SUBPIXEL_PX, qualifierPart: qualifierSlot },
   );
 }

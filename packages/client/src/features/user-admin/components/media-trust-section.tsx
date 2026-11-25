@@ -37,7 +37,7 @@ function htmlTrustStepOf(value: string): HtmlTrustStep | undefined {
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function MediaTrustSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootRows = useFirstBootRows({ wide: 8, narrow: 10 });
+  const firstBootRows = useFirstBootRows({ wide: 5, narrow: 6 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary

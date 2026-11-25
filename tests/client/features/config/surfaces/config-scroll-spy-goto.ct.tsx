@@ -8,6 +8,8 @@ import type { ConfigSpyStory } from "./_spy-stories.tsx";
 const STORY = "tests/client/features/config/surfaces/_spy-stories/ConfigSpyStory";
 /** Content this much taller than the pane leaves a tail too short to scroll the target to the top. */
 const SHORT_TAIL_PX = 90;
+/** A pane shorter than its content reports the content's own height as `scrollHeight`; a taller one only reports itself. */
+const MOUNT_PANE_PX = 600;
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -29,12 +31,14 @@ test("a goto to a section above a short tail keeps that section lit", async ({ m
       "admin.listUsers",
     ]),
   );
-  const component = await mount<typeof ConfigSpyStory>(STORY, { height: 3000 });
+  const component = await mount<typeof ConfigSpyStory>(STORY, { height: MOUNT_PANE_PX });
   const scroller = page.locator('[data-slot="config-content"]');
   const probe = page.locator('[data-probe="active-sub"]');
   const target = await probe.getAttribute("data-target");
   await expect(page.locator('[data-slot="config-content"] [id]').first()).toBeAttached();
+  await expect(page.locator("[data-reserve-key]")).toHaveCount(0);
   const contentHeight = await scroller.evaluate((node) => node.scrollHeight);
+  expect(contentHeight).toBeGreaterThan(MOUNT_PANE_PX);
   await component.update({ height: contentHeight - SHORT_TAIL_PX });
   await page.getByRole("button", { name: "Jump to schedules", exact: true }).click();
   await expect(probe).toHaveText(target ?? "");

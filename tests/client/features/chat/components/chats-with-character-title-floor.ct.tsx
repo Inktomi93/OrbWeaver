@@ -29,7 +29,7 @@ const LONG_TITLE = "The long vigil at the lighthouse keeper's cottage through th
 const CASES = [
   { label: "short", title: null, width: 373, expected: { qualifierBesideName: true, nameKeepsItsFloor: true, nameTruncated: false, qualifierWhole: true } },
   { label: "long", title: LONG_TITLE, width: 373, expected: { qualifierBesideName: true, nameKeepsItsFloor: true, nameTruncated: true, qualifierWhole: true } },
-  { label: "short", title: null, width: 280, expected: { qualifierBesideName: false, nameKeepsItsFloor: true, nameTruncated: false, qualifierWhole: true } },
+  { label: "short", title: null, width: 280, expected: { qualifierBesideName: true, nameKeepsItsFloor: true, nameTruncated: false, qualifierWhole: true } },
   {
     label: "long",
     title: LONG_TITLE,
@@ -70,7 +70,7 @@ for (const { label, title, width, expected } of CASES) {
     await expect(rows).toHaveCount(SAME_TITLE_ROOMS);
     const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, rows.first());
     for (const row of await rows.all()) {
-      expect(await titleFit(row, floor)).toEqual(expected);
+      expect(await titleFit(row, floor, "list-row-meta")).toEqual(expected);
     }
   });
 }
@@ -101,7 +101,7 @@ test.describe("a phone at the largest browser text", () => {
       await expect(rows).toHaveCount(SAME_TITLE_ROOMS);
       const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, rows.first());
       for (const row of await rows.all()) {
-        expect(await titleFit(row, floor)).toMatchObject({ nameKeepsItsFloor: true, nameTruncated, qualifierWhole: true });
+        expect(await titleFit(row, floor, "list-row-meta")).toMatchObject({ nameKeepsItsFloor: true, nameTruncated, qualifierWhole: true });
       }
       const scroller = await rows.first().evaluateHandle(nearestScroller);
       const reach = await scroller.evaluate(sidewaysReach);

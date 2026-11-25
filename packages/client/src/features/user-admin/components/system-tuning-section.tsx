@@ -127,7 +127,7 @@ function toDraft(resolved: EffectiveAppConfig): Draft {
 
 /** The section's own suspense/error boundary so it is self-contained. */
 export function SystemTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootRows = useFirstBootRows({ wide: 12, narrow: 14 });
+  const firstBootRows = useFirstBootRows({ wide: 13, narrow: 16 });
   return (
     // RESERVED (#1098) — the other of the two LONGEST admin knob stacks.
     <QueryBoundary
