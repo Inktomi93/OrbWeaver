@@ -82,7 +82,7 @@ import { rowTables, rowTablesOf } from "../drizzle-rows.ts";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
 import type { LibraryNames } from "./library-names.ts";
-import { KEY_TRANSPARENT, libraryNames, ZOD_ENUM, ZOD_ENUM_DOORS, ZOD_INFERS } from "./library-names.ts";
+import { KEY_TRANSPARENT, libraryNames, PLATFORM, ZOD_ENUM, ZOD_ENUM_DOORS, ZOD_INFERS, ZOD_PACKAGE } from "./library-names.ts";
 
 /** A declaration in the tree: its repository-relative file, its span and its syntax kind. */
 export type DeclKey = `${string}#${number}-${number}.${number}`;
@@ -315,7 +315,7 @@ function enumArgumentOf(declaration: Node, names: LibraryNames): readonly Node[]
   return callee !== undefined &&
     isPropertyAccessExpression(callee) &&
     callee.name.text === ZOD_ENUM &&
-    names.declaredBy(callee.name, "zod") &&
+    names.declaredBy(callee.name, ZOD_PACKAGE) &&
     tuple !== undefined
     ? [tuple]
     : [];
@@ -895,7 +895,7 @@ export class Resolver {
       unwrapped !== undefined &&
       isPropertyAccessExpression(unwrapped) &&
       ZOD_ENUM_DOORS.has(unwrapped.name.text) &&
-      libraryNames(this.#world).declaredBy(unwrapped.name, "zod")
+      libraryNames(this.#world).declaredBy(unwrapped.name, ZOD_PACKAGE)
         ? unwrapExpression(unwrapped.expression)
         : undefined;
     const nameNode = receiverName(door ?? unwrapped);
@@ -1352,7 +1352,7 @@ function memberValues(node: TypeNode, member: string, names: LibraryNames): read
   const nameNode = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
   const name = nameNode.text;
   const [first, second] = node.typeArguments ?? [];
-  if (KEY_TRANSPARENT.has(name) && names.declaredBy(nameNode, "platform") && first !== undefined) {
+  if (KEY_TRANSPARENT.has(name) && names.declaredBy(nameNode, PLATFORM) && first !== undefined) {
     return memberValues(first, member, names);
   }
   return name === RECORD && second !== undefined ? [second] : [];
@@ -1374,7 +1374,7 @@ function spellReference(node: TypeReferenceNode, key: boolean, sink: SpellingSin
   const id = isQualifiedName(node.typeName) ? node.typeName.right : node.typeName;
   const args = node.typeArguments ?? [];
   const [first] = args;
-  if (key && ZOD_INFERS.has(id.text) && sink.names.declaredBy(id, "zod") && first !== undefined && isTypeQueryNode(first)) {
+  if (key && ZOD_INFERS.has(id.text) && sink.names.declaredBy(id, ZOD_PACKAGE) && first !== undefined && isTypeQueryNode(first)) {
     sink.evaluated.push(node);
     return;
   }
@@ -1398,7 +1398,7 @@ function spellNamed(id: MemberName, args: readonly TypeNode[], key: boolean, sin
     }
     return;
   }
-  if (KEY_TRANSPARENT.has(id.text) && sink.names.declaredBy(id, "platform")) {
+  if (KEY_TRANSPARENT.has(id.text) && sink.names.declaredBy(id, PLATFORM)) {
     for (const [at, argument] of args.entries()) {
       spellKeys(argument, at === 0 && key, sink);
     }

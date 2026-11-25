@@ -1,6 +1,14 @@
 // Members with no production caller on purpose: an external caller reaches them. Every scan reports these apart
 // from the unwired members, each with its reason, through sortDeliberate. `member: null` covers every member of the home, and a
 // `directory` entry covers every home of every file under it.
+//
+// - An entry is stale when its file, home or member is gone from the tree (staleDeliberate, which every consuming scan
+//   reports), or when it excuses no finding in any consuming scan (excusedNothing, which reads every consumer's report
+//   and judges only when all were written from one root and HEAD). Each reason's cites resolve through the comment cite
+//   grammar (tests/tooling/doc/comment-path-citations.repo.int.test.ts).
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import ts from "typescript";
 import type { JudgedEntry, JudgedSplit } from "./judged.ts";
 import { sortJudged } from "./judged.ts";
 
@@ -72,7 +80,7 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiEntry", member: null, reason: AGENT_READ },
   { file: "packages/client/src/lib/agent-plugin-bridge.ts", home: "OrbPluginUiSnapshot", member: null, reason: AGENT_READ },
   { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "AppearanceMatrixBridgeContract", member: null, reason: AGENT_PROJECTION },
-  { file: "packages/client/src/lib/agent-bridge-contract.ts", home: "AppearanceMessageRegistryReceipt", member: null, reason: AGENT_PROJECTION },
+  { file: "packages/kit/src/appearance-manifest/index.ts", home: "AppearanceMessageRegistryReceipt", member: null, reason: AGENT_PROJECTION },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "QuerySummary", member: null, reason: AGENT_READ },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbNavCapabilities", member: null, reason: AGENT_PROJECTION },
   { file: "packages/client/src/lib/agent-bridge-handles.ts", home: "OrbRpgSnapshot", member: null, reason: AGENT_READ },
@@ -86,6 +94,11 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { file: "packages/client/src/state/device-local-registry.ts", home: "DeviceLocalClassification", member: "why", reason: STATED_REASON },
   { file: "packages/client/src/state/config-section-partition.ts", home: "UnclaimedSettingsKey", member: "reason", reason: STATED_REASON },
 ];
+
+/** The label an entry is reported under: its directory, or its file, home and member (`*` for every member). */
+export const deliberateLabel = (entry: DeliberateEntry): string =>
+  "directory" in entry ? entry.directory : `${entry.file}:${entry.home}.${entry.member ?? ANY_MEMBER}`;
+const ANY_MEMBER = "*";
 
 // The entry that excuses `member` of `home` in `file`, if any.
 function deliberateEntry(entries: readonly DeliberateEntry[], file: string, home: string, member: string): DeliberateEntry | null {
@@ -112,20 +125,152 @@ export function sortDeliberate<Finding extends DeliberateSide>(
   findings: readonly Finding[],
   entries: readonly DeliberateEntry[],
   sides: (finding: Finding) => readonly DeliberateSide[] = (finding) => [finding],
-): { readonly unwired: readonly Finding[]; readonly deliberate: readonly (Finding & { readonly reason: string })[] } {
+): { readonly unwired: readonly Finding[]; readonly deliberate: readonly (Finding & DeliberateMark)[] } {
   const unwired: Finding[] = [];
-  const deliberate: (Finding & { readonly reason: string })[] = [];
+  const deliberate: (Finding & DeliberateMark)[] = [];
   for (const finding of findings) {
-    const reason = sides(finding)
-      .map((side) => deliberateEntry(entries, side.file, side.home, side.member)?.reason)
-      .find((found) => found !== undefined);
-    if (reason === undefined) {
+    const entry = sides(finding)
+      .map((side) => deliberateEntry(entries, side.file, side.home, side.member))
+      .find((found) => found !== null);
+    if (entry === undefined) {
       unwired.push(finding);
     } else {
-      deliberate.push({ ...finding, reason });
+      deliberate.push({ ...finding, reason: entry.reason, entry: deliberateLabel(entry) });
     }
   }
   return { unwired, deliberate };
+}
+
+/** What a deliberate row carries: the excusing entry's reason, and its label, which the excused-nothing check reads. */
+export interface DeliberateMark {
+  readonly reason: string;
+  readonly entry: string;
+}
+
+const STALE_KINDS = ["file-gone", "home-gone", "member-gone", "excuses-nothing"] as const;
+/** `file-gone`: no file at the entry's path, or a directory that holds none. `home-gone`: the file declares no top-level
+ *  binding of the home's name. `member-gone`: the home's own declaration names no such member. `excuses-nothing`: no
+ *  consuming scan's report applied the entry. */
+type StaleDeliberateKind = (typeof STALE_KINDS)[number];
+
+/** A deliberate entry the list must drop or repoint. */
+export interface StaleDeliberate {
+  readonly entry: string;
+  readonly stale: StaleDeliberateKind;
+}
+
+const holdsFile = (path: string): boolean =>
+  existsSync(path) && statSync(path).isDirectory() && readdirSync(path, { recursive: true, withFileTypes: true }).some((item) => item.isFile());
+
+// The top-level declarations of a file under a name, as written: an interface, type, class, function, enum or variable.
+function declarationsNamed(source: ts.SourceFile, name: string): readonly ts.Node[] {
+  return source.statements.flatMap((statement): ts.Node[] => {
+    if (ts.isVariableStatement(statement)) {
+      return statement.declarationList.declarations.filter((declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === name);
+    }
+    const named =
+      ts.isInterfaceDeclaration(statement) ||
+      ts.isTypeAliasDeclaration(statement) ||
+      ts.isClassDeclaration(statement) ||
+      ts.isFunctionDeclaration(statement) ||
+      ts.isEnumDeclaration(statement);
+    return named && statement.name?.text === name ? [statement] : [];
+  });
+}
+
+// The member names a home's own declaration spells, or null when its members come from a type it only refers to (an
+// alias of `Omit<…>`, a function's return): those the checker would have to read, so no member is judged gone.
+function spelledMembers(declaration: ts.Node): ReadonlySet<string> | null {
+  const names = new Set<string>();
+  const keyOf = (name: ts.PropertyName | undefined): void => {
+    if (name !== undefined && (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isPrivateIdentifier(name))) {
+      names.add(name.text);
+    }
+  };
+  // True when this node or one below it spells a member list.
+  const visit = (node: ts.Node): boolean => {
+    let readable = false;
+    if (ts.isTypeLiteralNode(node) || ts.isInterfaceDeclaration(node) || ts.isClassDeclaration(node) || ts.isEnumDeclaration(node)) {
+      readable = true;
+      for (const member of node.members) {
+        keyOf(member.name);
+      }
+    } else if (ts.isObjectLiteralExpression(node)) {
+      readable = true;
+      for (const property of node.properties) {
+        keyOf(property.name);
+      }
+    }
+    if (!ts.isTypeReferenceNode(node)) {
+      // Block body: a truthy callback result stops forEachChild.
+      ts.forEachChild(node, (child) => {
+        readable = visit(child) || readable;
+      });
+    }
+    return readable;
+  };
+  return visit(declaration) ? names : null;
+}
+
+/** The entries whose file, home or member the tree at `root` no longer declares. */
+export function staleDeliberate(root: string, entries: readonly DeliberateEntry[]): readonly StaleDeliberate[] {
+  const sources = new Map<string, ts.SourceFile | null>();
+  const sourceOf = (file: string): ts.SourceFile | null => {
+    if (!sources.has(file)) {
+      const path = join(root, file);
+      sources.set(file, existsSync(path) ? ts.createSourceFile(file, readFileSync(path, "utf8"), ts.ScriptTarget.Latest, true) : null);
+    }
+    return sources.get(file) ?? null;
+  };
+  return entries.flatMap((entry): StaleDeliberate[] => {
+    const label = deliberateLabel(entry);
+    if ("directory" in entry) {
+      return holdsFile(join(root, entry.directory)) ? [] : [{ entry: label, stale: "file-gone" }];
+    }
+    const source = sourceOf(entry.file);
+    if (source === null) {
+      return [{ entry: label, stale: "file-gone" }];
+    }
+    const declarations = declarationsNamed(source, entry.home);
+    if (declarations.length === 0) {
+      return [{ entry: label, stale: "home-gone" }];
+    }
+    const { member } = entry;
+    const spelled = declarations.map(spelledMembers);
+    const gone = member !== null && spelled.every((names) => names !== null && !names.has(member));
+    return gone ? [{ entry: label, stale: "member-gone" }] : [];
+  });
+}
+
+/** What a consuming scan records beside its report: the tree it read and the deliberate entries it applied. */
+export interface DeliberateRun {
+  readonly root: string;
+  readonly head: string;
+  readonly applied: readonly string[];
+}
+
+/** A consumer's report as the excused-nothing check reads it: its path, and its run block, or null for none. */
+export interface ConsumerReport {
+  readonly path: string;
+  readonly run: DeliberateRun | null;
+}
+
+/** The entries no consumer applied, or the reports that keep the check from judging: a missing report, one with no run
+ *  block, or one another root or HEAD wrote. */
+export function excusedNothing(
+  entries: readonly DeliberateEntry[],
+  reports: readonly ConsumerReport[],
+  current: { readonly root: string; readonly head: string },
+): { readonly stale: readonly StaleDeliberate[]; readonly unjudged: readonly string[] } {
+  const unjudged = reports.filter(({ run }) => run === null || run.root !== current.root || run.head !== current.head).map(({ path }) => path);
+  if (unjudged.length > 0) {
+    return { stale: [], unjudged };
+  }
+  const applied = new Set(reports.flatMap(({ run }) => run?.applied ?? []));
+  return {
+    stale: entries.map(deliberateLabel).flatMap((entry): StaleDeliberate[] => (applied.has(entry) ? [] : [{ entry, stale: "excuses-nothing" }])),
+    unjudged: [],
+  };
 }
 
 /** {@link sortDeliberate}, then the judged list over what it leaves: every bucket a report without rulings of its own
@@ -133,7 +278,7 @@ export function sortDeliberate<Finding extends DeliberateSide>(
 export function sortRows<Finding extends DeliberateSide & { readonly key: string }>(
   findings: readonly Finding[],
   options: { readonly root: string; readonly deliberate: readonly DeliberateEntry[]; readonly judged?: readonly JudgedEntry[] | undefined },
-): JudgedSplit<Finding> & { readonly deliberate: readonly (Finding & { readonly reason: string })[] } {
+): JudgedSplit<Finding> & { readonly deliberate: readonly (Finding & DeliberateMark)[] } {
   const { unwired, deliberate } = sortDeliberate(findings, options.deliberate);
   return { ...sortJudged(unwired, options), deliberate };
 }

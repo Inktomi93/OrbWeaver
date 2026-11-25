@@ -40,7 +40,7 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import type { SendDestination } from "../boundaries.ts";
 import { OBSERVABILITY_SINKS } from "../boundaries.ts";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { FieldPromise, PromiseField, SortEvidence, Verdict } from "../field-sort.ts";
 import { FieldSort, homeAliases, promiseFacts } from "../field-sort.ts";
@@ -54,6 +54,7 @@ import type { Analysis, Finding, MemberBucket } from "./analyse.ts";
 import { isMember, MEMBER_BUCKETS, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import { declaredNameOf } from "./declared.ts";
+import { libraryNames, TRPC_MUTATION, TRPC_OUTPUT, TRPC_SERVER } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -118,7 +119,7 @@ interface ReceivedRow {
 /** The member rows split by the deliberate and judged lists, the validate-only schema keys, the acknowledgements and the
  *  received members apart. */
 export type JudgedMembers = JudgedSplit<MemberRow> & {
-  readonly deliberate: readonly (MemberRow & { readonly reason: string })[];
+  readonly deliberate: readonly (MemberRow & DeliberateMark)[];
   readonly validated: readonly MemberRow[];
   readonly acknowledged: readonly MemberRow[];
   /** Never-read members whose every send is an observability sink. */
@@ -280,19 +281,20 @@ function wiredControl(
   return undefined;
 }
 
-const TRPC_OUTPUT = "output";
-const TRPC_MUTATION = "mutation";
 const ZOD_SHAPE = "shape";
 
 // The schema a `.output(schema)` names on a procedure chain that a later `.mutation(...)` ends: the mutation's answer.
 function mutationOutputs(world: NativeWorld): readonly Node[] {
   const outputs: Node[] = [];
+  const names = libraryNames(world);
+  const trpcVerb = (name: Node, verb: string): boolean => isIdentifier(name) && name.text === verb && names.declaredBy(name, TRPC_SERVER);
   for (const file of world.files.filter((source) => isProduction(world.fileOfSource(source)))) {
     const visit = (node: Node): void => {
-      const [schema] = isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === TRPC_OUTPUT ? node.arguments : [];
+      const [schema] =
+        isCallExpression(node) && isPropertyAccessExpression(node.expression) && trpcVerb(node.expression.name, TRPC_OUTPUT) ? node.arguments : [];
       let at: Node = node;
       while (schema !== undefined && isPropertyAccessExpression(at.parent) && at.parent.expression === at && isCallExpression(at.parent.parent)) {
-        if (at.parent.name.text === TRPC_MUTATION) {
+        if (trpcVerb(at.parent.name, TRPC_MUTATION)) {
           outputs.push(schema);
           break;
         }

@@ -65,8 +65,9 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, T
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { rowColumns } from "./drizzle-rows.ts";
+import { ARRAY_TYPES, FORM_CORE, FORM_FIELDS, FORM_NAME, FORM_WRITES } from "./graph/library-names.ts";
 import type { NativeWorld, PropertyName } from "./native.ts";
-import { constituents, hasFlag, isNamedMember, isPropertyName, propertiesNamed } from "./native.ts";
+import { constituents, hasFlag, isNamedMember, isPlatform, isPropertyName, propertiesNamed, resolvedSymbol } from "./native.ts";
 import { isOpenType } from "./open-sends.ts";
 
 const RESOLVER_STEPS = ["symbol", "references", "mapped", "row-column", "keyof", "generic", "form-path"] as const;
@@ -303,23 +304,6 @@ const FORM_STATE = "state";
 const FORM_VALUES = "values";
 // The field methods every form instance has beside its state, which TanStack's form core declares.
 const FORM_IDENTITY: readonly string[] = ["setFieldValue", "getFieldValue"];
-const FORM_CORE = "/node_modules/@tanstack/form-core/";
-// The JSX components a form instance carries whose `name` attribute is a field path.
-const FORM_FIELDS: ReadonlySet<string> = new Set(["Field", "AppField"]);
-const FORM_NAME = "name";
-// The form methods that store into the field their first argument names; every other path argument reads it.
-const FORM_WRITES: ReadonlySet<string> = new Set([
-  "setFieldValue",
-  "pushFieldValue",
-  "insertFieldValue",
-  "replaceFieldValue",
-  "removeFieldValue",
-  "swapFieldValues",
-  "moveFieldValues",
-  "clearFieldValues",
-  "resetField",
-  "deleteField",
-]);
 // A dotted path's segments: `items[0].name` is `items`, an element, `name`.
 const PATH_SEGMENT = /[^.[\]]+|\[\d+\]/gu;
 
@@ -352,7 +336,8 @@ function formPathOf(slot: Slot): FormPath | null {
 // the form type's own alias. An object is a form only when it also stores and reads fields by the members TanStack's
 // form core declares, so a store that merely holds `state.values`, or one of ours with methods of those names, takes no
 // path.
-function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | undefined> {
+function* formData(world: NativeWorld, form: Node): APIRequestGenerator<Type | undefined> {
+  const { checker } = world;
   const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(form));
   const state = yield* checker.getPropertyOfType.gen(type, FORM_STATE);
   if (state === undefined) {
@@ -360,7 +345,8 @@ function* formData(checker: Checker, form: Node): APIRequestGenerator<Type | und
   }
   for (const name of FORM_IDENTITY) {
     const declarations = (yield* checker.getPropertyOfType.gen(type, name))?.declarations ?? [];
-    if (declarations.length === 0 || !declarations.every((handle) => handle.path.includes(FORM_CORE))) {
+    const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
+    if (packages.length === 0 || !packages.every((pkg) => pkg === FORM_CORE)) {
       return undefined;
     }
   }
@@ -389,11 +375,12 @@ function* templateText(checker: Checker, key: TemplateExpression): APIRequestGen
  *  into the field (a form write method), reads it, or binds it (a field component's `name`); null for a key in no form
  *  path slot. A segment that names no member ends the walk with nothing found. */
 export function* formPath(
-  checker: Checker,
+  world: NativeWorld,
   key: StringLiteral | NoSubstitutionTemplateLiteral | TemplateExpression,
 ): APIRequestGenerator<{ readonly members: readonly NativeSymbol[]; readonly role: SyntaxRole; readonly binds: boolean } | null> {
+  const { checker } = world;
   const form = formPathOf(slotOf(key));
-  const data = form === null ? undefined : yield* formData(checker, form.form);
+  const data = form === null ? undefined : yield* formData(world, form.form);
   if (form === null || data === undefined) {
     return null;
   }
@@ -441,30 +428,34 @@ function keyofOperands(node: TypeNode): readonly TypeNode[] {
   return isParenthesizedTypeNode(node) ? keyofOperands(node.type) : [];
 }
 
-const ARRAY_NAMES: ReadonlySet<string> = new Set(["Array", "ReadonlyArray"]);
-
 // The type node a path reaches inside a type node: an array's element, a type literal's member.
-function typeNodeAt(node: TypeNode, path: readonly Segment[]): readonly TypeNode[] {
+function* typeNodeAt(world: NativeWorld, node: TypeNode, path: readonly Segment[]): APIRequestGenerator<readonly TypeNode[]> {
   const [segment, ...rest] = path;
   if (segment === undefined) {
     return [node];
   }
   if (isParenthesizedTypeNode(node) || (isTypeOperatorNode(node) && node.operator === SyntaxKind.ReadonlyKeyword)) {
-    return typeNodeAt(node.type, path);
+    return yield* typeNodeAt(world, node.type, path);
   }
   if (isUnionTypeNode(node) || isIntersectionTypeNode(node)) {
-    return node.types.flatMap((member) => typeNodeAt(member, path));
+    return (yield* all(...node.types.map((member) => typeNodeAt(world, member, path)))).flat();
   }
-  const below = segment.kind === "element" ? elementNode(node) : memberNodes(node, segment.name);
-  return below.flatMap((child) => typeNodeAt(child, rest));
+  const below = segment.kind === "element" ? yield* elementNode(world, node) : memberNodes(node, segment.name);
+  return (yield* all(...below.map((child) => typeNodeAt(world, child, rest)))).flat();
 }
 
-// An array type node's element: `T[]`, `Array<T>` or `ReadonlyArray<T>`.
-function elementNode(node: TypeNode): readonly TypeNode[] {
+// An array type node's element: `T[]`, or the platform's `Array<T>` or `ReadonlyArray<T>`. The node may sit in a
+// library's declarations, outside the tree's files, so its name is resolved here rather than by the library-names pass.
+function* elementNode(world: NativeWorld, node: TypeNode): APIRequestGenerator<readonly TypeNode[]> {
   if (isArrayTypeNode(node)) {
     return [node.elementType];
   }
-  const [element] = isTypeReferenceNode(node) && isIdentifier(node.typeName) && ARRAY_NAMES.has(node.typeName.text) ? (node.typeArguments ?? []) : [];
+  if (!(isTypeReferenceNode(node) && isIdentifier(node.typeName) && ARRAY_TYPES.has(node.typeName.text))) {
+    return [];
+  }
+  const handles = (yield* resolvedSymbol(world, node.typeName))?.declarations ?? [];
+  const platform = yield* all(...handles.map((handle) => isPlatform(world, handle)));
+  const [element] = platform.length > 0 && platform.every(Boolean) ? (node.typeArguments ?? []) : [];
   return element === undefined ? [] : [element];
 }
 
@@ -490,7 +481,8 @@ function* keyofTargets(checker: Checker, nodes: readonly TypeNode[]): APIRequest
 
 // The declared type nodes of a key slot: the annotation of its root, the parameter its call passes it to, or the member
 // of the object literal's contextual type its property value fills. The path below each is walked to the key.
-function* declaredSlots(checker: Checker, slot: Slot): APIRequestGenerator<readonly TypeNode[]> {
+function* declaredSlots(world: NativeWorld, slot: Slot): APIRequestGenerator<readonly TypeNode[]> {
+  const { checker } = world;
   const { root, path, property } = slot;
   if (property !== null) {
     const contextual = yield* checker.getContextualType.gen(property.literal);
@@ -500,12 +492,12 @@ function* declaredSlots(checker: Checker, slot: Slot): APIRequestGenerator<reado
     for (const handle of members.flatMap((member) => member?.declarations ?? [])) {
       const declaration = yield* handle.resolve.gen();
       const type = declaration === undefined ? undefined : (declaration as { readonly type?: TypeNode }).type;
-      nodes.push(...(type === undefined ? [] : typeNodeAt(type, below)));
+      nodes.push(...(type === undefined ? [] : yield* typeNodeAt(world, type, below)));
     }
     return nodes;
   }
   if (root?.kind === "annotated") {
-    return typeNodeAt(root.type, path);
+    return yield* typeNodeAt(world, root.type, path);
   }
   if (root?.kind !== "argument") {
     return [];
@@ -513,7 +505,7 @@ function* declaredSlots(checker: Checker, slot: Slot): APIRequestGenerator<reado
   const signature = yield* checker.getResolvedSignature.gen(root.call);
   const declaration = signature.declaration === undefined ? undefined : yield* signature.declaration.resolve.gen();
   const parameter = (declaration as { readonly parameters?: readonly { readonly type?: TypeNode }[] } | undefined)?.parameters?.[root.index]?.type;
-  return parameter === undefined ? [] : typeNodeAt(parameter, path);
+  return parameter === undefined ? [] : yield* typeNodeAt(world, parameter, path);
 }
 
 const BIND_DEPTH = 4;
@@ -727,9 +719,10 @@ interface SlotAnswer {
 }
 
 // Steps four to six, in order, for one string key; null when its slot is no key slot.
-function* slotAnswer(checker: Checker, key: StringLiteral | NoSubstitutionTemplateLiteral, slot: Slot): APIRequestGenerator<SlotAnswer | null> {
+function* slotAnswer(world: NativeWorld, key: StringLiteral | NoSubstitutionTemplateLiteral, slot: Slot): APIRequestGenerator<SlotAnswer | null> {
+  const { checker } = world;
   const form = formPathOf(slot);
-  const data = form === null ? undefined : yield* formData(checker, form.form);
+  const data = form === null ? undefined : yield* formData(world, form.form);
   if (form !== null && data !== undefined) {
     return { step: "form-path", holders: [data], members: yield* walkPath(checker, data, key.text), role: form.role };
   }
@@ -737,7 +730,7 @@ function* slotAnswer(checker: Checker, key: StringLiteral | NoSubstitutionTempla
   if (generic !== null) {
     return { step: "generic", holders: generic, members: yield* namedOn(checker, generic, key.text), role: "read" };
   }
-  const declared = yield* keyofTargets(checker, yield* declaredSlots(checker, slot));
+  const declared = yield* keyofTargets(checker, yield* declaredSlots(world, slot));
   return declared.length === 0 ? null : { step: "keyof", holders: declared, members: yield* namedOn(checker, declared, key.text), role: "read" };
 }
 
@@ -754,7 +747,7 @@ function slotPass(world: NativeWorld, requests: readonly { readonly at: number; 
       ? [{ at, key: request.node, slot: slotOf(request.node) }]
       : [],
   );
-  const answers = world.batch(slotted.map(({ key, slot }) => slotAnswer(world.checker, key, slot)));
+  const answers = world.batch(slotted.map(({ key, slot }) => slotAnswer(world, key, slot)));
   for (const [index, { at, key }] of slotted.entries()) {
     const answer = answers[index];
     if (answer === null || answer === undefined) {

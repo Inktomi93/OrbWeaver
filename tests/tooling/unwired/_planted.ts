@@ -230,6 +230,8 @@ export const NODE_TYPES = {
     '/// <reference path="diagnostics_channel.d.ts" />',
     '/// <reference path="async_hooks.d.ts" />',
     '/// <reference path="stream.d.ts" />',
+    '/// <reference path="module.d.ts" />',
+    '/// <reference path="util.d.ts" />',
   ].join("\n"),
   "node_modules/@types/node/crypto.d.ts": [
     'declare module "node:crypto" {',
@@ -247,6 +249,20 @@ export const NODE_TYPES = {
     "declare function fetch(url: string, init?: RequestInit): Promise<unknown>;",
     "declare class Response { constructor(body: string) }",
     "declare class Blob { constructor(parts: readonly string[]) }",
+    "declare class URL { constructor(input: string, base?: string | URL); readonly href: string }",
+  ].join("\n"),
+  "node_modules/@types/node/module.d.ts": [
+    'declare module "node:module" {',
+    "  export function createRequire(path: string): (id: string) => unknown;",
+    "}",
+  ].join("\n"),
+  "node_modules/@types/node/util.d.ts": [
+    'declare module "node:util" {',
+    "  export function inspect(value: unknown): string;",
+    "  export namespace inspect {",
+    "    const custom: unique symbol;",
+    "  }",
+    "}",
   ].join("\n"),
   "node_modules/@types/node/worker_threads.d.ts": [
     // the package's own layout: the module is `node:worker_threads`, re-exported bare, and a Worker takes its listeners

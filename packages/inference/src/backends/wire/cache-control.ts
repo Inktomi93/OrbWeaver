@@ -61,7 +61,7 @@ export function preservesCacheBlockEnds(
 // Anthropic → Bedrock → Azure → Google — every hop a non-Anthropic endpoint that ignores `cache_control`
 // and re-bills the whole prefix. This arm runs only when the user supplied NO routing, so it
 // can never override a user's own fallback choice; the MODEL-level chain is the orthogonal `models[]` axis
-// (`resolveFallbackModels`, which reads that same user routing) and is unaffected.
+// (the user's `models` extras key) and is unaffected.
 export function effectiveProviderRouting<T extends OpenRouterRouting>(
   connection: Pick<Resolved, "factsModel">,
   userRouting: T | undefined,

@@ -8,8 +8,11 @@ const FILE = `${GRAPH_SOURCE}/protocols.ts`;
 
 test("a protocol member on a class or a literal counts as called; a member of another name does not", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
+    ...NODE_TYPES,
     [FILE]: [
-      "declare const inspect: { readonly custom: unique symbol };",
+      '/// <reference types="node" />',
+      'import { inspect } from "node:util";',
+      "declare const local: { readonly inspect: { readonly custom: unique symbol } };",
       "export class Money {",
       "  constructor(readonly cents: number) {}",
       "  toJSON(): number { return this.cents; }",
@@ -19,6 +22,7 @@ test("a protocol member on a class or a literal counts as called; a member of an
       '  [inspect.custom](): string { return "m"; }',
       "  spare(): number { return 2; }",
       "}",
+      'export class Lookalike { [local.inspect.custom](): string { return "l"; } }',
       "export class Handle { [Symbol.dispose](): void {} async [Symbol.asyncDispose](): Promise<void> {} }",
       "export const lazy = { then(done: (value: number) => void): void { done(1); }, other: 1, spare(): number { return 2; } };",
       "export const bag = { *[Symbol.iterator](): Iterator<number> { yield 1; }, async *[Symbol.asyncIterator](): AsyncIterator<number> { yield 1; }, spare(): number { return 3; } };",
@@ -29,7 +33,7 @@ test("a protocol member on a class or a literal counts as called; a member of an
   expect(Object.fromEntries(MEMBER_BUCKETS.map((bucket) => [bucket, labelsIn(scan, bucket, FILE).map((label) => label.split("  ")[0])]))).toEqual({
     "member-write-only": [],
     "member-sent-only": ["Money.spare"],
-    "member-untouched": ["lazy.spare", "bag.spare"],
+    "member-untouched": ["Lookalike.[local.inspect.custom]", "lazy.spare", "bag.spare"],
     "member-read-only": [],
     "member-validated": [],
   });

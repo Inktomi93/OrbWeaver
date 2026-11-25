@@ -12,14 +12,16 @@
 // (./literal-hits.ts); `graph-trial` deletes each finding of the named buckets in a throwaway snapshot
 // (./graph/trial.ts); `graph-census` counts the compiler's references to every product member by the context each
 // sits in and the role the graph gave it (./graph/census.ts), and refuses `--from`.
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
+import { z } from "zod";
 import { EXIT } from "../floor/cli/exit-contract.ts";
 import { describeThrown, UsageError } from "../floor/cli/run-tool.ts";
+import { runGit } from "../floor/git/git.ts";
 import { COVERAGE_USAGE, runCoverage } from "./coverage.ts";
-import type { DeliberateEntry } from "./deliberate.ts";
-import { DELIBERATE } from "./deliberate.ts";
+import type { ConsumerReport, DeliberateEntry, DeliberateMark, DeliberateRun } from "./deliberate.ts";
+import { DELIBERATE, excusedNothing, staleDeliberate } from "./deliberate.ts";
 import type { Verdict as SortVerdict } from "./field-sort.ts";
 import { VERDICTS as SORT_VERDICTS } from "./field-sort.ts";
 import type { Bucket, MemberBucket } from "./graph/analyse.ts";
@@ -69,7 +71,8 @@ import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
 /** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes", "procedures", "columns"] as const;
 type ScanVerb = (typeof SCAN_VERBS)[number];
-const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
+const STALE_VERB = "deliberate-stale";
+const VERBS = [...SCAN_VERBS, "ports", "removed-keys", STALE_VERB] as const;
 type Verb = (typeof VERBS)[number];
 
 const COVERAGE_VERB = "coverage";
@@ -112,7 +115,7 @@ const QUERY_OF: Readonly<Partial<Record<GraphVerb, Query>>> = { "graph-why": "wh
 // What a session that builds its graph takes; one that may read a dump takes `--from` too.
 const GRAPH_BUILD_USAGE = `[--explain-lost] [--profile[=<${PROFILES.join("|")}>[,...]]] [--why=<member|Owner.member|file:line>]... [--files=<prefix>] [--trace=<axis:prop|tv|param-key[:prefix]|verify-chain|flow-walk>]... [--ablate=<${ABLATIONS.join("|")}>]... [--dump=<file>]`;
 const GRAPH_SESSION_USAGE = `${GRAPH_BUILD_USAGE} [--from=<file>]`;
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-census [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_BUILD_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>] | pnpm unwired deliberate-stale [--root=<dir>] [--reports=<file>,...] | pnpm unwired graph|graph-css|graph-dom|codes [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-why|graph-users|graph-impact|graph-reach <name|Owner.member|file:line|file>... [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | pnpm unwired graph-worlds-check [--root=<dir>] [--out=<file>] | pnpm unwired graph-census [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_BUILD_USAGE} | pnpm unwired graph-verify --bucket=<${MEMBER_BUCKETS.join("|")}> [--sample=<n>] [--root=<dir>] [--out=<file>] ${GRAPH_SESSION_USAGE} | ${TRIAL_SYNOPSIS} | ${COVERAGE_USAGE} | ${HITS_USAGE}`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -145,7 +148,7 @@ interface Finding {
 interface Report {
   readonly scanned: number;
   readonly unwired: readonly Finding[];
-  readonly deliberate: readonly Finding[];
+  readonly deliberate: readonly (Finding & DeliberateMark)[];
   readonly staleJudged: readonly StaleJudged[];
   /** What the scan cannot see, printed after its summary. */
   readonly limits?: readonly string[];
@@ -221,6 +224,8 @@ interface Args {
   /** The revisions `removed-keys` compares: the branch's head against its merge base with `base`. */
   readonly base: string;
   readonly head: string;
+  /** The consumer reports `deliberate-stale` reads, or null for each consumer's own report path. */
+  readonly reports: readonly string[] | null;
 }
 
 function oneOf<T extends string>(flag: string, value: string | null, allowed: readonly T[]): T | null {
@@ -238,7 +243,7 @@ function parseArgs(argv: readonly string[]): Args {
   const flags = new Map<string, string>();
   const rest = named === undefined ? argv : argv.slice(1);
   for (const arg of rest) {
-    const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);
+    const match = /^--(root|out|leg|cluster|base|head|reports)=(.+)$/u.exec(arg);
     if (match === null) {
       throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
     }
@@ -252,7 +257,61 @@ function parseArgs(argv: readonly string[]): Args {
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
     base: flags.get("base") ?? DEFAULT_BASE,
     head: flags.get("head") ?? DEFAULT_HEAD,
+    reports: flags.get("reports")?.split(",") ?? null,
   };
+}
+
+// The scans that apply the deliberate list, by the report each writes unless `--out` moves it.
+const DELIBERATE_CONSUMERS: readonly string[] = [GRAPH_OUT.graph, GRAPH_OUT.codes, ...SCAN_VERBS.map((verb) => SCANS[verb].out)];
+
+// The commit a root's checkout is at, or empty outside a repository, as a planted tree is.
+function headOf(root: string): string {
+  const result = runGit(root, ["rev-parse", "--verify", "--quiet", "HEAD"]);
+  return result.status === 0 ? result.stdout.trim() : "";
+}
+
+/** What a consuming scan records beside its report for the excused-nothing check (deliberate.ts excusedNothing). */
+function deliberateRun(root: string, rows: readonly DeliberateMark[]): DeliberateRun {
+  return { root, head: headOf(root), applied: [...new Set(rows.map(({ entry }) => entry))].toSorted() };
+}
+
+// Each entry whose file, home or member the tree no longer declares, one line each.
+function writeStaleDeliberate(root: string): number {
+  const stale = staleDeliberate(root, DELIBERATE);
+  for (const { stale: kind, entry } of stale) {
+    process.stdout.write(`stale-deliberate\t${kind}\t${entry}\n`);
+  }
+  return stale.length;
+}
+
+const deliberateRunSchema = z.object({ deliberateRun: z.object({ root: z.string(), head: z.string(), applied: z.array(z.string()) }).optional() });
+
+// A consumer report's run block, or null when the report is missing, unreadable or carries none.
+function consumerReport(root: string, path: string): ConsumerReport {
+  const at = resolve(checkoutOf(root), path);
+  if (!existsSync(at)) {
+    return { path, run: null };
+  }
+  const read = deliberateRunSchema.safeParse(JSON.parse(readFileSync(at, "utf8")));
+  return { path, run: read.success ? (read.data.deliberateRun ?? null) : null };
+}
+
+function runDeliberateStale(args: Args): number {
+  const structural = writeStaleDeliberate(args.root);
+  const reports = (args.reports ?? DELIBERATE_CONSUMERS).map((path) => consumerReport(args.root, path));
+  const { stale, unjudged } = excusedNothing(DELIBERATE, reports, { root: args.root, head: headOf(args.root) });
+  for (const { stale: kind, entry } of stale) {
+    process.stdout.write(`stale-deliberate\t${kind}\t${entry}\n`);
+  }
+  for (const path of unjudged) {
+    process.stdout.write(`unjudged\t${path}\n`);
+  }
+  log(
+    unjudged.length > 0
+      ? `stale-deliberate=${String(structural)} excuses-nothing unjudged: ${String(unjudged.length)} of ${String(reports.length)} consumer reports are missing, carry no run block, or came from another root or HEAD`
+      : `stale-deliberate=${String(structural + stale.length)} over ${String(reports.length)} consumer reports`,
+  );
+  return EXIT.clean;
 }
 
 async function runRemovedKeys(args: Args): Promise<number> {
@@ -648,7 +707,7 @@ const isMemberBucket = (bucket: Bucket): bucket is MemberBucket => MEMBER_BUCKET
 
 async function runGraphScan(args: GraphArgs): Promise<number> {
   const graph = await scanGraph(args.root, log, args.options, { deliberate: DELIBERATE, judged: JUDGED_FIELDS });
-  const path = write(args.root, args.out, graph);
+  const path = write(args.root, args.out, { ...graph, deliberateRun: deliberateRun(args.root, graph.members.deliberate) });
   const { members } = graph;
   // A member bucket lists only the rows no ruling names; the deliberate and judged rows follow it apart.
   const shown = (bucket: Bucket): readonly { readonly label: string; readonly note: string | null }[] => {
@@ -686,7 +745,8 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
   }
   logSession(graph.session);
   log(literalLine(members.literalStage));
-  const ruled = `deliberate=${String(members.deliberate.length)} judged=${String(members.judged.length)} stale-judged=${String(members.staleJudged.length)}`;
+  const staleDeliberateRows = writeStaleDeliberate(args.root);
+  const ruled = `deliberate=${String(members.deliberate.length)} judged=${String(members.judged.length)} stale-judged=${String(members.staleJudged.length)} stale-deliberate=${String(staleDeliberateRows)}`;
   const apart = `acknowledged=${String(members.acknowledged.length)} observed=${String(members.observed.length)} received=${String(members.received.length)}`;
   log(
     `files=${String(graph.files)} ${BUCKETS.map((bucket) => `${bucket}=${String(shown(bucket).length)}`).join(" ")} ${ruled} ${apart} lost-reads=${String(graph.lostReads.length)} row-refused=${String(graph.rowRefusals.length)} written to ${path}`,
@@ -696,15 +756,16 @@ async function runGraphScan(args: GraphArgs): Promise<number> {
 
 async function runGraphCodes(args: GraphArgs): Promise<number> {
   const report = await codesGraph(args.root, { root: args.root, deliberate: DELIBERATE }, log, args.options);
-  const path = write(args.root, args.out, report);
+  const path = write(args.root, args.out, { ...report, deliberateRun: deliberateRun(args.root, report.deliberate) });
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
   }
   for (const entry of report.staleJudged) {
     process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
   }
+  const stale = writeStaleDeliberate(args.root);
   logSession(report.session);
-  log(`scanned=${report.scanned} ${bucketCounts(report)} written to ${path}`);
+  log(`scanned=${report.scanned} ${bucketCounts(report)} stale-deliberate=${String(stale)} written to ${path}`);
   logLimits(report.limits);
   return EXIT.clean;
 }
@@ -935,6 +996,9 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
   if (args.verb === "removed-keys") {
     return runRemovedKeys(args);
   }
+  if (args.verb === STALE_VERB) {
+    return runDeliberateStale(args);
+  }
   if (args.verb === "ports") {
     const census = portCensus(args.root, log);
     const targets = census.targets.filter(
@@ -967,14 +1031,15 @@ export function runUnwired(argv: readonly string[]): number | Promise<number> {
 async function runScan(args: Args, verb: ScanVerb): Promise<number> {
   const chosen = SCANS[verb];
   const { report, counts } = await chosen.execute({ root: args.root, deliberate: DELIBERATE, judged: JUDGED[verb], log });
-  const path = write(args.root, args.out ?? chosen.out, report);
+  const path = write(args.root, args.out ?? chosen.out, { ...report, deliberateRun: deliberateRun(args.root, report.deliberate) });
   for (const finding of report.unwired) {
     process.stdout.write(`${finding.kind}\t${finding.file}:${finding.line}\t${finding.home}.${finding.member}\n`);
   }
   for (const entry of report.staleJudged) {
     process.stdout.write(`stale-judged\t${entry.stale}\t${entry.key}\t${String(entry.item)}\n`);
   }
-  log(`scanned=${report.scanned} ${bucketCounts(report)}${counts} written to ${path}`);
+  const stale = writeStaleDeliberate(args.root);
+  log(`scanned=${report.scanned} ${bucketCounts(report)} stale-deliberate=${String(stale)}${counts} written to ${path}`);
   if (report.limits !== undefined) {
     logLimits(report.limits);
   }

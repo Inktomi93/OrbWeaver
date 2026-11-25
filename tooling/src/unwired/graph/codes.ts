@@ -41,7 +41,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all, SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
@@ -170,7 +170,7 @@ export interface CodesReport {
   readonly vocabularies: readonly CodeVocabulary[];
   readonly codes: readonly Code[];
   readonly unwired: readonly CodeFinding[];
-  readonly deliberate: readonly (CodeFinding & { readonly reason: string })[];
+  readonly deliberate: readonly (CodeFinding & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<CodeFinding>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */

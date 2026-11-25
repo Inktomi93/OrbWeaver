@@ -1,7 +1,7 @@
 // The reads a zod parse makes: it copies each key its output names out of the value handed in, so a Drizzle row handed to
 // one, whole or spread into the argument, is read at the parse for exactly those columns. The reference graph credits
 // those reads (graph/build.ts).
-import type { CallExpression, Expression, Node } from "@typescript/native/ast";
+import type { CallExpression, Node, PropertyAccessExpression } from "@typescript/native/ast";
 import {
   isCallExpression,
   isIdentifier,
@@ -14,13 +14,11 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, TypeFlags } from "@typescript/native/sync";
 import { rowColumns } from "./drizzle-rows.ts";
+import { libraryNames, ZOD_PACKAGE, ZOD_PARSES } from "./graph/library-names.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, hasFlag } from "./native.ts";
 
-/** The schema methods that copy a value's keys into their output, and the library that declares them. */
-const PARSE_METHODS: ReadonlySet<string> = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
 const SAFE_PARSE_DATA = "data";
-const SCHEMA_LIBRARY = "/zod/";
 
 const isObjectLike = (type: Type): boolean => hasFlag(type.flags, TypeFlags.Object) || hasFlag(type.flags, TypeFlags.Intersection);
 
@@ -28,9 +26,10 @@ function* objectMembers(world: NativeWorld, type: Type): APIRequestGenerator<rea
   return (yield* constituents(yield* world.checker.getNonNullableType.gen(type))).filter(isObjectLike);
 }
 
-/** A call of a schema parse method, by its syntax: {@link schemaParses} confirms zod declares it. */
-export const isParseCall = (node: Node): node is CallExpression =>
-  isCallExpression(node) && isPropertyAccessExpression(node.expression) && PARSE_METHODS.has(node.expression.name.text);
+/** A call of a schema parse method (library-names.ts ZOD_PARSES), by its syntax: {@link schemaParses} confirms zod
+ *  declares it. */
+export const isParseCall = (node: Node): node is CallExpression & { readonly expression: PropertyAccessExpression } =>
+  isCallExpression(node) && isPropertyAccessExpression(node.expression) && ZOD_PARSES.has(node.expression.name.text);
 
 // The types a parse answers with: the parsed value, or a safe parse's `data`.
 function* parsedTypes(world: NativeWorld, call: CallExpression, safe: boolean): APIRequestGenerator<readonly Type[]> {
@@ -97,7 +96,6 @@ export function* parsedColumns(world: NativeWorld, call: CallExpression): APIReq
 
 /** The parse calls a zod schema answers. */
 export function schemaParses(world: NativeWorld, calls: readonly Node[]): readonly CallExpression[] {
-  const parses = calls.filter(isParseCall);
-  const symbols = world.symbolsAt(parses.map((call) => (call.expression as Expression & { readonly name: Node }).name));
-  return parses.filter((_, at) => (symbols[at]?.declarations ?? []).some((handle) => handle.path.includes(SCHEMA_LIBRARY)));
+  const names = libraryNames(world);
+  return calls.filter(isParseCall).filter((call) => names.declaredBy(call.expression.name, ZOD_PACKAGE));
 }

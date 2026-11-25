@@ -38,11 +38,15 @@ const AFTER = [
   "export const listInputSchema = z.object({ limit: z.string() });",
 ].join("\n");
 
-// The tRPC packages' procedure verbs and TanStack's mutation, declared where the real ones are, so a call resolves to them.
+// The tRPC packages' procedure verbs and TanStack's mutation, declared where the real ones are, so a call resolves to them:
+// the client's proxy declares `mutate`, and its TanStack options proxy declares the options builders.
 const PACKAGES = {
   "node_modules/@trpc/client/package.json": '{ "name": "@trpc/client", "types": "index.d.ts" }',
-  "node_modules/@trpc/client/index.d.ts": [
-    "export interface MutationProcedure<I> { mutate(input: I): Promise<void>; mutationOptions(): { readonly input?: I } }",
+  "node_modules/@trpc/client/index.d.ts": "export interface MutationProcedure<I> { mutate(input: I): Promise<void> }",
+  "node_modules/@trpc/tanstack-react-query/package.json": '{ "name": "@trpc/tanstack-react-query", "types": "index.d.ts" }',
+  "node_modules/@trpc/tanstack-react-query/index.d.ts": [
+    'import type { MutationProcedure as ClientProcedure } from "@trpc/client";',
+    "export interface MutationProcedure<I> extends ClientProcedure<I> { mutationOptions(): { readonly input?: I } }",
     "export interface QueryProcedure<I> { queryOptions(input: I): unknown }",
   ].join("\n"),
   "node_modules/@tanstack/react-query/package.json": '{ "name": "@tanstack/react-query", "types": "index.d.ts" }',
@@ -54,7 +58,7 @@ const PACKAGES = {
 
 // The client's tRPC proxy, typed by procedure as the real one is.
 const TRPC = [
-  'import type { MutationProcedure, QueryProcedure } from "@trpc/client";',
+  'import type { MutationProcedure, QueryProcedure } from "@trpc/tanstack-react-query";',
   "type Loose = Readonly<Record<string, unknown>>;",
   "export declare const trpc: {",
   "  readonly chat: {",

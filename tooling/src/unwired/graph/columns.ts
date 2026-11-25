@@ -17,7 +17,7 @@
 
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
 import type { SendDestination } from "../boundaries.ts";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import { DB_SCHEMA, schemaTables } from "../drizzle-rows.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
@@ -67,7 +67,7 @@ export interface ColumnsReport {
   /** Primary-key columns production never reads: the key is the row's identity, which an upsert on a natural key never
    *  selects. Reported apart, never judged dead. */
   readonly primaryKeys: readonly UnwiredColumn[];
-  readonly deliberate: readonly (UnwiredColumn & { readonly reason: string })[];
+  readonly deliberate: readonly (UnwiredColumn & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<UnwiredColumn>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */
