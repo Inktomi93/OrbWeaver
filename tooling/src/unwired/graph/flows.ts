@@ -394,9 +394,10 @@ export class Flows {
   }
 
   // A pair's identity on the walk: a checked pair is apart from an unchecked one of the same types, since it also
-  // carries reads.
-  #pairKey({ slot, value, site }: FlowPair): string {
-    return `${String(slot.id)}>${String(value.id)}${this.#checkSites.has(site) ? CHECKED_MARK : ""}`;
+  // carries reads, and a spread's pair is apart by the keys set over it, since it hands those members to nothing.
+  #pairKey({ slot, value, site, whole }: FlowPair): string {
+    const shadowed = whole === true ? [...shadowedBySpread(this.#siteNodes.get(site))].sort() : [];
+    return `${String(slot.id)}>${String(value.id)}${this.#checkSites.has(site) ? CHECKED_MARK : ""}${shadowed.length > 0 ? `-${shadowed.join(",")}` : ""}`;
   }
 
   #typePairs(sites: FileSites): readonly FlowPair[] {

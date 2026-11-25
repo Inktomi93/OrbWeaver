@@ -886,3 +886,29 @@ test("an untyped literal's unread accessor is untouched, as a method key is", { 
   );
   expect(bucketsIn(scan)).toEqual(["member-untouched table.unread", "member-untouched table.stored", "member-untouched table.method"]);
 });
+
+// A spread that sets a key over its value pairs the two types less that key. A whole hand-off of the same two types
+// elsewhere hands every member on, the overridden one included: the shape of a narrowed stats delta widened by a spread
+// in its contract and handed whole to the delta writer elsewhere.
+test("a type pair a spread narrows still hands every member on where the value is handed whole", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const contract = `${GRAPH_SOURCE}/contract.ts`;
+  const scan = await graphScan(plantedTree, {
+    ...ZOD_MODULE,
+    [contract]: [
+      'import { z } from "zod";',
+      "const deltaSchema = z.strictObject({ ownerId: z.string(), characterId: z.string(), cost: z.number().optional() });",
+      "export type Delta = z.infer<typeof deltaSchema>;",
+      'export type Spend = Pick<Delta, "ownerId" | "cost"> & { readonly characterId: null; readonly label: null };',
+      'export const spend = (): Spend => ({ ownerId: "o", characterId: null, label: null, cost: 1 });',
+      "export const widened = (characterId: string): Delta => ({ ...spend(), characterId });",
+    ].join("\n"),
+    ...source([
+      'import type { Delta } from "./contract.ts";',
+      'import { spend } from "./contract.ts";',
+      "export const apply = (out: string[], delta: Delta): void => { out.push(delta.ownerId, delta.characterId, String(delta.cost)); };",
+      "export const run = (out: string[]): void => apply(out, spend());",
+    ]),
+  });
+  // `label` is no member of Delta, so no hand-off reads it
+  expect([...bucketsIn(scan, contract), ...bucketsIn(scan)]).toEqual(["member-write-only Spend.label"]);
+});
