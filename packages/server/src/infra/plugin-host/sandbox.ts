@@ -289,6 +289,7 @@ export class Sandbox implements Disposable {
             currentToken: (): string | null => state.token,
             inFlight: state.inFlight,
             pending: state.pending,
+            holdings: { surfaceIds: new Set(), frames: 0, commands: 0, tools: 0, subscriptions: 0 },
             collectTool: (reg, handler): void => {
               const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, handler);

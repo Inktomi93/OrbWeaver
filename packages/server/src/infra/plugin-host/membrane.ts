@@ -202,6 +202,19 @@ export interface MembraneRuntime {
   /** Performs `net.fetch`/`net.fetchAsset` against the manifest `netHosts` wall. In the broker Worker it forwards
    *  to the app, which holds the network and its own copy of the allowlist; the membrane only gates the grant. */
   readonly netEgress: PluginNetEgress;
+  /** What the instance holds through each capped registration door, built once per sandbox. Every `orb.host` call
+   *  builds a fresh surface, so a count kept on the surface would reset for a guest that asks for a second one. */
+  readonly holdings: MembraneHoldings;
+}
+
+/** The running count at each capped registration door, shared by every surface one sandbox builds. */
+export interface MembraneHoldings {
+  /** Distinct `ui.register` surface ids, because a repeated id replaces its surface and holds nothing more. */
+  readonly surfaceIds: Set<string>;
+  frames: number;
+  commands: number;
+  tools: number;
+  subscriptions: number;
 }
 
 /** The two fixed points a D50 transform hooks — the ONE home is the contract's `PluginTransformRegistration`
@@ -436,8 +449,7 @@ function parseSurfaceMeta(
  *  collect a surface registration. An INVALID def is logged + SKIPPED, NEVER thrown: a stale panel spec must not
  *  kill the activation that also registered the plugin's tools/events (§4.9). capability: `ui.surface`. */
 function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHandle {
-  // Distinct ids, because a repeated id replaces its surface and holds nothing more.
-  const held = new Set<string>();
+  const held = runtime.holdings.surfaceIds;
   return runtime.marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "ui.register");
     if (defHandle === undefined) {
@@ -516,12 +528,12 @@ function parseFrameBody(marshal: GuestMarshal, defHandle: QuickJSHandle): FrameB
  *      the fork is not reachable from the argument.
  *   3. THE COUNT CAP. A frame BODY is up to 64 KiB held for the instance lifetime and multiplied by
  *      the configured broker Worker pool; `ui.register` needs no such cap because a spec is already bounded to
- *      32 KiB. The counter is per-CONTEXT (this closure is built once per sandbox), so it bounds ONE plugin
+ *      32 KiB. The count lives on {@link MembraneHoldings}, built once per sandbox, so it bounds ONE plugin
  *      instance, which is the thing whose memory it is protecting.
  *
  *  A frame surface has no `onAction`: its actions ride the postMessage bridge, never a declarative button. */
 function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHandle {
-  let registered = 0;
+  const { holdings } = runtime;
   return runtime.marshal.newHostFunction("registerFrame", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "ui.registerFrame");
     if (defHandle === undefined) {
@@ -531,7 +543,7 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
       runtime.logWarn(`ui.registerFrame refused a surface: ${reason}`);
       return ctx.undefined;
     };
-    if (registered >= PLUGIN_FRAME_SURFACES_MAX) {
+    if (holdings.frames >= PLUGIN_FRAME_SURFACES_MAX) {
       return refuse(`at most ${PLUGIN_FRAME_SURFACES_MAX} frame surfaces per plugin`);
     }
     // `tier` is an OVERRIDE, not a read: the guest never names one at this door (see FRAME_DEF_PROPS). The meta
@@ -545,7 +557,7 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
     if (!body.ok) {
       return refuse(body.reason);
     }
-    registered += 1;
+    holdings.frames += 1;
     runtime.collectSurface({ ...parsed.meta, tier: "frame" }, null, body.body);
     return ctx.undefined;
   });
@@ -646,13 +658,13 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
   // malformed command must not kill the activation that also registered the plugin's tools, events and panels.
   // Unlike a surface the handler is REQUIRED — a command with no `onRun` is a menu row that does nothing, which
   // is worse than an absent one, so a non-function `onRun` is a refusal rather than a display-only arm.
-  let commands = 0;
+  const { holdings } = runtime;
   using registerCommandFn = marshal.newHostFunction("registerCommand", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "ui.registerCommand");
     if (defHandle === undefined) {
       throw new Error("plugin host: ui.registerCommand requires a definition object");
     }
-    if (commands >= PLUGIN_COMMANDS_MAX) {
+    if (holdings.commands >= PLUGIN_COMMANDS_MAX) {
       runtime.logWarn(`ui.registerCommand refused a command: at most ${PLUGIN_COMMANDS_MAX} commands per plugin`);
       return ctx.undefined;
     }
@@ -670,7 +682,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       return ctx.undefined;
     }
     const handler = commandHandler(ctx, onRun, parsed.meta.composerDraft === true);
-    commands += 1;
+    holdings.commands += 1;
     runtime.collectCommand(parsed.meta, handler);
     return ctx.undefined;
   });
@@ -1570,13 +1582,13 @@ function toolDefinition(
 function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   const { marshal } = runtime;
   using tools = ctx.newObject();
-  let registered = 0;
+  const { holdings } = runtime;
   using registerFn = marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "tools.register");
     if (defHandle === undefined) {
       throw new Error("plugin host: tools.register requires a definition object");
     }
-    if (registered >= PLUGIN_TOOLS_MAX) {
+    if (holdings.tools >= PLUGIN_TOOLS_MAX) {
       throw new Error(`plugin host: tools.register holds at most ${PLUGIN_TOOLS_MAX} tools per plugin`);
     }
     const { name, description, parameters } = toolDefinition(marshal, defHandle);
@@ -1587,7 +1599,7 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
       handler.dispose();
       throw new Error("plugin host: tools.register handler must be a function");
     }
-    registered += 1;
+    holdings.tools += 1;
     runtime.collectTool(
       {
         name,
@@ -1752,7 +1764,7 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
 function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   const { marshal } = runtime;
   using pubsub = ctx.newObject();
-  let subscribed = 0;
+  const { holdings } = runtime;
   // on(emitterSlug, name, handler) — SYNC collect. A malformed subscription is a SOFT refusal (logged, absent),
   // never activation-fatal (the §4.9 surface-refusal posture): a bad `pubsub.on` must not kill the plugin's
   // tools/panels. The capability refusal above still THROWS (the uniform gate). The handler is a POSITIONAL arg
@@ -1779,11 +1791,11 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
       runtime.logWarn("pubsub.on refused a subscription: the handler must be a function");
       return ctx.undefined;
     }
-    if (subscribed >= PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX) {
+    if (holdings.subscriptions >= PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX) {
       runtime.logWarn(`pubsub.on refused: at most ${PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX} subscriptions per plugin`);
       return ctx.undefined;
     }
-    subscribed += 1;
+    holdings.subscriptions += 1;
     runtime.collectPubsub({ emitterSlug, name }, handlerHandle.dup());
     return ctx.undefined;
   });

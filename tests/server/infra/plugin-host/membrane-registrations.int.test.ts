@@ -1,12 +1,19 @@
 // A real guest's activation registrations are bounded at the membrane: each sync door holds at most its count, a
 // tool's model-facing description and parameters stay under their caps, and a handler that is not a function is
-// refused at the door rather than stored for a later failed call. Each refusal has its control at the cap.
+// refused at the door rather than stored for a later failed call. Each refusal has its control at the cap. The counts
+// belong to the plugin instance, so a guest that asks `orb.host` for a second surface meets what the first one spent.
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { CHAT_TRIGGER_TYPES } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginStatus } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import {
+  HOST_FUNCTION_CAPABILITY,
+  PLUGIN_HOST_VERSIONS,
+  PLUGIN_MAIN_ENTRY,
+  PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
+  pluginManifestSchema,
+} from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -157,4 +164,36 @@ h.log.info("done");`,
   expect(guest.status).toBe("enabled");
   // pubsub.on refuses softly, so its refusal is the one warning, logged between the two markers.
   expect(guest.log).toEqual([`events_number:${REFUSED}`, `events_function:${REGISTERED}`, "pubsub_number", WARN, "pubsub_function", "done"]);
+});
+
+test("a second orb.host surface meets the counts the first one spent at every capped door", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const slug = "second-surface";
+  const guest = await activate(
+    root,
+    slug,
+    [
+      HOST_FUNCTION_CAPABILITY["tools.register"],
+      HOST_FUNCTION_CAPABILITY["ui.registerCommand"],
+      HOST_FUNCTION_CAPABILITY["ui.register"],
+      HOST_FUNCTION_CAPABILITY["pubsub.on"],
+    ],
+    `const surface = ${SURFACE};
+for (let i = 0; i < ${PLUGIN_TOOLS_MAX}; i += 1) { h.tools.register(tool("t" + i)); }
+for (let i = 0; i < ${PLUGIN_COMMANDS_MAX}; i += 1) { h.ui.registerCommand({ name: "c" + i, describe: "Witness", onRun: async () => {} }); }
+for (let i = 0; i < ${PLUGIN_SURFACES_MAX}; i += 1) { h.ui.register(surface("s" + i, "Surface")); }
+for (let i = 0; i < ${PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX}; i += 1) { h.pubsub.on(${JSON.stringify(slug)}, "n" + i, () => null); }
+const again = orb.host(1);
+report("tool_past", () => again.tools.register(tool("past")));
+again.ui.registerCommand({ name: "past", describe: "Witness", onRun: async () => {} });
+again.ui.register(surface("past", "Surface"));
+again.pubsub.on(${JSON.stringify(slug)}, "past", () => null);`,
+  );
+  expect(guest.status).toBe("enabled");
+  // The tool refusal throws; the command, surface and subscription refusals are one warning each, in that order.
+  expect(guest.log).toEqual([`tool_past:${REFUSED}`, WARN, WARN, WARN]);
+  const commands = (await root.services.plugin.listCommands({ caller: guest.caller })).filter(({ pluginId }) => pluginId === guest.pluginId);
+  const surfaces = (await root.services.plugin.listSurfaces({ caller: guest.caller })).filter(({ pluginId }) => pluginId === guest.pluginId);
+  expect(commands).toHaveLength(PLUGIN_COMMANDS_MAX);
+  expect(surfaces).toHaveLength(PLUGIN_SURFACES_MAX);
 });
