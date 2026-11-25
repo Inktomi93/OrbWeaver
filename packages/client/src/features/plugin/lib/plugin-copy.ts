@@ -386,6 +386,9 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
  * The bare arm survives for the one state that can still reach it: a re-consent whose delta was recorded
  * before this field existed. It says what is true and no more, and the full list is right below.
  */
+/** The re-consent sentence's clause for one added provider, and for the automation opt-in it turns on. */
+export const RE_CONSENT_ONE_PROVIDER = "a new model provider";
+export const RE_CONSENT_AUTOMATION_EVENTS = "events from automations";
 export function reConsentLine(
   addedCapabilities: readonly PluginCapability[],
   added: { readonly netHosts: readonly string[]; readonly providerIds: readonly string[]; readonly matchAutomationEvents: boolean },
@@ -394,8 +397,8 @@ export function reConsentLine(
   const permissions = addedCapabilities.length === 1 ? "a permission you hadn't allowed" : `${addedCapabilities.length} permissions you hadn't allowed`;
   const additions = [
     ...(added.netHosts.length === 0 ? [] : [added.netHosts.length === 1 ? "a new host it can reach" : `${added.netHosts.length} new hosts it can reach`]),
-    ...(added.providerIds.length === 0 ? [] : [added.providerIds.length === 1 ? "a new model provider" : `${added.providerIds.length} new model providers`]),
-    ...(added.matchAutomationEvents ? ["events from automations"] : []),
+    ...(added.providerIds.length === 0 ? [] : [added.providerIds.length === 1 ? RE_CONSENT_ONE_PROVIDER : `${added.providerIds.length} new model providers`]),
+    ...(added.matchAutomationEvents ? [RE_CONSENT_AUTOMATION_EVENTS] : []),
   ];
   const clauses = [...(addedCapabilities.length > 0 ? [`asks for ${permissions}`] : []), ...(additions.length > 0 ? [`adds ${joinedWithAnd(additions)}`] : [])];
   return clauses.length === 0 ? `This update changed what this plugin can reach, ${tail}` : `This update ${clauses.join(" and ")}, ${tail}`;

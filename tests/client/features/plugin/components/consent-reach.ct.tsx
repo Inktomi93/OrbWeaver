@@ -4,9 +4,14 @@
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
+import { makePluginProviderRow } from "@orb/testkit/iso";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
-import { PLUGIN_ADDED_MARK, PLUGIN_AUTOMATION_EVENTS_LINE, reConsentLine } from "#client/features/plugin/lib/plugin-copy.ts";
+import {
+  PLUGIN_ADDED_MARK,
+  PLUGIN_AUTOMATION_EVENTS_LINE,
+  RE_CONSENT_AUTOMATION_EVENTS,
+  RE_CONSENT_ONE_PROVIDER,
+} from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
 
 const PLUGIN = "reach-plugin";
@@ -55,8 +60,8 @@ test("an update's added provider and automation opt-in are named and marked on t
     width: NARROWEST_WIDTH,
   });
 
-  const sentence = reConsentLine([], { netHosts: [], providerIds: [pluginProviderId(PLUGIN, "beta")], matchAutomationEvents: true });
-  await expect(page.getByText(sentence, { exact: true })).toBeVisible();
+  // One sentence names both additions.
+  await expect(page.getByText(RE_CONSENT_ONE_PROVIDER).filter({ hasText: RE_CONSENT_AUTOMATION_EVENTS })).toBeVisible();
 
   const added = page.getByRole("listitem").filter({ hasText: ADDED_LABEL });
   const first = page.getByRole("listitem").filter({ hasText: FIRST_LABEL });
