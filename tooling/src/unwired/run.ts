@@ -5,8 +5,7 @@
 // own (./graph/worlds-check.ts) and exits 1 while a merged-program error is unexplained. `ports` writes the
 // restated-port targets the derive codemod reads; the member scan (`scan`, also the bare verb) and the dead-inside-live
 // verbs `fields`, `unions`, `params`, `shapes`, `procedures` and `columns` query the graph, and each writes one report
-// under reports/unwired/ with its judged rows apart; no verb has an engine two, so every verb refuses `--cross-check`
-// (D357); `removed-keys` resolves
+// under reports/unwired/ with its judged rows apart; `removed-keys` resolves
 // every receiver site of a removed contract key over the graph session's merged program and exits 1 while one still
 // sends it; `coverage` runs the test suites with V8 coverage and writes what no run executed
 // (./coverage.ts); `hits` prints every literal hit of a name across the tracked tree, classified by where it sits
@@ -73,7 +72,6 @@ type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
 
-const CROSS_CHECK_FLAG = "--cross-check";
 const COVERAGE_VERB = "coverage";
 const POSITIVE_COUNT = /^[1-9]\d*$/u;
 /** The verb that deletes each finding in a throwaway snapshot. */
@@ -238,9 +236,6 @@ function parseArgs(argv: readonly string[]): Args {
   const named = VERBS.find((candidate) => candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
-  if (argv.includes(CROSS_CHECK_FLAG)) {
-    throw new UsageError(`${CROSS_CHECK_FLAG}: ${verb} runs on the reference graph alone, with no engine two to cross-check (D357)\n${USAGE}`);
-  }
   const rest = named === undefined ? argv : argv.slice(1);
   for (const arg of rest) {
     const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);

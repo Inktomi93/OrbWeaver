@@ -48,6 +48,8 @@ import type { NativeWorld } from "../native.ts";
 import { constituents, hasFlag } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { libraryNames } from "./library-names.ts";
 import type { GraphLog } from "./options.ts";
 import type { LiteralRole } from "./roles.ts";
 import { sameNode, valueRole, valueUse } from "./roles.ts";
@@ -256,9 +258,9 @@ class CodesRun {
 
 // What a reference to a member's read name does with the value, as a literal there would: null in a type position, a
 // declaration or a store.
-function readRole(node: Node): LiteralRole | null {
-  const use = valueUse(node);
-  return use === "type" || use === "define" || use === "store" ? null : valueRole(accessOf(node));
+function readRole(node: Node, names: LibraryNames): LiteralRole | null {
+  const use = valueUse(node, names);
+  return use === "type" || use === "define" || use === "store" ? null : valueRole(accessOf(node), names);
 }
 
 // The name a tuple element is read through: a constant, or the property a member access names. A spelled literal has none.
@@ -851,7 +853,7 @@ function testsMembership(node: Node): boolean {
 // with `has` or `get`, by key.
 function gatherMemberships(run: CodesRun, reads: readonly Node[]): ReadonlySet<string> {
   const collected = reads.flatMap((node) => {
-    const binding = inClient(run.fileOf(node)) && readRole(node) === "construct" ? membershipBinding(node) : null;
+    const binding = inClient(run.fileOf(node)) && readRole(node, libraryNames(run.world)) === "construct" ? membershipBinding(node) : null;
     return binding === null ? [] : [{ node, binding }];
   });
   const references = run.references(collected.map(({ binding }) => binding));
@@ -915,7 +917,10 @@ function judge(run: CodesRun, gathered: Gathered, vocabulary: Vocabulary, member
   const { reading } = gathered;
   const literals: readonly UnionLiteral[] =
     tuple === null ? [] : reading.literals.filter((literal) => literal.text === member.text && reading.names(literal, tuple));
-  const reads = (member.read === null ? [] : (gathered.memberRefs.get(run.key(member.read)) ?? [])).map((node) => ({ node, role: readRole(node) }));
+  const reads = (member.read === null ? [] : (gathered.memberRefs.get(run.key(member.read)) ?? [])).map((node) => ({
+    node,
+    role: readRole(node, libraryNames(run.world)),
+  }));
   const server = (node: Node): boolean => productReader(run.fileOf(node)) && !inClient(run.fileOf(node));
   const client = (node: Node): boolean => inClient(run.fileOf(node));
   const producers = [
@@ -1029,7 +1034,7 @@ export function codesPass(graph: Graph, world: NativeWorld, judging: CodesJudgin
   const texts = new Set(vocabularies.flatMap(({ members }) => members.map(({ text }) => text)));
   const candidates = [
     ...reading.literals.filter((literal) => literal.role === "construct" && literal.holds && texts.has(literal.text)).map((literal) => literal.node),
-    ...reads.filter((node) => readRole(node) === "construct"),
+    ...reads.filter((node) => readRole(node, libraryNames(run.world)) === "construct"),
   ].filter((node) => productReader(run.fileOf(node)));
   const thrown = thrownSites(run, [...new Map(candidates.map((node) => [run.key(node), node])).values()]);
   const { sentBy, framedBy } = gatherSends(run);

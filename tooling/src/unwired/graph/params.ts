@@ -14,8 +14,7 @@
 //   write the graph kept for the prop (GraphFacts.roleSites, kept for {@link PARAMS_HOMES}) is judged as a construction too. A construction whose value
 //   reads the same prop only relays it, and a literal that reaches no call or JSX attribute (a callee's own default
 //   fill, a constant nothing passes) supplies nothing.
-// - The buckets are the engine scan's; its `disagreements` list is gone with its second engine, and the verb refuses
-//   `--cross-check`.
+// - The buckets are the engine scan's, less its `disagreements` list: the graph is the one engine.
 import type {
   Expression,
   JsxAttributeLike,
@@ -76,6 +75,8 @@ import { declarationKeys, hasFlag } from "../native.ts";
 import { isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
 import { nodeAt } from "./declared.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { libraryNames } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, keyText, Resolver } from "./resolve.ts";
 import type { ValueUse } from "./roles.ts";
@@ -394,7 +395,7 @@ function jsxShape(name: Node): CallShape | null {
 // on. An implementation supplying a member (`{ send: () => … }`) never reaches here, since its name resolves to the
 // literal's own member.
 const LABELLING_USES: ReadonlySet<ValueUse> = new Set<ValueUse>(["type", "store"]);
-const escapes = (name: Node): boolean => !LABELLING_USES.has(valueUse(name)) && occurrenceRoles(name).length > 0;
+const escapes = (name: Node, names: LibraryNames): boolean => !LABELLING_USES.has(valueUse(name, names)) && occurrenceRoles(name).length > 0;
 
 function* noNode(): APIRequestGenerator<Node | undefined> {
   return yield* answer<Node | undefined>(undefined);
@@ -405,11 +406,12 @@ type Usage = { readonly kind: "call"; readonly shape: CallShape; readonly produc
 
 function usageOf(world: NativeWorld, name: Node, call: Node | undefined): Usage {
   const product = isProduction(world.fileOfSource(name.getSourceFile()));
-  const shape = valueUse(name) === "call" ? ((call === undefined ? null : callShape(call)) ?? jsxShape(name)) : null;
+  const names = libraryNames(world);
+  const shape = valueUse(name, names) === "call" ? ((call === undefined ? null : callShape(call)) ?? jsxShape(name)) : null;
   if (shape !== null) {
     return { kind: "call", shape, product };
   }
-  return product && escapes(name) ? { kind: "escape" } : { kind: "none" };
+  return product && escapes(name, names) ? { kind: "escape" } : { kind: "none" };
 }
 
 function tally(usages: readonly Usage[]): Calls {

@@ -56,7 +56,7 @@ tooling/src/unwired/graph/ is the one core (D357). Every verb is a query over on
 
 ## One pass for the member scan
 
-`pnpm unwired scan` is a query over the reference graph (D357): the graph's member rows whose member is callable, a method or a member whose type has a call signature, in tooling/src/unwired/graph/members.ts. A row is test-only when production never reads it and a site outside the product reads or calls it; a site outside the product that only writes it, such as a test fake, makes no row test-only. The graph is the only engine, so every verb refuses `--cross-check`.
+`pnpm unwired scan` is a query over the reference graph (D357): the graph's member rows whose member is callable, a method or a member whose type has a call signature, in tooling/src/unwired/graph/members.ts. A row is test-only when production never reads it and a site outside the product reads or calls it; a site outside the product that only writes it, such as a test fake, makes no row test-only. The graph is the only engine.
 
 The graph counts two uses no name shows:
 
@@ -116,7 +116,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the `file:Hom
 | A read by snap or a value published to the dev bridge | a use | D357. A dev-bridge read is one through our own `declare global` global off `window`, `globalThis` or `self`, in code or in a script's text (tooling/src/unwired/graph/build.ts `#doorReads`). A test that imports the member's module reads it as a test does, as `AppearanceMatrixContract.executable` in packages/client/src/lib/appearance-carrier-manifest.ts is read. |
 | A member that takes a read only through the carry: a flow, a zod twin, a column, a build script's closure or the dev-bridge door | no row | The `--why` record names each role the carry gives, with its link and the member or reading file it came from (tooling/src/unwired/graph/why.ts `carriedEntries`). |
 | A read through a `keyof` mapped type, such as `Partial<Record<keyof Persisted, unknown>>` | reads the member the key names | The key names the member. |
-| A destructuring assignment, `({ a } = value)` | the pattern's key reads the member | tooling/src/unwired/graph/roles.ts states the pattern invariant. |
+| A destructuring assignment, `({ a } = value)` | the pattern's key reads the member; a rest binding reads none | tooling/src/unwired/graph/roles.ts states both invariants. |
 | A member a library reads: a `declare module` augmentation of a library interface, or a type that fills a library slot | read by the library | A library slot names the field in its published declaration (tooling/src/unwired/graph/flows.ts). |
 | A schema key nothing writes | `member-validated` | A key only a parse fills validates outside input. |
 | A read by a package-root file such as a token build script | a use when every manifest's build, or a published package's prepare, runs the file or imports it through the pnpm-run closure (tooling/src/unwired/graph/roots.ts `shippedScripts`); a private package's prepare ships nothing | D357: a script whose output ships is the product's. |
@@ -130,6 +130,7 @@ The graph's member rows (tooling/src/unwired/graph/judge.ts) carry the `file:Hom
 | A key beside a spread, `{ ...value, key }` | writes its member, but the copy builds no home: its home's optional members still report only when a build writes it | The value arrives with the copy (tooling/src/unwired/graph/state.ts `copyOnlyWrites`). |
 | A binding or literal under `satisfies T`, such as `defs satisfies Record<Task, TaskFields>` | fills `T` as a slot, and a read of its members reads `T`'s, at any depth | The compiler holds each member to the checked one (tooling/src/unwired/graph/flows.ts `#checkedPairs`). A zod schema twins instead. |
 | An array spread, `[...entries, ...offs]` | each spread list fills the array's element type, as a list argument does | tooling/src/unwired/graph/sites.ts `copyFlowSite`. |
+| An object spread, `f({ ...row, key })` | fills the slot with the spread's members, less each key set after it; a zod parse of it reads the same | tooling/src/unwired/graph/flows.ts `shadowedBySpread`. |
 | The input of a tRPC `infiniteQueryOptions(input, …)` call | writes the input's `cursor`, and no other member | TanStack Query fills the cursor from `getNextPageParam` on every page (tooling/src/unwired/graph/slots.ts `pagedWrites`). |
 | A value a call's type argument is inferred from, such as `split(rows)` for `split<Room extends Candidate>(items: Room[])`, and a type parameter of ours handed to another generic | fills the callee's constraint as a flow: the body's reads through the constraint reach the value | tooling/src/unwired/graph/constraints.ts `inferredPairs`. An explicit type argument stays a key use. |
 | Two instances of one generic, such as `Options<Input>` into `Options<NominateVars>` where `V` is only a mutation function's parameter | each type argument pairs by its parameter's variance: forward, backward, both, or forward when unused | The checker exposes no variance, so a polarity walk over the declaration measures where a value moves (tooling/src/unwired/graph/variance.ts). A method's parameter and a key position move no value. |
@@ -217,9 +218,9 @@ A key it cannot place is `unresolved` and reports in its own list. A key that la
 - Migrations, the baseline and the schema files are neither a read nor a write. The schema directory is the graph session's declaring home: a site in it gives a column it declares no role.
 - A column picked by name into a log, a debug route or a bug bundle counts as read. A column that only rides a whole-row dump does not.
 - An export that carries a column to a file counts as a read, a whole row serialized into a file included. The import that fills it counts as a write.
-- A zod `parse` or `safeParse` of a row, whole or spread into an object literal, reads each column whose name the parsed output carries. A key the schema strips, or one a later property of the literal sets over the spread, is no read. A parse no zod schema answers reads nothing.
+- A zod `parse` or `safeParse` of a row, whole or spread into an object literal, reads each column whose name the parsed output carries. A key the schema strips is no read, nor a key the object spread row excludes. A parse no zod schema answers reads nothing.
 - A primary-key column, built with `.primaryKey()` or listed by `primaryKey({ columns })`, that production never reads is listed apart under `primaryKeys`, never as a finding: the key is the row's identity, which an upsert on a natural key never selects.
-- A store of a whole value writes the columns of its required members. An optional column that the value's type only allows is a write only where the value's construction sets it. A store is a builder call drizzle-orm declares, never a same-named method.
+- A store of a whole value writes the columns of its required members. An optional column that the value's type only allows is a write only where the value's construction sets it. A store is a builder call drizzle-orm declares, never a same-named method. A table is a schema call typed as drizzle-orm's table, so a wrapper defines one.
 - A row that carries a subset of its table's columns outside a mapped type over the row matches no table. A member of it named as a column is listed as unresolved.
 - A column that only raw SQL writes is listed as deliberate with its reason.
 

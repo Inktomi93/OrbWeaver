@@ -17,6 +17,8 @@
 // - A member named in a `typeof a.b` type query takes the key role, as `T["b"]` does: the type reads no data.
 // - A type or interface member's own name declares the member and does nothing; a class member that supplies its value
 //   where it is declared (a field with an initializer, a method, an accessor) writes it. A doc comment does nothing.
+// - A rest binding's name (`score` in `{ a, ...score }`) declares a local and reads no member by key, though
+//   find-references links it to a same-named member of the source.
 
 import type {
   EnumMember,
@@ -85,6 +87,8 @@ import {
   isVoidExpression,
   SyntaxKind,
 } from "@typescript/native/ast";
+import type { LibraryNames } from "./library-names.ts";
+import { MEMBERSHIP_METHODS, ZOD_ENUM } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 
 // What an occurrence does: reads, stores, calls, deletes, hands the value whole to an opaque receiver, or names the
@@ -348,6 +352,9 @@ export function occurrenceRoles(name: Node): readonly Role[] {
   if (declaring !== null) {
     return declaring;
   }
+  if (isBindingElement(parent) && sameNode(parent.name, name) && parent.dotDotDotToken !== undefined) {
+    return NONE;
+  }
   if (isBindingElement(parent) && (sameNode(parent.propertyName, name) || (parent.propertyName === undefined && sameNode(parent.name, name)))) {
     return READ;
   }
@@ -369,7 +376,6 @@ export type LiteralRole = (typeof LITERAL_ROLES)[number];
 const VALUE_USES = ["call", "define", "store", "type", "test", "parse", "escape"] as const;
 export type ValueUse = (typeof VALUE_USES)[number];
 
-const MEMBERSHIP_METHODS: ReadonlySet<string> = new Set(["includes", "has", "indexOf", "lastIndexOf"]);
 const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EqualsEqualsEqualsToken,
   SyntaxKind.ExclamationEqualsEqualsToken,
@@ -377,13 +383,16 @@ const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.ExclamationEqualsToken,
 ]);
 const REQUIRE = "require";
-const ENUM_PARSE = "enum";
 
-const isMembershipArgument = (node: Node, parent: Node): boolean =>
-  isCallExpression(parent) &&
-  parent.arguments.some((argument) => sameNode(argument, node)) &&
-  isPropertyAccessExpression(parent.expression) &&
-  MEMBERSHIP_METHODS.has(parent.expression.name.text);
+// A membership method the platform declares (library-names.ts MEMBERSHIP_METHODS), never a same-named method of ours.
+const isMembershipCall = (call: Node, names: LibraryNames): boolean =>
+  isCallExpression(call) &&
+  isPropertyAccessExpression(call.expression) &&
+  MEMBERSHIP_METHODS.has(call.expression.name.text) &&
+  names.declaredBy(call.expression.name, "platform");
+
+const isMembershipArgument = (node: Node, parent: Node, names: LibraryNames): boolean =>
+  isMembershipCall(parent, names) && isCallExpression(parent) && parent.arguments.some((argument) => sameNode(argument, node));
 
 function isModuleSpecifier(node: Node, parent: Node): boolean {
   if (isImportDeclaration(parent) || isExportDeclaration(parent) || isExternalModuleReference(parent)) {
@@ -406,11 +415,11 @@ function isKeyName(node: Node, parent: Node): boolean {
 }
 
 // What a value does where it stands: a `case` label, an equality or membership operand, a key, or a construction.
-function standingRole(node: Node, parent: Node): Exclude<LiteralRole, "type" | "module"> {
+function standingRole(node: Node, parent: Node, names: LibraryNames): Exclude<LiteralRole, "type" | "module"> {
   if (isCaseClause(parent)) {
     return "case";
   }
-  if ((isBinaryExpression(parent) && EQUALITY.has(parent.operatorToken.kind)) || isMembershipArgument(node, parent)) {
+  if ((isBinaryExpression(parent) && EQUALITY.has(parent.operatorToken.kind)) || isMembershipArgument(node, parent, names)) {
     return "compare";
   }
   return isKeyName(node, parent) ? "key" : "construct";
@@ -418,12 +427,12 @@ function standingRole(node: Node, parent: Node): Exclude<LiteralRole, "type" | "
 
 /** What a string literal does with its value: a module specifier, a literal type, or the role its value takes where it
  *  stands. */
-export function literalRole(node: StringLiteral): LiteralRole {
+export function literalRole(node: StringLiteral, names: LibraryNames): LiteralRole {
   const { parent } = node;
   if (isModuleSpecifier(node, parent)) {
     return "module";
   }
-  return isLiteralTypeNode(parent) ? "type" : standingRole(node, parent);
+  return isLiteralTypeNode(parent) ? "type" : standingRole(node, parent, names);
 }
 
 // Positions where a name only labels a type, a declaration or a module binding.
@@ -492,13 +501,13 @@ function readValue(name: Node): Node {
 /** What a value does where it stands, as {@link literalRole} judges a literal: a `case` label, an equality or
  *  membership operand, a key, or a construction. A member access's name stands for the access, and parentheses and
  *  assertions around the value are climbed first. */
-export function valueRole(value: Node): Exclude<LiteralRole, "type" | "module"> {
+export function valueRole(value: Node, names: LibraryNames): Exclude<LiteralRole, "type" | "module"> {
   const at = readValue(value);
-  return standingRole(at, at.parent);
+  return standingRole(at, at.parent, names);
 }
 
 /** What a reference to a function, a callable member or a tuple does with the value it names. */
-export function valueUse(name: Node): ValueUse {
+export function valueUse(name: Node, names: LibraryNames): ValueUse {
   const callee = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name) ? name.parent : name;
   const site = callee.parent;
   const invoked =
@@ -516,10 +525,15 @@ export function valueUse(name: Node): ValueUse {
   }
   const value = readValue(name);
   const { parent } = value;
-  if (isPropertyAccessExpression(parent) && sameNode(parent.expression, value) && MEMBERSHIP_METHODS.has(parent.name.text) && isCallExpression(parent.parent)) {
+  if (isPropertyAccessExpression(parent) && sameNode(parent.expression, value) && isMembershipCall(parent.parent, names)) {
     return "test";
   }
-  return isCallExpression(parent) && isPropertyAccessExpression(parent.expression) && parent.expression.name.text === ENUM_PARSE ? "parse" : "escape";
+  const zodEnum =
+    isCallExpression(parent) &&
+    isPropertyAccessExpression(parent.expression) &&
+    parent.expression.name.text === ZOD_ENUM &&
+    names.declaredBy(parent.expression.name, "zod");
+  return zodEnum ? "parse" : "escape";
 }
 
 const CARRY_LINKS = ["flow", "twin", "column", "override", "check", "derive", "build-read", "door-read"] as const;
