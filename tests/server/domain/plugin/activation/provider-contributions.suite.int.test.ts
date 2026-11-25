@@ -114,10 +114,20 @@ test("identical definitions are served to each owner, and a changed definition i
   expect(await offered(root, first)).toBe(true);
   expect(await offered(root, second)).toBe(true);
 
-  // The first owner's claim is permanent: their upgrade may not re-point the id at a new definition.
-  await expect(
-    root.services.plugin.upgrade({ caller: first, pluginId: firstPlugin, bundle: endpointBundle(root, "Changed Acme", "2.0.0") }),
-  ).rejects.toBeInstanceOf(PluginCrashedError);
+  // The first owner's claim is permanent: their upgrade may not re-point the id at a new definition. The changed
+  // definition waits for re-consent, and approving it still meets the claim, which fails the activation.
+  const upgraded = await root.services.plugin.upgrade({ caller: first, pluginId: firstPlugin, bundle: endpointBundle(root, "Changed Acme", "2.0.0") });
+  expect(upgraded).toMatchObject({ status: "disabled", reconsentPending: true, widenedProviderIds: [PROVIDER_ID] });
+  expect(await offered(root, first)).toBe(false);
+  const approved = await root.services.plugin.setGrant({
+    caller: first,
+    pluginId: firstPlugin,
+    grant: [],
+    acknowledgedNetHosts: [],
+    acknowledgedProviderIds: upgraded.widenedProviderIds,
+    enable: true,
+  });
+  expect(approved).toMatchObject({ status: "errored", reconsentPending: false });
   expect(await offered(root, first)).toBe(false);
   expect(await offered(root, second)).toBe(true);
   expect((await root.services.connection.providersAvailable({ principal: second })).find((row) => row.provider.id === PROVIDER_ID)?.provider.label).toBe(

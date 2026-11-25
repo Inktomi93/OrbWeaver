@@ -765,7 +765,8 @@ interface PluginHostV1 {
 
   /** Token-count ESTIMATION over your own text — free (no capability), synchronous, deterministic: the same
    *  estimator the host budgets prompts with, available in BOTH realms at native latency. An estimate, not
-   *  the model's tokenizer — treat it as a budgeting heuristic, not an exact count. */
+   *  the model's tokenizer — treat it as a budgeting heuristic, not an exact count. A server guest's text past
+   *  the host's inbound argument cap, the one every host call has, is refused with a thrown `Error`. */
   readonly tokens: {
     count: (text: string) => number;
   };

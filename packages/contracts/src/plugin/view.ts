@@ -25,7 +25,7 @@ const providerIdListSchema = z.array(providerIdSchema).readonly();
 export interface PluginReachWidening {
   readonly capabilities: readonly PluginCapability[];
   readonly netHosts: readonly string[];
-  /** Provider ids the prior manifest did not declare, in the replacement's order. */
+  /** Provider ids the prior manifest did not declare with the same definition, in the replacement's order. */
   readonly providerIds: readonly ProviderId[];
   /** The replacement turns on delivery of automation-caused events, which the prior manifest left off. */
   readonly matchAutomationEvents: boolean;

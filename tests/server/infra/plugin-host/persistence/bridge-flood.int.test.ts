@@ -3,6 +3,7 @@
 // the watchdog or the parent's channel; each plugin runtime has its own share of every queue, so one owner's flood
 // leaves another owner's plugin served and unstruck. The strike count is read from the plugin's row, which no door shows.
 import { readFileSync } from "node:fs";
+import process from "node:process";
 import type { PluginStatus } from "@orb/contracts/plugin";
 import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -15,7 +16,7 @@ import { capturePluginRows } from "@orb/testkit/node/rows";
 import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, PLUGIN_BROKER_LIVENESS_BOUND_MS, PLUGIN_NET_MAX_BYTES } from "#server/infra/plugin-host/budgets.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import { PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
-import { createPluginProcessEdge, firstChild } from "../process-runtime.fixtures.ts";
+import { brokerOf, createPluginProcessEdge, firstChild } from "../process-runtime.fixtures.ts";
 
 const ENABLED = "enabled" satisfies PluginStatus;
 const BROKER_STOPPED = "stopped" satisfies NonNullable<ReturnType<typeof parsePluginIpcMessage>>["kind"];
@@ -33,6 +34,12 @@ const CHANNEL_FULL = `${PLUGIN_HOST_UNAVAILABLE}:${PLUGIN_CHANNEL_FULL_CODE}`;
 const FLOOD_OPS = {
   // Megabyte arguments that cross the channels before the host refuses them for their size: the bytes are the flood.
   floodStore: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.set('k' + i, big))); return settled.map(report); }`,
+  // Megabyte keys, which no store keeps.
+  floodGetKey: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, (_, i) => h.storage.get(big + i))); return settled.map(report); }`,
+  // Megabyte messages a door with no tighter cap than the inbound one reads whole and the domain clamps.
+  floodToast: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.ui.toast('info', big))); return settled.map(report); }`,
+  // The same messages, each call made by a getter on the last call's later argument while the host reads it.
+  floodToastNested: `async (h, room, a) => { ${REPORT} const big = 'x'.repeat(a.bytes); const calls = []; const call = (level) => { const later = { get probe() { if (level + 1 < a.calls) { calls.push(call(level + 1)); } return 1; } }; return h.ui.toast('info', big, later); }; calls.push(call(0)); const settled = await Promise.allSettled(calls); return settled.map(report); }`,
   // Megabyte results, the flood in the other direction: tiny to ask for, so the guest spends little, and refused or
   // served when they cross back.
   floodFetch: `async (h, room, a) => { ${REPORT} const settled = await Promise.allSettled(Array.from({ length: a.calls }, () => h.net.fetch(a.url))); return settled.map(report); }`,
@@ -42,21 +49,30 @@ const FLOOD_OPS = {
   oneSet: "async (h, room, a) => h.storage.set('one', 'x'.repeat(a.bytes))",
 } as const;
 const ARG_BYTES = HOST_FN_ARGS_MAX_BYTES - HOST_CALLS_IN_FLIGHT_MAX;
+// The ops that flood megabyte arguments, as `floodArgs` runs them.
+const ARG_FLOODS = ["floodStore", "floodGetKey", "floodToast", "floodToastNested"] as const satisfies readonly (keyof typeof FLOOD_OPS)[];
+type FloodOp = (typeof ARG_FLOODS)[number];
 // The outcome of one flooding invoke: the name its every call settled as, or the whole invoke ended by the guest's own
 // CPU window while it copied its arguments out — both contained, neither a lost broker.
 type FloodOutcome = { readonly kind: "settled"; readonly names: readonly string[] } | { readonly kind: "interrupted"; readonly name: string };
+const BYTES_PER_KIBIBYTE = 1024;
 const BULK_BODY = "x".repeat(PLUGIN_NET_MAX_BYTES - HOST_CALLS_IN_FLIGHT_MAX);
 
-interface Owners extends AsyncDisposable {
-  readonly root: NativeServerTestHarness;
-  readonly edge: ReturnType<typeof createPluginProcessEdge>;
+interface Bystander {
   readonly ping: () => ReturnType<GuestRun>;
   readonly bystanderCrashes: () => Promise<number>;
 }
 
+interface Owners extends AsyncDisposable, Bystander {
+  readonly root: NativeServerTestHarness;
+  readonly edge: ReturnType<typeof createPluginProcessEdge>;
+  /** Install the second owner's plugin, which answers a ping. From then on two owners can run plugin code here. */
+  readonly arrive: () => Promise<void>;
+}
+
 // A root on the production broker, with a remote that answers every request with a near-cap body, and a second owner
-// whose resident plugin answers a ping.
-async function ownersOnOneBroker(): Promise<Owners> {
+// whose resident plugin answers a ping. With `arrived` false, that plugin is installed only by `arrive`.
+async function ownersOnOneBroker(arrived = true): Promise<Owners> {
   await using stack = new AsyncDisposableStack();
   const seed = stack.use(await createServerHarness({ startJobs: false }));
   const bystanderId = await seed.app.sessions.ensureUser(BYSTANDER_HANDLE);
@@ -72,27 +88,56 @@ async function ownersOnOneBroker(): Promise<Owners> {
     }),
   );
   const bystander = await root.principalFor(bystanderId);
-  const pluginId = await installGuest(root, bystander, { slug: "bystander", capabilities: ["storage.kv"] }, { ping: "(h) => h.storage.get('k')" });
-  const ping = guestRunner({ root, caller: bystander, pluginId, chatId: null });
+  let installed: Bystander | undefined;
+  const arrive = async (): Promise<void> => {
+    const pluginId = await installGuest(root, bystander, { slug: "bystander", capabilities: ["storage.kv"] }, { ping: "(h) => h.storage.get('k')" });
+    const ping = guestRunner({ root, caller: bystander, pluginId, chatId: null });
+    installed = {
+      ping: (): ReturnType<GuestRun> => ping("ping"),
+      bystanderCrashes: async (): Promise<number> => (await capturePluginRows(root.db, bystanderId, pluginId)).plugin.consecutiveCrashes,
+    };
+  };
+  const arrivedBystander = (): Bystander => {
+    if (installed === undefined) {
+      throw new Error("the second owner's plugin was asked for before that owner arrived");
+    }
+    return installed;
+  };
+  if (arrived) {
+    await arrive();
+  }
   const owned = stack.move();
   return {
     root,
     edge,
-    ping: () => ping("ping"),
-    bystanderCrashes: async () => (await capturePluginRows(root.db, bystanderId, pluginId)).plugin.consecutiveCrashes,
+    arrive,
+    ping: () => arrivedBystander().ping(),
+    bystanderCrashes: () => arrivedBystander().bystanderCrashes(),
     [Symbol.asyncDispose]: () => owned.disposeAsync(),
   };
 }
 
-// The broker is the watchdog's one child process, and no production surface names its pid, so this reads it from the
-// watchdog's Linux process entry.
 function brokerPid(edge: Owners["edge"]): number {
   const watchdog = firstChild(edge).pid;
-  const children = readFileSync(`/proc/${String(watchdog)}/task/${String(watchdog)}/children`, "utf8")
-    .trim()
-    .split(" ");
-  expect(children).toHaveLength(1);
-  return Number(children[0]);
+  if (watchdog === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+  return brokerOf(watchdog);
+}
+
+// The broker's peak resident memory stays under its ceiling. The watchdog reads the broker's memory once a beat, so a
+// peak between two beats is read from the kernel: only Linux keeps a process's peak, in its process entry, and the
+// process table the other platforms read names no memory. There the broker kept for the whole flood is the evidence,
+// because the watchdog ends a broker it reads past its ceiling.
+function expectPeakUnderCeiling(broker: number, ceilingBytes: number): void {
+  if (process.platform !== "linux") {
+    return;
+  }
+  const kibibytes = /^VmHWM:\s+(\d+) kB$/mu.exec(readFileSync(`/proc/${String(broker)}/status`, "utf8"))?.[1];
+  if (kibibytes === undefined) {
+    throw new Error("the broker's process entry names its peak resident memory");
+  }
+  expect(Number(kibibytes) * BYTES_PER_KIBIBYTE).toBeLessThanOrEqual(ceilingBytes);
 }
 
 async function floodingPlugins(root: NativeServerTestHarness, count: number): Promise<readonly GuestRun[]> {
@@ -102,7 +147,7 @@ async function floodingPlugins(root: NativeServerTestHarness, count: number): Pr
     const pluginId = await installGuest(
       root,
       owner,
-      { slug: `flood-${String(index)}`, capabilities: ["storage.kv", "net.fetch"], netHosts: [NET_HOST] },
+      { slug: `flood-${String(index)}`, capabilities: ["storage.kv", "net.fetch", "ui.surface"], netHosts: [NET_HOST] },
       FLOOD_OPS,
     );
     runs.push(guestRunner({ root, caller: owner, pluginId, chatId: null }));
@@ -112,9 +157,9 @@ async function floodingPlugins(root: NativeServerTestHarness, count: number): Pr
 
 // One plugin's flood of megabyte arguments. A guest invoke that overruns its CPU window copying the arguments out
 // surfaces as a throw, not a value, so the harness throw is caught and read as the contained interrupt it is.
-async function floodArgs(run: GuestRun, calls: number): Promise<FloodOutcome> {
+async function floodArgs(run: GuestRun, calls: number, op: FloodOp = "floodStore"): Promise<FloodOutcome> {
   try {
-    const outcome = await run("floodStore", { calls, bytes: ARG_BYTES });
+    const outcome = await run(op, { calls, bytes: ARG_BYTES });
     if (!(outcome.ok && Array.isArray(outcome.value))) {
       throw new Error(`a flood invoke did not report its calls: ${JSON.stringify(outcome)}`);
     }
@@ -247,6 +292,59 @@ test("as many plugins as the broker has Workers, each looping megabyte fetch res
   expect(firstChild(edge)).toMatchObject({ exitCode: null, signalCode: null });
   expect(brokerPid(edge)).toBe(broker);
 });
+
+// One owner's plugins fill every Worker the pool holds, each looping megabyte arguments at one door. A store value and
+// a store key are refused for their size before they are read; a toast message is read whole, so only the plugin's
+// in-flight argument budget bounds what its calls hold, also when each call is made inside the last one's read. Halfway through, a second owner arrives and pings for the rest,
+// while the flood goes on within that owner's share. The broker is never replaced, its peak resident memory stays under
+// its ceiling, and the second owner is answered and never struck.
+test.for([
+  { door: "storage.set", op: "floodStore", answered: [] },
+  { door: "storage.get", op: "floodGetKey", answered: [] },
+  // The toast notice that the plugin's cooldown lets through is served.
+  { door: "ui.toast", op: "floodToast", answered: ["ok"] },
+  { door: "nested ui.toast", op: "floodToastNested", answered: ["ok"] },
+] as const satisfies readonly { readonly door: string; readonly op: FloodOp; readonly answered: readonly string[] }[])(
+  "one owner's plugins looping megabyte $door arguments on every Worker keep the broker under its memory ceiling, and an arriving owner's plugin answers",
+  { tags: ["slow"], timeout: FLOOD_TEST_TIMEOUT_MS },
+  async ({ op, answered }) => {
+    await using owners = await ownersOnOneBroker(false);
+    const runs = await floodingPlugins(owners.root, owners.root.env.PLUGIN_BROKER_WORKER_MAX);
+    const broker = brokerPid(owners.edge);
+    const sizeRefusal = await runs[0]?.("oneSet", { bytes: ARG_BYTES });
+    if (sizeRefusal?.ok !== false) {
+      throw new Error("a megabyte storage value is refused by the host");
+    }
+    const halfway = performance.now() + LOOPED_FLOOD_MS / 2;
+    const floodUntil = async (run: GuestRun, end: number): Promise<number> => {
+      let rounds = 0;
+      while (performance.now() < end) {
+        expectContained([await floodArgs(run, HOST_CALLS_IN_FLIGHT_MAX, op)], [sizeRefusal.name, ...answered]);
+        rounds += 1;
+      }
+      return rounds;
+    };
+    const pingUntil = async (end: number): Promise<readonly unknown[]> => {
+      const answers: unknown[] = [];
+      while (performance.now() < end) {
+        answers.push(await owners.ping());
+      }
+      return answers;
+    };
+
+    const soleRounds = await Promise.all(runs.map((run) => floodUntil(run, halfway)));
+    await owners.arrive();
+    const until = performance.now() + LOOPED_FLOOD_MS / 2;
+    const [answers, ...sharedRounds] = await Promise.all([pingUntil(until), ...runs.map((run) => floodUntil(run, until))]);
+
+    await expectBrokerKept(owners, broker);
+    expect(Math.min(...soleRounds)).toBeGreaterThan(1);
+    expect(Math.max(...sharedRounds)).toBeGreaterThan(1);
+    expect(answers.length).toBeGreaterThan(0);
+    expect(answers.filter((answer) => JSON.stringify(answer) !== JSON.stringify({ ok: true, value: null }))).toEqual([]);
+    expectPeakUnderCeiling(broker, owners.root.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES);
+  },
+);
 
 // A quarter of the allowance of megabyte values: enough to refuse by the host's size cap, few enough that the guest
 // stays inside its CPU window and handles every refusal, so it keeps its row unstruck.

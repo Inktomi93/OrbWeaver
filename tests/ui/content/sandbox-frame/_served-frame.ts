@@ -72,7 +72,7 @@ async function openFrameRoom(root: Root, chatId: ChatId, defaultCharacterId: Cha
 }
 
 /** Answer the frame's URL with the recorded real response, so the browser enforces the bytes the server sent. */
-export async function routeServedFrame(page: Page, frame: ServedFrame): Promise<void> {
+export async function routeServedFrame(page: Page, frame: Pick<ServedFrame, "url" | "status" | "headers" | "body">): Promise<void> {
   await page.route(`**${frame.url}`, async (route) => {
     await route.fulfill({ status: frame.status, headers: frame.headers, body: frame.body });
   });

@@ -1,6 +1,6 @@
 // An update that adds a model provider and turns on the automation opt-in is named on the plugin's consent card: the
-// re-consent sentence says both, each provider is listed with the added one alone marked new, and the automation line
-// carries the same mark. The unmarked first provider is the control for the mark. Approving the card sends the echo the
+// re-consent sentence says both, each provider is listed with the added one alone marked as widened, and the automation
+// line carries the added mark. The unmarked first provider is the control for the mark. Approving the card sends the echo the
 // server requires, so the plugin comes up enabled with the provider and the opt-in answered.
 import { spawn } from "node:child_process";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
@@ -14,6 +14,7 @@ import {
   approveLabel,
   PLUGIN_ADDED_MARK,
   PLUGIN_AUTOMATION_EVENTS_LINE,
+  PLUGIN_PROVIDER_WIDENED_MARK,
   RE_CONSENT_AUTOMATION_EVENTS,
   RE_CONSENT_ONE_PROVIDER,
 } from "#client/features/plugin/lib/plugin-copy.ts";
@@ -85,9 +86,9 @@ test("an update's added provider and automation opt-in are named and marked on t
 
   const added = page.getByRole("listitem").filter({ hasText: ADDED_LABEL });
   const first = page.getByRole("listitem").filter({ hasText: FIRST_LABEL });
-  await expect(added.getByText(PLUGIN_ADDED_MARK, { exact: true })).toBeVisible();
+  await expect(added.getByText(PLUGIN_PROVIDER_WIDENED_MARK, { exact: true })).toBeVisible();
   await expect(first).toBeVisible();
-  await expect(first.getByText(PLUGIN_ADDED_MARK, { exact: true })).toHaveCount(0);
+  await expect(first.getByText(PLUGIN_PROVIDER_WIDENED_MARK, { exact: true })).toHaveCount(0);
 
   const automation = page.getByText(PLUGIN_AUTOMATION_EVENTS_LINE, { exact: true });
   await expect(automation).toBeVisible();

@@ -143,12 +143,14 @@ function pendingWidenedNetHosts(newlyDeclared: readonly string[], widened: reado
 /** The reach a settled row withholds: nothing. */
 export const NO_UNANSWERED_REACH: UnansweredReach = { netHosts: [], providerIds: [], matchAutomationEvents: false };
 
-/** Provider ids `next` declares that `prior` did not, in `next` order. Compared by id alone: the connection domain's
- *  per-owner claim binds an id to its first definition and refuses a changed one at activation, so a changed
- *  definition under a known id cannot reach anything new. */
+/** Provider ids `next` declares with a definition `prior` did not, in `next` order: a new id, or a known id whose
+ *  definition changed. The owner approved the definition they were shown, and the connection domain's per-owner claim
+ *  refuses a changed one only once an activation has claimed the id, so an approved id no activation claimed would
+ *  otherwise carry a new base URL, models or kind with no re-consent. Definition identity is the one that claim
+ *  hashes: the serialized row, which both manifests produce through the same schema parse, so key order is fixed. */
 function widenedProviderIds(next: readonly ProviderDef[], prior: readonly ProviderDef[]): ProviderId[] {
-  const priorIds = new Set(prior.map((row) => row.id));
-  return next.map((row) => row.id).filter((id) => !priorIds.has(id));
+  const priorDefinitions = new Map(prior.map((row) => [row.id, JSON.stringify(row)]));
+  return next.filter((row) => priorDefinitions.get(row.id) !== JSON.stringify(row)).map((row) => row.id);
 }
 
 /** What `next` reaches that the owner of `prior` never consented to, per widening field. `capabilities` is judged

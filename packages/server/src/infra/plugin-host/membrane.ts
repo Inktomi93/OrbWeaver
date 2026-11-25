@@ -23,7 +23,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
-import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
+import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, GLOBAL_VARIABLE_KEY_MAX_CHARS, GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
 import type { VariablePrecondition } from "@orb/contracts/chat";
 import { variablePreconditionsSchema } from "@orb/contracts/chat";
 import type { GenerateImageActionArgs } from "@orb/contracts/imagery";
@@ -51,6 +51,8 @@ import {
   HOST_FUNCTION_CAPABILITY,
   PLUGIN_CARD_DATA_FIND_MAX,
   PLUGIN_FRAME_SURFACES_MAX,
+  PLUGIN_KV_KEY_MAX_CHARS,
+  PLUGIN_KV_VALUE_MAX_BYTES,
   PLUGIN_PUBSUB_NAME_RE,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
   PLUGIN_QUIET_IMAGES_MAX,
@@ -77,6 +79,7 @@ import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
+  HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
@@ -90,7 +93,7 @@ import {
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { LocalPluginHostSeams } from "./contract/port.ts";
 import { pumpGuestJobs, settleInCpuWindow } from "./cpu-guard.ts";
-import type { GuestMarshal } from "./marshal.ts";
+import type { GuestMarshal, ReadAllowance } from "./marshal.ts";
 import { GuestCallFailure, guestJson } from "./marshal.ts";
 
 /** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context) and is
@@ -110,6 +113,8 @@ import { GuestCallFailure, guestJson } from "./marshal.ts";
  *  guest-reachable), and it is the direction to fail in — the alternative it replaces failed OPEN. */
 export interface InFlightCounter {
   count: number;
+  /** The argument bytes the running host work holds, under {@link HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES}. */
+  argBytes: number;
   /** Cooperative cancellations for host work that is still running. The Sandbox aborts the set on teardown;
    *  each operation removes its own controller only when the implementation actually settles. Optional only
    *  for direct membrane unit fixtures; every live Sandbox supplies it. */
@@ -283,6 +288,9 @@ interface AsyncFnSpec {
   readonly log: Logger;
   readonly marshal: GuestMarshal;
   readonly impl: (args: readonly unknown[], signal: AbortSignal) => Promise<unknown>;
+  /** The most string, in UTF-16 units, the function's arguments can hold and still be served, when its store keeps
+   *  less than {@link HOST_FN_ARGS_MAX_BYTES}: a longer call is refused before it is read. */
+  readonly argUnitsMax?: number;
 }
 
 function commandHandler(ctx: QuickJSContext, onRun: QuickJSHandle, composerDraft: boolean): QuickJSHandle {
@@ -348,6 +356,12 @@ type ArgRead = { readonly ok: true; readonly value: unknown } | { readonly ok: f
 
 /** Why an argument the depth guard or the read refused crosses no further. */
 const UNREADABLE_ARGUMENT = "too deeply nested or too large to read";
+
+/** What one synchronous host call may copy out of the realm: the inbound cap every async call has too, so a
+ *  registration past it is refused before it is read (`marshal.ts`). Every registration schema admits far less. */
+function inboundAllowance(): ReadAllowance {
+  return { units: HOST_FN_ARGS_MAX_BYTES };
+}
 const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
 
 /** The ONE guest-handle materialization doorway for a host function's argument or definition value. The read is the
@@ -357,8 +371,8 @@ const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
  *  Call it only inside a host function built by `marshal.newHostFunction`: a realm failure during the read (the
  *  CPU interrupt, the memory limit, a guest trap that throws) throws {@link GuestCallFailure}, which that function
  *  hands back to the guest. */
-function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle): ArgRead {
-  const read = marshal.fromGuest(handle);
+function tryDumpGuestValue(marshal: GuestMarshal, handle: QuickJSHandle, allowance: ReadAllowance): ArgRead {
+  const read = marshal.fromGuest(handle, allowance);
   switch (read.kind) {
     case "value":
       return { ok: true, value: read.value };
@@ -390,11 +404,16 @@ const FRAME_BODY_PROPS = ["html", "css"] as const;
 /** Materialize a fixed list of a def's own props into one plain object, or `undefined` when ANY of them is too
  *  deeply nested or too large to read (see {@link tryDumpGuestValue}). Shared by both registrars so the depth guard
  *  is applied identically at both doors. Every handle it opens is disposed here. */
-function dumpDefProps(marshal: GuestMarshal, defHandle: QuickJSHandle, names: readonly string[]): Record<string, unknown> | undefined {
+function dumpDefProps(
+  marshal: GuestMarshal,
+  defHandle: QuickJSHandle,
+  names: readonly string[],
+  allowance: ReadAllowance,
+): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   for (const name of names) {
     using handle = marshal.readGuestProp(defHandle, name);
-    const dumped = tryDumpGuestValue(marshal, handle);
+    const dumped = tryDumpGuestValue(marshal, handle, allowance);
     if (!dumped.ok) {
       return;
     }
@@ -424,10 +443,14 @@ function isDeclarativeTier(tier: PluginSurfaceRegistrationMeta["tier"]): tier is
 function parseSurfaceMeta(
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
-  { props, overrides }: { readonly props: readonly string[]; readonly overrides: Readonly<Record<string, unknown>> },
+  {
+    props,
+    overrides,
+    allowance,
+  }: { readonly props: readonly string[]; readonly overrides: Readonly<Record<string, unknown>>; readonly allowance: ReadAllowance },
 ): SurfaceMetaParse {
   try {
-    const raw = dumpDefProps(marshal, defHandle, props);
+    const raw = dumpDefProps(marshal, defHandle, props, allowance);
     if (raw === undefined) {
       return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
     }
@@ -458,7 +481,7 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
     // Absent props dump as `undefined`, which the schema's optional `spec`/`toolName` accept — and which the
     // U3 `tool-card` biconditional REFUSES for that one anchor. Parsed BEFORE `onAction` is taken, so a realm
     // failure the parse hands back to the guest leaves no handle of ours behind.
-    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: SURFACE_DEF_PROPS, overrides: {} });
+    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: SURFACE_DEF_PROPS, overrides: {}, allowance: inboundAllowance() });
     // `onAction` is NOT scope-owned: on the collect path its ownership TRANSFERS to the Sandbox (kept alive for
     // the instance lifetime); on every other path it is hand-disposed — a `using` would double-free the
     // transferred handle (`Lifetime.dispose` throws on a second call). `refuse` owns that discipline for every
@@ -502,9 +525,9 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
  *  handed to `collectSurface` as its own argument. */
 type FrameBodyParse = { readonly ok: true; readonly body: PluginFrameBody } | { readonly ok: false; readonly reason: string };
 
-function parseFrameBody(marshal: GuestMarshal, defHandle: QuickJSHandle): FrameBodyParse {
+function parseFrameBody(marshal: GuestMarshal, defHandle: QuickJSHandle, allowance: ReadAllowance): FrameBodyParse {
   try {
-    const raw = dumpDefProps(marshal, defHandle, FRAME_BODY_PROPS);
+    const raw = dumpDefProps(marshal, defHandle, FRAME_BODY_PROPS, allowance);
     if (raw === undefined) {
       return { ok: false, reason: "the frame body is too deeply nested or too large to validate" };
     }
@@ -549,11 +572,13 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
     // `tier` is an OVERRIDE, not a read: the guest never names one at this door (see FRAME_DEF_PROPS). The meta
     // parse still applies every shared belt — the id grammar, the title cap, and the anchor × tier admission
     // that refuses `message-footer` permanently (`PLUGIN_ANCHOR_TIERS`).
-    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: FRAME_DEF_PROPS, overrides: { tier: "frame" } });
+    // One allowance for the whole call: the metadata and the body are one definition.
+    const allowance = inboundAllowance();
+    const parsed = parseSurfaceMeta(runtime.marshal, defHandle, { props: FRAME_DEF_PROPS, overrides: { tier: "frame" }, allowance });
     if (!parsed.ok) {
       return refuse(parsed.reason);
     }
-    const body = parseFrameBody(runtime.marshal, defHandle);
+    const body = parseFrameBody(runtime.marshal, defHandle, allowance);
     if (!body.ok) {
       return refuse(body.reason);
     }
@@ -568,7 +593,7 @@ type CommandMetaParse =
   | { readonly ok: false; readonly reason: string };
 
 /** A command definition's metadata, read and validated. The handles it opens are scope-owned. */
-function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle): CommandMetaParse {
+function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle, allowance: ReadAllowance): CommandMetaParse {
   using nameH = marshal.readGuestProp(defHandle, "name");
   using describeH = marshal.readGuestProp(defHandle, "describe");
   // The DECLARED typed args (absent ⇒ the U5 opaque-remainder shape). Read through the SAME depth guard as every
@@ -578,12 +603,12 @@ function commandMeta(marshal: GuestMarshal, defHandle: QuickJSHandle): CommandMe
   using groupH = marshal.readGuestProp(defHandle, "group");
   using placementsH = marshal.readGuestProp(defHandle, "placements");
   using composerDraftH = marshal.readGuestProp(defHandle, "composerDraft");
-  const name = tryDumpGuestValue(marshal, nameH);
-  const describe = tryDumpGuestValue(marshal, describeH);
-  const args = tryDumpGuestValue(marshal, argsH);
-  const group = tryDumpGuestValue(marshal, groupH);
-  const placements = tryDumpGuestValue(marshal, placementsH);
-  const composerDraft = tryDumpGuestValue(marshal, composerDraftH);
+  const name = tryDumpGuestValue(marshal, nameH, allowance);
+  const describe = tryDumpGuestValue(marshal, describeH, allowance);
+  const args = tryDumpGuestValue(marshal, argsH, allowance);
+  const group = tryDumpGuestValue(marshal, groupH, allowance);
+  const placements = tryDumpGuestValue(marshal, placementsH, allowance);
+  const composerDraft = tryDumpGuestValue(marshal, composerDraftH, allowance);
   if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok && composerDraft.ok)) {
     return { ok: false, reason: "metadata is too deeply nested or too large to validate" };
   }
@@ -668,7 +693,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       runtime.logWarn(`ui.registerCommand refused a command: at most ${PLUGIN_COMMANDS_MAX} commands per plugin`);
       return ctx.undefined;
     }
-    const parsed = commandMeta(marshal, defHandle);
+    const parsed = commandMeta(marshal, defHandle, inboundAllowance());
     if (!parsed.ok) {
       runtime.logWarn(`ui.registerCommand refused a command: ${parsed.reason}`);
       return ctx.undefined;
@@ -1145,6 +1170,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: GLOBAL_VARIABLE_KEY_MAX_CHARS,
     impl: async (args, signal) => await runtime.bridge.variables.get(stringArg(args, 0, "variables.get", "key"), invocationLiveness(signal)),
   });
   attachAsync(ctx, vars, {
@@ -1154,6 +1180,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: GLOBAL_VARIABLE_KEY_MAX_CHARS + GLOBAL_VARIABLE_VALUE_MAX_BYTES,
     impl: async (args, signal) => {
       await runtime.bridge.variables.set(stringArg(args, 0, "variables.set", "key"), stringArg(args, 1, "variables.set", "value"), invocationLiveness(signal));
       return null;
@@ -1166,6 +1193,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: GLOBAL_VARIABLE_KEY_MAX_CHARS,
     impl: async (args, signal) => {
       await runtime.bridge.variables.delete(stringArg(args, 0, "variables.delete", "key"), invocationLiveness(signal));
       return null;
@@ -1177,7 +1205,8 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
 /** storage.get/set/compareAndSet/delete/list — capability storage.kv. The plugin-PRIVATE KV: the bridge op
  *  is closed DOMAIN-side over the pluginId + installer (owner), so a guest names only the key/prefix and can
  *  NEVER read another plugin's (or owner's) keys. Not host-authority gated (a plugin's own private store is not
- *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op. */
+ *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op; a call
+ *  whose strings are longer than its key and values together could ever be is refused here, unread. */
 function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using storage = ctx.newObject();
   attachAsync(ctx, storage, {
@@ -1187,6 +1216,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS,
     impl: async (args, signal) => await runtime.bridge.storage.get(stringArg(args, 0, "storage.get", "key"), invocationLiveness(signal)),
   });
   attachAsync(ctx, storage, {
@@ -1196,6 +1226,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS + PLUGIN_KV_VALUE_MAX_BYTES,
     impl: async (args, signal) => {
       await runtime.bridge.storage.set(stringArg(args, 0, "storage.set", "key"), stringArg(args, 1, "storage.set", "value"), invocationLiveness(signal));
       return null;
@@ -1213,6 +1244,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS + 2 * PLUGIN_KV_VALUE_MAX_BYTES,
     impl: async (args, signal) => {
       const expected = args[1] === null || args[1] === undefined ? null : stringArg(args, 1, "storage.compareAndSet", "expected value");
       const key = stringArg(args, 0, "storage.compareAndSet", "key");
@@ -1227,6 +1259,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS,
     impl: async (args, signal) => {
       await runtime.bridge.storage.delete(stringArg(args, 0, "storage.delete", "key"), invocationLiveness(signal));
       return null;
@@ -1239,6 +1272,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     pending: runtime.pending,
     log: runtime.log,
     marshal: runtime.marshal,
+    argUnitsMax: PLUGIN_KV_KEY_MAX_CHARS,
     impl: async (args, signal) => {
       const prefix = typeof args[0] === "string" ? args[0] : undefined;
       return await runtime.bridge.storage.list(prefix, invocationLiveness(signal));
@@ -1509,7 +1543,7 @@ function toolDisplayMetadata(
   ctx: QuickJSContext,
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
-  name: string,
+  { name, allowance }: { readonly name: string; readonly allowance: ReadAllowance },
 ): Pick<Parameters<MembraneRuntime["collectTool"]>[0], "displayName" | "replayHistory"> {
   using displayHandle = marshal.readGuestProp(defHandle, "displayName");
   using replayHandle = marshal.readGuestProp(defHandle, "replayHistory");
@@ -1518,7 +1552,7 @@ function toolDisplayMetadata(
   if ((displayType !== "string" && displayType !== "undefined") || (replayType !== "boolean" && replayType !== "undefined")) {
     throw new Error("plugin host: tool displayName must be nonempty text and replayHistory must be boolean");
   }
-  const display = displayType === "string" ? tryDumpGuestValue(marshal, displayHandle) : { ok: true, value: name.replaceAll("_", " ") };
+  const display = displayType === "string" ? tryDumpGuestValue(marshal, displayHandle, allowance) : { ok: true, value: name.replaceAll("_", " ") };
   const displayName = display.ok && typeof display.value === "string" ? display.value : "";
   if (displayName.trim().length === 0) {
     throw new Error("plugin host: tool displayName must be nonempty text");
@@ -1526,7 +1560,7 @@ function toolDisplayMetadata(
   if (replayType === "undefined") {
     return { displayName };
   }
-  const replay = tryDumpGuestValue(marshal, replayHandle);
+  const replay = tryDumpGuestValue(marshal, replayHandle, allowance);
   if (!replay.ok || typeof replay.value !== "boolean") {
     throw new Error("plugin host: tool replayHistory could not be read as boolean");
   }
@@ -1538,16 +1572,17 @@ function toolDisplayMetadata(
 function toolDefinition(
   marshal: GuestMarshal,
   defHandle: QuickJSHandle,
+  allowance: ReadAllowance,
 ): { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> } {
   // Metadata stays scope-owned; acquire the transferred handler only after every metadata refusal.
   using nameHandle = marshal.readGuestProp(defHandle, "name");
   using descHandle = marshal.readGuestProp(defHandle, "description");
   using paramsHandle = marshal.readGuestProp(defHandle, "parameters");
-  const dumpedName = tryDumpGuestValue(marshal, nameHandle);
-  const dumpedDescription = tryDumpGuestValue(marshal, descHandle);
-  const dumpedParameters = tryDumpGuestValue(marshal, paramsHandle);
+  const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
+  const dumpedDescription = tryDumpGuestValue(marshal, descHandle, allowance);
+  const dumpedParameters = tryDumpGuestValue(marshal, paramsHandle, allowance);
   if (!(dumpedName.ok && dumpedDescription.ok && dumpedParameters.ok)) {
-    throw new Error("plugin host: tools.register metadata is too deeply nested");
+    throw new Error("plugin host: tools.register metadata is too deeply nested or too large to read");
   }
   const name = dumpedName.value;
   const description = dumpedDescription.value;
@@ -1591,8 +1626,9 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
     if (holdings.tools >= PLUGIN_TOOLS_MAX) {
       throw new Error(`plugin host: tools.register holds at most ${PLUGIN_TOOLS_MAX} tools per plugin`);
     }
-    const { name, description, parameters } = toolDefinition(marshal, defHandle);
-    const presentation = toolDisplayMetadata(ctx, marshal, defHandle, name);
+    const allowance = inboundAllowance();
+    const { name, description, parameters } = toolDefinition(marshal, defHandle, allowance);
+    const presentation = toolDisplayMetadata(ctx, marshal, defHandle, { name, allowance });
     // Taken last, so every refusal above leaves no handle of ours; its ownership transfers to the Sandbox below.
     const handler = marshal.readGuestProp(defHandle, "handler");
     if (ctx.typeof(handler) !== "function") {
@@ -1626,6 +1662,7 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
   using transforms = ctx.newObject();
   using registerFn = marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "transforms.register");
+    const allowance = inboundAllowance();
     if (defHandle === undefined) {
       throw new Error("plugin host: transforms.register requires a definition object");
     }
@@ -1634,12 +1671,12 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
     // after the metadata reads, whose realm failure goes back to the guest.
     using nameHandle = marshal.readGuestProp(defHandle, "name");
     using pointHandle = marshal.readGuestProp(defHandle, "point");
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
-    const dumpedPoint = tryDumpGuestValue(marshal, pointHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
+    const dumpedPoint = tryDumpGuestValue(marshal, pointHandle, allowance);
     const apply = marshal.readGuestProp(defHandle, "apply");
     if (!(dumpedName.ok && dumpedPoint.ok)) {
       apply.dispose();
-      throw new Error("plugin host: transforms.register metadata is too deeply nested");
+      throw new Error("plugin host: transforms.register metadata is too deeply nested or too large to read");
     }
     const name = dumpedName.value;
     const point = dumpedPoint.value;
@@ -1658,15 +1695,16 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
   // may annotate its installer's screen and one that may not, may not.
   using registerDisplayFn = marshal.newHostFunction("registerDisplay", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "transforms.registerDisplay");
+    const allowance = inboundAllowance();
     if (defHandle === undefined) {
       throw new Error("plugin host: transforms.registerDisplay requires a definition object");
     }
     using nameHandle = marshal.readGuestProp(defHandle, "name");
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
     const apply = marshal.readGuestProp(defHandle, "apply");
     if (!dumpedName.ok) {
       apply.dispose();
-      throw new Error("plugin host: transforms.registerDisplay metadata is too deeply nested");
+      throw new Error("plugin host: transforms.registerDisplay metadata is too deeply nested or too large to read");
     }
     if (typeof dumpedName.value !== "string" || ctx.typeof(apply) !== "function") {
       apply.dispose();
@@ -1688,6 +1726,7 @@ function setMacros(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   using macros = ctx.newObject();
   using registerFn = marshal.newHostFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "macros.register");
+    const allowance = inboundAllowance();
     if (defHandle === undefined) {
       throw new Error("plugin host: macros.register requires a definition object");
     }
@@ -1695,12 +1734,12 @@ function setMacros(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     // `collectMacro` on success and is hand-disposed only on the reject path. It is taken after the metadata reads.
     using nameHandle = marshal.readGuestProp(defHandle, "name");
     using descHandle = marshal.readGuestProp(defHandle, "description");
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
-    const dumpedDescription = tryDumpGuestValue(marshal, descHandle);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
+    const dumpedDescription = tryDumpGuestValue(marshal, descHandle, allowance);
     const resolve = marshal.readGuestProp(defHandle, "resolve");
     if (!(dumpedName.ok && dumpedDescription.ok)) {
       resolve.dispose();
-      throw new Error("plugin host: macros.register metadata is too deeply nested");
+      throw new Error("plugin host: macros.register metadata is too deeply nested or too large to read");
     }
     const name = dumpedName.value;
     const description = dumpedDescription.value;
@@ -1728,12 +1767,13 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   using events = ctx.newObject();
   using onFn = marshal.newHostFunction("on", (typeHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
     requireCapability(runtime, "events.on");
+    const allowance = inboundAllowance();
     if (typeHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: events.on requires (type, handler)");
     }
-    const dumpedType = tryDumpGuestValue(marshal, typeHandle);
+    const dumpedType = tryDumpGuestValue(marshal, typeHandle, allowance);
     if (!dumpedType.ok) {
-      throw new Error("plugin host: events.on type is too deeply nested");
+      throw new Error("plugin host: events.on type is too deeply nested or too large to read");
     }
     const type = dumpedType.value;
     if (typeof type !== "string" || !TRIGGER_TYPES.has(type)) {
@@ -1772,13 +1812,14 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   // every refuse path.
   using onFn = marshal.newHostFunction("on", (slugHandle?: QuickJSHandle, nameHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
     requireCapability(runtime, "pubsub.on");
+    const allowance = inboundAllowance();
     if (slugHandle === undefined || nameHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: pubsub.on requires (emitterSlug, name, handler)");
     }
-    const dumpedSlug = tryDumpGuestValue(marshal, slugHandle);
-    const dumpedName = tryDumpGuestValue(marshal, nameHandle);
+    const dumpedSlug = tryDumpGuestValue(marshal, slugHandle, allowance);
+    const dumpedName = tryDumpGuestValue(marshal, nameHandle, allowance);
     if (!(dumpedSlug.ok && dumpedName.ok)) {
-      runtime.logWarn("pubsub.on refused a subscription: a coordinate is too deeply nested");
+      runtime.logWarn("pubsub.on refused a subscription: a coordinate is too deeply nested or too large to read");
       return ctx.undefined;
     }
     const emitterSlug = dumpedSlug.value;
@@ -1867,7 +1908,78 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
   runtime.marshal.setHostProp(surface, "net", net);
 }
 
-/** True once the already-dumped guest arguments exceed `cap` serialized bytes. An ITERATIVE walk that
+function argsOverCap(name: string, cap: number): string {
+  return `plugin host: ${name} arguments exceed the ${String(cap)}-byte inbound cap`;
+}
+
+function argsPastInFlightRoom(name: string): string {
+  return `plugin host: ${name} arguments do not fit the ${String(HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES)} bytes this plugin's running host calls may hold`;
+}
+
+/** One host call's arguments read into the host, or why they are refused. Each check runs before the in-flight gate,
+ *  so a refused call never charges a slot.
+ *
+ *  - THE INBOUND LENGTH ALLOWANCE: every string the arguments hold is measured before it is read, against the most the
+ *    call can carry or its store can keep, so a call refused for its size has copied nothing out of the realm
+ *    (`marshal.ts`). Its bytes are at least its units, so the refusal names the cap as bytes truthfully.
+ *  - THE INBOUND DEPTH GUARD: the marshal's bounded walk refuses a too-deep or too-wide argument as it reads it,
+ *    because a deeply-nested guest argument handed to the binding's dump would overflow it host-side and corrupt the
+ *    WASM runtime (`budgets.ts`).
+ *  - THE INBOUND ARG CAP: the mirror of the result cap, on the bytes the read arguments cross as.
+ *  - THE IN-FLIGHT ROOM: what the instance's running calls leave of {@link HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES}. The
+ *    length allowance is never more than the room, so a call past it is refused before the rest is read, and the
+ *    bytes returned are what the caller charges.
+ *
+ *  Call it inside a host function, as {@link tryDumpGuestValue}. */
+function readHostArgs(
+  marshal: GuestMarshal,
+  name: string,
+  argHandles: readonly QuickJSHandle[],
+  { argUnitsMax, room }: { readonly argUnitsMax: number; readonly room: number },
+): { readonly ok: true; readonly args: readonly unknown[]; readonly bytes: number } | { readonly ok: false; readonly refusal: string } {
+  const roomBound = room < argUnitsMax;
+  const allowance: ReadAllowance = { units: Math.min(argUnitsMax, room) };
+  const args: unknown[] = [];
+  for (const handle of argHandles) {
+    const dumped = tryDumpGuestValue(marshal, handle, allowance);
+    if (!dumped.ok) {
+      if (allowance.units >= 0) {
+        return { ok: false, refusal: `plugin host: ${name} argument is ${dumped.reason}` };
+      }
+      return { ok: false, refusal: roomBound ? argsPastInFlightRoom(name) : argsOverCap(name, argUnitsMax) };
+    }
+    args.push(dumped.value);
+  }
+  const bytes = argBytes(args, HOST_FN_ARGS_MAX_BYTES);
+  if (bytes > HOST_FN_ARGS_MAX_BYTES) {
+    return { ok: false, refusal: argsOverCap(name, HOST_FN_ARGS_MAX_BYTES) };
+  }
+  return bytes > room ? { ok: false, refusal: argsPastInFlightRoom(name) } : { ok: true, args, bytes };
+}
+
+/** {@link readHostArgs} with the read's whole allowance held in the instance's in-flight budget while it runs. The
+ *  walk runs guest getters, and a getter can make another host call mid-read: that call must see the room this read
+ *  may still fill, or each level of nesting reads a full room. The bytes are judged again after the read, against
+ *  what the calls that nested meanwhile now hold. */
+function readUnderReservation(
+  marshal: GuestMarshal,
+  name: string,
+  argHandles: readonly QuickJSHandle[],
+  { argUnitsMax, inFlight }: { readonly argUnitsMax: number; readonly inFlight: InFlightCounter },
+): ReturnType<typeof readHostArgs> {
+  const room = HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES - inFlight.argBytes;
+  const reserved = Math.max(0, Math.min(argUnitsMax, room));
+  inFlight.argBytes += reserved;
+  let read: ReturnType<typeof readHostArgs>;
+  try {
+    read = readHostArgs(marshal, name, argHandles, { argUnitsMax, room });
+  } finally {
+    inFlight.argBytes -= reserved;
+  }
+  return read.ok && read.bytes > HOST_FN_ARGS_IN_FLIGHT_MAX_BYTES - inFlight.argBytes ? { ok: false, refusal: argsPastInFlightRoom(name) } : read;
+}
+
+/** The serialized bytes of the already-dumped guest arguments, counted until they pass `cap`. An ITERATIVE walk that
  *  SHORT-CIRCUITS the moment the budget is blown — so a hostile payload costs ~`cap` of accounting, not a
  *  second full `JSON.stringify` of the whole graph. Every value is charged its own JSON text, which is the form a
  *  guest string crosses in (`marshal.ts`): a string or key its escaped text with quotes, a scalar its digits, plus
@@ -1876,16 +1988,15 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
  *  WHAT THIS BOUNDS, precisely: everything that crosses into a domain op, and everything RETAINED host-side for
  *  the life of the async impl — which is the amplification (`HOST_CALLS_IN_FLIGHT_MAX` concurrent calls, each
  *  previously free to hold the guest's whole 32 MiB heap, plus whatever the op then did with it: a
- *  `storage.set` writes it, a `net.fetch` body sends it). What it does NOT bound is the TRANSIENT read
- *  (`marshal.ts` `fromGuest`) it must measure — one at a time per context, and already bounded by the instance memory cap.
- *  Do not read this cap as a bound on peak host memory; it is a bound on retained and forwarded bytes. */
-function exceedsArgBudget(args: readonly unknown[], cap: number): boolean {
+ *  `storage.set` writes it, a `net.fetch` body sends it). The TRANSIENT read it measures is bounded before it, by the
+ *  length allowance in {@link readHostArgs}; this cap adds the exact byte count, which a length cannot give. */
+function argBytes(args: readonly unknown[], cap: number): number {
   let bytes = 0;
   const pending: unknown[] = [...args];
   while (pending.length > 0 && bytes <= cap) {
     bytes += chargeValue(pending.pop(), pending);
   }
-  return bytes > cap;
+  return bytes;
 }
 
 /** The comma or colon JSON spends beside each value and key, so a payload of a million empty strings is not
@@ -1967,7 +2078,7 @@ function settleGuestPromise(spec: AsyncFnSpec, deferred: QuickJSDeferredPromise,
  *  this does NOT claim to be: a spend CEILING (the D46 amendment retired the plugin spend tier
  *  deliberately). It is a concurrency bound, and it is now true. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
-  const { ref, grants, inFlight, pending, impl, log, marshal } = spec;
+  const { ref, grants, inFlight, pending, impl, log, marshal, argUnitsMax = HOST_FN_ARGS_MAX_BYTES } = spec;
   const name = hostFunctionName(ref);
   const capability = HOST_FUNCTION_CAPABILITY[ref];
   // The membrane runs in the broker Worker, whose spans reach no debug surface.
@@ -1981,24 +2092,13 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
       return marshal.rejectedWith(new PluginCapabilityError(capability));
     }
     //
-    // THE INBOUND DEPTH GUARD — the marshal's bounded walk refuses a too-deep or too-wide arg as it reads it,
-    // because a deeply-nested guest arg handed to the binding's dump would overflow it host-side and corrupt the
-    // WASM runtime (`budgets.ts`). A refusal is an already-rejected promise and registers nothing in `pending`.
     // The reads come before any handle of ours exists: a realm failure during one goes back to the guest as it is.
-    const args: unknown[] = [];
-    for (const handle of argHandles) {
-      const dumped = tryDumpGuestValue(marshal, handle);
-      if (!dumped.ok) {
-        return marshal.rejectedWith({ name: "Error", message: `plugin host: ${name} argument is ${dumped.reason}` });
-      }
-      args.push(dumped.value);
+    // A refusal is an already-rejected promise and registers nothing in `pending`.
+    const read = readUnderReservation(marshal, name, argHandles, { argUnitsMax, inFlight });
+    if (!read.ok) {
+      return marshal.rejectedWith({ name: "Error", message: read.refusal });
     }
-
-    // THE INBOUND ARG CAP — the mirror of the result cap below, checked BEFORE the in-flight gate so a refused
-    // call never charges a slot.
-    if (exceedsArgBudget(args, HOST_FN_ARGS_MAX_BYTES)) {
-      return marshal.rejectedWith({ name: "Error", message: `plugin host: ${name} arguments exceed the ${HOST_FN_ARGS_MAX_BYTES}-byte inbound cap` });
-    }
+    const { args, bytes } = read;
 
     // Two counts under one cap: host work still running, and guest promises not yet settled, a settlement held while
     // the account is spent included. The second bounds what held settlements keep in memory to the cap's number of
@@ -2010,6 +2110,8 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     // promise and the Sandbox's `pending` drain owns teardown).
     const deferred = ctx.newPromise();
     inFlight.count += 1;
+    // The arguments stay alive for as long as the implementation runs, so their bytes are held until it settles.
+    inFlight.argBytes += bytes;
     // Track this UNSETTLED deferred so the Sandbox can drain it if the invocation ends before it settles (a
     // fire-and-forget that outlives its scope): an unsettled guest Promise at `ctx.dispose()` aborts the shared
     // WASM module. Deregistered in the `.finally` once the host call settles (or is dropped by the alive guard).
@@ -2033,6 +2135,7 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     let settlement: Promise<void>;
     const releaseSlot = (): void => {
       inFlight.count -= 1;
+      inFlight.argBytes -= bytes;
       inFlight.controllers?.delete(controller);
       inFlight.settlements?.delete(settlement);
     };

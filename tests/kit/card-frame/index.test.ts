@@ -103,12 +103,14 @@ test("the routed sandbox grants exactly allow-scripts, on the attribute and in t
   }
 });
 
-test("no delivery or posture opens connect-src, forms or base retargeting, and nothing admits plaintext http", () => {
+test("no delivery or posture opens connect-src, objects, forms or base retargeting, and nothing admits plaintext http", () => {
   for (const delivery of ["document", "meta"] as const) {
     for (const posture of POSTURES) {
       const csp = directives(buildCardFrameCsp({ allowExternalMedia: true, allowInlineData: true }, delivery, posture));
       const arm = `${delivery}/${posture}`;
       expect(csp.has("connect-src"), arm).toBe(false);
+      // `<object>` and `<embed>` stay unheld in authored markup because their loads fall back to `default-src 'none'`.
+      expect(csp.has("object-src"), arm).toBe(false);
       expect(csp.get("default-src"), arm).toBe("'none'");
       // Neither falls back to default-src, so each must be named to be closed.
       expect(csp.get("form-action"), arm).toBe("'none'");
@@ -135,6 +137,39 @@ test("the built document applies the clamps itself, so hostile tokens never reac
   expect(document).toContain("--safe: #336699;");
   expect(document).toContain(`${CARD_FRAME_STYLE_TOKEN.monoFamily}: ${MONO_FAMILY};`);
   expect(document).toContain("font-family: sans-serif;");
+});
+
+// Each spelling the HTML tokenizer reads as a `<link>` start tag, beside the held form the served bytes must carry.
+const HELD_SPELLINGS: readonly (readonly [string, string])[] = [
+  ['<link rel="preconnect" href="https://beacon.test">', '<wbr rel="preconnect" href="https://beacon.test">'],
+  ["<LINK rel=dns-prefetch href=//beacon.test>", "<wbr rel=dns-prefetch href=//beacon.test>"],
+  ["<Link\trel=prefetch href=https://beacon.test/p>", "<wbr\trel=prefetch href=https://beacon.test/p>"],
+  ["<link\nrel=preload as=image href=https://beacon.test/i>", "<wbr\nrel=preload as=image href=https://beacon.test/i>"],
+  ["<link/rel=preconnect/href=https://beacon.test>", "<wbr/rel=preconnect/href=https://beacon.test>"],
+  ["<link\frel=preconnect href=https://beacon.test>", "<wbr\frel=preconnect href=https://beacon.test>"],
+  ["<link>", "<wbr>"],
+  // A nested srcdoc document is decoded from its attribute, so its escaped link never reaches the text hold.
+  [
+    '<iframe srcdoc="&lt;link rel=preconnect href=https://beacon.test&gt;"></iframe>',
+    '<wbr srcdoc="&lt;link rel=preconnect href=https://beacon.test&gt;"></iframe>',
+  ],
+  ['<IFRAME srcdoc="&#60;link rel=preconnect href=https://beacon.test&#62;">', '<wbr srcdoc="&#60;link rel=preconnect href=https://beacon.test&#62;">'],
+  ["<iframe/srcdoc=x>", "<wbr/srcdoc=x>"],
+];
+// Start tags whose name only begins with a held name: a different element, so the hold leaves them as written.
+const NOT_HELD_TAGS = ["<link-card>", "<linked>", "<linkx rel=preconnect>", "<iframes>", "<iframe-card>"];
+
+test("every authored link and iframe start tag is held in the body and in a stylesheet that closes its own style element", () => {
+  for (const [authored, held] of HELD_SPELLINGS) {
+    const fromBody = buildCardFrameDocument({ ...CONTENT, html: `<p>card</p>${authored}` });
+    expect(fromBody, authored).toContain(`<body><p>card</p>${held}</body>`);
+    const fromSheet = buildCardFrameDocument({ ...CONTENT, css: `p{color:red}</style>${authored}<style>` });
+    expect(fromSheet, authored).toContain(`p{color:red}</style>${held}<style>`);
+    expect(buildCardFrameDocument({ ...CONTENT, html: authored }, "default-src 'none'"), authored).toContain(held);
+  }
+  for (const tag of NOT_HELD_TAGS) {
+    expect(buildCardFrameDocument({ ...CONTENT, html: tag }), tag).toContain(`<body>${tag}</body>`);
+  }
 });
 
 test("a font-family list with an unbalanced or stray quote is refused by both font readers; shipped stacks pass", () => {

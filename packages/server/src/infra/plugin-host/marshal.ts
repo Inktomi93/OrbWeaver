@@ -47,6 +47,12 @@
 // A PROMISE IS REFUSED BEFORE ANY READ. The binding's `dump` disposes the handle of a promise it reads, a handle the
 // host still owns, which then aborts the engine at teardown. `fromGuest` asks the engine's promise state first, which
 // runs nothing.
+//
+// A STRING PAST ITS ALLOWANCE IS REFUSED UNREAD. Reading a string copies it several times over: the realm's JSON
+// text, the host string, its parse. A value refused for its size after that read has already cost those copies, and
+// Workers looping such calls can carry the broker past its memory ceiling. A read given a `ReadAllowance` measures
+// each string's length first, which copies nothing. A caller that keeps only a prefix, the log, cuts the string with
+// the realm's own `slice` first, so the rest is never copied either.
 // No other module reads or writes a guest string.
 
 import type { QuickJSContext, QuickJSHandle, VmCallResult, VmFunctionImplementation } from "quickjs-emscripten-core";
@@ -56,8 +62,8 @@ import { CodedHostUnavailableError, PluginLlmFailureError } from "./process-prot
 
 /** A guest value read into the host. `promise`: the value is a promise, refused unread. `thrown`: the realm failed
  *  while serializing it (the CPU interrupt, its memory limit, or a guest trap or getter that threw); the caller owns
- *  that exception handle. `unreadable`: an object past the read's depth or node guard, or holding a value JSON
- *  cannot write, refused before any of it reached the host. */
+ *  that exception handle. `unreadable`: an object past the read's depth or node guard, holding a value JSON
+ *  cannot write, or a string past the read's {@link ReadAllowance}, refused before any of it reached the host. */
 export type GuestRead =
   | { readonly kind: "value"; readonly value: unknown }
   | { readonly kind: "promise" }
@@ -76,6 +82,14 @@ export class GuestCallFailure extends Error {
   }
 }
 
+/** The string length, in UTF-16 units, that the reads of one host call may still copy out of the realm. Each guest
+ *  string, key or value, is measured by its `length` before it is read and charged against `units`; one longer than
+ *  what is left is refused unread and leaves `units` below zero. A string's JSON text is never shorter in UTF-8 bytes
+ *  than its length in units, so an allowance set to a byte cap refuses only what that cap would refuse after the read. */
+export interface ReadAllowance {
+  units: number;
+}
+
 /** A host-authored error as it crosses: its `name`, its `message`, and any further string fields. */
 export interface HostErrorFields {
   readonly name: string;
@@ -87,8 +101,12 @@ export interface GuestMarshal extends Disposable {
   /** Read a guest value into the host. A string is whole, NUL and lone surrogate included. A non-object primitive keeps
    *  the binding's `dump`. An object is read in one bounded walk that builds the host value as it goes, with JSON's
    *  shape rules (own enumerable string keys, arrays by `length`, `undefined` and functions dropped or `null`); a guest
-   *  `toJSON` is not called. Call it inside a host function: the walk runs guest getters and proxy traps. */
-  readonly fromGuest: (handle: QuickJSHandle) => GuestRead;
+   *  `toJSON` is not called. Call it inside a host function: the walk runs guest getters and proxy traps. With an
+   *  `allowance`, every string is measured against it before it is read. */
+  readonly fromGuest: (handle: QuickJSHandle, allowance?: ReadAllowance) => GuestRead;
+  /** {@link GuestMarshal.fromGuest} for a value whose text the caller keeps only the first `units` UTF-16 units of. A
+   *  longer string is cut inside the realm first, so the rest is never copied out. */
+  readonly fromGuestPrefix: (handle: QuickJSHandle, units: number) => GuestRead;
   /** {@link GuestMarshal.fromGuest} for a value a guest invocation settled to, read inside that invocation's span and
    *  outside any host function. The engine's interrupt bounds the guest code the read runs there, so the read asks no
    *  window first: a past-window invocation's own error still reads. */
@@ -206,12 +224,25 @@ interface ObjectWalk {
   readonly classify: QuickJSHandle;
   readonly getProperty: QuickJSHandle;
   readonly checkWindow: () => void;
+  readonly allowance?: ReadAllowance;
 }
 
-type StringRead = { readonly text: string } | { readonly thrown: QuickJSHandle };
+type StringRead = { readonly text: string } | { readonly thrown: QuickJSHandle } | { readonly overAllowance: true };
 
-// A guest string as host text, through the realm's own JSON so a NUL survives.
+// A guest string as host text, through the realm's own JSON so a NUL survives. A string's own `length` runs no guest
+// code: it is not inherited, so no getter a guest defines can answer it.
 function stringOf(walk: ObjectWalk, handle: QuickJSHandle): StringRead {
+  const { allowance } = walk;
+  if (allowance !== undefined) {
+    const length = propertyOf(walk, handle, "length");
+    if (length.error) {
+      return { thrown: length.error };
+    }
+    allowance.units -= length.value.consume((units) => walk.ctx.getNumber(units));
+    if (allowance.units < 0) {
+      return { overAllowance: true };
+    }
+  }
   const quoted = walk.ctx.callFunction(walk.stringify, walk.ctx.undefined, handle);
   if (quoted.error) {
     return { thrown: quoted.error };
@@ -315,6 +346,9 @@ function readRecord(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, ext
     if ("thrown" in key) {
       return { kind: "thrown", error: key.thrown };
     }
+    if ("overAllowance" in key) {
+      return { kind: "unreadable" };
+    }
     if (!extra.includes(key.text)) {
       entries.push(entryFor(key.text, keyHandle));
     }
@@ -350,6 +384,9 @@ function readFrame(walk: ObjectWalk, frames: WalkFrame[], frame: WalkFrame, room
       const read = stringOf(walk, frame.handle);
       if ("thrown" in read) {
         return { kind: "thrown", error: read.thrown };
+      }
+      if ("overAllowance" in read) {
+        return { kind: "unreadable" };
       }
       frame.place(read.text);
       return;
@@ -431,6 +468,11 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const classify = captured.adopt(ctx.getProp(classifiers, 0), (handle) => handle.dispose());
   const brandHostError = captured.adopt(ctx.getProp(classifiers, 1), (handle) => handle.dispose());
   const getProperty = captured.adopt(ctx.unwrapResult(ctx.evalCode("((target, key) => target[key])")), (handle) => handle.dispose());
+  // The realm's own `slice`, bound before any guest code runs, so a guest that replaces it later is not asked.
+  const prefixOf = captured.adopt(
+    ctx.unwrapResult(ctx.evalCode("((apply, slice) => (text, end) => apply(slice, text, [0, end]))(Reflect.apply, String.prototype.slice)")),
+    (handle) => handle.dispose(),
+  );
   const owned = captured.move();
 
   // `defineProp`, never `setProp`: a guest can put a setter for any key on a prototype, and `setProp` would run it.
@@ -508,15 +550,45 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     if (type === "object") {
       return isPromise(ctx, handle) ? { kind: "promise" } : readObject(walk, handle);
     }
-    if (type !== "string") {
+    // The binding reads these primitives without guest code, a bigint's digits bounded by the engine. A symbol's
+    // description would be copied whole and read through a guest getter and a replaceable `Symbol.keyFor`, and a
+    // function would be stringified through its `toJSON` and `toString`, so neither is read: no host value holds
+    // one, as the walk drops both nested.
+    if (type === "number" || type === "boolean" || type === "undefined" || type === "bigint") {
       return { kind: "value", value: ctx.dump(handle) };
     }
+    if (type !== "string") {
+      return { kind: "unreadable" };
+    }
     const read = stringOf(walk, handle);
+    if ("overAllowance" in read) {
+      return { kind: "unreadable" };
+    }
     return "thrown" in read ? { kind: "thrown", error: read.thrown } : { kind: "value", value: read.text };
   };
 
   return {
-    fromGuest: (handle): GuestRead => readFrom(checkedWalk, handle),
+    fromGuest: (handle, allowance): GuestRead => readFrom(allowance === undefined ? checkedWalk : { ...checkedWalk, allowance }, handle),
+    fromGuestPrefix: (handle, units): GuestRead => {
+      if (ctx.typeof(handle) !== "string") {
+        return readFrom(checkedWalk, handle);
+      }
+      const length = propertyOf(checkedWalk, handle, "length");
+      if (length.error) {
+        return { kind: "thrown", error: length.error };
+      }
+      if (length.value.consume((read) => ctx.getNumber(read)) <= units) {
+        return readFrom(checkedWalk, handle);
+      }
+      stopPastWindow();
+      using end = ctx.newNumber(units);
+      const cut = ctx.callFunction(prefixOf, ctx.undefined, handle, end);
+      if (cut.error) {
+        return { kind: "thrown", error: cut.error };
+      }
+      using text = cut.value;
+      return readFrom(checkedWalk, text);
+    },
     fromSettledGuest: (handle): GuestRead => readFrom(settledWalk, handle),
     parseIntoGuest: (text): VmCallResult<QuickJSHandle> => {
       using handle = ctx.newString(text);
