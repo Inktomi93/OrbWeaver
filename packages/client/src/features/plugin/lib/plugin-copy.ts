@@ -398,8 +398,13 @@ export function consentAskKind(plugin: ConsentAskFacts): "first" | "update" {
 }
 
 /** The headline of a never-approved plugin's ask. */
-export function firstConsentLine(pluginName: string, askedCount: number): string {
-  return `${pluginName} needs your OK for ${askedCount === 1 ? "1 permission" : `${askedCount} permissions`} before it can run.`;
+export function firstConsentLine(plugin: DeclaredReach & { readonly name: string }): string {
+  const asked = plugin.declaredCapabilities.length;
+  // A count of zero is never said: with no capability the ask is the rest of its reach, or nothing at all.
+  if (asked === 0) {
+    return declaresReach(plugin) ? `${plugin.name} needs your OK for what it reaches before it can run.` : `${plugin.name} needs your OK before it can run.`;
+  }
+  return `${plugin.name} needs your OK for ${asked === 1 ? "1 permission" : `${asked} permissions`} before it can run.`;
 }
 
 /** The re-consent sentence's clause for one added provider; the automation opt-in it turns on reads {@link PLUGIN_AUTOMATION_EVENTS_PHRASE}. */

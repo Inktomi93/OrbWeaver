@@ -355,7 +355,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
     >
       <Text cap="prose" voice="promoted">
         {firstAsk
-          ? firstConsentLine(plugin.name, plugin.declaredCapabilities.length)
+          ? firstConsentLine(plugin)
           : reConsentLine(ungranted, {
               netHosts: plugin.widenedNetHosts,
               providerIds: plugin.widenedProviderIds,

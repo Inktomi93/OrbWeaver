@@ -3,7 +3,8 @@
 // carries the same mark. The unmarked first provider is the control for the mark. Approving the card sends the echo the
 // server requires, so the plugin comes up enabled with the provider and the opt-in answered.
 import { spawn } from "node:child_process";
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginViewSchema } from "@orb/contracts/plugin";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { makePluginProviderRow } from "@orb/testkit/iso";
@@ -154,4 +155,48 @@ test("approving the card echoes the provider and the opt-in, and the plugin come
   await expect(page.getByText(PLUGIN_AUTOMATION_EVENTS_LINE, { exact: true })).toBeVisible();
   await expect(page.getByText(PLUGIN_NO_REACH_LINE, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("group", { name: pluginCardLabel(MANIFEST_NAME), exact: true }).locator('[data-slot="badge"]')).toHaveCount(0);
+});
+
+test("a first ask that declares a provider and no capability never counts its permissions as zero", async ({ page, mount }) => {
+  await page.setViewportSize({ width: NARROWEST_WIDTH, height: 844 });
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  // A copy nobody has answered yet: nothing granted, no earlier version to widen from, one provider declared.
+  const unanswered = pluginViewSchema.parse({
+    id: root.idSource.typeId(ID_PREFIX.plugin),
+    slug: PLUGIN,
+    name: MANIFEST_NAME,
+    version: "1.0.0",
+    status: "disabled",
+    origin: "upload",
+    sourceUrl: null,
+    sourceCommit: null,
+    updateSource: null,
+    grantedCapabilities: [],
+    declaredCapabilities: [],
+    netHosts: null,
+    reconsentPending: true,
+    widenedNetHosts: [],
+    providers: [{ id: firstProvider.id, label: FIRST_LABEL }],
+    matchAutomationEvents: false,
+    widenedProviderIds: [],
+    widenedMatchAutomationEvents: false,
+    builtAgainst: null,
+    description: "Adds providers.",
+    lastError: null,
+    installedAt: root.clock.now(),
+    updatedAt: root.clock.now(),
+  });
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "plugin.listSurfaces", "plugin.listDistributed", "connection.listBindings"]),
+    "plugin.list": [unanswered],
+  });
+  await mount<typeof PluginConsentLayoutStory>("tests/client/features/plugin/components/_consent-layout-stories/PluginConsentLayoutStory", {
+    width: NARROWEST_WIDTH,
+  });
+
+  const notice = page.getByRole("alert").filter({ has: page.getByRole("listitem").filter({ hasText: FIRST_LABEL }) });
+  // The positive control: the notice is the first ask and lists the provider it is asking about.
+  await expect(notice.getByRole("button", { name: approveLabel(MANIFEST_NAME, 0), exact: true })).toBeVisible();
+  await expect(notice).not.toContainText(/\b0 permissions\b/u);
 });
