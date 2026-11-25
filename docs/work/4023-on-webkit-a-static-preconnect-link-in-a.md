@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-25
 priority: P2
 area: security
+lane: wt/agent-a220f2b48f0e6dc9a
 ---
 
 # On WebKit a static preconnect link in a card or plugin frame opens a connection the frame policy refuses

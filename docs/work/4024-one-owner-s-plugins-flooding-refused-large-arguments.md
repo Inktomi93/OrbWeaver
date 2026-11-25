@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-25
 priority: P3
 area: security
+lane: wt/agent-a220f2b48f0e6dc9a
 ---
 
 # One owner's plugins flooding refused large arguments cannot push the plugin broker past its memory ceiling

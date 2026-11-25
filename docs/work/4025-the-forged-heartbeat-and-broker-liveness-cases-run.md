@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-25
 priority: P2
 area: tooling
+lane: wt/agent-a1540a588e0ac9772
 ---
 
 # The forged heartbeat and broker liveness cases run on Windows and macOS in CI

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-25
 priority: P2
 area: tooling
+lane: wt/agent-a1540a588e0ac9772
 ---
 
 # The native npm ci case in the container security suite fails on main
