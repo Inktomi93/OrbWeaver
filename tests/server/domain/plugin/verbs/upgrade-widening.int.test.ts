@@ -15,6 +15,7 @@ import { makePluginProviderRow, pluginProviderId } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle } from "@orb/testkit/node/composed";
+import { PluginReachUnacknowledgedError } from "#server/domain/plugin/contract/errors.ts";
 
 const GUEST = "// provider-only guest";
 const PLUGIN = "widening-plugin";
@@ -149,4 +150,32 @@ test("a card rendered before a later upgrade cannot approve the provider and opt
   const approved = await plugin.approve(current);
   expect(approved).toMatchObject({ status: "enabled", reconsentPending: false, widenedProviderIds: [], widenedMatchAutomationEvents: false });
   expect(new Set(await plugin.offered())).toEqual(new Set([FIRST_ID, ADDED_ID, LATER_ID]));
+});
+
+test("a covering grant that omits the reach echo answers nothing, and the row keeps its question", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const plugin = await installEnabled(root);
+  const upgraded = await plugin.upgrade("1.1.0", { ...withAdded, matchAutomationEvents: true });
+  expect(upgraded).toMatchObject({ reconsentPending: true, widenedProviderIds: [ADDED_ID], widenedMatchAutomationEvents: true });
+  const echoedProviders = upgraded.providers.map(({ id }) => id);
+  const unanswered = { status: "disabled", reconsentPending: true, widenedProviderIds: [ADDED_ID], widenedMatchAutomationEvents: true } as const;
+  const rowOf = async (): Promise<PluginView | undefined> => (await root.services.plugin.list({ caller: plugin.who })).find(({ id }) => id === plugin.pluginId);
+  const grantWith = (echo: Partial<Parameters<typeof root.services.plugin.setGrant>[0]>): Promise<PluginView> =>
+    root.services.plugin.setGrant({ caller: plugin.who, pluginId: plugin.pluginId, grant: [], acknowledgedNetHosts: [], enable: true, ...echo });
+
+  // The domain default for an absent echo is "nothing confirmed", so each missing half refuses on its own.
+  await expect(grantWith({})).rejects.toThrow(PluginReachUnacknowledgedError);
+  expect(await rowOf()).toMatchObject(unanswered);
+  await expect(grantWith({ acknowledgedMatchAutomationEvents: true })).rejects.toThrow(PluginReachUnacknowledgedError);
+  expect(await rowOf()).toMatchObject(unanswered);
+  await expect(grantWith({ acknowledgedProviderIds: echoedProviders })).rejects.toThrow(PluginReachUnacknowledgedError);
+  expect(await rowOf()).toMatchObject(unanswered);
+
+  // Control: the same grant with the full echo answers the question.
+  await expect(grantWith({ acknowledgedProviderIds: echoedProviders, acknowledgedMatchAutomationEvents: true })).resolves.toMatchObject({
+    status: "enabled",
+    reconsentPending: false,
+    widenedProviderIds: [],
+    widenedMatchAutomationEvents: false,
+  });
 });

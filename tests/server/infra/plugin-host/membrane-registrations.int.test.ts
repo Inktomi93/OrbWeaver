@@ -10,6 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability, PluginStatus } from "@orb/contracts/plugin";
 import {
   HOST_FUNCTION_CAPABILITY,
+  PLUGIN_FRAME_SURFACES_MAX,
   PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_PUBSUB_SUBSCRIPTIONS_MAX,
@@ -200,6 +201,23 @@ again.pubsub.on(${JSON.stringify(slug)}, "past", () => null);`,
   const surfaces = (await root.services.plugin.listSurfaces({ caller: guest.caller })).filter(({ pluginId }) => pluginId === guest.pluginId);
   expect(commands).toHaveLength(PLUGIN_COMMANDS_MAX);
   expect(surfaces).toHaveLength(PLUGIN_SURFACES_MAX);
+});
+
+test("a second orb.host surface meets the frame count the first one spent, and its frame past the cap is refused", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const guest = await activate(
+    root,
+    "frame-second",
+    [HOST_FUNCTION_CAPABILITY["ui.registerFrame"]],
+    `const frame = (id) => ({ id, anchor: "page", title: "Frame", html: "<p>frame</p>" });
+for (let i = 0; i < ${PLUGIN_FRAME_SURFACES_MAX}; i += 1) { h.ui.registerFrame(frame("f" + i)); }
+orb.host(1).ui.registerFrame(frame("past"));`,
+  );
+  expect(guest.status).toBe("enabled");
+  // The refusal is the one warning. The frames the first surface registered are the control: they all landed.
+  expect(guest.log).toEqual([WARN]);
+  const frames = (await root.services.plugin.listSurfaces({ caller: guest.caller })).filter(({ pluginId }) => pluginId === guest.pluginId);
+  expect(frames.map(({ id }) => id)).toEqual(Array.from({ length: PLUGIN_FRAME_SURFACES_MAX }, (_, index) => `f${String(index)}`));
 });
 
 test("an activation that throws at an ungranted door errors with the refused capability as its last error", { tags: ["slow"] }, async () => {

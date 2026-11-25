@@ -7,14 +7,17 @@
 // OWNER-SCOPED BEFORE ANY EGRESS, like every stored-source verb: a stranger holding a real pluginId is a
 // leak-free NOT_FOUND before the server fetches that owner's remembered source. Writes nothing.
 
+import type { PluginReachWidening } from "@orb/contracts/plugin";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNoSourceUrlError, PluginNotFoundError } from "../contract/errors.ts";
 import type { PreviewStoredUpgradeParams } from "../contract/params.ts";
 import type { PluginStoredUpgradeIdentity } from "../contract/results.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
-import { getById } from "../persistence/plugins.ts";
+import { getById, providerViewsOf, unansweredReachOf } from "../persistence/plugins.ts";
 import { cloneThroughGuard } from "../substrate/git-clone.ts";
-import { manifestWidening } from "../substrate/grants.ts";
+import { manifestWidening, unansweredReachAfter } from "../substrate/grants.ts";
 import { hashPluginBundle, isVersionDowngrade, parseBundle } from "../substrate/manifest.ts";
+
+const NO_WIDENING = { capabilities: [], netHosts: [], providerIds: [], matchAutomationEvents: false } as const satisfies PluginReachWidening;
 
 type StoredRow = NonNullable<Awaited<ReturnType<typeof getById>>>;
 
@@ -51,6 +54,10 @@ export function createPreviewStoredUpgrade(ctx: PluginContext): PluginService["p
       toVersion: manifest.version,
       shipsUiScript: { before: existing.manifest.uiEntry !== undefined, after: manifest.uiEntry !== undefined },
       widening: manifestWidening(existing, manifest),
+      // The refusal the row already carries, as the upgrade would carry it on: `widening` is judged against the
+      // prior manifest, which an earlier refused update already overwrote, so it cannot show this.
+      standing: unansweredReachAfter(manifest, NO_WIDENING, unansweredReachOf(existing)),
+      providers: providerViewsOf(manifest),
       identity: fetched.identity,
     };
   };

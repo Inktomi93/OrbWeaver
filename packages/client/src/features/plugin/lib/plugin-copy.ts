@@ -371,6 +371,10 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
   return `${pluginName} needs your OK for ${askedCount === 1 ? "1 permission" : `${askedCount} permissions`} before it can run.`;
 }
 
+/** The re-consent sentence's clause for one added provider, and for the automation opt-in it turns on. */
+export const RE_CONSENT_ONE_PROVIDER = "a new model provider";
+export const RE_CONSENT_AUTOMATION_EVENTS = "events from automations";
+
 /**
  * The headline of the widened-reach notice. The server lands a REACH-WIDENING upgrade `disabled`
  * (`domain/plugin/verbs/upgrade.ts` — a newly-declared capability OR a `netHosts` entry, provider or automation
@@ -386,9 +390,6 @@ export function firstConsentLine(pluginName: string, askedCount: number): string
  * The bare arm survives for the one state that can still reach it: a re-consent whose delta was recorded
  * before this field existed. It says what is true and no more, and the full list is right below.
  */
-/** The re-consent sentence's clause for one added provider, and for the automation opt-in it turns on. */
-export const RE_CONSENT_ONE_PROVIDER = "a new model provider";
-export const RE_CONSENT_AUTOMATION_EVENTS = "events from automations";
 export function reConsentLine(
   addedCapabilities: readonly PluginCapability[],
   added: { readonly netHosts: readonly string[]; readonly providerIds: readonly string[]; readonly matchAutomationEvents: boolean },
@@ -440,8 +441,9 @@ export function updateCommitAvailableLabel(sourceCommit: string): string {
 }
 
 /** What a stored URL or Git update changes, as the review before it applies reads it: the reach the new manifest
- *  widens beyond the owner's consent, and whether it ships a browser script. Structural, so a reshaped preview
- *  fails `tsc` at the one call site. */
+ *  widens beyond the owner's consent, the refusal from an earlier update that still stands, and whether it ships a
+ *  browser script. `providers` is the next version's own label list, the same `{ id, label }` rows the consent card
+ *  reads off the row. Structural, so a reshaped preview fails `tsc` at the one call site. */
 export interface StoredUpdateChange {
   readonly widening: {
     readonly capabilities: readonly PluginCapability[];
@@ -449,7 +451,18 @@ export interface StoredUpdateChange {
     readonly providerIds: readonly string[];
     readonly matchAutomationEvents: boolean;
   };
+  readonly standing: {
+    readonly netHosts: readonly string[];
+    readonly providerIds: readonly string[];
+    readonly matchAutomationEvents: boolean;
+  };
+  readonly providers: readonly { readonly id: string; readonly label: string }[];
   readonly shipsUiScript: { readonly before: boolean; readonly after: boolean };
+}
+
+// A provider named as the consent card names it; an id the manifest carries no row for reads as itself.
+function providerLabels(providers: StoredUpdateChange["providers"], ids: readonly string[]): string[] {
+  return ids.map((id) => providers.find((provider) => provider.id === id)?.label ?? id);
 }
 
 /** The review's heading: the version it moves to, or a new commit of the same version. */
@@ -457,8 +470,14 @@ export function storedUpdateHeading(fromVersion: string, toVersion: string): str
   return fromVersion === toVersion ? `A new commit of version ${toVersion}` : `Version ${fromVersion} to ${toVersion}`;
 }
 
-/** One line per change the owner should weigh before applying; an empty list reads as {@link STORED_UPDATE_NOTHING_NEW}. */
-export function storedUpdateChangeLines({ widening, shipsUiScript }: StoredUpdateChange): readonly string[] {
+/** The standing refusal as the review states it: what is still unanswered, and that the plugin stays off until it is. */
+export function storedUpdateStandingLine(unanswered: readonly string[]): string {
+  return `An earlier update's request is still unanswered: ${joinedWithAnd(unanswered)}. The plugin stays off after this update until you answer it.`;
+}
+
+/** One line per change the owner should weigh before applying, then the standing refusal if one will keep the
+ *  plugin off; an empty list reads as {@link STORED_UPDATE_NOTHING_NEW}. */
+export function storedUpdateChangeLines({ widening, standing, providers, shipsUiScript }: StoredUpdateChange): readonly string[] {
   const lines: string[] = [];
   if (widening.capabilities.length > 0) {
     const named = widening.capabilities.map((capability) => capabilityCopy(capability)?.label ?? capability);
@@ -468,13 +487,21 @@ export function storedUpdateChangeLines({ widening, shipsUiScript }: StoredUpdat
     lines.push(`Can reach new hosts: ${widening.netHosts.join(", ")}.`);
   }
   if (widening.providerIds.length > 0) {
-    lines.push(`Adds model connections: ${widening.providerIds.join(", ")}.`);
+    lines.push(`Adds model connections: ${providerLabels(providers, widening.providerIds).join(", ")}.`);
   }
   if (widening.matchAutomationEvents) {
     lines.push("Also hears events that automations and other plugins cause.");
   }
   if (shipsUiScript.after !== shipsUiScript.before) {
     lines.push(shipsUiScript.after ? "Adds a script that runs in your browser." : "Drops its browser script.");
+  }
+  const unanswered = [
+    ...standing.netHosts,
+    ...providerLabels(providers, standing.providerIds),
+    ...(standing.matchAutomationEvents ? [RE_CONSENT_AUTOMATION_EVENTS] : []),
+  ];
+  if (unanswered.length > 0) {
+    lines.push(storedUpdateStandingLine(unanswered));
   }
   return lines;
 }

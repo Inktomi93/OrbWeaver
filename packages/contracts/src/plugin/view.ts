@@ -31,6 +31,10 @@ export interface PluginReachWidening {
   readonly matchAutomationEvents: boolean;
 }
 
+/** One declared provider as a consent surface names it: the id and the label the owner reads. The full definition stays server-side. */
+export const pluginProviderViewSchema = z.strictObject({ id: providerIdSchema, label: z.string() });
+export type PluginProviderView = z.output<typeof pluginProviderViewSchema>;
+
 /** Owner-facing management data keeps the declared ask separate from the consented grant. */
 export const pluginViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.plugin),
@@ -47,8 +51,8 @@ export const pluginViewSchema = z.strictObject({
   netHosts: z.array(pluginNetHostSchema).readonly().nullable(),
   reconsentPending: z.boolean(),
   widenedNetHosts: z.array(pluginNetHostSchema).readonly(),
-  /** The declared providers a consent card names; the full definitions stay server-side. */
-  providers: z.array(z.strictObject({ id: providerIdSchema, label: z.string() })).readonly(),
+  /** The declared providers a consent card names. */
+  providers: z.array(pluginProviderViewSchema).readonly(),
   /** The manifest opts its event handlers into automation-caused facts. */
   matchAutomationEvents: z.boolean(),
   /** The provider ids and the automation opt-in a pending re-consent added, recorded as `widenedNetHosts` is. */
