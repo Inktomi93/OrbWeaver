@@ -138,7 +138,7 @@ export const listRowVariants = tv({
     qualified: { true: {}, false: {} },
     // A datum that qualifies the name is a stamp plus an ordinal on a same-titled sibling, so it runs past the line at enlarged text where a
     // bare relative stamp never does. It wraps at its own spaces inside the line, like the title qualifier, instead of ending past the row.
-    metaQualifies: { true: { meta: "shrink wrap-break-word whitespace-normal min-inline-0" }, false: {} },
+    metaQualifies: { true: { meta: "shrink text-end wrap-break-word whitespace-normal min-inline-0" }, false: {} },
     // A shut disclosure row cuts its name to one line like every list row; the open row sets the name whole, so a reader reaches the
     // whole name by the row's own press. The body is the collapsible's trigger, which carries `data-panel-open` while open.
     disclosure: {

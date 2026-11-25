@@ -40,6 +40,7 @@ import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-imp
 import { useLibraryImport } from "../hooks/use-library-import.ts";
 import {
   IMPORT_ANOTHER_NAME,
+  IMPORT_DROPZONE_HINT,
   IMPORT_FILE_PICKER_NAME,
   IMPORT_FOLDER_NAME,
   IMPORT_FOLDER_NOTHING_TITLE,
@@ -277,7 +278,7 @@ export function ImportLibrarySection(): ReactElement {
         aria-label={IMPORT_FILE_PICKER_NAME}
         data-testid={testId("backupImportDropzone")}
         subject="a .zip backup or profile, or a character card"
-        hint="A .zip carries a whole library or SillyTavern profile; a .png / .json is a single card"
+        hint={IMPORT_DROPZONE_HINT}
         loading={busy}
         success={succeeded}
         maxSizeBytes={importMaxBytes}

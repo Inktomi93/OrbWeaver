@@ -3,9 +3,10 @@
 // upgrade that left the plugin off for more reach is told, because its notice sits lower on the row.
 
 import { notify } from "#lib";
+import { upgradeStayedOffNotice } from "./plugin-copy.ts";
 
 export function notifyUpgradeStayedOff(pluginName: string, updated: { readonly reconsentPending: boolean }): void {
   if (updated.reconsentPending) {
-    notify.info(`${pluginName} stayed off: this update asks for more than you've allowed. Check below.`);
+    notify.info(upgradeStayedOffNotice(pluginName));
   }
 }

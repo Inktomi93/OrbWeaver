@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { MutedLine, QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
+import { QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { rethrowUnlessTrpcFailure } from "#lib";
@@ -302,28 +302,25 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             inside a height-animated panel hits this, and this is the one place that pairs the two. */}
                   <CollapsiblePanel>
                     <Stack paddingInlineStart="block">
-                      {plugin.declaredCapabilities.length === 0 ? (
-                        <MutedLine>Nothing. It can run its own code and reach nothing else.</MutedLine>
-                      ) : (
-                        // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
-                        // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
-                        // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
-                        // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
-                        //
-                        // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
-                        // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
-                        // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
-                        // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
-                        <PluginGrantList
-                          roleScope={{ kind: "plugin", pluginId: plugin.id }}
-                          capabilitiesLabel={pluginPermissionsLabel(plugin.name)}
-                          declared={plugin.declaredCapabilities}
-                          granted={plugin.grantedCapabilities}
-                          matchAutomationEvents={plugin.matchAutomationEvents}
-                          netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
-                          providers={plugin.providers}
-                        />
-                      )}
+                      {/* `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
+                        subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
+                        which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
+                        only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
+                        The list says "nothing" itself, and only for a plugin that reaches nothing.
+
+                        The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
+                        disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
+                        can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
+                        cannot reach ANY of those hosts without the capability, so the sentence must not appear at all. */}
+                      <PluginGrantList
+                        roleScope={{ kind: "plugin", pluginId: plugin.id }}
+                        capabilitiesLabel={pluginPermissionsLabel(plugin.name)}
+                        declared={plugin.declaredCapabilities}
+                        granted={plugin.grantedCapabilities}
+                        matchAutomationEvents={plugin.matchAutomationEvents}
+                        netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
+                        providers={plugin.providers}
+                      />
                     </Stack>
                   </CollapsiblePanel>
                 </Collapsible>

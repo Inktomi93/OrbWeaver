@@ -119,6 +119,7 @@ import {
   HOSTS_COLLAPSE_AT,
   hostsDisclosureLabel,
   NO_IMAGE_MODEL_NOTE,
+  noCapabilitiesLine,
   PLUGIN_ADDED_MARK,
   PLUGIN_AUTOMATION_EVENTS_LINE,
   PLUGIN_PROVIDER_WIDENED_MARK,
@@ -345,9 +346,12 @@ export function PluginGrantList({
 
   return (
     <Stack gap="block">
-      {rows.length === 0 ? (
-        <MutedLine>This plugin asks for no permissions at all. It can run its own code and nothing else.</MutedLine>
-      ) : (
+      {/* "Nothing" is judged on the whole reach, not on the capabilities: a plugin with providers or automation events and no
+          capability still reaches them, listed below. A declared capability this build cannot explain is the alert's, not "none". */}
+      {declared.length === 0 ? (
+        <MutedLine>{noCapabilitiesLine({ declaredCapabilities: declared, netHosts, providers, matchAutomationEvents })}</MutedLine>
+      ) : null}
+      {rows.length === 0 ? null : (
         // `role="group"` + `aria-label` gives the permission set an announced boundary (side-eye P3): the
         // caller's own heading text ("What it's asking for" / "What Weather Teller is allowed to do") is
         // threaded through rather than re-spelled, so the two can never drift apart.
@@ -440,15 +444,16 @@ export function PluginGrantList({
       ) : null}
 
       {matchAutomationEvents ? (
-        <Row align="center" wrap={true} gap="field">
-          <Text cap="prose" prose={true} voice="gloss">
-            {PLUGIN_AUTOMATION_EVENTS_LINE}
-          </Text>
+        // The mark leads and the sentence shrinks beside it: a trailing mark in a wrapping row dropped to a line of its own at a phone's width.
+        <Row align="start" gap="field">
           {matchAutomationEventsAdded ? (
             <Badge whitespace="normal" cap="fit" tone="info" size="sm">
               {PLUGIN_ADDED_MARK}
             </Badge>
           ) : null}
+          <Text cap="prose" prose={true} voice="gloss">
+            {PLUGIN_AUTOMATION_EVENTS_LINE}
+          </Text>
         </Row>
       ) : null}
     </Stack>

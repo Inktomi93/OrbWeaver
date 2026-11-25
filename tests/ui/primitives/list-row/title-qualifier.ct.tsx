@@ -6,14 +6,16 @@ import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import type { MetaSlotStory, NameFitStory, QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
+import type { MetaSlotStory, NameFitStory, QualifierPairStory, TitleQualifierStory, WrappedStampStory } from "./_title-qualifier-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/TitleQualifierStory";
 const PAIR_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/QualifierPairStory";
 const NAME_FIT_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/NameFitStory";
 const META_SLOT_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/MetaSlotStory";
+const WRAPPED_STAMP_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/WrappedStampStory";
 const WIDTH = 373;
 const PHONE_WIDTH = 390;
+const NARROW_PHONE_WIDTH = 320;
 const TEXT_200 = 2;
 
 interface Box {
@@ -206,4 +208,25 @@ test("every row's trailing datum ends at one edge with no dot before it, and a d
   await expect(component.getByRole("button", { name: "Chat with Eleni · 3w", exact: true })).toHaveCount(1);
   // The positive control: a datum that tells no rows apart stays out of the name.
   await expect(component.getByRole("button", { name: "Aveline", exact: true })).toHaveCount(1);
+});
+
+test("every line of a stamp that wraps ends at the stamp's end edge", async ({ mount, page }) => {
+  await page.setViewportSize({ width: PHONE_WIDTH, height: 844 });
+  const component = await mount<typeof WrappedStampStory>(WRAPPED_STAMP_STORY, { width: NARROW_PHONE_WIDTH });
+  await setRootFontScale(page, channelName("fontScale"), TEXT_200);
+  const meta = component.locator('[data-slot="list-row-meta"]');
+  const lines = await meta.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rights = new Map<number, number>();
+    for (const rect of range.getClientRects()) {
+      rights.set(Math.round(rect.top), Math.max(rights.get(Math.round(rect.top)) ?? Number.NEGATIVE_INFINITY, rect.right));
+    }
+    return { edge: node.getBoundingClientRect().right, rights: [...rights.values()] };
+  });
+  // The positive control: the stamp did wrap, so there is a line to misplace.
+  expect(lines.rights.length).toBeGreaterThan(1);
+  for (const [index, right] of lines.rights.entries()) {
+    expect(Math.abs(right - lines.edge), `line ${String(index + 1)} of the stamp ends at the stamp's end edge`).toBeLessThanOrEqual(SUBPIXEL);
+  }
 });
