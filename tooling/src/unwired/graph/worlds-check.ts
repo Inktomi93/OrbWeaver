@@ -36,10 +36,9 @@ import {
 } from "@typescript/native/ast";
 import type { API, APIRequestGenerator, Checker, Diagnostic, Symbol as NativeSymbol, Program, Type } from "@typescript/native/sync";
 import { all, DiagnosticCategory, isRemoteNode, SymbolFlags, TypeFormatFlags } from "@typescript/native/sync";
-import { loadWorld } from "../../floor/testing/test-worlds.ts";
 import { editorLineOf, readEditorText } from "../../floor/typescript/editor-lines.ts";
 import { hasFlag, NativeWorld, startAPI } from "../native.ts";
-import { MERGED_CONFIG, mergedOptionsConfigText, mergedWorlds } from "../worlds.ts";
+import { MERGED_CONFIG, mergedOptionsConfigText, mergedWorlds, WorldConfigs } from "../worlds.ts";
 import { CompilerWatch } from "./compiler-watch.ts";
 
 // The step a run is in while it reads the merged program, before any world.
@@ -206,13 +205,14 @@ function pathIn(root: string, absolute: string): string {
 const resolutionKey = (file: string, specifier: string): string => `${file}\n${specifier}`;
 
 // Each merged world's own files, the files its types are read from.
-function ownFiles(root: string, configs: readonly string[]): ReadonlyMap<string, readonly string[]> {
+function ownFiles(worldConfigs: WorldConfigs, configs: readonly string[]): ReadonlyMap<string, readonly string[]> {
   const seen = new Set<string>();
   return new Map(
     configs.map((config) => {
       const pkg = PACKAGE_WORLD.exec(config)?.[1];
-      const own = loadWorld(root, config)
-        .fileNames.map((name) => relative(root, name))
+      const own = worldConfigs
+        .parse(config)
+        .fileNames.map((name) => relative(worldConfigs.root, name))
         .filter((file) => !(DECLARATION_FILE.test(file) || seen.has(file)))
         .filter((file) => (pkg === undefined ? !PACKAGE_SOURCE.test(file) : file.startsWith(`${pkg}/src/`)));
       for (const file of own) {
@@ -366,9 +366,10 @@ function errorsOf(root: string, program: Program, files?: readonly string[]): re
 
 // The keys of the errors a world's files have on the merged program's options (worlds.ts mergedOptionsConfigText). Every
 // world's probe is one snapshot of the one compiler the caller started, released when its keys are read.
-function optionErrorKeys(api: API, root: string, config: string, files: readonly string[]): ReadonlySet<string> {
+function optionErrorKeys(configs: WorldConfigs, api: API, config: string, files: readonly string[]): ReadonlySet<string> {
+  const { root } = configs;
   const path = join(root, MERGED_CONFIG);
-  using snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: mergedOptionsConfigText(root, config) } } });
+  using snapshot = api.createSnapshot({ openProjects: [path], fileSystem: { kind: "layer", files: { [path]: mergedOptionsConfigText(configs, config) } } });
   const project = snapshot.getConfiguredProject(path);
   if (project === undefined) {
     throw new Error(`${config}: the TypeScript 7.1 API loaded no project on the merged options`);
@@ -674,15 +675,18 @@ function explain(error: ErrorFact, holders: readonly WorldTrace[], mergedSites: 
 
 // Check the merged program of the tree at `root` against each world's own program, naming each step before it runs.
 function checkWorlds(root: string, log: (line: string) => void, at: (step: string) => void = (): void => undefined): WorldsCheck {
-  const configs = mergedWorlds(root);
-  const own = ownFiles(root, configs);
   // the program has already set every library apart, so each declaration file left is the tree's own and is kept
   const ownDeclaration = (): boolean => true;
+  let configs: readonly string[];
+  let own: ReadonlyMap<string, readonly string[]>;
   let merged: Facts;
   let mergedSites: ReadonlyMap<string, Site>;
   at(MERGED_STEP);
   {
     using world = NativeWorld.openMerged(root, ownDeclaration);
+    // the merged world's compiler session has read every config already; the loop below reads each world's files from it
+    configs = mergedWorlds(world.worldConfigs);
+    own = ownFiles(world.worldConfigs, configs);
     merged = factsOf(root, world, [...own.values()].flat());
     mergedSites = sitesAt(root, world, merged.errors);
   }
@@ -737,12 +741,14 @@ function judgeErrors(
   run: { readonly root: string; readonly mergedSites: ReadonlyMap<string, Site>; readonly at: (step: string) => void },
 ): Pick<WorldsCheck, "matched" | "explained" | "unexplained"> {
   const { root, mergedSites, at } = run;
-  // one compiler for every world's options probe, started when the first is asked
+  // one compiler for every world's options probe, started when the first is asked; it reads the configs the probes build on
   using probes = new DisposableStack();
   let probeApi: API | undefined;
-  const probe = (): API => {
+  let probeConfigs: WorldConfigs | undefined;
+  const probe = (): { readonly api: API; readonly configs: WorldConfigs } => {
     probeApi ??= probes.use(startAPI({ cwd: root }, OPTIONS_PROBE_STEP));
-    return probeApi;
+    probeConfigs ??= new WorldConfigs(probeApi, root);
+    return { api: probeApi, configs: probeConfigs };
   };
   const matched: CheckedError[] = [];
   const explained: ExplainedError[] = [];
@@ -771,7 +777,8 @@ function judgeErrors(
       continue;
     }
     at(`${OPTIONS_PROBE_STEP} ${trace.config}`);
-    const keys = optionErrorKeys(probe(), root, trace.config, [...new Set(asked.flatMap(({ file }) => file ?? []))]);
+    const { api, configs } = probe();
+    const keys = optionErrorKeys(configs, api, trace.config, [...new Set(asked.flatMap(({ file }) => file ?? []))]);
     const byOptions = asked.filter(({ key }) => keys.has(key));
     explained.push(
       ...byOptions.map(

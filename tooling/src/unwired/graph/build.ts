@@ -193,7 +193,7 @@ export function buildGraph(root: string, world: NativeWorld, roots: Roots, sessi
   libraryNames(world);
   const state = new GraphState(root, world, roots, session);
   const merged = new Builder(state).build(judgedFiles(state));
-  const apart = (): readonly WorldGraph[] => programsApart(root).map((config) => buildApart(state, config, new Set(merged.files)));
+  const apart = (): readonly WorldGraph[] => programsApart(world.worldConfigs).map((config) => buildApart(state, config, new Set(merged.files)));
   const parts = session.profile === null ? apart() : session.profile.time("apart", apart);
   state.enter(world);
   const all = [merged, ...parts];

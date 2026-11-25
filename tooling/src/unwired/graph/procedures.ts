@@ -630,7 +630,7 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
     sources.filter((source) => isProduction(world.fileOfSource(source))),
   );
   const outside = new Map(OUTSIDE_CALLERS.map((row) => [outsideKey(row), { row, at: [] as string[], calls: 0 }] as const));
-  const browser = browserFiles(options.root);
+  const browser = browserFiles(world.worldConfigs);
   const requests = requestsOf(world, sources, (file) => browser.has(file) || file.startsWith(SNAP_SOURCE) || !productReader(file));
   const { credits, unplaced } = routeCredits(routes, requests);
   const findings = [...judgeProcedures(tallyProcedures(world, graph.facts.roleSites, procedures), outside), ...judgeRoutes(routes, credits, outside)];
