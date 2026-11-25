@@ -28,7 +28,6 @@ import {
   RE_CONSENT_OFF_CLAIM,
   reConsentBody,
   reConsentNoticeLabel,
-  statusCopy,
 } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
 
@@ -281,7 +280,11 @@ test("an Enabled switch pressed while a re-consent is open says the plugin runs 
   if (running === undefined) {
     throw new Error("the plugin is not listed");
   }
-  await expect(card.getByText(statusCopy(running).label, { exact: true })).toBeVisible();
+  // The badge is the warning one, not the settled "On": it names the provider and the opt-in that wait, counted from the server's own row.
+  const badge = card.getByText(/^On: waiting for your approval/u);
+  await expect(badge).toBeVisible();
+  await expect(badge).toContainText(`${running.widenedProviderIds.length} model provider`);
+  await expect(badge).toContainText(PLUGIN_AUTOMATION_EVENTS_PHRASE);
   await expect(card.getByRole("button", { name: approveLabel(MANIFEST_NAME, 0), exact: true })).toBeVisible();
   await expect(notice).toContainText(reConsentBody(true));
   await expect(notice).toContainText(PLUGIN_AUTOMATION_EVENTS_PHRASE);

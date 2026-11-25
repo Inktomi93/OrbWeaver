@@ -484,7 +484,7 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
     // A plain date resolves to the zone's start of day, which is the first existing instant when a DST jump
     // skips that zone's midnight.
     monthStart: (year, month): number => Temporal.PlainDate.from({ year, month, day: 1 }, { overflow: "reject" }).toZonedDateTime(zone).epochMilliseconds,
-    formatTime: (epochMs): string => time.format(epochMs),
+    formatTime: (epochMs): string => joinMeridiemToTime(time.formatToParts(epochMs)),
     formatDate,
     formatMonthYear: (epochMs): string => monthYear.format(epochMs),
     formatMonthDay: (epochMs): string => monthDay.format(epochMs),

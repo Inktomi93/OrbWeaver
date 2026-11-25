@@ -390,7 +390,9 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
   readonly tone: Extract<Tone, "success" | "warning" | "neutral" | "destructive">;
 } {
   if (plugin.status === "enabled") {
-    return plugin.reconsentPending ? { label: onWaitingLabel(unansweredReach(plugin)), tone: "warning" } : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
+    return plugin.reconsentPending
+      ? { label: `On: ${waitingForApproval(unansweredReach(plugin))}`, tone: "warning" }
+      : { label: PLUGIN_ON_STATUS_LABEL, tone: "success" };
   }
   if (plugin.status === "errored") {
     return { label: "Stopped after an error", tone: "destructive" };
@@ -406,8 +408,8 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
 /** The settled state of an enabled plugin with a grant. A row leaves it unpainted, because the Enabled switch already says it. */
 export const PLUGIN_ON_STATUS_LABEL = "On";
 
-// An enabled plugin that still has reach waiting on its owner's approval: it runs without that reach, and the label names the kinds.
-function onWaitingLabel(unanswered: UnansweredReachFacts): string {
+// An enabled plugin that still has reach waiting on its owner's approval runs without that reach; this names the kinds that wait.
+function waitingForApproval(unanswered: UnansweredReachFacts): string {
   const added = unanswered.addedProviderIds.length + unanswered.changedProviderIds.length;
   const kinds = [
     ...(unanswered.capabilities.length === 0 ? [] : [countOf(unanswered.capabilities.length, "permission")]),
@@ -415,7 +417,7 @@ function onWaitingLabel(unanswered: UnansweredReachFacts): string {
     ...(added === 0 ? [] : [added === 1 ? "1 model provider" : `${added} ${PLUGIN_PROVIDERS_NOUN}`]),
     ...(unanswered.matchAutomationEvents ? [PLUGIN_AUTOMATION_EVENTS_PHRASE] : []),
   ];
-  return kinds.length === 0 ? "On: waiting for your approval" : `On: waiting for your approval of ${joinedWithAnd(kinds)}`;
+  return kinds.length === 0 ? "waiting for your approval" : `waiting for your approval of ${joinedWithAnd(kinds)}`;
 }
 
 function countOf(count: number, noun: string): string {
@@ -593,14 +595,18 @@ export interface StoredUpdateStanding {
   readonly automationEvents: boolean;
 }
 
-/** The standing refusal as the review states it: what is still unapproved, that the plugin stays off until it is, and where to approve it. */
-export function storedUpdateStandingLine({ netHosts, providers, automationEvents }: StoredUpdateStanding): string {
+/** The standing refusal as the review states it: what is still unapproved, whether the plugin is off or runs without it once this update
+ *  applies, and where to approve it. The server turns a plugin back on only when the update widens nothing, so `staysOn` is that fact. */
+export function storedUpdateStandingLine({ netHosts, providers, automationEvents }: StoredUpdateStanding, staysOn: boolean): string {
   const parts = [
     ...(netHosts.length === 0 ? [] : [`${netHosts.length === 1 ? "the host" : "the hosts"} ${joinedWithAnd(netHosts)}`]),
     ...(providers.length === 0 ? [] : [`${providers.length === 1 ? "the model provider" : `the ${PLUGIN_PROVIDERS_NOUN}`} ${joinedWithAnd(providers)}`]),
     ...(automationEvents ? [PLUGIN_AUTOMATION_EVENTS_PHRASE] : []),
   ];
-  return `The plugin stays off after this update until you approve what an earlier update added: ${joinedWithAnd(parts)}. Approve it in the notice above.`;
+  const added = `what an earlier update added: ${joinedWithAnd(parts)}`;
+  return staysOn
+    ? `The plugin stays on after this update and runs without ${added}. Approve it in the notice above.`
+    : `The plugin stays off after this update until you approve ${added}. Approve it in the notice above.`;
 }
 
 // A permission label read inside a sentence, where its capital would be mid-sentence.
@@ -615,7 +621,9 @@ export interface StoredUpdateLines {
   readonly changes: readonly string[];
 }
 
-export function storedUpdateChangeLines({ widening, standing, providers, shipsUiScript }: StoredUpdateChange): StoredUpdateLines {
+/** `running` is whether the plugin is on now. An update that widens nothing leaves a running plugin on and one that widens turns it off, the
+ *  judgment `reactivate` makes in `packages/server/src/domain/plugin/verbs/upgrade.ts`. */
+export function storedUpdateChangeLines({ widening, standing, providers, shipsUiScript }: StoredUpdateChange, running: boolean): StoredUpdateLines {
   const changes: string[] = [];
   if (widening.capabilities.length > 0) {
     const named = widening.capabilities.map((capability) => inSentence(capabilityCopy(capability)?.label ?? capability));
@@ -645,7 +653,8 @@ export function storedUpdateChangeLines({ widening, standing, providers, shipsUi
     automationEvents: standing.matchAutomationEvents,
   };
   const stands = unanswered.netHosts.length > 0 || unanswered.providers.length > 0 || unanswered.automationEvents;
-  return { standing: stands ? storedUpdateStandingLine(unanswered) : null, changes };
+  const widens = widening.capabilities.length > 0 || widening.netHosts.length > 0 || widening.providerIds.length > 0 || widening.matchAutomationEvents;
+  return { standing: stands ? storedUpdateStandingLine(unanswered, running && !widens) : null, changes };
 }
 
 export const STORED_UPDATE_NOTHING_NEW = "It asks for nothing beyond what you allowed.";
@@ -655,10 +664,11 @@ export function pluginUpdateReviewLabel(pluginName: string): string {
   return `Update review for ${pluginName}`;
 }
 
-/** The toast an upgrade raises when reach it added is left for the owner's approval: the plugin stayed off, or it runs on without that reach. */
-export function upgradeNeedsApprovalNotice(pluginName: string, running: boolean): string {
-  return running
-    ? `${pluginName} is on and runs without what it newly asks for, until you approve it. Check below.`
+/** The toast an upgrade raises when reach is left for the owner's approval: the plugin stayed off, or it runs on and the reach that waits is named.
+ *  A running plugin gets here only because this update widened nothing while an earlier refusal stands, so the toast never calls that reach new. */
+export function upgradeNeedsApprovalNotice(pluginName: string, plugin: ConsentAskFacts & { readonly status: PluginStatus }): string {
+  return plugin.status === "enabled"
+    ? `${pluginName} is on, ${waitingForApproval(unansweredReach(plugin))}. Check below.`
     : `${pluginName} stayed off until you approve what it asks for. Check below.`;
 }
 

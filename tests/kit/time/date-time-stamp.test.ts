@@ -21,5 +21,13 @@ test.for([{ locale: "en-US" }, { locale: "en-AU" }, { locale: "es-US" }])(
 );
 
 test("a 24-hour locale prints as the platform formats it", () => {
-  expect(createTimeLib({ locale: "en-GB", timeZone: "UTC" }).formatDateTime(INSTANT)).toBe("5 Oct 2026, 07:57");
+  const lib = createTimeLib({ locale: "en-GB", timeZone: "UTC" });
+  expect(lib.formatDateTime(INSTANT)).toBe("5 Oct 2026, 07:57");
+  expect(lib.formatTime(INSTANT)).toBe("07:57");
+});
+
+test.for([{ locale: "en-US" }, { locale: "en-AU" }, { locale: "es-US" }])("$locale: a bare time keeps its meridiem on the line with it", ({ locale }) => {
+  const stamp = createTimeLib({ locale, timeZone: "UTC" }).formatTime(INSTANT);
+
+  expect(NO_BREAK_SPACES.has(stamp.slice(stamp.indexOf("57") + 2, stamp.indexOf("57") + 3))).toBe(true);
 });

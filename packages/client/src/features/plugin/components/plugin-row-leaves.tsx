@@ -245,6 +245,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           pluginName={plugin.name}
           preview={verdict.preview}
           ref={reviewRef}
+          running={plugin.status === "enabled"}
         />
       ) : null}
     </Stack>
@@ -255,6 +256,8 @@ interface StoredUpdateReviewProps {
   readonly preview: StoredUpdatePreview;
   readonly pluginName: string;
   readonly applying: boolean;
+  /** Whether the plugin is on now: the standing line says whether it is still on once the update applies. */
+  readonly running: boolean;
   readonly onApply: () => void;
   readonly onDismiss: () => void;
   readonly ref: RefObject<HTMLDivElement | null>;
@@ -262,14 +265,21 @@ interface StoredUpdateReviewProps {
 
 /** What the next version from a stored source changes, read before it applies. The lines are the reach it widens
  *  beyond the owner's consent plus the browser-script fact; the apply echoes the preview's identity. */
-function StoredUpdateReview({ preview, pluginName, applying, onApply, onDismiss, ref }: StoredUpdateReviewProps): ReactElement {
-  const { standing, changes } = storedUpdateChangeLines(preview);
+function StoredUpdateReview({ preview, pluginName, applying, running, onApply, onDismiss, ref }: StoredUpdateReviewProps): ReactElement {
+  const { standing, changes } = storedUpdateChangeLines(preview, running);
   const idBase = useId();
   const headingId = `${idBase}-heading`;
   const standingId = `${idBase}-standing`;
+  const nothingNewId = `${idBase}-nothing-new`;
+  const nothingNew = changes.length === 0 && standing === null;
   const changeId = (index: number): string => `${idBase}-change-${index}`;
   // The group's name says which review this is; its description is what the review says, so a person who moves on to Apply has heard it.
-  const describedBy = [headingId, ...(standing === null ? [] : [standingId]), ...changes.map((_, index) => changeId(index))].join(" ");
+  const describedBy = [
+    headingId,
+    ...(standing === null ? [] : [standingId]),
+    ...(nothingNew ? [nothingNewId] : []),
+    ...changes.map((_, index) => changeId(index)),
+  ].join(" ");
   return (
     // Focusable by script, not a tab stop: the group's name is what a screen reader reads when the review opens.
     <Stack aria-describedby={describedBy} aria-label={pluginUpdateReviewLabel(pluginName)} focusTarget={true} gap="field" ref={ref} role="group" tabIndex={-1}>
@@ -285,8 +295,8 @@ function StoredUpdateReview({ preview, pluginName, applying, onApply, onDismiss,
           </Text>
         </Stack>
       )}
-      {changes.length === 0 && standing === null ? (
-        <Text cap="prose" prose={true} voice="gloss">
+      {nothingNew ? (
+        <Text cap="prose" id={nothingNewId} prose={true} voice="gloss">
           {STORED_UPDATE_NOTHING_NEW}
         </Text>
       ) : null}
