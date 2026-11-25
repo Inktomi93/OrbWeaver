@@ -21,7 +21,7 @@ import type { PluginLogLevel, PluginSurfaceNode } from "@orb/contracts/plugin";
 import { isPluginUiHostCallCode, PLUGIN_UI_HOST_CALL_FAILED, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
 import { parseJsonText } from "@orb/kit/json";
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "#lib";
-import { timeLib, trpcErrorReason, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
+import { timeLib, trpcErrorReason, UI_GUEST_BOOT_WALL_MS, UI_GUEST_BUDGETS, UI_GUEST_WALL_MS } from "#lib";
 
 /** What the host reports OUT to its React owner. Every arm is a rendered outcome, not an internal event: the
  *  component maps them straight to what a person sees. */
@@ -153,13 +153,29 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     // The relay. Note what is NOT here: any decision about whether the call is allowed. The server re-gates
     // every one against the caller's own row, and duplicating that judgment here would create a second,
     // divergeable copy of the rule — the client's view of its grants is display-only by design.
+    //
+    // THE PER-CALL DEADLINE. The wall bounds a call only while its event runs; a call the guest floated past its
+    // event's settlement has no wall over it, so each call is refused at `hostCallDeadlineMs` if the relay has not
+    // answered. The first answer wins, and a later one is not sent: the worker has already settled that call.
+    let answered = false;
+    const answer = (message: UiGuestInbound): void => {
+      if (!answered) {
+        answered = true;
+        clearTimeout(deadline);
+        send(message);
+      }
+    };
+    const deadline = setTimeout(
+      () => answer({ kind: "hostResult", callId, ok: false, message: PLUGIN_UI_HOST_CALL_FAILED }),
+      UI_GUEST_BUDGETS.hostCallDeadlineMs,
+    );
     // the failure goes to the guest as an `ok: false` hostResult built by guestRefusal; the worker's
     // settleHostCall rejects the guest's pending promise with it. Ends if the send drops the message.
     try {
       const resultJson = await options.events.onHostCall(fn, argsJson);
-      send({ kind: "hostResult", callId, ok: true, resultJson });
+      answer({ kind: "hostResult", callId, ok: true, resultJson });
     } catch (err) {
-      send(guestRefusal(callId, err));
+      answer(guestRefusal(callId, err));
     }
   }
 

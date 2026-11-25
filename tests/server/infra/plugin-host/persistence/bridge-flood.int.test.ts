@@ -5,13 +5,14 @@
 import { readFileSync } from "node:fs";
 import type { PluginStatus } from "@orb/contracts/plugin";
 import { PLUGIN_CHANNEL_FULL_CODE, PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";
+import { DomainRateLimitError } from "@orb/kit/errors";
 import { brandedId, createIdSource } from "@orb/kit/ids";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestRun, NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
 import { capturePluginRows } from "@orb/testkit/node/rows";
-import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, PLUGIN_NET_MAX_BYTES } from "#server/infra/plugin-host/budgets.ts";
+import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, PLUGIN_BROKER_LIVENESS_BOUND_MS, PLUGIN_NET_MAX_BYTES } from "#server/infra/plugin-host/budgets.ts";
 import { parsePluginIpcMessage } from "#server/infra/plugin-host/process-channel.ts";
 import { PLUGIN_HOST_UNAVAILABLE } from "#server/infra/plugin-host/process-protocol.ts";
 import { createPluginProcessEdge, firstChild } from "../process-runtime.fixtures.ts";
@@ -94,17 +95,17 @@ function brokerPid(edge: Owners["edge"]): number {
   return Number(children[0]);
 }
 
-async function floodingPlugins(owners: Owners, count: number): Promise<readonly GuestRun[]> {
-  const owner = await owners.root.principalFor(owners.root.ownerId);
+async function floodingPlugins(root: NativeServerTestHarness, count: number): Promise<readonly GuestRun[]> {
+  const owner = await root.principalFor(root.ownerId);
   const runs: GuestRun[] = [];
   for (let index = 0; index < count; index += 1) {
     const pluginId = await installGuest(
-      owners.root,
+      root,
       owner,
       { slug: `flood-${String(index)}`, capabilities: ["storage.kv", "net.fetch"], netHosts: [NET_HOST] },
       FLOOD_OPS,
     );
-    runs.push(guestRunner({ root: owners.root, caller: owner, pluginId, chatId: null }));
+    runs.push(guestRunner({ root, caller: owner, pluginId, chatId: null }));
   }
   return runs;
 }
@@ -153,7 +154,7 @@ test.for([
     await using owners = await ownersOnOneBroker();
     expect(await owners.ping()).toEqual({ ok: true, value: null });
     const broker = brokerPid(owners.edge);
-    const runs = await floodingPlugins(owners, plugins);
+    const runs = await floodingPlugins(owners.root, plugins);
     // What a megabyte value settles as when the channels have room: the host's own size refusal.
     const sizeRefusal = await runs[0]?.("oneSet", { bytes: ARG_BYTES });
     if (sizeRefusal?.ok !== false) {
@@ -174,7 +175,7 @@ test("three plugins of one owner flooding host calls with megabyte results are r
   await using owners = await ownersOnOneBroker();
   expect(await owners.ping()).toEqual({ ok: true, value: null });
   const broker = brokerPid(owners.edge);
-  const runs = await floodingPlugins(owners, 3);
+  const runs = await floodingPlugins(owners.root, 3);
 
   // The result frames fill the parent's channel, not the guest's CPU, so every flooding plugin reports its calls, and a
   // full channel's refusal, which the guest tells from a lost host by its code, is among them.
@@ -192,7 +193,7 @@ test("three plugins of one owner flooding host calls with megabyte results are r
 
 test("a showcase-sized burst, every full stored value read back at once, is served whole", { tags: ["slow"], timeout: FLOOD_TEST_TIMEOUT_MS }, async () => {
   await using owners = await ownersOnOneBroker();
-  const [run] = await floodingPlugins(owners, 1);
+  const [run] = await floodingPlugins(owners.root, 1);
   if (run === undefined) {
     throw new Error("the burst plugin installed");
   }
@@ -200,6 +201,51 @@ test("a showcase-sized burst, every full stored value read back at once, is serv
   const bytes = PLUGIN_KV_VALUE_MAX_BYTES - HOST_CALLS_IN_FLIGHT_MAX;
   expect(await run("readBack", { calls: HOST_CALLS_IN_FLIGHT_MAX, bytes })).toEqual({ ok: true, value: HOST_CALLS_IN_FLIGHT_MAX });
   expect(owners.edge.delivered.filter((value) => parsePluginIpcMessage(value)?.kind === BROKER_STOPPED)).toEqual([]);
+});
+
+// The broker's main thread serializes every Worker's frames and also sends the heartbeat its watchdog judges (D347), and
+// every Worker's heap counts toward its one RSS ceiling. Every Worker the default pool holds loops a full allowance of
+// megabyte fetch results, calls the host serves, for several liveness bounds of wall time; neither a missed beat, a
+// Worker's heap ceiling nor the broker's RSS ceiling may end anything.
+const LOOPED_FLOOD_MS = 8 * PLUGIN_BROKER_LIVENESS_BOUND_MS;
+// A fetch past the plugin's own fetch allowance, refused alone like a full channel's.
+const FETCH_RATE_LIMITED = DomainRateLimitError.name;
+
+test("as many plugins as the broker has Workers, each looping megabyte fetch results, leave its heartbeat and every Worker inside their bounds", {
+  tags: ["slow"],
+  timeout: FLOOD_TEST_TIMEOUT_MS,
+}, async () => {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({
+    startJobs: false,
+    pluginSpawn: edge.spawn,
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: () => Promise.resolve(new Response(BULK_BODY)) },
+  });
+  // One owner only, so the owner share does not bind and every Worker runs a flooding plugin.
+  const runs = await floodingPlugins(root, root.env.PLUGIN_BROKER_WORKER_MAX);
+  const broker = brokerPid(edge);
+  const until = performance.now() + LOOPED_FLOOD_MS;
+  const loop = async (run: GuestRun): Promise<{ readonly rounds: number; readonly served: number }> => {
+    let rounds = 0;
+    let served = 0;
+    while (performance.now() < until) {
+      const fetched = await run("floodFetch", { calls: HOST_CALLS_IN_FLIGHT_MAX, url: BULK_URL });
+      const names = fetched.ok && Array.isArray(fetched.value) ? fetched.value : [];
+      expect(fetched.ok ? names.filter((name) => name !== CHANNEL_FULL && name !== FETCH_RATE_LIMITED && name !== "ok") : fetched).toEqual([]);
+      served += names.filter((name) => name === "ok").length;
+      rounds += 1;
+    }
+    return { rounds, served };
+  };
+  const loops = await Promise.all(runs.map(loop));
+
+  // Every plugin looped more than once and was served megabyte results, every other call refused alone, and no beat
+  // went missing long enough to replace the broker.
+  expect(Math.min(...loops.map(({ rounds }) => rounds))).toBeGreaterThan(1);
+  expect(Math.min(...loops.map(({ served }) => served))).toBeGreaterThan(0);
+  expect(edge.delivered.filter((value) => parsePluginIpcMessage(value)?.kind === BROKER_STOPPED)).toEqual([]);
+  expect(firstChild(edge)).toMatchObject({ exitCode: null, signalCode: null });
+  expect(brokerPid(edge)).toBe(broker);
 });
 
 // A quarter of the allowance of megabyte values: enough to refuse by the host's size cap, few enough that the guest

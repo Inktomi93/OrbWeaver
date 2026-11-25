@@ -9,11 +9,13 @@ import { Readable } from "node:stream";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS, pluginIpcShareBytes } from "./budgets.ts";
+import type { PluginIpcMessage } from "./contract/process-protocol.ts";
 import { formatPluginBrokerArguments, parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
 import { PluginIpcSender, parsePluginIpcMessage, relayFrame } from "./process-channel.ts";
 import { pluginBrokerExecArgv } from "./process-permission.ts";
-import { PLUGIN_BROKER_BEAT_MAX_BYTES, rpcError } from "./process-protocol.ts";
-import { brokerWatchdogFailure } from "./watchdog-policy.ts";
+import { rpcError } from "./process-protocol.ts";
+import type { BrokerHeartbeat } from "./watchdog-policy.ts";
+import { brokerWatchdogFailure, readBrokerStderrLine } from "./watchdog-policy.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url));
 const BROKER_RESTART_DELAY_MS = 1000;
@@ -47,13 +49,13 @@ process.on("message", (value: unknown) => {
   if (message.generation !== activeGeneration || brokerSender === undefined || stopping) {
     return;
   }
-  // Any relay failure SIGKILLs the broker, whatever its class: its exit settles superviseOneBroker, which sends the
-  // app a stopped frame, and process-runtime's onDisconnect rejects pending work.
+  // A relay throws only after the failing sender's own failure owner ran, which closes the channel it failed (the
+  // broker's channel is retired in superviseOneBroker; the app's stops this watchdog), or on a sender already closed for
+  // that reason. The broker's exit settles superviseOneBroker, which sends the app a stopped frame.
   try {
     relayFrame(message, brokerSender, appSender);
   } catch (error) {
     reportChannelFailure("the app-to-broker relay", error);
-    activeBroker?.kill("SIGKILL");
   }
 });
 
@@ -64,61 +66,10 @@ function reportChannelFailure(channel: string, error: unknown): void {
   process.stderr.write(`plugin broker watchdog: ${channel} failed (${name}: ${message})\n`);
 }
 
-interface BrokerHeartbeat {
-  /** The broker's own monotonic clock at send; compared only with that broker's earlier heartbeats. */
-  readonly sentAtMs: number;
-  readonly rssBytes: number;
-  readonly peakPhysicalWorkers: number;
-  readonly execArgv: readonly string[];
-  readonly nodeOptions: null;
-}
-
-const HEARTBEAT_KIND = "plugin-broker-memory";
-
-// A stderr line's JSON, or null for a line that is not JSON or is too long to be a beat. `JSON.parse` throws only
-// `SyntaxError`; any other fault is a defect and stays loud.
-function parseBeatLine(line: string): unknown {
-  if (Buffer.byteLength(line, "utf8") > PLUGIN_BROKER_BEAT_MAX_BYTES) {
-    return null;
-  }
-  try {
-    return JSON.parse(line);
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-// Whether a stderr line claims to be a heartbeat. Any other line is the broker's or Node's own text.
-function claimsHeartbeat(message: unknown): message is object {
-  return typeof message === "object" && message !== null && Reflect.get(message, "kind") === HEARTBEAT_KIND;
-}
-
-function parseHeartbeat(message: object): BrokerHeartbeat | null {
-  const sentAtMs: unknown = Reflect.get(message, "sentAtMs");
-  const rssBytes: unknown = Reflect.get(message, "rssBytes");
-  const peakPhysicalWorkers: unknown = Reflect.get(message, "peakPhysicalWorkers");
-  const execArgv: unknown = Reflect.get(message, "execArgv");
-  const nodeOptions: unknown = Reflect.get(message, "nodeOptions");
-  return typeof sentAtMs === "number" &&
-    Number.isFinite(sentAtMs) &&
-    typeof rssBytes === "number" &&
-    Number.isSafeInteger(rssBytes) &&
-    rssBytes >= 0 &&
-    typeof peakPhysicalWorkers === "number" &&
-    Number.isSafeInteger(peakPhysicalWorkers) &&
-    peakPhysicalWorkers >= 0 &&
-    Array.isArray(execArgv) &&
-    execArgv.every((value) => typeof value === "string") &&
-    nodeOptions === null
-    ? { sentAtMs, rssBytes, peakPhysicalWorkers, execArgv, nodeOptions }
-    : null;
-}
-
-function forwardBrokerFrame(value: unknown, generation: string, broker: ChildProcess, sender: PluginIpcSender): boolean {
-  const message = parsePluginIpcMessage(value);
+// A broker that sends what its host code never sends, a malformed message, another generation's frame or a stopped
+// frame, is not trusted to act on a closed channel, so it is ended at once. `kill()` is the forced end that behaves the
+// same on every platform; no handler in the broker is meant to run (`.claude/rules/server.md`, Windows, macOS and Linux).
+function forwardBrokerFrame(message: PluginIpcMessage | null, generation: string, broker: ChildProcess, sender: PluginIpcSender): boolean {
   if (message === null) {
     return false;
   }
@@ -139,6 +90,30 @@ function forwardBrokerFrame(value: unknown, generation: string, broker: ChildPro
     stopBroker();
   }
   return true;
+}
+
+interface BeatReader {
+  /** The key the broker sent with its readiness, once read. */
+  readonly key: () => string | undefined;
+  readonly beat: (heartbeat: BrokerHeartbeat) => void;
+  readonly malformed: () => void;
+}
+
+// The broker's host code writes one keyed JSON beat per line on its stderr; a keyed line that is not a beat ends the
+// broker. A beat-shaped line without the key is the broker's own beat read before its readiness, or a line a Worker
+// forged; it is neither a beat nor text the app needs, so it is dropped. Every other line is the broker's report, Node's
+// own or a Worker's, passed on to the stderr the app reads.
+function readBeats(beatPipe: Readable, reader: BeatReader): void {
+  createInterface({ input: beatPipe, crlfDelay: Number.POSITIVE_INFINITY }).on("line", (line) => {
+    const read = readBrokerStderrLine(line, reader.key());
+    if (read.kind === "text") {
+      process.stderr.write(`${line}\n`);
+    } else if (read.kind === "malformed") {
+      reader.malformed();
+    } else if (read.kind === "beat") {
+      reader.beat(read.heartbeat);
+    }
+  });
 }
 
 async function superviseOneBroker(): Promise<string> {
@@ -164,11 +139,27 @@ async function superviseOneBroker(): Promise<string> {
   );
   activeBroker = broker;
   activeGeneration = generation;
+  // The key the broker's beats carry, read from its readiness (watchdog-policy.ts).
+  let beatKey: string | undefined;
+  // When this broker's channel was closed for a failure, on the judgement clock.
+  let retiredAt: number | undefined;
+  // A failed channel to the broker is closed, which an honest broker answers by exiting; the judgement ends one that
+  // has not after the liveness bound, as it ends a broker that ignores a stop.
+  const retire = (reason: string): void => {
+    failure ??= `plugin broker watchdog: ${reason}`;
+    retiredAt ??= performance.now();
+    if (brokerSender === sender) {
+      brokerSender = undefined;
+    }
+    if (broker.connected) {
+      broker.disconnect();
+    }
+  };
   const sender = new PluginIpcSender(
     (message, callback) => {
       broker.send(message, callback);
     },
-    () => broker.kill("SIGKILL"),
+    () => retire("the watchdog-to-broker channel failed"),
     pluginIpcShareBytes(workerMaximum),
   );
   brokerSender = sender;
@@ -198,11 +189,23 @@ async function superviseOneBroker(): Promise<string> {
         );
       }
     };
+    // Bytes the broker's host code never writes: it is ended at once, as `forwardBrokerFrame` says why.
     const malformed = (reason: string): void => {
       failure = `plugin broker watchdog: ${reason}`;
       broker.kill("SIGKILL");
     };
-    broker.on("message", (message: unknown) => {
+    broker.on("message", (value: unknown) => {
+      const message = parsePluginIpcMessage(value);
+      if (message?.kind === "ready" && message.generation === generation) {
+        // A broker gives its key once, with its readiness, and the app's readiness never carries it.
+        if (message.beatKey === undefined || beatKey !== undefined) {
+          malformed("broker sent a readiness without its one beat key");
+          return;
+        }
+        beatKey = message.beatKey;
+        forwardBrokerFrame({ kind: "ready", generation }, generation, broker, sender);
+        return;
+      }
       if (!forwardBrokerFrame(message, generation, broker, sender)) {
         malformed("broker sent a malformed IPC message");
       }
@@ -211,25 +214,17 @@ async function superviseOneBroker(): Promise<string> {
     if (!(beatPipe instanceof Readable)) {
       malformed("broker has no heartbeat pipe");
     } else {
-      // The broker's host code writes one JSON beat per line here; a line that claims to be a beat and is not one ends
-      // the broker. Every other line is the broker's report or Node's own, passed on to the stderr the app reads.
-      createInterface({ input: beatPipe, crlfDelay: Number.POSITIVE_INFINITY }).on("line", (line) => {
-        const claimed = parseBeatLine(line);
-        if (!claimsHeartbeat(claimed)) {
-          process.stderr.write(`${line}\n`);
-          return;
-        }
-        const heartbeat = parseHeartbeat(claimed);
-        if (heartbeat === null) {
-          malformed("broker sent a malformed memory heartbeat");
-          return;
-        }
-        if (newestSentAtMs === undefined || heartbeat.sentAtMs > newestSentAtMs) {
-          newestSentAtMs = heartbeat.sentAtMs;
-          heardSinceJudged = true;
-        }
-        rssBytes = heartbeat.rssBytes;
-        report(heartbeat);
+      readBeats(beatPipe, {
+        key: () => beatKey,
+        malformed: () => malformed("broker sent a malformed memory heartbeat"),
+        beat: (heartbeat) => {
+          if (newestSentAtMs === undefined || heartbeat.sentAtMs > newestSentAtMs) {
+            newestSentAtMs = heartbeat.sentAtMs;
+            heardSinceJudged = true;
+          }
+          rssBytes = heartbeat.rssBytes;
+          report(heartbeat);
+        },
       });
     }
     broker.once("error", (error) => settle(`plugin broker watchdog: failed to start broker: ${error.message}`));
@@ -239,22 +234,29 @@ async function superviseOneBroker(): Promise<string> {
     // silence. Each judgement waits for the check phase, after the beats waiting in the pipe were read, and one late
     // tick after a stall counts as one interval at most: only consecutive intervals with no newer beat end the broker
     // (D347).
+    //
+    // Each end below is a `kill()`, never a closed channel first. A broker past its heartbeat bound has a main thread
+    // that runs no handler, so it would never read the close (D347); one past its RSS ceiling must stop growing now,
+    // not after its own shutdown; and one still running a bound after its stop or its retirement has already ignored a
+    // closed channel. `kill()` is the forced end that behaves the same on every platform (`.claude/rules/server.md`,
+    // Windows, macOS and Linux).
     const judge = (): void => {
       misses = heardSinceJudged ? 0 : misses + 1;
       heardSinceJudged = false;
+      const endingSince = Math.min(stoppedAt ?? Number.POSITIVE_INFINITY, retiredAt ?? Number.POSITIVE_INFINITY);
       const reason = brokerWatchdogFailure(performance.now(), memoryLimitBytes, {
         startedAt,
         heard: newestSentAtMs !== undefined,
         misses,
         ...(rssBytes === undefined ? {} : { rssBytes }),
-        ...(stoppedAt === undefined ? {} : { stoppedAt }),
+        ...(Number.isFinite(endingSince) ? { stoppedAt: endingSince } : {}),
       });
       if (reason !== null) {
-        failure = reason;
         // A stop reports no failure of its own, so a broker that had to be ended is named here.
-        if (stopping) {
+        if (stopping || retiredAt !== undefined) {
           process.stderr.write(`${reason}; the broker did not exit on its stop\n`);
         }
+        failure ??= reason;
         broker.kill("SIGKILL");
       }
     };
