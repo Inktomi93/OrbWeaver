@@ -966,10 +966,15 @@ class BrokerClient {
     }
   }
 
+  // A broken connection is stopped the way every stop is, by closing the watchdog's channel: the watchdog is host code
+  // that answers it by ending its broker in order, and a watchdog ended by a signal would leave a hung broker with no
+  // supervisor. Its exit runs `onWatchdogGone`, and the stop's grace bounds a watchdog that never exits.
   private stopConnection(error: Error): void {
     this.generation = undefined;
     this.sender?.close();
-    this.managedChild?.kill("SIGKILL");
+    if (this.managedChild !== undefined) {
+      this.stopWatchdog(this.managedChild);
+    }
     this.onDisconnect(error);
   }
 

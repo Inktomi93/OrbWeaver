@@ -149,8 +149,9 @@ function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHand
       return typeof read.value === "string" ? read.value : String(read.value);
     case "thrown":
       throw new GuestCallFailure(read.error);
-    // Only a primitive reaches this read, and a primitive is never a promise.
+    // Only a primitive reaches this read, and a primitive is never a promise or a walked object.
     case "promise":
+    case "unreadable":
       return "";
     default: {
       const exhaustive: never = read;

@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-25
 priority: P3
 area: plugin
+lane: wt/agent-a71a211fcd2576220
 ---
 
 # Plugin law, showcase docs and SDK prose match the plugin contracts

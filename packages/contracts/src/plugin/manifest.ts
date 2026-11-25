@@ -53,8 +53,8 @@ export const PLUGIN_CAPABILITIES = [
   // The ESCAPE HATCH, and the one UI capability that is RISK class: a `frame` surface runs the plugin's OWN
   // interface code inside an isolated (opaque-origin, `default-src 'none'`, no `connect-src`) document. It reaches
   // no session, no storage, no app DOM and no sibling frame — but it CAN beacon out over WebRTC/STUN, which no CSP
-  // directive Chromium recognizes can close. Its consent line
-  // says exactly that. It sits ADJACENT to `ui.surface` rather than in the reach band beside `net.fetch` because it
+  // directive Chromium recognizes can close, and in WebKit over a `<link rel=preconnect>`, which no directive covers.
+  // Its consent line says exactly that. It sits ADJACENT to `ui.surface` rather than in the reach band beside `net.fetch` because it
   // is the escalation OF that row — a reader deciding "what may this plugin draw" must weigh both in one place.
   "ui.frame",
   "turn.trigger", // SPEND
@@ -287,7 +287,7 @@ export const PLUGIN_UI_ASSET_MAX_BYTES = 2_097_152;
 export const PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES = 8_388_608;
 // Provider definitions are metadata but each becomes a deployment-global registry row + contribution write
 //  on activation. Bound the fan-out at the manifest trust edge, like capabilities and bundle assets.
-const PLUGIN_PROVIDERS_MAX = 16;
+export const PLUGIN_PROVIDERS_MAX = 16;
 
 interface ProviderManifestFields {
   readonly id: string;

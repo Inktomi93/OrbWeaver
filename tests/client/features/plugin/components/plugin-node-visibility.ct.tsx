@@ -81,7 +81,14 @@ test("a bound `when` follows the guest's publish live, a missing path shows its 
     bundleBase64: Buffer.from(makePluginBundle(manifest, GUEST, root.clock.now())).toString("base64"),
     grant: ["ui.surface"],
   });
-  const plugin = await caller.plugin.setGrant({ pluginId: installed.id, grant: ["ui.surface"], acknowledgedNetHosts: [], enable: true });
+  const plugin = await caller.plugin.setGrant({
+    pluginId: installed.id,
+    grant: ["ui.surface"],
+    acknowledgedNetHosts: [],
+    acknowledgedProviderIds: installed.providers.map(({ id }) => id),
+    acknowledgedMatchAutomationEvents: installed.matchAutomationEvents,
+    enable: true,
+  });
   await expect.poll(() => caller.plugin.getSurfaceState({ pluginId: plugin.id, surfaceId: SURFACE_ID })).toMatchObject({ previous: false });
   await routeTrpc(
     page,

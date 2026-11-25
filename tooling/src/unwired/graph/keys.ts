@@ -34,6 +34,7 @@ import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { formPath } from "../key-resolver.ts";
 import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
+import { FORM_NAME } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import { answer, constituentsOf } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -71,9 +72,6 @@ const byRole = <T extends { readonly roles: readonly Role[] }>(asks: readonly T[
 const symbolKey = (type: Type | undefined): boolean => type !== undefined && hasFlag(type.flags, TypeFlags.ESSymbolLike);
 // The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id.
 const symbolMemberName = (symbol: NativeSymbol): string => `__@${symbol.name}@${String(symbol.id)}`;
-
-// The attribute a form's field component takes its path in.
-const FORM_NAME = "name";
 
 export class Keys {
   readonly #state: GraphState;
@@ -203,7 +201,7 @@ export class Keys {
       ...sites.templatePaths,
       ...sites.jsxAttributes.flatMap(({ name, value }) => (name === FORM_NAME && value !== undefined ? [value] : [])),
     ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key) || isTemplateExpression(key));
-    const paths = state.batch(keys.map((key) => formPath(state.world.checker, key)));
+    const paths = state.batch(keys.map((key) => formPath(state.world, key)));
     for (const [y, key] of keys.entries()) {
       const path = paths[y];
       if (path !== null && path !== undefined) {
@@ -215,9 +213,11 @@ export class Keys {
     }
   }
 
-  // The members named `name` a value holds, at any depth of the members the tree declares.
+  // The members named `name` a value holds, at any depth of the members the tree declares and of the lists' elements
+  // among them: a parsed line's `message.calls[0].id` is as deep in the value as `message.content`.
   *#namedAtAnyDepth(start: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
     const state = this.#state;
+    const { checker } = state.world;
     const found: NativeSymbol[] = [];
     const seen = new Set<number>();
     for (let level: readonly Type[] = [start]; level.length > 0; ) {
@@ -227,7 +227,12 @@ export class Keys {
         const members = (yield* state.membersOf(type)).filter((member) => member.declarations.some((handle) => state.resolver.ours(handle)));
         found.push(...members.filter((member) => member.name === name));
         for (const member of members) {
-          next.push(yield* state.world.checker.getTypeOfSymbol.gen(member));
+          next.push(yield* checker.getTypeOfSymbol.gen(member));
+        }
+        for (const arm of yield* constituentsOf(type)) {
+          if (arm.isTypeReference() && (yield* checker.isArrayLikeType.gen(arm))) {
+            next.push(...(yield* checker.getTypeArguments.gen(arm)));
+          }
         }
       }
       level = next;

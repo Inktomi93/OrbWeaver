@@ -3,7 +3,7 @@
 // Stopping the server stops the plugin host's processes over their IPC channels, never by a signal, so the stop works
 // the same on Windows, macOS and Linux: each child sees its channel close, ends, and its parent waits for the exit. A
 // child that cannot act on its stop is ended by its parent, and no watchdog or broker outlives the server.
-// The first case runs natively on every platform in the contributor proof; the other two hold a process with SIGSTOP,
+// The first case runs natively on every platform in the contributor proof; the others hold a process with SIGSTOP,
 // which only POSIX has.
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -123,6 +123,34 @@ test("a broker that cannot act on its stop is ended by its watchdog's liveness c
   expect(log).toMatch(STOP_IGNORED);
   expect(log).not.toMatch(RELAY_FAILURE);
   expect(running(broker)).toBe(false);
+});
+
+test("a connection the host finds broken is stopped over the channel too, so the watchdog still ends a broker that cannot act on it", {
+  timeout: NATIVE_TIMEOUT_MS,
+}, async () => {
+  const captured = capturingSpawn();
+  await using root = await createServerHarness({ pluginSpawn: captured.spawn });
+  const { watchdog, broker } = await serveOnce(root, captured, "broken-connection");
+  // A held broker cannot see its channel close: with its watchdog gone it would run on with no supervisor.
+  process.kill(broker, "SIGSTOP");
+  try {
+    // An envelope the host cannot parse is a broken connection.
+    watchdog.emit("message", { kind: "not-an-envelope" });
+    await once(watchdog, "exit");
+  } finally {
+    if (running(broker)) {
+      process.kill(broker, "SIGKILL");
+    }
+  }
+
+  expect({ code: watchdog.exitCode, signal: watchdog.signalCode }).toEqual({ code: 0, signal: null });
+  expect(captured.lines.join("")).toMatch(STOP_IGNORED);
+  expect(running(broker)).toBe(false);
+  // Positive control: the host replaces the stopped watchdog on its next call.
+  const after = await installGuest(root, "after-broken", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await after.enable()).status).toBe("enabled");
+  await expect(after.invoke("noop")).resolves.toEqual({ toasts: [] });
+  expect(captured.watchdogs).toHaveLength(2);
 });
 
 test("a watchdog that ignores its stop is ended by the host's fallback, and its broker exits on the closed channel", {

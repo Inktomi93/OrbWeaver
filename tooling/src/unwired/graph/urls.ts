@@ -66,6 +66,8 @@ import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationHome, declarationKeys, hasFlag, isFunctionLike, isPlatform, platformMember, propertiesNamed } from "../native.ts";
 import { isProduction } from "../worlds.ts";
+import type { URL_MEMBERS } from "./library-names.ts";
+import { HONO_PACKAGE, NAVIGATION_MEMBER, REACT_ROUTER, ROUTER_CORE, TRPC_CLIENT, TRPC_LINK_URL, URL_CONSTRUCTOR } from "./library-names.ts";
 import { sameNode } from "./roles.ts";
 
 const ROUTE_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "ALL"] as const;
@@ -100,12 +102,10 @@ const REQUEST_NAMES: ReadonlySet<string> = new Set(Object.keys(REQUEST_CALLS).ma
 // RequestInit's method member, read from an init the platform's own request call types.
 const INIT_METHOD = "method";
 
-// URL members the platform declares: writing one loads it. A form's action posts with a method the form owns.
-const URL_MEMBERS: Readonly<Record<string, RouteMethod>> = { href: "GET", src: "GET", action: ANY_METHOD, formAction: ANY_METHOD };
-// A tRPC client link's `url` option, by the package that declares it: every procedure call the link makes requests a
-// path under it.
-const TRPC_LINK_URL = "url";
-const TRPC_SCOPE = "@trpc/";
+// URL members a library declares (library-names.ts URL_MEMBERS): writing one loads it. A form's action posts with a
+// method the form owns.
+const URL_METHODS: Readonly<Record<(typeof URL_MEMBERS)[number], RouteMethod>> = { href: "GET", src: "GET", action: ANY_METHOD, formAction: ANY_METHOD };
+const isUrlMember = (text: string): text is (typeof URL_MEMBERS)[number] => Object.hasOwn(URL_METHODS, text);
 
 // --- URL patterns -------------------------------------------------------------------------------------------------
 
@@ -530,11 +530,11 @@ function* memberWrite(world: NativeWorld, name: Identifier, value: Expression, r
   }
   const patterns = isShorthandPropertyAssignment(value.parent) ? yield* shorthandValue(world, value.parent) : yield* fold(world, value);
   if (text !== TRPC_LINK_URL) {
-    return { site: world.siteOf(name), sink: text, method: URL_MEMBERS[text] ?? ANY_METHOD, patterns, body: null };
+    return { site: world.siteOf(name), sink: text, method: isUrlMember(text) ? URL_METHODS[text] : ANY_METHOD, patterns, body: null };
   }
   const packages = yield* all(...resolved.flatMap((member) => member.declarations).map((handle) => world.packageOf(handle)));
-  // the link sends each procedure call to its path under the URL
-  return packages.every((pkg) => pkg?.startsWith(TRPC_SCOPE) === true)
+  // a tRPC client link's `url` option: the link sends each procedure call to its path under the URL
+  return packages.every((pkg) => pkg === TRPC_CLIENT)
     ? { site: world.siteOf(name), sink: text, method: ANY_METHOD, patterns: patterns.map((pattern) => [...pattern, "/", null]), body: null }
     : null;
 }
@@ -607,10 +607,7 @@ function* writtenMembers(world: NativeWorld, name: Identifier): APIRequestGenera
 }
 
 // The packages whose navigation options take a URL as their `to` member.
-const ROUTER_PACKAGES: ReadonlySet<string> = new Set(["@tanstack/react-router", "@tanstack/router-core"]);
-const NAVIGATION_MEMBER = "to";
-// The platform's URL constructor, by the key {@link requestKey} gives its global.
-const URL_CONSTRUCTOR = "URL";
+const ROUTER_PACKAGES: ReadonlySet<string> = new Set([REACT_ROUTER, ROUTER_CORE]);
 
 // The expression a value is, through parentheses, assertions and `satisfies`.
 function outermost(node: Node): Node {
@@ -619,6 +616,15 @@ function outermost(node: Node): Node {
     at = at.parent;
   }
   return at;
+}
+
+// Whether a member a value is written to is a URL member a library declares, never a same-named member of ours.
+function* libraryUrlMember(world: NativeWorld, name: Identifier): APIRequestGenerator<boolean> {
+  if (!isUrlMember(name.text)) {
+    return false;
+  }
+  const members = yield* writtenMembers(world, name);
+  return members.length > 0 && members.every((member) => outsideTree(world, member));
 }
 
 // Whether a member a value is written to is a router's navigation target, by the package that declares it.
@@ -714,7 +720,7 @@ function* reaches(flow: Flow, value: Node): APIRequestGenerator<boolean> {
 // origin, else the in-tree member's reads.
 function* writeReaches(flow: Flow, at: Node, name: Identifier): APIRequestGenerator<boolean> {
   const { world } = flow;
-  if (Object.hasOwn(URL_MEMBERS, name.text) || (yield* routerTarget(world, name))) {
+  if ((yield* libraryUrlMember(world, name)) || (yield* routerTarget(world, name))) {
     return flow.sends(world.siteOf(at).file);
   }
   return yield* membersReach(flow, name);
@@ -859,7 +865,6 @@ function* callsReach(flow: Flow, name: Identifier): APIRequestGenerator<boolean>
 }
 
 /** The package whose context answers a request: a value handed to one of its members is the response's. */
-const HONO_PACKAGE = "hono";
 
 // The value a literal holds it in, through object members, array elements and spreads, so `c.json({ url })` is read at
 // the call that sends the object.
@@ -1035,18 +1040,18 @@ function urlWrite(node: Node): { readonly name: Identifier; readonly value: Expr
     node.operatorToken.kind === SyntaxKind.EqualsToken &&
     isPropertyAccessExpression(node.left) &&
     isIdentifier(node.left.name) &&
-    Object.hasOwn(URL_MEMBERS, node.left.name.text)
+    isUrlMember(node.left.name.text)
   ) {
     return { name: node.left.name, value: node.right };
   }
-  if (isJsxAttribute(node) && isIdentifier(node.name) && Object.hasOwn(URL_MEMBERS, node.name.text) && node.initializer !== undefined) {
+  if (isJsxAttribute(node) && isIdentifier(node.name) && isUrlMember(node.name.text) && node.initializer !== undefined) {
     const value =
       node.initializer.kind === SyntaxKind.JsxExpression
         ? (node.initializer as { readonly expression?: Expression }).expression
         : (node.initializer as Expression);
     return value === undefined ? null : { name: node.name, value };
   }
-  const urlKey = (name: Identifier): boolean => Object.hasOwn(URL_MEMBERS, name.text) || name.text === TRPC_LINK_URL;
+  const urlKey = (name: Identifier): boolean => isUrlMember(name.text) || name.text === TRPC_LINK_URL;
   if (isPropertyAssignment(node) && isIdentifier(node.name) && urlKey(node.name) && isObjectLiteralExpression(node.parent)) {
     return { name: node.name, value: node.initializer };
   }

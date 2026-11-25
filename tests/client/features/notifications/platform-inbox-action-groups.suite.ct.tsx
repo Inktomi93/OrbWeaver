@@ -80,7 +80,14 @@ async function seedInbox(root: ServerTestHarness, appearance: AppearanceSettings
     bundleBase64: Buffer.from(makePluginBundle(manifest, "orb.host(1);", root.clock.now())).toString("base64"),
     grant: [],
   });
-  await caller.plugin.setGrant({ pluginId: consent.id, grant: [], acknowledgedNetHosts: [], enable: false });
+  await caller.plugin.setGrant({
+    pluginId: consent.id,
+    grant: [],
+    acknowledgedNetHosts: [],
+    acknowledgedProviderIds: consent.providers.map(({ id }) => id),
+    acknowledgedMatchAutomationEvents: consent.matchAutomationEvents,
+    enable: false,
+  });
   const crashManifest = pluginManifestSchema.parse({ ...manifest, id: "inbox-disabled", name: PLUGIN_NAME, capabilities: [] });
   const crashed = await caller.plugin.install({
     bundleBase64: Buffer.from(makePluginBundle(crashManifest, "orb.host(1);", root.clock.now())).toString("base64"),

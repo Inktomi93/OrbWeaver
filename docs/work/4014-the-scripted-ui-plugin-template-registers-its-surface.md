@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-25
 priority: P2
 area: plugin
+lane: wt/agent-a1376818f1f22d211
 ---
 
 # The scripted-ui plugin template registers its surface and both templates pin the current SDK

@@ -16,7 +16,7 @@
 // A walk ends on its seen-set, never on a depth (Walk). A literal a walk reaches is marked reached, whether or not a
 // literal type already answered, so a whole data-* string no site reaches is known. A wide part answers null: it can
 // hold any name; an empty answer, and a literal that is not a string, hold none.
-import type { Expression, Node, NodeArray, PropertyAccessExpression } from "@typescript/native/ast";
+import type { CallExpression, Expression, Node, NodeArray, PropertyAccessExpression } from "@typescript/native/ast";
 import {
   isArrayBindingPattern,
   isArrayLiteralExpression,
@@ -58,6 +58,8 @@ import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/na
 import { SymbolFlags } from "@typescript/native/sync";
 import type { NativeWorld } from "../native.ts";
 import { hasFlag } from "../native.ts";
+import type { Library, LibraryNames } from "./library-names.ts";
+import { ELEMENT_CALLBACKS, IN_PAGE, libraryNames, MAP, OBJECT, PLATFORM, PLAYWRIGHT_CORE } from "./library-names.ts";
 import { sameNode } from "./roles.ts";
 import { literalValues } from "./state.ts";
 
@@ -100,9 +102,7 @@ interface Walk {
 }
 
 const newWalk = (): Walk => ({ answers: new Map(), open: new Map() });
-const MAP = "Map";
 const GET = "get";
-const OBJECT = "Object";
 const UNDEFINED = "undefined";
 const NO_TEXT: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.NullKeyword, SyntaxKind.TrueKeyword, SyntaxKind.FalseKeyword]);
 /** The `Object` statics that list an object's property values: `entries` as the second of each pair. */
@@ -110,11 +110,6 @@ const OBJECT_VALUES: ReadonlyMap<string, Path> = new Map([
   ["entries", [ELEMENT, { kind: "index", at: 1 }]],
   ["values", [ELEMENT]],
 ]);
-/** The browser-driver methods that run their first argument in the page and hand it their second as its last
- *  parameter: Playwright's page and locator `evaluate` family. */
-const IN_PAGE: ReadonlySet<string> = new Set(["evaluate", "evaluateAll", "evaluateHandle", "$eval", "$$eval", "waitForFunction", "addInitScript"]);
-/** The list methods whose callback is handed each element of the receiver as its first parameter. */
-const ELEMENT_CALLBACKS: ReadonlySet<string> = new Set(["map", "flatMap", "forEach", "filter", "find", "findLast", "findIndex", "some", "every"]);
 /** The list methods that return a list of the receiver's own elements. */
 const SAME_ELEMENTS: ReadonlySet<string> = new Set(["filter", "slice", "toSorted", "toReversed", "sort", "reverse", "concat"]);
 /** The list methods that return one of the receiver's elements. */
@@ -147,16 +142,30 @@ function recordHolder(fn: FunctionLike): Node | undefined {
   return isVariableDeclaration(at.parent) && isIdentifier(at.parent.name) ? at.parent.name : undefined;
 }
 
+// A call of a method `names` lists for `library`, whose own declaration is that library's.
+const libraryCall = (
+  node: Node,
+  methods: ReadonlySet<string>,
+  library: Library,
+  names: LibraryNames,
+): node is CallExpression & {
+  readonly expression: PropertyAccessExpression;
+} =>
+  isCallExpression(node) &&
+  isPropertyAccessExpression(node.expression) &&
+  methods.has(node.expression.name.text) &&
+  names.declaredBy(node.expression.name, library);
+
 // What a reference to a function hands its parameter at `index`: a call's argument when the reference is the callee,
 // a driver call's second argument when the reference is the in-page function a driver runs.
-function handedAt(name: Node, caller: Node | undefined, fn: FunctionLike, index: number): Expression | undefined {
+function handedAt(
+  { name, caller }: { readonly name: Node; readonly caller: Node | undefined },
+  fn: FunctionLike,
+  index: number,
+  names: LibraryNames,
+): Expression | undefined {
   const driver = name.parent;
-  if (
-    isCallExpression(driver) &&
-    isPropertyAccessExpression(driver.expression) &&
-    IN_PAGE.has(driver.expression.name.text) &&
-    sameNode(driver.arguments[0], name)
-  ) {
+  if (libraryCall(driver, IN_PAGE, PLAYWRIGHT_CORE, names) && sameNode(driver.arguments[0], name)) {
     return index === fn.parameters.length - 1 ? driver.arguments[1] : undefined;
   }
   if (caller !== undefined && isCallExpression(caller) && (sameNode(caller.expression, name) || sameNode(caller.expression, name.parent))) {
@@ -166,23 +175,18 @@ function handedAt(name: Node, caller: Node | undefined, fn: FunctionLike, index:
 }
 
 // The value an in-page callback is handed: the driver call's second argument.
-function inPageArgument(fn: FunctionLike): Expression | undefined {
+function inPageArgument(fn: FunctionLike, names: LibraryNames): Expression | undefined {
   const call = fn.parent;
-  if (isCallExpression(call) && isPropertyAccessExpression(call.expression) && IN_PAGE.has(call.expression.name.text) && sameNode(call.arguments[0], fn)) {
+  if (libraryCall(call, IN_PAGE, PLAYWRIGHT_CORE, names) && sameNode(call.arguments[0], fn)) {
     return call.arguments[1];
   }
   return undefined;
 }
 
 // The list a callback is handed the elements of, when it is the first argument of a list method.
-function callbackReceiver(fn: FunctionLike): Expression | undefined {
+function callbackReceiver(fn: FunctionLike, names: LibraryNames): Expression | undefined {
   const call = fn.parent;
-  if (
-    isCallExpression(call) &&
-    isPropertyAccessExpression(call.expression) &&
-    ELEMENT_CALLBACKS.has(call.expression.name.text) &&
-    sameNode(call.arguments[0], fn)
-  ) {
+  if (libraryCall(call, ELEMENT_CALLBACKS, PLATFORM, names) && sameNode(call.arguments[0], fn)) {
     return call.expression.expression;
   }
   return undefined;
@@ -302,7 +306,13 @@ export class HeldTexts {
     if (isObjectLiteralExpression(node)) {
       return yield* this.#inObject(node.properties, path, walk);
     }
-    if (isNewExpression(node) && isIdentifier(node.expression) && node.expression.text === MAP && path[0]?.kind === "map-value") {
+    if (
+      isNewExpression(node) &&
+      isIdentifier(node.expression) &&
+      node.expression.text === MAP &&
+      libraryNames(this.#world).declaredBy(node.expression, PLATFORM) &&
+      path[0]?.kind === "map-value"
+    ) {
       const [entries] = node.arguments ?? [];
       return entries === undefined ? null : yield* this.#at(entries, [ELEMENT, ENTRY_VALUE, ...path.slice(1)], walk);
     }
@@ -531,11 +541,11 @@ export class HeldTexts {
     }
     const index = fn.parameters.findIndex((candidate) => sameNode(candidate, parameter));
     const found: Texts[] = parameter.initializer === undefined ? [] : [yield* this.#at(parameter.initializer, path, walk)];
-    const handed = inPageArgument(fn);
+    const handed = inPageArgument(fn, libraryNames(this.#world));
     if (handed !== undefined) {
       return index === fn.parameters.length - 1 ? union([...found, yield* this.#at(handed, path, walk)]) : null;
     }
-    const receiver = callbackReceiver(fn);
+    const receiver = callbackReceiver(fn, libraryNames(this.#world));
     if (receiver !== undefined) {
       return index === 0 ? union([...found, yield* this.#at(receiver, [ELEMENT, ...path], walk)]) : null;
     }
@@ -555,7 +565,7 @@ export class HeldTexts {
       if (name === undefined || (caller === undefined && sameNode(name.parent, target))) {
         continue;
       }
-      const argument = handedAt(name, caller, fn, index);
+      const argument = handedAt({ name, caller }, fn, index, libraryNames(this.#world));
       found.push(argument === undefined ? null : yield* this.#at(argument, path, walk));
     }
     return [...found, ...(yield* this.#recordCalls(fn, index, path, walk))];
@@ -611,7 +621,8 @@ export class HeldTexts {
   *#listCall(callee: PropertyAccessExpression, callback: Expression | undefined, path: Path, walk: Walk): APIRequestGenerator<Texts | undefined> {
     const method = callee.name.text;
     const receiver = callee.expression;
-    const values = isIdentifier(receiver) && receiver.text === OBJECT ? OBJECT_VALUES.get(method) : undefined;
+    const values =
+      isIdentifier(receiver) && receiver.text === OBJECT && libraryNames(this.#world).declaredBy(receiver, PLATFORM) ? OBJECT_VALUES.get(method) : undefined;
     if (values !== undefined) {
       return yield* this.#objectValues(values, callback, path, walk);
     }

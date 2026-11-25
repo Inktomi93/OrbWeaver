@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-25
 priority: P3
 area: plugin
+lane: wt/agent-a71a211fcd2576220
 ---
 
 # A plugin upgrade from a stored source shows what changes, and the showcase seeder never adopts a user's install

@@ -39,12 +39,13 @@ import type { APIRequestGenerator, NodeHandle, Type } from "@typescript/native/s
 import { all } from "@typescript/native/sync";
 import { catBlobs, execGit } from "../../floor/git/git.ts";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
-import { TRPC_PACKAGE } from "../boundaries.ts";
 import type { KeyResolution } from "../key-resolver.ts";
 import { resolveKeys } from "../key-resolver.ts";
 import { gitGrep } from "../literal-hits.ts";
 import type { PropertyName } from "../native.ts";
-import { callsPlatform, constituents, declarationKeys, declaredBy, isPropertyName, NativeWorld } from "../native.ts";
+import { callsPlatform, constituents, declarationKeys, isPropertyName, NativeWorld } from "../native.ts";
+import type { Library, LibraryNames } from "./library-names.ts";
+import { libraryNames, MUTATE_CALLS, MUTATION_OPTIONS, QUERY_CORE, REACT_QUERY, TRPC_CLIENT, TRPC_QUERY, TRPC_SENDS } from "./library-names.ts";
 import { callerPath, patternText, platformCall } from "./urls.ts";
 
 /** Where a removed key is declared: the contracts and the server's transport. */
@@ -67,21 +68,10 @@ const BLOB_BUFFER = 268_435_456;
 
 // The tRPC client's and its TanStack options proxy's verbs that take a procedure's input, as the tRPC packages declare
 // them; `mutationOptions()` takes none, and the input reaches the procedure through the TanStack mutation's `mutate`.
-const TRPC_SENDS: ReadonlySet<string> = new Set([
-  "mutate",
-  "query",
-  "subscribe",
-  "queryOptions",
-  "infiniteQueryOptions",
-  "subscriptionOptions",
-  "queryKey",
-  "infiniteQueryKey",
-  "queryFilter",
-  "infiniteQueryFilter",
-]);
-const MUTATE_CALLS: ReadonlySet<string> = new Set(["mutate", "mutateAsync"]);
-const MUTATION_OPTIONS = "mutationOptions";
-const QUERY_PACKAGE = "/node_modules/@tanstack/";
+// The tRPC client's proxy and its TanStack options proxy declare the sending verbs; TanStack Query declares the hook's
+// mutate.
+const TRPC_PROXIES: readonly Library[] = [TRPC_CLIENT, TRPC_QUERY];
+const QUERY_HOOKS: readonly Library[] = [QUERY_CORE, REACT_QUERY];
 // The platform's serializer, whose string carries every key of its value.
 const JSON_INTERFACE = "JSON";
 const STRINGIFY = "stringify";
@@ -337,21 +327,18 @@ function* mutationSource(world: NativeWorld, receiver: Expression): APIRequestGe
 
 // The procedure a tRPC call sends to: an input-taking verb the tRPC proxy declares, or a TanStack `mutate` on a
 // mutation built from a procedure's `mutationOptions()`. A same-named method on any other receiver sends nowhere.
-function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression): APIRequestGenerator<string | null> {
-  const { checker } = world;
-  const method = yield* checker.getSymbolAtLocation.gen(callee.name);
-  if (TRPC_SENDS.has(callee.name.text) && declaredBy(method, TRPC_PACKAGE)) {
+function* procedureCall(world: NativeWorld, callee: PropertyAccessExpression, names: LibraryNames): APIRequestGenerator<string | null> {
+  if (TRPC_SENDS.has(callee.name.text) && names.declaredBy(callee.name, TRPC_PROXIES)) {
     return procedureOf(callee);
   }
-  if (!(MUTATE_CALLS.has(callee.name.text) && declaredBy(method, QUERY_PACKAGE))) {
+  if (!(MUTATE_CALLS.has(callee.name.text) && names.declaredBy(callee.name, QUERY_HOOKS))) {
     return null;
   }
   const options = yield* mutationSource(world, callee.expression);
   if (options === null || !isPropertyAccessExpression(options.expression) || options.expression.name.text !== MUTATION_OPTIONS) {
     return null;
   }
-  const built = yield* checker.getSymbolAtLocation.gen(options.expression.name);
-  return declaredBy(built, TRPC_PACKAGE) ? procedureOf(options.expression) : null;
+  return names.declaredBy(options.expression.name, TRPC_QUERY) ? procedureOf(options.expression) : null;
 }
 
 // A body a platform request sends to a path on our own origin, which our routes receive; a URL of any other origin, or
@@ -366,14 +353,14 @@ function* routeCall(world: NativeWorld, { call, argument }: CallEnd): APIRequest
 }
 
 // The procedure or own route a value is handed to, with the callee resolved.
-function* destinationOf(world: NativeWorld, value: Node): APIRequestGenerator<string | null> {
+function* destinationOf(world: NativeWorld, value: Node, names: LibraryNames): APIRequestGenerator<string | null> {
   const end = yield* callEndOf(world, value);
   if (end === null) {
     return null;
   }
   const callee = end.call.expression;
   // A property callee is a procedure verb, or a platform request reached through its owner, as `window.fetch` is.
-  const procedure = isPropertyAccessExpression(callee) && isCallExpression(end.call) ? yield* procedureCall(world, callee) : null;
+  const procedure = isPropertyAccessExpression(callee) && isCallExpression(end.call) ? yield* procedureCall(world, callee, names) : null;
   return procedure ?? (yield* routeCall(world, end));
 }
 
@@ -415,7 +402,8 @@ function looseDestinations(world: NativeWorld, values: readonly Node[]): readonl
     const reaching = (uses[at] ?? []).filter((use) => (plainKeys.get(use) ?? shorthandKeys.get(use) ?? []).some((key) => own.includes(key)));
     return [value, ...reaching];
   });
-  const reached = world.batch(ends.flat().map((start) => destinationOf(world, start)));
+  const names = libraryNames(world);
+  const reached = world.batch(ends.flat().map((start) => destinationOf(world, start, names)));
   let cursor = 0;
   return ends.map((each) => {
     const found = each.map(() => reached[cursor++] ?? null).find((destination) => destination !== null);

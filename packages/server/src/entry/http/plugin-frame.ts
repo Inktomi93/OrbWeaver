@@ -43,7 +43,10 @@
 // app — no session cookie (opaque origin, and our `SameSite=Lax` cookie is withheld from it anyway), no storage,
 // no `parent.document`, no sibling frame, no navigation (the EMBEDDER's `frame-src 'self'` is the belt) — and
 // WebRTC, which no directive Chromium 149 recognizes can close (`webrtc 'block'` is reported "Unrecognized", so
-// emitting it would be dead config teaching the next reader a lie). The `ui.frame` consent line says so.
+// emitting it would be dead config teaching the next reader a lie). WebKit adds a second channel no directive covers:
+// it opens the connection a `<link rel=preconnect>` names, written in the markup or inserted by script, to any host,
+// under this exact policy, while it refuses the same frame's `fetch` and off-origin `img` (measured, Playwright WebKit
+// 2370). The `ui.frame` consent line names both as browser channels no policy closes.
 //
 // ── THE APP-CSP EXEMPTION THIS ROUTE DEPENDS ON ──────────────────────────────────────────────────────────────
 // `hono/secure-headers` writes its headers AFTER the handler with `.set()`, so it OVERWRITES a handler's own
@@ -203,21 +206,22 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     // regardless of what the caller already did — the same rule the card mint states. So the only
     // client-supplied content that reaches the document is `--*` values that passed `isSafeColor` and a
     // font-family list that passed the kit grammar.
+    const render = (handleId: string, current: PluginFrameBody): string =>
+      buildCardFrameDocument({
+        html: `${assetUrlBootstrap(handleId)}${current.html}`,
+        css: current.css,
+        themeTokens: body.themeTokens,
+        // The schema admitted only the card frame's closed slice, each value past its own grammar; this clamp
+        // still runs here and is the one that bounds the root size to the appearance range.
+        styleTokens: body.styleTokens,
+        fontFamily: body.fontFamily,
+        // A plugin surface draws its own markup; the transcript's skin channels are not its.
+        rootAttributes: undefined,
+      });
     const id = store.put({
       userId: principal.userId,
-      plugin: { caller: principal, pluginId: body.pluginId, surfaceId: body.surfaceId },
-      doc: (handleId) =>
-        buildCardFrameDocument({
-          html: `${assetUrlBootstrap(handleId)}${frame.html}`,
-          css: frame.css,
-          themeTokens: body.themeTokens,
-          // The schema admitted only the card frame's closed slice, each value past its own grammar; this clamp
-          // still runs here and is the one that bounds the root size to the appearance range.
-          styleTokens: body.styleTokens,
-          fontFamily: body.fontFamily,
-          // A plugin surface draws its own markup; the transcript's skin channels are not its.
-          rootAttributes: undefined,
-        }),
+      plugin: { caller: principal, pluginId: body.pluginId, surfaceId: body.surfaceId, render },
+      doc: (handleId) => render(handleId, frame),
       csp: PLUGIN_FRAME_CSP,
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
@@ -295,8 +299,9 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       return frameDocument(NOT_FOUND, MISS_DOC);
     }
     if (entry.plugin !== undefined) {
-      // A handle is not a snapshot of consent. Recheck current residency/grant so disable and uninstall revoke
-      // the document as well as its assets before the sliding TTL expires.
+      // A handle is not a snapshot of consent or of code. Recheck current residency/grant so disable and uninstall
+      // revoke the document as well as its assets before the sliding TTL expires, and serve the body the surface has
+      // now, so a remount after an upgrade runs the upgraded bundle.
       let live: PluginFrameBody | null;
       // A plugin gone since the mint closes this passive handle read as the same leak-free miss as a revoked grant.
       try {
@@ -308,6 +313,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
         store.drop(id, principal.userId);
         return frameDocument(NOT_FOUND, MISS_DOC);
       }
+      return frameDocument(OK, entry.plugin.render(id, live));
     }
     return frameDocument(OK, entry.doc);
   });

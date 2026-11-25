@@ -11,19 +11,18 @@ import type { CallExpression, Node, ObjectLiteralExpression } from "@typescript/
 import { isIdentifier, isObjectLiteralExpression, isPropertyAssignment, isSpreadAssignment, isVariableDeclaration, SyntaxKind } from "@typescript/native/ast";
 import type { Signature } from "@typescript/native/sync";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
+import { VARIANTS_PACKAGE } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText } from "./resolve.ts";
 import { keyLiterals, UNNAMED } from "./sites.ts";
 import type { BuildSession, GraphState } from "./state.ts";
 
-const TAILWIND_VARIANTS = "tailwind-variants";
-
 /** Whether each resolved signature's declaration is tailwind-variants' own: a `tv()` table or a recipe it returns. */
 export const variantsDeclarations = (state: GraphState, signatures: readonly (Signature | undefined)[]): boolean[] =>
   state.world.fromPackage(
     signatures.map((signature) => (signature?.declaration === undefined ? [] : [signature.declaration])),
-    TAILWIND_VARIANTS,
+    VARIANTS_PACKAGE,
   );
 const VARIANTS = "variants";
 const DEFAULT_VARIANTS = "defaultVariants";

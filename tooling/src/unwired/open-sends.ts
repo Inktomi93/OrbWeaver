@@ -103,7 +103,7 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, 
 import { all, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination } from "./boundaries.ts";
 import { NESTED_READS, OBSERVABILITY_HOME, PROVIDER_BODIES } from "./boundaries.ts";
-import { DRIZZLE_PACKAGE } from "./drizzle-rows.ts";
+import { DRIZZLE_PACKAGE, EVENT_DATA, PINO_PACKAGE } from "./graph/library-names.ts";
 import { answer } from "./graph/resolve.ts";
 import { honoResponse } from "./graph/urls.ts";
 import type { ListResult } from "./list-methods.ts";
@@ -133,7 +133,7 @@ export interface Destination {
 }
 
 // The logging libraries, by the package that declares the callee: a call into one is a log line.
-const LOG_PACKAGES: ReadonlySet<string> = new Set(["pino"]);
+const LOG_PACKAGES: ReadonlySet<string> = new Set([PINO_PACKAGE]);
 const CONSOLE_RECEIVER = "console";
 // The platform members that send their argument out of the process, by `Container.member` (a global by its name).
 const WIRE_MEMBERS: ReadonlySet<string> = new Set([
@@ -154,11 +154,7 @@ const WIRE_MEMBERS: ReadonlySet<string> = new Set([
 ]);
 // The AI SDK model calls that make a provider request; the rest of the SDK builds models or parses responses.
 const REQUEST_METHODS: ReadonlySet<string> = new Set(["doStream", "doGenerate", "doEmbed"]);
-const NODE_MODULES = "/node_modules/";
 const TYPES_SCOPE = "@types/";
-// The compiler's own lib files, which the native compiler ships under its platform package.
-const COMPILER_PACKAGE = "typescript";
-const COMPILER_SCOPE = "@typescript/";
 const CONSOLE = "Console";
 // The platform's serializer and the `Object` statics that rebuild a value, by the interface that declares them.
 const JSON_INTERFACE = "JSON";
@@ -176,18 +172,14 @@ const isAiSdk = (pkg: string): boolean => pkg === "ai" || pkg.startsWith("@ai-sd
 const memberLabel = ({ container, name }: PlatformMember): string => (container === null ? name : `${container}.${name}`);
 const isWireMember = (member: PlatformMember): boolean => WIRE_MEMBERS.has(memberLabel(member));
 
-/** The package a declaration outside the tree belongs to, `@types/x` read as `x`; null for a compiler lib file. */
-function packageOf(path: string): string | null {
-  const at = path.lastIndexOf(NODE_MODULES);
-  if (at === -1) {
+/** The package a declaration outside the tree belongs to, by the program's answer, `@types/x` read as `x`; null for the
+ *  compiler's default library and the tree's own files. */
+function* libraryPackage(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<string | null> {
+  if (yield* world.isDefaultLibrary(handle)) {
     return null;
   }
-  const parts = path.slice(at + NODE_MODULES.length).split("/");
-  const name = parts[0]?.startsWith("@") === true ? `${parts[0]}/${parts[1] ?? ""}` : (parts[0] ?? "");
-  if (name === COMPILER_PACKAGE || name.startsWith(COMPILER_SCOPE)) {
-    return null;
-  }
-  return name.startsWith(TYPES_SCOPE) ? name.slice(TYPES_SCOPE.length) : name;
+  const pkg = yield* world.packageOf(handle);
+  return pkg?.startsWith(TYPES_SCOPE) === true ? pkg.slice(TYPES_SCOPE.length) : pkg;
 }
 
 // --- Open slots ---------------------------------------------------------------------------------------------
@@ -297,8 +289,6 @@ export interface Listener {
   readonly index: number;
   readonly event: boolean;
 }
-
-const EVENT_DATA = "data";
 
 // --- Where a handed value goes ------------------------------------------------------------------------------
 
@@ -467,7 +457,7 @@ function* libraryDestination(
   if (platform !== null && isWireMember(platform)) {
     return [{ destination: "wire", receiver: memberLabel(platform) }];
   }
-  const pkg = packageOf(handle.path);
+  const pkg = yield* libraryPackage(world, handle);
   if (pkg === null) {
     return [];
   }
@@ -1382,7 +1372,7 @@ function* declaredFill(world: NativeWorld, port: InterfaceDeclaration, handles: 
     const own = yield* all(...handles.map((handle) => resolved(handle)));
     return own.every((node) => node !== undefined && sameNode(node, port)) ? PORT_HANDED_ON : null;
   }
-  const packages = new Set(handles.map((handle) => packageOf(handle.path) ?? ""));
+  const packages = new Set((yield* all(...handles.map((handle) => libraryPackage(world, handle)))).map((found) => found ?? ""));
   const [pkg = ""] = packages;
   return packages.size === 1 && LOG_PACKAGES.has(pkg) ? pkg : null;
 }
@@ -1545,7 +1535,7 @@ function* callTakes(world: NativeWorld, call: CallExpression, index: number, dep
   if (yield* isPlatform(world, outside)) {
     return yield* platformTakes(symbol, outside, index);
   }
-  const pkg = packageOf(outside.path);
+  const pkg = yield* libraryPackage(world, outside);
   return sent(pkg !== null && LOG_PACKAGES.has(pkg) ? "log" : "dependency");
 }
 
@@ -1685,7 +1675,7 @@ function* calleeAt(world: NativeWorld, call: Invocation): APIRequestGenerator<Ca
     return { pkg: null, declaration: yield* resolved(inTree), name: symbol?.name ?? null, platform: null };
   }
   return {
-    pkg: outside === undefined ? null : packageOf(outside.path),
+    pkg: outside === undefined ? null : yield* libraryPackage(world, outside),
     declaration: undefined,
     name: symbol?.name ?? null,
     platform: yield* platformMember(world, symbol),
@@ -1908,7 +1898,8 @@ export function* assertedDestination(world: NativeWorld, assertion: Assertion): 
   const operandType = yield* checker.getTypeAtLocation.gen(operand);
   const typed = yield* operandType.getSymbol.gen();
   const declarations = typed?.declarations ?? [];
-  const pkg = declarations.length > 0 && declarations.every((handle) => world.fileOf(handle) === null) ? packageOf(declarations[0]?.path ?? "") : null;
+  const [first] = declarations;
+  const pkg = first !== undefined && declarations.every((handle) => world.fileOf(handle) === null) ? yield* libraryPackage(world, first) : null;
   if (pkg !== null) {
     return { destination: "dependency", receiver: pkg };
   }

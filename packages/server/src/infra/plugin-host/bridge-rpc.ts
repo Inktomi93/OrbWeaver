@@ -13,10 +13,17 @@ import type {
   PluginSuggestedActKind,
   PluginWorldEntryUpsert,
 } from "@orb/contracts/plugin";
-import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS, pluginQuietOptionsSchema, pluginWorldEntryUpsertSchema } from "@orb/contracts/plugin";
+import {
+  HOST_FUNCTION_CAPABILITY,
+  PLUGIN_SEARCH_RESULTS_MAX,
+  PLUGIN_TOAST_LEVELS,
+  pluginQuietOptionsSchema,
+  pluginWorldEntryUpsertSchema,
+} from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { PLUGIN_QUIET_PROMPT_MAX_CHARS } from "./budgets.ts";
 import type { PluginNetEgress, PluginNetResponse } from "./contract/net-egress.ts";
 import type { PluginHostSeamDeps } from "./contract/port.ts";
 import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
@@ -341,6 +348,18 @@ function worldEntryAt(args: readonly unknown[], index: number, operation: string
   return parsed.success ? parsed.data : invalid(operation);
 }
 
+// The membrane refuses a longer prompt and clamps a guest limit into the page, so a broker sending either is not the
+// membrane; the app holds the same spend and read bounds itself.
+function quietPromptAt(args: readonly unknown[], index: number, operation: string): string {
+  const prompt = stringAt(args, index, operation);
+  return prompt.length > PLUGIN_QUIET_PROMPT_MAX_CHARS ? invalid(operation) : prompt;
+}
+
+function searchLimitAt(args: readonly unknown[], index: number, operation: string): number {
+  const limit = numberAt(args, index, operation);
+  return Number.isInteger(limit) && limit >= 1 && limit <= PLUGIN_SEARCH_RESULTS_MAX ? limit : invalid(operation);
+}
+
 function quietOptionsAt(args: readonly unknown[], index: number, operation: string): PluginQuietOptions {
   const parsed = pluginQuietOptionsSchema.safeParse(args[index]);
   return parsed.success ? parsed.data : invalid(operation);
@@ -524,7 +543,7 @@ export async function dispatchBridgeCall(
       return await netEgress.fetchAsset(stringAt(args, 0, operation), liveness);
     case "search.documents":
       exact(args, 2, operation);
-      return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : numberAt(args, 1, operation), liveness);
+      return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : searchLimitAt(args, 1, operation), liveness);
     case "storage.get":
       exact(args, 1, operation);
       return await bridge.storage.get(stringAt(args, 0, operation));
@@ -552,7 +571,7 @@ export async function dispatchBridgeCall(
       return undefined;
     case "llm.quiet":
       exact(args, 2, operation);
-      return await bridge.llm.quiet(stringAt(args, 0, operation), args[1] === undefined ? undefined : quietOptionsAt(args, 1, operation), liveness);
+      return await bridge.llm.quiet(quietPromptAt(args, 0, operation), args[1] === undefined ? undefined : quietOptionsAt(args, 1, operation), liveness);
     case "suggest":
       exact(args, 2, operation);
       await bridge.suggest(chatAt(args, 0, operation), parsedAt(suggestedActSchema, args, 1, operation));

@@ -8,7 +8,7 @@
 // means the channel itself is broken.
 import { PLUGIN_IPC_CONTROL_HEADROOM_BYTES, PLUGIN_IPC_QUEUE_MAX_BYTES, PLUGIN_IPC_REFUSAL_MAX_BYTES } from "./budgets.ts";
 import type { PluginFrameRoute, PluginIpcMessage, PluginIpcSend } from "./contract/process-protocol.ts";
-import { PLUGIN_BROKER_MESSAGE_MAX_BYTES } from "./process-protocol.ts";
+import { PLUGIN_BROKER_BEAT_KEY_CHARS, PLUGIN_BROKER_MESSAGE_MAX_BYTES } from "./process-protocol.ts";
 
 const GENERATION_MIN_CHARS = 16;
 
@@ -51,6 +51,14 @@ function parseFrame(value: object, generation: string): IpcFrame | null {
   return parsed === null ? null : { kind: "frame", generation, frame, route: parsed };
 }
 
+function parseReady(value: object, generation: string): Extract<PluginIpcMessage, { readonly kind: "ready" }> | null {
+  const beatKey: unknown = Reflect.get(value, "beatKey");
+  if (beatKey === undefined) {
+    return { kind: "ready", generation };
+  }
+  return typeof beatKey === "string" && beatKey.length === PLUGIN_BROKER_BEAT_KEY_CHARS ? { kind: "ready", generation, beatKey } : null;
+}
+
 /** Validate an inherited-channel envelope before routing its serialized frame. */
 export function parsePluginIpcMessage(value: unknown): PluginIpcMessage | null {
   if (typeof value !== "object" || value === null) {
@@ -62,7 +70,7 @@ export function parsePluginIpcMessage(value: unknown): PluginIpcMessage | null {
     return null;
   }
   if (kind === "ready") {
-    return { kind, generation };
+    return parseReady(value, generation);
   }
   if (kind === "frame") {
     return parseFrame(value, generation);

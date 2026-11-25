@@ -67,7 +67,7 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, NodeHandle } from "@typescript/native/sync";
 import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortRows } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
@@ -117,7 +117,7 @@ export interface ParamsLists {
 export interface ParamsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredParam[];
-  readonly deliberate: readonly (UnwiredParam & { readonly reason: string })[];
+  readonly deliberate: readonly (UnwiredParam & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<UnwiredParam>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */

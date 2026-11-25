@@ -156,6 +156,8 @@ async function routeMotion(page: Page, corpus: CorpusPlayback, appearance: Parti
       pluginId: plugin.id,
       grant: ["ui.surface", "chat.read", "chat.variables.write"],
       acknowledgedNetHosts: [...(plugin.netHosts ?? [])],
+      acknowledgedProviderIds: plugin.providers.map(({ id }) => id),
+      acknowledgedMatchAutomationEvents: plugin.matchAutomationEvents,
       enable: true,
     });
     const surfaces = (await caller.plugin.listSurfaces()).filter((candidate) => candidate.pluginId === plugin.id);

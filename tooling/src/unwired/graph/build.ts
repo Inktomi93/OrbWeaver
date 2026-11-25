@@ -38,7 +38,7 @@ import type { APIRequestGenerator, Checker, JSDocTagInfo, Symbol as NativeSymbol
 import { SignatureKind, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { StoreWrite } from "../boundaries.ts";
 import { copiedReads } from "../boundaries.ts";
-import { DRIZZLE_PACKAGE, tableCalls } from "../drizzle-rows.ts";
+import { tableCalls } from "../drizzle-rows.ts";
 import { parsedColumns, schemaParses } from "../handoffs.ts";
 import type { PropertyName } from "../native.ts";
 import { hasFlag, isPropertyName, NativeWorld, resolvedSymbol } from "../native.ts";
@@ -49,7 +49,8 @@ import { Constraints } from "./constraints.ts";
 import { declaredNameOf } from "./declared.ts";
 import { Flows, insideGlobalScope } from "./flows.ts";
 import { Keys } from "./keys.ts";
-import { libraryNames, ZOD_PACKAGE } from "./library-names.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { DRIZZLE_PACKAGE, GLOBAL_OBJECTS, libraryNames, PLATFORM, REACT_TYPES, ZOD_PACKAGE } from "./library-names.ts";
 import { keySources, libraryKeySet, lostSlot, NO_KEY, packagesOf } from "./lost.ts";
 import { MemberLinks } from "./member-links.ts";
 import { MessageDoors } from "./message-doors.ts";
@@ -61,7 +62,7 @@ import { RouteParams } from "./routes.ts";
 import type { ValueSelector } from "./selectors.ts";
 import { valueSelectors } from "./selectors.ts";
 import type { ClassFacts, FileSites, GraphKey, ModuleKey, NameSite, PatternRoute, WalkSink } from "./sites.ts";
-import { collectSites, GLOBAL_OBJECTS, moduleKey } from "./sites.ts";
+import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
 import type { BuildSession, ComputedLoad, GraphFacts, LostCause, LostSlot } from "./state.ts";
@@ -82,15 +83,18 @@ const ANY_TYPE = "any";
 const CODE_FILE = /\.(?:m|c)?[jt]sx?$/u;
 // The hooks that hand back a `[value, setter]` tuple, confirmed against React's own declarations.
 const STATE_HOOKS: ReadonlySet<string> = new Set(["useState", "useReducer", "useOptimistic", "useActionState"]);
-const REACT_TYPES = "@types/react";
 const TYPE_DECLARATIONS: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration]);
 const GLOBAL_OBJECT_NAMES: ReadonlySet<string> = new Set(GLOBAL_OBJECTS);
 
-// The name read off a global object: `__orb` in `window.__orb`.
-const globalObjectMember = (node: Node): boolean => {
+// The name read off the platform's global object: `__orb` in `window.__orb`.
+const globalObjectMember = (node: Node, names: LibraryNames): boolean => {
   const { parent } = node;
   return (
-    isPropertyAccessExpression(parent) && sameNode(parent.name, node) && isIdentifier(parent.expression) && GLOBAL_OBJECT_NAMES.has(parent.expression.text)
+    isPropertyAccessExpression(parent) &&
+    sameNode(parent.name, node) &&
+    isIdentifier(parent.expression) &&
+    GLOBAL_OBJECT_NAMES.has(parent.expression.text) &&
+    names.declaredBy(parent.expression, PLATFORM)
   );
 };
 
@@ -526,8 +530,11 @@ class Builder {
   // is no door read.
   #doorReads(sites: FileSites, symbols: readonly (NativeSymbol | undefined)[], resolved: readonly DeclKey[][]): void {
     const state = this.#state;
+    const names = libraryNames(state.world);
     const asks = sites.names.flatMap(({ node }, at) =>
-      globalObjectMember(node) ? (symbols[at]?.declarations ?? []).filter((handle) => state.resolver.ours(handle)).map((handle) => ({ node, handle })) : [],
+      globalObjectMember(node, names)
+        ? (symbols[at]?.declarations ?? []).filter((handle) => state.resolver.ours(handle)).map((handle) => ({ node, handle }))
+        : [],
     );
     const declared = state.batch(asks.map(({ handle }) => handle.resolve.gen()));
     const doors = new Set(asks.flatMap(({ node }, y) => (insideGlobalScope(declared[y]) ? [node.pos] : [])));

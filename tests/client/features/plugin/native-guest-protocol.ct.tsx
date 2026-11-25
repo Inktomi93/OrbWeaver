@@ -589,6 +589,66 @@ test("an event that fails while a later event still waits on a host call reports
   expect(trpc.requireLastInput("plugin.reportUiCrash").reason).toContain(SLOW_HOST_FAILURE_MESSAGE);
 });
 
+// A host call the guest floats past its event's settlement has no wall over it. The event returns at once, so only the
+// call's own deadline can end the read the network never answers.
+const FLOATING_SOURCE = `const ui = orb.ui(1);
+const render = (value) => ui.render("protocol", { kind: "stack", children: [
+  { kind: "text", value },
+  { kind: "button", label: "Float a read", actionId: "float" }
+] });
+render("Floating guest ready");
+ui.onEvent(() => {
+  ui.host.storage.get("floating").then((value) => render("Read: " + value), (error) => render("Refused: " + error.message));
+});`;
+
+// Wall time is the subject: the relay is held past one host call's deadline.
+test("a host call still outstanding after its event settled is refused at its deadline, and its late answer is dropped", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.uiHostCall": (input) =>
+      input.fn === "storage.get" && input.argsJson === '["floating"]' ? { resultJson: '"Native ledger"' } : trpcError({ code: "NOT_FOUND" }),
+    "plugin.reportUiCrash": knownPlugin(plugin.id, undefined),
+  });
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  let arrivals = 0;
+  await page.route(
+    (url) => url.pathname.includes(UI_HOST_CALL_PATH),
+    async (route) => {
+      arrivals += 1;
+      await held;
+      await route.fallback();
+    },
+  );
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) => route.fulfill({ contentType: "application/octet-stream", body: FLOATING_SOURCE }));
+  await observeProtocol(page);
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  await expect(page.getByText("Floating guest ready", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Float a read", exact: true }).click();
+  await expect.poll(() => arrivals).toBe(1);
+  // The event settled while the read still waits, so the host's wall is clear.
+  await expect.poll(async () => (await readProtocolResults(page)).outbound).toContainEqual({ kind: "settled", ok: true });
+  await expect(page.getByText(`Refused: ${PLUGIN_UI_HOST_CALL_FAILED}`, { exact: true })).toBeVisible({ timeout: 2 * UI_GUEST_BUDGETS.hostCallDeadlineMs });
+
+  // The relay's late answer reaches the server and is not delivered: the guest keeps the refusal and stays alive.
+  release();
+  await expect.poll(() => trpc.count("plugin.uiHostCall")).toBe(1);
+  const results = await readProtocolResults(page);
+  expect(results.inbound).toEqual([{ kind: "hostResult", callId: 1, ok: false, message: PLUGIN_UI_HOST_CALL_FAILED }]);
+  await expect(page.getByText(`Refused: ${PLUGIN_UI_HOST_CALL_FAILED}`, { exact: true })).toBeVisible();
+  expect(trpc.count("plugin.reportUiCrash")).toBe(0);
+});
+
 test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {
   const plugin = makePluginRow();
   const trpc = await routeTrpc(page, {

@@ -22,7 +22,8 @@ import {
   isVariableDeclaration,
 } from "@typescript/native/ast";
 import { editorLineOf } from "../../floor/typescript/editor-lines.ts";
-import { keyLiterals, ROUTE_METHODS } from "./sites.ts";
+import { ROUTE_METHODS } from "./library-names.ts";
+import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { literalValues } from "./state.ts";
 import { HONO_APP, HONO_REQUEST, honoMember } from "./urls.ts";

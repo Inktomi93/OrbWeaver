@@ -1,7 +1,7 @@
 // Reads and writes the fields query resolves through the checker where no name joins the site to its member, each with
 // a truly dead twin of the same shape beside it that stays reported; and the rows a ruling sorts out of the judged list.
 import { expect, test } from "@orb/testkit/tooling";
-import { fieldsScan, GRAPH_SOURCE, fieldRows as named, ZOD_MODULE } from "./_planted.ts";
+import { fieldsScan, GRAPH_SOURCE, libraryModule, fieldRows as named, ZOD_MODULE } from "./_planted.ts";
 
 const planted = (file: string, lines: readonly string[]): Readonly<Record<string, string>> => ({
   ...ZOD_MODULE,
@@ -73,45 +73,70 @@ test("a compound or logical assignment writes its member", { timeout: 120_000 },
 
 // A paged query fills its input's cursor from `getNextPageParam`; the same call fills nothing else, so `after` stays
 // never written.
-const PAGED = planted("paged.ts", [
-  'import { z } from "zod";',
-  "export const listInputSchema = z.object({ limit: z.string(), cursor: z.string().optional(), after: z.string().optional() });",
-  "type ListInput = z.infer<typeof listInputSchema>;",
-  'export const list = (input: ListInput): string => input.limit + (input.cursor ?? "") + (input.after ?? "");',
-  "interface Procedure<I> {",
+const PROCEDURE = [
+  "export interface Procedure<I> {",
   "  infiniteQueryOptions(input: I, options: { readonly getNextPageParam: (page: string) => string }): unknown;",
   "  queryOptions(input: I): unknown;",
   "}",
-  "declare const procedure: Procedure<ListInput>;",
-  'export const paged = procedure.infiniteQueryOptions({ limit: "10" }, { getNextPageParam: (page) => page });',
-  'export const single = procedure.queryOptions({ limit: "1" });',
-]);
+];
+const PAGED = {
+  ...libraryModule(PROCEDURE, "@trpc/tanstack-react-query"),
+  ...planted("paged.ts", [
+    'import { z } from "zod";',
+    'import type { Procedure } from "@trpc/tanstack-react-query";',
+    "export const listInputSchema = z.object({ limit: z.string(), cursor: z.string().optional(), after: z.string().optional() });",
+    "type ListInput = z.infer<typeof listInputSchema>;",
+    'export const list = (input: ListInput): string => input.limit + (input.cursor ?? "") + (input.after ?? "");',
+    "declare const procedure: Procedure<ListInput>;",
+    'export const paged = procedure.infiniteQueryOptions({ limit: "10" }, { getNextPageParam: (page) => page });',
+    'export const single = procedure.queryOptions({ limit: "1" });',
+    "export const ownSchema = z.object({ limit: z.string(), cursor: z.string().optional() });",
+    "type OwnInput = z.infer<typeof ownSchema>;",
+    'export const own = (input: OwnInput): string => input.limit + (input.cursor ?? "");',
+    "interface Pager { infiniteQueryOptions(input: OwnInput): unknown }",
+    "declare const pager: Pager;",
+    'export const ownPaged = pager.infiniteQueryOptions({ limit: "1" });',
+  ]),
+};
 
 test("a paged query writes its input's cursor and no other member", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = await fieldsScan(plantedTree, PAGED);
-  expect(named(report.unwired, "paged.ts")).toEqual(["Procedure.infiniteQueryOptions.getNextPageParam never-read", "listInputSchema.after never-written"]);
+  expect(named(report.unwired, "paged.ts")).toEqual(["listInputSchema.after never-written", "ownSchema.cursor never-written"]);
 });
 
 // A mutation's one-member output is its acknowledgement; a two-member output and a query's output stay judged.
-const OUTPUTS = planted("router.ts", [
-  'import { z } from "zod";',
-  "interface Builder<S> {",
+const BUILDER = [
+  'import type { z } from "zod";',
+  "export interface Builder<S> {",
   "  output<T>(schema: T): Builder<T>;",
   "  mutation(resolve: () => z.infer<S>): unknown;",
   "  query(resolve: () => z.infer<S>): unknown;",
   "}",
-  "declare const procedure: Builder<unknown>;",
-  'export const restart = procedure.output(z.object({ restarting: z.string() })).mutation(() => ({ restarting: "yes" }));',
-  "export const forkSchema = z.object({ chatId: z.string(), cloned: z.string() });",
-  'export const fork = procedure.output(forkSchema).mutation(() => ({ chatId: "c", cloned: "x" }));',
-  "export const shownFork = (result: z.infer<typeof forkSchema>): string => result.chatId;",
-  'export const status = procedure.output(z.object({ up: z.string() })).query(() => ({ up: "u" }));',
-]);
+];
+const OUTPUTS = {
+  ...libraryModule(BUILDER, "@trpc/server"),
+  ...planted("router.ts", [
+    'import { z } from "zod";',
+    'import type { Builder } from "@trpc/server";',
+    "interface Chain<S> {",
+    "  output<T>(schema: T): Chain<T>;",
+    "  mutation(resolve: () => z.infer<S>): unknown;",
+    "}",
+    "declare const procedure: Builder<unknown>;",
+    "declare const chain: Chain<unknown>;",
+    'export const ownAck = chain.output(z.object({ kept: z.string() })).mutation(() => ({ kept: "k" }));',
+    'export const restart = procedure.output(z.object({ restarting: z.string() })).mutation(() => ({ restarting: "yes" }));',
+    "export const forkSchema = z.object({ chatId: z.string(), cloned: z.string() });",
+    'export const fork = procedure.output(forkSchema).mutation(() => ({ chatId: "c", cloned: "x" }));',
+    "export const shownFork = (result: z.infer<typeof forkSchema>): string => result.chatId;",
+    'export const status = procedure.output(z.object({ up: z.string() })).query(() => ({ up: "u" }));',
+  ]),
+};
 
 test("a never-read one-member mutation output reports as an acknowledgement, apart from the judged rows", { timeout: 120_000 }, async ({ plantedTree }) => {
   const report = await fieldsScan(plantedTree, OUTPUTS);
   expect(named(report.acknowledged, "router.ts")).toEqual(["restart.restarting never-read"]);
-  expect(named(report.unwired, "router.ts")).toEqual(["forkSchema.cloned never-read", "status.up never-read"]);
+  expect(named(report.unwired, "router.ts")).toEqual(["forkSchema.cloned never-read", "ownAck.kept never-read", "status.up never-read"]);
 });
 
 // A schema key production neither writes nor reads can only be filled by a parse of outside input: it reports in

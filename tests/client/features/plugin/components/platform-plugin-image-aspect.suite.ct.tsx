@@ -136,7 +136,14 @@ for (const regime of REGIMES) {
           bundleBase64: Buffer.from(makePluginBundle(manifest, source, root.clock.now())).toString("base64"),
           grant: [],
         });
-        await caller.plugin.setGrant({ pluginId: plugin.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true });
+        await caller.plugin.setGrant({
+          pluginId: plugin.id,
+          grant: manifest.capabilities,
+          acknowledgedNetHosts: [],
+          acknowledgedProviderIds: plugin.providers.map(({ id }) => id),
+          acknowledgedMatchAutomationEvents: plugin.matchAutomationEvents,
+          enable: true,
+        });
         const address = { pluginId: plugin.id, surfaceId: "image_page" };
         await expect.poll(() => caller.plugin.getSurfaceState(address)).toEqual({});
         await routeTrpc(

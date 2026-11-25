@@ -169,6 +169,13 @@
       "when": 1795456689676,
       "tag": "0023_user-settings-schema-version-11",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1795617808271,
+      "tag": "0024_plugin-widened-reach",
+      "breakpoints": true
     }
   ]
 }

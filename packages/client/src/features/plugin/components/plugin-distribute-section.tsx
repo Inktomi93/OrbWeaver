@@ -164,7 +164,9 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
               capabilitiesLabel="What it will ask each person for"
               declared={state.preview.manifest.capabilities}
               granted={[]}
+              matchAutomationEvents={state.preview.manifest.matchAutomationEvents === true}
               netHosts={state.preview.manifest.netHosts ?? []}
+              providers={state.preview.manifest.providers ?? []}
             />
             <Row wrap={true} gap="field" justify="start">
               <Button loading={distribute.isPending} onClick={onDistribute}>

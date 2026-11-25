@@ -15,7 +15,7 @@
 import { PluginCrashedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { SetPluginEnabledParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
-import { getById, resetCrashes, setStatus } from "../persistence/plugins.ts";
+import { getById, resetCrashes, setStatus, unansweredReachOf } from "../persistence/plugins.ts";
 
 export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): PluginService["setEnabled"] {
   return async ({ caller, pluginId, enabled }: SetPluginEnabledParams): Promise<void> => {
@@ -29,18 +29,18 @@ export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): Plug
       await deps.deactivate(pluginId);
       await resetCrashes(ctx.db, pluginId, ctx.now());
       // THE STORED GRANT, AND THE CONSENTED REACH — the two halves of "enabling grants nothing". The
-      // capability half needs no work (an unconfirmed capability was never written into the grant); the
-      // `net.fetch` half does, because its reach is parameterized by the MANIFEST, which an upgrade can widen
-      // while the grant stays byte-identical. The row's standing delta is exactly the set of destinations the
-      // owner has never answered for, so it is withheld from the wall here — otherwise this toggle, which the
-      // surface deliberately leaves live beside the re-consent notice, would arm `safeFetch` at a host nobody
-      // confirmed and quietly settle the question the notice is still asking.
+      // capability half needs no work (an unconfirmed capability was never written into the grant); the reach
+      // half does, because hosts, providers and the automation opt-in are parameterized by the MANIFEST, which
+      // an upgrade can widen while the grant stays byte-identical. The row's standing delta is exactly the reach
+      // the owner has never answered for, so it is withheld here — otherwise this toggle, which the surface
+      // deliberately leaves live beside the re-consent notice, would arm `safeFetch` at a host nobody confirmed
+      // (or offer a provider nobody approved) and quietly settle the question the notice is still asking.
       const outcome = await deps.activate({
         caller,
         pluginId,
         bundleAssetId: existing.bundleAssetId,
         grants: existing.grantedCapabilities,
-        withheldNetHosts: existing.widenedNetHosts,
+        withheld: unansweredReachOf(existing),
       });
       if (!outcome.ok) {
         throw new PluginCrashedError(`plugin activation failed: ${outcome.error}`);

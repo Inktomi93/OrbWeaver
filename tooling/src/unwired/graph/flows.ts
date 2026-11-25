@@ -74,7 +74,7 @@ import { declarationKeys, hasFlag } from "../native.ts";
 import type { Chase, ChaseScope, Crossing, Destination, DoorCrossings, ProviderReach } from "../open-sends.ts";
 import { assertedDestination, CHASE_STOPPED, identitySlot, joinChases, providerReach, sendChase } from "../open-sends.ts";
 import { isProduction } from "../worlds.ts";
-import { ZOD_PACKAGE } from "./library-names.ts";
+import { LIST_WRITES, libraryNames, PLATFORM, ZOD_PACKAGE } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
@@ -140,8 +140,6 @@ function* declarationOf(type: Type): APIRequestGenerator<string> {
 const GLOBAL_SCOPE = "global";
 // The platform's mutable list, whose `push` and index writes land in the list a slot of it holds.
 const MUTABLE_ARRAY = "Array";
-// The methods of a mutable list that put a value the caller hands in into the list.
-const LIST_WRITES: ReadonlySet<string> = new Set(["push", "unshift", "splice", "fill"]);
 const OPAQUE_FLAGS = [TypeFlags.Any, TypeFlags.Unknown, TypeFlags.NonPrimitive] as const;
 // zod's methods whose argument is a value parse returns in place of the input: a default, a fallback on failure.
 const ZOD_OUTPUT_VALUES: ReadonlySet<string> = new Set(["default", "prefault", "catch"]);
@@ -1178,15 +1176,16 @@ export class Flows {
   // `ctx.rows.push(row)`, `this.rows.push(row)`).
   #listWrites(sites: FileSites): void {
     const { state } = this;
+    const names = libraryNames(state.world);
     const receivers = sites.names.flatMap(({ node }) => {
       const access = node.parent;
-      return "text" in node &&
-        typeof node.text === "string" &&
+      return isIdentifier(node) &&
         LIST_WRITES.has(node.text) &&
         isPropertyAccessExpression(access) &&
         access.name.pos === node.pos &&
         isCallExpression(access.parent) &&
-        access.parent.expression.pos === access.pos
+        access.parent.expression.pos === access.pos &&
+        names.declaredBy(node, PLATFORM)
         ? [access.expression]
         : [];
     });

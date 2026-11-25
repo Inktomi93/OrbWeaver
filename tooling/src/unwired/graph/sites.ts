@@ -151,7 +151,27 @@ import { copiedReads, insertSelectWritesAt, storeWritesAt } from "../boundaries.
 import { isParseCall } from "../handoffs.ts";
 import { hasFlag } from "../native.ts";
 import type { LibraryNames } from "./library-names.ts";
-import { REFLECTIVE_CALLS, ZOD_EXTENDERS, ZOD_LAZY, ZOD_OBJECT_BUILDERS, ZOD_OPTIONAL, ZOD_TYPE, ZOD_UNION_BUILDERS } from "./library-names.ts";
+import {
+  CREATE_REQUIRE,
+  GLOBAL_OBJECTS,
+  HONO_PACKAGE,
+  INSPECT_CUSTOM,
+  PAGED_QUERY,
+  PLATFORM,
+  REFLECTIVE_CALLS,
+  ROUTE_METHODS,
+  TRPC_QUERY,
+  TV,
+  URL_CONSTRUCTOR,
+  WELL_KNOWN_SYMBOLS,
+  ZOD_EXTENDERS,
+  ZOD_LAZY,
+  ZOD_OBJECT_BUILDERS,
+  ZOD_OPTIONAL,
+  ZOD_PACKAGE,
+  ZOD_TYPE,
+  ZOD_UNION_BUILDERS,
+} from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { keyText, unparenType, unwrapExpression } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -696,28 +716,9 @@ export interface WalkSink {
 }
 
 const CSS_NAME = /^--[\w-]+$/u;
-const TV = "tv";
 // The tRPC options-proxy verb for a paged query.
-const PAGED_QUERY = "infiniteQueryOptions";
 /** The input member a paged query's pages fill. */
 export const PAGE_CURSOR = "cursor";
-const URL_CONSTRUCTOR = "URL";
-const WELL_KNOWN_SYMBOLS = "Symbol";
-/** The Hono app methods that register a route, with the argument index that holds the path. */
-export const ROUTE_METHODS: ReadonlyMap<string, number> = new Map([
-  ["get", 0],
-  ["post", 0],
-  ["put", 0],
-  ["delete", 0],
-  ["patch", 0],
-  ["options", 0],
-  ["all", 0],
-  ["on", 1],
-]);
-const CREATE_REQUIRE = "createRequire";
-const NODE_MODULE_SPECIFIERS: ReadonlySet<string> = new Set(["node:module", "module"]);
-const INSPECT = "inspect";
-const INSPECT_CUSTOM = "custom";
 // Members the runtime calls by name: JSON.stringify's `toJSON`, coercion's `toString` and `valueOf`, `await`'s `then`.
 const RUNTIME_PROTOCOL_NAMES: ReadonlySet<string> = new Set(["toJSON", "toString", "valueOf", "then"]);
 const ARM_SELECTORS: ReadonlySet<string> = new Set(["Extract", "Exclude"]);
@@ -728,7 +729,7 @@ type ReflectiveRole = Extract<Role, "read" | "key">;
 function reflectiveRole(callee: Node, names: LibraryNames): ReflectiveRole | undefined {
   const name = isPropertyAccessExpression(callee) ? callee.name : callee;
   const role = isIdentifier(name) ? REFLECTIVE_CALLS.get(name.text) : undefined;
-  return role !== undefined && names.declaredBy(name, "platform") ? role : undefined;
+  return role !== undefined && names.declaredBy(name, PLATFORM) ? role : undefined;
 }
 // The name a call's callee ends in, when it is one of zod's: `zod.object` and `z.object` alike.
 const zodCallee = (
@@ -739,7 +740,7 @@ const zodCallee = (
   isCallExpression(call) &&
   isPropertyAccessExpression(call.expression) &&
   builders.has(call.expression.name.text) &&
-  names.declaredBy(call.expression.name, "zod");
+  names.declaredBy(call.expression.name, ZOD_PACKAGE);
 // A variable's JSDoc sits on its statement (`/** @public */ export const x = …`), two levels up from the declaration.
 const hasJsDoc = (node: UnitDeclaration): boolean => {
   const holder = isVariableDeclaration(node) ? node.parent.parent : node;
@@ -835,7 +836,7 @@ function checkedSchema(node: Node, names: LibraryNames): { readonly schema: Node
 const referenceNameNode = (node: TypeReferenceNode): Node => (isQualifiedName(node.typeName) ? node.typeName.right : node.typeName);
 
 const isZodType = (node: TypeReferenceNode, names: LibraryNames): boolean =>
-  referenceName(node) === ZOD_TYPE && names.declaredBy(referenceNameNode(node), "zod");
+  referenceName(node) === ZOD_TYPE && names.declaredBy(referenceNameNode(node), ZOD_PACKAGE);
 
 // The schemas a zod builder wraps whole: each arm of `z.union([…])`, or the schema `z.lazy(() => schema)` returns;
 // undefined for any other call.
@@ -930,7 +931,6 @@ function zodShapeOf(expression: Node, names: LibraryNames): ObjectLiteralExpress
 
 // `window.X.a.b` / `globalThis.X.a` in a string: the global, the member chain, and whether a computed key follows it.
 /** The global objects a published global is read off: `window.__orb`, `globalThis.__orb`, `self.__orb`. */
-export const GLOBAL_OBJECTS = ["window", "globalThis", "self"] as const;
 const GLOBAL_READ = new RegExp(`\\b(?:${GLOBAL_OBJECTS.join("|")})\\.([A-Za-z_$][\\w$]*)((?:\\??\\.[A-Za-z_$][\\w$]*)*)(\\??\\.\\$\\{|\\[)?`, "gu");
 // `const nav = window.__orb && window.__orb.nav;` names an alias the rest of the script reads through.
 const GLOBAL_ALIAS =
@@ -976,9 +976,8 @@ interface Frame {
   readonly stack: GraphKey[];
   readonly literals: LiteralMembers[];
   readonly classes: ClassFacts[];
-  /** The file's names for node:module's createRequire, and for the module itself (`import * as module`). */
+  /** The file's names for node:module's createRequire. */
   readonly createRequire: Set<string>;
-  readonly moduleNamespaces: Set<string>;
   /** The file's bindings that hold a require function createRequire made. */
   readonly requires: Set<string>;
   /** The spans of the shape literals a `satisfies z.ZodType<T>` chain spells, its `extend` literals among them. */
@@ -1000,7 +999,6 @@ export function collectSites(source: SourceFile, file: string, product: boolean,
     literals: [],
     classes: [],
     createRequire: new Set(),
-    moduleNamespaces: new Set(),
     requires: new Set(),
     twinShapes: new Set(),
     generic: 0,
@@ -1107,7 +1105,11 @@ class Walker {
     }
     this.#moduleLoad(node);
     this.#stores(node);
-    if (isPropertyAccessExpression(node.expression) && ROUTE_METHODS.has(node.expression.name.text)) {
+    if (
+      isPropertyAccessExpression(node.expression) &&
+      ROUTE_METHODS.has(node.expression.name.text) &&
+      this.#sink.names.declaredBy(node.expression.name, HONO_PACKAGE)
+    ) {
       this.#sites.routeCalls.push(node);
     }
   }
@@ -1201,18 +1203,12 @@ class Walker {
     }
   }
 
-  // The module specifier names node:module, so the imported name is its createRequire whatever the file calls it.
+  // An imported name that resolves to node:module's createRequire is it whatever the file calls it.
   #moduleImport(node: ImportDeclaration): void {
-    const specifier = node.moduleSpecifier;
-    if (!(isStringLiteral(specifier) && NODE_MODULE_SPECIFIERS.has(specifier.text))) {
-      return;
-    }
     const bindings = node.importClause?.namedBindings;
-    if (bindings !== undefined && isNamespaceImport(bindings)) {
-      this.#frame.moduleNamespaces.add(bindings.name.text);
-    }
     for (const element of bindings !== undefined && isNamedImports(bindings) ? bindings.elements : []) {
-      if ((element.propertyName ?? element.name).text === CREATE_REQUIRE) {
+      const imported = element.propertyName ?? element.name;
+      if (imported.text === CREATE_REQUIRE && this.#sink.names.declaredBy(imported, PLATFORM)) {
         this.#frame.createRequire.add(element.name.text);
       }
     }
@@ -1222,12 +1218,7 @@ class Walker {
     if (isIdentifier(callee)) {
       return this.#frame.createRequire.has(callee.text);
     }
-    return (
-      isPropertyAccessExpression(callee) &&
-      callee.name.text === CREATE_REQUIRE &&
-      isIdentifier(callee.expression) &&
-      this.#frame.moduleNamespaces.has(callee.expression.text)
-    );
+    return isPropertyAccessExpression(callee) && callee.name.text === CREATE_REQUIRE && this.#sink.names.declaredBy(callee.name, PLATFORM);
   }
 
   // A declaration: its facts, the edges that keep it and its holder alive together, and its place on the stack.
@@ -1356,7 +1347,7 @@ class Walker {
     ) {
       const owner = this.#frame.classes.at(-1);
       (hasStatic(node) ? owner?.statics : owner?.members)?.set(name, key);
-      if (owner !== undefined && isRuntimeProtocol(node.name)) {
+      if (owner !== undefined && isRuntimeProtocol(node.name, this.#sink.names)) {
         // the runtime calls it by its well-known name: JSON.stringify, coercion, `await`, `using`, for-of
         this.#sink.edge("run", owner.key, key);
         this.#sink.unseenCall(key);
@@ -1372,10 +1363,10 @@ class Walker {
   // A protocol member outside a class: a type's, which `using`, `await` or coercion calls on every value of that
   // type, and a literal's, which carries one without a class's heritage.
   #protocolMember(node: Node, key: DeclKey): void {
-    if ((isPropertySignatureDeclaration(node) || isMethodSignatureDeclaration(node)) && isRuntimeProtocol(node.name)) {
+    if ((isPropertySignatureDeclaration(node) || isMethodSignatureDeclaration(node)) && isRuntimeProtocol(node.name, this.#sink.names)) {
       this.#sink.unseenCall(key);
     }
-    if ((isMethodDeclaration(node) || isPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isRuntimeProtocol(node.name)) {
+    if ((isMethodDeclaration(node) || isPropertyAssignment(node)) && isObjectLiteralExpression(node.parent) && isRuntimeProtocol(node.name, this.#sink.names)) {
       this.#sink.edge("run", this.#holder, key);
       this.#sink.unseenCall(key);
     }
@@ -1585,7 +1576,13 @@ class Walker {
   // The library calls whose syntax the graph reads: a `tv()` table, a JSX attribute's value, a zod schema's twin keys.
   #pagedQuery(node: Node): void {
     const [input] = isCallExpression(node) ? node.arguments : [];
-    if (input !== undefined && isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === PAGED_QUERY) {
+    if (
+      input !== undefined &&
+      isCallExpression(node) &&
+      isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === PAGED_QUERY &&
+      this.#sink.names.declaredBy(node.expression.name, TRPC_QUERY)
+    ) {
       this.#sites.pagedQueries.push({ input, at: node.expression.name.pos });
     }
   }
@@ -1644,7 +1641,7 @@ class Walker {
 
   // A Drizzle write's stored values, the reads its literal keys copy, and the argument it stores (the header's ruling).
   #stores(node: CallExpression): void {
-    const stores = storesAt(node);
+    const stores = storesAt(node, this.#sink.names);
     if (stores.length === 0) {
       return;
     }
@@ -1732,6 +1729,7 @@ class Walker {
       isNewExpression(parent) &&
       isIdentifier(parent.expression) &&
       parent.expression.text === URL_CONSTRUCTOR &&
+      this.#sink.names.declaredBy(parent.expression, PLATFORM) &&
       sameNode(parent.arguments?.[0], node) &&
       node.text.startsWith(".")
     ) {
@@ -1759,10 +1757,10 @@ class Walker {
 
 // Names the runtime calls a member by: a well-known symbol (`[Symbol.dispose]`, `[Symbol.iterator]`) or one of
 // RUNTIME_PROTOCOL_NAMES.
-function isRuntimeProtocol(name: Node): boolean {
+function isRuntimeProtocol(name: Node, names: LibraryNames): boolean {
   if (isComputedPropertyName(name)) {
     const { expression } = name;
-    return isPropertyAccessExpression(expression) && (wellKnownSymbol(expression.expression) || inspectCustom(expression));
+    return isPropertyAccessExpression(expression) && (wellKnownSymbol(expression.expression, names) || inspectCustom(expression, names));
   }
   return isIdentifier(name) && RUNTIME_PROTOCOL_NAMES.has(name.text);
 }
@@ -1778,14 +1776,12 @@ function siblingsOf(node: Node): readonly Node[] {
 
 const isImportDeclarationCall = (node: CallExpression): boolean => node.expression.kind === SyntaxKind.ImportKeyword;
 
-const wellKnownSymbol = (node: Node): boolean => isIdentifier(node) && node.text === WELL_KNOWN_SYMBOLS;
+const wellKnownSymbol = (node: Node, names: LibraryNames): boolean =>
+  isIdentifier(node) && node.text === WELL_KNOWN_SYMBOLS && names.declaredBy(node, PLATFORM);
 
-// `[inspect.custom]` or `[util.inspect.custom]`: node:util's logging hook.
-function inspectCustom(access: PropertyAccessExpression): boolean {
-  const { expression } = access;
-  const holder = isPropertyAccessExpression(expression) ? expression.name : expression;
-  return access.name.text === INSPECT_CUSTOM && isIdentifier(holder) && holder.text === INSPECT;
-}
+// `[inspect.custom]` or `[util.inspect.custom]`: node:util's logging hook, whatever its holder is called.
+const inspectCustom = (access: PropertyAccessExpression, names: LibraryNames): boolean =>
+  access.name.text === INSPECT_CUSTOM && names.declaredBy(access.name, PLATFORM);
 
 // A computed member name spelled as a dotted path, `[Symbol.iterator]`, so its label names it.
 function computedText(name: Node | undefined): string | undefined {
@@ -1900,7 +1896,7 @@ function declaredReturnType(node: Node): TypeNode | undefined {
   return isFunctionLikeDeclaration(at) ? at.type : undefined;
 }
 
-const storesAt = (node: Node): readonly StoreWrite[] => [...storeWritesAt(node), ...insertSelectWritesAt(node)];
+const storesAt = (node: Node, names: LibraryNames): readonly StoreWrite[] => [...storeWritesAt(node, names), ...insertSelectWritesAt(node, names)];
 
 // The reads the literal keys of stored values copy into their columns.
 const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
@@ -1910,10 +1906,10 @@ const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
 
 /** Whether a Drizzle write copies the name's read into a column, or a table definition holds it: the reads the walk
  *  gives no role (the header's ruling), found from the name up through its enclosing calls. */
-export function handedToColumn(name: Node, isTable: (node: Node) => boolean): boolean {
+export function handedToColumn(name: Node, isTable: (node: Node) => boolean, names: LibraryNames): boolean {
   const inTable = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name);
   for (let at = name.parent; !isSourceFile(at); at = at.parent) {
-    if (copiedBy(storesAt(at)).some((read) => sameNode(read, name)) || (inTable && isTable(at))) {
+    if (copiedBy(storesAt(at, names)).some((read) => sameNode(read, name)) || (inTable && isTable(at))) {
       return true;
     }
   }
@@ -1965,7 +1961,12 @@ function copyFlowSite(node: Node): FlowSite | undefined {
     : undefined;
 }
 
-const isTvCallee = (callee: Node): boolean => (isIdentifier(callee) && callee.text === TV) || (isPropertyAccessExpression(callee) && callee.name.text === TV);
+// A prefilter: the variants pass keeps a call only when its resolved signature is tailwind-variants' own, which also
+// holds for a `tv` reached through a wrapper of ours (graph/variants.ts variantsDeclarations).
+const isTvCallee = (callee: Node): boolean => {
+  const name = isPropertyAccessExpression(callee) ? callee.name : callee;
+  return isIdentifier(name) && name.text === TV;
+};
 
 // A value position that hands the name on: not `new X`, `X.member`, a member name, a heritage clause or its own name.
 function handsOn(name: Node): boolean {

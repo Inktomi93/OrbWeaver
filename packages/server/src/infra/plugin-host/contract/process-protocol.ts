@@ -25,7 +25,8 @@ export interface PluginFrameRoute {
 
 export type PluginIpcMessage =
   | { readonly kind: "frame"; readonly generation: string; readonly frame: string; readonly route?: PluginFrameRoute }
-  | { readonly kind: "ready"; readonly generation: string }
+  /** A broker's readiness carries the key its beats carry; the watchdog keeps it and passes readiness on without it. */
+  | { readonly kind: "ready"; readonly generation: string; readonly beatKey?: string }
   | { readonly kind: "stopped"; readonly generation: string; readonly error: RpcError };
 
 export type PluginIpcSend = (message: PluginIpcMessage, callback: (error: Error | null) => void) => void;

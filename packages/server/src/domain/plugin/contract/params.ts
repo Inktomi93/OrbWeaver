@@ -5,6 +5,7 @@
 // is the inline-mode input — TYPE HOME ONLY here; the verb implementation lives with the other verbs.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ProviderId } from "@orb/contracts/inference";
 import type { PluginBundleHash, PluginCapability, PluginCommandArgValue, PluginSlug } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
@@ -148,6 +149,11 @@ export interface SetPluginGrantParams {
   /** The exact `netHosts` list the caller displayed to the owner (echo `PluginView.netHosts ?? []`). Only
    *  consulted when `grant` includes `net.fetch`; a manifest host absent from it is a typed refusal. */
   readonly acknowledgedNetHosts: readonly string[];
+  /** The provider ids the caller displayed (echo the ids of `PluginView.providers`). Consulted only when the grant
+   *  would answer a pending widening; an unanswered provider absent from it refuses. Absent is an empty echo. */
+  readonly acknowledgedProviderIds?: readonly ProviderId[];
+  /** The automation opt-in the caller displayed (echo `PluginView.matchAutomationEvents`), consulted as above. */
+  readonly acknowledgedMatchAutomationEvents?: boolean;
   /** The owner's approval also turns the plugin on. Absent means never enable a disabled row: the example
    *  seeder and the D147 fan-out call this verb to raise a consent ask and must leave the row unable to run. */
   readonly enable?: boolean;

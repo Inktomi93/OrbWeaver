@@ -81,8 +81,10 @@ watchdog stop the broker rather than leaving an orphan.
 A broker restart rejects in-flight work as host-unavailable and keeps every logical plugin: an enabled plugin's
 next call starts a fresh runtime on the new broker from its durable source, as a wake after eviction does (D347).
 Guest linear memory, live
-QuickJS allocations, physical Workers, host-call results, protocol frames, and queued arguments each have
-independent finite bounds. The RSS watchdog has bounded detection overshoot; it is not a kernel-hard memory
+QuickJS allocations, each Worker's V8 heap (`PLUGIN_WORKER_HEAP_MAX_MEBIBYTES`, ending that Worker alone),
+physical Workers, host-call results, protocol frames, and queued arguments each have independent finite bounds.
+The watchdog reads a heartbeat only when it carries the key the broker sent over IPC before any Worker existed,
+so a line a Worker writes on the shared stderr is never a beat. The RSS watchdog has bounded detection overshoot; it is not a kernel-hard memory
 limit. In Docker the app and broker also share one container cgroup, so a broker overshoot that reaches the
 container limit can still make the container runtime OOM-kill the app. The composed pressure proof records
 Worker count, broker RSS, cold latency, throughput, kill, and recovery behavior.

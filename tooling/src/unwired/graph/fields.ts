@@ -9,6 +9,7 @@
 //   reported row's member, where the row has no read, is listed in `unresolved` for judgement. A write through `any`
 //   is recorded nowhere, so a never-written row lists no candidate writer.
 import type { SendDestination } from "../boundaries.ts";
+import type { DeliberateMark } from "../deliberate.ts";
 import { isProduction } from "../worlds.ts";
 import type { MemberBucket } from "./analyse.ts";
 import { isMember } from "./analyse.ts";
@@ -40,7 +41,7 @@ export interface FieldsReport {
   /** The members the product declares: interface, type and class members, and zod schema keys. */
   readonly scanned: number;
   readonly unwired: readonly FieldRow[];
-  readonly deliberate: readonly (FieldRow & { readonly reason: string })[];
+  readonly deliberate: readonly (FieldRow & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: readonly (FieldRow & Pick<JudgedMembers["judged"][number], "item" | "tie">)[];
   /** Judged entries whose row no longer reports or whose item is no longer open. */

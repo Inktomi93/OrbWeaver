@@ -14,7 +14,7 @@
 // paragraph of this header). Nothing here is clickable.
 //
 // THE CONTRACT THIS COMPONENT OWES, from #24: a person must be able to see exactly what they are agreeing
-// to. Concretely, three things every arm renders:
+// to. Concretely, every arm renders:
 //   1. every DECLARED capability, in `PLUGIN_CAPABILITIES` order, each with the plain-English consequence
 //      of granting it (`plugin-copy.ts` — a capability with no sentence is a compile error, not a blank row);
 //   2. the SPEND mark on every capability that can draw on the installer's budget — never buried in prose;
@@ -22,6 +22,8 @@
 //      so the capability NAME is not the reach — the hosts are. This is exactly why the server's re-consent
 //      rule treats a swapped host list as a widening (`domain/plugin/verbs/upgrade.ts`), and a consent screen
 //      that showed only the capability name would be consenting to the wrong thing.
+//   4. the declared `providers` and the `matchAutomationEvents` opt-in, for the same reason: the manifest sets
+//      their reach with no capability name, and an upgrade that widens either asks again.
 //
 // `addedCapabilities` marks CAPABILITY rows that are new relative to what is already granted — the upgrade
 // re-consent case. The caller computes it from the same two inputs the server compares, so the mark agrees
@@ -99,7 +101,7 @@
 // refuses, where the eye already is) and the lead column keeps a `w-(--size-checkbox)` spacer, so mixed
 // granted/ungranted rows still share one left rail.
 
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginView } from "@orb/contracts/plugin";
 import { NET_HOSTS_MAX } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -111,7 +113,18 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { MutedLine } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
-import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
+import {
+  CAPABILITY_COPY_ROWS,
+  capabilityCopy,
+  HOSTS_COLLAPSE_AT,
+  hostsDisclosureLabel,
+  NO_IMAGE_MODEL_NOTE,
+  PLUGIN_ADDED_MARK,
+  PLUGIN_AUTOMATION_EVENTS_LINE,
+  PLUGIN_PROVIDERS_CONSEQUENCE,
+  PLUGIN_PROVIDERS_HEADING,
+  SPEND_ROLE_TASKS,
+} from "../lib/plugin-copy.ts";
 
 /** Whose model roles a spend permission is judged against: an installed plugin's own fold, or the installer's. */
 type PluginGrantRoleScope = { readonly kind: "installer" } | { readonly kind: "plugin"; readonly pluginId: PluginId };
@@ -135,6 +148,16 @@ export interface PluginGrantListProps {
    *  it. Entries are matched against {@link netHosts} by exact string, which is correct because the server
    *  filtered them out of that very array. */
   readonly addedNetHosts?: readonly string[];
+  /** The providers the manifest adds to the owner's connection choices while it runs. Required so every consent
+   *  surface states them: their reach is set by the manifest, not by a capability. */
+  readonly providers: PluginView["providers"];
+  /** Provider ids this update added, straight off `PluginView.widenedProviderIds`; the same pass-through rule as
+   *  {@link addedNetHosts}. */
+  readonly addedProviderIds?: readonly string[];
+  /** The manifest opts its event handlers into automation-caused events. */
+  readonly matchAutomationEvents: boolean;
+  /** This update turned that opt-in on (`PluginView.widenedMatchAutomationEvents`). */
+  readonly matchAutomationEventsAdded?: boolean;
   /** The heading over the host list. Defaults to the install-time phrasing; the re-consent case says
    *  "this version" instead, because it is showing a list that may have changed in ways it cannot name. */
   readonly netHostsHeading?: string;
@@ -220,7 +243,7 @@ function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): Rea
             caution) — two amber "warning/soft" pills at a glance were indistinguishable (side-eye P2-8). */}
         {isNew ? (
           <Badge id={newMarkId} whitespace="normal" cap="fit" tone="info" size="sm">
-            New
+            {PLUGIN_ADDED_MARK}
           </Badge>
         ) : null}
         {copy.spends === true ? (
@@ -280,6 +303,10 @@ export function PluginGrantList({
   granted,
   addedCapabilities,
   addedNetHosts,
+  providers,
+  addedProviderIds,
+  matchAutomationEvents,
+  matchAutomationEventsAdded = false,
   netHostsHeading = "Hosts it can reach",
   capabilitiesLabel,
   roleScope,
@@ -287,6 +314,7 @@ export function PluginGrantList({
   const grantedSet = new Set<PluginCapability>(granted);
   const addedSet = new Set<PluginCapability>(addedCapabilities ?? []);
   const addedHostSet = new Set<string>(addedNetHosts ?? []);
+  const addedProviderSet = new Set<string>(addedProviderIds ?? []);
   const rows = orderedDeclared(declared);
   const unexplained = unexplainedCount(declared);
   const unsetRoles = useUnsetSpendRoles(declared, roleScope);
@@ -306,7 +334,7 @@ export function PluginGrantList({
           </Text>
           {addedHostSet.has(host) ? (
             <Badge whitespace="normal" cap="fit" tone="info" size="sm">
-              New
+              {PLUGIN_ADDED_MARK}
             </Badge>
           ) : null}
         </Row>
@@ -380,6 +408,46 @@ export function PluginGrantList({
             </Collapsible>
           )}
         </Stack>
+      ) : null}
+
+      {/* Providers and the automation opt-in are reach the manifest sets with no capability name, the same
+          shape as `netHosts`, so they render whenever declared and carry the server's "New" mark verbatim. */}
+      {providers.length > 0 ? (
+        <Stack gap="field">
+          <Stack gap="tight">
+            <Text voice="label">{PLUGIN_PROVIDERS_HEADING}</Text>
+            <Text cap="prose" prose={true} voice="gloss">
+              {PLUGIN_PROVIDERS_CONSEQUENCE}
+            </Text>
+          </Stack>
+          <Stack gap="tight" role="list">
+            {providers.map((provider) => (
+              <Row key={provider.id} align="center" gap="field" role="listitem">
+                <Text voice="label" wrap="anywhere">
+                  {provider.label}
+                </Text>
+                {addedProviderSet.has(provider.id) ? (
+                  <Badge whitespace="normal" cap="fit" tone="info" size="sm">
+                    {PLUGIN_ADDED_MARK}
+                  </Badge>
+                ) : null}
+              </Row>
+            ))}
+          </Stack>
+        </Stack>
+      ) : null}
+
+      {matchAutomationEvents ? (
+        <Row align="center" wrap={true} gap="field">
+          <Text cap="prose" prose={true} voice="gloss">
+            {PLUGIN_AUTOMATION_EVENTS_LINE}
+          </Text>
+          {matchAutomationEventsAdded ? (
+            <Badge whitespace="normal" cap="fit" tone="info" size="sm">
+              {PLUGIN_ADDED_MARK}
+            </Badge>
+          ) : null}
+        </Row>
       ) : null}
     </Stack>
   );

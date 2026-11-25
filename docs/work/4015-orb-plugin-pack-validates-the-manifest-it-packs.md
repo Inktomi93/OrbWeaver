@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-11-25
 priority: P2
 area: plugin
+lane: wt/agent-a1376818f1f22d211
 ---
 
 # orb-plugin pack validates the manifest it packs

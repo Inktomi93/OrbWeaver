@@ -26,11 +26,12 @@ import type {
   PluginHostPort,
   PluginProviderLifecycle,
   PluginRegistry,
+  UnansweredReach,
 } from "../contract/service.ts";
 import { getById, setStatus } from "../persistence/plugins.ts";
 import { buildPluginBridge } from "../substrate/bridge.ts";
 import { invokeFailureKind, logPluginFailure, pluginFailureLine } from "../substrate/failure-log.ts";
-import { consentedNetHosts } from "../substrate/grants.ts";
+import { consentedNetHosts, consentedProviders } from "../substrate/grants.ts";
 import { parseInstalledBundle } from "../substrate/manifest.ts";
 
 /** Hand every collected registration to its registrar op, collecting the deregistration handles. Each carries
@@ -109,9 +110,10 @@ interface RevalidatedBundle {
   /** The `net.fetch` SSRF allowlist the infra host-fn pins `safeFetch` to; absent ⇒ fail-closed `[]`
    *  infra-side. Already MINUS whatever the caller says is unanswered (see {@link consentedWall}). */
   readonly netHosts: readonly string[] | undefined;
-  /** The cascade opt-in, fail-closed `false` when the manifest declares none. */
+  /** The cascade opt-in, fail-closed `false` when the manifest declares none or a standing re-consent withholds it. */
   readonly matchAutomationEvents: boolean;
-  /** Validated manifest data only; the connection registry validates it again at its persistence boundary. */
+  /** Validated manifest data only, minus the ids a standing re-consent withholds; the connection registry validates
+   *  it again at its persistence boundary. */
   readonly providers: readonly ProviderDef[];
 }
 
@@ -119,7 +121,7 @@ interface RevalidatedBundle {
  *  the caller lands the row `errored` with the detail. */
 function revalidate(
   bytes: Uint8Array,
-  withheldNetHosts: readonly string[],
+  withheld: UnansweredReach,
 ): { readonly ok: true; readonly bundle: RevalidatedBundle } | { readonly ok: false; readonly error: string } {
   try {
     const parsed = parseInstalledBundle(bytes);
@@ -129,9 +131,9 @@ function revalidate(
         mainJs: parsed.mainJs,
         slug: parsed.manifest.id,
         displayName: parsed.manifest.name,
-        netHosts: consentedWall(parsed.manifest.netHosts, withheldNetHosts),
-        matchAutomationEvents: parsed.manifest.matchAutomationEvents ?? false,
-        providers: parsed.manifest.providers ?? [],
+        netHosts: consentedWall(parsed.manifest.netHosts, withheld.netHosts),
+        matchAutomationEvents: parsed.manifest.matchAutomationEvents === true && !withheld.matchAutomationEvents,
+        providers: consentedProviders(parsed.manifest.providers ?? [], withheld.providerIds),
       },
     };
   } catch (err) {
@@ -145,7 +147,7 @@ async function loadRevalidatedBundle(
 ): Promise<{ readonly ok: true; readonly bundle: RevalidatedBundle } | { readonly ok: false; readonly error: string }> {
   try {
     const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
-    return revalidate(bytes, input.withheldNetHosts);
+    return revalidate(bytes, input.withheld);
   } catch (err) {
     return { ok: false, error: `stored bundle unreadable: ${errorMessage(err)}` };
   }

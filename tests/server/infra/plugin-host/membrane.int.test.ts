@@ -15,6 +15,7 @@ import {
   HOST_CALLS_IN_FLIGHT_MAX,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_RESULT_CAP_BYTES,
+  PLUGIN_DUMP_DEPTH_GUARD,
   PLUGIN_INVOCATION_CPU_MS,
   PLUGIN_RESIDENT_LIMITS,
   PLUGIN_SNIPPET_LIMITS,
@@ -22,19 +23,17 @@ import {
   settlementWallMs,
 } from "#server/infra/plugin-host/budgets.ts";
 
-// Far past the membrane's dump depth guard, so the iterative pre-walk must refuse this argument.
+// Far past the membrane's dump depth guard, so the bounded read must refuse this argument.
 const PAST_DEPTH_GUARD = 1000;
 
-// `ctx.dump` serializes through the guest's JSON.stringify, which calls the root's `toJSON` before it walks
-// anything. The guest records that call, so a materialization that ran before the guard refused is visible
-// even when the refusal itself looks the same.
+// The innermost value holds a getter the read runs only if it walks the whole tree. The guest records that call, so a
+// read that went past the guard before refusing is visible even when the refusal itself looks the same.
 const DEEP_ARGUMENT = `
 const h = orb.host(1);
 (async () => {
-  let deep = {};
-  for (let i = 0; i < ${PAST_DEPTH_GUARD}; i++) { deep = { n: deep }; }
   let materialized = false;
-  deep.toJSON = () => { materialized = true; return {}; };
+  let deep = { get leaf() { materialized = true; return 1; } };
+  for (let i = 0; i < ${PAST_DEPTH_GUARD}; i++) { deep = { n: deep }; }
   try { await h.chat.listMessages(h.chat.current(), deep); h.log.info("accepted"); }
   catch (e) { h.log.info("refused:" + e.name); }
   h.log.info("materialized:" + materialized);
@@ -43,9 +42,8 @@ const h = orb.host(1);
 const ORDINARY_ARGUMENT = `
 const h = orb.host(1);
 (async () => {
-  const view = { order: { newest: true } };
   let materialized = false;
-  view.toJSON = () => { materialized = true; return { order: { newest: true } }; };
+  const view = { get order() { materialized = true; return { newest: true }; } };
   try { const rows = await h.chat.listMessages(h.chat.current(), { limit: 5, view }); h.log.info("listed:" + Array.isArray(rows)); }
   catch (e) { h.log.info("refused:" + e.name); }
   h.log.info("materialized:" + materialized);
@@ -60,7 +58,7 @@ test("a guest argument past the dump depth guard is refused without ever being m
   expect(deep.error).toBeUndefined();
   expect(deep.logLines).toEqual(["[info] refused:Error", "[info] materialized:false"]);
 
-  // The positive control for the sentinel: an argument the guard admits is materialized through `toJSON`.
+  // The positive control for the sentinel: an argument the guard admits is read through its getter.
   const ordinary = await caller.plugin.runSnippet({ chatId: room.id, code: ORDINARY_ARGUMENT });
   expect(ordinary.error).toBeUndefined();
   expect(ordinary.logLines).toEqual(["[info] listed:true", "[info] materialized:true"]);
@@ -76,6 +74,9 @@ const MEMBRANE_OPS = {
   mintedHandle: "(h) => h.chat.listMessages(h.ids.mint())",
   chatIdHandle: "(h, room, a) => h.chat.listMessages(a.chatId)",
   readKey: "(h, room, a) => h.storage.get('k'.repeat(a.length))",
+  // The key is an object whose every read is counted, so a call that read its argument before refusing shows it.
+  countedKey:
+    "async (h) => { let reads = 0; const key = { get k() { reads += 1; return 'k'; } }; try { await h.storage.get(key); return ['answered', reads]; } catch (e) { return [e.name, reads]; } }",
 } as const satisfies GuestOps;
 
 test("a host function whose capability is not granted refuses with the capability error, and a granted guest's same call answers", {
@@ -91,6 +92,69 @@ test("a host function whose capability is not granted refuses with the capabilit
     name: new PluginCapabilityError("storage.kv").name,
   });
   expect(await guestRunner({ root, caller: owner, pluginId: keeper, chatId: null })("readKey", { length: 1 })).toEqual({ ok: true, value: null });
+
+  // The refusal comes before the host reads the argument at all; the granted guest's same call reads it once.
+  expect(await guestRunner({ root, caller: owner, pluginId: reader, chatId: null })("countedKey")).toEqual({
+    ok: true,
+    value: [new PluginCapabilityError("storage.kv").name, 0],
+  });
+  expect(await guestRunner({ root, caller: owner, pluginId: keeper, chatId: null })("countedKey")).toEqual({ ok: true, value: [Error.name, 1] });
+});
+
+// The state's `tree` answers a flat value to its first read and a tree past the depth guard to every later one, so a
+// host that checks the depth on one read and copies the value on another stores the deep tree it never checked.
+const RACED_SURFACE = "raced";
+const RACED_STATE = {
+  publish: `async (h, room, a) => { let reads = 0; const state = {}; Object.defineProperty(state, 'tree', { enumerable: true, get() { reads += 1; if (reads === 1) { return { leaf: 1 }; } let deep = { leaf: 1 }; for (let i = 0; i < a.depth; i += 1) { deep = { n: deep }; } return deep; } }); await h.ui.setState(${JSON.stringify(RACED_SURFACE)}, state); return reads; }`,
+} as const satisfies GuestOps;
+
+test("a guest value that deepens between reads crosses as the one value the depth guard read", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "state-racer", capabilities: [HOST_FUNCTION_CAPABILITY["ui.setState"]] }, RACED_STATE);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+  // One guard's depth below the root puts the tree past the guard and still inside what the broker carries, so a
+  // raced read would reach the store rather than fail in transit.
+  const published = await run("publish", { depth: PLUGIN_DUMP_DEPTH_GUARD });
+  expect(await root.services.plugin.getSurfaceState({ caller: owner, pluginId, surfaceId: RACED_SURFACE })).toEqual({ tree: { leaf: 1 } });
+  expect(published).toEqual({ ok: true, value: 1 });
+});
+
+// The Proxy twin: the state is a Proxy whose `get` trap answers the same flat-then-deep `tree`, so the race lives in a
+// trap rather than an accessor the host could see on the descriptor.
+const PROXY_SURFACE = "proxied";
+const PROXY_STATE = {
+  publish: `async (h, room, a) => { let gets = 0; const target = { tree: { leaf: 1 } }; const state = new Proxy(target, { get(t, key) { if (key !== 'tree') { return t[key]; } gets += 1; if (gets === 1) { return { leaf: 1 }; } let deep = { leaf: 1 }; for (let i = 0; i < a.depth; i += 1) { deep = { n: deep }; } return deep; } }); await h.ui.setState(${JSON.stringify(PROXY_SURFACE)}, state); return gets; }`,
+} as const satisfies GuestOps;
+
+test("a Proxy whose get trap deepens between reads crosses as the one value the depth guard read", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "proxy-racer", capabilities: [HOST_FUNCTION_CAPABILITY["ui.setState"]] }, PROXY_STATE);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+  const published = await run("publish", { depth: PLUGIN_DUMP_DEPTH_GUARD });
+  expect(await root.services.plugin.getSurfaceState({ caller: owner, pluginId, surfaceId: PROXY_SURFACE })).toEqual({ tree: { leaf: 1 } });
+  expect(published).toEqual({ ok: true, value: 1 });
+});
+
+// A snippet ends by throwing an object whose `message` is its own text, nested `depth` deep under it. The host reads a
+// thrown value for the outcome, and a snippet reports that message, so a read that honors the depth guard reports its
+// own refusal instead of the guest's text.
+const THROWN_MESSAGE = "deep throw";
+const thrownAtDepth = (depth: number): string =>
+  `let deep = {}; for (let i = 0; i < ${String(depth)}; i += 1) { deep = { n: deep }; } deep.message = ${JSON.stringify(THROWN_MESSAGE)}; throw deep;`;
+
+test("a thrown guest value past the depth guard is read as the refusal, and a shallow one keeps its message", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+
+  const deep = await caller.plugin.runSnippet({ chatId: room.id, code: thrownAtDepth(PAST_DEPTH_GUARD) });
+  expect(deep.errorKind).toBe("runtime");
+  expect(deep.error).not.toBe(THROWN_MESSAGE);
+  expect((await caller.plugin.runSnippet({ chatId: room.id, code: thrownAtDepth(1) })).error).toBe(THROWN_MESSAGE);
 });
 
 test("a chat call refuses a fabricated handle, the raw chat id and a handle from an ended invocation, and answers the admitted one", {

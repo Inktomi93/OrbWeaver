@@ -25,6 +25,7 @@ import type { Analysis, Bucket } from "./analyse.ts";
 import { isMember, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import { declaredNameOf, nodeAt } from "./declared.ts";
+import { libraryNames } from "./library-names.ts";
 import type { GraphLog } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, Resolver } from "./resolve.ts";
@@ -434,7 +435,7 @@ class Census {
     if (near.length > 0) {
       return "elsewhere";
     }
-    return handedToColumn(node, this.#isTable) ? "column" : "gap";
+    return handedToColumn(node, this.#isTable, libraryNames(this.#world)) ? "column" : "gap";
   }
 
   #count(site: CountedSite): void {

@@ -394,19 +394,29 @@ test("an array spread hands its elements to the array's element type", { timeout
 test("a paged query writes its input's cursor and no other member", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,
+    ...libraryModule(
+      ["export interface Procedure<I> { infiniteQueryOptions(input: I, next: (page: string) => string): unknown; queryOptions(input: I): unknown }"],
+      "@trpc/tanstack-react-query",
+    ),
     ...source([
       'import { z } from "zod";',
+      'import type { Procedure } from "@trpc/tanstack-react-query";',
       "export const listInputSchema = z.object({ limit: z.string(), cursor: z.string().optional(), after: z.string().optional() });",
       "type ListInput = z.infer<typeof listInputSchema>;",
       'export const list = (input: ListInput): string => input.limit + (input.cursor ?? "") + (input.after ?? "");',
       "export const pageOf = (page: string): string => page;",
-      "export interface Procedure<I> { infiniteQueryOptions(input: I, next: typeof pageOf): unknown; queryOptions(input: I): unknown }",
       "declare const procedure: Procedure<ListInput>;",
       'export const paged = procedure.infiniteQueryOptions({ limit: "10" }, pageOf);',
       'export const single = procedure.queryOptions({ limit: "1" });',
+      "export const ownSchema = z.object({ limit: z.string(), cursor: z.string().optional() });",
+      "type OwnInput = z.infer<typeof ownSchema>;",
+      'export const own = (input: OwnInput): string => input.limit + (input.cursor ?? "");',
+      "export interface Pager { infiniteQueryOptions(input: OwnInput): unknown }",
+      "declare const pager: Pager;",
+      'export const ownPaged = pager.infiniteQueryOptions({ limit: "1" });',
     ]),
   });
-  expect(bare(labelsIn(scan, "member-read-only", FILE))).toEqual(["listInputSchema.after"]);
+  expect(bare(labelsIn(scan, "member-read-only", FILE))).toEqual(["listInputSchema.after", "ownSchema.cursor"]);
 });
 
 test("a value a schema validates is sent to no receiver; a default the schema returns fills its output", { timeout: 120_000 }, async ({ plantedTree }) => {

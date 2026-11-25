@@ -40,7 +40,7 @@ import {
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
-import type { DeliberateEntry } from "../deliberate.ts";
+import type { DeliberateEntry, DeliberateMark } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
@@ -139,7 +139,7 @@ export interface UnionsReport {
   readonly unwired: readonly UnwiredUnionMember[];
   /** Members only outside input produces, each with the sites that parse the input in. Reported, never judged dead. */
   readonly parsed: readonly ParsedUnionMember[];
-  readonly deliberate: readonly (UnwiredUnionMember & { readonly reason: string })[];
+  readonly deliberate: readonly (UnwiredUnionMember & DeliberateMark)[];
   /** Rows a board item owns, with the item. */
   readonly judged: JudgedSplit<UnwiredUnionMember>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */
