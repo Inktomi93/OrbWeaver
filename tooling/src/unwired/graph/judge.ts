@@ -54,6 +54,7 @@ import type { Analysis, Finding, MemberBucket } from "./analyse.ts";
 import { isMember, MEMBER_BUCKETS, memberHome } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import { declaredNameOf } from "./declared.ts";
+import { libraryNames, TRPC_MUTATION, TRPC_OUTPUT, TRPC_SERVER } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, Resolver } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -280,19 +281,20 @@ function wiredControl(
   return undefined;
 }
 
-const TRPC_OUTPUT = "output";
-const TRPC_MUTATION = "mutation";
 const ZOD_SHAPE = "shape";
 
 // The schema a `.output(schema)` names on a procedure chain that a later `.mutation(...)` ends: the mutation's answer.
 function mutationOutputs(world: NativeWorld): readonly Node[] {
   const outputs: Node[] = [];
+  const names = libraryNames(world);
+  const trpcVerb = (name: Node, verb: string): boolean => isIdentifier(name) && name.text === verb && names.declaredBy(name, TRPC_SERVER);
   for (const file of world.files.filter((source) => isProduction(world.fileOfSource(source)))) {
     const visit = (node: Node): void => {
-      const [schema] = isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === TRPC_OUTPUT ? node.arguments : [];
+      const [schema] =
+        isCallExpression(node) && isPropertyAccessExpression(node.expression) && trpcVerb(node.expression.name, TRPC_OUTPUT) ? node.arguments : [];
       let at: Node = node;
       while (schema !== undefined && isPropertyAccessExpression(at.parent) && at.parent.expression === at && isCallExpression(at.parent.parent)) {
-        if (at.parent.name.text === TRPC_MUTATION) {
+        if (trpcVerb(at.parent.name, TRPC_MUTATION)) {
           outputs.push(schema);
           break;
         }

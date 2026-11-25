@@ -4,7 +4,18 @@
 import { expect, test } from "@orb/testkit/tooling";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { MEMBER_BUCKETS, scanGraph } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, JUDGED_WORK, judgedExpected, judgedOutcome, labelsIn, NODE_TYPES, plantJudged, ZOD_MODULE } from "./_planted.ts";
+import {
+  GRAPH_SOURCE,
+  graphTree,
+  JUDGED_WORK,
+  judgedExpected,
+  judgedOutcome,
+  labelsIn,
+  libraryModule,
+  NODE_TYPES,
+  plantJudged,
+  ZOD_MODULE,
+} from "./_planted.ts";
 
 const FILE = `${GRAPH_SOURCE}/row.ts`;
 const quiet = (): undefined => undefined;
@@ -338,10 +349,17 @@ test("a never-read one-member mutation output reports as an acknowledgement, apa
   const root = await plantedTree(
     graphTree({
       ...ZOD_MODULE,
+      ...libraryModule(["export interface Chain { output<S>(schema: S): Chain; mutation<T>(resolve: () => T): T }"], "@trpc/server"),
       [RULES]: [
         'import { z } from "zod";',
-        "interface Chain { output<S>(schema: S): Chain; mutation<T>(resolve: () => T): T }",
+        'import type { Chain } from "@trpc/server";',
+        "interface Own { output<S>(schema: S): Own; mutation<T>(resolve: () => T): T }",
         "declare const procedure: Chain;",
+        "declare const own: Own;",
+        "export interface Kept { readonly kept: boolean }",
+        "const keptSchema = z.object({ kept: z.boolean() }) satisfies z.ZodType<Kept>;",
+        "const kept = (): Kept => ({ kept: true });",
+        "export const mine = own.output(keptSchema).mutation(kept);",
         "export interface Done { readonly ok: boolean }",
         "export interface Pair { readonly left: string; readonly right: string }",
         "const doneSchema = z.object({ ok: z.boolean() }) satisfies z.ZodType<Done>;",
@@ -357,7 +375,7 @@ test("a never-read one-member mutation output reports as an acknowledgement, apa
   expect({
     acknowledged: scan.members.acknowledged.map(({ home, member }) => `${home}.${member}`),
     unwired: scan.members.unwired.map(({ home, member }) => `${home}.${member}`),
-  }).toEqual({ acknowledged: ["Done.ok"], unwired: ["Pair.left", "Pair.right"] });
+  }).toEqual({ acknowledged: ["Done.ok"], unwired: ["Kept.kept", "Pair.left", "Pair.right"] });
 });
 
 // Inside the provider backends a value no destination takes is a provider send only where it reaches a request: through

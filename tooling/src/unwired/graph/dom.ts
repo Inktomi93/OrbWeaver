@@ -84,6 +84,8 @@ import { isProduction } from "../worlds.ts";
 import { OWNER_CSS_SURFACE, STRING } from "./css.ts";
 import type { Text, Texts } from "./held.ts";
 import { HeldTexts } from "./held.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { ATTRIBUTE_FILTER, DATASET, libraryNames, PLATFORM, PLAYWRIGHT, PLAYWRIGHT_CORE, RECORD_NAME } from "./library-names.ts";
 import { holds, meets, nameCount, selects } from "./patterns.ts";
 import { sameNode } from "./roles.ts";
 import { BARE_VARIANT_READ, DATA, NOT_SOURCE, SELECTOR_READ, SHEETS, VARIANT_READ } from "./selectors.ts";
@@ -167,18 +169,16 @@ const MODEL_MEMBERS: ReadonlySet<string> = new Set(ATTRIBUTE_MODELS.map(({ membe
 const MODEL_LOOKUPS: ReadonlySet<string> = new Set(["get", "has"]);
 // The platform's keyed collections, whose `get` and `has` a model lookup must resolve to.
 const MODEL_COLLECTIONS: ReadonlySet<string> = new Set(["Map", "ReadonlyMap"]);
-// The test runners whose declarations of `toHaveAttribute` and `getByTestId` read a hook, by package or scope.
-const TEST_RUNNERS: readonly string[] = ["playwright", "playwright-core", "@playwright/", "vitest", "@vitest/", "@testing-library/"];
+// The test-runner packages whose declarations of `toHaveAttribute` and `getByTestId` read a hook: Playwright's runner
+// declares the matcher and its driver the locator.
+const TEST_RUNNERS: ReadonlySet<string> = new Set([PLAYWRIGHT, PLAYWRIGHT_CORE]);
 const ASSERTION_READER = "toHaveAttribute";
-const ATTRIBUTE_FILTER = "attributeFilter";
-const RECORD_NAME = "attributeName";
 const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EqualsEqualsEqualsToken,
   SyntaxKind.ExclamationEqualsEqualsToken,
   SyntaxKind.EqualsEqualsToken,
   SyntaxKind.ExclamationEqualsToken,
 ]);
-const DATASET = "dataset";
 /** React renders a valueless JSX attribute, and `true`, as the string "true". */
 const PRESENT = "true";
 /** Any value: one the checker holds only as a wide type. */
@@ -280,6 +280,7 @@ class Hooks {
   readonly unresolved: Unresolved[] = [];
   #followed = 0;
   readonly #world: NativeWorld;
+  readonly #names: LibraryNames;
   readonly #sites: Site[] = [];
   readonly #selectorTemplates: { readonly node: Expression; readonly world: World; readonly at: string }[] = [];
   /** Reads of a house attribute model by name, kept once the member's declaration proves it is the model's. */
@@ -297,6 +298,7 @@ class Hooks {
 
   constructor(world: NativeWorld) {
     this.#world = world;
+    this.#names = libraryNames(world);
     this.#held = new HeldTexts(world);
   }
 
@@ -372,9 +374,9 @@ class Hooks {
   }
 
   #access(node: Node, file: string, world: World): void {
-    if (isPropertyAccessExpression(node) && isDataset(node.expression)) {
+    if (isPropertyAccessExpression(node) && isDataset(node.expression, this.#names)) {
       this.#dataset(node, kebab(node.name.text), file, world);
-    } else if (isElementAccessExpression(node) && isDataset(node.expression)) {
+    } else if (isElementAccessExpression(node) && isDataset(node.expression, this.#names)) {
       this.#dataset(node, node.argumentExpression, file, world);
     } else if (isElementAccessExpression(node) && isModelMember(node.expression)) {
       this.#modelReads.push({ member: node.expression, name: node.argumentExpression, at: atOf(file, node), world });
@@ -447,11 +449,11 @@ class Hooks {
   // watches that name change.
   #operand(node: PropertyAssignment | ShorthandPropertyAssignment | BinaryExpression, file: string, world: World): void {
     if (isBinaryExpression(node)) {
-      const named = isRecordName(node.left) ? node.right : node.left;
-      if (EQUALITY.has(node.operatorToken.kind) && (isRecordName(node.left) || isRecordName(node.right))) {
+      const named = isRecordName(node.left, this.#names) ? node.right : node.left;
+      if (EQUALITY.has(node.operatorToken.kind) && (isRecordName(node.left, this.#names) || isRecordName(node.right, this.#names))) {
         this.#sites.push({ at: atOf(file, node), world, key: false, name: named, dataset: false, write: false, read: true, value: null });
       }
-    } else if (isIdentifier(node.name) && node.name.text === ATTRIBUTE_FILTER) {
+    } else if (isIdentifier(node.name) && node.name.text === ATTRIBUTE_FILTER && this.#names.declaredBy(node.name, PLATFORM)) {
       this.#filterReads.push({ node: isPropertyAssignment(node) ? node.initializer : node, at: atOf(file, node), world });
     } else if (isPropertyAssignment(node) && world === "product") {
       this.#key(node.name, node.initializer, file);
@@ -788,7 +790,7 @@ function* declaredByDeclarer(world: NativeWorld, method: Node, declarer: Declare
     return (yield* all(...declarations.map((handle) => world.isDefaultLibrary(handle)))).every(Boolean);
   }
   const packages = yield* all(...declarations.map((handle) => world.packageOf(handle)));
-  return packages.every((pkg) => pkg !== null && TEST_RUNNERS.some((runner) => (runner.endsWith("/") ? pkg.startsWith(runner) : pkg === runner)));
+  return packages.every((pkg) => pkg !== null && TEST_RUNNERS.has(pkg));
 }
 
 function calleeName(callee: Expression): string | null {
@@ -816,9 +818,12 @@ function assignedValue(node: Node): Expression | undefined {
   return isBinaryExpression(parent) && sameNode(parent.left, node) && parent.operatorToken.kind === SyntaxKind.EqualsToken ? parent.right : undefined;
 }
 
-const isDataset = (node: Expression): boolean => isPropertyAccessExpression(node) && node.name.text === DATASET;
+// The platform's `element.dataset` and a mutation record's `attributeName`, by their declarations.
+const isDataset = (node: Expression, names: LibraryNames): boolean =>
+  isPropertyAccessExpression(node) && node.name.text === DATASET && names.declaredBy(node.name, PLATFORM);
 
-const isRecordName = (node: Expression): boolean => isPropertyAccessExpression(node) && node.name.text === RECORD_NAME;
+const isRecordName = (node: Expression, names: LibraryNames): boolean =>
+  isPropertyAccessExpression(node) && node.name.text === RECORD_NAME && names.declaredBy(node.name, PLATFORM);
 
 const isModelMember = (node: Expression): node is PropertyAccessExpression => isPropertyAccessExpression(node) && MODEL_MEMBERS.has(node.name.text);
 

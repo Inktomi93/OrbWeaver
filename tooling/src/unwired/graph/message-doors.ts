@@ -31,6 +31,7 @@ import type {
   NewExpression,
   Node,
   ParameterDeclaration,
+  PropertyAccessExpression,
 } from "@typescript/native/ast";
 import {
   isArrowFunction,
@@ -62,6 +63,7 @@ import type { Chase, ChaseScope, Crossing, Destination, DoorCrossings, Listener 
 import { joinChases, pathText, receivedChase, sentChase } from "../open-sends.ts";
 import type { FlowPair, Flows, HeldSends } from "./flows.ts";
 import { opaqueSlot } from "./flows.ts";
+import { EVENT_DATA, libraryNames, PLATFORM } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer } from "./resolve.ts";
 import type { FileSites } from "./sites.ts";
@@ -144,7 +146,6 @@ const DOOR_NAMES: ReadonlySet<string> = new Set(DOOR_MEMBERS.map(({ member }) =>
 // The event a module-linked listener takes its messages on.
 const MESSAGE_EVENT = "message";
 // A DOM listener receives the event; the message is its `data`.
-const EVENT_DATA = "data";
 const WORKER_DATA_OPTION = "workerData";
 
 // A module link's end: a parent's sends go down to the modules it loads, a child's go up to its loaders.
@@ -467,6 +468,12 @@ export class MessageDoors implements DoorCrossings {
     return undefined;
   }
 
+  // A read of a DOM event's payload, `event.data`, by the platform's declaration of the member.
+  #eventData(use: Node): use is Node & { readonly parent: PropertyAccessExpression } {
+    const { parent } = use;
+    return isPropertyAccessExpression(parent) && parent.name.text === EVENT_DATA && libraryNames(this.#state.world).declaredBy(parent.name, PLATFORM);
+  }
+
   // A parameter's view: its declared type when that names members (a DOM event's `data`), else what its uses give.
   *#parameterView(parameter: ParameterDeclaration, fn: FunctionLike, event: boolean, seen: Set<Node>): APIRequestGenerator<readonly Type[]> {
     const { checker } = this.#state.world;
@@ -479,7 +486,7 @@ export class MessageDoors implements DoorCrossings {
     }
     const symbol = yield* checker.getSymbolAtLocation.gen(name);
     const uses = symbol === undefined ? [] : yield* this.#references(fn, symbol);
-    const reads = event ? uses.flatMap((use) => (isPropertyAccessExpression(use.parent) && use.parent.name.text === EVENT_DATA ? [use.parent] : [])) : uses;
+    const reads = event ? uses.flatMap((use) => (this.#eventData(use) ? [use.parent] : [])) : uses;
     return yield* this.#usesView(reads, seen);
   }
 
@@ -487,7 +494,7 @@ export class MessageDoors implements DoorCrossings {
   *#parameterNames(parameter: ParameterDeclaration, fn: FunctionLike, event: boolean): APIRequestGenerator<readonly string[]> {
     const symbol = yield* this.#state.world.checker.getSymbolAtLocation.gen(parameter.name);
     const uses = symbol === undefined ? [] : yield* this.#references(fn, symbol);
-    return readNames(event ? uses.flatMap((use) => (isPropertyAccessExpression(use.parent) && use.parent.name.text === EVENT_DATA ? [use.parent] : [])) : uses);
+    return readNames(event ? uses.flatMap((use) => (this.#eventData(use) ? [use.parent] : [])) : uses);
   }
 
   // What each use of a received value types it as.

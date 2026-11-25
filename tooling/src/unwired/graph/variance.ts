@@ -54,6 +54,8 @@ import {
 import type { APIRequestGenerator, Symbol as NativeSymbol } from "@typescript/native/sync";
 import { SymbolFlags } from "@typescript/native/sync";
 import { declarationKeys, hasFlag } from "../native.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { libraryNames, PLATFORM, STORING_METHODS } from "./library-names.ts";
 import type { GraphState } from "./state.ts";
 
 const VARIANCES = ["none", "out", "in", "both"] as const;
@@ -261,7 +263,7 @@ export class Variances {
     return (
       result === undefined ||
       !(COMPUTED_RESULTS.has(result.kind) || (yield* this.#namesParameter(result, walk))) ||
-      (isMethodDeclaration(node) && storesParameter(node))
+      (isMethodDeclaration(node) && storesParameter(node, libraryNames(this.#state.world)))
     );
   }
 
@@ -306,9 +308,6 @@ export class Variances {
   }
 }
 
-// The calls on a member of the instance that put the value they take into it: a list's, a map's or a set's.
-const STORING_CALLS: ReadonlySet<string> = new Set(["push", "unshift", "splice", "fill", "set", "add"]);
-
 // Whether an expression is the instance or a member reached from it (`this`, `this.#items`, `this.byKey[k]`).
 function onInstance(node: Node): boolean {
   let at = node;
@@ -319,8 +318,8 @@ function onInstance(node: Node): boolean {
 }
 
 // Whether a method's body stores one of its parameters in the instance: assigns it to a member reached from `this`, or
-// hands it to a storing call on one.
-function storesParameter(method: MethodDeclaration): boolean {
+// hands it to a platform list's, map's or set's storing call on one (library-names.ts STORING_METHODS).
+function storesParameter(method: MethodDeclaration, libraries: LibraryNames): boolean {
   const names = new Set(method.parameters.flatMap(({ name }) => (isIdentifier(name) ? [name.text] : [])));
   const isParameter = (node: Node | undefined): boolean => node !== undefined && isIdentifier(node) && names.has(node.text);
   const visit = (node: Node): boolean => {
@@ -330,7 +329,8 @@ function storesParameter(method: MethodDeclaration): boolean {
     if (
       isCallExpression(node) &&
       isPropertyAccessExpression(node.expression) &&
-      STORING_CALLS.has(node.expression.name.text) &&
+      STORING_METHODS.has(node.expression.name.text) &&
+      libraries.declaredBy(node.expression.name, PLATFORM) &&
       onInstance(node.expression.expression) &&
       node.arguments.some(isParameter)
     ) {

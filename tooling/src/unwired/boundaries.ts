@@ -1,7 +1,7 @@
 // Where a value leaves the process. A send is no read: a field counts as read only where its receiver reads it, so a
 // send names its destination (./open-sends.ts) and a Drizzle write carries each value into the column a query
 // reads back.
-import type { CallExpression, Expression, Node, ObjectLiteralExpression } from "@typescript/native/ast";
+import type { CallExpression, Expression, Node, ObjectLiteralExpression, PropertyAccessExpression } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isArrowFunction,
@@ -19,6 +19,8 @@ import {
   isSatisfiesExpression,
   SyntaxKind,
 } from "@typescript/native/ast";
+import type { LibraryNames } from "./graph/library-names.ts";
+import { DRIZZLE_CONFLICT, DRIZZLE_INSERT, DRIZZLE_OPENERS, DRIZZLE_PACKAGE, DRIZZLE_SELECTS, DRIZZLE_STORES } from "./graph/library-names.ts";
 
 const SEND_DESTINATIONS = ["wire", "http", "log", "observability", "file", "error", "stored", "column", "provider", "dependency", "unclassified"] as const;
 /** Where a serialized value goes. `wire`: a request body or a message to another realm. `http`: a server response.
@@ -36,9 +38,6 @@ export const OBSERVABILITY_HOME = "packages/server/src/foundation/observability/
 
 /** The destinations a person reads from outside the process rather than code: a value sent only there is observed. */
 export const OBSERVABILITY_SINKS: ReadonlySet<SendDestination> = new Set<SendDestination>(["log", "observability"]);
-
-/** Where the tRPC packages live: a symbol they declare is the wire client's, not ours. */
-export const TRPC_PACKAGE = "/node_modules/@trpc/";
 
 /** The provider backends make every provider request, so only a value there can reach one. */
 export const PROVIDER_BODIES = "packages/inference/src/backends/";
@@ -59,19 +58,20 @@ export interface StoreWrite {
   readonly opener: Node;
 }
 
-const STORE_METHODS: ReadonlySet<string> = new Set(["values", "set"]);
-const CONFLICT_METHODS: ReadonlySet<string> = new Set(["onConflictDoUpdate"]);
-const INSERT_METHOD = "insert";
-const SELECT_METHOD = "select";
+// A builder method drizzle declares: its name is one of drizzle's verbs and resolves to drizzle's declaration.
+const drizzleCall = (node: Node, verbs: ReadonlySet<string>, names: LibraryNames): node is CallExpression & { readonly expression: PropertyAccessExpression } =>
+  isCallExpression(node) &&
+  isPropertyAccessExpression(node.expression) &&
+  verbs.has(node.expression.name.text) &&
+  names.declaredBy(node.expression.name, DRIZZLE_PACKAGE);
 
 // `db.insert(T)` or `db.update(T)` somewhere down the call chain a builder method is called on.
-function tableOf(call: CallExpression): { readonly table: Expression; readonly opener: Node } | null {
+function tableOf(call: CallExpression, names: LibraryNames): { readonly table: Expression; readonly opener: Node } | null {
   let at: Node = call.expression;
   while (isPropertyAccessExpression(at) || isCallExpression(at)) {
-    if (isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
-      const method = at.expression.name.text;
+    if (drizzleCall(at, DRIZZLE_OPENERS, names)) {
       const [table] = at.arguments;
-      if ((method === INSERT_METHOD || method === "update") && table !== undefined && at.arguments.length === 1) {
+      if (table !== undefined && at.arguments.length === 1) {
         return { table, opener: at.expression.name };
       }
     }
@@ -97,21 +97,21 @@ function storedValue(node: Expression): Expression {
 
 /** The values a Drizzle builder call stores: `.values(x)` and `.set(x)` after `insert(T)` or `update(T)`, an
  *  `onConflictDoUpdate({ set })`, and each element of an array literal handed to `.values`. */
-export function storeWritesAt(node: Node): readonly StoreWrite[] {
-  if (!(isCallExpression(node) && isPropertyAccessExpression(node.expression))) {
+export function storeWritesAt(node: Node, names: LibraryNames): readonly StoreWrite[] {
+  if (!drizzleCall(node, DRIZZLE_STORES, names)) {
     return [];
   }
   const method = node.expression.name.text;
   const [argument] = node.arguments;
-  if (argument === undefined || !(STORE_METHODS.has(method) || CONFLICT_METHODS.has(method))) {
+  if (argument === undefined) {
     return [];
   }
-  const opened = tableOf(node);
+  const opened = tableOf(node, names);
   if (opened === null) {
     return [];
   }
   let value: Expression | undefined = storedValue(argument);
-  if (CONFLICT_METHODS.has(method)) {
+  if (method === DRIZZLE_CONFLICT) {
     const set = isObjectLiteralExpression(value)
       ? value.properties.find((property) => isPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === "set")
       : undefined;
@@ -126,14 +126,14 @@ export function storeWritesAt(node: Node): readonly StoreWrite[] {
 }
 
 // The field object of a select chain, `db.select({ ... }).from(t).where(c)`, or of the chain a builder callback returns.
-function selectedFields(query: Expression): ObjectLiteralExpression | null {
+function selectedFields(query: Expression, names: LibraryNames): ObjectLiteralExpression | null {
   let at: Node = unwrapValue(query);
   if (isArrowFunction(at) && !isBlock(at.body)) {
     at = unwrapValue(at.body);
   }
   while (isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
     const [fields] = at.arguments;
-    if (at.expression.name.text === SELECT_METHOD && fields !== undefined && isObjectLiteralExpression(fields)) {
+    if (drizzleCall(at, DRIZZLE_SELECTS, names) && fields !== undefined && isObjectLiteralExpression(fields)) {
       return fields;
     }
     at = at.expression.expression;
@@ -143,16 +143,16 @@ function selectedFields(query: Expression): ObjectLiteralExpression | null {
 
 /** The fields an insert-select stores: `.insert(T).select(q)`, whose select chain, or the chain a builder callback
  *  returns, names in `select({ ... })` the column each selected value fills. */
-export function insertSelectWritesAt(node: Node): readonly StoreWrite[] {
-  if (!(isCallExpression(node) && isPropertyAccessExpression(node.expression) && node.expression.name.text === SELECT_METHOD)) {
+export function insertSelectWritesAt(node: Node, names: LibraryNames): readonly StoreWrite[] {
+  if (!drizzleCall(node, DRIZZLE_SELECTS, names)) {
     return [];
   }
   const [query] = node.arguments;
-  const opened = tableOf(node);
-  if (query === undefined || opened === null || !(isIdentifier(opened.opener) && opened.opener.text === INSERT_METHOD)) {
+  const opened = tableOf(node, names);
+  if (query === undefined || opened === null || !(isIdentifier(opened.opener) && opened.opener.text === DRIZZLE_INSERT)) {
     return [];
   }
-  const fields = selectedFields(query);
+  const fields = selectedFields(query, names);
   return fields === null ? [] : [{ ...opened, value: fields, at: node.expression.name }];
 }
 

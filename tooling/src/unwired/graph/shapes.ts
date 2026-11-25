@@ -32,13 +32,12 @@ import type { DeliberateEntry, DeliberateSide } from "../deliberate.ts";
 import { sortDeliberate } from "../deliberate.ts";
 import type { DistinctRegistry } from "../distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "../distinct-lookalikes.ts";
-import { DRIZZLE_PACKAGE } from "../drizzle-rows.ts";
 import type { JudgedEntry, JudgedSplit } from "../judged.ts";
 import { sortJudged } from "../judged.ts";
 import type { NativeWorld } from "../native.ts";
 import { declarationKeys, hasFlag, resolvedSymbol } from "../native.ts";
 import { isProduction } from "../worlds.ts";
-import { ZOD_PACKAGE } from "./library-names.ts";
+import { DRIZZLE_PACKAGE, ZOD_PACKAGE } from "./library-names.ts";
 
 const SHAPE_KINDS = ["restated", "synonym", "reexport-chain", "renamed-reexport"] as const;
 /** `restated`: two named object types in different files with the same members, each assignable to the other.

@@ -34,6 +34,7 @@ import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { formPath } from "../key-resolver.ts";
 import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
+import { FORM_NAME } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import { answer, constituentsOf } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -71,9 +72,6 @@ const byRole = <T extends { readonly roles: readonly Role[] }>(asks: readonly T[
 const symbolKey = (type: Type | undefined): boolean => type !== undefined && hasFlag(type.flags, TypeFlags.ESSymbolLike);
 // The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id.
 const symbolMemberName = (symbol: NativeSymbol): string => `__@${symbol.name}@${String(symbol.id)}`;
-
-// The attribute a form's field component takes its path in.
-const FORM_NAME = "name";
 
 export class Keys {
   readonly #state: GraphState;
@@ -203,7 +201,7 @@ export class Keys {
       ...sites.templatePaths,
       ...sites.jsxAttributes.flatMap(({ name, value }) => (name === FORM_NAME && value !== undefined ? [value] : [])),
     ].filter((key) => isStringLiteral(key) || isNoSubstitutionTemplateLiteral(key) || isTemplateExpression(key));
-    const paths = state.batch(keys.map((key) => formPath(state.world.checker, key)));
+    const paths = state.batch(keys.map((key) => formPath(state.world, key)));
     for (const [y, key] of keys.entries()) {
       const path = paths[y];
       if (path !== null && path !== undefined) {

@@ -30,11 +30,18 @@ const TRPC = {
     "export type Caller<R> = { [K in keyof R]: R[K] extends Procedure<string> ? () => Promise<unknown> : Caller<R[K]> };",
     "export declare function createCaller<R>(router: Router<R>): Caller<R>;",
   ].join("\n"),
+  // the client's proxy sends; its TanStack options proxy declares the options and the key verbs, as the real ones do
+  "node_modules/@trpc/tanstack-react-query/package.json": '{ "name": "@trpc/tanstack-react-query", "types": "index.d.ts" }',
+  "node_modules/@trpc/tanstack-react-query/index.d.ts": [
+    "export type QueryOptions = { queryOptions(): unknown; queryKey(): unknown; queryFilter(): unknown };",
+    "export type MutationOptions = { mutationOptions(): unknown; mutationKey(): unknown };",
+  ].join("\n"),
   "node_modules/@trpc/client/package.json": '{ "name": "@trpc/client", "types": "index.d.ts" }',
   "node_modules/@trpc/client/index.d.ts": [
     'import type { Procedure, Router } from "@trpc/server";',
-    "type Query = { query(): Promise<unknown>; queryOptions(): unknown; queryKey(): unknown; queryFilter(): unknown };",
-    "type Mutation = { mutate(input?: unknown): Promise<unknown>; mutationOptions(): unknown; mutationKey(): unknown };",
+    'import type { MutationOptions, QueryOptions } from "@trpc/tanstack-react-query";',
+    "type Query = { query(): Promise<unknown> } & QueryOptions;",
+    "type Mutation = { mutate(input?: unknown): Promise<unknown> } & MutationOptions;",
     "export type Decorated<R> = { [K in keyof R]: R[K] extends Procedure<'query'> ? Query : R[K] extends Procedure<'mutation'> ? Mutation : Decorated<R[K]> };",
     "export declare function createClient<T extends Router<unknown>>(): Decorated<T['_def']['record']>;",
   ].join("\n"),

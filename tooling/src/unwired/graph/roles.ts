@@ -88,7 +88,7 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { LibraryNames } from "./library-names.ts";
-import { MEMBERSHIP_METHODS, ZOD_ENUM } from "./library-names.ts";
+import { MEMBERSHIP_METHODS, PLATFORM, REQUIRE, ZOD_ENUM, ZOD_PACKAGE } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 
 // What an occurrence does: reads, stores, calls, deletes, hands the value whole to an opaque receiver, or names the
@@ -382,19 +382,18 @@ const EQUALITY: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.EqualsEqualsToken,
   SyntaxKind.ExclamationEqualsToken,
 ]);
-const REQUIRE = "require";
 
 // A membership method the platform declares (library-names.ts MEMBERSHIP_METHODS), never a same-named method of ours.
 const isMembershipCall = (call: Node, names: LibraryNames): boolean =>
   isCallExpression(call) &&
   isPropertyAccessExpression(call.expression) &&
   MEMBERSHIP_METHODS.has(call.expression.name.text) &&
-  names.declaredBy(call.expression.name, "platform");
+  names.declaredBy(call.expression.name, PLATFORM);
 
 const isMembershipArgument = (node: Node, parent: Node, names: LibraryNames): boolean =>
   isMembershipCall(parent, names) && isCallExpression(parent) && parent.arguments.some((argument) => sameNode(argument, node));
 
-function isModuleSpecifier(node: Node, parent: Node): boolean {
+function isModuleSpecifier(node: Node, parent: Node, names: LibraryNames): boolean {
   if (isImportDeclaration(parent) || isExportDeclaration(parent) || isExternalModuleReference(parent)) {
     return true;
   }
@@ -402,7 +401,7 @@ function isModuleSpecifier(node: Node, parent: Node): boolean {
   return (
     callee !== undefined &&
     isCallExpression(parent) &&
-    (callee.kind === SyntaxKind.ImportKeyword || (isIdentifier(callee) && callee.text === REQUIRE)) &&
+    (callee.kind === SyntaxKind.ImportKeyword || (isIdentifier(callee) && callee.text === REQUIRE && names.declaredBy(callee, PLATFORM))) &&
     sameNode(parent.arguments[0], node)
   );
 }
@@ -429,7 +428,7 @@ function standingRole(node: Node, parent: Node, names: LibraryNames): Exclude<Li
  *  stands. */
 export function literalRole(node: StringLiteral, names: LibraryNames): LiteralRole {
   const { parent } = node;
-  if (isModuleSpecifier(node, parent)) {
+  if (isModuleSpecifier(node, parent, names)) {
     return "module";
   }
   return isLiteralTypeNode(parent) ? "type" : standingRole(node, parent, names);
@@ -532,7 +531,7 @@ export function valueUse(name: Node, names: LibraryNames): ValueUse {
     isCallExpression(parent) &&
     isPropertyAccessExpression(parent.expression) &&
     parent.expression.name.text === ZOD_ENUM &&
-    names.declaredBy(parent.expression.name, "zod");
+    names.declaredBy(parent.expression.name, ZOD_PACKAGE);
   return zodEnum ? "parse" : "escape";
 }
 

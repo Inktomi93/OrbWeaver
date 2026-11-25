@@ -25,9 +25,11 @@ const STEPS_PER_LIST = 8;
 const ELEMENT = "export type El = HTMLElement;";
 const DOM_LIB = [...LIB, "DOM"];
 
-// A browser test runner, installed as a package: its `getByTestId` and `toHaveAttribute` read hooks.
+// A browser test runner, installed as the real one is: its page and locator types come from playwright-core, which
+// declares the in-page `evaluate` family, and its `getByTestId` and `toHaveAttribute` read hooks.
 const RUNNER = "@playwright/test";
-const RUNNER_TYPES = [
+const DRIVER = "playwright-core";
+const DRIVER_TYPES = [
   "export interface Locator {",
   "  evaluate<A>(fn: (element: HTMLElement, arg: A) => unknown, arg: A): Promise<unknown>;",
   "}",
@@ -36,8 +38,13 @@ const RUNNER_TYPES = [
   "  locator(selector: string): Locator;",
   "  evaluate<A>(fn: (arg: A) => unknown, arg: A): Promise<unknown>;",
   "}",
+].join("\n");
+const MATCHERS = "playwright";
+const MATCHER_TYPES = [
+  `import type { Locator } from "${DRIVER}";`,
   "export declare function expect(locator: Locator): { toHaveAttribute(name: string): Promise<void> };",
 ].join("\n");
+const RUNNER_TYPES = [`export * from "${DRIVER}";`, `export * from "${MATCHERS}";`].join("\n");
 
 const owner = (lines: readonly string[]): string => [...lines, "export const OWNER_CSS_SURFACE = [];"].join("\n");
 
@@ -52,6 +59,10 @@ async function dom(plantedTree: (tree: Record<string, string>) => Promise<string
         [`${GRAPH_SOURCE}/el.ts`]: ELEMENT,
         [`node_modules/${RUNNER}/package.json`]: JSON.stringify({ name: RUNNER, types: "index.d.ts" }),
         [`node_modules/${RUNNER}/index.d.ts`]: RUNNER_TYPES,
+        [`node_modules/${DRIVER}/package.json`]: JSON.stringify({ name: DRIVER, types: "index.d.ts" }),
+        [`node_modules/${DRIVER}/index.d.ts`]: DRIVER_TYPES,
+        [`node_modules/${MATCHERS}/package.json`]: JSON.stringify({ name: MATCHERS, types: "index.d.ts" }),
+        [`node_modules/${MATCHERS}/index.d.ts`]: MATCHER_TYPES,
         [OWNER_CSS_SURFACE]: owner([]),
         ...files,
       },
@@ -399,46 +410,65 @@ test("a name is followed through Object.entries values and a reader a record hol
   expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-obs-lost"]);
 });
 
-test("an observer's attributeFilter and a record's attributeName compare read the names they hold", TIMEOUT, async ({ plantedTree }) => {
-  const report = await dom(plantedTree, {
-    [`${GRAPH_SOURCE}/watch.tsx`]: [
-      "interface Options {",
-      "  readonly attributes: boolean;",
-      "  readonly attributeFilter: readonly string[];",
-      "}",
-      "interface Mutation {",
-      "  readonly attributeName: string | null;",
-      "}",
-      'const MOVING: readonly string[] = ["data-watch-moving"];',
-      'export const options = (): Options => { const attributeFilter = [...MOVING, "style"]; return { attributes: true, attributeFilter }; };',
-      'export const literal: Options = { attributes: true, attributeFilter: ["data-watch-literal"] };',
-      'export const flipped = (record: Mutation): boolean => record.attributeName === "data-watch-compared";',
-      "export const Watched = () => <div data-watch-moving data-watch-literal data-watch-compared data-watch-none />;",
-    ].join("\n"),
-  });
-  expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-watch-none"]);
-  expect(placed(report.unresolved)).toEqual([]);
-});
+test(
+  "an observer's attributeFilter and a record's attributeName compare read the names they hold, and same-named members of ours hold none",
+  TIMEOUT,
+  async ({ plantedTree }) => {
+    const report = await dom(plantedTree, {
+      [`${GRAPH_SOURCE}/watch.tsx`]: [
+        "interface Options {",
+        "  readonly attributeFilter: readonly string[];",
+        "}",
+        "interface Mutation {",
+        "  readonly attributeName: string | null;",
+        "}",
+        'const MOVING: string[] = ["data-watch-moving"];',
+        'export const options = (): MutationObserverInit => { const attributeFilter = [...MOVING, "style"]; return { attributes: true, attributeFilter }; };',
+        'export const literal: MutationObserverInit = { attributes: true, attributeFilter: ["data-watch-literal"] };',
+        'export const flipped = (record: MutationRecord): boolean => record.attributeName === "data-watch-compared";',
+        "export const watched = (names: string[]): MutationObserverInit => ({ attributeFilter: names });",
+        "export const changed = (record: MutationRecord, name: string): boolean => record.attributeName === name;",
+        "export const ours = (names: string[]): Options => ({ attributeFilter: names });",
+        "export const mine = (record: Mutation, name: string): boolean => record.attributeName === name;",
+        "export const Watched = () => <div data-watch-moving data-watch-literal data-watch-compared data-watch-none />;",
+      ].join("\n"),
+    });
+    expect(names(report.buckets["dom-attr-unread"])).toEqual(["data-watch-none"]);
+    // a name the platform's filter or record holds that no literal reaches is unresolved; our own same-named members hold none
+    expect(placed(report.unresolved)).toEqual([
+      { text: "names", at: `${GRAPH_SOURCE}/watch.tsx:11`, world: "product" },
+      { text: "name", at: `${GRAPH_SOURCE}/watch.tsx:12`, world: "product" },
+    ]);
+  },
+);
 
 test("a callback a browser driver runs in the page holds the argument the driver hands it", TIMEOUT, async ({ plantedTree }) => {
   const report = await dom(plantedTree, {
-    [`${GRAPH_SOURCE}/marked.tsx`]: "export const Marked = () => <div data-page-mark data-element-mark />;",
+    [`${GRAPH_SOURCE}/marked.tsx`]: "export const Marked = () => <div data-page-mark data-element-mark data-own-mark />;",
     "tests/a/driver.ts": [
       'import type { El } from "../../packages/a/src/el.ts";',
       `import type { Locator, Page } from "${RUNNER}";`,
       'const PAGE_MARK = "data-page-mark";',
       'const ELEMENT_MARK = "data-element-mark";',
-      "export async function marks(page: Page, locator: Locator, root: El): Promise<void> {",
+      'const OWN_MARK = "data-own-mark";',
+      "interface Sandbox { evaluate<A>(fn: (arg: A) => unknown, arg: A): Promise<unknown> }",
+      "export async function marks(page: Page, locator: Locator, root: El, sandbox: Sandbox): Promise<void> {",
       "  await page.evaluate((key) => root.getAttribute(key), PAGE_MARK);",
       "  await locator.evaluate((element, attribute) => element.removeAttribute(attribute), ELEMENT_MARK);",
+      "  await sandbox.evaluate((key) => root.getAttribute(key), OWN_MARK);",
       "}",
     ].join("\n"),
   });
   expect(report.buckets["dom-attr-unread"]).toEqual([
     `data-element-mark ${GRAPH_SOURCE}/marked.tsx:1 read by tests`,
+    `data-own-mark ${GRAPH_SOURCE}/marked.tsx:1`,
     `data-page-mark ${GRAPH_SOURCE}/marked.tsx:1 read by tests`,
   ]);
-  expect(placed(report.unresolved)).toEqual([]);
+  // our own same-named `evaluate` runs nothing in the page, so its callback's parameter holds no name the driver hands
+  expect(placed(report.unresolved)).toEqual([
+    { text: "key", at: "tests/a/driver.ts:10", world: "tests" },
+    { text: "data-own-mark", at: "tests/a/driver.ts:5", world: "tests" },
+  ]);
 });
 
 test("a name held deeper than any fixed hop count still resolves, and a cycle ends", TIMEOUT, async ({ plantedTree }) => {
@@ -742,6 +772,36 @@ test.for([
   const report = await dom(plantedTree, followCase(body));
   expect(placed(report.unresolved)).toEqual([]);
   expect(report.buckets["css-attr-unwritten"]).toEqual([`${SHEET}:[data-held-dead]`]);
+});
+
+// A same-named binding of ours is no platform holder: the walk follows the platform's `Object.values` and `Map`, never a
+// local `Object` or `Map` that shadows them, so the name handed through ours stays unresolved.
+test.for([
+  {
+    step: "a local Object's values",
+    body: [
+      'const Object = { values: (table: Readonly<Record<string, string>>): readonly string[] => [table["a"] ?? ""] };',
+      'const TABLE: Record<string, string> = { a: "data-held-x" };',
+      'export const stamp = (el: El): void => { for (const name of Object.values(TABLE)) { el.setAttribute(name, ""); } };',
+    ],
+    held: "name",
+  },
+  {
+    step: "a local Map's get",
+    body: [
+      "class Map<K, V> { constructor(readonly entries: readonly (readonly [K, V])[]) {} get(_key: K): V | undefined { return this.entries[0]?.[1]; } }",
+      'const BY_KEY = new Map([["k", "data-held-x"]]);',
+      'export const stamp = (el: El): void => { el.setAttribute(BY_KEY.get("k") ?? "", ""); };',
+    ],
+    held: 'BY_KEY.get("k") ?? ""',
+  },
+])("a name is not followed through $step", TIMEOUT, async ({ body, held }, { plantedTree }) => {
+  const report = await dom(plantedTree, followCase(body));
+  const at = `${GRAPH_SOURCE}/follow.ts`;
+  expect(placed(report.unresolved)).toEqual([
+    { text: "data-held-x", at: `${at}:3`, world: "product" },
+    { text: held, at: `${at}:4`, world: "product" },
+  ]);
 });
 
 test("a walk that returns to a node at a path that only grew in front ends as a cycle", TIMEOUT, async ({ plantedTree }) => {

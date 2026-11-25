@@ -41,6 +41,7 @@ import type { NativeWorld } from "../native.ts";
 import { declarationKeys, isPropertyName } from "../native.ts";
 import { browserFiles, isProduction } from "../worlds.ts";
 import type { Graph } from "./build.ts";
+import { TRPC_KEY_VERBS, TRPC_QUERY } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts } from "./resolve.ts";
 import { READS, sameNode } from "./roles.ts";
@@ -61,12 +62,6 @@ type ProcedureType = (typeof PROCEDURE_TYPES)[number];
 // tRPC's own members: a procedure's `_def` carries its `type`, and a router's `_def` carries none.
 const TRPC_DEF = "_def";
 const TRPC_DEF_TYPE = "type";
-
-// The scope every tRPC package is published under, as the program names a declaration's package.
-const TRPC_SCOPE = "@trpc/";
-// The tRPC proxy verbs that build a cache key or a filter and send no request. Every other verb a tRPC package
-// declares on a procedure sends one.
-const KEY_VERBS: ReadonlySet<string> = new Set(["queryKey", "queryFilter", "infiniteQueryKey", "infiniteQueryFilter", "mutationKey", "pathKey", "pathFilter"]);
 
 // Hono's route verbs and the method each registers; `on` takes its method as the first argument and its path second.
 const HONO_VERBS: Readonly<Record<string, RouteMethod | null>> = {
@@ -454,10 +449,10 @@ function accessOf(name: Node): Node {
 function* buildsKey(world: NativeWorld, name: Node): APIRequestGenerator<boolean> {
   const access = accessOf(name);
   const next = access.parent;
-  if (!(isPropertyAccessExpression(next) && sameNode(next.expression, access) && KEY_VERBS.has(next.name.text))) {
+  if (!(isPropertyAccessExpression(next) && sameNode(next.expression, access) && TRPC_KEY_VERBS.has(next.name.text))) {
     return false;
   }
-  return yield* fromPackage(world, yield* world.checker.getSymbolAtLocation.gen(next.name), (pkg) => pkg.startsWith(TRPC_SCOPE));
+  return yield* fromPackage(world, yield* world.checker.getSymbolAtLocation.gen(next.name), (pkg) => pkg === TRPC_QUERY);
 }
 
 // A procedure's declaration key among the ones the build kept sites for: the same file, span and kind.

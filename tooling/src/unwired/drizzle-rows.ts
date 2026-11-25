@@ -32,14 +32,12 @@ import {
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, ConditionalType, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
+import { DRIZZLE_PACKAGE, DRIZZLE_PRIMARY_KEY } from "./graph/library-names.ts";
 import type { NativeWorld, PropertyName } from "./native.ts";
-import { constituents, DEFAULT_LIBRARY, isPropertyName } from "./native.ts";
+import { constituents, DEFAULT_LIBRARY, isPropertyName, resolvedSymbol } from "./native.ts";
 
 /** The Drizzle schema directory: every table definition lives here. */
 export const DB_SCHEMA = "packages/db/src/schema/";
-
-/** The package whose declarations make a call a table and a builder chain a Drizzle store. */
-export const DRIZZLE_PACKAGE = "drizzle-orm";
 
 /** One Drizzle table definition: the name its table is bound to and its column keys, each the column's declaration. */
 export interface SchemaTable {
@@ -51,32 +49,36 @@ export interface SchemaTable {
   readonly primaryKeys: ReadonlySet<string>;
 }
 
-const PRIMARY_KEY = "primaryKey";
+// A column named a primary key by the call at `by`, which counts once drizzle is found to declare that call.
+interface KeyedColumns {
+  readonly by: Node;
+  readonly columns: readonly string[];
+}
 
-// A column builder chain that calls `.primaryKey()`: `text("id").$type<Id>().primaryKey()`.
-function buildsPrimaryKey(node: Node | undefined): boolean {
+// The `.primaryKey()` call in a column builder chain, `text("id").$type<Id>().primaryKey()`, by its name.
+function primaryKeyCall(node: Node | undefined): Node | undefined {
   let at = node;
   while (at !== undefined && isCallExpression(at) && isPropertyAccessExpression(at.expression)) {
-    if (at.expression.name.text === PRIMARY_KEY) {
-      return true;
+    if (at.expression.name.text === DRIZZLE_PRIMARY_KEY) {
+      return at.expression.name;
     }
     at = at.expression.expression;
   }
-  return false;
+  return undefined;
 }
 
 // The columns each `primaryKey({ columns: [t.a, t.b] })` in a table's other arguments names.
-function compositeKeys(definition: CallExpression, literal: ObjectLiteralExpression): readonly string[] {
-  const names: string[] = [];
+function compositeKeys(definition: CallExpression, literal: ObjectLiteralExpression): readonly KeyedColumns[] {
+  const keyed: KeyedColumns[] = [];
   const visit = (node: Node): void => {
-    if (isCallExpression(node) && isIdentifier(node.expression) && node.expression.text === PRIMARY_KEY) {
+    if (isCallExpression(node) && isIdentifier(node.expression) && node.expression.text === DRIZZLE_PRIMARY_KEY) {
       const [options] = node.arguments;
       const listed =
         options !== undefined && isObjectLiteralExpression(options)
           ? options.properties.find((property) => isPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === "columns")
           : undefined;
       const columns = listed !== undefined && isPropertyAssignment(listed) && isArrayLiteralExpression(listed.initializer) ? listed.initializer.elements : [];
-      names.push(...columns.flatMap((column) => (isPropertyAccessExpression(column) ? [column.name.text] : [])));
+      keyed.push({ by: node.expression, columns: columns.flatMap((column) => (isPropertyAccessExpression(column) ? [column.name.text] : [])) });
     }
     node.forEachChild(visit);
   };
@@ -85,7 +87,14 @@ function compositeKeys(definition: CallExpression, literal: ObjectLiteralExpress
       visit(argument);
     }
   }
-  return names;
+  return keyed;
+}
+
+// Whether every declaration a name resolves to is drizzle's.
+function* drizzleDeclares(world: NativeWorld, name: Node): APIRequestGenerator<boolean> {
+  const handles = (yield* resolvedSymbol(world, name))?.declarations ?? [];
+  const packages = yield* all(...handles.map((handle) => world.packageOf(handle)));
+  return packages.length > 0 && packages.every((pkg) => pkg === DRIZZLE_PACKAGE);
 }
 
 const sameSpan = (a: Node, b: Node): boolean => a.pos === b.pos && a.end === b.end && a.kind === b.kind;
@@ -123,8 +132,12 @@ function* tableMemberNames(world: NativeWorld, type: Type): APIRequestGenerator<
   return new Set((yield* checker.getPropertiesOfType.gen(type)).map(({ name }) => name));
 }
 
-// A table call as its definition: the column-map literal is the argument whose keys the table's columns name.
-function definitionOf(call: CallExpression, names: ReadonlySet<string>): SchemaTable | null {
+// A table call as its definition, its primary-key columns still to be confirmed by the calls that name them: the
+// column-map literal is the argument whose keys the table's columns name.
+function definitionOf(
+  call: CallExpression,
+  names: ReadonlySet<string>,
+): { readonly table: Omit<SchemaTable, "primaryKeys">; readonly keyed: readonly KeyedColumns[] } | null {
   const keysOf = (literal: ObjectLiteralExpression): readonly PropertyName[] =>
     literal.properties.flatMap((property) =>
       isPropertyAssignment(property) && isPropertyName(property.name) && names.has(property.name.text) ? [property.name] : [],
@@ -135,14 +148,17 @@ function definitionOf(call: CallExpression, names: ReadonlySet<string>): SchemaT
   }
   const { parent } = call;
   const assignments = columns.properties.filter(isPropertyAssignment);
+  const chained = assignments.flatMap((column): readonly KeyedColumns[] => {
+    const by = primaryKeyCall(column.initializer);
+    return by === undefined || !isPropertyName(column.name) ? [] : [{ by, columns: [column.name.text] }];
+  });
   return {
-    binding: isVariableDeclaration(parent) && isIdentifier(parent.name) ? parent.name.text : (call.arguments[0]?.getText() ?? ""),
-    definition: call,
-    columns: keysOf(columns),
-    primaryKeys: new Set([
-      ...assignments.flatMap((column) => (isPropertyName(column.name) && buildsPrimaryKey(column.initializer) ? [column.name.text] : [])),
-      ...compositeKeys(call, columns),
-    ]),
+    table: {
+      binding: isVariableDeclaration(parent) && isIdentifier(parent.name) ? parent.name.text : (call.arguments[0]?.getText() ?? ""),
+      definition: call,
+      columns: keysOf(columns),
+    },
+    keyed: [...chained, ...compositeKeys(call, columns)],
   };
 }
 
@@ -158,11 +174,16 @@ function* schemaTablesOf(world: NativeWorld): APIRequestGenerator<readonly Schem
   const calls = candidateCalls(world);
   const types = calls.length === 0 ? [] : yield* world.checker.getTypeAtLocation.gen(calls);
   const names = yield* all(...types.map((type) => tableMemberNames(world, type)));
-  const tables = calls.flatMap((call, at) => {
+  const defined = calls.flatMap((call, at) => {
     const columns = names[at];
-    const table = columns === null || columns === undefined ? null : definitionOf(call, columns);
-    return table === null ? [] : [table];
+    const definition = columns === null || columns === undefined ? null : definitionOf(call, columns);
+    return definition === null ? [] : [definition];
   });
+  const confirmed = yield* all(...defined.map(({ keyed }) => all(...keyed.map(({ by }) => drizzleDeclares(world, by)))));
+  const tables = defined.map(({ table, keyed }, at) => ({
+    ...table,
+    primaryKeys: new Set(keyed.flatMap(({ columns }, y) => (confirmed[at]?.[y] === true ? columns : []))),
+  }));
   const raced = TABLES.get(world);
   if (raced !== undefined) {
     return raced;
