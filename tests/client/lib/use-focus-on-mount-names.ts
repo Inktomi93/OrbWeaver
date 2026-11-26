@@ -8,3 +8,7 @@ export const STRAY_NAME = "Stray surface";
 export const PENDING_NAME = "Waiting for the surface";
 /** Dispatched on `window` to mount the surface from outside any press, the way a store write or a viewport change would. */
 export const ARRIVAL_EVENT = "arrival-probe";
+/** The control a door lands on (or, in the control case, that focus reaches by no landing). */
+export const LANDING_NAME = "Landing control";
+/** Dispatched on `window` to focus the landing control from outside any press or key, the way a door's effect does. */
+export const LAND_EVENT = "landing-probe";

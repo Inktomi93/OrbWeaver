@@ -56,12 +56,15 @@ export const CHARACTER_TRUST_TAB_ID = "trust";
 
 /** Open one character's Trust tab from anywhere: select her, switch to the Characters section and reveal the tab. */
 export function openCharacterTrust(characterId: CharacterId): void {
-  requestCharacterTrustLanding(characterId);
   selectCharacter(characterId);
   setActiveSection("characters");
   // Both writes above land in a view transition that runs after this task, and the section switch closes any open
   // panel. Joining that transition orders the reveal after them, so the switch cannot close the panel it opens.
+  // The landing request rides the reveal's own batch: a Trust tab that stayed mounted under a closed panel takes the
+  // request in the commit that opens the panel, where its ladder can take focus. Written earlier, the tab would
+  // consume it while the panel is still inert, and focus would go nowhere.
   withContentSwap(() => {
+    requestCharacterTrustLanding(characterId);
     revealContextPanel(CHARACTER_TRUST_TAB_ID);
   });
 }

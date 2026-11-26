@@ -1,10 +1,10 @@
 import { QueryBoundary } from "@orb/client/components";
 import { useSuspenseQuery, useTRPC } from "@orb/client/data";
-import { useFocusOnMount } from "@orb/client/lib";
+import { landFocus, useFocusOnMount } from "@orb/client/lib";
 import { CtClientProviders, CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ARRIVAL_EVENT, DISMISS_NAME, OPEN_NAME, PENDING_NAME, STRAY_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
+import { ARRIVAL_EVENT, DISMISS_NAME, LAND_EVENT, LANDING_NAME, OPEN_NAME, PENDING_NAME, STRAY_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
 
 /** A surface that takes arrival focus through the production hook. */
 function ArrivalSurface({ name = SURFACE_NAME }: { readonly name?: string }): ReactElement {
@@ -100,6 +100,32 @@ export function HeldReadStrayStory(): ReactElement {
         </button>
       )}
       {arrived ? <ArrivalSurface name={STRAY_NAME} /> : null}
+    </CtClientProviders>
+  );
+}
+
+/** A surface waiting on a held read from the first frame, and a control `LAND_EVENT` focuses: through the door's landing, or by a plain focus call. */
+export function LandingBeforeArrivalStory({ landing }: { readonly landing: "door" | "plain" }): ReactElement {
+  const control = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const land = (): void => {
+      if (landing === "door") {
+        landFocus(control.current);
+      } else {
+        control.current?.focus();
+      }
+    };
+    globalThis.addEventListener(LAND_EVENT, land);
+    return (): void => globalThis.removeEventListener(LAND_EVENT, land);
+  }, [landing]);
+  return (
+    <CtClientProviders>
+      <button ref={control} type="button">
+        {LANDING_NAME}
+      </button>
+      <QueryBoundary fallback={<p>{PENDING_NAME}</p>} resetKeys={[]}>
+        <SlowArrivalSurface />
+      </QueryBoundary>
     </CtClientProviders>
   );
 }

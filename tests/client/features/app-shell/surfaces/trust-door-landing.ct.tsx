@@ -1,7 +1,7 @@
 // The two doors the row notice offers land on the control they name: the Trust door shows its tab whole in the strip and moves
 // focus to the HTML-rendering ladder; the admin door scrolls to the install's internet-media setting and focuses it.
 // Production entry: the AppShell, entered through the same `openCharacterTrust` and `openConfigTo` calls the notice's controls make.
-import { CHARACTER_TRUST_BLOCK_LABEL, LOAD_INTERNET_MEDIA_LABEL } from "@orb/client/lib";
+import { CHARACTER_TRUST_BLOCK_LABEL, contextToggleLabel, LOAD_INTERNET_MEDIA_LABEL } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -74,6 +74,26 @@ test("the Trust door shows its tab whole in the strip and focuses the ladder", a
     .toBe(true);
   await expect(context.getByRole("heading", { name: CHARACTER_TRUST_BLOCK_LABEL, exact: true })).toBeVisible();
   await expect(context.getByRole("combobox", { name: CHARACTER_HTML_TRUST_LABEL, exact: true })).toBeFocused();
+});
+
+test("the Trust door lands on the ladder again after the panel was closed with the tab still mounted", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  await mountDoors({ corpus, page, root, mountStory: (characterId) => mount<typeof TrustDoorsShellStory>(STORY, { characterId, events: TRUST_DOOR_EVENTS }) });
+  const context = page.locator(CONTEXT);
+  const ladder = context.getByRole("combobox", { name: CHARACTER_HTML_TRUST_LABEL, exact: true });
+  await page.evaluate((name) => globalThis.dispatchEvent(new Event(name)), TRUST_DOOR_EVENTS.trust);
+  await expect(ladder).toBeFocused();
+  await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
+  await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+  // Positive control: the closed panel keeps its Trust body mounted, so the door's request reaches a ladder that cannot take focus yet.
+  const closedLadder = context.getByRole("combobox", { name: CHARACTER_HTML_TRUST_LABEL, exact: true, includeHidden: true });
+  await expect(closedLadder).toHaveCount(1);
+  await expect(closedLadder).not.toBeFocused();
+
+  await page.evaluate((name) => globalThis.dispatchEvent(new Event(name)), TRUST_DOOR_EVENTS.trust);
+
+  await expect(context).toHaveAttribute("data-panel-mode", "docked");
+  await expect(ladder).toBeFocused();
 });
 
 test("the admin door scrolls to the install's internet-media setting and focuses it", async ({ corpus, mount, page }) => {
