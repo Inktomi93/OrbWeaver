@@ -13,7 +13,7 @@ import { jsonObjectSchema } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
-import { openAiServer, warningCodes } from "@orb/testkit/node/helpers";
+import { openAiServer, recordRequest, warningCodes } from "@orb/testkit/node/helpers";
 import { z } from "zod";
 import { PROVIDER_CACHE_EVENT } from "#inference/backends/http/provider-log.ts";
 import { createRuntimeRoot, generationCapability, wireConnection } from "../../roles/runtime.fixtures.ts";
@@ -660,6 +660,62 @@ test("the continue row carries the authored chain of thought beside the prefix s
   // The plain prefill turn is unchanged: the stamp rides alone, no empty seed appears.
   const plain = await send({ providerId: deepseek, capability: prefill }, { params, history: [USER_LINE, ASSISTANT_OPENING] });
   expect(JSON.stringify(plain.body["messages"])).not.toContain("reasoning_content");
+});
+
+const LLAMA_URL = "http://box.local:8080/v1";
+
+/** One chat turn on the shipped llama-cpp row, whose `/tokenize` answers one token per space-led word of the phrase. */
+async function sendLlama(params: UserIntent): Promise<{ readonly body: RecordedRequest["body"]; readonly events: readonly ChatEvent[] }> {
+  const chats: RecordedRequest[] = [];
+  using chat = openAiServer(chats, () => ({}));
+  const server: typeof fetch = async (input, init) => {
+    const request = new Request(input, init);
+    if (request.url.endsWith("/tokenize")) {
+      const pieces = z
+        .string()
+        .parse((await recordRequest(request)).body["content"])
+        .split(/(?= )/u);
+      const tokens = pieces.map((piece) => ({ id: Array.from(piece).reduce((sum, char) => sum + (char.codePointAt(0) ?? 0), 0), piece }));
+      return Response.json({ tokens });
+    }
+    return chat.execute(request);
+  };
+  await using root = await createRuntimeRoot({ providerFetch: server });
+  const connection = await wireConnection(root, { task: "chat", providerId: providerIdSchema.parse("llama-cpp"), model: "local-model", baseUrl: LLAMA_URL });
+  const turn = await root.app.runtime.executor.runChatTurn({
+    signal: new AbortController().signal,
+    api: "chat-completions",
+    connection,
+    params,
+    systemPrompt: { static: SYSTEM_TEXT, dynamic: "" },
+    history: [USER_LINE],
+  });
+  const [first] = chats;
+  if (first === undefined) {
+    throw new Error("the turn reached no endpoint");
+  }
+  return { body: first.body, events: turn.events };
+}
+
+function droppedPhraseWarnings(events: readonly ChatEvent[]): string[] {
+  return events.flatMap((event) =>
+    event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped && event.knob === "bannedStrings" ? [event.message] : [],
+  );
+}
+
+// llama.cpp tokenizes a string `logit_bias` key and biases every one of its tokens for the whole reply, so a
+// multi-token phrase sent there would ban each of its words everywhere.
+test("on llama.cpp a one-token banned phrase rides as a false bias, and a multi-token phrase is dropped by name instead of banning its words", async () => {
+  const mixed = await sendLlama({ bannedStrings: ["Ozymandias", "her spine"], logitBias: { "42": -5 } });
+  expect(mixed.body["logit_bias"]).toEqual({ "42": -5, ["Ozymandias"]: false });
+  const [dropped, ...more] = droppedPhraseWarnings(mixed.events);
+  expect(dropped).toContain('"her spine"');
+  expect(dropped).not.toContain("Ozymandias");
+  expect(more).toEqual([]);
+
+  const onlyMulti = await sendLlama({ bannedStrings: ["her spine"] });
+  expect(onlyMulti.body).not.toHaveProperty("logit_bias");
+  expect(droppedPhraseWarnings(onlyMulti.events)).toHaveLength(1);
 });
 
 test("a turn carrying a strict tool rides the row's beta route; without a beta path the same strict body rides the base", async () => {
