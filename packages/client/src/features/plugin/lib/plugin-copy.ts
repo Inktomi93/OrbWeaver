@@ -381,7 +381,7 @@ export const PLUGIN_NO_PERMISSIONS_LINE = "This plugin asks for no permissions. 
  *
  * `reconsentPending` also feeds the ENABLED arm. The Enabled switch stays live beside an open notice, and the server then
  * starts the plugin with the unanswered reach withheld (a capability nobody granted, a host, a provider or the automation
- * opt-in), so "On" alone would say it runs whole. The badge names the kinds that wait ({@link onWaitingLabel}). The grant is only
+ * opt-in), so "On" alone would say it runs whole. The badge names the kinds that wait ({@link waitingForApproval}). The grant is only
  * editable through the notice, so the label does NOT point at a "tick something below" affordance that does not exist. `warning` on
  * the same rule as the disabled arm: an open question, not a settled success.
  */
