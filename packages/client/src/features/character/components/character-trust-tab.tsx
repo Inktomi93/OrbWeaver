@@ -32,7 +32,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
 import { ContextTabBody, QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { CHARACTER_TRUST_BLOCK_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL } from "#lib";
+import { CHARACTER_TRUST_BLOCK_LABEL, HTML_TRUST_STEP_LABELS, LOAD_INTERNET_MEDIA_LABEL, landFocus } from "#lib";
 import { clearRequestedCharacterTrust, useRequestedCharacterTrust } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
@@ -89,12 +89,13 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
   const resolvedStep = usePreviewRenderPolicy(data).htmlTrust;
   const interactiveLockId = useId();
-  // A door that named this tab (the row notice's Trust settings control) lands on the control it means: the ladder.
+  // A door that named this tab (the row notice's Trust settings control) lands on the control it means: the ladder. The card's editor
+  // beside it may still be waiting on its read and arrive after this lands, so the landing holds focus against that arrival.
   const arrivedHere = useRequestedCharacterTrust() === characterId;
   const ladderRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (arrivedHere) {
-      ladderRef.current?.focus();
+      landFocus(ladderRef.current);
       clearRequestedCharacterTrust();
     }
   }, [arrivedHere]);

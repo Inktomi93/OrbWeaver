@@ -80,12 +80,27 @@ export function holdArrivalWhilePending(): () => void {
     }
   };
 }
+// The control a door's landing focused. A surface that arrives after it, behind its own read, finds focus on a real control the
+// reader never touched, and arrival would take it; this one it leaves. The reader's next press or key releases it.
+let landedControl: object | null = null;
+
+/** Focus the control a door named, and keep it focused against every arrival that mounts later (a surface still waiting on its read when
+ *  the door landed). `null` is a control that is not mounted, which lands nothing. */
+export function landFocus(control: FocusTarget | null): void {
+  if (control === null) {
+    return;
+  }
+  landedControl = control;
+  control.focus();
+}
+
 // When the reader last moved focus by their own input: a click, or Enter or Tab. A surface that waits on a read compares it with when
 // it began to wait, so focus the reader moved while it waited is told from focus left by the press that started the wait.
 let lastReaderMoveAt = Number.NEGATIVE_INFINITY;
 browserDocument?.addEventListener(
   "keydown",
   ({ key, target }) => {
+    landedControl = null;
     if (key === "Enter" || key === "Tab") {
       lastReaderMoveAt = performance.now();
     }
@@ -99,6 +114,7 @@ browserDocument?.addEventListener(
 browserDocument?.addEventListener(
   "click",
   ({ target }) => {
+    landedControl = null;
     lastReaderMoveAt = performance.now();
     const active = browserDocument.activeElement;
     pressedFrom = active === target ? null : active;
@@ -167,6 +183,9 @@ function keepsFocus(active: MinimalElement, target: FocusTarget | null): boolean
 /** Whether arrival may move focus off `active`: from a real element unless it keeps focus, and from `<body>` only when the last
  *  press landed on a control that is gone now, within {@link PRESS_RENDER_WINDOW_MS} (a cold load has no such press). */
 function mayTakeFocus(active: MinimalElement | null | undefined, target: FocusTarget | null): boolean {
+  if (active !== null && active !== undefined && active === landedControl) {
+    return false;
+  }
   if (active === null || active === undefined || active === browserDocument?.body) {
     return pressRemovedItsControl();
   }

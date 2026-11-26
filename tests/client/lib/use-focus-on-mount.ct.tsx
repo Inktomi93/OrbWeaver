@@ -2,18 +2,19 @@
 // A surface arrives from `<body>` only for a navigation: a press whose own control the same render removed. A cold load has no
 // press, and a press that went nowhere does not license a surface that mounts for another reason long after it. A surface whose read is
 // still pending behind the boundary the press opened arrives when the read settles, however long that takes, and that hold licenses no surface
-// outside that boundary.
+// outside that boundary. A door that landed focus on a control keeps it against a surface that arrives after the landing, until the reader presses or types.
 import { absenceWindow, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRESS_RENDER_WINDOW_MS } from "#client/lib/use-focus-on-mount.ts";
-import type { HeldReadStrayStory, PressSwapStory, SlowReadSwapStory, StrayMountStory } from "./_use-focus-on-mount-stories.tsx";
-import { ARRIVAL_EVENT, DISMISS_NAME, OPEN_NAME, PENDING_NAME, STRAY_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
+import type { HeldReadStrayStory, LandingBeforeArrivalStory, PressSwapStory, SlowReadSwapStory, StrayMountStory } from "./_use-focus-on-mount-stories.tsx";
+import { ARRIVAL_EVENT, DISMISS_NAME, LAND_EVENT, LANDING_NAME, OPEN_NAME, PENDING_NAME, STRAY_NAME, SURFACE_NAME } from "./use-focus-on-mount-names.ts";
 
 const PRESS_SWAP = "tests/client/lib/_use-focus-on-mount-stories/PressSwapStory";
 const SLOW_READ_SWAP = "tests/client/lib/_use-focus-on-mount-stories/SlowReadSwapStory";
 const HELD_READ_STRAY = "tests/client/lib/_use-focus-on-mount-stories/HeldReadStrayStory";
 const STRAY_MOUNT = "tests/client/lib/_use-focus-on-mount-stories/StrayMountStory";
+const LANDING_BEFORE_ARRIVAL = "tests/client/lib/_use-focus-on-mount-stories/LandingBeforeArrivalStory";
 // Past the window, so a press that armed the arrival has had every chance to be taken for the surface's navigation.
 const PAST_WINDOW_MS = PRESS_RENDER_WINDOW_MS + 100;
 
@@ -111,4 +112,62 @@ test("a read that never resolves leaves a surface that mounts beside it on the b
   await expect(stray).toBeVisible();
   await expect(stray).not.toBeFocused();
   await expect(page.getByText(PENDING_NAME, { exact: true })).toBeVisible();
+});
+
+test("a surface that arrives after a door's landing leaves the landed control focused", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const read = holdServed();
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, ["refinery.listSessions"], () => read),
+  );
+  await mount<typeof LandingBeforeArrivalStory>(LANDING_BEFORE_ARRIVAL, { landing: "door" });
+  await read.requested;
+  await expect(page.getByText(PENDING_NAME, { exact: true })).toBeVisible();
+  const control = page.getByRole("button", { name: LANDING_NAME, exact: true });
+  await page.evaluate((name) => globalThis.dispatchEvent(new Event(name)), LAND_EVENT);
+  await expect(control).toBeFocused();
+
+  read.release();
+
+  await expect(page.getByRole("region", { name: SURFACE_NAME, exact: true })).toBeVisible();
+  await expect(control).toBeFocused();
+});
+
+test("the same arrival takes focus from a control that no door landed on", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const read = holdServed();
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, ["refinery.listSessions"], () => read),
+  );
+  await mount<typeof LandingBeforeArrivalStory>(LANDING_BEFORE_ARRIVAL, { landing: "plain" });
+  await read.requested;
+  await page.evaluate((name) => globalThis.dispatchEvent(new Event(name)), LAND_EVENT);
+  await expect(page.getByRole("button", { name: LANDING_NAME, exact: true })).toBeFocused();
+
+  read.release();
+
+  await expect(page.getByRole("region", { name: SURFACE_NAME, exact: true })).toBeFocused();
+});
+
+test("a surface that arrives after the reader pressed a key past a door's landing takes focus", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const read = holdServed();
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, ["refinery.listSessions"], () => read),
+  );
+  await mount<typeof LandingBeforeArrivalStory>(LANDING_BEFORE_ARRIVAL, { landing: "door" });
+  await read.requested;
+  await page.evaluate((name) => globalThis.dispatchEvent(new Event(name)), LAND_EVENT);
+  await expect(page.getByRole("button", { name: LANDING_NAME, exact: true })).toBeFocused();
+  await page.keyboard.press("Shift");
+
+  read.release();
+
+  await expect(page.getByRole("region", { name: SURFACE_NAME, exact: true })).toBeFocused();
 });
