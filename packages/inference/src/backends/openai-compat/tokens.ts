@@ -13,7 +13,7 @@ import type { TokenLexicon, TokenTarget } from "#src/contract/openai-backend.ts"
 import type { SnapshotStore } from "#src/deps.ts";
 import { authHeaders, fetchJson, serverRootOf } from "../http/fetch-json.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
-import { LOGIT_BIAS_BAN } from "./sampling.ts";
+import { LOGIT_BIAS_BAN, VLLM_BAD_WORDS } from "./sampling.ts";
 
 /** One server's tokenize endpoint: where it lives under the server root, the body for one word, and the ids and
  *  pieces out of its answer. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */
@@ -223,9 +223,67 @@ export async function resolveWordBias(args: {
   return { ...sampling, logitBias: ids };
 }
 
-/** The banned phrases a `logit-bias-ban` row can carry: the server bans every token of a phrase key for the whole
- *  reply, so only a phrase that is one token keeps its meaning. Every other phrase is dropped with a warning naming
- *  it, and so is one the server could not tokenize. A `list` row sends its phrases whole. */
+const NO_TOKENIZE_ENDPOINT = "this endpoint's row names no tokenize endpoint";
+const ONE_TOKEN_ONLY = "this server bans each token of a phrase in every context, so only a one-token phrase is sent";
+const SPACED_FORM_SKIPPED =
+  "this server bans a phrase mid-sentence only when its space-led form has as many tokens as the bare phrase, so it would be banned only at the start of a line";
+
+/** Why each phrase cannot ride, keyed by phrase; a phrase absent from the map rides. */
+type PhraseVerdicts = ReadonlyMap<string, string>;
+
+async function tokenizedAll(
+  lexicon: TokenLexicon,
+  target: TokenTarget | null,
+  words: readonly string[],
+  signal: AbortSignal,
+): Promise<ReadonlyMap<string, WordTokens>> {
+  const answers =
+    target === null ? words.map((word): WordTokens => ({ ok: false, word, reason: NO_TOKENIZE_ENDPOINT })) : await lexicon.lookup(target, words, signal);
+  return new Map(answers.map((answer) => [answer.word, answer]));
+}
+
+/** llama.cpp's string `logit_bias` key: only a one-token phrase keeps its meaning. */
+async function oneTokenVerdicts(lexicon: TokenLexicon, target: TokenTarget | null, phrases: readonly string[], signal: AbortSignal): Promise<PhraseVerdicts> {
+  const answers = await tokenizedAll(lexicon, target, phrases, signal);
+  return new Map(
+    phrases.flatMap((phrase) => {
+      const answer = answers.get(phrase);
+      if (answer === undefined || !answer.ok) {
+        return [[phrase, answer?.reason ?? NO_TOKENIZE_ENDPOINT]];
+      }
+      return answer.ids.length === 1 ? [] : [[phrase, ONE_TOKEN_ONLY]];
+    }),
+  );
+}
+
+/** vLLM's `bad_words`: it tokenizes the phrase with its leading space stripped, then adds the space-led form only when
+ *  that form is non-empty, starts on another token and has as many tokens (`SamplingParams.update_from_tokenizer`).
+ *  Without the space-led form a phrase is never banned mid-sentence, which is where it is met. */
+async function spacedFormVerdicts(lexicon: TokenLexicon, target: TokenTarget | null, phrases: readonly string[], signal: AbortSignal): Promise<PhraseVerdicts> {
+  const forms = phrases.map((phrase) => ({ phrase, bare: phrase.trimStart(), spaced: ` ${phrase.trimStart()}` }));
+  const answers = await tokenizedAll(
+    lexicon,
+    target,
+    forms.flatMap((form) => [form.bare, form.spaced]),
+    signal,
+  );
+  return new Map(
+    forms.flatMap(({ phrase, bare, spaced }) => {
+      const bareTokens = answers.get(bare);
+      const spacedTokens = answers.get(spaced);
+      if (bareTokens === undefined || !bareTokens.ok || spacedTokens === undefined || !spacedTokens.ok) {
+        const reason = [bareTokens, spacedTokens].flatMap((answer) => (answer !== undefined && !answer.ok ? [answer.reason] : []))[0];
+        return [[phrase, reason ?? NO_TOKENIZE_ENDPOINT]];
+      }
+      const kept = spacedTokens.ids.length > 0 && spacedTokens.ids[0] !== bareTokens.ids[0] && spacedTokens.ids.length === bareTokens.ids.length;
+      return kept ? [] : [[phrase, SPACED_FORM_SKIPPED]];
+    }),
+  );
+}
+
+/** The banned phrases a row's spelling honours as a phrase. A `logit-bias-ban` row keeps one-token phrases and a
+ *  `vllm-bad-words` row the phrases vLLM also bans mid-sentence; every other phrase drops with one warning per reason,
+ *  naming the phrases and, when some still rode, counting both sides. A `list` row and an antislop proxy send them whole. */
 export async function resolveBannedPhrases(args: {
   readonly sampling: ResolvedSampling;
   readonly connection: Resolved;
@@ -235,27 +293,25 @@ export async function resolveBannedPhrases(args: {
 }): Promise<ResolvedSampling> {
   const { sampling, connection, lexicon, warnings, signal } = args;
   const phrases = sampling.bannedStrings;
-  if (phrases === undefined || phrases.length === 0 || connection.features.bannedStrings !== LOGIT_BIAS_BAN) {
+  const spelling = connection.features.bannedStrings;
+  if (phrases === undefined || phrases.length === 0 || connection.features.antislop === true || (spelling !== LOGIT_BIAS_BAN && spelling !== VLLM_BAD_WORDS)) {
     return sampling;
   }
   const target = tokenTargetOf(connection);
-  const answers =
-    target === null
-      ? phrases.map((word): WordTokens => ({ ok: false, word, reason: "this endpoint's row names no tokenize endpoint" }))
-      : await lexicon.lookup(target, phrases, signal);
-  const kept = answers.flatMap((answer) => (answer.ok && answer.ids.length === 1 ? [answer.word] : []));
-  const multiToken = answers.flatMap((answer) => (answer.ok && answer.ids.length !== 1 ? [`"${answer.word}"`] : []));
-  if (multiToken.length > 0) {
+  const verdicts =
+    spelling === LOGIT_BIAS_BAN ? await oneTokenVerdicts(lexicon, target, phrases, signal) : await spacedFormVerdicts(lexicon, target, phrases, signal);
+  const kept = phrases.filter((phrase) => !verdicts.has(phrase));
+  if (verdicts.size > 0) {
+    // One warning for the knob, so a turn reads as one partial or whole drop however many reasons it had.
+    const reasons = [...Map.groupBy(verdicts, ([, reason]) => reason)].map(
+      ([reason, dropped]) => `${dropped.map(([phrase]) => `"${phrase}"`).join(", ")}: ${reason}`,
+    );
     warnings.push({
       code: "sampling_knob_dropped",
       knob: "bannedStrings",
-      message: `bannedStrings phrases ${multiToken.join(", ")} ignored: this server bans each token of a phrase in every context, so only a one-token phrase is sent`,
+      message: `bannedStrings phrases ignored, ${reasons.join("; ")}`,
+      ...(kept.length > 0 ? { partial: { dropped: verdicts.size, sent: kept.length } } : {}),
     });
-  }
-  for (const answer of answers) {
-    if (!answer.ok) {
-      warnings.push({ code: "sampling_knob_dropped", knob: "bannedStrings", message: `bannedStrings phrase "${answer.word}" ignored: ${answer.reason}` });
-    }
   }
   const { bannedStrings: _all, ...rest } = sampling;
   return kept.length > 0 ? { ...rest, bannedStrings: kept } : rest;

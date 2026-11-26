@@ -575,6 +575,19 @@ function prefixOptions(
   };
 }
 
+/** The turn's word for the own-server features the resolver refused this metered row (`behavedFeatures`). */
+function ownServerRefusals(connection: Resolved): readonly ResolvedWarning[] {
+  const refused = connection.refusedOwnServerFeatures;
+  return refused === undefined
+    ? []
+    : [
+        {
+          code: "own_server_features_ignored",
+          message: `${refused.join(", ")} ignored: ${connection.providerId} is a metered service, and these drive the user's own server`,
+        },
+      ];
+}
+
 /** Runs one chat-completions turn — the only api this wire speaks (`WIRE_DEFS["openai-compat"].apis`). */
 export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps: OpenAiCompatChatDeps): Promise<ChatResult> {
   const { connection } = req;
@@ -582,7 +595,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const generation = generationOf(connection, label);
   const dialect = effectiveDialectOf(connection);
   const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
-  const warnings: ResolvedWarning[] = [...knobs.warnings];
+  const warnings: ResolvedWarning[] = [...knobs.warnings, ...ownServerRefusals(connection)];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
   let firstDeltaAt: number | undefined;
@@ -677,7 +690,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const turnKnobs: TurnKnobs = {
     automaticCache,
     knobs,
-    sampling: wireSampling(sampling, connection.features, dialect, warnings),
+    sampling: wireSampling(sampling, connection.features, {
+      dialect,
+      warnings,
+      turn: { thinking: knobs.reasoning.enabled, speakerNames: req.speakerNames ?? [] },
+    }),
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
     plan: structured,
     parallelOff: disablesParallelToolCalls(req, structured, generation, warnings),

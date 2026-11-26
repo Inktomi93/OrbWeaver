@@ -2,8 +2,15 @@
 // includeBody, excludeBody) is the last word, and every computed key leaves a key they settled alone.
 // @subject packages/inference/src/backends/openai-compat/body.ts
 import { toolCallIdSchema } from "@orb/contracts/chat";
-import type { ProviderId } from "@orb/contracts/inference";
-import { connectionExtrasSchema, DEFAULT_ATTACHMENT_QUALITY, isBeltOwnedBodyKey, providerIdSchema, WARNING_CODE } from "@orb/contracts/inference";
+import type { EndpointFeatures, ProviderId, ResolvedWarning } from "@orb/contracts/inference";
+import {
+  connectionExtrasSchema,
+  DEFAULT_ATTACHMENT_QUALITY,
+  declaredCapabilitySchema,
+  isBeltOwnedBodyKey,
+  providerIdSchema,
+  WARNING_CODE,
+} from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatEvent, ChatHistoryMessage } from "@orb/inference";
@@ -33,6 +40,36 @@ interface Sent {
   readonly receipts: readonly string[];
 }
 
+// A space-led word is one token; a bare leading word longer than four characters is two, as Qwen splits "waving"
+// into "w" + "aving" while " waving" is one token.
+const BARE_WORD_SPLIT_LENGTH = 4;
+
+function toyPieces(text: string): readonly string[] {
+  return text
+    .split(/(?= )/u)
+    .flatMap((piece, index) =>
+      index === 0 && !piece.startsWith(" ") && piece.length > BARE_WORD_SPLIT_LENGTH ? [piece.slice(0, 1), piece.slice(1)] : [piece],
+    );
+}
+
+function toyId(piece: string): number {
+  return Array.from(piece).reduce((sum, char) => sum + (char.codePointAt(0) ?? 0), 0);
+}
+
+/** The provider edge: vLLM's `/tokenize` answers from the toy tokenizer, every other request is the scripted chat. */
+function vllmEdge(chat: { readonly execute: typeof fetch }, tokenized: string[]): typeof fetch {
+  return async (input, init) => {
+    const request = new Request(input, init);
+    if (request.url.endsWith("/tokenize")) {
+      const prompt = z.string().parse((await recordRequest(request)).body["prompt"]);
+      tokenized.push(prompt);
+      const pieces = toyPieces(prompt);
+      return Response.json({ tokens: pieces.map(toyId), ["token_strs"]: pieces });
+    }
+    return chat.execute(request);
+  };
+}
+
 /** One chat turn against a scripted openai-compatible endpoint; what the endpoint received and what the turn reported. */
 async function send(
   row: Omit<Connection, "task" | "model" | "providerId"> & { readonly providerId?: ProviderId; readonly model?: string },
@@ -42,11 +79,14 @@ async function send(
     readonly responseFormat?: ResponseFormat;
     readonly prefillReasoning?: string;
     readonly cacheBreakpointDepth?: number;
+    readonly speakerNames?: readonly string[];
+    /** Collects every text the turn asked the server to tokenize. */
+    readonly tokenized?: string[];
   } = {},
 ): Promise<Sent> {
   const recorded: RecordedRequest[] = [];
   using server = openAiServer(recorded, () => ({}));
-  await using root = await createRuntimeRoot({ providerFetch: server.execute, logLevel: "debug" });
+  await using root = await createRuntimeRoot({ providerFetch: vllmEdge(server, options.tokenized ?? []), logLevel: "debug" });
   const connection = await wireConnection(root, { ...row, task: "chat", providerId: row.providerId ?? "custom-openai", model: row.model ?? "shaping-model" });
   const turn = await root.app.runtime.executor.runChatTurn({
     signal: new AbortController().signal,
@@ -58,6 +98,7 @@ async function send(
     ...(options.responseFormat === undefined ? {} : { responseFormat: options.responseFormat }),
     ...(options.prefillReasoning === undefined ? {} : { prefillReasoning: options.prefillReasoning }),
     ...(options.cacheBreakpointDepth === undefined ? {} : { cacheBreakpointDepth: options.cacheBreakpointDepth }),
+    ...(options.speakerNames === undefined ? {} : { speakerNames: options.speakerNames }),
   });
   const [first] = recorded;
   if (first === undefined) {
@@ -703,6 +744,13 @@ function droppedPhraseWarnings(events: readonly ChatEvent[]): string[] {
   );
 }
 
+/** The counts a banned-phrase drop carries: present only when some phrases still rode. */
+function droppedPhraseCounts(events: readonly ChatEvent[]): readonly (ResolvedWarning["partial"] | null)[] {
+  return events.flatMap((event) =>
+    event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped && event.knob === "bannedStrings" ? [event.partial ?? null] : [],
+  );
+}
+
 // llama.cpp tokenizes a string `logit_bias` key and biases every one of its tokens for the whole reply, so a
 // multi-token phrase sent there would ban each of its words everywhere.
 test("on llama.cpp a one-token banned phrase rides as a false bias, and a multi-token phrase is dropped by name instead of banning its words", async () => {
@@ -712,10 +760,144 @@ test("on llama.cpp a one-token banned phrase rides as a false bias, and a multi-
   expect(dropped).toContain('"her spine"');
   expect(dropped).not.toContain("Ozymandias");
   expect(more).toEqual([]);
+  // A partial drop says how many rode, so the notice can say the rest were sent.
+  expect(droppedPhraseCounts(mixed.events)).toEqual([{ dropped: 1, sent: 1 }]);
 
   const onlyMulti = await sendLlama({ bannedStrings: ["her spine"] });
   expect(onlyMulti.body).not.toHaveProperty("logit_bias");
   expect(droppedPhraseWarnings(onlyMulti.events)).toHaveLength(1);
+  expect(droppedPhraseCounts(onlyMulti.events)).toEqual([null]);
+});
+
+const VLLM = providerIdSchema.parse("vllm");
+const ENVELOPE = { samplerEnvelope: "vllm-xargs" } as const satisfies EndpointFeatures;
+const THINKS = declaredCapabilitySchema.parse({
+  kind: "generation",
+  generation: { reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] } },
+});
+
+test("on a stock vLLM row every sampler rides the top level and no envelope is sent", async () => {
+  const stock = await send({ providerId: VLLM }, { params: { minP: 0.05, repetitionPenalty: 1.1, logitBias: { "42": -5 } } });
+  expect(stock.body).not.toHaveProperty("vllm_xargs");
+  expect(stock.body["min_p"]).toBe(0.05);
+  expect(stock.body["repetition_penalty"]).toBe(1.1);
+  expect(stock.body["logit_bias"]).toEqual({ "42": -5 });
+});
+
+test("a vLLM row that declares the envelope sends the extended samplers, min-p and the bias inside vllm_xargs under llama.cpp's names", async () => {
+  const params = {
+    minP: 0.05,
+    topA: 0.2,
+    topNSigma: 1.5,
+    xtcProbability: 0.5,
+    xtcThreshold: 0.1,
+    dryMultiplier: 0.8,
+    dryBase: 1.75,
+    dryAllowedLength: 2,
+    dryPenaltyLastN: 512,
+    drySequenceBreakers: ["\n", ":"],
+    dynatempRange: 0.5,
+    dynatempExponent: 1,
+    smoothingFactor: 0.3,
+    smoothingCurve: 1,
+    adaptiveTarget: 0.5,
+    adaptiveDecay: 0.9,
+    logitBias: { "42": -5, "7": 2 },
+  } satisfies UserIntent;
+  const sent = await send({ providerId: VLLM, declaredFeatures: ENVELOPE }, { params });
+  expect(sent.body["vllm_xargs"]).toEqual({
+    ["min_p"]: 0.05,
+    ["top_a"]: 0.2,
+    ["top_n_sigma"]: 1.5,
+    ["xtc_probability"]: 0.5,
+    ["xtc_threshold"]: 0.1,
+    ["dry_multiplier"]: 0.8,
+    ["dry_base"]: 1.75,
+    ["dry_allowed_length"]: 2,
+    ["dry_penalty_last_n"]: 512,
+    ["dry_sequence_breakers"]: ["\n", ":"],
+    ["dynatemp_range"]: 0.5,
+    ["dynatemp_exponent"]: 1,
+    ["smoothing_factor"]: 0.3,
+    ["smoothing_curve"]: 1,
+    ["adaptive_target"]: 0.5,
+    ["adaptive_decay"]: 0.9,
+    ["bias_token_ids"]: [7, 42],
+    ["bias_logprobs"]: [2, -5],
+  });
+  // Nothing the envelope carries is also sent native: vLLM refuses a native min-p or bias under speculative decoding.
+  for (const key of ["min_p", "logit_bias", "dry_multiplier", "xtc_probability", "top_n_sigma"]) {
+    expect(sent.body).not.toHaveProperty(key);
+  }
+});
+
+test("on the envelope a repetition range moves the penalty in beside the window, and without one the penalty stays native", async () => {
+  const windowed = await send({ providerId: VLLM, declaredFeatures: ENVELOPE }, { params: { repetitionPenalty: 1.1, repetitionPenaltyRange: 256 } });
+  expect(windowed.body["vllm_xargs"]).toEqual({ ["repetition_penalty"]: 1.1, ["repeat_last_n"]: 256 });
+  expect(windowed.body).not.toHaveProperty("repetition_penalty");
+
+  const whole = await send({ providerId: VLLM, declaredFeatures: ENVELOPE }, { params: { repetitionPenalty: 1.1 } });
+  expect(whole.body["repetition_penalty"]).toBe(1.1);
+  expect(whole.body).not.toHaveProperty("vllm_xargs");
+});
+
+test("on the envelope a thinking turn asks the server not to end inside its reasoning, and a turn that does not think sends no such key", async () => {
+  const thinking = await send({ providerId: VLLM, declared: { ...THINKS, features: { detectServer: false, ...ENVELOPE } } }, { params: { effort: "high" } });
+  expect(thinking.body["vllm_xargs"]).toEqual({ ["close_thinking"]: true });
+
+  const off = await send({ providerId: VLLM, declared: { ...THINKS, features: { detectServer: false, ...ENVELOPE } } }, { params: { effort: "none" } });
+  expect(off.body).not.toHaveProperty("vllm_xargs");
+});
+
+// vLLM's `bad_words` bans the bare phrase and adds the space-led form, the one met mid-sentence, only when it has
+// the bare form's token count (`SamplingParams.update_from_tokenizer`).
+test("on stock vLLM a banned phrase rides bad_words only when vLLM also bans it mid-sentence, and the rest drop by name with counts", async () => {
+  const tokenized: string[] = [];
+  const mixed = await send({ providerId: VLLM }, { params: { bannedStrings: ["her spine", "waving"] }, tokenized });
+  expect(mixed.body["bad_words"]).toEqual(["her spine"]);
+  expect(tokenized).toEqual(expect.arrayContaining(["waving", " waving", "her spine", " her spine"]));
+  const [dropped, ...more] = droppedPhraseWarnings(mixed.events);
+  expect(dropped).toContain('"waving"');
+  expect(dropped).not.toContain("her spine");
+  expect(more).toEqual([]);
+  expect(droppedPhraseCounts(mixed.events)).toEqual([{ dropped: 1, sent: 1 }]);
+
+  const none = await send({ providerId: VLLM }, { params: { bannedStrings: ["waving"] } });
+  expect(none.body).not.toHaveProperty("bad_words");
+  expect(droppedPhraseCounts(none.events)).toEqual([null]);
+});
+
+test("an antislop connection sends every banned phrase whole at the top level, with the slop list and the room's names beside it", async () => {
+  const tokenized: string[] = [];
+  const names = ["Mary Jane Watson", "Mary", "Jane", "Watson", "Nate"];
+  const sent = await send(
+    { providerId: VLLM, declaredFeatures: { antislop: true, slopList: "flashnext", slopStrength: 2 } },
+    { params: { bannedStrings: ["her spine", "waving"] }, speakerNames: names, tokenized },
+  );
+  expect(sent.body["banned_strings"]).toEqual(["her spine", "waving"]);
+  expect(sent.body["slop_list"]).toBe("flashnext");
+  expect(sent.body["slop_strength"]).toBe(2);
+  expect(sent.body["slop_allow"]).toEqual(names);
+  expect(sent.body).not.toHaveProperty("bad_words");
+  expect(tokenized).toEqual([]);
+  expect(droppedPhraseWarnings(sent.events)).toEqual([]);
+});
+
+test("a metered row never sends the own-server fields, whatever its connection declares, and the turn says so", async () => {
+  const declaredFeatures = { ...ENVELOPE, antislop: true, slopList: "rp" } satisfies EndpointFeatures;
+  const params = { bannedStrings: ["waving"] } satisfies UserIntent;
+  const control = await send({ providerId: VLLM, declaredFeatures }, { params, speakerNames: ["Nate"] });
+  expect(control.body["slop_list"]).toBe("rp");
+
+  const metered = await send(
+    { providerId: providerIdSchema.parse("openai"), capability: generationCapability(), declaredFeatures },
+    { params, speakerNames: ["Nate"] },
+  );
+  for (const key of ["vllm_xargs", "banned_strings", "slop_list", "slop_allow"]) {
+    expect(metered.body).not.toHaveProperty(key);
+  }
+  expect(warningCodes(metered.events)).toContain(WARNING_CODE.ownServerFeaturesIgnored);
+  expect(warningCodes(control.events)).not.toContain(WARNING_CODE.ownServerFeaturesIgnored);
 });
 
 test("a turn carrying a strict tool rides the row's beta route; without a beta path the same strict body rides the base", async () => {

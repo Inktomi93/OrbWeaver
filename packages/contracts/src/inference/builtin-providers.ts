@@ -198,6 +198,7 @@ export const BUILTIN_PROVIDER_ROWS = [
       prefillSuppressesThinking: true,
       // chat_completion/protocol.py: the phrase ban is `bad_words`; `/tokenize` and `thinking_token_budget`.
       samplerKeys: { bannedStrings: "bad_words" },
+      bannedStrings: "vllm-bad-words",
       tokenizeApi: "vllm",
       reasoningBudgetField: "thinking_token_budget",
       thinkingOff: "chat_template_kwargs",

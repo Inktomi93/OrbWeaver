@@ -92,10 +92,12 @@ import {
   buildTurnMacroContext,
   fitCeiling,
   materializeOutputReserve,
+  resolveSequenceBreakers,
   shapeContextForSpeaker,
   shapeTurn,
   speakerCue,
   toShapeCanon,
+  turnSpeakerNames,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
@@ -693,6 +695,19 @@ function foldGenerationParams(base: UserIntent, override: UserIntent, extras: re
   };
 }
 
+/** The DRY sequence breakers as the literal strings the server compares, rendered against the speaking turn's macro
+ *  context (`resolvedSequenceBreakers`). Every row that sends breakers gets them literal; an intent without breakers
+ *  is returned by reference. */
+function withLiteralBreakers(intent: UserIntent, ctx: AssembleContext, args: Pick<RunTurnPipelineArgs, "macroRegistry" | "random">): UserIntent {
+  const breakers = intent.drySequenceBreakers;
+  if (breakers === undefined) {
+    return intent;
+  }
+  const literal = resolveSequenceBreakers(breakers, ctx, { registry: args.macroRegistry ?? globalMacroRegistry, random: args.random });
+  const { drySequenceBreakers: _raw, ...rest } = intent;
+  return literal.length > 0 ? { ...rest, drySequenceBreakers: [...literal] } : rest;
+}
+
 /** Pins the effective output length to a concrete number: an explicit `maxOutputTokens` (preset/per-turn,
  *  clamped later against the model's `output.maxTokens` at `resolveChat`) passes through; unset resolves to
  *  the shared `DEFAULT_MAX_OUTPUT_TOKENS`. Returned BY REFERENCE when already set (byte-identical intent). */
@@ -811,7 +826,11 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // STATED: a value whose control this model does not take is removed here, before any reader (D68), so the seed,
   // the request and the reply row's recorded params never carry it.
   const effectiveIntent = materializeMaxOutput(
-    statedIntent(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences), generationOf(input.connection)),
+    withLiteralBreakers(
+      statedIntent(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences), generationOf(input.connection)),
+      ctx,
+      input,
+    ),
   );
   // The window this turn sends and fits, ONE value: on a route whose request sets it (Ollama's native `num_ctx`), the
   // effective Max context; every read of `args.connection` below, the request included, sees it.
@@ -992,6 +1011,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     // The preset's authored chain of thought rides WHOLESALE: the transports own every drop with their own
     // notice (`prefill_reasoning_dropped`), so a preset that states a seed never loses it silently.
     ...seedRideOf(effectiveIntent),
+    speakerNames: turnSpeakerNames(ctx),
     signal: args.signal,
   };
 

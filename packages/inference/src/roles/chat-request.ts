@@ -58,6 +58,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
     // The authored chain of thought the model continues FROM (the `prefix-flag` continue row's seed); a route
     // with no continuation drops it with `prefill_reasoning_dropped` rather than vanishing silently.
     ...(input.prefillReasoning !== undefined ? { prefillReasoning: input.prefillReasoning } : {}),
+    ...(input.speakerNames !== undefined ? { speakerNames: input.speakerNames } : {}),
     ...(input.onEvent !== undefined ? { onEvent: input.onEvent } : {}),
     ...deltaSubscriptionOf(input),
     signal: input.signal,

@@ -132,6 +132,12 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "Your connection doesn't allow background work, so summaries, captions and memory skipped this turn. Your reply is unaffected.",
         title: "Background tasks were skipped",
       };
+    case "own_server_features_ignored":
+      return {
+        description:
+          "This connection is a paid service, so the sampler and banned-phrase options meant for your own server weren't sent. Turn them off in the connection's settings.",
+        title: "Your own-server options weren't used",
+      };
     case "smart_arbitration_degraded":
       return {
         description: "Natural picked who speaks next. Characters you name clearly still answer without it.",
@@ -207,6 +213,14 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       // NO FALLBACK LABEL: `knob` is absent only if a producer ever raises this class without saying which
       // setting it dropped, and naming an arbitrary knob there would be a lie about the user's own settings.
       const knob = warning.knob;
+      const { droppedCount, sentCount } = warning;
+      // A partial drop: the rest of the list DID ride, so the notice must not read as the setting having failed.
+      if (knob !== undefined && droppedCount !== undefined && sentCount !== undefined) {
+        return {
+          description: `This model can't take those in the form they were written. The other ${String(sentCount)} were sent.`,
+          title: `${KNOB_LABELS[knob]}: ${String(droppedCount)} weren't used for this reply`,
+        };
+      }
       return {
         description: samplingDropDescription(knob),
         title: knob === undefined ? "A generation setting wasn't used for this reply" : `${KNOB_LABELS[knob]} wasn't used for this reply`,

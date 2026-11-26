@@ -305,3 +305,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D356 | [The relational query API is reserved for nested-tree reads](0356-relational-query-seam-reserved-for-nested-tree-reads.md) | active |
 | D357 | [The unwired scans run on one typed reference graph](0357-unwired-scans-run-on-one-reference-graph.md) | active |
 | D358 | [Word lists: one library for bias, bans and slop](0358-word-lists-one-library.md) | active |
+| D359 | [Own-server samplers and the antislop proxy are connection opt-ins](0359-own-server-sampler-opt-ins.md) | active |

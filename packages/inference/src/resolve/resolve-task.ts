@@ -56,7 +56,7 @@ import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 import type { FactsReach, ResolveArgs, ResolveOutcome, ResolverContext } from "../contract/task-resolution.ts";
-import { behaveAs, behavedFeatures, detectionUrl } from "./behave-as.ts";
+import { behaveAs, behavedFeatures, detectionUrl, ownServerFeaturesRefused } from "./behave-as.ts";
 import { resolveApi } from "./coherence.ts";
 import { normalizeModelId } from "./heal.ts";
 import { foldBindings } from "./precedence.ts";
@@ -461,7 +461,14 @@ function connectionCapability(
   const factsModel = factsModelFor(ctx, behaved, model);
   const family = detectModelFamily(factsModel);
   const features = behavedFeatures(provider, behaved, connection);
-  const rowQuery = { model: factsModel, providerId: behaved.id, wire: behaved.wire, api, nativeChat: features.nativeChat };
+  const rowQuery = {
+    model: factsModel,
+    providerId: behaved.id,
+    wire: behaved.wire,
+    api,
+    nativeChat: features.nativeChat,
+    samplerEnvelope: features.samplerEnvelope,
+  };
   const evidence: Evidence = {
     declared,
     // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the
@@ -600,6 +607,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   const capability = withLocalLightEmbedDtype(foldedCapability, provider, connection.declared?.embedding?.dtype, ctx.deps.localLight?.embedDtype);
   const baseline = foldedBaseline === undefined ? undefined : withLocalLightEmbedDtype(foldedBaseline, provider, undefined, ctx.deps.localLight?.embedDtype);
   const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
+  const refused = ownServerFeaturesRefused(provider, connection);
   const resolved: Resolved = {
     task: args.task,
     ownerId: connection.ownerId,
@@ -623,6 +631,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
       capability.kind === "generation" ? capability.generation.turns?.fixedCacheTtl : undefined,
     ),
     factsModel,
+    ...(refused.length > 0 ? { refusedOwnServerFeatures: refused } : {}),
   };
   const warnings: ResolvedWarning[] = [...synthesisWarnings];
   if (!canFund(connection, args.task)) {

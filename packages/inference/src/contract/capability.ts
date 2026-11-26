@@ -8,6 +8,7 @@ import type {
   ProviderId,
   RerankCapability,
   ResolvedWarning,
+  SamplerEnvelope,
   Wire,
 } from "@orb/contracts/inference";
 import type { LookupText, ModelId } from "@orb/kit/ids";
@@ -53,4 +54,6 @@ export interface RowQuery {
   readonly api?: ChatApi | null | undefined;
   /** The chat route the folded `features.nativeChat` selects; a row that names one matches that route only. */
   readonly nativeChat?: NativeChatApi | undefined;
+  /** The envelope the folded `features.samplerEnvelope` names; a row that names one matches that envelope only. */
+  readonly samplerEnvelope?: SamplerEnvelope | undefined;
 }
