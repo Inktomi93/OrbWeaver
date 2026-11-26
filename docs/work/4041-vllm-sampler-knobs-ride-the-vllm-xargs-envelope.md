@@ -18,7 +18,7 @@ Every extended sampler a preset sets on a vLLM connection does nothing today, an
 
 ## Done when
 
-An endpoint feature on the vllm row spells the extended knobs into vllm_xargs with the llama.cpp key names, min_p and logit_bias move there, the repetition window follows the native-or-envelope rule, and body-shaping tests through the composed root cover each, with no provider branch in the backend.
+An endpoint feature on the vllm row spells the extended knobs into vllm_xargs with the llama.cpp key names, min_p and logit_bias move there, the repetition window follows the native-or-envelope rule, dry_sequence_breakers ride as literal strings with the character and user names filled before send, and body-shaping tests through the composed root cover each, with no provider branch in the backend.
 
 ## Evidence
 
