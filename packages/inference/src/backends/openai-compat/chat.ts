@@ -41,7 +41,7 @@ import { automaticCachePlan, effectiveProviderRouting, explicitCachePlan, isAnth
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { compatibleReasoning, isMandatoryReasoningRejection, openRouterReasoning, sendsOpenRouterReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
-import { resolveWordBias } from "./tokens.ts";
+import { resolveBannedPhrases, resolveWordBias } from "./tokens.ts";
 
 const MANDATORY_REPLAY_WARNING = "reasoning is mandatory on this endpoint: the turn ran at the model's own effort";
 /** llama.cpp server refuses `tools[]` under `--no-jinja` while its `/props` still reports the template's tool
@@ -670,8 +670,10 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
   };
 
-  // A word-keyed logit bias resolves once per turn, from the cache where held (one tokenize call per new word).
-  const sampling = await resolveWordBias({ sampling: knobs.sampling, connection, lexicon: deps.tokens, warnings, signal: req.signal });
+  // A word-keyed logit bias and the banned phrases resolve once per turn, from the cache where held (one tokenize
+  // call per new word).
+  const biased = await resolveWordBias({ sampling: knobs.sampling, connection, lexicon: deps.tokens, warnings, signal: req.signal });
+  const sampling = await resolveBannedPhrases({ sampling: biased, connection, lexicon: deps.tokens, warnings, signal: req.signal });
   const turnKnobs: TurnKnobs = {
     automaticCache,
     knobs,

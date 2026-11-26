@@ -8,7 +8,7 @@ import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, SAMPLER_ORDER_
 import type { ResolvedSampling } from "#contract";
 
 const OPENROUTER_DIALECT: Dialect = "openrouter";
-const LOGIT_BIAS_BAN: NonNullable<EndpointFeatures["bannedStrings"]> = "logit-bias-ban";
+export const LOGIT_BIAS_BAN: NonNullable<EndpointFeatures["bannedStrings"]> = "logit-bias-ban";
 // The openrouter provider spells `top_k` from the V4 option; `@ai-sdk/openai-compatible` drops a V4 `topK`
 // with an `unsupported` warning, so on that transport it rides the body instead.
 const OPENROUTER_BODY_KNOBS: readonly SamplerKnob[] = BODY_SAMPLER_KNOBS.filter((knob) => knob !== "topK");
@@ -62,8 +62,8 @@ function spellSamplers(
     }
   }
   if (bansAsBias && sampling.bannedStrings !== undefined && knobs.includes("bannedStrings")) {
-    // `false` is the server's hard ban, and a phrase key is tokenized by the server; the user's own bias keeps
-    // its entries, and a phrase it also biases is banned.
+    // `false` is the server's hard ban on every token of the key, so only one-token phrases reach here
+    // (`resolveBannedPhrases`); the user's own bias keeps its entries, and a phrase it also biases is banned.
     const existing = spelled[keys.logitBias];
     const bias: Record<string, unknown> = isRecord(existing) ? existing : {};
     spelled[keys.logitBias] = { ...bias, ...Object.fromEntries(sampling.bannedStrings.map((phrase) => [phrase, false])) };

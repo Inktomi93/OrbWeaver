@@ -60,7 +60,9 @@ export const DEFAULT_SAMPLER_KEYS: Readonly<Record<SamplerKnob, string>> = {
 
 /** How a server takes the phrase ban: `list` = the phrases under the row's `bannedStrings` key (KoboldCpp
  *  `banned_strings`, vLLM `bad_words`); `logit-bias-ban` = each phrase as a `logit_bias` key set to `false`, which
- *  llama.cpp tokenizes and bans itself (`server-schema.cpp` logit_bias handler). */
+ *  llama.cpp tokenizes and bans token by token for the whole reply, with no sequence context (`server-schema.cpp`
+ *  logit_bias handler). On that spelling only a phrase that is one token rides; a longer one would ban each of its
+ *  words everywhere, so it is dropped with a warning, and the row needs a `tokenizeApi` to tell them apart. */
 export const BANNED_STRINGS_SPELLINGS = ["list", "logit-bias-ban"] as const;
 
 /** The tokenize endpoint a server answers, which turns a word-keyed logit bias into token ids and shows the

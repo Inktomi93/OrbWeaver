@@ -1,6 +1,6 @@
 // What a word tokenizes to on one server (`features.tokenizeApi`), cached per (server URL, model, word) in memory and
 // beside the endpoint facts, so neither a turn nor a restart asks twice. Ordinary tokenize failures drop the
-// bias entry with a warning and are never cached; cancellation aborts the turn.
+// bias entry or banned phrase with a warning and are never cached; cancellation aborts the turn.
 
 import type { ResolvedWarning, TokenizeApi, WordTokens } from "@orb/contracts/inference";
 import { TOKEN_ID_KEY } from "@orb/contracts/inference";
@@ -13,6 +13,7 @@ import type { TokenLexicon, TokenTarget } from "#src/contract/openai-backend.ts"
 import type { SnapshotStore } from "#src/deps.ts";
 import { authHeaders, fetchJson, serverRootOf } from "../http/fetch-json.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
+import { LOGIT_BIAS_BAN } from "./sampling.ts";
 
 /** One server's tokenize endpoint: where it lives under the server root, the body for one word, and the ids and
  *  pieces out of its answer. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */
@@ -220,6 +221,44 @@ export async function resolveWordBias(args: {
     }
   }
   return { ...sampling, logitBias: ids };
+}
+
+/** The banned phrases a `logit-bias-ban` row can carry: the server bans every token of a phrase key for the whole
+ *  reply, so only a phrase that is one token keeps its meaning. Every other phrase is dropped with a warning naming
+ *  it, and so is one the server could not tokenize. A `list` row sends its phrases whole. */
+export async function resolveBannedPhrases(args: {
+  readonly sampling: ResolvedSampling;
+  readonly connection: Resolved;
+  readonly lexicon: TokenLexicon;
+  readonly warnings: ResolvedWarning[];
+  readonly signal: AbortSignal;
+}): Promise<ResolvedSampling> {
+  const { sampling, connection, lexicon, warnings, signal } = args;
+  const phrases = sampling.bannedStrings;
+  if (phrases === undefined || phrases.length === 0 || connection.features.bannedStrings !== LOGIT_BIAS_BAN) {
+    return sampling;
+  }
+  const target = tokenTargetOf(connection);
+  const answers =
+    target === null
+      ? phrases.map((word): WordTokens => ({ ok: false, word, reason: "this endpoint's row names no tokenize endpoint" }))
+      : await lexicon.lookup(target, phrases, signal);
+  const kept = answers.flatMap((answer) => (answer.ok && answer.ids.length === 1 ? [answer.word] : []));
+  const multiToken = answers.flatMap((answer) => (answer.ok && answer.ids.length !== 1 ? [`"${answer.word}"`] : []));
+  if (multiToken.length > 0) {
+    warnings.push({
+      code: "sampling_knob_dropped",
+      knob: "bannedStrings",
+      message: `bannedStrings phrases ${multiToken.join(", ")} ignored: this server bans each token of a phrase in every context, so only a one-token phrase is sent`,
+    });
+  }
+  for (const answer of answers) {
+    if (!answer.ok) {
+      warnings.push({ code: "sampling_knob_dropped", knob: "bannedStrings", message: `bannedStrings phrase "${answer.word}" ignored: ${answer.reason}` });
+    }
+  }
+  const { bannedStrings: _all, ...rest } = sampling;
+  return kept.length > 0 ? { ...rest, bannedStrings: kept } : rest;
 }
 
 export type { TokenLexicon, TokenTarget } from "#src/contract/openai-backend.ts";
