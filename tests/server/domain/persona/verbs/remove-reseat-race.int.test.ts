@@ -29,9 +29,13 @@ async function yieldTurns(turns: number): Promise<void> {
 }
 
 // A refused switch names the deleted persona: its own existence check missed it, or, once the delete has committed,
-// its write met the deleted row on the seat's foreign key.
+// its write met the deleted row on the seat's foreign key. The missing persona is read from the error's `ref`; its
+// message is reader copy and names no id.
 function refusedForTheDelete(reason: unknown, doomed: PersonaId): boolean {
-  return (reason instanceof DomainNotFoundError && reason.message.includes(doomed)) || isConstraintViolation(reason)?.kind === "foreign-key";
+  if (reason instanceof DomainNotFoundError) {
+    return reason.ref.kind === "persona" && reason.ref.id === doomed;
+  }
+  return isConstraintViolation(reason)?.kind === "foreign-key";
 }
 
 interface Outcome {
