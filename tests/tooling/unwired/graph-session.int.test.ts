@@ -1,15 +1,25 @@
 // A graph session's options change how the graph is built, read or reported, never what the tree is: a dump read back
 // analyses to the fresh build's buckets, an ablation says what one recognizer decides, and the why, trace and profile
 // records name the sites and phases they measure.
+import type { ChildProcess } from "node:child_process";
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
 import { deserialize, serialize } from "node:v8";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { MemoryPeaks, NodeHeapProfile } from "../../../tooling/src/unwired/graph/profile.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
-import { ABLATIONS, FRESH_BUILD, GRAPH_DUMP_FORMAT, PROFILE_PHASES, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
+import {
+  ABLATIONS,
+  COMPILER_CHANNEL,
+  compilerStartOf,
+  FRESH_BUILD,
+  GRAPH_DUMP_FORMAT,
+  PROFILE_PHASES,
+  scanGraph,
+  trialGraph,
+} from "../../../tooling/src/unwired/index.ts";
 import { MERGED_CONFIG } from "../../../tooling/src/unwired/worlds.ts";
 import {
   DEAD_CHANNEL_MESSAGES,
@@ -375,21 +385,34 @@ test("a compiler that dies mid-run leaves the run's own error thrown and the fai
     }),
   );
   const lines: string[] = [];
-  let killed = false;
-  const failed = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => {
-    lines.push(line);
-    if (!killed && line.startsWith("trial groups ")) {
-      killed = true;
-      for (const pid of readFileSync(`/proc/${String(process.pid)}/task/${String(process.pid)}/children`, "utf8")
-        .split(" ")
-        .filter(Boolean)) {
-        process.kill(Number(pid), "SIGKILL");
-      }
+  // Only the compilers this run started die: the worker shares its other children with earlier suites, such as the
+  // compiler dependency-cruiser keeps for the module's life, whose pipe a kill would close under its next write.
+  const compilers: ChildProcess[] = [];
+  const watch = (message: unknown): void => {
+    const start = compilerStartOf(message);
+    if (start !== undefined) {
+      compilers.push(start.process);
     }
-  }).then(
-    () => null,
-    (error: unknown) => error,
-  );
+  };
+  let killed = false;
+  subscribe(COMPILER_CHANNEL, watch);
+  let failed: unknown;
+  try {
+    failed = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => {
+      lines.push(line);
+      if (!killed && line.startsWith("trial groups ")) {
+        killed = true;
+        for (const compiler of compilers) {
+          compiler.kill("SIGKILL");
+        }
+      }
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+  } finally {
+    unsubscribe(COMPILER_CHANNEL, watch);
+  }
   expect(killed).toBe(true);
   expect(failed).toBeInstanceOf(Error);
   expect(failed).not.toBeInstanceOf(SuppressedError);

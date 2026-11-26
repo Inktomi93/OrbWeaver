@@ -1,10 +1,9 @@
 // graph-worlds-check proves the merged program against each world's own: two planted worlds map one alias to two
 // targets, so the merged program, where the first world keeps the alias, resolves the second world's import elsewhere.
 // Each merged-program error is matched in a world, explained, or left unexplained, and an unexplained one fails the run.
+import type { ChildProcess } from "node:child_process";
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
 import type { CliResult, ToolFixtures } from "@orb/testkit/tooling";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
@@ -182,21 +181,34 @@ test("a compiler the check starts is watched, and one killed mid-run is named wi
   expect(started).toContain(OPTIONS_PROBE_STEP);
 
   const lines: string[] = [];
-  let killed = false;
-  const failed = await checkWorldsWatched(root, (line) => {
-    lines.push(line);
-    if (!killed && line.startsWith(`${WORLD_A}:`)) {
-      killed = true;
-      for (const pid of readFileSync(`/proc/${String(process.pid)}/task/${String(process.pid)}/children`, "utf8")
-        .split(" ")
-        .filter(Boolean)) {
-        process.kill(Number(pid), "SIGKILL");
-      }
+  // Only the compilers this run started die: the worker shares its other children with earlier suites, such as the
+  // compiler dependency-cruiser keeps for the module's life, whose pipe a kill would close under its next write.
+  const compilers: ChildProcess[] = [];
+  const own = (message: unknown): void => {
+    const start = compilerStartOf(message);
+    if (start !== undefined) {
+      compilers.push(start.process);
     }
-  }).then(
-    () => null,
-    (error: unknown) => error,
-  );
+  };
+  let killed = false;
+  subscribe(COMPILER_CHANNEL, own);
+  let failed: unknown;
+  try {
+    failed = await checkWorldsWatched(root, (line) => {
+      lines.push(line);
+      if (!killed && line.startsWith(`${WORLD_A}:`)) {
+        killed = true;
+        for (const compiler of compilers) {
+          compiler.kill("SIGKILL");
+        }
+      }
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+  } finally {
+    unsubscribe(COMPILER_CHANNEL, own);
+  }
   expect(killed).toBe(true);
   expect(failed).toBeInstanceOf(Error);
   expect(lines.filter((line) => line.startsWith("the compiler for "))).toEqual([
