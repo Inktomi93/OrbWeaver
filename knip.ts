@@ -131,7 +131,11 @@ export const config = {
     },
     // Released authoring doors have consumers outside this workspace; internal modules remain checked.
     "packages/plugin-sdk": { includeEntryExports: false, project: ["**/*.ts!"] },
-    "packages/plugin-toolchain": { includeEntryExports: false, project: ["src/**/*.ts!"] },
+    // The released toolchain is one bundle (D266): @orb/contracts is a build input inlined into dist, so it stays a
+    // devDependency, and the zod the inlined schemas import stays external as a declared dependency.
+    // `scripts/release-plugin-authoring.ts` refuses a bundle import that is neither inlined nor declared. The `!` keeps
+    // the ignore production-only; the default view accounts for both normally.
+    "packages/plugin-toolchain": { ignoreDependencies: ["@orb/contracts!", "zod!"], includeEntryExports: false, project: ["src/**/*.ts!"] },
     "packages/ui": {
       includeEntryExports: true,
       // Component-owned types remain live through their public signatures, as in server and inference.
