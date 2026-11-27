@@ -24,16 +24,17 @@ import { defineJsonObjectSerde } from "#primitives/serde/lib";
 export { PERSONA_SCHEMA_KIND } from "@orb/contracts/portability";
 
 const PERSONA_SCHEMA_VERSION = 1;
-/** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Excludes
- *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
-export type PersonaBackup = Readonly<Pick<PersonaDetail, "name" | "title" | "description" | "starred" | "metadata">>;
+/** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Carries the avatar's
+ *  content hash, never its asset id (a row id means nothing on another box); null for a persona without art. */
+export type PersonaBackup = Readonly<Pick<PersonaDetail, "name" | "title" | "description" | "starred" | "metadata" | "avatarHash">>;
 
 const personaSerde = defineJsonObjectSerde<PersonaBackup, ReturnType<typeof personaBackupSchema.parse>>({
   schemaKind: PERSONA_SCHEMA_KIND,
   schemaVersion: PERSONA_SCHEMA_VERSION,
   envelopeOptional: true,
   bodySchema: personaBackupSchema,
-  toWire: (backup) => personaBackupSchema.parse(backup),
+  // A persona without art writes no hash key, so its file stays the shape every earlier build wrote.
+  toWire: ({ avatarHash, ...backup }) => personaBackupSchema.parse(avatarHash === null ? backup : { ...backup, avatarHash }),
   fromWire: (body) => ({
     name: body.name,
     title: body.title ?? null,
@@ -41,6 +42,7 @@ const personaSerde = defineJsonObjectSerde<PersonaBackup, ReturnType<typeof pers
     starred: body.starred ?? false,
     // `personaBackupSchema`'s write guard already refused what the narrowing refuses, so parse keeps its never-throw contract.
     metadata: narrowPersonaMetadata(body.metadata ?? null),
+    avatarHash: body.avatarHash ?? null,
   }),
 });
 

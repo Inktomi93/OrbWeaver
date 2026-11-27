@@ -3,9 +3,9 @@
 // collision rule have exactly one home. An owned persona with equal content — folded name, description,
 // title, placement, art (`findDuplicatePersona`, beside the persona serde) — is reused untouched; the same
 // name with different content lands as a second persona under the next free name. This door has no review
-// step to ask on; the profile import (`persistence/import-write.ts`) asks per collision instead. The backup
-// shape never carries avatarAssetId, so there is no asset-ownership guard to run here. NEVER throws for a
-// malformed file.
+// step to ask on; the profile import (`persistence/import-write.ts`) asks per collision instead (D312). The backup
+// carries the avatar as a content hash, never an asset id, and the hash resolves only to one of the caller's own
+// picture assets, so a file can never point a persona at another account's blob. NEVER throws for a malformed file.
 
 import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
@@ -14,7 +14,7 @@ import { portableParseError } from "#primitives/serde/lib";
 import { findDuplicatePersona, PERSONA_SCHEMA_KIND, parsePersonaBackup, personaPlacementOf } from "#primitives/serde/persona";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
-import { detailOf, loadOwnedPersonaCandidates, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
+import { detailOf, findOwnedPictureAssetByHash, loadOwnedPersonaCandidates, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createImport(ctx: PersonaContext): PersonaService["import"] {
   return async ({ principal, bytes }) => {
@@ -25,10 +25,14 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
       return { ok: false, error: portableParseError(PERSONA_SCHEMA_KIND, parsed.reason) };
     }
     const backup = parsed.value;
+    // The art is the caller's own copy of the carried bytes. A hash this account holds no picture for names no art:
+    // the row lands without one, so the same file imported again still finds it.
+    const avatarAssetId = backup.avatarHash === null ? null : await findOwnedPictureAssetByHash(ctx.db, ownerId, backup.avatarHash);
+    const artHash = avatarAssetId === null ? null : backup.avatarHash;
 
     const candidates = await loadOwnedPersonaCandidates(ctx.db, ownerId);
     const duplicate = findDuplicatePersona(
-      { name: backup.name, title: backup.title, description: backup.description, placement: personaPlacementOf(backup.metadata), artHash: null },
+      { name: backup.name, title: backup.title, description: backup.description, placement: personaPlacementOf(backup.metadata), artHash },
       candidates,
     );
     if (duplicate !== null) {
@@ -51,7 +55,7 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
       title: backup.title,
       description: backup.description,
       starred: backup.starred,
-      avatarAssetId: null,
+      avatarAssetId,
       metadata: narrowPersonaMetadata(backup.metadata),
       createdAt: at,
       updatedAt: at,

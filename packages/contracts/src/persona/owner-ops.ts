@@ -44,25 +44,26 @@ interface ExportPersonaParams {
 }
 
 /** The FILE is the unit (the thin-arm law): the single-entity door and the bundle descriptor hand the same
- *  bytes to the same verb, so the two paths can never drift. Never carries avatarAssetId — the backup shape
- *  (personaBackupSchema) excludes it. */
+ *  bytes to the same verb, so the two paths can never drift. Never carries avatarAssetId: the backup shape
+ *  (personaBackupSchema) carries the avatar's content hash, which the import resolves against the caller's own
+ *  assets. */
 interface ImportPersonaParams {
   readonly principal: Principal;
   readonly bytes: Uint8Array;
 }
 
 /** `import` — NEVER throws for a malformed file (the delivery core's per-file isolation contract); a
- *  refusal carries the operator-facing reason the import door renders. `created:false` means a same-named
- *  persona was merged in place. */
+ *  refusal carries the operator-facing reason the import door renders. `created:false` means an owned persona of
+ *  equal content was reused untouched. */
 type PersonaImportOutcome = { readonly ok: true; readonly persona: PersonaDetail; readonly created: boolean } | { readonly ok: false; readonly error: string };
 
 /** The caller's personas, newest first. */
 export type ListPersonasOp = (params: ListPersonasParams) => Promise<PersonaDetail[]>;
 
-/** Read an owned persona as ONE portable file (excludes `avatarAssetId`). */
+/** Read an owned persona as ONE portable file (its avatar as a content hash, never `avatarAssetId`). */
 export type ExportPersonaOp = (params: ExportPersonaParams) => Promise<PortableFile>;
 
-/** Restore ONE portable persona file, the `export` round-trip twin. Idempotent: a same-named persona is merged in place. */
+/** Restore ONE portable persona file, the `export` round-trip twin. Idempotent: an equal-content persona is reused. */
 export type ImportPersonaOp = (params: ImportPersonaParams) => Promise<PersonaImportOutcome>;
 
 /** D259 — the params of a sign-up joiner's persona insert, unexecuted, which runs inside chat's signup batch. */

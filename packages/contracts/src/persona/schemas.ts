@@ -5,6 +5,7 @@
 
 // `title` is NOT a face field (persona-only, D137(E)) — its limit stays persona-local.
 
+import { isAssetHash } from "@orb/kit/assets";
 import type { AssetId, Branded, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
@@ -105,10 +106,15 @@ export type JoinerPersona = z.infer<typeof joinerPersonaSchema>;
 export const updatePersonaSchema = createPersonaSchema.partial();
 export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 
-// The export/import round-trip shape: `createPersonaSchema` minus `avatarAssetId` (a binary asset
-// reference can't travel in a JSON backup). Strip mode on purpose: it reads an uploaded backup file, whose
-// envelope keys and fields from another build are dropped rather than refusing the whole import.
-export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true }).strip();
+// The export/import round-trip shape: `createPersonaSchema` minus `avatarAssetId` (a row id means nothing on
+// another box), plus the avatar's content hash, so a restore relinks the owner's copy of the same bytes and the
+// persona re-imports under the identity it was stored with (D290). Optional: a backup written before the hash, or
+// of a persona without art, has none. Strip mode on purpose: it reads an uploaded backup file, whose envelope keys
+// and fields from another build are dropped rather than refusing the whole import.
+export const personaBackupSchema = createPersonaSchema
+  .omit({ avatarAssetId: true })
+  .extend({ avatarHash: z.string().refine(isAssetHash, "not a sha-256 content hash").optional() })
+  .strip();
 
 /** A persona name an import carries: not blank once trimmed, so its folded name is never empty and the import write,
  *  its dry run and the collision review never meet a nameless persona. Minted by {@link isPersonaImportName}. */
