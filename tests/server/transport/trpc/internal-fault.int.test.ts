@@ -39,20 +39,20 @@ test("a procedure that hits a tripwire answers 500 without its text and logs it 
       .map((line) => logRecordSchema.parse(JSON.parse(line)))
       .filter((record) => record.level === "error" && record.err?.message.includes(INTERNAL_DETAIL) === true).length;
 
-  const healthy = await root.http.request("/api/trpc/tag.listTags", { headers: CSRF });
+  const healthy = await root.http.request("/api/trpc/tag.listTagsWithUsage", { headers: CSRF });
   expect(healthy.status).toBe(200);
   await healthy.arrayBuffer();
   expect(tripwireErrors()).toBe(0);
 
-  const listTags = vi.spyOn(root.services.tag, "listTags").mockRejectedValue(new TripwireError(INTERNAL_DETAIL));
+  const listTagsWithUsage = vi.spyOn(root.services.tag, "listTagsWithUsage").mockRejectedValue(new TripwireError(INTERNAL_DETAIL));
   try {
-    const response = await root.http.request("/api/trpc/tag.listTags", { headers: CSRF });
+    const response = await root.http.request("/api/trpc/tag.listTagsWithUsage", { headers: CSRF });
     const body = await response.text();
     expect(response.status).toBe(500);
     expect(responseSchema.parse(JSON.parse(body)).error.data.code).toBe("INTERNAL_SERVER_ERROR");
     expect(body).not.toContain(INTERNAL_DETAIL);
     expect(tripwireErrors()).toBe(1);
   } finally {
-    listTags.mockRestore();
+    listTagsWithUsage.mockRestore();
   }
 });

@@ -33,11 +33,6 @@ export const personaRouter = t.router({
 
   list: authedProcedure.output(strictTwin(z.array(personaDetailSchema))).query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
 
-  get: authedProcedure
-    .output(strictTwin(personaDetailSchema))
-    .input(personaIdInputSchema)
-    .query(({ ctx, input }) => ctx.services.persona.get({ principal: ctx.auth, personaId: input.personaId })),
-
   update: authedProcedure
     .output(strictTwin(personaDetailSchema))
     .input(z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema }))

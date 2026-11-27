@@ -29,7 +29,6 @@ import type {
   ListAttachedEntitiesParams,
   ListPendingSuggestionsParams,
   ListTagFilterVocabularyParams,
-  ListTagsParams,
   ListTagsWithUsageParams,
   MergeTagsParams,
   PruneUnusedTagsParams,
@@ -58,7 +57,6 @@ export type TagAssemblyContext = DbAssemblyInput<TagContext>;
 export interface TagService {
   readonly listAttachedEntities: (params: ListAttachedEntitiesParams) => Promise<TagReachView>;
   readonly createTag: (params: CreateTagParams) => Promise<TagView>;
-  readonly listTags: (params: ListTagsParams) => Promise<TagView[]>;
   readonly updateTag: (params: UpdateTagParams) => Promise<TagView>;
   readonly removeTag: (params: RemoveTagParams) => Promise<void>;
   /** Fold `sourceTagId` into `targetTagId`: re-point every attachment across all five junctions to the

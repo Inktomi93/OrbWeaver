@@ -35,7 +35,6 @@ export function createSettingsService(input: SettingsAssemblyContext): SettingsS
     checkForUpdate: createCheckForUpdate(ctx),
     getGlobalSetting: globalSettings.getGlobalSetting,
     setGlobalSetting: globalSettings.setGlobalSetting,
-    getAppSettings: appSettings.getAppSettings,
     getAppSettingsWithOverrides: appSettings.getAppSettingsWithOverrides,
     updateAppSettings: appSettings.updateAppSettings,
     getEffectiveConfig: ctx.getEffectiveConfig,

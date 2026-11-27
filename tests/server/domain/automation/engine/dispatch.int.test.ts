@@ -5,6 +5,7 @@ import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
 import { createBookSchema } from "@orb/contracts/world-info";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { EntryPosition } from "@orb/kit/world-info";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, readRoomCanon } from "@orb/testkit/node/composed";
@@ -146,6 +147,38 @@ test("CONTROL: without confirmation every real arm runs and the rule fires", asy
   expect((await root.services.worldInfo.listEntries({ principal, bookId: book.id })).map((entry) => entry.content)).toEqual(["The keeper records the loom."]);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "after" })).toBe("1");
   expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => fire.outcome)).toEqual(["fired"]);
+});
+
+test("a rule's insert lore action stores the seat its author picked, and a rule that picks none is seated before the character", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const { chat } = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Seats" }) });
+  await root.services.worldInfo.attachToChat({ principal, chatId: chat.id, bookId: book.id });
+  const seat = "after" satisfies EntryPosition;
+  await enabledRule(root, {
+    chatId: chat.id,
+    name: "Seated lore",
+    trigger: { bus: "chat", type: "chatOpened" },
+    actions: [
+      {
+        type: "insert_world_info_entry",
+        bookId: book.id,
+        entryKey: "seated",
+        keys: ["loom"],
+        contentTemplate: "Seated by its author.",
+        position: seat,
+        confirmFirst: false,
+      },
+      { type: "insert_world_info_entry", bookId: book.id, entryKey: "plain", keys: ["loom"], contentTemplate: "Seated by default.", confirmFirst: false },
+    ],
+  });
+  await root.services.automation.handleEvent({ type: "chatOpened", chatId: chat.id });
+  const entries = await root.services.worldInfo.listEntries({ principal, bookId: book.id });
+  const seatOf = (content: string): unknown => entries.find((entry) => entry.content === content)?.metadata?.position;
+  expect(entries).toHaveLength(2);
+  expect(seatOf("Seated by its author.")).toBe(seat);
+  expect(seatOf("Seated by default.")).toBe("before");
 });
 
 test("the arms behind a real confirm-first question wait for the human instead of racing ahead", async ({ signal }) => {

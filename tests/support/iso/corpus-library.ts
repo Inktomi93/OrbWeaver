@@ -33,7 +33,6 @@ export const worldInfoLibrarySchema = z
       detail: bookViewSchema,
       usage: bookWithUsageSchema.array(),
       targets: bookAttachmentTargetsSchema,
-      entry: entryViewSchema,
       characterBooks: bookAttachmentViewSchema.array(),
       personaBooks: bookAttachmentViewSchema.array(),
       globalBooks: bookAttachmentViewSchema.array(),
@@ -44,8 +43,7 @@ export const worldInfoLibrarySchema = z
   .refine(
     ({ ids, reads }) =>
       reads.detail.id === ids.libraryBookId &&
-      reads.entry.id === ids.entryId &&
-      reads.entry.worldBookId === ids.orderedBookId &&
+      reads.orderedEntries.some((entry) => entry.id === ids.entryId) &&
       reads.orderedEntries.every((entry) => entry.worldBookId === ids.orderedBookId),
     "Corpus world-info identity mismatch",
   );
@@ -79,7 +77,6 @@ export interface CorpusWorldInfoLibrary extends Omit<z.output<typeof worldInfoLi
     readonly detail: CorpusRead<"worldInfo.getBook">;
     readonly usage: CorpusRead<"worldInfo.listBooksWithUsage">;
     readonly targets: CorpusRead<"worldInfo.listAttachmentsForBook">;
-    readonly entry: CorpusRead<"worldInfo.getEntry">;
     readonly characterBooks: CorpusRead<"worldInfo.listForCharacter">;
     readonly personaBooks: CorpusRead<"worldInfo.listForPersona">;
     readonly globalBooks: CorpusRead<"worldInfo.listGlobal">;
@@ -100,7 +97,6 @@ export function publishWorldInfoLibrary(section: CorpusWorldInfoLibrary): z.outp
       detail: section.reads.detail.output,
       usage: section.reads.usage.output,
       targets: section.reads.targets.output,
-      entry: section.reads.entry.output,
       characterBooks: section.reads.characterBooks.output,
       personaBooks: section.reads.personaBooks.output,
       globalBooks: section.reads.globalBooks.output,
@@ -123,7 +119,6 @@ export function hydrateWorldInfoLibrary(section: z.output<typeof worldInfoLibrar
       detail: { input: { bookId: ids.libraryBookId }, output: section.reads.detail },
       usage: { input: undefined, output: section.reads.usage },
       targets: { input: { bookId: ids.libraryBookId }, output: section.reads.targets },
-      entry: { input: { entryId: ids.entryId }, output: section.reads.entry },
       characterBooks: { input: { characterId: ids.characterId }, output: section.reads.characterBooks },
       personaBooks: { input: { personaId: ids.personaId }, output: section.reads.personaBooks },
       globalBooks: { input: undefined, output: section.reads.globalBooks },

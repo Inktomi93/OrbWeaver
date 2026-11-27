@@ -14,8 +14,6 @@ export interface CreateTagParams extends TagActorParams {
   readonly input: CreateTagInput;
 }
 
-export interface ListTagsParams extends TagActorParams {}
-
 export interface UpdateTagParams extends TagActorParams {
   readonly tagId: TagId;
   readonly patch: UpdateTagInput;

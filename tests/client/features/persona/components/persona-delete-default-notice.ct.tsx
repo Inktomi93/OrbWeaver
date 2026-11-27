@@ -32,7 +32,6 @@ for (const shown of [true, false]) {
         "sessions.me",
         "settings.getUserSettings",
         "persona.list",
-        "persona.get",
         "persona.remove",
         "worldInfo.listBooks",
         "worldInfo.listForPersona",

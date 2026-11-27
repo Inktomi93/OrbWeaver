@@ -134,7 +134,9 @@ test("overlapping owner certificate enables keep the acknowledged persisted choi
   const responses = await Promise.all([subject.caller.share.enableIpCertificate(a), subject.caller.share.enableIpCertificate(b)]);
   await subject.harness.settleSharing();
   expect(responses[1].certificate).toMatchObject({ setting: b });
-  const stored = await subject.harness.services.settings.getAppSettings({ principal: await subject.harness.principalFor(subject.harness.ownerId) });
+  const { resolved: stored } = await subject.harness.services.settings.getAppSettingsWithOverrides({
+    principal: await subject.harness.principalFor(subject.harness.ownerId),
+  });
   expect(stored.ipCertificate).toEqual(b);
   expect((await subject.caller.share.status()).certificate).toMatchObject({ state: "active", setting: b });
   const certificate = await readFile(join(subject.harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificate), "utf8");
@@ -165,7 +167,9 @@ test("overlapping owner certificate enable then disable retains off settings and
   ]);
   expect(disabled.certificate).toEqual({ state: "off" });
   await subject.harness.settleSharing();
-  const stored = await subject.harness.services.settings.getAppSettings({ principal: await subject.harness.principalFor(subject.harness.ownerId) });
+  const { resolved: stored } = await subject.harness.services.settings.getAppSettingsWithOverrides({
+    principal: await subject.harness.principalFor(subject.harness.ownerId),
+  });
   expect(stored.ipCertificate).toBeNull();
   expect((await subject.caller.share.status()).certificate).toEqual({ state: "off" });
   await expect(stat(join(subject.harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificate))).rejects.toMatchObject({ code: "ENOENT" });

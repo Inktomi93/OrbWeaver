@@ -736,8 +736,7 @@ async function captureHealthAndReads({
   db,
   signal,
   baseline,
-  libraries,
-}: CapsuleGraph & Pick<CorpusPrivateCaptures, "baseline" | "libraries">): Promise<Pick<Parameters<typeof hydrateCorpusWire>[0], "health" | "reads">> {
+}: CapsuleGraph & Pick<CorpusPrivateCaptures, "baseline">): Promise<Pick<Parameters<typeof hydrateCorpusWire>[0], "health" | "reads">> {
   const { assertReferentialIntegrity } = await import("@orb/db");
   const { captureCorpusReads } = await import("./corpus-seed.ts");
   await assertReferentialIntegrity(db);
@@ -748,7 +747,7 @@ async function captureHealthAndReads({
   }
   const health = healthResponseSchema.parse(await response.json());
   signal?.throwIfAborted();
-  return { health, reads: await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] }) };
+  return { health, reads: await captureCorpusReads(root, baseline.identities) };
 }
 
 /** The literals every capsule withholds from publication; each producer set adds its own secrets. */
@@ -1013,7 +1012,7 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const wire = hydrateCorpusWire({
     auth: baseline.auth,
     ...(oidc === undefined ? {} : { oidc: oidc.wire }),
-    ...(await captureHealthAndReads({ root, db, signal, baseline, libraries })),
+    ...(await captureHealthAndReads({ root, db, signal, baseline })),
     shellAmbient: await captureCorpusShellAmbient(root),
     firstBoot: await captureCorpusFirstBoot(),
     searchLibrary: searchFinal.value,

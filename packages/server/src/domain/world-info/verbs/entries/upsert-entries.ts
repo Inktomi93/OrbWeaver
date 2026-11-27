@@ -14,6 +14,7 @@ import { entryMetadataSchema, narrowEntryMetadata } from "@orb/contracts/world-i
 import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
+import type { EntryPosition } from "@orb/kit/world-info";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { sha256Hex } from "#primitives/content-hash";
@@ -40,6 +41,11 @@ function provenanceOf(input: UpsertLoreEntryInput): LoreEntryProvenance {
   return { contentHash: sha256Hex(input.content) };
 }
 
+/** The writer's chosen seat, as the metadata field that stores it; an absent choice adds no key, so an update keeps the seat it has. */
+function seatOf(input: UpsertLoreEntryInput): { readonly position?: EntryPosition } {
+  return input.position === undefined ? {} : { position: input.position };
+}
+
 /** True when a prior entry was hand-edited since the writer last stamped it (stored hash ≠ current content). */
 function handEdited(prior: EntryRow): boolean {
   const storedHash = entryMetadataSchema.nullable().catch(null).parse(prior.metadata)?.provenance?.contentHash;
@@ -62,13 +68,13 @@ async function upsertOne(
     if (priorMetadata instanceof UnreadableJsonText || handEdited(prior)) {
       return { outcome: "skip", entryId: prior.id, scope: "keyword", row: prior };
     }
-    const metadata = narrowEntryMetadata({ ...priorMetadata, provenance });
+    const metadata = narrowEntryMetadata({ ...priorMetadata, provenance, ...seatOf(input) });
     await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id));
     const row = { ...prior, content: input.content, keys, enabled: true, metadata, updatedAt: at };
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null), row };
   }
 
-  const metadata = narrowEntryMetadata({ provenance });
+  const metadata = narrowEntryMetadata({ provenance, ...seatOf(input) });
   const row: EntryRow = {
     id: ctx.newEntryId(),
     worldBookId: bookId,

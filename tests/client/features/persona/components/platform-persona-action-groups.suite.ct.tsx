@@ -28,7 +28,6 @@ const READS = [
   "sessions.me",
   "settings.getUserSettings",
   "persona.list",
-  "persona.get",
   "worldInfo.listBooks",
   "worldInfo.listForPersona",
   "persona.listConnectedCharacters",
@@ -203,7 +202,7 @@ for (const regime of REGIMES) {
       const status = editor.locator('[data-slot="autosave-status"]');
       try {
         await expect(status).toHaveText(AUTOSAVE_SAVING_TEXT);
-        expect((await caller.persona.get({ personaId: persona.id })).title).toBe(persona.title);
+        expect((await caller.persona.list()).find((row) => row.id === persona.id)?.title).toBe(persona.title);
       } finally {
         firstSave.fail();
       }
@@ -218,7 +217,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       await expect(status).toHaveAttribute("role", "status");
       await expect(status).toHaveText(AUTOSAVE_SAVED_TEXT);
-      await expect.poll(async () => (await caller.persona.get({ personaId: persona.id })).title).toBe(nextTitle);
+      await expect.poll(async () => (await caller.persona.list()).find((row) => row.id === persona.id)?.title).toBe(nextTitle);
       expect(calls.count("persona.update")).toBe(2);
       await expect(title).toHaveValue(nextTitle);
     });

@@ -70,11 +70,10 @@ export const useCreateWorldEntry = createEntityMutation<inferInput<Trpc["worldIn
   errorToast: "Couldn't create the entry.",
 });
 
-/** Persist an edited entry (every contract field). Refetches the entry list (title/enabled/priority reorder)
- *  + the open entry. */
+/** Persist an edited entry (every contract field). Refetches the entry list (title/enabled/priority reorder). */
 export const useUpdateWorldEntry = createEntityMutation<inferInput<Trpc["worldInfo"]["updateEntry"]>, unknown>({
   options: (trpc) => trpc.worldInfo.updateEntry.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter(), trpc.worldInfo.getEntry.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
   errorToast: "Couldn't save the entry.",
 });
 

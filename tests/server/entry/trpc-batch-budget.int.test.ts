@@ -15,7 +15,7 @@ const TOO_MANY_REQUESTS = 429;
 /** One full batch plus the smallest cap the schema admits, so the budget left after the batches is countable. */
 const AUTHED_CAP = TRPC_BATCH_MAX_ITEMS + RATE_LIMIT_CAP_MIN;
 const METHODS = [
-  { method: "GET", path: "tag.listTags" },
+  { method: "GET", path: "tag.listTagsWithUsage" },
   { method: "POST", path: "tag.pruneUnusedTags" },
 ] as const;
 

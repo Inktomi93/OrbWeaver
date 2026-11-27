@@ -21,7 +21,6 @@ const EDITOR_READS = [
   "sessions.me",
   "settings.getUserSettings",
   "persona.list",
-  "persona.get",
   "worldInfo.listBooks",
   "worldInfo.listForPersona",
   "persona.listConnectedCharacters",
@@ -55,7 +54,7 @@ const SURFACE: AvatarSurface = {
       control: editor.getByRole("button", { name: AVATAR_CONTROL_NAME, exact: true }),
       identity: editor.locator('[data-slot="persona-editor-identity"]'),
       writes: (): number => calls.count("persona.update"),
-      storedHash: async (): Promise<string | null> => (await caller.persona.get({ personaId: persona.id })).avatarHash,
+      storedHash: async (): Promise<string | null> => (await caller.persona.list()).find((row) => row.id === persona.id)?.avatarHash ?? null,
       unmount: () => page.getByRole("button", { name: personaDetailsToggleName(persona.name, true), exact: true }).click(),
       remount: () => show.click(),
     };

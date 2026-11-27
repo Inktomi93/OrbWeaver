@@ -1,6 +1,5 @@
 // The entry editor's Priority and Fire mode controls on a phone: both stay inside the editor's own width. The Depth and Role row wraps at enlarged text.
 
-import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -44,17 +43,21 @@ for (const width of PHONE_WIDTHS) {
     if (world === undefined) {
       throw new Error("World Info cases require the corpus library");
     }
+    const entryTitle = world.reads.orderedEntries.output.find((row) => row.id === world.ids.entryId)?.title;
+    if (entryTitle === undefined) {
+      throw new Error("World Info cases require the corpus entry witness");
+    }
     await using root = await createCorpusHarness();
     await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
     await page.setViewportSize({ width, height: 844 });
     const component = await mount<typeof WorldInfoMemberStory>(STORY, {
-      bookId: world.reads.entry.output.worldBookId,
-      entryId: worldEntryIdInputSchema.parse(world.reads.entry.input).entryId,
+      bookId: world.ids.orderedBookId,
+      entryId: world.ids.entryId,
       context: false,
       phone: true,
     });
     const title = component.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true });
-    await expect(title).toHaveValue(world.reads.entry.output.title);
+    await expect(title).toHaveValue(entryTitle);
     const editor = await title.boundingBox();
     const priority = await component.getByRole("textbox", { name: WORLD_INFO_PRIORITY_NAME, exact: true }).boundingBox();
     const fireMode = await component.getByRole("combobox", { name: WORLD_INFO_FIRE_MODE_NAME, exact: true }).boundingBox();
@@ -89,17 +92,21 @@ for (const width of PHONE_WIDTHS) {
       if (world === undefined) {
         throw new Error("World Info cases require the corpus library");
       }
+      const entryTitle = world.reads.orderedEntries.output.find((row) => row.id === world.ids.entryId)?.title;
+      if (entryTitle === undefined) {
+        throw new Error("World Info cases require the corpus entry witness");
+      }
       await using root = await createCorpusHarness();
       await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
       await page.setViewportSize({ width, height: 844 });
       const component = await mount<typeof WorldInfoMemberStory>(STORY, {
-        bookId: world.reads.entry.output.worldBookId,
-        entryId: worldEntryIdInputSchema.parse(world.reads.entry.input).entryId,
+        bookId: world.ids.orderedBookId,
+        entryId: world.ids.entryId,
         context: false,
         phone: true,
       });
       const title = component.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true });
-      await expect(title).toHaveValue(world.reads.entry.output.title);
+      await expect(title).toHaveValue(entryTitle);
       await setRootFontScale(page, FONT_SCALE_PROPERTY, factor);
       await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * factor);
       const depthSwitch = component.getByRole("switch", { name: WORLD_INFO_DEPTH_SWITCH_NAME, exact: true });

@@ -40,7 +40,6 @@ import {
 import {
   createBackfillTitles,
   createCreateEntry,
-  createGetEntry,
   createListEntries,
   createListEntryIndex,
   createRemoveEntry,
@@ -72,7 +71,6 @@ export function createWorldInfoService(input: DbAssemblyInput<WorldInfoContext>)
     removeBook: createRemoveBook(ctx),
     duplicateBook: createDuplicateBook(ctx),
     listEntries: createListEntries(ctx),
-    getEntry: createGetEntry(ctx),
     createEntry: createCreateEntry(ctx),
     updateEntry: createUpdateEntry(ctx),
     removeEntry: createRemoveEntry(ctx),

@@ -3,7 +3,6 @@
 
 export { createBackfillTitles } from "./backfill-titles.ts";
 export { createCreateEntry } from "./create.ts";
-export { createGetEntry } from "./get.ts";
 export { createListEntries } from "./list.ts";
 export { createListEntryIndex } from "./list-entry-index.ts";
 export { createRemoveEntry } from "./remove.ts";

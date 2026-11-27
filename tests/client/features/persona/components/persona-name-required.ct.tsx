@@ -24,7 +24,6 @@ test("clearing the name shows the required error and the saved name stands", asy
       "sessions.me",
       "settings.getUserSettings",
       "persona.list",
-      "persona.get",
       "worldInfo.listBooks",
       "worldInfo.listForPersona",
       "persona.listConnectedCharacters",
@@ -43,5 +42,5 @@ test("clearing the name shows the required error and the saved name stands", asy
   await expect(editor.getByText(PERSONA_NAME_REQUIRED, { exact: true })).toBeVisible();
   await absenceWindow(page, HELD_PAST_DEBOUNCE_MS);
   expect(calls.count("persona.update")).toBe(0);
-  expect((await caller.persona.get({ personaId: persona.id })).name).toBe(persona.name);
+  expect((await caller.persona.list()).find((row) => row.id === persona.id)?.name).toBe(persona.name);
 });

@@ -160,8 +160,8 @@ type PluginVariableWriteResult = { readonly outcome: "applied" } | { readonly ou
 
 /** A lore-book upsert — attached-book-only, `entryKey`-idempotent (same key updates, never duplicates). The
  *  optional `position` names a seat (before or after the character definitions, the top or bottom of the chat's
- *  Author's Note or of the example messages), but the host does not read it: the entry lands at the lore writer's
- *  default seat. */
+ *  Author's Note or of the example messages) the entry is stored at; without it a new entry lands at the default
+ *  seat and an updated entry keeps its seat. */
 interface PluginWorldEntryUpsert {
   readonly bookId: string;
   readonly entryKey: string;

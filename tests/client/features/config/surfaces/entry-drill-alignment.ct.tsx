@@ -25,10 +25,7 @@ test("a wrapped entry heading starts on the edge the editor's first field starts
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
   const book = await caller.worldInfo.createBook({ input: { name: BOOK } });
   await caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title: ENTRY, content: "A mage." }) });
-  await routeTrpc(
-    page,
-    serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "worldInfo.listBooksWithUsage", "worldInfo.getBook", "worldInfo.listEntries", "worldInfo.getEntry"]),
-  );
+  await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "worldInfo.listBooksWithUsage", "worldInfo.getBook", "worldInfo.listEntries"]));
   await mount<typeof CollectionCompositionStory>(STORY, { group: "worldInfo", width: WIDTH, height: 900, appearance });
   const content = page.locator('[data-slot="config-content"]');
   await content

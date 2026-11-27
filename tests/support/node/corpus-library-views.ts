@@ -61,7 +61,6 @@ interface WorldViews {
   readonly detail: TrpcCapture<"worldInfo.getBook">;
   readonly usage: TrpcCapture<"worldInfo.listBooksWithUsage">;
   readonly targets: TrpcCapture<"worldInfo.listAttachmentsForBook">;
-  readonly entry: TrpcCapture<"worldInfo.getEntry">;
   readonly characterBooks: TrpcCapture<"worldInfo.listForCharacter">;
   readonly personaBooks: TrpcCapture<"worldInfo.listForPersona">;
   readonly globalBooks: TrpcCapture<"worldInfo.listGlobal">;
@@ -98,7 +97,6 @@ interface TagViews {
   readonly pending: TrpcCapture<"tag.listPendingSuggestions">;
   readonly before: TrpcCapture<"tag.listTagsWithUsage">;
   readonly accepted: Awaited<ReturnType<typeof seedCharacterTagRows>>;
-  readonly list: TrpcCapture<"tag.listTags">;
   readonly usage: TrpcCapture<"tag.listTagsWithUsage">;
   readonly vocabulary: TrpcCapture<"tag.listTagFilterVocabulary">;
   readonly reaches: readonly TrpcCapture<"tag.listAttachedEntities">[];
@@ -324,7 +322,6 @@ export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library
     detail: await read<"worldInfo.getBook">({ bookId: library.world.book.id }, caller.worldInfo.getBook),
     usage: await read<"worldInfo.listBooksWithUsage">(undefined, caller.worldInfo.listBooksWithUsage),
     targets: await read<"worldInfo.listAttachmentsForBook">({ bookId: library.world.book.id }, caller.worldInfo.listAttachmentsForBook),
-    entry: await read<"worldInfo.getEntry">({ entryId: first.id }, caller.worldInfo.getEntry),
     characterBooks: await read<"worldInfo.listForCharacter">({ characterId: library.character.id }, caller.worldInfo.listForCharacter),
     personaBooks: await read<"worldInfo.listForPersona">({ personaId: library.persona.id }, caller.worldInfo.listForPersona),
     globalBooks: await read<"worldInfo.listGlobal">(undefined, caller.worldInfo.listGlobal),
@@ -429,7 +426,6 @@ export async function seedTagLibraryViews(root: ServerTestHarness, library: Libr
     pending,
     before,
     accepted,
-    list: await read<"tag.listTags">(undefined, caller.tag.listTags),
     usage: await read<"tag.listTagsWithUsage">(undefined, caller.tag.listTagsWithUsage),
     vocabulary: await read<"tag.listTagFilterVocabulary">(undefined, caller.tag.listTagFilterVocabulary),
     reaches: await Promise.all(
@@ -637,7 +633,6 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
           tagPendingAfter: tags.pendingAfter,
           tagBefore: tags.before,
           tagUsage: tags.usage,
-          tagList: tags.list,
           tagVocabulary: tags.vocabulary,
           characterReach,
           chatReach,
@@ -680,7 +675,6 @@ export async function seedCorpusLibraryViews(root: ServerTestHarness, library: L
           detail: world.detail,
           usage: world.usage,
           targets: world.targets,
-          entry: world.entry,
           characterBooks: world.characterBooks,
           personaBooks: world.personaBooks,
           globalBooks: world.globalBooks,

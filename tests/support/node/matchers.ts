@@ -185,7 +185,7 @@ declare module "vitest" {
      * Assert the awaited Promise (or thunk) rejects with a tRPC error whose `.code` equals the given
      * value. Specific where `.rejects.toThrow()` is not — the wrong error can no longer pass.
      *
-     * `await expect(otherCaller.persona.get({ personaId })).toThrowTRPCError("NOT_FOUND");`
+     * `await expect(otherCaller.persona.export({ personaId })).toThrowTRPCError("NOT_FOUND");`
      */
     toThrowTRPCError: (code: TrpcErrorCode) => Promise<void>;
     /**

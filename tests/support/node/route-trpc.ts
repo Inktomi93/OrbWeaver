@@ -273,8 +273,8 @@ export interface TrpcErrorMarker {
 
 /**
  * Scripted failure sentinel — a responder that returns this gets an ERROR envelope. Fail-then-
- * succeed scripts close over a counter: `echo: () => (n++ === 0 ? trpcError() : data)`. Pass `reason` to
- * model a DomainOperationError's `data.reason` code (the wire field a client inline-error mapper reads).
+ * succeed scripts close over a counter: `"tag.listTagsWithUsage": () => (n++ === 0 ? trpcError() : data)`. Pass
+ * `reason` to model a DomainOperationError's `data.reason` code (the wire field a client inline-error mapper reads).
  *
  * @remarks
  * An `INTERNAL_SERVER_ERROR`, which is also the default code, carries {@link UNCLASSIFIED_FAULT_MESSAGE} whatever
@@ -340,12 +340,12 @@ interface TrpcHoldMarker<TPath extends TrpcProcedurePath | undefined = undefined
  * render as a settled, indefinitely-stable state instead of trying to catch a flash:
  *
  * ```ts
- *     const hold = trpcHold<"echo">();
- *     await routeTrpc(page, { echo: hold, "tag.listTags": [] });
+ *     const hold = trpcHold<"tag.listTagsWithUsage">();
+ *     await routeTrpc(page, { "tag.listTagsWithUsage": hold, "persona.list": [] });
  *     await mount(<Story />);
  *     await hold.requested;                       // the query is in flight, held
  *     await expect(page.getByText("loading…")).toBeVisible();
- *     hold.release({ message: "pong" });          // …and now it settles
+ *     hold.release([]);                           // …and now it settles
  * ```
  *
  * Usable anywhere a responder is (a route value, or the return of a responder function), because the

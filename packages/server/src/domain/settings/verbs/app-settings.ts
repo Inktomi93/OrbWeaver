@@ -1,8 +1,8 @@
-// getAppSettings / updateAppSettings — the admin-runtime tier. Both gate on the injected `requireAdmin`.
+// getAppSettingsWithOverrides / updateAppSettings — the admin-runtime tier. Both gate on the injected `requireAdmin`.
 // `updateAppSettings` additionally gates on `requireOwner` when the patch touches an owner-box governance
-// field. `getAppSettings` returns the sync resolved cache; `updateAppSettings` is a read-merge-write
-// through a process-wide chain, then reloads the cache. ASSUMES(single-replica): the write chain is
-// per-process.
+// field. `getAppSettingsWithOverrides` returns the sync resolved cache with the stored overrides;
+// `updateAppSettings` is a read-merge-write through a process-wide chain, then reloads the cache.
+// ASSUMES(single-replica): the write chain is per-process.
 
 import type { AppSettings, AppSettingsView, EffectiveAppConfig, GetAppSettingsParams } from "@orb/contracts/settings";
 import { APP_SETTINGS_SCHEMA_VERSION, parseAppSettings } from "@orb/contracts/settings";
@@ -13,7 +13,7 @@ import type { SettingsContext, SettingsService } from "../contract/service.ts";
 import { readAppOverrideRaw, writeAppOverride } from "../persistence/queries.ts";
 import { deepMergeAppSettings } from "../substrate/merge.ts";
 
-interface AppSettingsVerbs extends Readonly<Pick<SettingsService, "getAppSettings" | "getAppSettingsWithOverrides" | "updateAppSettings">> {}
+interface AppSettingsVerbs extends Readonly<Pick<SettingsService, "getAppSettingsWithOverrides" | "updateAppSettings">> {}
 
 // The owner-box governance fields — flipping any of these requires the box owner, not a delegated admin.
 const OWNER_GATED_FIELDS = ["privateEndpointAllowlist", "localMultiUser", "ipCertificate"] as const satisfies readonly (keyof AppSettings)[];
@@ -24,15 +24,8 @@ function touchesOwnerGatedField(partial: AppSettings): boolean {
 }
 
 export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
-  // The gate is deferred into the promise (not a bare sync throw) so a deny surfaces as a rejected promise.
-  const getAppSettings = (params: GetAppSettingsParams): Promise<EffectiveAppConfig> =>
-    Promise.resolve().then(() => {
-      ctx.requireAdmin(params.principal);
-      return ctx.getEffectiveConfig();
-    });
-
   // The richer admin read: the resolved config (sync cache) PLUS the raw stored overrides (so the admin pane
-  // shows floor-vs-override and can clear an override to the `null` sentinel). Admin-gated like getAppSettings.
+  // shows floor-vs-override and can clear an override to the `null` sentinel). Admin-gated.
   const getAppSettingsWithOverrides = async (params: GetAppSettingsParams): Promise<AppSettingsView> => {
     ctx.requireAdmin(params.principal);
     const overrides = parseAppSettings(await readAppOverrideRaw(ctx.db));
@@ -76,5 +69,5 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
     return run;
   };
 
-  return { getAppSettings, getAppSettingsWithOverrides, updateAppSettings };
+  return { getAppSettingsWithOverrides, updateAppSettings };
 }

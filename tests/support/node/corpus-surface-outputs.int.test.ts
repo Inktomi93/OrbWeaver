@@ -18,7 +18,7 @@ import { createSurfaceOutputWire, SURFACE_BACKGROUND_URL, SURFACE_BAD_BACKGROUND
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
-test("native surface suppliers preserve app override provenance, owner-only globals, character census and independent asset keysets", async () => {
+test("native surface suppliers preserve app override provenance, global settings, character census and independent asset keysets", async () => {
   const provider = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -54,22 +54,18 @@ test("native surface suppliers preserve app override provenance, owner-only glob
   expect(settings.after.resolved).toEqual(settings.cleared);
   expect(settings.after.resolved.forbidExternalMedia).toBe(settings.before.resolved.forbidExternalMedia);
   expect(settings.after.overrides.forbidExternalMedia).toBeNull();
-  expect(await owner.settings.getAppSettings()).toEqual(settings.after.resolved);
   expect(settings.missing).toBeNull();
   expect(settings.written).toMatchObject({ key: SURFACE_GLOBAL_KEY, value: { enabled: true, labels: ["native surface"] } });
   expect(settings.replaced).toMatchObject({ key: SURFACE_GLOBAL_KEY, value: "replaced native surface" });
   expect(settings.replaced.updatedAt).toBeGreaterThan(settings.written.updatedAt);
   expect(settings.readback).toEqual(settings.replaced);
   const networkBeforeRefusals = wire.requests.length;
-  await expect(other.settings.getAppSettings()).rejects.toMatchObject({ code: "FORBIDDEN" });
   await expect(other.settings.getAppSettingsWithOverrides()).rejects.toMatchObject({ code: "FORBIDDEN" });
   await expect(other.settings.updateAppSettings({ partial: { localMultiUser: true } })).rejects.toMatchObject({ code: "FORBIDDEN" });
-  await expect(other.settings.getGlobalSetting({ key: SURFACE_GLOBAL_KEY })).rejects.toMatchObject({ code: "FORBIDDEN" });
-  await expect(other.settings.setGlobalSetting({ key: SURFACE_GLOBAL_KEY, value: "foreign" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   await expect(other.settings.checkForUpdate()).rejects.toMatchObject({ code: "FORBIDDEN" });
   expect(wire.requests).toHaveLength(networkBeforeRefusals);
   expect(await owner.settings.getAppSettingsWithOverrides()).toEqual(settings.after);
-  expect(await owner.settings.getGlobalSetting({ key: SURFACE_GLOBAL_KEY })).toEqual(settings.readback);
+  expect(await root.services.settings.getGlobalSetting(SURFACE_GLOBAL_KEY)).toEqual(settings.readback);
 
   const [first, second, third] = characters.cards;
   if (first === undefined || second === undefined || third === undefined) {

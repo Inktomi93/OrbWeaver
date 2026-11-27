@@ -7,7 +7,6 @@ import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/iden
 import { createPersonaSchema, personaDetailSchema } from "@orb/contracts/persona";
 import { pluginSurfaceStateSchema, pluginSurfaceViewSchema } from "@orb/contracts/plugin";
 import { z } from "zod";
-import { corpusReadInput } from "../iso/corpus.ts";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { captureCookieAuth } from "./corpus-auth.ts";
 import { createCorpusHarness, expect, test } from "./fixtures.ts";
@@ -23,17 +22,20 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
   corpusHarness,
 }) => {
   const root = corpusHarness;
-  const captured = root.corpus.wire.reads["persona.get"][0]?.output;
+  const capturedList = root.corpus.wire.reads["persona.list"][0]?.output;
   const member = root.corpus.wire.memberIdentities?.notificationReader.viewer;
   const owner = root.corpus.wire.reads["sessions.me"][0]?.output;
-  if (captured === undefined || member === undefined || owner === undefined) {
+  if (capturedList === undefined || member === undefined || owner === undefined) {
     throw new Error("The committed corpus has no native account/persona control cohort");
   }
-  const expected = personaDetailSchema.parse(captured);
+  const expectedList = personaDetailSchema.array().parse(capturedList);
+  const expected = expectedList[0];
+  if (expected === undefined) {
+    throw new Error("The committed corpus has no owned persona witness");
+  }
   const address = await root.listen();
   const origin = `http://${address.address}:${address.port}`;
-  const url = new URL("/api/trpc/persona.get", origin);
-  url.searchParams.set("input", JSON.stringify(corpusReadInput.persona(expected)));
+  const url = new URL("/api/trpc/persona.list", origin);
   const publicHealth = await fetch(`${origin}/healthz`);
   expect(publicHealth.status).toBe(200);
   expect(await publicHealth.json()).toMatchObject({ status: "ok" });
@@ -60,7 +62,7 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
   const identity = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { cookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(z.object({ result: z.object({ data: viewerViewSchema }) }).parse(await identity.json()).result.data).toEqual(owner);
   const owned = await fetch(url, { headers: { cookie, forwarded: "", [CSRF_HEADER]: "1" } });
-  expect(z.object({ result: z.object({ data: personaDetailSchema }) }).parse(await owned.json()).result.data).toEqual(expected);
+  expect(z.object({ result: z.object({ data: personaDetailSchema.array() }) }).parse(await owned.json()).result.data).toEqual(expectedList);
   const reset = await fetch(`${origin}/api/trpc/admin.resetPassword`, {
     method: "POST",
     headers: { cookie, [CSRF_HEADER]: "1", "content-type": "application/json" },
@@ -82,9 +84,8 @@ test("the committed corpus admits fresh native sessions and preserves public, ow
   const memberMe = await fetch(`${origin}/api/trpc/sessions.me`, { headers: { cookie: memberCookie, forwarded: "", [CSRF_HEADER]: "1" } });
   expect(z.object({ result: z.object({ data: viewerViewSchema }) }).parse(await memberMe.json()).result.data).toEqual(member);
   const foreign = await fetch(url, { headers: { cookie: memberCookie, forwarded: "", [CSRF_HEADER]: "1" } });
-  expect(foreign.status).toBe(404);
+  expect(foreign.status).toBe(200);
   const foreignBody = await foreign.text();
-  expect(foreignBody).toContain("NOT_FOUND");
   expect(foreignBody).not.toContain(expected.description);
   const logout = await fetch(`${origin}/api/auth/logout`, { method: "POST", headers: { cookie, [CSRF_HEADER]: "1" } });
   expect(logout.status).toBe(200);
@@ -134,12 +135,12 @@ test("independently restored corpus graphs continue deterministic production wri
   const written = await Promise.all(
     roots.map(async (root) => {
       const caller = await root.internalCallerFor(root.ownerId);
-      const captured = root.corpus.wire.reads["persona.get"][0]?.output;
+      const captured = root.corpus.wire.reads["persona.list"][0]?.output[0];
       if (captured === undefined) {
         throw new Error("The committed corpus has no owned persona witness");
       }
       const baseline = personaDetailSchema.parse(captured);
-      expect(await caller.persona.get(corpusReadInput.persona(baseline))).toEqual(baseline);
+      expect(await caller.persona.list()).toContainEqual(baseline);
       const created = await caller.persona.create({ input: createPersonaSchema.parse({ name: "Corpus continuation", description: baseline.description }) });
       expect(created.id).not.toBe(baseline.id);
       expect(created.updatedAt).toBe(root.clock.now());
@@ -148,8 +149,9 @@ test("independently restored corpus graphs continue deterministic production wri
       const updated = await caller.persona.update({ personaId: created.id, input: { name: "Corpus continued" } });
       expect(updated.updatedAt).toBe(root.clock.now());
       expect(updated.updatedAt).toBeGreaterThan(created.updatedAt);
-      expect(await caller.persona.get({ personaId: created.id })).toEqual(updated);
-      expect(await caller.persona.get(corpusReadInput.persona(baseline))).toEqual(baseline);
+      const listed = await caller.persona.list();
+      expect(listed).toContainEqual(updated);
+      expect(listed).toContainEqual(baseline);
       return { created, updated };
     }),
   );

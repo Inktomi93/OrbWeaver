@@ -370,7 +370,7 @@ export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayl
  *  final bytes (rendered host text from the arm, or neutralized + span-stamped model text from the
  *  analysis route — each caller's own half). Consumed structurally by every caller (they build literals),
  *  so it is deliberately NOT exported — the exported carriers are `RuleLoreWriteArgs`/`AnalysisConfirmAct`. */
-interface RuleLoreEntry extends Pick<UpsertLoreEntryInput, "keys" | "content"> {
+interface RuleLoreEntry extends Pick<UpsertLoreEntryInput, "keys" | "content" | "position"> {
   readonly entryKey: string;
 }
 

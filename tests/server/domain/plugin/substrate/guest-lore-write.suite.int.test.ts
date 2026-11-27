@@ -142,6 +142,18 @@ test("each plugin writes its own entry per key: a re-write updates it, and a hum
   expect(entries.map(({ content }) => content).toSorted()).toEqual(["Another plugin.", "Second draft.", "Written by hand."]);
 });
 
+test("a guest lore write is stored at the seat the guest named, and a re-write moves it", { tags: ["slow"] }, async () => {
+  const room = await loreRoom();
+  await using h = room.h;
+  const run = await room.guest("lore-writer");
+  const seats = async (): Promise<readonly (string | undefined)[]> => (await entriesOf(h, room.attached)).map(({ metadata }) => metadata?.position);
+
+  await run("lore", { entry: { ...entryOf(room.attached, "mood", "Placed."), position: "after" } });
+  expect(await seats()).toEqual(["after"]);
+  await run("lore", { entry: { ...entryOf(room.attached, "mood", "Moved."), position: "authors_note_top" } });
+  expect(await seats()).toEqual(["authors_note_top"]);
+});
+
 const SUGGESTED = new PluginSuggestedError("worldInfoUpsert").name;
 
 /** A member's guest, whose lore writes become asks, and the room's stream of raised asks. */

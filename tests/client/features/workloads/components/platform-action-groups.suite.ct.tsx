@@ -240,7 +240,7 @@ for (const regime of REGIMES) {
       await expect(preflight).toHaveCount(0);
       await expect(picker).toBeFocused();
       for (const persona of personas) {
-        expect((await caller.persona.get({ personaId: persona.id })).description).toBe(persona.description);
+        expect((await caller.persona.list()).find((row) => row.id === persona.id)?.description).toBe(persona.description);
       }
       expect(await caller.workloads.list({})).toEqual([]);
     });

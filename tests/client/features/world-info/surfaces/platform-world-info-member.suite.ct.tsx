@@ -1,6 +1,5 @@
 import { ITEM_ATTACH_SETTING, itemSwitchName } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
-import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { resolvedLength } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { test as corpusTest, expect } from "@orb/testkit/ct-corpus";
@@ -90,7 +89,7 @@ test("New entry saves a title and no content, and its editor opens with the cont
   }
   const caller = await root.internalCallerFor(root.ownerId);
   const bookId = world.ids.libraryBookId;
-  const trpc = await routeTrpc(page, serveCorpusProcedures(caller, [...PROCEDURES, "worldInfo.createEntry", "worldInfo.getEntry"]));
+  const trpc = await routeTrpc(page, serveCorpusProcedures(caller, [...PROCEDURES, "worldInfo.createEntry"]));
   const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId, context: false });
   await component.getByRole("button", { name: WORLD_INFO_NEW_ENTRY_NAME, exact: true }).first().click();
   await expect.poll(() => trpc.lastInput("worldInfo.createEntry")).toMatchObject({ bookId, input: { title: WORLD_INFO_NEW_ENTRY_NAME, content: "" } });
@@ -118,13 +117,16 @@ for (const device of [
           throw new Error("World Info cases require the corpus library");
         }
         const caller = await root.internalCallerFor(root.ownerId);
-        const entry = world.reads.entry.output;
+        const entry = world.reads.orderedEntries.output.find((row) => row.id === world.ids.entryId);
+        if (entry === undefined) {
+          throw new Error("World Info cases require the corpus entry witness");
+        }
         const book = await caller.worldInfo.getBook({ bookId: entry.worldBookId });
         await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
         await page.setViewportSize(viewport);
         const component = await mount<typeof WorldInfoMemberStory>(STORY, {
           bookId: book.id,
-          entryId: worldEntryIdInputSchema.parse(world.reads.entry.input).entryId,
+          entryId: world.ids.entryId,
           context: false,
           phone: viewport.width < LENGTH_BASE_PX["breakpoint.shell"],
         });
@@ -142,13 +144,16 @@ for (const device of [
         if (world === undefined) {
           throw new Error("World Info cases require the corpus library");
         }
-        const entry = world.reads.entry.output;
+        const entry = world.reads.orderedEntries.output.find((row) => row.id === world.ids.entryId);
+        if (entry === undefined) {
+          throw new Error("World Info cases require the corpus entry witness");
+        }
         const caller = await root.internalCallerFor(root.ownerId);
         await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
         await page.setViewportSize(viewport);
         const component = await mount<typeof WorldInfoMemberStory>(STORY, {
           bookId: entry.worldBookId,
-          entryId: worldEntryIdInputSchema.parse(world.reads.entry.input).entryId,
+          entryId: world.ids.entryId,
           context: false,
           phone: viewport.width < LENGTH_BASE_PX["breakpoint.shell"],
         });

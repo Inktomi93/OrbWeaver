@@ -67,7 +67,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   }
   expect(world.inheritedBooks.input).toEqual({ chatId: library.room.chat.id, includeInherited: true });
   expect(world.inheritedBooks.output.some((book) => book.id === library.world.book.id && book.inherited !== undefined)).toBe(true);
-  expect(world.entry.output).toMatchObject({ id: world.first.id, worldBookId: world.book.id, priority: 1 });
+  expect(world.orderedEntries.output.find((entry) => entry.id === world.first.id)).toMatchObject({ worldBookId: world.book.id, priority: 1 });
   expect(world.imported.output).toMatchObject({ created: true, renamedFrom: world.book.name });
   expect(world.imported.output.name).not.toBe(world.book.name);
   expect(world.repeated.output).toEqual({ created: false, name: world.imported.output.name, renamedFrom: null });
@@ -240,7 +240,6 @@ test("native library projections retain canonical usage, ordering, intake and re
       detail: world.detail,
       usage: world.usage,
       targets: world.targets,
-      entry: world.entry,
       characterBooks: world.characterBooks,
       personaBooks: world.personaBooks,
       globalBooks: world.globalBooks,
@@ -304,7 +303,6 @@ test("native library projections retain canonical usage, ordering, intake and re
     tagPendingAfter: tags.pendingAfter,
     tagBefore: tags.before,
     tagUsage: tags.usage,
-    tagList: tags.list,
     tagVocabulary: tags.vocabulary,
     characterReach: tags.reaches[0],
     chatReach: tags.reaches[1],
@@ -451,7 +449,11 @@ test("native library projections retain canonical usage, ordering, intake and re
   Object.assign(mismatched.worldInfoLibrary.ids, { libraryBookId: world.book.id });
   expect(() => serializeCorpusWire(mismatched, authentication.secrets)).toThrow("identity mismatch");
   const drifted = structuredClone(captured);
-  Reflect.deleteProperty(drifted.worldInfoLibrary.reads.entry.output, "priority");
+  const driftedEntry = drifted.worldInfoLibrary.reads.orderedEntries.output.find((entry) => entry.id === world.first.id);
+  if (driftedEntry === undefined) {
+    throw new Error("native world publication omitted its produced entry witness");
+  }
+  Reflect.deleteProperty(driftedEntry, "priority");
   expect(() => serializeCorpusWire(drifted, authentication.secrets)).toThrow("priority");
   const regexDrift = structuredClone(captured);
   Reflect.deleteProperty(regexDrift.regexLibrary.reads.usage.output, "rooms");
@@ -463,10 +465,10 @@ test("native library projections retain canonical usage, ordering, intake and re
   const caller = await root.internalCallerFor(root.ownerId);
   for (const spelling of [secret, JSON.stringify(secret), JSON.stringify({ echo: secret })]) {
     await caller.worldInfo.updateEntry({ entryId: world.first.id, input: { content: spelling } });
-    const output = await caller.worldInfo.getEntry(world.entry.input);
-    expect(output.content).toBe(spelling);
+    const output = await caller.worldInfo.listEntries(world.orderedEntries.input);
+    expect(output.find((entry) => entry.id === world.first.id)?.content).toBe(spelling);
     const echoed = structuredClone(captured);
-    Object.assign(echoed.worldInfoLibrary.reads.entry, { output });
+    Object.assign(echoed.worldInfoLibrary.reads.orderedEntries, { output });
     expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
     await caller.preset.update({ id: library.preset.id, name: spelling });
     const presetDetail = await caller.preset.get(result.preset.detail.input);
@@ -491,25 +493,25 @@ test("native library projections retain canonical usage, ordering, intake and re
     Object.assign(echoedPreset.libraryRelations.reads.presetDetail, { output: result.preset.detail.output });
     expect(() => serializeCorpusWire(echoedPreset, secrets)).toThrow("Corpus publication contains private material");
     await caller.tag.updateTag({ tagId: tags.tag.id, patch: { name: spelling } });
-    const tagList = await caller.tag.listTags();
-    expect(tagList.find((tag) => tag.id === tags.tag.id)?.name).toBe(spelling);
+    const tagUsage = await caller.tag.listTagsWithUsage();
+    expect(tagUsage.find((tag) => tag.id === tags.tag.id)?.name).toBe(spelling);
     const echoedRelations = structuredClone(captured);
-    Object.assign(echoedRelations.libraryRelations.reads.tagList, { output: tagList });
+    Object.assign(echoedRelations.libraryRelations.reads.tagUsage, { output: tagUsage });
     expect(() => serializeCorpusWire(echoedRelations, secrets)).toThrow("Corpus publication contains private material");
     await caller.persona.update({ personaId: library.persona.id, input: { name: spelling } });
     const connected = await caller.persona.listConnectedToCharacter(result.persona.connected.input);
     expect(connected.find((persona) => persona.id === library.persona.id)?.name).toBe(spelling);
-    Object.assign(echoedRelations.libraryRelations.reads.tagList, { output: tags.list.output });
+    Object.assign(echoedRelations.libraryRelations.reads.tagUsage, { output: tags.usage.output });
     Object.assign(echoedRelations.libraryRelations.reads.personaConnected, { output: connected });
     expect(() => serializeCorpusWire(echoedRelations, secrets)).toThrow("Corpus publication contains private material");
     await caller.regex.updateScript({ scriptId: regex.first.id, input: { name: spelling } });
     const scripts = await caller.regex.listScripts();
     expect(scripts.find((script) => script.id === regex.first.id)?.name).toBe(spelling);
     Object.assign(echoed.regexLibrary.reads.list, { output: scripts });
-    Object.assign(echoed.worldInfoLibrary.reads.entry, { output: world.entry.output });
+    Object.assign(echoed.worldInfoLibrary.reads.orderedEntries, { output: world.orderedEntries.output });
     expect(() => serializeCorpusWire(echoed, secrets)).toThrow("Corpus publication contains private material");
   }
-  Object.assign(drifted.worldInfoLibrary.reads.entry.output, { [secret]: true });
+  Object.assign(driftedEntry, { [secret]: true });
   expect(() => serializeCorpusWire(drifted, secrets)).toThrow("Corpus publication contains private material");
   Object.assign(regexDrift.regexLibrary.reads.usage.output, { [secret]: true });
   expect(() => serializeCorpusWire(regexDrift, secrets)).toThrow("Corpus publication contains private material");

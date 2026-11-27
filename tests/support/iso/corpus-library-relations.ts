@@ -4,7 +4,7 @@ import { chatDetailSchema } from "@orb/contracts/chat";
 import { connectedCharacterViewSchema, personaDetailSchema } from "@orb/contracts/persona";
 import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "@orb/contracts/preset";
 import { applyRosterPresetResultSchema, rosterPresetSummarySchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
-import { tagFilterVocabularyEntrySchema, tagReachViewSchema, tagSuggestionViewSchema, tagViewSchema, tagWithUsageSchema } from "@orb/contracts/tag";
+import { tagFilterVocabularyEntrySchema, tagReachViewSchema, tagSuggestionViewSchema, tagWithUsageSchema } from "@orb/contracts/tag";
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -28,7 +28,6 @@ export const libraryRelationsSchema = z
       tagPendingAfter: tagSuggestionViewSchema.array(),
       tagBefore: tagWithUsageSchema.array(),
       tagUsage: tagWithUsageSchema.array(),
-      tagList: tagViewSchema.array(),
       tagVocabulary: tagFilterVocabularyEntrySchema.array(),
       characterReach: tagReachViewSchema,
       chatReach: tagReachViewSchema,
@@ -80,7 +79,6 @@ export interface CorpusLibraryRelations extends Omit<z.output<typeof libraryRela
     readonly tagPendingAfter: CorpusRead<"tag.listPendingSuggestions">;
     readonly tagBefore: CorpusRead<"tag.listTagsWithUsage">;
     readonly tagUsage: CorpusRead<"tag.listTagsWithUsage">;
-    readonly tagList: CorpusRead<"tag.listTags">;
     readonly tagVocabulary: CorpusRead<"tag.listTagFilterVocabulary">;
     readonly characterReach: CorpusRead<"tag.listAttachedEntities">;
     readonly chatReach: CorpusRead<"tag.listAttachedEntities">;
@@ -129,7 +127,6 @@ export function hydrateLibraryRelations(section: z.output<typeof libraryRelation
       tagPendingAfter: { input: pending, output: reads.tagPendingAfter },
       tagBefore: { input: undefined, output: reads.tagBefore },
       tagUsage: { input: undefined, output: reads.tagUsage },
-      tagList: { input: undefined, output: reads.tagList },
       tagVocabulary: { input: undefined, output: reads.tagVocabulary },
       characterReach: { input: { ...reach, targetType: "character" }, output: reads.characterReach },
       chatReach: { input: { ...reach, targetType: "chat" }, output: reads.chatReach },

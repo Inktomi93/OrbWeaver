@@ -1,6 +1,5 @@
 // The entry editor's Placement choice offers every seat, says what a missing seat does, and saves the one picked.
 import { INJECTIONS_LABEL } from "@orb/client/lib";
-import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -37,13 +36,14 @@ test("the Placement choice offers every seat by its name, explains a missing sea
     throw new Error("World Info cases require the corpus library");
   }
   const caller = await root.internalCallerFor(root.ownerId);
-  const entryId = worldEntryIdInputSchema.parse(world.reads.entry.input).entryId;
-  const stored = async (): Promise<unknown> => (await caller.worldInfo.getEntry({ entryId })).metadata?.["position"];
+  const { entryId, orderedBookId } = world.ids;
+  const stored = async (): Promise<unknown> =>
+    (await caller.worldInfo.listEntries({ bookId: orderedBookId })).find((row) => row.id === entryId)?.metadata?.["position"];
   // Positive control: the entry is not at the seat the case picks before the pick.
   expect(await stored()).not.toBe(PICKED);
 
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
-  const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId: world.reads.entry.output.worldBookId, entryId, context: false });
+  const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId: orderedBookId, entryId, context: false });
   // The missing-seat rule is printed text under the field, not a tooltip a touch screen cannot open.
   await expect(component.locator('[data-slot="field-description"]').filter({ hasText: WORLD_INFO_PLACEMENT_HINT })).toBeVisible();
   await component.getByRole("combobox", { name: WORLD_INFO_ENTRY_PLACEMENT_NAME, exact: true }).click();

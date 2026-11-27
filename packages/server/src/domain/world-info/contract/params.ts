@@ -50,10 +50,6 @@ export interface ListEntriesParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
 
-export interface GetEntryParams extends WorldInfoActorParams {
-  readonly entryId: WorldEntryId;
-}
-
 export interface CreateEntryParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
   readonly input: CreateEntryInput;

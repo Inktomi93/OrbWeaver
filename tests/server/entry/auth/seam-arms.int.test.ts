@@ -298,7 +298,7 @@ test("the tRPC mount refuses a cookie mutation with no CSRF header before it run
     await response.arrayBuffer();
     return response.status;
   };
-  const tagIds = async (): Promise<readonly string[]> => (await root.services.tag.listTags({ principal })).map(({ id }) => id);
+  const tagIds = async (): Promise<readonly string[]> => (await root.services.tag.listTagsWithUsage({ principal })).map(({ id }) => id);
 
   expect(await prune({})).toBe(403);
   expect(await tagIds()).toContain(tag.id);

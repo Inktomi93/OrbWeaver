@@ -44,7 +44,6 @@ import type {
   DuplicateBookParams,
   ExportBookParams,
   GetBookParams,
-  GetEntryParams,
   ImportBookFileParams,
   ListAttachmentsForBookParams,
   ListBooksParams,
@@ -119,7 +118,6 @@ export interface WorldInfoService {
 
   /** By descending priority (the display/injection order). */
   readonly listEntries: (params: ListEntriesParams) => Promise<EntryView[]>;
-  readonly getEntry: (params: GetEntryParams) => Promise<EntryView>;
   readonly createEntry: (params: CreateEntryParams) => Promise<EntryView>;
   readonly updateEntry: (params: UpdateEntryParams) => Promise<EntryView>;
   readonly removeEntry: (params: RemoveEntryParams) => Promise<void>;

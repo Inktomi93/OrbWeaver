@@ -26,7 +26,7 @@ test("a stored persona's metadata reads back as stored, undeclared keys and abse
       .update(personas)
       .set({ metadata: sql`${stored}` })
       .where(eq(personas.id, persona.id));
-    return JSON.stringify((await caller.persona.get({ personaId: persona.id })).metadata);
+    return JSON.stringify((await caller.persona.list()).find((row) => row.id === persona.id)?.metadata);
   };
 
   const undeclared = `{"descriptionPosition":"at_depth","inject":{"depth":2},"vendor":{"note":"kept","deep":${DEEP}}}`;
@@ -50,7 +50,6 @@ test("persona metadata holding text that is not JSON reads as none, and a rename
       .from(personas)
       .where(eq(personas.id, id));
 
-  expect((await caller.persona.get({ personaId: persona.id })).metadata).toBeNull();
   expect((await caller.persona.list()).find((row) => row.id === persona.id)?.metadata).toBeNull();
   await caller.persona.update({ personaId: persona.id, input: { name: "Wren Vale" } });
   const copy = await caller.persona.duplicate({ personaId: persona.id });
