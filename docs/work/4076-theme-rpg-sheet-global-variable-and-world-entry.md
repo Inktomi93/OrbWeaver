@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-themes.updatedAt, rpgSheets.updatedAt, globalVariables.updatedAt and worldEntries.createdAt are written and never shown; the stamps lane found no design-system slot for them on their surfaces. The theme and global-variable view fields were dropped by the old fields scan, so the columns are now written and never read back; the unwired graph lists their insert stamps until this lands.
+themes.updatedAt, rpgSheets.updatedAt, globalVariables.updatedAt, userSettings.updatedAt and worldEntries.createdAt are written and never shown; the stamps lane found no design-system slot for them on their surfaces. The theme, settings and global-variable view fields were dropped by the old fields scan, so the columns are written and never read back; the unwired graph lists their insert stamps until this lands.
 
 ## Why
 

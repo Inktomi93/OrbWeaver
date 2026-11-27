@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-Counts a person's own action produces were dropped as unread by the old fields scan and are shown nowhere: the avatar integrity backfill's mismatch count, revoked user sessions, the twist counts and the import counts the rejudge report lists.
+Counts a person's own action produces are shown nowhere: the distill run counts cards whose summary failed (DistillStats.failed was dropped and the closing line in packages/server/src/domain/discovery/workload-contributions.ts names only distilled, scanned and skipped), the avatar backfill's integrity mismatch count (packages/server/src/domain/assets/workload-contributions.ts), and an admin's revoke of a user's sessions, whose count the audit row records and the dialog and share card discard.
 
 ## Why
 

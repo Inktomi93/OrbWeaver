@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-The profile collector renames a colliding card handle and re-homes fuzzy-matched chat folders, the card import counts carried lorebook references that did not resolve, and the client preflight knows each skipped file's path; the old fields scan dropped those fields (CollectResult.collidedCards and fuzzyPairedDirs, ImportCharacterResult.attachedBooksSkipped, SkippedTreeFile.path), so none is shown.
+The profile collector renames a colliding card handle and re-homes fuzzy-matched chat folders, the card import counts carried lorebook references that did not resolve (attachedBooksSkipped and LinkCarriedBooksResult.skipped), the chat, persona and tag-library import totals are counted, and the client preflight knows each skipped file's path; the old fields scan dropped those fields, so none is shown.
 
 ## Why
 
