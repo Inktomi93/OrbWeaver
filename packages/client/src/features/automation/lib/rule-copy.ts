@@ -58,8 +58,18 @@ function chatTriggerLabel(type: ChatTriggerType): string {
       return "when the persona changes";
     case "chatCreated":
       return "when the chat is created";
+    case "messageHidden":
+      return "when a message is hidden";
+    case "messagesDeleted":
+      return "when messages are deleted";
     case "reactionsChanged":
       return "when someone reacts to a message";
+    case "chatUpdated":
+      return "when this chat's settings change";
+    case "wiEntryAttached":
+      return "when a lore entry is attached";
+    case "wiEntryDetached":
+      return "when a lore entry is detached";
     default: {
       const exhaustive: never = type;
       throw new Error(`unhandled chat trigger type: ${JSON.stringify(exhaustive)}`);

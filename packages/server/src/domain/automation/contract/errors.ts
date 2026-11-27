@@ -15,7 +15,16 @@ export class GlobalVariableInvalidError extends DomainOperationError {
   }
 }
 
-/** `createRule`/`updateRule` refused for a validation reason: a reserved
+/** `createRule`/`updateRule` refused: the trigger is a RESERVED tuple member (typed but not wired v1 —
+ *  never wired in v1). A user-visible refusal, never a silent no-op. */
+export class AutomationReservedTriggerError extends DomainOperationError {
+  constructor(triggerType: string) {
+    super("automation_reserved_trigger", `trigger '${triggerType}' is reserved (not wired in v1)`);
+    this.name = this.constructor.name;
+  }
+}
+
+/** `createRule`/`updateRule` refused for a validation reason other than a reserved trigger: a reserved
  *  action arm, an unparseable CEL predicate, an out-of-range arm cap, a cooldown floor violation, an
  *  unattached world-info book, or (`unknown_tool`) a `run_tool` arm naming a tool the rule's AUTHOR cannot
  *  drive under the existing rule-mint invariant. Carries a machine

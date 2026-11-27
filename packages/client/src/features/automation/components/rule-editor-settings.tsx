@@ -1,4 +1,4 @@
-import { AUTOMATION_RULE_MAX_FIRES_PER_HOUR, automationTriggerFor, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
+import { AUTOMATION_RULE_MAX_FIRES_PER_HOUR, automationTriggerFor, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, LIVE_TRIGGERS } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Stack } from "@orb/ui/layout";
@@ -39,7 +39,7 @@ export function RuleEditorSettings({
         {(transformOnly): ReactElement => (
           <form.AppField name="trigger">
             {(field): ReactElement => {
-              const allowed = triggers.filter((type) => !transformOnly || type === "turnStarted");
+              const allowed = triggers.filter((type) => LIVE_TRIGGERS[type] && (!transformOnly || type === "turnStarted"));
               const items = allowed.map((value) => ({ value, label: triggerLabel(value) }));
               const unavailable = !items.some((item) => item.value === field.state.value.type);
               if (unavailable) {

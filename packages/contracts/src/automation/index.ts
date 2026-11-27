@@ -1,7 +1,8 @@
 // @orb/contracts/automation — the automation vocabulary: the closed trigger taxonomy + fire-outcome tuple
 // (rider slice, so the `@orb/db` CHECKs can derive them), the global-variable plane, the action union,
-// the `TriggerFact` + CEL-env shapes and the `AutomationBusEvent`
-// union. The trigger id IS the source event discriminator — no third event vocabulary.
+// `LIVE_TRIGGERS`, the `TriggerFact` + CEL-env shapes and the `AutomationBusEvent`
+// union. The trigger id IS the source event discriminator — no third event vocabulary. Reserved members
+// are typed-but-refused at `createRule` until their domains land.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type {
@@ -38,9 +39,8 @@ import type { RoutableTask } from "../inference/tasks.ts";
 import type { RulePresetId, RulePresetKnobValues, RulePresetView } from "./presets.ts";
 import { rulePresetIdSchema, rulePresetKnobOutputValuesSchema } from "./presets.ts";
 
-/** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union. A member
- *  enters when its fact carries the cascade depth of the act that raised it: an event with no depth would let
- *  a rule's own deletes or edits re-enter rules as a depth-0 human act. */
+/** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
+ *  The tail after `chatCreated` is reserved (criterion: first real rule request). */
 
 export const CHAT_TRIGGER_TYPES = [
   "chatOpened",
@@ -56,10 +56,16 @@ export const CHAT_TRIGGER_TYPES = [
   // A member reacted to a reply. The one trigger whose fact is a HUMAN's in-room signal rather than a turn or a
   // config edit; its fact carries the emoji and the add/remove direction, so a predicate can select on both.
   "reactionsChanged",
+  "messageHidden",
+  "messagesDeleted",
+  "chatUpdated",
+  "wiEntryAttached",
+  "wiEntryDetached",
 ] as const satisfies readonly ChatBusEvent["type"][];
 export type ChatTriggerType = (typeof CHAT_TRIGGER_TYPES)[number];
 
-/** `DomainEvent` types automation may trigger on.
+/** `DomainEvent` types automation may trigger on. The agents/rpg members are reserved — they enter
+ *  service when their domains land their domain-event mirrors.
  *
  *  IT CARRIES ALL FOUR LIVE DOMAIN EVENTS. An event that exists on no bus is NOT vocabulary: the
  *  `crew.*`/`rpg.*` mirrors stay documented in `@orb/contracts/events`'s own header, never tupled here.
@@ -230,6 +236,41 @@ export interface OwnerBudgetView {
 }
 
 export const ownerBudgetViewSchema = z.strictObject({ maxFiresPerHour: z.number() }) satisfies z.ZodType<OwnerBudgetView>;
+
+// ── trigger liveness ───────────────────────────────────────────────────────────────────────────
+/** Which tuple members are LIVE (wired to a handler). `createRule`/`updateRule` refuse a reserved
+ *  trigger with `AutomationReservedTriggerError` (a typed, user-visible refusal — not a silent no-op).
+ *  A mapped-type `Record` over BOTH trigger tuples: a new tuple member without a liveness entry is a
+ *  `tsc` error (the workloads RUNNERS gold standard — Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"). */
+export const LIVE_TRIGGERS = {
+  // chat bus — v1 wired
+  chatOpened: true,
+  messageCommitted: true,
+  messageEdited: true,
+  variantSelected: true,
+  turnStarted: true,
+  turnCompleted: true,
+  turnAborted: true,
+  worldInfoActivated: true,
+  personaSwitched: true,
+  chatCreated: true,
+  // chat bus — the reaction plane emits it and the fact resolver projects it, so it is
+  // LIVE, not reserved.
+  reactionsChanged: true,
+  // chat bus — reserved (typed, not wired v1)
+  messageHidden: false,
+  messagesDeleted: false,
+  chatUpdated: false,
+  wiEntryAttached: false,
+  wiEntryDetached: false,
+  // domain bus — v1 wired
+  "character.updated": true,
+  "asset.created": true,
+  // domain bus — both are LIVE and both resolve a fact
+  // (`substrate/fact-resolver.ts`), so neither is reserved.
+  "persona.updated": true,
+  "world-info.updated": true,
+} as const satisfies Record<ChatTriggerType | DomainTriggerType, boolean>;
 
 // ── the action union ─────────────────────────────────────────────────────────────────────────────
 // Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. The
@@ -713,7 +754,7 @@ export const automationActionsSchema = z
  *  from the runtime validator. */
 const triggerFactPayloadSchema = z.strictObject({
   chatId: sandboxWireIdSchema<ChatId>().nullable(),
-  // messageCommitted / messageEdited / variantSelected
+  // messageCommitted / messageEdited / variantSelected / messageHidden
   message: z
     .strictObject({
       id: sandboxWireIdSchema<MessageId>(),

@@ -35,6 +35,8 @@ const FACT_SHAPE = {
   messageCommitted: "message",
   messageEdited: "message",
   variantSelected: "message",
+  messageHidden: "message",
+  messagesDeleted: "chatScope",
   turnStarted: "turn",
   turnCompleted: "turn",
   turnAborted: "turn",
@@ -45,6 +47,9 @@ const FACT_SHAPE = {
   // reaction rule can actually select on. A rule that also wants the reacted-to PROSE has `message.id` here
   // to reach it with — a widening, not a today-cost on every toggle.
   reactionsChanged: "reaction",
+  chatUpdated: "chatScope",
+  wiEntryAttached: "chatScope",
+  wiEntryDetached: "chatScope",
   // domain bus
   "character.updated": "character",
   "asset.created": "assetId",
