@@ -103,6 +103,11 @@ const DISPATCHES_INPUT: Record<Step["kind"], boolean> = {
   "swipe-x": true,
   "long-press": true,
   "tap-at": true,
+  "swipe-at": true,
+  "wheel-at": true,
+  // Not a pointer input, but it re-lays the page out, and the window's evidence reset discards those frames too.
+  media: true,
+  resize: true,
   "soft-keyboard": true,
   upload: true,
   waitfor: false,

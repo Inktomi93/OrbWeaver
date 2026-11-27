@@ -8,6 +8,7 @@ import type { FilmstripCaptureReceipt, FilmstripLimits } from "../contract/films
 import { FILMSTRIP_LIMITS } from "../contract/filmstrip.ts";
 import type { SnapAction } from "../contract/types.ts";
 import { FilmstripBuffer } from "../lib/filmstrip-buffer.ts";
+import { isPointStep, pointStepLabel } from "./drive-failure-naming.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --filmstrip");
 
@@ -61,8 +62,8 @@ function filmstripActionLabel(action: SnapAction): string {
   if (step.kind === "soft-keyboard") {
     return `soft-keyboard ${String(step.height)}px`;
   }
-  if (step.kind === "tap-at") {
-    return `tap-at ${String(step.x)},${String(step.y)}`;
+  if (isPointStep(step)) {
+    return pointStepLabel(step);
   }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;

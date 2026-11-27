@@ -1,4 +1,13 @@
 // stack's programmatic front door: the dev and prod supervisors, the production launcher and the fixture.
+import type { doDevDown as DoDevDown } from "./ops/dev-down.ts";
+import type { doDevStatus as DoDevStatus } from "./ops/dev-status.ts";
+import type { doDevUp as DoDevUp } from "./ops/dev-up.ts";
+import type { runFixture as RunFixture } from "./ops/fixture.ts";
+import type { runStackProd as RunStackProd } from "./ops/prod.ts";
+import type { runStack as RunStack } from "./ops/run.ts";
+import type { probeServedTransform as ProbeServedTransform, runServedProbe as RunServedProbe } from "./ops/served-probe.ts";
+import type { runStart as RunStart } from "./ops/start.ts";
+
 export type {
   DebugArming,
   DebugConflict,
@@ -122,20 +131,41 @@ export { superviseStart } from "./lib/supervisor.ts";
 export {
   classifyDebugPosture,
   classifyDist,
-  classifyDrainTail,
   classifyServedTransform,
   DRAIN_MARGIN_MS,
-  DRAIN_WATCH_MS,
   debugPostureText,
   servedCarriesDiskBytes,
   valueExportNames,
 } from "./lib/verdicts.ts";
-export { doDevDown } from "./ops/dev-down.ts";
-export { doDevStatus } from "./ops/dev-status.ts";
-export { doDevUp } from "./ops/dev-up.ts";
-export { runFixture } from "./ops/fixture.ts";
-export { runStackProd } from "./ops/prod.ts";
-export { runStack } from "./ops/run.ts";
-export { probeServedTransform, runServedProbe } from "./ops/served-probe.ts";
 export { runSetup } from "./ops/setup.ts";
-export { runStart } from "./ops/start.ts";
+
+// The commands below load on first call, not with the index: the snap CLI imports this index for its port and fixture
+// constants, and loading every command's module graph (the server network adapter and its logger among it) cost it
+// seconds on each start under load. Each wrapper keeps its command's exact signature and result.
+export async function doDevDown(...args: Parameters<typeof DoDevDown>): ReturnType<typeof DoDevDown> {
+  return await (await import("./ops/dev-down.ts")).doDevDown(...args);
+}
+export async function doDevStatus(...args: Parameters<typeof DoDevStatus>): ReturnType<typeof DoDevStatus> {
+  return await (await import("./ops/dev-status.ts")).doDevStatus(...args);
+}
+export async function doDevUp(...args: Parameters<typeof DoDevUp>): ReturnType<typeof DoDevUp> {
+  return await (await import("./ops/dev-up.ts")).doDevUp(...args);
+}
+export async function runFixture(...args: Parameters<typeof RunFixture>): ReturnType<typeof RunFixture> {
+  return await (await import("./ops/fixture.ts")).runFixture(...args);
+}
+export async function runStackProd(...args: Parameters<typeof RunStackProd>): ReturnType<typeof RunStackProd> {
+  return await (await import("./ops/prod.ts")).runStackProd(...args);
+}
+export async function runStack(...args: Parameters<typeof RunStack>): ReturnType<typeof RunStack> {
+  return await (await import("./ops/run.ts")).runStack(...args);
+}
+export async function probeServedTransform(...args: Parameters<typeof ProbeServedTransform>): ReturnType<typeof ProbeServedTransform> {
+  return await (await import("./ops/served-probe.ts")).probeServedTransform(...args);
+}
+export async function runServedProbe(...args: Parameters<typeof RunServedProbe>): ReturnType<typeof RunServedProbe> {
+  return await (await import("./ops/served-probe.ts")).runServedProbe(...args);
+}
+export async function runStart(...args: Parameters<typeof RunStart>): ReturnType<typeof RunStart> {
+  return await (await import("./ops/start.ts")).runStart(...args);
+}

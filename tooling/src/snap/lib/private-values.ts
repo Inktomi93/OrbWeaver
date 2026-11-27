@@ -4,6 +4,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { errorMessage } from "@orb/kit/error-message";
 import { isPlainObject } from "@orb/kit/guards";
 import { unzipSync, zipSync } from "fflate";
 import type { DiskSafeText, PrivateText } from "../contract/disk-safe-argv.ts";
@@ -42,9 +43,9 @@ const TRACE_SCRATCH_PREFIX = "orb-snap-trace-";
 const RAW_TRACE_NAME = "raw.zip";
 const UNREADABLE_LINE = Symbol("unreadable trace line");
 
-// What was revealed stays noted until the host forgets it (`forgetPrivateValues`), which it does when each run ends, a
-// one-shot CLI run included; a session daemon's run spans its whole life, so one trace keeps every call's values. A throw
-// detected after the run ends prints with nothing noted.
+// What was revealed stays noted until the host forgets it (`forgetPrivateValues`), which it does when the next run begins,
+// so a one-shot CLI keeps its run's values until the process exits and a throw detected after the run ends still prints
+// masked; a session daemon's run spans its whole life, so one trace keeps every call's values.
 const wholeStrings = new Set<string>();
 let substrings: readonly string[] = [];
 // The fewest leading characters of a spelling that count as a cut copy of it: its kind's floor inside text.
@@ -179,6 +180,16 @@ export function scrubPlaywrightText(text: string): DiskSafeText {
 }
 
 /**
+ * The scrubbed line for an error Playwright threw: `label` then the error's message, scrubbed as Playwright text.
+ *
+ * @remarks Every site that prints a caught Playwright error calls this, so none picks its own scrub: a call log quotes a
+ * noted value Playwright cut short, which only {@link scrubPlaywrightText} masks. `label` is the site's own text, never page text.
+ */
+export function playwrightErrorLine(label: string, error: unknown): DiskSafeText {
+  return scrubPlaywrightText(`${label}${errorMessage(error)}`);
+}
+
+/**
  * Scrub a thrown error's message and stack in place, keeping its class, before a crash path prints it.
  *
  * @remarks A Playwright error quotes the URL or the text it was handed, so an uncaught one carries every value noted so far.
@@ -300,7 +311,7 @@ export async function scrubPrivateFile(path: string): Promise<void> {
   }
 }
 
-/** Forget what this process revealed. A host that runs several invocations in one process calls it after each, so
+/** Forget what this process revealed. A host that runs several invocations in one process calls it before each, so
  *  a value one invocation revealed is never scrubbed from the next one's evidence. */
 export function forgetPrivateValues(): void {
   wholeStrings.clear();

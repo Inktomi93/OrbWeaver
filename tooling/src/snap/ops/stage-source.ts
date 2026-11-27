@@ -65,16 +65,31 @@ export function assertStageSourceSupportsIsolation(root: string, dirty: boolean,
  *  rsync filter syntax and get silently mis-parsed as excludes, which dropped real tracked source the first
  *  time this ran). `--delete-missing-args` removes a stage file whose source entry was deleted from the
  *  tree (a plain rename/delete); the stage's OWN gitignored node_modules/db/assets are never in the list, so
- *  they're never candidates for deletion either. Idempotent + cheap: safe to call on every `--dirty` call. */
-export function syncDirtyTree(root: string, dir: string): void {
+ *  they're never candidates for deletion either. Idempotent + cheap: safe to call on every `--dirty` call.
+ *
+ *  Returns the paths (relative to `root`) the sync wrote or deleted, so a caller can tell whether the stage's own
+ *  watchers have something to restart for. */
+export function syncDirtyTree(root: string, dir: string): readonly string[] {
   mkdirSync(dir, { recursive: true });
   const manifest = execGit(root, ["ls-files", "--cached", "--others", "--exclude-standard"]);
   const manifestPath = join(dir, ".rsync-manifest.txt");
   writeFileSync(manifestPath, manifest);
-  const res = runNicedSync("rsync", ["-a", "--delete-missing-args", "--files-from", manifestPath, `${root}/`, `${dir}/`], { stdio: "inherit" });
+  const res = runNicedSync("rsync", ["-a", "--itemize-changes", "--delete-missing-args", "--files-from", manifestPath, `${root}/`, `${dir}/`]);
   if (res.status !== 0) {
-    throw new Error(`rsync of the working tree into dirty stage ${dir} failed`);
+    throw new Error(`rsync of the working tree into dirty stage ${dir} failed: ${res.stderr.trim()}`);
   }
+  return changedFilesOf(res.stdout);
+}
+
+// `--itemize-changes` prints `>f.st...... path` for a written file and `*deleting   path` for a removed one;
+// `cd+++++++++ dir/` and `.d..t...... dir/` rows are directories and name no file a watcher reads.
+const ITEMIZED_FILE_RE = /^(?:>f\S*|\*deleting)\s+(?<path>.+)$/u;
+
+function changedFilesOf(itemized: string): readonly string[] {
+  return itemized.split("\n").flatMap((line) => {
+    const path = ITEMIZED_FILE_RE.exec(line)?.groups?.["path"];
+    return path === undefined ? [] : [path];
+  });
 }
 
 export function pnpmInstall(dir: string): void {

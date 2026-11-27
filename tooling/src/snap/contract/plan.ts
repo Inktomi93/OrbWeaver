@@ -9,7 +9,7 @@ import type { ShotPlan } from "./types.ts";
  *  `ProbeContext` satisfies it as-is; the session paths spread their context 0 in. */
 export type CaptureEvidence = Pick<
   ProbeSession,
-  "consoleMessages" | "pageErrors" | "diagnostics" | "diagnosticCompleteness" | "diagnosticWindow" | "evidence" | "environmentContract"
+  "consoleMessages" | "pageErrors" | "diagnostics" | "diagnosticCompleteness" | "diagnosticWindow" | "evidence" | "environmentContract" | "rewindowEnvironment"
 > & {
   readonly settingsEvidence?: SettingsShimEvidence | undefined;
 };

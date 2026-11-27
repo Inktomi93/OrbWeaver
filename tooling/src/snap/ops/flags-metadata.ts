@@ -79,6 +79,13 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--swipe-x": { group: "Reach", summary: "selector=dx — a dispatched horizontal touch drag; positive dx drags the finger left; needs --mobile like --tap" },
   "--long-press": { group: "Reach", summary: "selector=ms — hold a touch on the selector for ms, then lift; needs --mobile like --tap" },
   "--tap-at": { group: "Reach", summary: "x,y — a touch tap at viewport pixels; needs --mobile like --tap" },
+  "--swipe-at": {
+    group: "Reach",
+    summary: "x,y=dx,dy — a touch drag that starts at viewport pixels x,y and scrolls dx,dy px; needs --mobile like --tap",
+  },
+  "--wheel-at": { group: "Reach", summary: "x,y=dy — one wheel input over viewport pixels x,y, with no hover and nothing scrolled into view first" },
+  "--media": { group: "Environment", summary: "print or screen — switch the live page's CSS media type; it holds until the next --media" },
+  "--resize": { group: "Environment", summary: "WxH — resize the live page's viewport without a reload; swap W and H to rotate" },
   "--soft-keyboard": {
     group: "Reach",
     summary: "px — open an iOS-shaped on-screen keyboard that shrinks visualViewport by px (0 closes); needs --mobile like --tap",
@@ -135,6 +142,10 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--desktop": { group: "Environment", summary: "explicit default desktop viewport (1280x800)" },
   "--cpu-throttle": { group: "Environment", summary: "CDP CPU throttle applied before navigation (4 = the standard load-test throttle)" },
   "--network": { group: "Environment", summary: "DevTools network preset applied before navigation" },
+  "--text-size": {
+    group: "Environment",
+    summary: "n — the browser's default text size at n times the engine default, on every page before it navigates (2 = enlarged text)",
+  },
   "--vision": {
     group: "Environment",
     summary: "CDP colour-vision emulation on every page (protanopia, deuteranopia, tritanopia, achromatopsia, blurredVision, reducedContrast)",

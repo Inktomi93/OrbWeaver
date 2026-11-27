@@ -68,13 +68,18 @@ ${WALKER_ACCESSIBLE_NAME}
       return "";
     }
     function stateOf(el) {
-      var disabled = "disabled" in el ? Boolean(el.disabled) : null;
+      // \`:disabled\`, never the \`disabled\` property: the property reflects only the element's own attribute, so a
+      // control inside a disabled fieldset reads false while the browser (and Playwright's isEnabled) refuse it.
+      var disabled = "disabled" in el ? el.matches(":disabled") : null;
+      var disabledBy = disabled ? (el.hasAttribute("disabled") ? "attribute" : "ancestor") : null;
       var ariaDisabled = el.getAttribute("aria-disabled");
       // NATIVE disabled WINS unless aria-disabled says true (#1509). aria-disabled is an ARIA-tree claim;
-      // the native property is what the browser enforces, so a natively disabled control carrying
+      // the native state is what the browser enforces, so a natively disabled control carrying
       // aria-disabled="false" is still un-clickable and must not read as actionable.
-      if (ariaDisabled === "true") disabled = true;
-      else if (ariaDisabled === "false" && disabled !== true) disabled = false;
+      if (ariaDisabled === "true") {
+        disabled = true;
+        if (disabledBy === null) disabledBy = "aria-disabled";
+      } else if (ariaDisabled === "false" && disabled !== true) disabled = false;
       var checked = null;
       if ("indeterminate" in el && el.indeterminate) checked = "mixed";
       else if ("checked" in el) checked = Boolean(el.checked);
@@ -86,6 +91,7 @@ ${WALKER_ACCESSIBLE_NAME}
       var expandedRaw = el.getAttribute("aria-expanded");
       return {
         disabled: disabled,
+        disabledBy: disabledBy,
         current: el.getAttribute("aria-current"),
         checked: checked,
         expanded: expandedRaw === "true" ? true : expandedRaw === "false" ? false : null

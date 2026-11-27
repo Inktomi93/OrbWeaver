@@ -34,7 +34,7 @@ import { registerScenarioFacts, scenarioFilmstripFrameCount, scenarioFilmstripPa
 import type { ScenarioHost } from "./scenario-host.ts";
 import { finishScenarioSession, scenarioFailure, scenarioSession } from "./scenario-host.ts";
 import { parseScenarioSpec as parsePreparedScenarioSpec, prepareScenarioOutcome, scenarioErrors } from "./scenario-prepare.ts";
-import { cascadeRuntimeFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { cascadeRuntimeFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount, textSizeFor } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { hasSnapFailure } from "./verdict.ts";
 
@@ -310,6 +310,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
         viewport: first.viewport,
         device: first.device,
         colorScheme: first.colorScheme,
+        textSize: textSizeFor(session),
         reducedMotion: first.reducedMotion || first.probe,
         appearance: first.appearance,
         appearanceApplied: appliedAcrossContexts(

@@ -20,6 +20,8 @@ import type { Args } from "../contract/types.ts";
 import { revealBasicCredentials } from "../lib/disk-safe-argv.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
 import { stopTraceToFile } from "../lib/private-values.ts";
+import type { AppliedTextSize } from "../lib/text-size.ts";
+import { applyTextSize } from "../lib/text-size.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armLaunchNeeds } from "./arms/registry.ts";
 import { adoptRequestRing, installRequestRing } from "./request-ring.ts";
@@ -293,6 +295,14 @@ async function prepareRunContexts(session: ProbeSession, opts: Args): Promise<vo
   // A new context inherits none of another context's CDP emulation, so each gets the run's own.
   LOAD_EMULATIONS.set(session, await applyLoadEmulation(session, opts));
   await applyVisionEmulation(session, opts);
+  TEXT_SIZES.set(session, await applyTextSize(session, opts.textSize));
+}
+
+const TEXT_SIZES = new WeakMap<ProbeSession, AppliedTextSize | null>();
+
+/** The text size this session's pages received, or null when the run left the engine default. */
+export function textSizeFor(session: ProbeSession): AppliedTextSize | null {
+  return TEXT_SIZES.get(session) ?? null;
 }
 
 /** Whether `session`'s browser was launched headless; a context opened inside it cannot change that. */

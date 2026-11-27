@@ -26,6 +26,7 @@ import type { DeadCssEvidence } from "../contract/dead-css.ts";
 import type { MapAtlasEvidence, MapNavCapabilities, MapShellEvidence, MapShellRegion, RawMapBridgeEvidence, RawMapEntry } from "../contract/map.ts";
 import {
   MAP_ACTIONABILITIES,
+  MAP_DISABLED_REASONS,
   MAP_INACTIVE_REASONS,
   MAP_PANEL_MODES,
   MAP_SHELL_REGIMES,
@@ -129,6 +130,7 @@ export function rawMapEntries(value: unknown): RawMapEntry[] | null {
       semanticFallback: pageString(record["semanticFallback"], `${label} row ${String(index)} field "semanticFallback"`),
       state: {
         disabled: nullableBoolean(state["disabled"], `${label} row ${String(index)} state "disabled"`),
+        disabledBy: nullableEnum(state["disabledBy"], MAP_DISABLED_REASONS, `${label} row ${String(index)} state "disabledBy"`),
         current: nullableString(state["current"], `${label} row ${String(index)} state "current"`),
         checked,
         expanded: nullableBoolean(state["expanded"], `${label} row ${String(index)} state "expanded"`),

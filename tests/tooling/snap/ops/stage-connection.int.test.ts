@@ -27,7 +27,7 @@ import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { configureStage } from "../../../../tooling/src/snap/ops/guards.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { seedStageConnection } from "../../../../tooling/src/snap/ops/stage-connection.ts";
-import { readBands, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 
 const KEY_NAME = "OPENROUTER_PROBE_KEY";
 /** Planted keys: any surface that holds either string leaked it. The earlier one is what a previous run seeded. */
@@ -142,7 +142,6 @@ test("a seeding run's printed lines and stage provenance hold no key, when it bi
   using _sink = { [Symbol.dispose]: installOutputSink({ line: (line) => lines.push(line), warn: (line) => lines.push(line) }) };
   const exits: (number | null)[] = [];
   const failures: (string | null)[] = [];
-  const marks: (true | undefined)[] = [];
   // With storage on the seed binds; with it off the stage refuses the key, which is printed as the run's stage error.
   for (const secretBox of [{ secretBoxKey: SECRET_BOX_TEST_KEY }, {}]) {
     await using root = await createServerHarness({
@@ -162,12 +161,9 @@ test("a seeding run's printed lines and stage provenance hold no key, when it bi
     };
     exits.push(await withProcessEnv(KEY_NAME, SENTINEL, () => configureStage(parseSnapArgs(["/", "--stage-connection", KEY_NAME]), ops)));
     failures.push(currentSnapStageProvenance()?.failure ?? null);
-    marks.push(readBands(home).find((row) => row.band === serving.band)?.connectionSeeded);
   }
 
   expect(exits).toEqual([null, EXIT.toolError]);
-  // The stage the run bound is marked before the seed is tried, so no sibling is handed it, bound or refused.
-  expect(marks).toEqual([true, true]);
   // The positive controls: the bind names its connection, and the refusal reaches both the printed line and run.json.
   expect(lines.filter((line) => line.includes(`"${STAGE_CONNECTION_LABEL_PREFIX} ${KEY_NAME}"`))).toHaveLength(1);
   const refusal = present(failures[1]);

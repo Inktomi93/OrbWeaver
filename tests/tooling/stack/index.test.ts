@@ -17,7 +17,6 @@ import {
   CLIENT_DIST_INDEX_REL,
   classifyDebugPosture,
   classifyDist,
-  classifyDrainTail,
   classifyInstance,
   classifyServedTransform,
   DEBUG_ENV_KEYS,
@@ -39,6 +38,7 @@ import {
   spawnerForPort,
   valueExportNames,
 } from "../../../tooling/src/stack/index.ts";
+import { classifyDrainTail } from "../../../tooling/src/stack/lib/drain-verdict.ts";
 
 // Hoisted: the rule against per-call regex literals applies to test bodies too.
 /** An un-credentialed 200 from /api/_debug must print as an ALARM post-AUTHFIX-2, not as a dev posture. */

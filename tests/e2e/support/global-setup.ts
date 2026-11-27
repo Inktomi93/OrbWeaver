@@ -26,16 +26,15 @@ import { execFileSync } from "node:child_process";
 import process from "node:process";
 import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
+import { LOCAL_ENGINE_BASE_URL, LOCAL_ENGINE_PROVIDER, resolveLocalEngineModel } from "@orb/tooling/floor/http/local-engine";
 import { loginLocal } from "./actors.ts";
 import { startFixtureProvider } from "./fixture-provider.ts";
 import type { ModeProject } from "./modes.ts";
 import {
   CORPUS_LOCAL_PASSWORDS,
   DEV_TARGET_ALLOWED,
-  E2E_LOCAL_ENGINE_BASE_URL,
   E2E_LOCAL_ENGINE_FALLBACK_MODEL,
   E2E_LOCAL_ENGINE_LABEL,
-  E2E_LOCAL_ENGINE_PROVIDER,
   LOCAL_MEMBER,
   LOCAL_OWNER,
   SELECTED_CORPUS_FIXTURE,
@@ -94,20 +93,18 @@ async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<vo
  *  against a down fleet fails on its own turn, where it belongs. Called ONLY when the row is missing, so a
  *  re-run against a surviving DB costs no dial. */
 async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
-  // `connection.draftCatalogModels` NEVER throws for a failed dial (it comes back `listed: false` + a reason), so
-  // the seed branches on it instead of guarding it.
-  const listing = await createTrpcClient(baseUrl).connection.draftCatalogModels.mutate({
-    providerId: E2E_LOCAL_ENGINE_PROVIDER,
-    baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
+  const { model, listed } = await resolveLocalEngineModel(createTrpcClient(baseUrl), {
+    baseUrl: LOCAL_ENGINE_BASE_URL,
+    fallbackModel: E2E_LOCAL_ENGINE_FALLBACK_MODEL,
+    admit: false,
   });
-  const first = listing.listed ? listing.models[0] : undefined;
   return {
     label: E2E_LOCAL_ENGINE_LABEL,
-    providerId: E2E_LOCAL_ENGINE_PROVIDER,
+    providerId: LOCAL_ENGINE_PROVIDER,
     credentialId: null,
-    baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
-    model: first?.id ?? E2E_LOCAL_ENGINE_FALLBACK_MODEL,
-    ...(first === undefined ? {} : { modelCheck: "listed" }),
+    baseUrl: LOCAL_ENGINE_BASE_URL,
+    model,
+    ...(listed ? { modelCheck: "listed" } : {}),
     // `summarize` is `spend: "background"`; without this the binding below is refused inline (`canFund`, F5).
     allowBackground: true,
   };

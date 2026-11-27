@@ -2,7 +2,6 @@
 // queue (navs + steps + mid-chain evals — the interleave IS the contract, 2026-08-15/16), and the
 // trailing-eval split that keeps a trailing `--eval` a settled-surface observer.
 
-import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { awaitDevClientReady } from "#dev";
 import { settle } from "../../floor/browser/browser.ts";
@@ -11,7 +10,7 @@ import type { Args, DriveFailure } from "../contract/types.ts";
 import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS } from "../lib/budgets.ts";
 import { noteUrlSecrets } from "../lib/disk-safe-argv.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
-import { scrubPlaywrightText } from "../lib/private-values.ts";
+import { playwrightErrorLine } from "../lib/private-values.ts";
 import { markStageSettled, markStageUnsettled } from "../lib/stage-run-binding.ts";
 import { driveBudgets } from "../lib/throttle.ts";
 import { waitDriveFailure } from "./drive-failure-naming.ts";
@@ -144,7 +143,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
     try {
       await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.waitSelector });
     } catch (error) {
-      failures?.push(waitDriveFailure(opts.waitSelector, scrubPlaywrightText(errorMessage(error))));
+      failures?.push(waitDriveFailure(opts.waitSelector, playwrightErrorLine("", error)));
       throw error;
     }
   }

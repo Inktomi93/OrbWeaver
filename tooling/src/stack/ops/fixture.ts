@@ -26,7 +26,7 @@ function log(message: string): void {
 
 /** The fixture's context: the recipe over the ambient env, and no `.env` (the recipe says so). */
 function fixtureContext(): StackContext {
-  return stackContext(REPO_ROOT, { ...inheritedProcessEnv(), ...fixtureEnv(REPO_ROOT, inheritedProcessEnv()) }, null);
+  return stackContext(REPO_ROOT, fixtureEnv(REPO_ROOT, inheritedProcessEnv()), null);
 }
 
 function seed(ctx: StackContext): ExitCode {

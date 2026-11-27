@@ -2,7 +2,6 @@
 // one is a REQUIREMENT the run states about the settled surface, so every failure is a verdict member.
 // Split out of the former ops/evidence.ts by NATURE when the arm registry landed (contract/arms.ts); the
 // aria, eval and perf halves that shared that file are now their own arms.
-import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
 import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
@@ -14,7 +13,7 @@ import type { SnapArmState } from "../../contract/run-facts.ts";
 import type { Assertion, AssertionOutcome } from "../../contract/types.ts";
 import { HTTP_URL_RE } from "../../lib/out-names.ts";
 import { overflowAssertionLine } from "../../lib/overflow-line.ts";
-import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
+import { playwrightErrorLine, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { probeOverflow } from "../overflow.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -136,7 +135,7 @@ async function runAssertions(page: Page, assertions: readonly Assertion[], inclu
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {
-      outcomes.push({ line: scrubPlaywrightText(`ASSERT ${assertion.kind}: ERROR ${errorMessage(error)}`), failed: true, refused: false });
+      outcomes.push({ line: playwrightErrorLine(`ASSERT ${assertion.kind}: ERROR `, error), failed: true, refused: false });
     }
   }
   return outcomes;

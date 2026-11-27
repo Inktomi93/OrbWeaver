@@ -5,9 +5,10 @@ import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budget, loadKillError } from "../../floor/host/load-budget.ts";
 import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
-import type { SnapAction } from "../contract/types.ts";
+import type { Args, SnapAction } from "../contract/types.ts";
 import { SNAP_BASES_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 import { openCallPhaseLedger } from "./call-phases.ts";
+import { MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
@@ -89,8 +90,8 @@ export function isTerminalSessionCallError(error: unknown): boolean {
 /** Navigation and matrix/scenario orchestration already own stage-aware load budgets up to 90s + 60s.
  * The daemon watchdog is the outer leak boundary, so it must sit beyond those verdict-producing inner
  * clocks instead of racing them. */
-export function sessionCallWatchdogBaseMs(navigates: boolean, armBaseMs: number | null = null, tapeBaseMs = 0): number {
-  return Math.max(navigates ? SESSION_NAVIGATION_CALL_BASE_MS : SESSION_CALL_BASE_MS + tapeBaseMs, armBaseMs ?? 0);
+export function sessionCallWatchdogBaseMs(navigates: boolean, armBaseMs: number | null = null, countedMs = 0): number {
+  return Math.max(navigates ? SESSION_NAVIGATION_CALL_BASE_MS : SESSION_CALL_BASE_MS + countedMs, armBaseMs ?? 0);
 }
 
 /** The quiet-box time a live call's own tape may take: each step its own timeout plus its settle, and a
@@ -105,6 +106,13 @@ export function sessionTapeBaseMs(actions: readonly SnapAction[]): number {
     const own = entry.type === "step" && entry.action.kind === "pause" ? entry.action.ms : SNAP_BASES_MS.step;
     return total + own + STEP_SETTLE_MS;
   }, 0);
+}
+
+/** The quiet-box time a live call's `settle` phase sleeps for the settle it asked for: `--idle` waits up to the
+ *  network-idle ceiling, and `--stream-settle` sleeps its seconds. The default mount settle is inside the base. A
+ *  call that asks for neither adds nothing, so a hung eval keeps the bare call ceiling. */
+export function sessionSettleBaseMs(call: Pick<Args, "idle" | "sseSeconds">): number {
+  return (call.idle ? SNAP_BASES_MS.networkIdle : 0) + (call.sseSeconds > 0 ? call.sseSeconds * MS_PER_SECOND : 0);
 }
 
 async function terminatePageExecution(session: ProbeSession): Promise<void> {

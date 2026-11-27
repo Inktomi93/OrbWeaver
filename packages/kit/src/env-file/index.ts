@@ -13,6 +13,15 @@ export function envNameKey(name: string): string {
   return name.toUpperCase();
 }
 
+/**
+ * The name that carries a secret's value as the path of a file holding it.
+ * @remarks The server's parse reads a secret from this name when the secret itself is unset, so a launcher that strips
+ * a secret from a child's environment strips this name too.
+ */
+export function secretFileEnvName(name: string): string {
+  return `${name}_FILE`;
+}
+
 /** An edit that removes every assignment line of its key, line ending included. Distinct from `null`, which leaves
  *  the key's lines exactly as they are. */
 export const DELETE_ENV_LINE: unique symbol = Symbol("DELETE_ENV_LINE");

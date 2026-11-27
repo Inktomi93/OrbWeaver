@@ -16,8 +16,8 @@
 
 import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
+import type { ProviderKeyName } from "../../../../tooling/src/floor/process/operator-keys.ts";
 import type { EnsureStageOps, StageAllocation, StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
-import type { StageConnectionKeyName } from "../../../../tooling/src/snap/contract/stage-connection.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
   allocateStageBand,
@@ -234,8 +234,34 @@ test("a sibling's HEALTHY row at our sha is a shared-reuse before any free band 
   expect(allocateStageBand({ ...ALLOC, seedsConnection: true, views: views([{ row: theirs }]) }).kind).toBe("free");
 });
 
+test("a seeding run refuses its own warm stage while a foreign holder or a live session uses it, and reuses it otherwise", () => {
+  const own = row(2, { checkout: MAIN_CHECKOUT });
+  const foreignHolder = { pid: 4321, checkout: LANE_CHECKOUT, stampedAt: USED_RECENTLY };
+  const seeding = { ...ALLOC, seedsConnection: true };
+
+  const heldByForeign = allocateStageBand({ ...seeding, views: views([{ row: own, over: { liveHolders: [foreignHolder] } }]) });
+  expect(heldByForeign).toMatchObject({ kind: "exhausted", refusal: expect.stringContaining(`${LANE_CHECKOUT} (pid 4321)`) });
+  const heldBySession = allocateStageBand({ ...seeding, views: views([{ row: own, over: { liveSessions: ["lane-session"] } }]) });
+  expect(heldBySession).toMatchObject({ kind: "exhausted", refusal: expect.stringContaining("session lane-session") });
+
+  // The controls: the same held stage is reused by a run that seeds nothing, a run whose own holder is the only one, and a
+  // stage whose seeding was already judged; with nobody attached the seeding run reuses its stage.
+  const reused = { kind: "ours", band: 2, row: own };
+  expect(allocateStageBand({ ...ALLOC, views: views([{ row: own, over: { liveHolders: [foreignHolder] } }]) })).toEqual(reused);
+  expect(allocateStageBand({ ...seeding, views: views([{ row: own, over: { liveHolders: [{ ...foreignHolder, checkout: MAIN_CHECKOUT }] } }]) })).toEqual(
+    reused,
+  );
+  const marked = row(2, { checkout: MAIN_CHECKOUT, connectionSeeded: true });
+  expect(allocateStageBand({ ...seeding, views: views([{ row: marked, over: { liveHolders: [foreignHolder] } }]) })).toEqual({
+    kind: "ours",
+    band: 2,
+    row: marked,
+  });
+  expect(allocateStageBand({ ...seeding, views: views([{ row: own }]) })).toEqual(reused);
+});
+
 test("a run that seeds a connection gets its own band, never a sibling's warm stage at its commit", () => {
-  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  const seeding: ProviderKeyName = "OPENROUTER_PROBE_KEY";
   const theirs = row(0, { checkout: LANE_CHECKOUT });
   const verdicts: StageAllocation[] = [];
   const ops: EnsureStageOps = {
@@ -266,7 +292,7 @@ test("a run that seeds a connection gets its own band, never a sibling's warm st
 });
 
 test("a stage a connection was seeded into is reused only by the checkout that seeded it", () => {
-  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  const seeding: ProviderKeyName = "OPENROUTER_PROBE_KEY";
   // Each run's ask goes through ensureStage into the real allocator over a planted census; the planted census then
   // refuses as a full table does, so nothing boots. A run handed a free band records the claim row it would write.
   const run = (checkout: string, argv: string[], census: readonly StageBandView[]): { verdict: StageAllocation; claim: StageRow | null } => {

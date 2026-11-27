@@ -1,6 +1,5 @@
 // --map: the global Orbweaver destination atlas plus the current rendered shell/surface map. Every
 // surface row owns a unique locator; only rows explicitly marked actionable are current click handles.
-import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
@@ -10,7 +9,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence, RawMapBridgeEvidence, RawMapEntry } from "../../contract/map.ts";
 import type { CaptureOutcome } from "../../contract/types.ts";
 import { buildSurfaceMapScript, readMapBridge, readMapShell } from "../../lib/map-browser.ts";
-import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
+import { playwrightErrorLine, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { mapAtlasEvidence, mapBridgePayload, mapShellEvidence, rawMapEntries } from "../page-validate.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -76,7 +75,7 @@ async function captureSurfaceMap(
     // After the locator is proven: a name that holds a typed value reads as the mask, and its locator with it.
     return { entries: entries.map((entry) => ({ ...entry, name: scrubPrivateText(entry.name), selector: scrubPrivateText(entry.selector) })), error: null };
   } catch (error) {
-    return { entries: null, error: scrubPlaywrightText(errorMessage(error)) };
+    return { entries: null, error: playwrightErrorLine("", error) };
   }
 }
 
@@ -93,7 +92,7 @@ async function captureMapBridge(page: Page): Promise<{
     const shell = await page.evaluate(readMapShell, { published: read.published, atlasAvailable: read.atlas.status === "available" });
     raw = mapBridgePayload({ atlas: read.atlas, shell });
   } catch (error) {
-    const detail = scrubPlaywrightText(errorMessage(error));
+    const detail = playwrightErrorLine("", error);
     return { atlas: null, shell: null, atlasError: detail, shellError: detail };
   }
   let atlas: MapAtlasEvidence | null = null;
@@ -104,13 +103,13 @@ async function captureMapBridge(page: Page): Promise<{
   try {
     atlas = mapAtlasEvidence(raw.atlas);
   } catch (error) {
-    atlasError = scrubPrivateText(errorMessage(error));
+    atlasError = playwrightErrorLine("", error);
   }
   // the shell shape failure becomes shellError, which printShell in lib/map-report.ts prints as MAP INSTRUMENT ERROR. Ends if printShell stops printing its error argument.
   try {
     shell = mapShellEvidence(raw.shell);
   } catch (error) {
-    shellError = scrubPrivateText(errorMessage(error));
+    shellError = playwrightErrorLine("", error);
   }
   return { atlas, shell, atlasError, shellError };
 }

@@ -137,6 +137,9 @@ function stateText(entry: MapEntry): string {
   const facts = ["visibility=visible"];
   if (entry.state.disabled !== null) {
     facts.push(`disabled=${String(entry.state.disabled)}`);
+    if (entry.state.disabledBy !== null) {
+      facts.push(`disabled-by=${entry.state.disabledBy}`);
+    }
   }
   if (entry.state.current !== null) {
     facts.push(`current=${entry.state.current}`);
