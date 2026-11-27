@@ -3,6 +3,7 @@
 // `/props`, so it is asked before llama.cpp and Ollama. vLLM serves no native identity route, so it is known last by
 // its model list's owner. The answer names the built-in row that reads that server.
 
+import { VLLM_PROVIDER_ID } from "@orb/contracts/inference";
 import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
@@ -23,7 +24,7 @@ const PROBES = [
   { server: "koboldcpp", path: "/api/extra/version", schema: koboldVersionSchema },
   { server: "llama-cpp", path: "/props", schema: llamaCppPropsSchema },
   { server: "ollama", path: "/api/version", schema: ollamaVersionSchema },
-  { server: "vllm", path: "/v1/models", schema: vllmModelsSchema },
+  { server: VLLM_PROVIDER_ID, path: "/v1/models", schema: vllmModelsSchema },
 ] as const satisfies readonly DetectionProbe[];
 
 /** One GET: the JSON body of a 2xx, `null` for any other answer, and a throw only when nothing answered. A

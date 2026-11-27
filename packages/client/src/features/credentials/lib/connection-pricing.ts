@@ -1,22 +1,26 @@
 import type { EndpointFeatures } from "@orb/contracts/inference";
+import { tokenPricingSchema } from "@orb/contracts/inference";
+import { numberEdit } from "./connection-fact-bounds.ts";
 import type { FactLeaf, FactRow } from "./connection-fact-types.ts";
+
+const RATES = tokenPricingSchema.shape;
 
 /** Pricing is one required base pair with separately declared optional cache rates. */
 export function pricingFactLeaves(unset: string): readonly FactLeaf[] {
   return [
-    { path: "pricing.inputPerMTok", name: "price in", edit: { kind: "number" }, format: perMillionTokens },
-    { path: "pricing.outputPerMTok", name: "price out", edit: { kind: "number" }, format: perMillionTokens },
+    { path: "pricing.inputPerMTok", name: "price in", edit: numberEdit(RATES.inputPerMTok), format: perMillionTokens },
+    { path: "pricing.outputPerMTok", name: "price out", edit: numberEdit(RATES.outputPerMTok), format: perMillionTokens },
     {
       path: "pricing.cacheReadPerMTok",
       name: "cache read price",
-      edit: { kind: "number", min: { value: 0, reads: "0" } },
+      edit: numberEdit(RATES.cacheReadPerMTok),
       format: perMillionTokens,
       unset,
     },
     {
       path: "pricing.cacheWritePerMTok",
       name: "cache write price",
-      edit: { kind: "number", min: { value: 0, reads: "0" } },
+      edit: numberEdit(RATES.cacheWritePerMTok),
       format: perMillionTokens,
       unset,
     },

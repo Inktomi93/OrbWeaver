@@ -1,6 +1,7 @@
 // The accessible names the preset section drill-in prints. A zero-import leaf, so a spec's node side reads them without
 // loading the component graph.
 
+import { ADJUSTED_KNOB_NAMES } from "@orb/contracts/chat";
 import type { LimitSource } from "@orb/contracts/inference";
 
 /** The prompt delete confirmation's title. */
@@ -259,9 +260,9 @@ export const PRESET_DRY_BREAKER_NOUN = "DRY sequence breaker";
 export const PRESET_BANNED_PHRASE_NOUN = "banned phrase";
 
 /** The deck's names for the phrase ban and the antislop proxy's slop controls; the sampling catalog reads the same words. */
-export const PRESET_BANNED_PHRASES_LABEL = "Banned phrases";
-export const PRESET_SLOP_LIST_LABEL = "Slop list";
-export const PRESET_SLOP_STRENGTH_LABEL = "Slop strength";
+export const PRESET_BANNED_PHRASES_LABEL = ADJUSTED_KNOB_NAMES.bannedStrings.label;
+export const PRESET_SLOP_LIST_LABEL = ADJUSTED_KNOB_NAMES.slopList.label;
+export const PRESET_SLOP_STRENGTH_LABEL = ADJUSTED_KNOB_NAMES.slopStrength.label;
 
 /** A sequence chip's subject: its list's noun, then the text it shows. */
 export function sequenceChipSubject(noun: string, shown: string): string {

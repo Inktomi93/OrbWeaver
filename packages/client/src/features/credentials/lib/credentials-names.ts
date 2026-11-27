@@ -154,6 +154,11 @@ export const ACCOUNT_BALANCE_READ_LABEL = "the balance";
 /** The connection facts a test reaches by name; each is the fact row's own name. */
 export const FACT_NAMES = { summarizeConcurrency: "utility calls at once", contextWindow: "context window", maxOutput: "max output" } as const;
 
+/** What each own-server switch says the server must be, drawn under its row at all times. */
+export const SAMPLER_ENVELOPE_NEEDS = "Needs a vLLM server running the roleplay logits processors. On a stock vLLM the extra samplers do nothing.";
+export const ANTISLOP_NEEDS =
+  "Needs an antislop proxy in front of this server, or this server to be one. Without it banned phrases are not enforced, and nothing warns you.";
+
 /** A count fact's line under its Override field. */
 export const FACT_COUNT_HINT = "A number of tokens, like 128000, 128k or 1m. What you type here is what we believe about this server.";
 /** A count fact's refusal for text that names no whole count above zero. */

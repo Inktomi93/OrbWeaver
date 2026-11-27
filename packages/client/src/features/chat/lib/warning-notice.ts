@@ -32,6 +32,7 @@ import type {
   ChatWarning,
   PlainChatWarningCode,
 } from "@orb/contracts/chat";
+import { ADJUSTED_KNOB_NAMES } from "@orb/contracts/chat";
 import type { NotifyNotice } from "#lib";
 import { regexNotAppliedDescription, regexNotAppliedTitle } from "./regex-stop-copy.ts";
 
@@ -258,7 +259,7 @@ function partialDropNotice({ knob, dropped, sent }: PartialDrop, cause: BannedPh
     cause === "tokenizer" ? "Check this connection's tokenize endpoint." : `Reword ${one ? "it" : "them"}, or put an antislop proxy in front of this server.`;
   return {
     description: `${cannot} ${sentClause(sent)} ${way}`,
-    title: `${KNOB_LABELS[knob]}: ${droppedClause} used for this reply`,
+    title: `${ADJUSTED_KNOB_NAMES[knob].label}: ${droppedClause} used for this reply`,
   };
 }
 
@@ -284,7 +285,7 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         description: "This model rejects that setting together with another one you set, so the other one was kept.",
         // The knob-less title must differ from `sampling_knob_dropped`'s (the distinct-title pin forbids the
         // collapse, and "wasn't used" hides that the cause was a CONFLICT the user can resolve).
-        title: knob === undefined ? "Two generation settings conflicted" : `${KNOB_LABELS[knob]} conflicted with another setting`,
+        title: knob === undefined ? "Two generation settings conflicted" : `${ADJUSTED_KNOB_NAMES[knob].label} conflicted with another setting`,
       };
     }
     case "effort_dropped":
@@ -362,7 +363,7 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         description:
           warning.knob === undefined
             ? "This model spells one of your settings differently, so the provider used its own value for this reply."
-            : `This model spells ${KNOB_LABELS[warning.knob]} differently, so the provider used its own value for this reply.`,
+            : `This model spells ${ADJUSTED_KNOB_NAMES[warning.knob].label} differently, so the provider used its own value for this reply.`,
         title: "The provider adjusted a setting for this model",
       };
     default:
@@ -384,7 +385,7 @@ function knobDroppedNotice(warning: ChatSettingsAdjustedWarning): NotifyNotice {
     title:
       knob === undefined
         ? "A generation setting wasn't used for this reply"
-        : `${KNOB_LABELS[knob]} ${PLURAL_KNOBS.has(knob) ? "weren't" : "wasn't"} used for this reply`,
+        : `${ADJUSTED_KNOB_NAMES[knob].label} ${ADJUSTED_KNOB_NAMES[knob].plural ? "weren't" : "wasn't"} used for this reply`,
   };
 }
 
@@ -474,60 +475,9 @@ function assertNeverCause(cause: never): never {
   throw new Error(`warningNotice: unhandled BannedPhraseCause ${JSON.stringify(cause)}`);
 }
 
-/** The knob labels that name several things, so their title takes "weren't". */
-const PLURAL_KNOBS: ReadonlySet<AdjustedKnob> = new Set<AdjustedKnob>(["bannedStrings", "stop", "drySequenceBreakers", "replyMedia"]);
-
 function assertNeverKnob(knob: never): never {
   throw new Error(`warningNotice: unhandled AdjustedKnob ${JSON.stringify(knob)}`);
 }
-
-/** The knob names as the user meets them — the same words the preset deck prints
- *  (`features/preset/lib/capability-panel-model.ts` + `components/params-deck.tsx`). Spelled here rather than
- *  imported because a client feature may not import another feature's internals at runtime; the mapped
- *  `Record` is the exhaustiveness enforcer (a new `ADJUSTED_KNOBS` member fails `tsc` here). */
-const KNOB_LABELS: Record<AdjustedKnob, string> = {
-  adaptiveDecay: "Adaptive-P decay",
-  adaptiveTarget: "Adaptive-P target",
-  banEos: "Ban end of reply",
-  bannedStrings: "Banned phrases",
-  carryReasoning: "Reasoning carry",
-  dryAllowedLength: "DRY allowed length",
-  dryBase: "DRY base",
-  dryMultiplier: "DRY strength",
-  dryPenaltyLastN: "DRY range",
-  drySequenceBreakers: "DRY sequence breakers",
-  dynatempExponent: "Dynamic temperature exponent",
-  dynatempRange: "Dynamic temperature range",
-  frequencyPenalty: "Frequency penalty",
-  logitBias: "Word bias",
-  minKeep: "Min keep",
-  minP: "Min-P",
-  mirostatEta: "Mirostat eta",
-  mirostatMode: "Mirostat",
-  mirostatTau: "Mirostat tau",
-  parallelToolCalls: "Parallel tool calls",
-  presencePenalty: "Presence penalty",
-  quality: "Quality",
-  repetitionPenalty: "Repetition penalty",
-  repetitionPenaltyRange: "Repetition range",
-  replyMedia: "Reply pictures",
-  samplerOrder: "Sampler order",
-  seed: "Seed",
-  slopList: "Slop list",
-  slopStrength: "Slop strength",
-  smoothingCurve: "Smoothing curve",
-  smoothingFactor: "Smoothing factor",
-  stop: "Stop sequences",
-  temperature: "Temperature",
-  thinkingBudgetTokens: "Thinking budget",
-  topA: "Top-A",
-  topK: "Top-K",
-  topNSigma: "Top-nσ",
-  topP: "Top-P",
-  typicalP: "Typical-P",
-  xtcProbability: "XTC chance",
-  xtcThreshold: "XTC threshold",
-};
 
 function assertNeverCode(code: never): never {
   throw new Error(`warningNotice: unhandled PlainChatWarningCode ${JSON.stringify(code)}`);

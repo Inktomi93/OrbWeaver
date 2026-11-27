@@ -24,11 +24,11 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import type { KeyboardEvent, ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
-import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
+import type { BooleanLabels, FactRow, QuirkProvider } from "../lib/connection-fact-model.ts";
 import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
 import {
   ENDPOINT_QUIRKS_LABEL,
@@ -84,7 +84,7 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
   const overrideButton = useRef<HTMLButtonElement>(null);
   const leftByCancel = useRef(false);
   const { edit } = row;
-  // Override is disabled while the editor is open, so focus returns to it only once the editor has closed.
+  // Override stays disabled while the editor is open, so focus returns to it only once the editor has closed.
   useEffect(() => {
     if (!editing && leftByCancel.current) {
       leftByCancel.current = false;
@@ -119,11 +119,12 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
         <Row className="shrink-0" endBelow="cq-32" gap="field">
           {edit.kind === "switch" ? (
             // The switch is the whole control: on declares the capability, off removes the declaration, so it needs no editor and no Reset.
+            // A write in flight makes it read-only, not disabled: a disabled switch drops keyboard focus to the page, and Space could not undo the change.
             <Switch
               aria-label={row.name}
               checked={row.draft === "true"}
               className="shrink-0"
-              disabled={busy}
+              readOnly={busy}
               onCheckedChange={(checked): void => (checked ? onOverride(row, edit.on) : onReset(row))}
             />
           ) : null}
@@ -139,9 +140,12 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
             />
           ) : null}
           {row.overridden || row.setElsewhere === true || edit.kind === "switch" ? null : (
+            // Disabled while the editor is open or a write is in flight, yet focusable: native `disabled` drops focus to the page, so
+            // Enter on Override would leave a keyboard user with nowhere for Esc to land.
             <Button
               aria-label={factOverrideName(row.name)}
               disabled={busy || editing}
+              focusableWhenDisabled={true}
               variant="ghost"
               onClick={(): void => setEditing(true)}
               ref={overrideButton}
@@ -241,19 +245,42 @@ function FactEditControl({
   readonly value: string;
   readonly onChange: (next: string) => void;
 }): ReactElement {
+  const input = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // The editor opens from a press on Override, which then goes disabled: the control takes focus, so a keyboard user types at once and Esc reaches the editor.
+  useEffect(() => {
+    (input.current ?? trigger.current)?.focus();
+  }, []);
   if (edit.kind === "boolean") {
-    return <FactSelect items={booleanItems(edit.labels ?? PLAIN_BOOLEAN_LABELS)} label={label} onChange={onChange} value={value} />;
+    return <FactSelect items={booleanItems(edit.labels ?? PLAIN_BOOLEAN_LABELS)} label={label} onChange={onChange} triggerRef={trigger} value={value} />;
   }
   if (edit.kind === "enum") {
-    return <FactSelect items={edit.options.map((option) => ({ label: option, value: option }))} label={label} onChange={onChange} value={value} />;
+    return (
+      <FactSelect
+        items={edit.options.map((option) => ({ label: option, value: option }))}
+        label={label}
+        onChange={onChange}
+        triggerRef={trigger}
+        value={value}
+      />
+    );
   }
   if (edit.kind === "choice") {
-    return <FactSelect items={edit.choices.map((choice) => ({ label: choice.label, value: choice.label }))} label={label} onChange={onChange} value={value} />;
+    return (
+      <FactSelect
+        items={edit.choices.map((choice) => ({ label: choice.label, value: choice.label }))}
+        label={label}
+        onChange={onChange}
+        triggerRef={trigger}
+        value={value}
+      />
+    );
   }
   return (
     <Field label={label}>
       <Input
         autoComplete="off"
+        ref={input}
         inputMode={edit.kind === "number" && edit.count !== true ? "numeric" : "text"}
         onChange={(event): void => onChange(event.target.value)}
         value={value}
@@ -267,15 +294,17 @@ function FactSelect({
   label,
   value,
   onChange,
+  triggerRef,
 }: {
   readonly items: readonly { readonly label: string; readonly value: string }[];
   readonly label: string;
   readonly value: string;
   readonly onChange: (next: string) => void;
+  readonly triggerRef: RefObject<HTMLButtonElement | null>;
 }): ReactElement {
   return (
     <Field label={label}>
-      <Select aria-label={label} items={items} onValueChange={(next): void => onChange(String(next))} value={value} />
+      <Select aria-label={label} items={items} onValueChange={(next): void => onChange(String(next))} triggerRef={triggerRef} value={value} />
     </Field>
   );
 }
@@ -295,10 +324,8 @@ function editHint(edit: FactRow["edit"]): string {
 
 /** "Endpoint quirks" — the `features` block's rows, or nothing when the fold has none to show. */
 export function QuirksBlock({
-  providerFeatures,
+  provider,
   declared,
-  providerLabel,
-  ownServer,
   busy,
   onOverride,
   onReset,
@@ -307,16 +334,13 @@ export function QuirksBlock({
 }: {
   readonly note?: FactRowNote | undefined;
   readonly rowRef?: FactRowRef | undefined;
-  readonly providerFeatures: Parameters<typeof quirkFactRows>[0];
+  readonly provider: QuirkProvider;
   readonly declared: DeclaredCapability | null;
-  readonly providerLabel: string;
-  /** An own-server row lists the quirks nothing sets too, so they can be declared. */
-  readonly ownServer: boolean;
   readonly busy: boolean;
   readonly onOverride: (row: FactRow, value: unknown) => void;
   readonly onReset: (row: FactRow) => void;
 }): ReactElement | null {
-  const rows = quirkFactRows(providerFeatures, declared?.features, providerLabel, ownServer);
+  const rows = quirkFactRows(provider, declared?.features);
   if (rows.length === 0) {
     return null;
   }

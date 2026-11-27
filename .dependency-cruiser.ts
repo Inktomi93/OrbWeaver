@@ -1062,6 +1062,12 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/credentials/lib/connection-editor-model.ts":
       "parseIncludeBody and INCLUDE_BODY_SHAPE_REASON: the feature-private overrides reader and the refusal it shows",
   },
+  "tests/client/features/credentials/lib/connection-fact-bounds.test.ts": {
+    "packages/client/src/features/credentials/lib/connection-fact-model.ts":
+      "boundRefusal, quirkFactRows, parseFactValue and withDeclaredOverride: the feature-private fact grammar whose refusals the case compares with the contract's declared schema",
+    "packages/client/src/features/credentials/lib/connection-capability-fact-model.ts":
+      "capabilityFactRows: the feature-private capability rows whose number facts the case compares with the contract's declared schema",
+  },
   "tests/client/lib/bug-report-bundle.dom.test.ts": {
     "packages/client/src/lib/bug-report-bundle.ts":
       "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",

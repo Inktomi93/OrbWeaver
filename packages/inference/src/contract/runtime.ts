@@ -11,7 +11,7 @@ import type {
   RoutableTask,
   UserConnection,
 } from "@orb/contracts/inference";
-import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
+import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES, VLLM_PROVIDER_ID } from "@orb/contracts/inference";
 import type { SettingsKvPort } from "@orb/contracts/settings";
 import type { PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -149,7 +149,7 @@ const endpointModelSchema = z
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 
 /** The local servers a detecting row can identify, each named by the id of the built-in row that reads it. */
-const DETECTED_SERVERS = ["koboldcpp", "llama-cpp", "ollama", "vllm"] as const;
+const DETECTED_SERVERS = ["koboldcpp", "llama-cpp", "ollama", VLLM_PROVIDER_ID] as const;
 
 /** A detecting row's cached server probe: the server it identified as, or `null` for a server that answered
  *  and is none of the known local servers. */

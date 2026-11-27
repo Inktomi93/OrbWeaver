@@ -12,7 +12,7 @@
 //     `message_variants`. `MessageView` is the slot joined with its selected variant.
 
 export type { AdjustedKnob, BannedPhraseCause } from "./adjusted-knobs.ts";
-export { ADJUSTED_KNOBS } from "./adjusted-knobs.ts";
+export { ADJUSTED_KNOB_NAMES, ADJUSTED_KNOBS } from "./adjusted-knobs.ts";
 export type {
   AssembleCharacter,
   AssembleContext,

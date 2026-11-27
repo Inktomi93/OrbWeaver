@@ -24,10 +24,11 @@
 // overridden. Composite leaves whose schema needs a sibling (`sleep`, `pricing`, `embedBatch`) render only
 // when stated, because a lone half would not parse at the verb.
 
-import type { DeclaredCapability, EndpointFeatures, TokenizeApi } from "@orb/contracts/inference";
+import type { DeclaredCapability, EndpointFeatures, ProviderId, SamplerEnvelope } from "@orb/contracts/inference";
 import {
   BANNED_STRINGS_SPELLINGS,
   EFFORT_SPELLINGS,
+  endpointFeaturesSchema,
   foldFeatures,
   IMAGE_ARMS,
   MODEL_INFO_APIS,
@@ -36,21 +37,22 @@ import {
   PREFILL_MODES,
   REASONING_BUDGET_FIELDS,
   RESPONSES_REASONING_STREAMS,
-  SAMPLER_ENVELOPES,
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
-  SUMMARIZE_CONCURRENCY_MAX,
   THINKING_OFF_SPELLINGS,
   TOKENIZE_APIS,
+  VLLM_PROVIDER_ID,
 } from "@orb/contracts/inference";
 import { isPrimitive } from "@orb/kit/guards";
 import { omitKey } from "@orb/kit/objects";
 import { parseCount } from "@orb/kit/strings";
+import { numberEdit } from "./connection-fact-bounds.ts";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
-import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
+import type { BooleanLabels, FactLeaf, FactRow } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
 import {
+  ANTISLOP_NEEDS,
   FACT_COUNT_INVALID,
   FACT_NAMES,
   FACT_NUMBER_INVALID,
@@ -58,6 +60,7 @@ import {
   FACT_WHOLE_INVALID,
   factMaximumLabel,
   factMinimumLabel,
+  SAMPLER_ENVELOPE_NEEDS,
 } from "./credentials-names.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
@@ -67,9 +70,13 @@ export const tokens = formatTokens;
 
 // ── the Advanced tier: ONE fact-row grammar for both blocks ────────────────────────────────────────────
 
-const VLLM_TOKENIZE_API: TokenizeApi = "vllm";
+// The number quirks take their bounds from the schema the server parses `features` with.
+const FEATURE_FIELDS = endpointFeaturesSchema.shape;
+const CONCURRENCY_FIELDS = FEATURE_FIELDS.concurrency.unwrap().shape;
+const EMBED_BATCH_FIELDS = FEATURE_FIELDS.embedBatch.unwrap().shape;
 
-const SUMMARIZE_MAX: NumberBound = { value: SUMMARIZE_CONCURRENCY_MAX, reads: String(SUMMARIZE_CONCURRENCY_MAX) };
+/** The one envelope the switch writes, named so a second envelope never becomes what it writes by tuple position. */
+const VLLM_XARGS_ENVELOPE: SamplerEnvelope = "vllm-xargs";
 
 /** The refusal for a typed number outside its fact's bounds, else `null`. */
 export function boundRefusal(edit: FactRow["edit"], raw: string): string | null {
@@ -320,16 +327,16 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   ],
   pricing: pricingFactLeaves(NOT_SET),
   concurrency: [
-    { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number", whole: true, positive: true } },
-    { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number", whole: true, positive: true } },
-    { path: "concurrency.summarize", name: FACT_NAMES.summarizeConcurrency, edit: { kind: "number", whole: true, positive: true, max: SUMMARIZE_MAX } },
+    { path: "concurrency.embed", name: "embeddings at once", edit: numberEdit(CONCURRENCY_FIELDS.embed) },
+    { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: numberEdit(CONCURRENCY_FIELDS.imageEmbed) },
+    { path: "concurrency.summarize", name: FACT_NAMES.summarizeConcurrency, edit: numberEdit(CONCURRENCY_FIELDS.summarize) },
   ],
   embedBatch: [
-    { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number", whole: true, positive: true }, format: tokens },
+    { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: numberEdit(EMBED_BATCH_FIELDS.maxTokens), format: tokens },
     {
       path: "embedBatch.floorTokensPerSec",
       name: "embedding slow-server floor",
-      edit: { kind: "number", positive: true },
+      edit: numberEdit(EMBED_BATCH_FIELDS.floorTokensPerSec),
       format: (value): string => `${String(value)} tokens/second`,
     },
   ],
@@ -337,7 +344,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
     {
       path: "requestTimeoutMs",
       name: "request deadline",
-      edit: { kind: "number", whole: true, positive: true },
+      edit: numberEdit(FEATURE_FIELDS.requestTimeoutMs),
       format: (value): string => `${String(value)} ms`,
       unset: NOT_SET,
     },
@@ -353,11 +360,11 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
     {
       path: "samplerEnvelope",
       name: "extra samplers from vLLM's own processors",
-      edit: { kind: "switch", on: SAMPLER_ENVELOPES[0], labels: { yes: "on: your presets offer the extra samplers", no: "off: only vLLM's stock samplers" } },
+      edit: { kind: "switch", on: VLLM_XARGS_ENVELOPE, labels: { yes: "on: your presets offer the extra samplers", no: "off: only vLLM's stock samplers" } },
       unset: "off: only vLLM's stock samplers",
-      needs: "Needs a vLLM server running the roleplay logits processors. On a stock vLLM the extra samplers do nothing.",
-      // Only a server that speaks vLLM's own tokenize API takes vLLM's request envelope.
-      offeredWhen: (folded) => folded.tokenizeApi === VLLM_TOKENIZE_API,
+      needs: SAMPLER_ENVELOPE_NEEDS,
+      // Only a server the connection is served as vLLM takes vLLM's request envelope, whatever tokenize endpoint is declared.
+      offeredWhen: (servedAs) => servedAs === VLLM_PROVIDER_ID,
     },
   ],
   antislop: [
@@ -370,7 +377,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
         labels: { yes: "on: banned phrases and slop lists go to the proxy", no: "off: banned phrases go to the server itself" },
       },
       unset: "off: banned phrases go to the server itself",
-      needs: "Needs an antislop proxy in front of this server, or this server to be one. Without it banned phrases are not enforced, and nothing warns you.",
+      needs: ANTISLOP_NEEDS,
     },
   ],
   reasoningBudgetField: [
@@ -382,7 +389,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
     },
   ],
   keepAlive: [{ path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set: the server's default" }],
-  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: { kind: "number", whole: true, positive: true }, unset: "not set: the server's default" }],
+  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: numberEdit(FEATURE_FIELDS.numBatch), unset: "not set: the server's default" }],
   thinkingOff: [{ path: "thinkingOff", name: "template thinking switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET }],
   // One row per spelling the row states; a server that reads the default key needs none.
   samplerKeys: SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
@@ -396,8 +403,8 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
 
 const QUIRK_LEAVES: readonly FactLeaf[] = Object.values(QUIRK_LEAVES_BY_FEATURE).flat();
 
-function unstatedQuirkRow(leaf: FactLeaf, folded: EndpointFeatures, showUnset: boolean): FactRow | undefined {
-  if (leaf.unset === undefined || leaf.offeredWhen?.(folded) === false) {
+function unstatedQuirkRow(leaf: FactLeaf, folded: EndpointFeatures, servedAs: ProviderId, showUnset: boolean): FactRow | undefined {
+  if (leaf.unset === undefined || leaf.offeredWhen?.(servedAs) === false) {
     return;
   }
   if (leaf.path.startsWith("pricing.") ? folded.pricing === undefined : !showUnset) {
@@ -406,31 +413,39 @@ function unstatedQuirkRow(leaf: FactLeaf, folded: EndpointFeatures, showUnset: b
   return unsetRow(`features.${leaf.path}`, leaf, leaf.unset, "nothing sets it for this kind of server");
 }
 
+/** The provider side of a quirk read. */
+export interface QuirkProvider {
+  /** The rows the connection reads, the registered row first and the detected server's after, folded the way the resolver
+   *  folds them (`behavedFeatures`). */
+  readonly layers: readonly (EndpointFeatures | undefined)[];
+  readonly label: string;
+  /** The id of the row the connection is served as: the detected row's when the registered row detects, else its own. */
+  readonly servedAs: ProviderId;
+  /** An own-server row lists the quirks nothing sets too, so they can be declared. */
+  readonly ownServer: boolean;
+}
+
 /** "Endpoint quirks" — one row per FOLDED leaf, with the layer it came from and, when the row overrides it,
  *  the value it replaced. Fully derivable: every layer is in the client's hands. `showUnset` adds the
  *  declarable leaves nothing sets — an own-server row is fully user-declared (Tier-3b §10.10), a hosted
  *  provider's quirks are its row's. */
-export function quirkFactRows(
-  providerFeatures: EndpointFeatures | undefined,
-  declaredFeatures: EndpointFeatures | undefined,
-  providerLabel: string,
-  showUnset = false,
-): readonly FactRow[] {
-  const base = foldFeatures(providerFeatures);
-  const folded = foldFeatures(providerFeatures, declaredFeatures);
+export function quirkFactRows(provider: QuirkProvider, declaredFeatures: EndpointFeatures | undefined): readonly FactRow[] {
+  const { layers, label: providerLabel, servedAs, ownServer: showUnset } = provider;
+  const base = foldFeatures(...layers);
+  const folded = foldFeatures(...layers, declaredFeatures);
   const rows: FactRow[] = [];
   for (const leaf of QUIRK_LEAVES) {
     // Declaring one optional cache rate still needs the two required base rates at the write boundary.
     const siblings = pricingSiblings(leaf.path, folded, declaredFeatures);
     const value = readPath(folded, leaf.path);
     if (value === undefined) {
-      const unstated = unstatedQuirkRow(leaf, folded, showUnset);
+      const unstated = unstatedQuirkRow(leaf, folded, servedAs, showUnset);
       if (unstated !== undefined) {
         rows.push({ ...unstated, siblings });
       }
       continue;
     }
-    const fromProvider = readPath(providerFeatures, leaf.path) !== undefined;
+    const fromProvider = layers.some((layer) => readPath(layer, leaf.path) !== undefined);
     const overridden = readPath(declaredFeatures, leaf.path) !== undefined;
     const replaced = readPath(base, leaf.path);
     rows.push({

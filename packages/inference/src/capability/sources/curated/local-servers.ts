@@ -3,6 +3,7 @@
 // it may proxy a hosted family, whose own stated set must win. Body spellings live on the provider rows.
 
 import type { CapabilityOverrideInput, Range } from "@orb/contracts/inference";
+import { VLLM_PROVIDER_ID } from "@orb/contracts/inference";
 
 const ANY_MODEL = ".*";
 const DATED = "2026-10-03";
@@ -229,7 +230,7 @@ export const localServerRows = [
     },
   },
   {
-    match: { model: ANY_MODEL, provider: "vllm" },
+    match: { model: ANY_MODEL, provider: VLLM_PROVIDER_ID },
     // Beyond the Custom default: `bad_words` and `ignore_eos` (chat_completion/protocol.py), spelled on its row.
     generation: { sampling: { ...VLLM_SAMPLING, bannedStrings: true, banEos: true } },
     evidence: {

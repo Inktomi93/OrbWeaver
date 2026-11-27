@@ -1,8 +1,8 @@
 // @subject packages/client/src/features/credentials/components/connection-fact-rows.tsx
 // The connection editor's own-server rows and the fact editor around them: the sampler envelope and antislop proxy are
 // switches that write the connection's declared quirks and say what the server needs, the envelope is offered only to a
-// server that speaks vLLM, a typed value that is no number is refused where it is typed and kept, a connection that serves no
-// embedding role is never held for a rebuild confirm, and Esc leaves the open editor.
+// server the row speaks as vLLM, a typed value that is no number is refused where it is typed and kept, a connection with no
+// vector space is never held for a rebuild confirm, and Esc leaves the open editor.
 
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -10,7 +10,14 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CONNECTION_EDITOR_TIER_TITLES, factOverrideName, factSaveName, factYourValueName } from "#client/features/credentials/lib/credentials-names.ts";
+import {
+  ANTISLOP_NEEDS,
+  CONNECTION_EDITOR_TIER_TITLES,
+  factOverrideName,
+  factSaveName,
+  factYourValueName,
+  SAMPLER_ENVELOPE_NEEDS,
+} from "#client/features/credentials/lib/credentials-names.ts";
 import type { ConnectionActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connection-action-groups-stories/ConnectionActionGroupsStory";
@@ -27,12 +34,14 @@ const READS = [
 ] as const;
 const VLLM_LABEL = "Own vLLM box";
 const OLLAMA_LABEL = "Own Ollama box";
+const LLAMA_CPP_LABEL = "Own llama.cpp box";
 const DEADLINE_MS = 45_000;
 // A row is addressed by its path in the connection's declared block, which is the contract's own key.
 const ENVELOPE_ROW = "features.samplerEnvelope";
 const ANTISLOP_ROW = "features.antislop";
 const DEADLINE_ROW = "features.requestTimeoutMs";
 const PHRASE_FORM_ROW = "features.bannedStrings";
+const NEEDS_BY_ROW = { [ENVELOPE_ROW]: SAMPLER_ENVELOPE_NEEDS, [ANTISLOP_ROW]: ANTISLOP_NEEDS } as const;
 // Each control's accessible name opens with the verb its production grammar spells; the fact's own name follows.
 const namePrefix = (spelled: string): RegExp => new RegExp(`^${RegExp.escape(spelled.trim())}`, "u");
 const nameSuffix = (spelled: string): RegExp => new RegExp(`${RegExp.escape(spelled.trim())}$`, "u");
@@ -78,8 +87,8 @@ test("the envelope and antislop rows are switches that write the declared quirk 
   await expect(envelope).not.toBeChecked();
   await expect(antislop).not.toBeChecked();
   // Each row states what the server needs, in view without opening anything, and offers no editor beside the switch.
-  for (const path of [ENVELOPE_ROW, ANTISLOP_ROW]) {
-    await expect(rowAt(page, path).getByText(/^Needs /u)).toBeVisible();
+  for (const path of [ENVELOPE_ROW, ANTISLOP_ROW] as const) {
+    await expect(rowAt(page, path).getByText(NEEDS_BY_ROW[path], { exact: true })).toBeVisible();
     await expect(overrideOf(rowAt(page, path))).toHaveCount(0);
   }
 
@@ -105,6 +114,45 @@ test("the envelope is offered only to a server that speaks vLLM, and the antislo
   await mount<typeof ConnectionActionGroupsStory>(STORY, { width: 390, appearance: appearanceSettingsSchema.parse({}) });
   await openAdvanced(page, OLLAMA_LABEL);
   // The positive control: the same list does offer the antislop proxy, so an absent envelope is a decision and not an empty list.
+  await expect(rowAt(page, ANTISLOP_ROW).getByRole("switch")).toBeVisible();
+  await expect(rowAt(page, ENVELOPE_ROW)).toHaveCount(0);
+});
+
+// The envelope belongs to the server the row speaks as. A declared tokenize endpoint says which endpoint answers, so it
+// neither hides the row from a vLLM nor offers it to a server that is not one.
+test("a vLLM row keeps the envelope when its tokenize endpoint is declared otherwise", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false, secretBoxKey: Buffer.alloc(32, 17) });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.connection.create({
+    providerId: "vllm",
+    credentialId: null,
+    baseUrl: "http://127.0.0.1:8000/v1",
+    model: "own-model",
+    label: VLLM_LABEL,
+    declared: { features: { tokenizeApi: "llama-cpp" } },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, READS));
+  await mount<typeof ConnectionActionGroupsStory>(STORY, { width: 390, appearance: appearanceSettingsSchema.parse({}) });
+  await openAdvanced(page, VLLM_LABEL);
+  await expect(rowAt(page, ANTISLOP_ROW).getByRole("switch")).toBeVisible();
+  await expect(rowAt(page, ENVELOPE_ROW).getByRole("switch")).toBeVisible();
+});
+
+test("a llama.cpp row is not offered the envelope because it declares vLLM's tokenize endpoint", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false, secretBoxKey: Buffer.alloc(32, 17) });
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.connection.create({
+    providerId: "llama-cpp",
+    credentialId: null,
+    baseUrl: "http://127.0.0.1:8080/v1",
+    model: "own-model",
+    label: LLAMA_CPP_LABEL,
+    declared: { features: { tokenizeApi: "vllm" } },
+  });
+  await routeTrpc(page, serveCorpusProcedures(caller, READS));
+  await mount<typeof ConnectionActionGroupsStory>(STORY, { width: 390, appearance: appearanceSettingsSchema.parse({}) });
+  await openAdvanced(page, LLAMA_CPP_LABEL);
+  // The positive control: the antislop switch is offered on the same list, so an absent envelope is a decision and not an empty list.
   await expect(rowAt(page, ANTISLOP_ROW).getByRole("switch")).toBeVisible();
   await expect(rowAt(page, ENVELOPE_ROW)).toHaveCount(0);
 });
@@ -143,9 +191,8 @@ test("a typed value that is no number is refused where it is typed and kept, and
   await expect(save).toBeEnabled();
   await save.click();
   await expect.poll(async () => (await caller.connection.get({ connectionId: vllm.id })).declared?.features?.requestTimeoutMs).toBe(DEADLINE_MS);
+  // The server's own answer is that this connection has no vector space to rebuild, so nothing held the write.
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  // A connection that serves no embedding role has no vector space to rebuild, so the write never asked the server what it would cost.
-  expect(routes.count("connection.embedSpaceChangePreview")).toBe(0);
 });
 
 test("Esc leaves the open editor, Override is unavailable while it is open, and Esc inside an open list closes only the list", async ({ mount, page }) => {
