@@ -9,6 +9,16 @@ import type { AgentSdkSessionId } from "./identity.ts";
 export interface AgentSdkSessionTotals {
   readonly costUsd: number;
   readonly webSearchRequests: number;
+  /** Each model's saved counters, keyed as the result's `modelUsage` is: a model this turn billed is one whose
+   *  counters grew past these. */
+  readonly models: Readonly<Record<string, AgentSdkSavedModelUsage>>;
+}
+
+/** One model's counters as the transcript saved them. A token count the saved entry does not carry is `undefined`. */
+export interface AgentSdkSavedModelUsage {
+  readonly costUsd: number;
+  readonly inputTokens: number | undefined;
+  readonly outputTokens: number | undefined;
 }
 
 /** The D8 write-path injection seam: `session_entries` persistence (`packages/db/src/schema/sdk-session.ts`)

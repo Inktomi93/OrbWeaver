@@ -27,15 +27,16 @@ async function importedHistory(runtime, sessionId) {
   return { sessionId, rowCount: rows.length, firstText: first === undefined ? "" : frameText(first), lastText: last === undefined ? "" : frameText(last) };
 }
 
-async function respond(message, policy, { write, writeAs }, sessionId) {
+async function respond(message, policy, { write, writeAs, frameId }, sessionId) {
   const content = message.message.content;
   const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
   const marker = prompt.includes("Conversation to summarize:");
   const importedSeed = policy.inspectHistory === true && !marker ? await importedHistory(policy.materializedRuntime, sessionId) : undefined;
   const behavior = marker ? policy.marker : policy.foreground;
   const released = behavior === "hold" ? once(process, "SIGUSR2") : undefined;
+  const protocol = await turnProtocol(policy, marker, sessionId);
   process.stderr.write(
-    `${ENGINE_SDK_RECEIPT}${JSON.stringify({ marker, prompt, held: released !== undefined, argv: process.argv.slice(2), ...(importedSeed === undefined ? {} : { importedSeed }) })}\n`,
+    `${ENGINE_SDK_RECEIPT}${JSON.stringify({ marker, prompt, held: released !== undefined, argv: process.argv.slice(2), ...(importedSeed === undefined ? {} : { importedSeed }), ...protocol.receipt })}\n`,
   );
   write({ type: "system", subtype: "init", apiKeySource: "none", model: ENGINE_SDK_MODEL });
   if (released !== undefined) {
@@ -43,11 +44,11 @@ async function respond(message, policy, { write, writeAs }, sessionId) {
   }
   const failed = behavior === "fail";
   const reply = marker ? ENGINE_SDK_MARKER : ENGINE_SDK_REPLY;
-  const protocol = turnProtocol(policy, marker);
   writeFrames(writeAs, protocol.frames);
-  if (!failed) {
-    write({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }], ["stop_reason"]: "end_turn" } });
-  }
+  const assistant = failed
+    ? undefined
+    : write({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }], ["stop_reason"]: "end_turn" } });
+  protocol.mirror(message, assistant, frameId);
   write({
     type: "result",
     subtype: "success",
@@ -65,13 +66,47 @@ async function respond(message, policy, { write, writeAs }, sessionId) {
   });
 }
 
+const NO_PROTOCOL = { frames: [], modelUsage: {}, permissionDenials: [], receipt: {}, mirror: () => undefined };
+
 // The policy's protocol frames and result accounting ride the foreground turn only; each frame names its own parent
-// frame identity.
-function turnProtocol(policy, marker) {
+// frame identity. Under `carryUsage` the executable keeps a session the way the runtime does: it saves a `cost-state`
+// entry into the transcript after the turn, and a resumed turn's `modelUsage` continues from the latest one.
+async function turnProtocol(policy, marker, sessionId) {
   if (marker) {
-    return { frames: [], modelUsage: {}, permissionDenials: [] };
+    return NO_PROTOCOL;
   }
-  return { frames: policy.frames ?? [], modelUsage: policy.modelUsage ?? {}, permissionDenials: policy.permissionDenials ?? [] };
+  const own = { frames: policy.frames ?? [], modelUsage: policy.modelUsage ?? {}, permissionDenials: policy.permissionDenials ?? [] };
+  if (policy.carryUsage !== true) {
+    return { ...own, receipt: {}, mirror: () => undefined };
+  }
+  const transcript = await readSdkResumeTranscript(policy.materializedRuntime, sessionId);
+  const saved = transcript.frames.filter((entry) => entry.type === "cost-state" && entry.sessionId === sessionId).at(-1)?.modelUsage ?? {};
+  const modelUsage = continuedUsage(saved, own.modelUsage);
+  return {
+    ...own,
+    modelUsage,
+    receipt: { savedModels: Object.keys(saved).toSorted() },
+    mirror: (message, assistant, frameId) => {
+      const user = { ...message, uuid: frameId("user"), sessionId };
+      const entries = [user, ...(assistant === undefined ? [] : [assistant]), { type: "cost-state", sessionId, modelUsage }];
+      process.stdout.write(`${JSON.stringify({ type: "transcript_mirror", filePath: transcript.file, entries })}\n`);
+    },
+  };
+}
+
+// Every counter continues from the saved totals; the per-call ceilings are this turn's own.
+const CONTINUED_COUNTERS = ["inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens", "costUSD", "webSearchRequests"];
+
+function continuedUsage(saved, own) {
+  const models = new Set([...Object.keys(saved), ...Object.keys(own)]);
+  return Object.fromEntries(
+    [...models].map((model) => {
+      const before = saved[model] ?? {};
+      const turn = own[model] ?? {};
+      const counters = Object.fromEntries(CONTINUED_COUNTERS.map((key) => [key, (before[key] ?? 0) + (turn[key] ?? 0)]));
+      return [model, { ...before, ...turn, ...counters }];
+    }),
+  );
 }
 
 function writeFrames(writeAs, frames) {
@@ -88,7 +123,9 @@ async function run() {
   const policy = JSON.parse(policyArg.slice(ENGINE_SDK_POLICY.length));
   const { sdkSessionId, frameId, lines } = await readSdkProcessInput();
   const writeAs = (slot, value) => {
-    process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(slot), ["session_id"]: sdkSessionId })}\n`);
+    const frame = { ...value, uuid: frameId(slot), ["session_id"]: sdkSessionId };
+    process.stdout.write(`${JSON.stringify(frame)}\n`);
+    return frame;
   };
   const write = (value) => writeAs(value.type === "system" ? "init" : value.type, value);
   for await (const line of lines) {
@@ -99,7 +136,7 @@ async function run() {
     if (message.type !== "user") {
       throw new Error(`unscripted physical engine SDK input ${message.type}`);
     }
-    await respond(message, policy, { write, writeAs }, sdkSessionId);
+    await respond(message, policy, { write, writeAs, frameId }, sdkSessionId);
   }
 }
 

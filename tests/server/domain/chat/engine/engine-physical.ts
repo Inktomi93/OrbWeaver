@@ -27,6 +27,8 @@ const receiptSchema = z.object({
   held: z.boolean(),
   argv: z.array(z.string()),
   importedSeed: z.object({ sessionId: z.uuid(), rowCount: z.number(), firstText: z.string(), lastText: z.string() }).optional(),
+  // The models the session's saved `cost-state` already held when this turn started.
+  savedModels: z.array(z.string()).optional(),
 });
 const behaviorSchema = z.enum(["reply", "fail", "hold"]);
 const policySchema = z.object({
@@ -39,6 +41,8 @@ const policySchema = z.object({
   // The foreground result's billed models and permission denials, verbatim SDK protocol records.
   modelUsage: z.record(z.string(), z.json()).optional(),
   permissionDenials: z.array(z.json()).optional(),
+  // The executable keeps its session's saved usage as the runtime does, so a resumed turn's `modelUsage` is cumulative.
+  carryUsage: z.literal(true).optional(),
 });
 
 /** The stored credential secret the room's connection carries, so a case can plant it in what the SDK returns. */
@@ -104,7 +108,8 @@ export async function sdkEngineRoom(
         ids: sdkFixtureIds,
         ...rootOptions.server,
         sdkSpawn: (input) => {
-          const physicalPolicy = policy.inspectHistory === true ? { ...policy, materializedRuntime: input.env[CLAUDE_CONFIG_DIR_ENV] } : policy;
+          const readsTranscript = policy.inspectHistory === true || policy.carryUsage === true;
+          const physicalPolicy = readsTranscript ? { ...policy, materializedRuntime: input.env[CLAUDE_CONFIG_DIR_ENV] } : policy;
           const child = spawn({ ...input, args: [...input.args, `${ENGINE_SDK_POLICY}${JSON.stringify(physicalPolicy)}`] });
           let pending = "";
           child.stderr.on("data", (bytes: Buffer) => {

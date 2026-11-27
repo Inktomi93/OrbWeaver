@@ -13,6 +13,8 @@ import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 const DEBUG_TOKEN = "controlled-runner-event-debug-token";
 const server = { ids: createSeededIds(), wireCapture: true, debugToken: DEBUG_TOKEN } as const;
 const OTHER_MODEL = "claude-sonnet-5";
+// The executable's empty model list keeps the catalog cold, so this alias reaches the runner unresolved.
+const UNRESOLVED_ALIAS = "opus";
 
 // One billed model's SDK accounting record, as the result frame's `modelUsage` carries it.
 const billed = (model: string): Record<string, JsonValue> => ({
@@ -116,6 +118,38 @@ test("a reply billed to a model other than the one asked for tells the room, and
   expect((await fixture.turn()).aborted).toBe(false);
   expect(await warningCodes(fixture)).toEqual(["model_downgraded"]);
   expect(await outcomeEvents(fixture)).toEqual([expect.objectContaining({ kind: "model_downgrade", requested: ENGINE_SDK_MODEL, billed: [OTHER_MODEL] })]);
+});
+
+// The runtime continues a resumed session's `modelUsage` from the totals its transcript saved, so the fallback model
+// the first turn billed is still a key on the second turn's result. Only the models this turn billed say anything.
+test("a resumed turn after a fallback turn, written by the chosen model, raises no downgrade", async () => {
+  // A room with history, so each turn's session is materialized from a transcript the executable can save into.
+  await using fixture = await sdkEngineRoom({
+    server,
+    history: 2,
+    policy: { carryUsage: true, frames: [FALLBACK_FRAME], modelUsage: billed(OTHER_MODEL) },
+  });
+  const send = (content: string): ReturnType<typeof fixture.h.root.services.chat.send> =>
+    fixture.h.root.services.chat.send({ principal: fixture.h.owner, chatId: fixture.h.chatId, content });
+  expect((await send("Ask the question the chosen model declines.")).aborted).toBe(false);
+  fixture.setPolicy({ frames: [], modelUsage: billed(ENGINE_SDK_MODEL) });
+  expect((await send("Ask an ordinary follow-up.")).aborted).toBe(false);
+  // The second turn resumed the first one's session: its saved usage already named the fallback model.
+  expect(fixture.receipts.filter(({ marker }) => !marker).map(({ savedModels }) => savedModels)).toEqual([[], [OTHER_MODEL]]);
+  expect(await warningCodes(fixture)).toEqual(["provider_refused_fallback"]);
+  const [second, first] = await readDebugOutcomes(fixture.h, DEBUG_TOKEN);
+  expect(first).toMatchObject({
+    events: [expect.objectContaining({ kind: "refusal" }), expect.objectContaining({ kind: "model_downgrade", billed: [OTHER_MODEL] })],
+  });
+  expect(second).toMatchObject({ events: [] });
+});
+
+// A cold model catalog leaves the connection's alias unresolved; the runtime resolves it and bills the resolved id.
+test("a turn on an unresolved model alias, billed to the model the runtime resolved it to, raises no downgrade", async () => {
+  await using fixture = await sdkEngineRoom({ server, model: UNRESOLVED_ALIAS, policy: { modelUsage: billed(ENGINE_SDK_MODEL) } });
+  expect((await fixture.turn()).aborted).toBe(false);
+  expect(await warningCodes(fixture)).toEqual([]);
+  expect(await outcomeEvents(fixture)).toEqual([]);
 });
 
 test("a tool the runtime denied on a tool-less turn tells the room, and the outcome names the tool", async () => {
