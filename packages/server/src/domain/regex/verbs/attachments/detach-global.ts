@@ -1,5 +1,5 @@
-// verb: detachGlobal — clear a script's GLOBAL attachment. Idempotent: an already-absent row returns
-// `{detached:false}` rather than throwing (the world-info DetachResult posture).
+// verb: detachGlobal — clear a script's GLOBAL attachment. Idempotent: an already-absent row is a
+// no-op rather than a throw.
 
 import { globalRegexScripts } from "@orb/db";
 import { eq } from "drizzle-orm";
@@ -15,12 +15,10 @@ export function createDetachGlobal(ctx: RegexContext): RegexService["detachGloba
     const announce = await ctx.captureRoomReachForDelete([scriptId]);
     const at = ctx.now();
     const result = await ctx.db.delete(globalRegexScripts).where(eq(globalRegexScripts.regexScriptId, scriptId));
-    const detached = result.rowsAffected > 0;
-    if (detached) {
+    if (result.rowsAffected > 0) {
       await ctx.audit({ actorUserId: ownerId, action: "regex.detachGlobal", entityType: "regex_script", entityId: scriptId }, at);
       ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
       announce([scriptId]);
     }
-    return { detached };
   };
 }

@@ -8,16 +8,7 @@
 
 import type { RequireHostOp, RequireParticipantOp, ResolveChatHostOp, ResolveVisibleRoomsOp, RoomTierForMemberOp } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
-import type {
-  BulkAxesResult,
-  BulkResult,
-  CaptureRegexRoomReachOp,
-  DetachResult,
-  ImportScriptFileResult,
-  RegexScriptRow,
-  RegexScriptUsage,
-  ReorderResult,
-} from "@orb/contracts/regex";
+import type { BulkAxesResult, BulkResult, CaptureRegexRoomReachOp, ImportScriptFileResult, RegexScriptRow, RegexScriptUsage } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
@@ -135,25 +126,25 @@ export interface RegexService {
 
   /** Marks a script global (runs in every chat the owner hosts). Gate is plain script ownership. */
   readonly attachGlobal: (params: AttachGlobalParams) => Promise<void>;
-  readonly detachGlobal: (params: DetachGlobalParams) => Promise<DetachResult>;
+  readonly detachGlobal: (params: DetachGlobalParams) => Promise<void>;
   readonly listGlobal: (params: ListGlobalParams) => Promise<RegexScriptRow[]>;
 
   readonly attachToCharacter: (params: AttachToCharacterParams) => Promise<void>;
-  readonly detachFromCharacter: (params: DetachFromCharacterParams) => Promise<DetachResult>;
+  readonly detachFromCharacter: (params: DetachFromCharacterParams) => Promise<void>;
   readonly listForCharacter: (params: ListForCharacterParams) => Promise<RegexScriptRow[]>;
 
   readonly attachToPreset: (params: AttachToPresetParams) => Promise<void>;
-  readonly detachFromPreset: (params: DetachFromPresetParams) => Promise<DetachResult>;
+  readonly detachFromPreset: (params: DetachFromPresetParams) => Promise<void>;
   readonly listForPreset: (params: ListForPresetParams) => Promise<RegexScriptRow[]>;
   /** The scripts an owned preset alone uses: attached to it and to no other scope, the global tier included. */
   readonly listPresetOnlyScripts: (params: ListForPresetParams) => Promise<RegexScriptRow[]>;
 
   /** Host authority — a room-wide text transform is a one-shot jailbreak surface (the `chat_books` rule). */
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
-  readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
+  readonly detachFromChat: (params: DetachFromChatParams) => Promise<void>;
   /** Member-read: the room's attached scripts the present host owns, the set a turn applies (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<RegexScriptRow[]>;
 
   /** Rewrite one scope's execution order (position 0 runs first). Authority is that scope's own gate. */
-  readonly applyScopeOrder: (params: ApplyScopeOrderParams) => Promise<ReorderResult>;
+  readonly applyScopeOrder: (params: ApplyScopeOrderParams) => Promise<void>;
 }

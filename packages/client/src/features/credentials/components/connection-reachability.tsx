@@ -32,8 +32,10 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { SkeletonRows, useSuspenseQuery } from "#data";
+import { timeLib } from "#lib";
 import { useAdmitPrivateEndpoint, useProbeConnection } from "../hooks/use-connections-mutations.ts";
 import { endpointAuthorityOf, endpointHostOf, endpointNamedInAllowlist } from "../lib/connection-editor-model.ts";
+import { CONNECTION_CHECK_AGAIN_NAME, connectionCheckedLabel } from "../lib/credentials-names.ts";
 
 export interface ConnectionReachabilityProps {
   readonly connectionId: UserConnectionId;
@@ -67,7 +69,7 @@ export function ConnectionReachability({ connectionId, baseUrl, wakeable, trpc, 
           onClick={(): void => probe.mutate({ connectionId }, { onSuccess: (health): void => setVerdict(health) })}
           size="sm"
         >
-          Check again
+          {CONNECTION_CHECK_AGAIN_NAME}
         </Button>
       </Row>
       {authority === null ? null : <AdmitPrivateHost authority={authority} invalidation={invalidation} trpc={trpc} />}
@@ -96,13 +98,26 @@ export function AdmitPrivateHost(props: AdmitPrivateHostProps): ReactElement {
   );
 }
 
-/** §5.3a's sentence, verbatim where the cause is a FAILED DIAL; the other refusal arms say what they are
- *  rather than borrowing it (a revoked key is not an unreachable box, which is the exact product lie the
- *  honest `unchecked` health arm exists to prevent). */
+/** The verdict, then when its check went out. The stamp is an absolute time, not an age: it stays true while the panel
+ *  stays open, and a `throttled` answer carries the time of the check that actually dialled, so it never reads as fresh. */
 function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHealth | null; readonly host: string | null }): ReactElement {
   if (verdict === null) {
     return <Text voice="gloss">Nothing has been checked yet on this connection.</Text>;
   }
+  return (
+    <Stack gap="tight">
+      <ReachabilityOutcome verdict={verdict} host={host} />
+      <Text data-slot="connection-checked-at" voice="gloss">
+        {connectionCheckedLabel(timeLib.formatDateTime(verdict.checkedAt))}
+      </Text>
+    </Stack>
+  );
+}
+
+/** §5.3a's sentence, verbatim where the cause is a FAILED DIAL; the other refusal arms say what they are
+ *  rather than borrowing it (a revoked key is not an unreachable box, which is the exact product lie the
+ *  honest `unchecked` health arm exists to prevent). */
+function ReachabilityOutcome({ verdict, host }: { readonly verdict: CredentialHealth; readonly host: string | null }): ReactElement {
   if (verdict.status === "ok") {
     return (
       <Text tone="success" data-slot="connection-reachable" voice="gloss">

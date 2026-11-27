@@ -21,19 +21,19 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
       throw new WorldInfoNotFoundError("world_book", bookId);
     }
     if (orderedEntryIds.length === 0) {
-      return { reordered: 0 };
+      return;
     }
 
     const owned = new Set((await listBookEntries(ctx.db, bookId)).map((e) => e.id));
     // DEDUPE, first occurrence wins — a repeated id is ONE position in the requested order, not two. Counted
     // twice it inflated `total`, so the LATER statement for that id overwrote the earlier one with a LOWER
     // priority: the entry sank below rows the caller had placed after it, i.e. a duplicate silently produced
-    // an order the caller never asked for, and `reordered` claimed more entries than the book holds.
+    // an order the caller never asked for.
     // Refusing instead is not open: `orderedEntryIds` is documented as best-effort ("stale/foreign ids
     // silently dropped", contract/params) and a client re-sending a list is not an error case.
     const ids = [...new Set(orderedEntryIds.filter((id) => owned.has(id)))];
     if (ids.length === 0) {
-      return { reordered: 0 };
+      return;
     }
 
     const at = ctx.now();
@@ -60,6 +60,5 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
     // The ROOM plane (entity→room bridge §3.6): priority IS the injection order, so a reorder changes what
     // survives the per-turn WI budget — an assembly change with no entry-level event of its own.
     ctx.emit({ type: "world-info.updated", bookId });
-    return { reordered: ids.length };
   };
 }

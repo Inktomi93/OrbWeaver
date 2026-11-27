@@ -42,7 +42,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   const world = result.world;
   expect(world.ordered).toMatchObject({
     input: { bookId: world.book.id, orderedEntryIds: [world.second.id, world.first.id, world.second.id] },
-    output: { reordered: 2 },
+    output: undefined,
   });
   expect(world.orderedEntries.output.map((entry) => entry.id)).toEqual([world.second.id, world.first.id]);
   expect(world.persisted.entries.map((entry) => [entry.id, entry.priority])).toEqual([
@@ -75,7 +75,7 @@ test("native library projections retain canonical usage, ordering, intake and re
 
   const regex = result.regex;
   expect(regex.before.output.map((script) => script.id)).toEqual([regex.first.id, regex.second.id]);
-  expect(regex.ordered.output).toEqual({ reordered: 2 });
+  expect(regex.ordered.output).toBeUndefined();
   expect(regex.after.output.map((script) => script.id)).toEqual([regex.second.id, regex.first.id]);
   expect(regex.persisted.chat.map((row) => [row.regexScriptId, row.position])).toEqual([
     [regex.first.id, 1],
@@ -94,8 +94,8 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(regex.imported.output).toEqual({ created: true, notes: [] });
   expect(regex.repeated.output).toEqual({ created: false, notes: [] });
   expect(regex.bulk.output).toEqual({ affected: 1 });
-  expect(regex.detached.output).toEqual({ detached: true });
-  expect(regex.detachedAgain.output).toEqual({ detached: false });
+  expect(regex.detached.output).toBeUndefined();
+  expect(regex.detachedAgain.output).toBeUndefined();
   expect(regex.deleted.output).toBeUndefined();
 
   const tags = result.tags;

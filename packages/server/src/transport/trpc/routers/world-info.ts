@@ -15,9 +15,7 @@ import {
   chatBookViewSchema,
   createBookSchema,
   createEntrySchema,
-  detachResultSchema,
   entryViewSchema,
-  reorderResultSchema,
   updateBookSchema,
   updateEntrySchema,
   worldBookIdInputSchema,
@@ -153,7 +151,7 @@ export const worldInfoRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.worldInfo.backfillTitles({ principal: ctx.auth, bookId: input.bookId })),
 
   applyEntryOrder: authedProcedure
-    .output(reorderResultSchema)
+    .output(z.void())
     .input(
       z.strictObject({
         bookId: typeIdSchema(ID_PREFIX.worldBook),
@@ -187,7 +185,7 @@ export const worldInfoRouter = t.router({
     ),
 
   detachFromCharacter: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.detachFromCharacter({
@@ -213,7 +211,7 @@ export const worldInfoRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.worldInfo.attachGlobal({ principal: ctx.auth, bookId: input.bookId })),
 
   detachGlobal: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(worldBookIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.worldInfo.detachGlobal({ principal: ctx.auth, bookId: input.bookId })),
 
@@ -231,7 +229,7 @@ export const worldInfoRouter = t.router({
     ),
 
   detachFromPersona: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(z.strictObject({ personaId: typeIdSchema(ID_PREFIX.persona), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.detachFromPersona({
@@ -258,7 +256,7 @@ export const worldInfoRouter = t.router({
     ),
 
   detachFromChat: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), bookId: typeIdSchema(ID_PREFIX.worldBook) }))
     .mutation(({ ctx, input }) =>
       ctx.services.worldInfo.detachFromChat({

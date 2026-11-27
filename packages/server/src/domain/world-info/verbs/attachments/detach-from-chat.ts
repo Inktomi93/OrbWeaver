@@ -1,4 +1,4 @@
-// verb: detachFromChat — remove a book↔chat attachment (idempotent — `detached:false` when already absent).
+// verb: detachFromChat — remove a book↔chat attachment (idempotent — a no-op when already absent).
 // Room gate: the INJECTED `requireChatHost` (D18 — host authority over room config; the book's owner is NOT
 // re-checked, so the host can always clean the room, including a book another account owns, which the pool
 // already ignores under D64). Only a real removal emits `wiBookDetached` + the user-bus `worldInfoChanged` (fired to the acting
@@ -19,7 +19,7 @@ export function createDetachFromChat(ctx: WorldInfoContext): WorldInfoService["d
       .where(and(eq(chatBooks.chatId, chatId), eq(chatBooks.worldBookId, bookId)))
       .returning({ worldBookId: chatBooks.worldBookId });
     if (removed.length === 0) {
-      return { detached: false };
+      return;
     }
     await ctx.emitWiEvent({ type: "wiBookDetached", chatId, surface: "chat", bookId });
     await ctx.audit(
@@ -33,6 +33,5 @@ export function createDetachFromChat(ctx: WorldInfoContext): WorldInfoService["d
       at,
     );
     ctx.emitUserEvent(principal.userId, { type: "worldInfoChanged", bookId });
-    return { detached: true };
   };
 }
