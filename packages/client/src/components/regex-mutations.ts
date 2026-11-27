@@ -11,7 +11,7 @@ export const useAttachCharacter = createEntityMutation<inferInput<Trpc["regex"][
   errorToast: "Couldn't attach that script to this character.",
 });
 
-export const useDetachCharacter = createEntityMutation<inferInput<Trpc["regex"]["detachFromCharacter"]>, { readonly detached: boolean }>({
+export const useDetachCharacter = createEntityMutation<inferInput<Trpc["regex"]["detachFromCharacter"]>, void>({
   options: (trpc) => trpc.regex.detachFromCharacter.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't detach that script from this character.",
@@ -23,7 +23,7 @@ export const useAttachPreset = createEntityMutation<inferInput<Trpc["regex"]["at
   errorToast: "Couldn't attach that script to this preset.",
 });
 
-export const useDetachPreset = createEntityMutation<inferInput<Trpc["regex"]["detachFromPreset"]>, { readonly detached: boolean }>({
+export const useDetachPreset = createEntityMutation<inferInput<Trpc["regex"]["detachFromPreset"]>, void>({
   options: (trpc) => trpc.regex.detachFromPreset.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't detach that script from this preset.",
@@ -35,7 +35,7 @@ export const useAttachChat = createEntityMutation<inferInput<Trpc["regex"]["atta
   errorToast: "Couldn't attach that script to this chat.",
 });
 
-export const useDetachChat = createEntityMutation<inferInput<Trpc["regex"]["detachFromChat"]>, { readonly detached: boolean }>({
+export const useDetachChat = createEntityMutation<inferInput<Trpc["regex"]["detachFromChat"]>, void>({
   options: (trpc) => trpc.regex.detachFromChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't detach that script from this chat.",

@@ -34,7 +34,6 @@ import {
   bulkAxesResultSchema,
   bulkResultSchema,
   createRegexScriptSchema,
-  detachResultSchema,
   importScriptFileResultSchema,
   regexAttachScopeSchema,
   regexAxesWriteSchema,
@@ -45,7 +44,6 @@ import {
   regexScriptIdsInputSchema,
   regexScriptUsageSchema,
   regexScriptViewSchema,
-  reorderResultSchema,
   updateRegexScriptSchema,
 } from "@orb/contracts/regex";
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
@@ -154,7 +152,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
   detachGlobal: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.detachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
@@ -166,7 +164,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachToCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
   detachFromCharacter: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
@@ -181,7 +179,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachToPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
   detachFromPreset: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(z.strictObject({ presetId: typeIdSchema(ID_PREFIX.preset), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
@@ -202,7 +200,7 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachToChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 
   detachFromChat: authedProcedure
-    .output(detachResultSchema)
+    .output(z.void())
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 
@@ -219,7 +217,7 @@ export const regexRouter = t.router({
     .query(({ ctx, input }) => ctx.services.chat.listDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
 
   applyScopeOrder: authedProcedure
-    .output(reorderResultSchema)
+    .output(z.void())
     .input(z.strictObject({ scope: regexAttachScopeSchema, orderedScriptIds: z.array(typeIdSchema(ID_PREFIX.regexScript)) }))
     .mutation(({ ctx, input }) => ctx.services.regex.applyScopeOrder({ principal: ctx.auth, scope: input.scope, orderedScriptIds: input.orderedScriptIds })),
 });

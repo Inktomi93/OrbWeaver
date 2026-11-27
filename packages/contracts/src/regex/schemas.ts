@@ -748,17 +748,6 @@ export const portableRegexScriptSchema = z.preprocess(
 
 export type PortableRegexScript = z.output<typeof portableRegexScriptSchema>;
 
-/** `detachFrom{Character,Preset,Chat}` / `detachGlobal` — `false` when the junction row was already absent
- *  (idempotent no-op), `true` when a row was removed. */
-export interface DetachResult {
-  readonly detached: boolean;
-}
-
-/** `applyScopeOrder` — how many attachments had their `position` rewritten. */
-export interface ReorderResult {
-  readonly reordered: number;
-}
-
 /** Every BULK verb's answer: how many of the requested scripts the operation actually changed.
  *  It is NOT the requested count — a foreign id, an id another device already deleted, and an id that was
  *  already in the requested state all fall out, and the caller's toast should say what happened rather than
@@ -767,8 +756,6 @@ export interface BulkResult {
   readonly affected: number;
 }
 
-export const detachResultSchema = z.strictObject({ detached: z.boolean() }) satisfies z.ZodType<DetachResult>;
-export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfies z.ZodType<BulkResult>;
 
 /** How many scripts one request may name: far above any real selection or preset, low enough to bound the statement a

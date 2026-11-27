@@ -1,4 +1,4 @@
-// verb: detachGlobal — un-mark an owned book global (idempotent — `detached:false` when not global). Gates
+// verb: detachGlobal — un-mark an owned book global (idempotent — a no-op when not global). Gates
 // book ownership (`loadOwnedBook`) so a caller can't clear another user's global flag. Only a real removal
 // audits.
 
@@ -20,7 +20,7 @@ export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["det
     const fanReach = await ctx.captureRoomReachForDelete(bookId);
     const removed = await ctx.db.delete(globalBooks).where(eq(globalBooks.worldBookId, bookId)).returning({ worldBookId: globalBooks.worldBookId });
     if (removed.length === 0) {
-      return { detached: false };
+      return;
     }
     await ctx.audit(
       {
@@ -33,6 +33,5 @@ export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["det
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     fanReach();
-    return { detached: true };
   };
 }

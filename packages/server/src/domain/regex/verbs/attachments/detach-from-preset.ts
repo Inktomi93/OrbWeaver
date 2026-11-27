@@ -1,6 +1,6 @@
 // verb: detachFromPreset — remove a script's preset attachment. Both sides gated (the script must be
 // the caller's, so a foreign attachment is unreachable). Idempotent: an already-absent row is
-// `{detached:false}`, not a throw.
+// a no-op, not a throw.
 
 import { presetRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
@@ -19,12 +19,10 @@ export function createDetachFromPreset(ctx: RegexContext): RegexService["detachF
     const result = await ctx.db
       .delete(presetRegexScripts)
       .where(and(eq(presetRegexScripts.presetId, presetId), eq(presetRegexScripts.regexScriptId, scriptId)));
-    const detached = result.rowsAffected > 0;
-    if (detached) {
+    if (result.rowsAffected > 0) {
       await ctx.audit({ actorUserId: ownerId, action: "regex.detachFromPreset", entityType: "regex_script", entityId: scriptId, metadata: { presetId } }, at);
       ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
       announce([scriptId]);
     }
-    return { detached };
   };
 }

@@ -1,3 +1,4 @@
+import type { ReapResult } from "@orb/contracts/chat";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { EntityMutateAsync, Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
@@ -102,9 +103,8 @@ export const useSetGameEngaged = createEntityMutation<inferInput<Trpc["rpg"]["up
  *  window, holding `data-app-ready` open — to re-read a list the server had just reported unaffected. The
  *  common answer is `{reaped: 0}` (a user with no expired temp room), and zero rows deleted is zero rows
  *  the list can be showing. A throw still reconciles: `undefined` is not evidence of a no-op. */
-export const useReapTemporaryChats = createEntityMutation<void, { readonly reaped: number }>({
+export const useReapTemporaryChats = createEntityMutation<void, ReapResult>({
   options: (trpc: Trpc) => trpc.chat.reapTemporaryChats.mutationOptions(),
-  invalidates: (trpc: Trpc, _vars, data: { readonly reaped: number } | undefined) =>
-    data !== undefined && data.reaped === 0 ? [] : [trpc.chat.listChats.pathFilter()],
+  invalidates: (trpc: Trpc, _vars, data: ReapResult | undefined) => (data !== undefined && data.reaped === 0 ? [] : [trpc.chat.listChats.pathFilter()]),
   backgroundFailure: "tempChatSweep",
 });

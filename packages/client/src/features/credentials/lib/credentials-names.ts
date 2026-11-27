@@ -61,6 +61,14 @@ export const CONNECTION_EDITOR_TIER_TITLES = {
   diagnostics: "Diagnostics",
 } as const;
 
+/** The Diagnostics tier's button that dials the connection again. */
+export const CONNECTION_CHECK_AGAIN_NAME = "Check again";
+
+/** The line under a reachability verdict: `when` is the date and time the check the verdict reports went out. */
+export function connectionCheckedLabel(when: string): string {
+  return `Checked ${when}.`;
+}
+
 /** The Advanced tier's `features` block heading. */
 export const ENDPOINT_QUIRKS_LABEL = "Endpoint quirks";
 
