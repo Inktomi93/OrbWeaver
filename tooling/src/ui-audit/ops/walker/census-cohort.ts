@@ -106,6 +106,20 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     return Math.min(largest, shortSide / 2);
   }
 
+  // A DISCLOSURE WRAPPER IS NOT THE ROW (#1728). A group frame holds its band plus the body the band opens, so
+  // measuring the frame makes an open group taller by design, and hides a band of the wrong height behind the
+  // same band-or-body content. The member that owns the anatomy is the toggle itself: a direct child whose
+  // aria-controls names a sibling-or-deeper element inside the frame. A frame with no such child is its own row.
+  function disclosureBand(frame) {
+    for (var db = 0; db < frame.children.length; db += 1) {
+      var toggle = frame.children[db];
+      if (toggle.getAttribute("aria-expanded") === null) continue;
+      var controlled = document.getElementById(String(toggle.getAttribute("aria-controls") || ""));
+      if (controlled !== null && controlled !== toggle && frame.contains(controlled) && !toggle.contains(controlled)) return toggle;
+    }
+    return null;
+  }
+
   // A cohort is scoped to ONE parent: same-slot elements in two different lists are two populations and
   // may legitimately differ. Keyed on the parent element itself, so no selector round-trip is needed.
   var cohortsByParent = new Map();
@@ -115,7 +129,9 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     if (parent === null || !isVisible(cel)) continue;
     var key = cohortKey(cel);
     if (key === null) continue;
-    var crect = cel.getBoundingClientRect();
+    var cband = disclosureBand(cel);
+    var cmeasured = cband === null ? cel : cband;
+    var crect = cmeasured.getBoundingClientRect();
     if (crect.height < COHORT_MIN_PAINTED_PX) continue;
     var byKey = cohortsByParent.get(parent);
     if (byKey === undefined) {
@@ -149,8 +165,8 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     // the content, so it is reported rather than excused as a taller member. A child with no box, or one
     // taken out of flow, does not size the member and is not its content.
     var childSpans = [];
-    for (var cc = 0; cc < cel.children.length; cc += 1) {
-      var cohortChild = cel.children[cc];
+    for (var cc = 0; cc < cmeasured.children.length; cc += 1) {
+      var cohortChild = cmeasured.children[cc];
       var cohortChildPosition = getComputedStyle(cohortChild).position;
       if (cohortChildPosition === "absolute" || cohortChildPosition === "fixed") continue;
       var childRect = cohortChild.getBoundingClientRect();
@@ -186,7 +202,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     // judged — this is a mechanism fence on "has no box", not on the word "inline".
     var cdisplay = getComputedStyle(cel).display;
     members.push({
-      el: cel,
+      el: cmeasured,
       rect: crect,
       height: Math.round(crect.height),
       content: Math.round(contentHeight),

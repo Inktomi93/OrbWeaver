@@ -268,7 +268,7 @@ export async function settleHeldBackdrops(page: Page, reads: readonly HoverForce
       return read;
     }
     const ring = textBackdropRing(raw, read.box);
-    return "refusal" in ring ? read : { ...read, backdrop: { kind: "flat", color: ring.color } };
+    return "refusal" in ring ? read : { ...read, backdrop: { kind: "flat", color: ring.color }, pixelSampled: true };
   });
 }
 

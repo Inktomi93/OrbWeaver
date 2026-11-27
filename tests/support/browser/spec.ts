@@ -11,6 +11,7 @@ export { boxOf } from "./box-of.ts";
 export { expectCacheProse } from "./cache-prose.ts";
 export { frameTextInsetPx, hostLengthPx } from "./card-frame-inset.ts";
 export { computedStyle, fontSizeAgainstStep } from "./computed-style.ts";
+export { REREAD_FINDING, STRANDED_FOCUS_FINDING } from "./delete-aftermath.ts";
 export { formatDensityFindings } from "./density-census.ts";
 export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";
@@ -69,5 +70,6 @@ export type {
   TrpcInput,
   TrpcPath,
 } from "./trpc-wire.ts";
+export { formatTypeRampFindings } from "./type-ramp.ts";
 export type { WebVitalsEmission } from "./web-vitals.ts";
 export { drainWebVitals, installWebVitals, readWebVitals, webVitalsInitScript } from "./web-vitals.ts";

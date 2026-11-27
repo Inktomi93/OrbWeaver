@@ -2405,6 +2405,8 @@ function hoverSample(over: Partial<HoverContrastInput> = {}): HoverContrastInput
     fontSizePx: 14,
     fontWeight: 400,
     foregroundOpacity: 1,
+    dimmedGroupHoldsPaint: false,
+    hoverBackdropSampled: false,
     inactive: "none",
     transitionCoversPaint: false,
     transitionDurationMs: 0,

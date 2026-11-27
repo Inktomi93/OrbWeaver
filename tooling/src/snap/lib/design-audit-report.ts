@@ -27,6 +27,7 @@ import {
   printPopulationAccounting,
   printSurfaceState,
   reachRows,
+  resultToken,
   surfaceStateRows,
   WITHHELD_REASONS,
 } from "../../ui-audit/index.ts";
@@ -244,7 +245,7 @@ function themePairs(measurement: DesignAuditMeasurement): readonly ResultPair[] 
   const theme = measurement.themeEvidence;
   const render = measurement.samples === null ? null : measurement.samples.themeRender;
   const requested: readonly ResultPair[] = [
-    ["theme-request", theme.request ?? "account"],
+    ["theme-request", resultToken(theme.request ?? "account")],
     ["theme-id", theme.resolution?.id ?? (theme.request === null ? "account" : "none")],
     ["theme-source", theme.resolution?.source ?? (theme.request === null ? "account" : "unresolved")],
   ];

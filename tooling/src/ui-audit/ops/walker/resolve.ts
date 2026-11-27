@@ -271,6 +271,23 @@ export const WALKER_RESOLVE = `
     // A layer nested in the subject's own positioned box still follows it in the tree-order list.
     return (text.el.compareDocumentPosition(layer.el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
   }
+  // A layer the browser paints beneath the base's own fill is covered by it, so it is not between that fill and the
+  // surface under it. Only a negative z-index does this: it ranks under the in-flow paint of its stacking context, and
+  // the base's background is that paint. A layer whose own context sits inside the base is ranked among the base's
+  // children, above its background, so it keeps its veto. The root's background is the canvas, which paints beneath every
+  // layer, so a wallpaper at z-index -1 over the body fill stays a veto. Any doubt answers false.
+  function paintsBelowBase(layerEl, baseNode) {
+    if (baseNode === document.body || baseNode === document.documentElement) return false;
+    var ctx = baseNode;
+    while (ctx !== null && !createsStackingContext(ctx)) ctx = ctx.parentElement;
+    if (ctx === null || ctx === baseNode) return false;
+    var layer = paintParticipant(layerEl, ctx);
+    if (layer === null || layer.level >= 0) return false;
+    var base = paintParticipant(baseNode, ctx);
+    if (base === null) return true;
+    if (layer.el.contains(base.el) || base.el.contains(layer.el)) return false;
+    return base.level > layer.level;
+  }
   // Is the opaque background found at baseNode actually what the eye sees behind el, or does a paint
   // layer sit on top of it? Only layers INSIDE the base's subtree count (a layer outside it paints under
   // the base's own background, not over it), and never one that contains el — that one is an ancestor
@@ -285,6 +302,7 @@ export const WALKER_RESOLVE = `
       if (underQuery && el.contains(layer.el)) continue;
       if (!baseNode.contains(layer.el) || layer.el === baseNode) continue;
       if (paintsAboveSubject(layer.el, el)) continue;
+      if (paintsBelowBase(layer.el, baseNode)) continue;
       var lr = layer.rect;
       var subjectRect = elRect;
       // A subject and a layer in different scrollers meet only where both paint. A fixed layer backs the subject

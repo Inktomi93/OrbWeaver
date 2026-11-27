@@ -396,7 +396,8 @@ export function SurfaceSidewaysStory({ widened }: { readonly widened: "child" | 
   );
 }
 
-const STRIP_TABS = ["Parameters", "Prompt", "Actions", "Data", "Transforms"] as const;
+// Planted views, not a copy of any product's tab names: the geometry probe reads the strip's width, so the labels claim no product.
+const STRIP_TABS = ["First view", "Second", "Third view", "Fourth", "Fifth view"] as const;
 
 /**
  * A production tab strip wider than its scroll wrapper, the way an editor's view strip degrades to a scroll. `strip`: the wrapper holds

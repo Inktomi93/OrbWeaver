@@ -4,6 +4,7 @@
 import { AA_LARGE_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
+  compositeForeground,
   coveredBackdrop,
   FOREGROUND_OPACITY_EPS,
   INACTIVE_ADVISORY_MAX_RATIO,
@@ -36,6 +37,7 @@ function indeterminateFinding(selector: string, value: string, message: string):
 type ContrastOutcome =
   | { readonly kind: "dimmed" }
   | { readonly kind: "unresolvedBackdrop" }
+  | { readonly kind: "outerDimOverPixels" }
   | { readonly kind: "unseenInFrame" }
   | { readonly kind: "unreadCover" }
   | { readonly kind: "maskedForeground" }
@@ -69,10 +71,16 @@ function frameOutcome(input: ContrastInput): ContrastOutcome | null {
 function ratioOver(input: ContrastInput, over: Rgb, opacity: number): number {
   const cover = input.cover;
   if (opacity >= FOREGROUND_OPACITY_EPS && cover === undefined) {
-    return wcagContrastRatio(input.color, over);
+    return wcagContrastRatio(paintedInk(input.color, over), over);
   }
   const ring = cover === undefined || input.backdropMethod === "pixel-sample" ? over : coveredBackdrop(over, cover);
-  return wcagContrastRatio(inkOverRing(input.color, ring, { inner: opacity, outer: 1, fill: ring }, cover), ring);
+  return wcagContrastRatio(inkOverRing(paintedInk(input.color, ring), ring, { inner: opacity, outer: 1, fill: ring }, cover), ring);
+}
+
+/** A translucent ink paints its blend with what lies behind it, not its authored channels: the reader sees the blend. */
+export function paintedInk(color: Rgb, ring: Rgb): Rgb {
+  const alpha = color.a ?? 1;
+  return alpha >= FOREGROUND_OPACITY_EPS ? color : compositeForeground(color, ring, alpha);
 }
 
 function contrastOutcome(input: ContrastInput): ContrastOutcome {
@@ -116,6 +124,12 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   const backdrop = input.backdrop;
   if (framed !== null || backdrop.kind === "unresolved") {
     return framed ?? { kind: "unresolvedBackdrop" };
+  }
+  // A DIMMED GROUP THAT PAINTS UNDER THE INK HAS NO SOUND COMPOSITE ON A PIXEL RING. The ring is the framebuffer, so it
+  // already carries the group's dim over the paint inside it, and the glyph would take that dim a second time here. How the
+  // group's paint splits the ring is not known on this path, so the verdict is withheld by name rather than guessed.
+  if (input.backdropMethod === "pixel-sample" && input.dimmedGroupHoldsPaint === true) {
+    return { kind: "outerDimOverPixels" };
   }
 
   if (isContrastExempt(input.inactive ?? "none")) {
@@ -395,6 +409,7 @@ function tallyReadingSurface(tallies: ReadingSurfaceTallies, outcome: ContrastOu
   switch (outcome.kind) {
     case "dimmed":
     case "unreadCover":
+    case "outerDimOverPixels":
     case "unresolvedBackdrop": {
       for (const tally of [contrast, overArt, inactive]) {
         count(tally.withheld, outcome.kind);

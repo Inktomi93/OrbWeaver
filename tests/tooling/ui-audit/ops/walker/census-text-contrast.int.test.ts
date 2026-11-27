@@ -63,3 +63,59 @@ test("a label over striped art that reaches under its box stays withheld", async
   const stdout = await audit(scratch, runSnap, "label-over-art", themeRow(LIGHT_SWATCH + stripes));
   expect(stdout).toMatch(/POPULATION\s+contrast candidates=1 judged=0 affected=0 .*withheld\(unresolvedBackdrop=1\)/u);
 });
+
+// A TRANSLUCENT INK PAINTS ITS BLEND, NOT ITS AUTHORED CHANNELS. rgb(0 0 0 / 0.45) on white paints #8c8c8c, which reads
+// 3.36:1, while its authored channels read 21:1. A reader of the pixels sees the blend, so the audit judges the blend.
+function noteOnPlate(ink: string): string {
+  return `<div style="background:#ffffff;padding:16px;width:240px"><span style="display:inline-block;color:${ink};font-size:14px">Muted note</span></div>`;
+}
+
+test("a translucent ink is judged at the blend it paints, the same ratio as its opaque twin", async ({ runSnap, scratch }) => {
+  const translucent = await audit(scratch, runSnap, "ink-translucent", noteOnPlate("rgb(0 0 0 / 0.45)"));
+  expect(translucent).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=1 /u);
+  expect(translucent).toMatch(/^P1\s+contrast\s.*3\.36:1/mu);
+  // The control: the opaque colour the blend lands on reads the same ratio, so the finding is the blend and not the alpha.
+  const opaque = await audit(scratch, runSnap, "ink-opaque-twin", noteOnPlate("#8c8c8c"));
+  expect(opaque).toMatch(/^P1\s+contrast\s.*3\.36:1/mu);
+});
+
+// The same blend over a translucent reading plate on a fixed art layer: the runner reads the plate's pixels, and the ink
+// blends with that composite. White ink at full strength clears 7:1 there; at 0.55 alpha it paints about 3.5:1.
+function noteOnArtPlate(ink: string): string {
+  const art = '<div aria-hidden="true" style="position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(#e8e2d6,#c6beb0)"></div>';
+  const plate = `<div style="position:relative;background:rgba(24,20,16,0.65);padding:16px;width:240px"><span style="display:inline-block;color:${ink};font-size:13px">Small ink</span></div>`;
+  return `${art}${plate}`;
+}
+
+test("a translucent ink over a translucent plate on art is judged from the plate's pixels and the ink's blend", async ({ runSnap, scratch }) => {
+  const translucent = await audit(scratch, runSnap, "art-plate-translucent-ink", noteOnArtPlate("rgb(255 255 255 / 0.55)"));
+  expect(translucent).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=1 /u);
+  expect(translucent).toMatch(/^P1\s+contrast\s.*3\.\d\d:1/mu);
+  // The control: the opaque ink on the same plate is the flat-backdrop pass the item calls a true negative.
+  const opaque = await audit(scratch, runSnap, "art-plate-opaque-ink", noteOnArtPlate("rgb(255 255 255)"));
+  expect(opaque).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
+  expect(opaque).not.toMatch(/^P\d\s+contrast\s/mu);
+});
+
+test("a translucent ink that still clears the floor stays clean, and so does the opaque ink beside it", async ({ runSnap, scratch }) => {
+  const mostlyOpaque = await audit(scratch, runSnap, "ink-mostly-opaque", noteOnPlate("rgb(0 0 0 / 0.9)"));
+  expect(mostlyOpaque).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
+  expect(mostlyOpaque).not.toMatch(/^P\d\s+contrast\s/mu);
+});
+
+// AN ANCESTOR DIM OVER A PIXEL RING HAS NO SOUND COMPOSITE. The ring is the framebuffer, so it already shows the dim of an
+// ancestor group that also holds the backdrop, and the glyph would take that dim a second time. Which pieces of the
+// backdrop sit inside the group is not known on the pixel path, so the text is withheld by name. A text with no ancestor
+// dim, or only its own dim (which composites the glyph alone over the ring), keeps its verdict.
+test("a pixel-sampled label under an ancestor opacity group is withheld by name", async ({ runSnap, scratch }) => {
+  const stdout = await audit(scratch, runSnap, "label-ancestor-dim", `<div style="opacity:0.5">${themeRow(LIGHT_SWATCH)}</div>`);
+  expect(stdout).toMatch(/POPULATION\s+contrast candidates=1 judged=0 affected=0 .*withheld\(outerDimOverPixels=1\)/u);
+  expect(stdout).toMatch(/POPULATION\s+text-over-art candidates=1 judged=0 affected=0 .*withheld\(outerDimOverPixels=1\)/u);
+});
+
+test("the same pixel-sampled label with no ancestor dim, or only its own dim, is still judged", async ({ runSnap, scratch }) => {
+  const plain = await audit(scratch, runSnap, "label-no-dim", themeRow(LIGHT_SWATCH));
+  expect(plain).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
+  const own = await audit(scratch, runSnap, "label-own-dim", themeRow(LIGHT_SWATCH).replace("min-width:0;", "opacity:0.9;min-width:0;"));
+  expect(own).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
+});

@@ -6,6 +6,7 @@ import type { SurfaceAuditErrorSource, SurfaceAuditRequest } from "../node/surfa
 import { productNameFindings } from "./accessible-names.ts";
 import { densityFindings } from "./density-census.ts";
 import { formIdentityFindings } from "./form-identity.ts";
+import { typeRampFindings } from "./type-ramp.ts";
 
 const QUIET_FRAMES = 20;
 const ERROR_QUERY_COUNTS: Readonly<Record<SurfaceAuditErrorSource, number>> = { query: 1, interaction: 0 };
@@ -14,6 +15,7 @@ export interface SurfaceAuditReport {
   readonly names: Awaited<ReturnType<typeof productNameFindings>>;
   readonly forms: Awaited<ReturnType<typeof formIdentityFindings>>;
   readonly density: Awaited<ReturnType<typeof densityFindings>>;
+  readonly typeRamp: Awaited<ReturnType<typeof typeRampFindings>>;
 }
 
 /** Verify concrete rendered witnesses and their ownership before any audit or measurement. */
@@ -45,6 +47,7 @@ export async function auditSurface<const Checks extends SurfaceAuditRequest["che
       names: checks.includes("names") ? await productNameFindings(page) : [],
       forms: checks.includes("forms") ? await formIdentityFindings(page, { both: requireBothFormKeys }) : [],
       density: checks.includes("density") ? await densityFindings(page) : [],
+      typeRamp: checks.includes("typeRamp") ? await typeRampFindings(scope) : [],
     };
     return pickKeys(report, checks);
   });

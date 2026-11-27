@@ -3,7 +3,7 @@ import type { Locator } from "@playwright/test";
 
 const SURFACE_STATES = ["loaded", "empty", "error"] as const;
 /** Every product audit collects the full set; a narrower request names its subset from this tuple. */
-export const SURFACE_CHECKS = ["names", "forms", "density"] as const;
+export const SURFACE_CHECKS = ["names", "forms", "density", "typeRamp"] as const;
 type SurfaceChecks = readonly [(typeof SURFACE_CHECKS)[number], ...(typeof SURFACE_CHECKS)[number][]];
 const SURFACE_ERROR_SOURCES = ["query", "interaction"] as const;
 export type SurfaceAuditErrorSource = (typeof SURFACE_ERROR_SOURCES)[number];

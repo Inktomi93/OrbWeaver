@@ -104,9 +104,10 @@ export const HOVER_FORCE_READ = `
     return {
       box: { x: forcedRect.x, y: forcedRect.y, width: forcedRect.width, height: forcedRect.height },
       index: idx,
-      color: forcedColor === null ? null : { r: forcedColor.r, g: forcedColor.g, b: forcedColor.b },
+      color: forcedColor === null ? null : { r: forcedColor.r, g: forcedColor.g, b: forcedColor.b, a: forcedColor.a },
       backdrop: resolveBackdrop(cand.el),
       opacity: accumulatedOpacity(cand.el),
+      dimmedGroupHoldsPaint: dimmedGroupHoldsPaint(cand.el),
     };
   }
   function groupGlowRead(glowMembers) {
@@ -158,7 +159,7 @@ export const HOVER_FORCE_READ = `
     for (var vi = 0; vi < hoverCandidates.length; vi += 1) {
       var vcand = hoverCandidates[vi];
       var vcolor = parseRgb(getComputedStyle(vcand.el).color);
-      var vkey = hoverRestKey(vcolor === null ? null : { r: vcolor.r, g: vcolor.g, b: vcolor.b }, resolveBackdrop(vcand.el));
+      var vkey = hoverRestKey(vcolor === null ? null : { r: vcolor.r, g: vcolor.g, b: vcolor.b, a: vcolor.a }, resolveBackdrop(vcand.el));
       if (vkey !== vcand.restKey) stuck.push(vi);
     }
     return stuck;

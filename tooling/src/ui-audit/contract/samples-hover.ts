@@ -43,6 +43,10 @@ export interface HoverContrastInput {
   /** Product of `opacity` over the element and its ancestors, read UNDER the forced state — a hover rule
    *  is perfectly capable of changing it, and the glyph the eye reads is the composite either way. */
   readonly foregroundOpacity: number;
+  /** An ancestor opacity group holds paint under the text, and whether `hoverBackdrop` was read from the held frame's
+   *  pixels. That dim is already in those pixels, so the pair has no sound composite (lib/checks-hover.ts). */
+  readonly dimmedGroupHoldsPaint: boolean;
+  readonly hoverBackdropSampled: boolean;
   readonly inactive: InactiveKind;
   /** Does the PAINTED element's own computed `transition-property` name `color`, `background-color`, or
    *  `all` — and is the matching `transition-duration` non-zero. The forced read happens at t≈0, before
@@ -143,6 +147,9 @@ export interface HoverForcedReadRow {
   readonly color: Rgb | null;
   readonly backdrop: Backdrop;
   readonly opacity: number;
+  readonly dimmedGroupHoldsPaint: boolean;
+  /** Set by the pixel pass when it settled `backdrop` from the held frame. */
+  readonly pixelSampled?: true;
   /** Viewport box of the candidate while held, so an unresolved backdrop can be read from pixels. */
   readonly box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
 }

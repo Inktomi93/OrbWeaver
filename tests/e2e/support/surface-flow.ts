@@ -29,7 +29,10 @@ export interface SurfaceFlowInput {
 
 export interface SurfaceFlow extends SurfaceFlowInput {
   readonly checkpoint: (request: SurfaceAuditRequest, groups?: readonly SurfaceActionGroup[]) => Promise<void>;
-  readonly action: (name: string, operation: { readonly action: () => Promise<void>; readonly ready: () => Promise<void> }) => Promise<SurfaceActionWindow>;
+  readonly action: (
+    name: string,
+    operation: { readonly action: () => Promise<void>; readonly ready: () => Promise<void>; readonly deleted?: string },
+  ) => Promise<SurfaceActionWindow>;
   readonly requestPanes: () => Promise<void>;
   readonly topology: () => Promise<void>;
   /** Whether the production shell resolved its desktop regime; enlarged text can resolve a desktop viewport to the mobile shell. */

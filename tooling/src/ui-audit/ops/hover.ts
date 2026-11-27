@@ -322,7 +322,14 @@ function settleInputs(
       bump(withheld, "unreadableHoverColor");
       continue;
     }
-    inputs.push({ ...row, hoverColor: read.color, hoverBackdrop: read.backdrop, foregroundOpacity: read.opacity });
+    inputs.push({
+      ...row,
+      hoverColor: read.color,
+      hoverBackdrop: read.backdrop,
+      foregroundOpacity: read.opacity,
+      dimmedGroupHoldsPaint: read.dimmedGroupHoldsPaint,
+      hoverBackdropSampled: read.pixelSampled === true,
+    });
   }
   return inputs;
 }

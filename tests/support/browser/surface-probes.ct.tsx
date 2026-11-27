@@ -1,8 +1,10 @@
 // The raw detectors are tested on planted markup inside their owning testkit, not exposed as product audit shortcuts.
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { nameQualityFindings, productNameFindings } from "./accessible-names.ts";
 import { densityFindings } from "./density-census.ts";
 import { formIdentityFindings } from "./form-identity.ts";
+import { formatTypeRampFindings, typeRampFindings } from "./type-ramp.ts";
 
 test.describe("name-quality detector controls", () => {
   test("an unnamed button, a duplicate landmark, an unnamed form and a label missing from its name each fail", async ({ page }) => {
@@ -83,5 +85,35 @@ test.describe("density detector controls", () => {
       '<aside class="shell-panel"><button data-slot="button" data-cta>Save</button><button data-slot="button" data-cta>Send</button></aside>',
     );
     expect((await densityFindings(page)).map((finding) => finding.rule)).toEqual(["second-primary"]);
+  });
+});
+
+test.describe("type-ramp detector controls", () => {
+  // A bare page carries no theme sheet, so the production ramp tokens are declared on it from the token tuple.
+  const rampSteps = Object.entries(TOKENS)
+    .filter(([path]) => path.startsWith("text.") && path in LENGTH_BASE_PX)
+    .map(([, token]) => `${token.cssVar}:${token.value}`);
+  const ramp = `<style>:root{${rampSteps.join(";")}}</style>`;
+  const onStep = `font-size:var(${TOKENS["text.body"].cssVar})`;
+
+  test("a text run between two ramp steps and a scope with no visible text each fail", async ({ page }) => {
+    await page.setContent(
+      `${ramp}<section id="scope"><p style="${onStep}">On the ramp</p><p style="font-size:13.7px">Off the ramp</p></section><section id="empty"></section>`,
+    );
+    const off = await typeRampFindings(page.locator("#scope"));
+    expect(off.map((finding) => finding.rule)).toEqual(["off-ramp-text"]);
+    expect(formatTypeRampFindings(off)).toContain('"Off the ramp" paints at 13.7px');
+    expect((await typeRampFindings(page.locator("#empty"))).map((finding) => finding.rule)).toEqual(["empty-ramp-census"]);
+  });
+
+  test("runs on a ramp step, hidden text and a container-sized run all pass", async ({ page }) => {
+    const containerSized = TOKENS["text.art-initial"].cssVar.slice("--".length);
+    await page.setContent(
+      `${ramp}<section id="scope"><p style="${onStep}">On the ramp</p><p hidden style="font-size:13.7px">Hidden</p><p class="${containerSized}" style="font-size:13.7px">A</p></section>`,
+    );
+    expect(await typeRampFindings(page.locator("#scope"))).toEqual([]);
+    // The probe reads this page: the same call reports a defect planted into it.
+    await page.setContent(`${ramp}<section id="scope"><p style="${onStep}">On the ramp</p><p style="font-size:13.7px">Off the ramp</p></section>`);
+    expect((await typeRampFindings(page.locator("#scope"))).map((finding) => finding.rule)).toEqual(["off-ramp-text"]);
   });
 });

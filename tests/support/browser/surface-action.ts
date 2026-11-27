@@ -1,6 +1,7 @@
 import type { Page, TestInfo } from "@playwright/test";
 import { test } from "@playwright/test";
 import { attachNativeFile } from "../node/native-attachments.ts";
+import { watchDelete } from "./delete-aftermath.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import { publishSurfaceInventory } from "./surface-inventory.ts";
 
@@ -14,18 +15,40 @@ export interface SurfaceActionWindow {
   readonly entries: readonly SerializedPerformanceEntry[];
 }
 
-/** Attach an action's browser-time window independently of cumulative document Core Web Vitals. */
+/** Attach an action's browser-time window independently of cumulative document Core Web Vitals.
+ *  @remarks `deleted` names the record the action deletes; the action then fails when it leaves focus on the page body or the
+ *  page reads that id again after the delete landed. */
 export async function surfaceAction(
   info: TestInfo,
-  { name, page, action, ready }: { readonly name: string; readonly page: Page; readonly action: () => Promise<void>; readonly ready: () => Promise<void> },
+  {
+    name,
+    page,
+    action,
+    ready,
+    deleted,
+  }: {
+    readonly name: string;
+    readonly page: Page;
+    readonly action: () => Promise<void>;
+    readonly ready: () => Promise<void>;
+    readonly deleted?: string;
+  },
 ): Promise<SurfaceActionWindow> {
   return await test.step(`Action: ${name}`, async (step) => {
     const start = await page.evaluate(() => ({ timeOrigin: performance.timeOrigin, startTime: performance.now() }));
+    const deletion = deleted === undefined ? undefined : watchDelete(page, deleted);
     let phase = "action";
     try {
       await action();
       phase = "ready";
       await ready();
+      if (deletion !== undefined) {
+        phase = "delete-aftermath";
+        const findings = await deletion.findings();
+        if (findings.length > 0) {
+          throw new Error(findings.join("; "));
+        }
+      }
     } catch (error) {
       try {
         await publishAction(info, name, "failed", `The declared ${phase} phase did not complete; inspect the native failure`);
@@ -38,6 +61,8 @@ export async function surfaceAction(
         info.annotations.push({ type: "action-evidence-unavailable", description: `${phase}: ${String(captureError)}` });
       }
       throw error;
+    } finally {
+      deletion?.stop();
     }
     const window = await captureWindow(page, start);
     await attachNativeFile(info, step, `${name}-action-window`, { body: JSON.stringify(window, null, 2), contentType: "application/json" });

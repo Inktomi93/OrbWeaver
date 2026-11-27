@@ -1565,6 +1565,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     const confirm = flow.page.getByRole("alertdialog", { name: deleteConfirmTitle(renamed), exact: true });
     await expect(confirm).toBeVisible();
     await flow.action("commands/delete-confirm", {
+      deleted: chat.id,
       action: async () => {
         await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
@@ -1884,6 +1885,7 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
   const confirm = flow.page.getByRole("alertdialog", { name: CHAT_DELETE_MESSAGE_TITLE, exact: true });
   await expect(confirm).toBeVisible();
   await flow.action("message-operations/delete", {
+    deleted: message.id,
     action: async () => {
       await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },

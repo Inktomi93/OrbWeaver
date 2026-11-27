@@ -83,9 +83,9 @@ export const HOVER_DENOMINATOR = `
     // spelling every walker call site provides before evaluating it.
     var el = tel;
     var restFacts = {
-      restColor: { r: restColor.r, g: restColor.g, b: restColor.b },
+      restColor: { r: restColor.r, g: restColor.g, b: restColor.b, a: restColor.a },
       restBackdrop: restBackdrop,
-      restKey: hoverRestKey({ r: restColor.r, g: restColor.g, b: restColor.b }, restBackdrop),
+      restKey: hoverRestKey({ r: restColor.r, g: restColor.g, b: restColor.b, a: restColor.a }, restBackdrop),
       fontSizePx: Number.parseFloat(restStyle.fontSize) || 16,
       fontWeight: fwRest === "bold" ? 700 : fwRest === "normal" ? 400 : Number(fwRest) || 400,
       inactive: ${INACTIVE_KIND_EXPR},
