@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-22
+status: doing
+updated: 2026-11-27
 priority: P2
 area: inference
+lane: wt/agent-af28679c4dcbfdf5d
 plan: unwired-code
 ---
 
