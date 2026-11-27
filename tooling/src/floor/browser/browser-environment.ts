@@ -249,6 +249,17 @@ export function resolveBrowserEnvironmentContract(
   };
 }
 
+/** The contract once a live page is re-windowed to `size` without a reload: viewport AND screen read `size`,
+ *  the same answer an explicit `--viewport` gets from {@link effectiveContextSize}, and the device's touch,
+ *  DPR, UA and mobile identity are kept. Without it the environment check would call the new size a
+ *  mismatch against the size the page was launched with. */
+export function rewindowedEnvironmentContract(contract: BrowserEnvironmentContract, size: Viewport): BrowserEnvironmentContract {
+  return {
+    requested: { ...contract.requested, viewport: size },
+    applied: { ...contract.applied, viewport: size, screen: size },
+  };
+}
+
 /** `page.viewportSize()` is PLAYWRIGHT'S OWN local record of what IT set — null for a page a connection
  *  did not create, which is every tab a session-attach reuses (design §3.4): the daemon's connection
  *  created it, an attached sibling's did not, and Playwright never backfills that record from the live

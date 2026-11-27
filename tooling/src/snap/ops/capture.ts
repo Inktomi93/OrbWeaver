@@ -7,7 +7,6 @@
 // pass order drift away from the roster. Now it walks `pageArms()`: each row answers `enabled(ctx)` for
 // itself and writes its own slice of the outcome, and `ARMS` IS the pass order, so a new arm runs where
 // the tuple says without touching this function.
-import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { EvidenceWindowId } from "../../floor/artifacts/artifact-scope.ts";
 import { evidenceWindowId, exactScope } from "../../floor/artifacts/artifact-scope.ts";
@@ -19,7 +18,7 @@ import type { ArmPageContext } from "../contract/arms.ts";
 import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
 import type { Args, CaptureOutcome, ShotPlan } from "../contract/types.ts";
 import { planOut } from "../lib/out-names.ts";
-import { scrubPlaywrightText } from "../lib/private-values.ts";
+import { playwrightErrorLine } from "../lib/private-values.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import { EVAL_ARM } from "./arms/eval.ts";
 import type { RunArms } from "./arms/registry.ts";
@@ -116,7 +115,14 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     const pageActions = opts.actions.filter((entry) => entry.action.page === pageIndex);
     const split = splitTrailingEvals(pageActions);
     markCallPhase("drive");
-    const driven = await driveActions({ page, actions: split.drive, opts, pageIndex, ...(runArms === null ? {} : { lifecycle: runArms }) });
+    const driven = await driveActions({
+      page,
+      actions: split.drive,
+      opts,
+      pageIndex,
+      rewindowEnvironment: evidence.rewindowEnvironment,
+      ...(runArms === null ? {} : { lifecycle: runArms }),
+    });
     outcome.navFailures = driven.navFailures;
     outcome.stepFailures = driven.stepFailures;
     outcome.driveFailures.push(...driven.driveFailures);
@@ -154,7 +160,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     }
   } catch (e) {
     // Playwright quotes the URL it was navigating to, so the error carries whatever navigate noted as private.
-    outcome.navError = scrubPlaywrightText(`nav/wait threw: ${errorMessage(e)}`);
+    outcome.navError = playwrightErrorLine("nav/wait threw: ", e);
     // Try to screenshot whatever we got anyway. THE ONE ARM NAMED BY HAND, and only here: the fallback
     // is about the NAV FAILURE, not about the pixel arm — the run has to hand back an image of whatever
     // state it reached even though the pass above never got as far as the shutter.

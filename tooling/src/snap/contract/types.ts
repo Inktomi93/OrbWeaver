@@ -271,6 +271,9 @@ export interface Args extends StageArgs {
   network: NetworkProfileName | null;
   /** `--vision <type>`: CDP `Emulation.setEmulatedVisionDeficiency` on every page. null = normal vision. */
   vision: VisionDeficiency | null;
+  /** `--text-size <n>`: the browser's own default font size at n times the engine default (`Page.setFontSizes`), on every
+   *  page before it navigates. 1 = the engine default, which sends nothing. */
+  textSize: number;
   // ── DEVICE PRESETS ──────────────────────────────────────────────────────────
   /** A Playwright device descriptor name (e.g. "iPhone 14 Pro Max") — full touch + mobile-UA + DPR
    *  emulation, not just a narrow viewport. null = the raw `viewport` field drives (desktop). Last of

@@ -16,7 +16,7 @@ const MAP_ROW = {
   selector: "#save",
   fallback: "#save",
   semanticFallback: "#save",
-  state: { disabled: false, current: null, checked: null, expanded: null },
+  state: { disabled: false, disabledBy: null, current: null, checked: null, expanded: null },
   visibility: "visible",
   inactiveReason: null,
   actionability: "actionable",

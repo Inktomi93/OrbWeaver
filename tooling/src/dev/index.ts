@@ -23,4 +23,4 @@ export {
   viteSpawnPlan,
 } from "./lib/plan.ts";
 export { awaitDevClientReady } from "./ops/client-ready.ts";
-export { runDev } from "./ops/dev.ts";
+export { readWorkspacePackages, runDev } from "./ops/dev.ts";

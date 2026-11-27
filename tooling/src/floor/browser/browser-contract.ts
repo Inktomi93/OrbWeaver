@@ -161,7 +161,11 @@ export interface ProbeContext {
   readonly evidence: BrowserEvidenceChannels;
   readonly diagnosticWindow: DiagnosticWindow;
   readonly settingsEvidence: SettingsShimEvidence;
+  /** The contract the page currently holds: the launch contract until {@link ProbeContext.rewindowEnvironment} re-windows it. */
   readonly environmentContract: BrowserEnvironmentContract;
+  /** Record that a live page of this context was resized to `size`, so the environment check and the next call's
+   *  reassertion hold that size instead of the launch size. */
+  readonly rewindowEnvironment: (size: Viewport) => void;
   /** False for a context another CDP connection owns; absent means this session owns it. */
   readonly owned?: boolean;
 }
@@ -181,6 +185,7 @@ export interface ProbeSession {
   readonly evidence: BrowserEvidenceChannels;
   readonly diagnosticWindow: DiagnosticWindow;
   readonly environmentContract: BrowserEnvironmentContract;
+  readonly rewindowEnvironment: (size: Viewport) => void;
   readonly contexts: readonly ProbeContext[];
   readonly cleanup?: readonly (() => Promise<void>)[];
 }

@@ -226,6 +226,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--mask` | `V,R` selector | capture modifier; screenshot masks | checkpoint | shot modifier | owned | KEEP; refused when no screenshot is produced |
 | `--materialize-devtools-assets` | `B` | maintainer/admin; materializes DevTools frontend assets | exclusive pre-dispatch | no overlap | owned | KEEP in current owner-ruled location |
 | `--matrix` | `B` | call orchestration; run the derived rated matrix | matrix owner; composes scenario | no synonym | owned | KEEP |
+| `--media` | `V,R,@N` print or screen | action; CSS media emulation on the live page | checkpoint | no alias | owned | KEEP |
 | `--mobile` | `B` | boot environment; mobile device preset | outer | same slot as viewport/wide/desktop, different value | owned | KEEP |
 | `--motion` | `O,L` selector | analyzer; motion audit | checkpoint/arm | not OS reduced-motion setting | owned | KEEP |
 | `--motion-goto` | `V,L` target | analyzer; motion audit whose measured input is a `--goto` run inside the trace | checkpoint/arm | takes the place of `--motion` (one window per run) | owned | KEEP |
@@ -254,6 +255,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--stage-auth` | `V,L` mode | boot WHERE; stage sign-in mode (single-user or local with seeded humans) | outer | implies isolated; `local` points --contexts/--as at the stage | owned | KEEP |
 | `--request-body` | `V,L` URL filter | analyzer modifier; print newest retained JSON body | checkpoint/arm | implies requests capture | owned | KEEP |
 | `--requests` | `O,L` URL filter | analyzer; network request log | checkpoint/arm | request-body is modifier | owned | KEEP |
+| `--resize` | `V,R` WxH | action; live window change of the page and the run contract | checkpoint; page 0 only | not `--viewport`, which sets the boot window | owned | KEEP |
 | `--scale` | `V,L` screenshot/device scale | boot environment | outer; one shared scenario/session browser lifetime; raw checkpoint drift refused | not crop | owned | KEEP |
 | `--scenario` | `V,L` preset/name | call orchestration | scenario owner | `--file` is source form, not alias | owned | KEEP |
 | `--session` | `V,L` session name | session call/boot selector | outer | no alias | owned | KEEP |
@@ -277,11 +279,13 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--scenario-summary` | `B` | scenario output modifier | scenario only | parent-owned and refused without scenario | owned | KEEP; old `--summary` refuses by name |
 | `--tap` | `V,R,@N` selector | action; a REAL touch tap (no mouseover, so a hover-only tooltip stays shut) | checkpoint | distinct mechanism from `--click`/`--dom-click`/`--force-click`; requires `--mobile` or another touch device | owned | KEEP |
 | `--swipe` | `V,R,@N` selector=dy | action; a dispatched touch drag that scrolls a touch scroller | checkpoint | distinct mechanism from `--wheel` (mouse); requires `--mobile` or another touch device | owned | KEEP |
+| `--swipe-at` | `V,R,@N` x,y=dx,dy | action; a dispatched touch drag from a viewport pixel | checkpoint | coordinate form of `--swipe`; requires `--mobile` or another touch device | owned | KEEP |
 | `--swipe-x` | `V,R,@N` selector=dx | action; a dispatched horizontal touch drag; positive dx drags the finger left | checkpoint | distinct mechanism from `--swipe` (vertical); requires `--mobile` or another touch device | owned | KEEP |
 | `--long-press` | `V,R,@N` selector=ms | action; hold a touch on the selector for ms, then lift | checkpoint | distinct mechanism from `--tap`; requires `--mobile` or another touch device | owned | KEEP |
 | `--tap-at` | `V,R,@N` x,y | action; a REAL touch tap at viewport pixels | checkpoint | coordinate form of `--tap`; requires `--mobile` or another touch device | owned | KEEP |
 | `--soft-keyboard` | `V,R,@N` px | action; open an on-screen keyboard that shrinks visualViewport by px (0 closes) | checkpoint | phone-context only; refused without a touch device | owned | KEEP |
 | `--text` | `O,L,@N` selector | analyzer; text projection | checkpoint/arm | differs from ARIA/map | owned | KEEP |
+| `--text-size` | `V,L` multiple | boot environment; CDP `Page.setFontSizes` on every page before it navigates | outer | the browser default text size, not the app font scale | owned | KEEP |
 | `--theme` | `V,L` theme | boot appearance | outer | composes with appearance; not dark/light alias | owned | KEEP |
 | `--upload` | `V,R,@N` selector=path list | action; direct/descendant input or Playwright filechooser trigger | checkpoint | chooser semantics; real DataTransfer drop is distinct | owned | KEEP |
 | `--viewport` | `V,L` `WIDTHxHEIGHT` | boot environment | outer | same slot as wide/mobile/desktop, different explicit value | owned | KEEP |
@@ -291,6 +295,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--wait-for` | `V,R,@N` selector | action/readiness | checkpoint | distinct from global wait policy | owned | KEEP |
 | `--watch` | `V,L` duration | call loop | checkpoint | every is cadence modifier | owned | KEEP |
 | `--wheel` | `V,R,@N` delta/spec | action; one wheel event | checkpoint | `--wheel-burst` is the repeated/timed form | owned | KEEP |
+| `--wheel-at` | `V,R,@N` x,y=dy | action; one wheel event at a viewport pixel, no hover or scroll-into-view | checkpoint | coordinate form of `--wheel` | owned | KEEP |
 | `--wheel-burst` | `V,R,@N` burst spec | action; wheel burst | checkpoint | same primitive family, distinct value grammar | owned | KEEP; old `--wheelburst` refuses by name |
 | `--wide` | `B` | boot environment; wide viewport preset | outer | same slot as viewport/mobile/desktop, different value | owned | KEEP |
 | `-h` | `B` | admin/read; help | exclusive | only true spelling alias, of `--help` | owned | KEEP |

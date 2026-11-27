@@ -1,7 +1,7 @@
-// The three read-the-evidence classifiers: the shutdown drain, the client-bundle freshness, and the
-// /api/_debug arming posture. All pure — each turns an observation into a WORD the operator can act on.
-import { SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
-import type { DebugPosture, DistVerdict, DrainOutcome, ServedVerdict } from "../contract/types.ts";
+// The read-the-evidence classifiers: the client-bundle freshness, the served-transform freshness and the /api/_debug
+// arming posture, plus the margin the shutdown drain adds (the drain classifier is ./drain-verdict.ts). All pure — each
+// turns an observation into a WORD the operator can act on.
+import type { DebugPosture, DistVerdict, ServedVerdict } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 // ── Shutdown drain ───────────────────────────────────────────────────────────────────────────────────
@@ -33,20 +33,6 @@ import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
  * rejection), and extending on log growth alone would let a noisy wedged process defer SIGKILL forever.
  */
 export const DRAIN_MARGIN_MS = 5000;
-export const DRAIN_WATCH_MS = SHUTDOWN_DRAIN_MS + DRAIN_MARGIN_MS;
-
-/** Classify the tail of the prod log written SINCE the SIGTERM. `deadline-hit` is a real outcome, not a
- *  failure: the drain force-closed a long-lived SSE stream at 10s and said so (a warn, because a client
- *  saw a truncated stream) — expected during a deploy. */
-export function classifyDrainTail(tail: string): DrainOutcome {
-  if (tail.includes(SHUTDOWN_MESSAGES.complete)) {
-    return "complete";
-  }
-  if (tail.includes(SHUTDOWN_MESSAGES.drainDeadline)) {
-    return "deadline-hit";
-  }
-  return "pending";
-}
 
 // ── Client-dist freshness ────────────────────────────────────────────────────────────────────────────
 

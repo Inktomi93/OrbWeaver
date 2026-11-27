@@ -1,7 +1,6 @@
 // The `--aria` / `--text` ARM: the page's accessibility tree, which is the cheapest honest description of
 // a rendered surface an agent can read (no pixels, no tokens spent on an image). Split out of the former
 // ops/evidence.ts by NATURE when the arm registry landed — one file per arm (contract/arms.ts).
-import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
@@ -10,7 +9,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { DiskSafeText } from "../../contract/disk-safe-argv.ts";
 import type { Args } from "../../contract/types.ts";
 import { SNAP_CEILINGS_MS } from "../../lib/budgets.ts";
-import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
+import { playwrightErrorLine, scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
 
@@ -32,7 +31,7 @@ async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
     // A password field paints dots, but its accessibility tree holds the value in plain text.
     return { text: scrubPrivateText(await root.ariaSnapshot(ariaOpts)), error: null };
   } catch (e) {
-    return { text: null, error: scrubPlaywrightText(`ARIA capture failed for "${opts.ariaSelector}": ${errorMessage(e)}`) };
+    return { text: null, error: playwrightErrorLine(`ARIA capture failed for "${opts.ariaSelector}": `, e) };
   }
 }
 

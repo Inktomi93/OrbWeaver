@@ -20,6 +20,7 @@ import type { Args, SnapAction } from "../../contract/types.ts";
 import { interactionPerfFact } from "../../lib/interaction-perf-verdict.ts";
 import { scrubPrivateText } from "../../lib/private-values.ts";
 import { ratePostureDisposition, snapTimingPolicy } from "../../lib/rate-posture.ts";
+import { isPointStep, pointStepLabel } from "../drive-failure-naming.ts";
 import { pushStep } from "../flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -109,8 +110,8 @@ function label(action: SnapAction): string | null {
   if (step.kind === "soft-keyboard") {
     return `soft-keyboard ${String(step.height)}px`;
   }
-  if (step.kind === "tap-at") {
-    return `tap-at ${String(step.x)},${String(step.y)}`;
+  if (isPointStep(step)) {
+    return pointStepLabel(step);
   }
   if (step.kind === "keyboard") {
     return `keyboard ${step.key}`;

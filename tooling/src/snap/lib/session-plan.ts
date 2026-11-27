@@ -152,6 +152,7 @@ export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--cpu-throttle",
   "--network",
   "--vision",
+  "--text-size",
   ...sessionLevelArmFlags(),
 ]);
 
@@ -271,6 +272,7 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inh
     cpuThrottle: bootArgs.cpuThrottle,
     network: bootArgs.network,
     vision: bootArgs.vision,
+    textSize: bootArgs.textSize,
     pages: bootArgs.pages,
     contexts: bootArgs.contexts,
     as: bootArgs.as,

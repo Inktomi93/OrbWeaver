@@ -177,6 +177,21 @@ test("a live call's watchdog grows with its own tape, so a multi-step phone driv
   expect(driveBase).toBeGreaterThan(evalBase + 2 * SNAP_BASES_MS.step + 1200 + 900);
 });
 
+// A no-route call that asks for a settle sleeps in its `settle` phase for as long as it asked, which the kill's
+// phase ledger names; the tape never counted that phase, so `--stream-settle 8` outlived the 5s base by construction.
+test("a live call's watchdog counts the settle it asked for, and a hung eval keeps the bare ceiling", () => {
+  const evalOnly = parseSnapArgs(["--eval", "()=>1"]);
+  const streamSettle = parseSnapArgs(["--stream-settle", "8"]);
+  const idle = parseSnapArgs(["--idle"]);
+  const both = parseSnapArgs(["--idle", "--stream-settle", "8"]);
+  expect([evalOnly, streamSettle, idle, both].flatMap((call) => call.errors)).toEqual([]);
+  const evalBase = sessionCallBudget(evalOnly);
+  expect(evalBase).toBe(sessionCallWatchdogBaseMs(false));
+  expect(sessionCallBudget(streamSettle)).toBe(evalBase + 8000);
+  expect(sessionCallBudget(idle)).toBe(evalBase + SNAP_BASES_MS.networkIdle);
+  expect(sessionCallBudget(both)).toBe(evalBase + SNAP_BASES_MS.networkIdle + 8000);
+});
+
 test("an export keeps the bare call ceiling and a call that navigates owns the navigation budget", () => {
   expect(sessionCallBudget(null)).toBe(sessionCallWatchdogBaseMs(false));
   const navigating = parseSnapArgs(["/config", "--eval", "()=>1"]);

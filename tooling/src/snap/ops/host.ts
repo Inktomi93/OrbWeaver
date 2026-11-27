@@ -4,7 +4,8 @@
 //
 // What a fresh process gave each invocation, the host gives each run: its own run slot, its own request ring and
 // profile window numbers (per context), its own module ceilings (`beginLoadEpoch`) and an empty set of revealed
-// private values (`forgetPrivateValues`). Runs are serial. A bounded run that throws ends as `runTool` ends a CLI
+// private values (`forgetPrivateValues`, called as a run begins: a run's noted values outlive it until the next run or
+// process exit, so a throw detected after it still prints masked). Runs are serial. A bounded run that throws ends as `runTool` ends a CLI
 // process on the throw (`thrownOutcome`): its line on stderr and its exit code. One that passes its deadline has its
 // browser closed under it so its pending work rejects and it ends; one that still has not ended after its settle
 // ceiling, or whose browser will not close, marks the host dead, and every later run is refused rather than run
@@ -114,15 +115,13 @@ class Host implements SnapHost {
 
   async #runOnce(argv: readonly string[]): Promise<number> {
     beginLoadEpoch();
-    try {
-      return await this.#invoke(argv, () => undefined);
-    } finally {
-      forgetPrivateValues();
-    }
+    forgetPrivateValues();
+    return await this.#invoke(argv, () => undefined);
   }
 
   async #runBounded(argv: readonly string[], bounds: SnapRunBounds): Promise<SnapRunOutcome> {
     beginLoadEpoch();
+    forgetPrivateValues();
     // The host returns by the deadline: the run gets what the settle after an abort does not need.
     const settleMs = SNAP_CEILINGS_MS.hostRunSettle;
     const runMs = bounds.deadlineMs - settleMs;
@@ -159,7 +158,6 @@ class Host implements SnapHost {
       return { kind: "deadline", deadlineMs: bounds.deadlineMs };
     } finally {
       release();
-      forgetPrivateValues();
     }
   }
 }

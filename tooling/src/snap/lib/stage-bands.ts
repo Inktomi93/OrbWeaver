@@ -205,6 +205,12 @@ export function allocateStageBand(input: {
 
   const own = occupied.find((view) => rowOwner(view.row) === input.checkout && view.row.sha === input.targetSha && stageRowAuth(view.row) === auth);
   if (own !== undefined) {
+    // A seeding run puts a key and a chat binding into this stage, so whoever else is attached to it would spend that key.
+    // A row already marked seeded was judged when it was marked.
+    const attached = input.seedsConnection && own.row.connectionSeeded !== true ? attachedElsewhere(own, input.checkout) : [];
+    if (attached.length > 0) {
+      return { kind: "exhausted", refusal: seedIntoHeldStageRefusal(own, attached) };
+    }
     return { kind: "ours", band: own.band, row: own.row };
   }
 
@@ -259,6 +265,21 @@ export function allocateStageBand(input: {
   }
 
   return { kind: "exhausted", refusal: stageRangeRefusal(ordered, input.nowMs) };
+}
+
+/** Who is attached to a stage besides the caller: another checkout's live holder, and any live session. */
+function attachedElsewhere(view: StageBandView, checkout: string): readonly string[] {
+  return [
+    ...foreignHolders(view.liveHolders, checkout).map((holder) => `${holder.checkout} (pid ${String(holder.pid)})`),
+    ...view.liveSessions.map((name) => `session ${name}`),
+  ];
+}
+
+function seedIntoHeldStageRefusal(view: StageBandView, attached: readonly string[]): string {
+  return [
+    `STAGE REFUSED  --stage-connection would seed a key into band ${String(view.band)}, which ${attached.join(", ")} still uses, and that run would spend it — nothing was measured.`,
+    "  Wait for it to finish, then seed again.",
+  ].join("\n");
 }
 
 /** One `--stage-status`-shaped line per band, reused by both refusals and by the status read itself, so a

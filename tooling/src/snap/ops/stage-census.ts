@@ -180,6 +180,13 @@ export function acquireStageBand(input: StageBandAcquireInput): StageBandAcquisi
       // sibling's row on another band.
       writeRow(input.home, input.claim(allocation.band));
     }
+    if (allocation.kind === "ours" && input.seedsConnection && allocation.row.connectionSeeded !== true) {
+      // The allocator found nobody else attached, so the mark lands in the same critical section: no sibling can be
+      // handed this stage between the verdict and the mark.
+      const seeded: StageRow = { ...allocation.row, connectionSeeded: true };
+      writeRow(input.home, seeded);
+      return { allocation: { ...allocation, row: seeded }, views };
+    }
     return { allocation, views };
   });
 }

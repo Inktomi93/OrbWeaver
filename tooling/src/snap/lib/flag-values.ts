@@ -69,6 +69,9 @@ function validateLoadFlagValue(flag: string, raw: string, errors: string[]): voi
   if (flag === "--cpu-throttle" && !(Number.isFinite(Number(raw)) && Number(raw) >= NO_CPU_THROTTLE)) {
     errors.push(`--cpu-throttle expects a rate >= ${NO_CPU_THROTTLE} (1 = off, 4 = the standard load arm), got ${JSON.stringify(raw)}`);
   }
+  if (flag === "--text-size" && !(Number.isFinite(Number(raw)) && Number(raw) > 0)) {
+    errors.push(`--text-size expects a multiple of the browser's default text size above 0 (1 = the default, 2 = twice it), got ${JSON.stringify(raw)}`);
+  }
   if (flag === "--network" && parseNetworkProfile(raw) === null) {
     errors.push(`--network expects one of ${NETWORK_PROFILE_SPELLINGS.join(" | ")}, got ${JSON.stringify(raw)}`);
   }

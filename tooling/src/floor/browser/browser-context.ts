@@ -2,10 +2,12 @@ import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { devices } from "@playwright/test";
 import type { SettingsShimEvidence } from "../appearance/appearance.ts";
 import { installSettingsShim } from "../appearance/appearance.ts";
+import type { Viewport } from "../instrument/argv.ts";
 import type { PageCapture } from "./browser-capture.ts";
 import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
 import type { BrowserPageError, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
-import { effectiveContextSize, resolveBrowserEnvironmentContract } from "./browser-environment.ts";
+import type { BrowserEnvironmentContract } from "./browser-environment.ts";
+import { effectiveContextSize, resolveBrowserEnvironmentContract, rewindowedEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
 import { installCdpFaultInjector } from "./cdp-fault.ts";
 
@@ -29,7 +31,8 @@ interface ProbeContextInput {
 }
 
 export function probeContext(input: ProbeContextInput): ProbeContext {
-  const { context, pages, capture, settingsEvidence, environmentContract, owned } = input;
+  const { context, pages, capture, settingsEvidence, owned } = input;
+  let environmentContract = input.environmentContract;
   return {
     context,
     pages,
@@ -46,7 +49,12 @@ export function probeContext(input: ProbeContextInput): ProbeContext {
     diagnosticWindow: capture.diagnosticWindow,
     evidence: capture.evidence,
     settingsEvidence,
-    environmentContract,
+    get environmentContract(): BrowserEnvironmentContract {
+      return environmentContract;
+    },
+    rewindowEnvironment: (size: Viewport): void => {
+      environmentContract = rewindowedEnvironmentContract(environmentContract, size);
+    },
     ...(owned === undefined ? {} : { owned }),
   };
 }
@@ -78,7 +86,10 @@ export function probeSession(
     diagnosticCompleteness: selected.diagnosticCompleteness,
     diagnosticWindow: selected.diagnosticWindow,
     evidence: selected.evidence,
-    environmentContract: selected.environmentContract,
+    get environmentContract(): BrowserEnvironmentContract {
+      return selected.environmentContract;
+    },
+    rewindowEnvironment: selected.rewindowEnvironment,
     contexts,
     ...(cleanup === undefined ? {} : { cleanup }),
   };

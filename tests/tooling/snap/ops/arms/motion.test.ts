@@ -2,6 +2,7 @@
 // A recording CDP stand-in decides on any box; the session side of the same CDP call is
 // tests/tooling/snap/ops/session-load-emulation.int.test.ts.
 import { expect, test } from "@orb/testkit/tooling";
+import { inheritSessionArgs } from "../../../../../tooling/src/snap/lib/session-plan.ts";
 import { MOTION_CPU_THROTTLE, motionCpuRates, NO_CPU_THROTTLE } from "../../../../../tooling/src/snap/lib/throttle.ts";
 import { withCpuRate } from "../../../../../tooling/src/snap/ops/arms/motion.ts";
 import { parseSnapArgs } from "../../../../../tooling/src/snap/ops/parse.ts";
@@ -53,6 +54,22 @@ test("a --cpu-throttle session still holds its rate after a motion window", asyn
     "window failed",
   );
   expect(thrown.sent).toEqual([
+    { method: CPU_THROTTLE_METHOD, params: { rate: MOTION_CPU_THROTTLE } },
+    { method: CPU_THROTTLE_METHOD, params: { rate: 2 } },
+  ]);
+});
+
+test("a later --session call's motion window hands back the rate the boot call set", async () => {
+  // The call's own argv carries no --cpu-throttle: the session's rate reaches the bracket through the boot args.
+  const boot = parseSnapArgs(["--cpu-throttle", "2", "/"]);
+  const call = parseSnapArgs(["--motion", "#target"]);
+  expect(call.cpuThrottle).toBe(NO_CPU_THROTTLE);
+  const inherited = inheritSessionArgs(boot, call, "session-call");
+  const rates = motionCpuRates(inherited.motionThrottle, inherited.cpuThrottle);
+  expect(rates).toEqual({ window: MOTION_CPU_THROTTLE, restore: 2 });
+  const sent = recordingCdp();
+  await withCpuRate(sent.cdp, rates, () => Promise.resolve());
+  expect(sent.sent).toEqual([
     { method: CPU_THROTTLE_METHOD, params: { rate: MOTION_CPU_THROTTLE } },
     { method: CPU_THROTTLE_METHOD, params: { rate: 2 } },
   ]);

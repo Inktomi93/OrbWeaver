@@ -25,6 +25,10 @@ const STEP_FLAG: Record<Step["kind"], string> = {
   "swipe-x": "--swipe-x",
   "long-press": "--long-press",
   "tap-at": "--tap-at",
+  "swipe-at": "--swipe-at",
+  "wheel-at": "--wheel-at",
+  media: "--media",
+  resize: "--resize",
   "soft-keyboard": "--soft-keyboard",
   "motion-click": "--motion",
   jsclick: "--dom-click",
@@ -59,9 +63,28 @@ function failureReason(message: DiskSafeText): DiskSafeText {
   return scrubPrivateText(collapsed.length > FAILURE_REASON_MAX ? `${collapsed.slice(0, FAILURE_REASON_MAX)}…` : collapsed);
 }
 
+/** A step addressed by a viewport point, a size or a media type instead of a selector. */
+type PointStep = Extract<Step, { readonly kind: "tap-at" | "swipe-at" | "wheel-at" | "resize" | "media" }>;
+
+export function isPointStep(step: Step): step is PointStep {
+  return step.kind === "tap-at" || step.kind === "swipe-at" || step.kind === "wheel-at" || step.kind === "resize" || step.kind === "media";
+}
+
+function pointSubject(step: PointStep): string {
+  if (step.kind === "resize") {
+    return `${String(step.width)}x${String(step.height)}`;
+  }
+  return step.kind === "media" ? step.media : `${String(step.x)},${String(step.y)}`;
+}
+
+/** `kind subject` for a point, size or media step. */
+export function pointStepLabel(step: PointStep): string {
+  return `${step.kind} ${pointSubject(step)}`;
+}
+
 function stepSubject(step: Step): string | null {
-  if (step.kind === "tap-at") {
-    return `${String(step.x)},${String(step.y)}`;
+  if (isPointStep(step)) {
+    return pointSubject(step);
   }
   if (step.kind === "soft-keyboard") {
     return String(step.height);
@@ -85,8 +108,8 @@ export function navDriveFailure(index: number, action: NavAction, message: DiskS
 
 // What a step failure names: every arm but the bare-key one is addressed by a selector.
 export function stepLabel(step: Step): string {
-  if (step.kind === "tap-at") {
-    return `tap-at ${String(step.x)},${String(step.y)}`;
+  if (isPointStep(step)) {
+    return pointStepLabel(step);
   }
   if (step.kind === "soft-keyboard") {
     return `soft-keyboard ${String(step.height)}px`;

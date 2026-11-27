@@ -13,6 +13,7 @@ import { stageBandForPort } from "../../floor/host/ports.ts";
 import { PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
 import type { BandAccess, StageAuthMode, StageBandClaim, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 import { LOCAL_STAGE_DIR_SUFFIX, rowOwner, stageRowAuth } from "../contract/stage.ts";
+import { STAGE_CONNECTION_KEY_NAMES } from "../contract/stage-connection.ts";
 
 // 12 hex — collision-safe for a dir name while staying human-scannable in logs.
 export const SHORT_SHA_LEN = 12;
@@ -349,6 +350,14 @@ export function markerRootFromCommonDir(gitCommonDir: string): string {
  *                       generate it has a keyfile instead, which `seedStageData` copies.
  */
 export const STAGE_INHERITED_ENV_KEYS = ["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"] as const satisfies readonly EnvKey[];
+
+/** The stage's boot env without any provider key name. The server stores `OPENROUTER_API_KEY` as a credential at
+ *  boot, so a caller's exported key would land on a stage that never asked for one. `--stage-connection` carries
+ *  the key to the stage itself, as the body of a credential call, so no boot needs it in its env. */
+export function withoutProviderKeys(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const names: ReadonlySet<string> = new Set(STAGE_CONNECTION_KEY_NAMES);
+  return Object.fromEntries(Object.entries(env).filter(([name]) => !names.has(name)));
+}
 
 /** Pick the inherited keys out of a dev `.env`'s TEXT (pure — the imperative caller supplies the bytes).
  *  A key absent from the file is absent from the result, matching the schema's own unset fallback for each. */

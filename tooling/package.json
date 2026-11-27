@@ -66,6 +66,7 @@
     "./floor/host/ports": "./src/floor/host/ports.ts",
     "./floor/host/timing-capability": "./src/floor/host/timing-capability.ts",
     "./floor/http/http-probe": "./src/floor/http/http-probe.ts",
+    "./floor/http/local-engine": "./src/floor/http/local-engine.ts",
     "./floor/http/session-cookie": "./src/floor/http/session-cookie.ts",
     "./floor/instrument/argv": "./src/floor/instrument/argv.ts",
     "./floor/instrument/ffmpeg": "./src/floor/instrument/ffmpeg.ts",

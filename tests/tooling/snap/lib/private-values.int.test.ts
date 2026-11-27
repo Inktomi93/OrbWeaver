@@ -9,6 +9,7 @@ import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-ar
 import { noteUrlSecrets } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
   forgetPrivateValues,
+  playwrightErrorLine,
   privateText,
   scrubPrivateFile,
   scrubPrivateJson,
@@ -164,6 +165,22 @@ test.for([
   expect(cut).toContain(`${PRIVATE_MASK}…`);
   expect(cut).not.toContain(CUT_TOKEN.slice(0, 4));
   expect(cut).not.toContain(URL_WORD.slice(0, 16));
+});
+
+test("a caught Playwright error becomes one labelled line with a cut call log scrubbed by its prefix", () => {
+  using _values = notedForCuts();
+  const callLog = `  waiting for "${playwrightCut(`http://h.test/cb?${"a=1&".repeat(42)}token=${CUT_TOKEN}`, 200)}" navigation to finish...`;
+  const error = new Error(`page.goto: Timeout 30000ms exceeded.\nCall log:\n${callLog}`);
+
+  const line = playwrightErrorLine("nav/wait threw: ", error);
+
+  expect(line.startsWith("nav/wait threw: page.goto: Timeout 30000ms exceeded.")).toBe(true);
+  expect(line).toContain(`${PRIVATE_MASK}…`);
+  expect(line).not.toContain(CUT_TOKEN.slice(0, 4));
+  // The whole-value scrub this door replaces keeps the cut prefix: the control that the cut is the thing under test.
+  expect(scrubPrivateText(`nav/wait threw: ${error.message}`)).toContain(CUT_TOKEN.slice(0, 4));
+  // A non-Error throw is spelled the way `errorMessage` spells it.
+  expect(playwrightErrorLine("", "plain failure")).toBe("plain failure");
 });
 
 // The prefix pass judges only Playwright's own cuts, each value at its own floor, so ordinary UI text survives a run.

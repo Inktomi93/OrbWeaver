@@ -28,6 +28,7 @@ import {
   redactCapturedRequest,
   redactEvidenceText,
 } from "../lib/browser-evidence-redaction.ts";
+import type { AppliedTextSize } from "../lib/text-size.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -39,6 +40,8 @@ interface SnapManifest {
     readonly viewport: Viewport;
     readonly device: string | null;
     readonly colorScheme: string | null;
+    /** The browser text size the pages received (--text-size), null when the run left the engine default. */
+    readonly textSize: AppliedTextSize | null;
     /** The OS media query (--reduced-motion/--probe). */
     readonly reducedMotion: boolean;
     /** The APP-setting shim actually applied to this run (--appearance/--appearance-preset/--full-motion),

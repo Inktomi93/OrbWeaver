@@ -1,7 +1,6 @@
 // The argv-ordered action queue (navs + steps + mid-chain evals — the interleave IS the contract,
 // 2026-08-15/16) and the trailing-eval split that keeps a trailing `--eval` a settled-surface observer.
 // Split out of drive.ts, which owns navigation + app-readiness.
-import { errorMessage } from "@orb/kit/error-message";
 import type { NavResultShape } from "@orb/tooling/floor/browser/page-validate";
 import { navResultShape } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
@@ -12,12 +11,13 @@ import { touchGesture } from "../../floor/browser/touch-gesture.ts";
 import type { FileActionReceipt } from "../../floor/browser/upload.ts";
 import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../floor/browser/upload.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { Viewport } from "../../floor/instrument/argv.ts";
 import { evaluateNav } from "../../floor/instrument/nav.ts";
 import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../contract/arms.ts";
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, SNAP_CEILINGS_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
-import { scrubPlaywrightText, scrubPrivateText } from "../lib/private-values.ts";
+import { playwrightErrorLine, scrubPrivateText } from "../lib/private-values.ts";
 import { captureEvals } from "./arms/eval.ts";
 import { navDriveFailure, stepDriveFailure, stepLabel } from "./drive-failure-naming.ts";
 
@@ -64,11 +64,52 @@ async function runSwipeStep(page: Page, step: Extract<Step, { readonly kind: "sw
   await runTouchGesture(page, `--${step.kind}`, step.selector, { drag, holdMs: 0 });
 }
 
+// The pointer goes to the point and the wheel turns there: no locator is hovered, so nothing is scrolled into
+// view first and the wheel scrolls (or chains out of) exactly what a user's wheel at that pixel would.
+async function runWheelAtStep(page: Page, step: Extract<Step, { readonly kind: "wheel-at" }>): Promise<void> {
+  await page.mouse.move(step.x, step.y);
+  await page.mouse.wheel(0, step.dy);
+}
+
+// A finger dragged by (-dx,-dy) scrolls the content under it by (dx,dy), the same sign as `--swipe`.
+async function runSwipeAtStep(page: Page, step: Extract<Step, { readonly kind: "swipe-at" }>): Promise<void> {
+  await touchGesture(page, { x: step.x, y: step.y }, { drag: { dx: -step.dx, dy: -step.dy }, holdMs: 0 });
+}
+
+// The page is re-windowed first and the contract told only after it took, so a refused resize leaves both unchanged.
+async function runResizeStep(
+  page: Page,
+  step: Extract<Step, { readonly kind: "resize" }>,
+  rewindowEnvironment: RewindowEnvironment | undefined,
+): Promise<void> {
+  const size: Viewport = { width: step.width, height: step.height };
+  await page.setViewportSize(size);
+  rewindowEnvironment?.(size);
+}
+
+type RewindowEnvironment = (size: Viewport) => void;
+
 async function runLocatedStep(
   page: Page,
   step: Exclude<
     Step,
-    { readonly kind: "motion-click" | "pause" | "wheel" | "wheelburst" | "keyboard" | "swipe" | "swipe-x" | "long-press" | "tap-at" | "soft-keyboard" }
+    {
+      readonly kind:
+        | "motion-click"
+        | "pause"
+        | "wheel"
+        | "wheelburst"
+        | "keyboard"
+        | "swipe"
+        | "swipe-x"
+        | "long-press"
+        | "tap-at"
+        | "swipe-at"
+        | "wheel-at"
+        | "media"
+        | "resize"
+        | "soft-keyboard";
+    }
   >,
 ): Promise<FileActionReceipt | null> {
   const loc = page.locator(step.selector).first();
@@ -123,7 +164,7 @@ async function runLocatedStep(
 }
 
 // One step, one wait discipline. Throws on failure; driveStep counts + reports.
-async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null> {
+async function runStep(page: Page, step: Step, rewindowEnvironment: RewindowEnvironment | undefined): Promise<FileActionReceipt | null> {
   if (step.kind === "motion-click") {
     throw new Error("INSTRUMENT ERROR: a motion-click reached the ordinary tape dispatcher without the motion arm handling it");
   }
@@ -148,6 +189,22 @@ async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null
     await page.touchscreen.tap(step.x, step.y);
     return null;
   }
+  if (step.kind === "swipe-at") {
+    await runSwipeAtStep(page, step);
+    return null;
+  }
+  if (step.kind === "wheel-at") {
+    await runWheelAtStep(page, step);
+    return null;
+  }
+  if (step.kind === "media") {
+    await page.emulateMedia({ media: step.media });
+    return null;
+  }
+  if (step.kind === "resize") {
+    await runResizeStep(page, step, rewindowEnvironment);
+    return null;
+  }
   if (step.kind === "soft-keyboard") {
     await emulateSoftKeyboard(page, step.height);
     return null;
@@ -170,15 +227,15 @@ interface DrivenStep {
   readonly failure: DriveFailure | null;
 }
 
-async function driveStep(page: Page, step: Step, index: number): Promise<DrivenStep> {
+async function driveStep(page: Page, step: Step, index: number, rewindowEnvironment: RewindowEnvironment | undefined): Promise<DrivenStep> {
   // the caught step failure is printed as STEP FAILED and returned as { failures: 1, failure }; dispatchOrdinaryAction adds it to stepFailures and driveFailures, and verdict.ts outcomeTotals sums stepFailures. Ends if stepFailures stops being summed there.
   try {
-    const fileAction = await runStep(page, step);
+    const fileAction = await runStep(page, step, rewindowEnvironment);
     await settle(page, STEP_SETTLE_MS);
     return { failures: 0, fileAction, failure: null };
   } catch (e) {
     // A fill that reaches Playwright and fails quotes its text in the error's call log, inside the part a row keeps.
-    const msg = scrubPlaywrightText(errorMessage(e));
+    const msg = playwrightErrorLine("", e);
     // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
     // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
     if (isContextChurn(msg)) {
@@ -186,14 +243,14 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
       // the retry's own failure is printed as STEP FAILED (after churn retry) and returned as { failures: 1, failure }; dispatchOrdinaryAction adds it to stepFailures and driveFailures, and verdict.ts outcomeTotals sums stepFailures. Ends if stepFailures stops being summed there.
       try {
         await settle(page, STEP_SETTLE_MS);
-        const fileAction = await runStep(page, step);
+        const fileAction = await runStep(page, step, rewindowEnvironment);
         // The retry owes the SAME post-run settle as the normal path (#1509): returning straight from
         // here let the next tape action observe pre-settle DOM, so one churn blip silently changed what
         // every following step measured.
         await settle(page, STEP_SETTLE_MS);
         return { failures: 0, fileAction, failure: null };
       } catch (retryErr) {
-        const retryMsg = scrubPlaywrightText(errorMessage(retryErr));
+        const retryMsg = playwrightErrorLine("", retryErr);
         print(`STEP FAILED (after churn retry)  ${stepLabel(step)}: ${retryMsg}`);
         return { failures: 1, fileAction: null, failure: stepDriveFailure(index, step, scrubPrivateText(`${retryMsg} (after a dev-server churn retry)`)) };
       }
@@ -220,7 +277,7 @@ async function driveNav(page: Page, action: NavAction, index: number): Promise<D
     // used to declare its own copy of the shape and assert it.
     result = navResultShape(await evaluateNav(page, action.kind, action.target), `nav ${action.kind} ${action.target}`);
   } catch (e) {
-    const msg = scrubPlaywrightText(errorMessage(e));
+    const msg = playwrightErrorLine("", e);
     print(`NAV FAILED  ${action.kind} ${action.target}: ${msg}`);
     return navDriveFailure(index, action, msg);
   }
@@ -264,6 +321,8 @@ interface DriveActionsInput {
   readonly opts?: Args;
   readonly pageIndex?: number;
   readonly lifecycle?: DriveActionLifecycle;
+  /** Tells the page's environment contract about a `--resize`; a caller with no contract to keep omits it. */
+  readonly rewindowEnvironment?: RewindowEnvironment;
 }
 
 function applyHandledDisposition(failures: DriveFailures, entry: SnapAction, disposition: ArmActionDisposition): boolean {
@@ -275,7 +334,14 @@ function applyHandledDisposition(failures: DriveFailures, entry: SnapAction, dis
   return disposition.failures > 0;
 }
 
-async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: DriveFailures, index: number): Promise<boolean> {
+/** Where an action sits in its page's queue, and the contract hook a `--resize` among them reports to. */
+interface QueuePosition {
+  readonly index: number;
+  readonly rewindowEnvironment: RewindowEnvironment | undefined;
+}
+
+async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: DriveFailures, position: QueuePosition): Promise<boolean> {
+  const { index, rewindowEnvironment } = position;
   if (entry.type === "nav") {
     const failure = await driveNav(page, entry.action, index);
     if (failure !== null) {
@@ -289,7 +355,7 @@ async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: D
     failures.evalResults.push(...results);
     return results.some((result) => result.failed);
   }
-  const driven = await driveStep(page, entry.action, index);
+  const driven = await driveStep(page, entry.action, index, rewindowEnvironment);
   failures.stepFailures += driven.failures;
   if (driven.failure !== null) {
     failures.driveFailures.push(driven.failure);
@@ -301,7 +367,7 @@ async function dispatchOrdinaryAction(page: Page, entry: SnapAction, failures: D
 }
 
 export async function driveActions(input: DriveActionsInput): Promise<DriveFailures> {
-  const { page, actions, opts, lifecycle } = input;
+  const { page, actions, opts, lifecycle, rewindowEnvironment } = input;
   const pageIndex = input.pageIndex ?? 0;
   const failures: DriveFailures = { navFailures: 0, stepFailures: 0, evalResults: [], fileActions: [], driveFailures: [] };
   for (const [actionIndex, entry] of actions.entries()) {
@@ -312,7 +378,7 @@ export async function driveActions(input: DriveActionsInput): Promise<DriveFailu
     const disposition = ctx === null || lifecycle === undefined ? { handled: false, failures: 0 } : await lifecycle.beforeAction(ctx);
     const failed = disposition.handled
       ? applyHandledDisposition(failures, entry, disposition)
-      : await dispatchOrdinaryAction(page, entry, failures, actionIndex);
+      : await dispatchOrdinaryAction(page, entry, failures, { index: actionIndex, rewindowEnvironment });
     if (ctx !== null && lifecycle !== undefined) {
       await lifecycle.afterAction({ ...ctx, failed, handled: disposition.handled });
     }
