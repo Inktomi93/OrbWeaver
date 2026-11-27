@@ -34,7 +34,13 @@ for (const regime of [
       }
       await routeTrpc(page, {
         ...createShellAmbientReads(corpus, root.ownerId),
-        ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "settings.updateUserSettingsSection", "discovery.imageFacets", "discovery.portraitAlignment"]),
+        ...serveCorpusProcedures(caller, [
+          ...SECTION_PROCEDURES,
+          "settings.updateUserSettingsSection",
+          "discovery.imageFacets",
+          "discovery.portraitAlignment",
+          "discovery.imageSkips",
+        ]),
       });
       await seedShellState(page, { activeSection: "corpus", panelOverrides: { corpus: { list: "collapsed", context: "collapsed" } } });
       await mount<typeof SectionShellStory>(STORY, { section: "corpus" });

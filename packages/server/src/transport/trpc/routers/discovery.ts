@@ -35,6 +35,7 @@ import {
   imageDuplicatePairSchema,
   imageFacetMemberSchema,
   imageFacetsSchema,
+  imageSkipSchema,
   keywordCountSchema,
   modelRoutingRowSchema,
   portraitAlignmentReportSchema,
@@ -214,6 +215,8 @@ export const discoveryRouter = t.router({
   portraitAlignment: authedProcedure.output(portraitAlignmentReportSchema).query(({ ctx }) => ctx.services.discovery.portraitAlignment(ctx.auth.userId)),
 
   imageFacets: authedProcedure.output(imageFacetsSchema).query(({ ctx }) => ctx.services.discovery.imageFacets(ctx.auth.userId)),
+
+  imageSkips: authedProcedure.output(z.array(imageSkipSchema)).query(({ ctx }) => ctx.services.discovery.imageSkips(ctx.auth.userId)),
 
   charactersByImageFacet: authedProcedure
     .output(z.array(imageFacetMemberSchema))

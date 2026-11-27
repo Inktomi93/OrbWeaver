@@ -172,6 +172,7 @@ const TEST_IDS = {
   corpusAskState: "corpus-ask-state",
   corpusVisualsTab: "corpus-visuals-tab",
   corpusFacetDrill: "corpus-facet-drill",
+  corpusImageSkips: "corpus-image-skips",
   corpusKeywordExplorer: "corpus-keyword-explorer",
   corpusSearchSuggest: "corpus-search-suggest",
   analyticsListSurface: "analytics-list-surface",

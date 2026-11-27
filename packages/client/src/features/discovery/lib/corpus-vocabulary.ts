@@ -10,6 +10,7 @@
 // The VALUES DO NOT CHANGE. These are display projections at the render edge only: the label a filter
 // matches on, the key a chart groups by, and everything the server stores stay exactly the token they were.
 
+import type { ImageSkipReason } from "@orb/contracts/embeddings";
 import { sentenceCase } from "@orb/kit/strings";
 import { formatCount } from "./corpus-analysis-state.ts";
 
@@ -61,4 +62,20 @@ export function distilledCensus(distilled: number, characters: number): number |
     return 0;
   }
   return distilled < characters ? `${formatCount(distilled)} of ${formatCount(characters)} distilled` : `${formatCount(distilled)} distilled`;
+}
+
+/** Why the indexer left an image out, in a reader's words. A new reason is a `tsc` error here. */
+export const IMAGE_SKIP_REASON_LABELS = {
+  "below-dimension-floor": "Too small to read as a picture",
+} as const satisfies Record<ImageSkipReason, string>;
+
+/** The Visuals tab's heading over the images the indexer left out. */
+export const IMAGE_SKIPS_HEADING = "Skipped images";
+
+/** The line that says what a skip means for the images listed under it. */
+export const IMAGE_SKIPS_GLOSS = "The image index left these out, so they carry no caption or vector.";
+
+/** One skipped image's detail line: the pixels the indexer measured, then when it decided. */
+export function imageSkipDetail(width: number | null, height: number | null, skippedAgo: string): string {
+  return width === null || height === null ? `Skipped ${skippedAgo}` : `${width.toString()} × ${height.toString()} px · skipped ${skippedAgo}`;
 }

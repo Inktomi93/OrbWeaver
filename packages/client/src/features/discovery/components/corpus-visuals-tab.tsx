@@ -1,7 +1,8 @@
 // The Corpus CONTEXT "Visuals" tab — the avatar-lens analytics grouped in one home. `portraitAlignment`
 // is the corpus-wide portrait↔card fit (summary stats + the worst-matched art, each row drilling to its
 // dossier); `imageFacets` is the VL-breakdown explorer (pick a facet → its distribution as a bar-list),
-// and picking a value drives `charactersByImageFacet` to the avatars carrying it. Read-only analytics.
+// and picking a value drives `charactersByImageFacet` to the avatars carrying it. `imageSkips` lists the images
+// the indexer refused, with the reason and measured size. Read-only analytics.
 //
 // `total` IS THE ANALYSED COUNT, NOT THE CAPTIONED ONE (issue #164). This tab printed a confident "79 images"
 // over fourteen empty bar-lists because the two were one number; they are now separate, and the gap between
@@ -20,16 +21,17 @@ import { useState } from "react";
 import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, timeLib } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { toBarItems } from "../lib/corpus-charts.ts";
-import { facetLabel, matchWord } from "../lib/corpus-vocabulary.ts";
+import { facetLabel, IMAGE_SKIP_REASON_LABELS, IMAGE_SKIPS_GLOSS, IMAGE_SKIPS_HEADING, imageSkipDetail, matchWord } from "../lib/corpus-vocabulary.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
 
 type ImageFacets = inferOutput<Trpc["discovery"]["imageFacets"]>;
 type FacetKey = inferInput<Trpc["discovery"]["charactersByImageFacet"]>["facet"];
 type PortraitReport = inferOutput<Trpc["discovery"]["portraitAlignment"]>;
+type ImageSkips = inferOutput<Trpc["discovery"]["imageSkips"]>;
 
 const WORST_LIMIT = 12;
 const SKELETON_ROW_COUNT = 4;
@@ -83,7 +85,41 @@ function VisualsBody(): ReactElement {
     <Stack className="relative" minHeight="shrinks" data-testid={testId("corpusVisualsTab")} gap="section">
       <PortraitFit report={portrait} />
       <FacetExplorer facets={facets} />
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the skipped images" onRetry={retry} />}
+        reserveKey="corpus.imageSkips"
+      >
+        <SkippedImages />
+      </QueryBoundary>
     </Stack>
+  );
+}
+
+function SkippedImages(): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: skips } = useSuspenseQuery(trpc.discovery.imageSkips.queryOptions());
+  return skips.length === 0 ? null : <SkippedImageList skips={skips} />;
+}
+
+function SkippedImageList({ skips }: { readonly skips: ImageSkips }): ReactElement {
+  return (
+    <Section heading={IMAGE_SKIPS_HEADING}>
+      <Stack gap="block" data-testid={testId("corpusImageSkips")}>
+        <MutedLine>{IMAGE_SKIPS_GLOSS}</MutedLine>
+        <Stack gap="row" role="list">
+          {skips.map((skip) => (
+            <Stack key={skip.assetId} role="listitem" data-asset-id={skip.assetId} data-reason={skip.reason}>
+              <ListRow
+                title={IMAGE_SKIP_REASON_LABELS[skip.reason]}
+                subtitle={imageSkipDetail(skip.width, skip.height, timeLib.formatRelative(skip.skippedAt))}
+              />
+            </Stack>
+          ))}
+        </Stack>
+      </Stack>
+    </Section>
   );
 }
 
