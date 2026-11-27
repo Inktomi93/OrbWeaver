@@ -198,6 +198,23 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "Its safety filter stopped this one. Editing the last message or swiping again usually gets past it.",
         title: "The provider declined to write this reply",
       };
+    // The refusal's other ending: a reply did come, from a model the user did not choose.
+    case "provider_refused_fallback":
+      return {
+        description: "The chosen model declined, so the provider answered with its fallback model. Swipe to ask the chosen model again.",
+        title: "A fallback model wrote this reply",
+      };
+    case "model_downgraded":
+      return {
+        description: "The provider billed a different model than the one this connection names. Check the connection's model and your plan's limits.",
+        title: "A different model wrote this reply",
+      };
+    // Says that nothing ran, so the reader knows the reply is safe to keep, and names the one thing that helps.
+    case "tool_permission_denied":
+      return {
+        description: "The model asked to use a tool this chat never offered. It was blocked, so nothing ran. If this keeps happening, send a bug report.",
+        title: "A tool request was blocked",
+      };
     // The model DID draw something and we couldn't keep it. Says so plainly and offers the one thing that
     // actually helps — the words are still there, and another swipe re-draws.
     case "reply_image_failed":

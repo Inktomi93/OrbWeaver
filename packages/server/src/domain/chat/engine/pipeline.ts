@@ -47,7 +47,16 @@ import {
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR, statedIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ChatToolExecution, ChatToolOffer, GenerationObservationCallback, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import type {
+  ChatRunnerEvent,
+  ChatToolExecution,
+  ChatToolOffer,
+  GenerationObservationCallback,
+  Resolved,
+  ResolvedWarning,
+  ToolCallInput,
+  WireTool,
+} from "@orb/inference";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning, supportsManagedCompaction, withPresetWindow } from "@orb/inference";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RandomSource, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -285,10 +294,9 @@ interface TurnPipelineResult {
    *  warnings (`toChatWarning`) and emits one `warning` event per surfaced degrade. Distinct from the boolean
    *  capability-drop flags above: those are the DOMAIN's own gates, these are the runner's. */
   readonly runnerWarnings: readonly ResolvedWarning[];
-  /** True when ANY depth of this turn came back as a provider REFUSAL (a content-filter finish) — the engine
-   *  emits `provider_refused` off it. A boolean like the capability-drop flags beside it, not a list: one
-   *  turn's author is owed one notice, and the refusal's provider-side detail is not carryable to the bus. */
-  readonly providerRefused: boolean;
+  /** Every non-warning event the runner reported, in order across recursion depths and never deduped: the
+   *  engine reads the room's notices off it and records all of it on the wire outcome. */
+  readonly runnerEvents: readonly ChatRunnerEvent[];
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
   /** The turn's TOTAL estimated context consumption (kept history + system prompt + reserved output) — the
@@ -459,10 +467,10 @@ async function orStopped<T>(work: () => Promise<T>, signal: AbortSignal, stopped
   }
 }
 
-/** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
- *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
- *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
- *  final.content/reasoning (when given) are authoritative; accumulated deltas fall back. */
+/** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` and
+ *  `runner_event` chunks collect for the engine (D41 — still in the infra vocabulary; the engine narrows them to
+ *  chat's own); the terminal final chunk yields economics. The runner's final.content/reasoning (when given) are
+ *  authoritative; accumulated deltas fall back. */
 async function reduceStream(
   stream: AsyncIterable<TurnStreamChunk>,
   args: RunTurnPipelineArgs,
@@ -473,13 +481,13 @@ async function reduceStream(
   reasoning: string | null;
   economics: TurnEconomics | null;
   warnings: readonly ResolvedWarning[];
-  refused: boolean;
+  events: readonly ChatRunnerEvent[];
   reasoningMs: number | null;
 }> {
   let text = "";
   let reasoning = "";
   let economics: TurnEconomics | null = null;
-  let refused = false;
+  const events: ChatRunnerEvent[] = [];
   const warnings: ResolvedWarning[] = [];
   const clock = reasoningClock(args.now);
   for await (const chunk of stream) {
@@ -502,8 +510,8 @@ async function reduceStream(
         warnings.push(warning);
         break;
       }
-      case "refusal":
-        refused = true;
+      case "runner_event":
+        events.push(chunk.event);
         break;
       case "final":
         economics = chunk.economics;
@@ -514,7 +522,7 @@ async function reduceStream(
   }
   const content = economics?.content ?? text;
   const finalReasoning = economics?.reasoning ?? (reasoning.length > 0 ? reasoning : null);
-  return { content, reasoning: finalReasoning, economics, warnings, refused, reasoningMs: clock.elapsedMs() };
+  return { content, reasoning: finalReasoning, economics, warnings, events, reasoningMs: clock.elapsedMs() };
 }
 
 /** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
@@ -1159,7 +1167,7 @@ function pipelineResult(input: {
           },
         ]
       : loop.warnings,
-    providerRefused: loop.refused,
+    runnerEvents: loop.events,
   };
 }
 
@@ -1379,7 +1387,7 @@ async function runRecurseLoop(input: {
   terminalCalls: readonly ToolCallInput[];
   replyImages: readonly OrderedReplyImage[];
   warnings: readonly ResolvedWarning[];
-  refused: boolean;
+  events: readonly ChatRunnerEvent[];
   reasoningMs: number | null;
 }> {
   const { args, execute, terminalNames } = input;
@@ -1404,10 +1412,9 @@ async function runRecurseLoop(input: {
   // KEYED ON THE WHOLE WARNING: the structured half now distinguishes two drops that share a code
   // (two different sampling knobs), so a code-keyed set would surface one of them and swallow the other.
   const warnings = new Map<string, ResolvedWarning>();
-  // ORed across depths, never counted: a tool loop refused at depth 2 was still ONE refused turn. Collected
-  // as a list and folded at the return rather than `refused ||= …` in the loop, because this function sits
-  // ON the cognitive-complexity cap and a logical operator in the loop body is what pushes it over.
-  const refusedByDepth: boolean[] = [];
+  // Concatenated in depth order and never deduped: the outcome record keeps each event as the runner reported it,
+  // and the engine collapses repeats to one notice per code.
+  const events: ChatRunnerEvent[] = [];
   let depth = 0;
   const totals = (): RecurseLoopTotals => ({
     content,
@@ -1418,7 +1425,7 @@ async function runRecurseLoop(input: {
     terminalCalls,
     replyImages,
     warnings: [...warnings.values()],
-    refused: refusedByDepth.includes(true),
+    events: [...events],
     reasoningMs,
   });
   for (;;) {
@@ -1433,7 +1440,7 @@ async function runRecurseLoop(input: {
       () => ({ loop: withInFlight(totals(), streamed), inFlight: streamed, completedCalls }),
     );
     content += reduced.content;
-    refusedByDepth.push(reduced.refused);
+    events.push(...reduced.events);
     for (const warning of reduced.warnings) {
       warnings.set(JSON.stringify(warning), warning);
     }
@@ -1508,7 +1515,7 @@ interface RecurseLoopTotals {
   readonly terminalCalls: readonly ToolCallInput[];
   readonly replyImages: readonly OrderedReplyImage[];
   readonly warnings: readonly ResolvedWarning[];
-  readonly refused: boolean;
+  readonly events: readonly ChatRunnerEvent[];
   readonly reasoningMs: number | null;
 }
 

@@ -96,3 +96,6 @@ export type ChatEvent =
       readonly at: number;
       readonly toolNames: readonly string[];
     };
+
+/** Every {@link ChatEvent} besides `warning`: what a turn reports beyond its resolve and wire drops. */
+export type ChatRunnerEvent = Exclude<ChatEvent, { readonly kind: "warning" }>;

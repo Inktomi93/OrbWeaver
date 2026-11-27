@@ -931,9 +931,12 @@ function handleRateLimitEvent(acc: TurnAccumulator, message: Narrow<"rate_limit_
   });
 }
 
+// The runtime's auth error is its own prose about the credential, and the event is spilled to disk with the turn's
+// outcome, so it is scrubbed of the credential like every other runtime text this runner keeps.
 function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">): void {
-  acc.emit({ kind: "auth_status", at: acc.ctx.now(), isAuthenticating: message.isAuthenticating, error: message.error });
-  acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: message.error }, "agent-sdk: auth status change");
+  const error = message.error === undefined ? undefined : sanitizeApiError(redactSecretsFromText(message.error, acc.ctx.secrets));
+  acc.emit({ kind: "auth_status", at: acc.ctx.now(), isAuthenticating: message.isAuthenticating, error });
+  acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: error }, "agent-sdk: auth status change");
 }
 
 // Tokens come from the result's `usage`, never from `modelUsage`: a resumed session's `modelUsage` continues

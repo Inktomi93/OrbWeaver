@@ -41,6 +41,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
   ChatHistoryMessage,
+  ChatRunnerEvent,
   ChatTurnTools,
   GeneratedImage,
   GenerationObservationCallback,
@@ -223,8 +224,8 @@ export interface CueReplay {
   readonly turnScoped: boolean;
 }
 
-/** A streamed chunk from a role turn: text/reasoning deltas, an out-of-band honest-degrade `warning`, then one
- *  terminal final chunk carrying the generation economics.
+/** A streamed chunk from a role turn: text/reasoning deltas, the out-of-band honest-degrade `warning` and
+ *  `runner_event` chunks, then one terminal final chunk carrying the generation economics.
  *
  *  The `warning` arm is the CHAT role's infra→domain warning hop (D41 no-silent-degrade). The runners raise
  *  resolve/wire drops as infra `WARNING_CODE` on `ChatResult.events`; the compose bridge
@@ -243,12 +244,10 @@ export type TurnStreamChunk =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "reasoning"; readonly text: string }
   | ({ readonly kind: "warning" } & ResolvedWarning)
-  // THE PROVIDER DECLINED. Its own arm rather than a `ResolvedWarning`, because `WARNING_CODE` is the
-  // resolve/wire DROP vocabulary — "we asked for X and the provider did Y instead" — and a refusal is not a
-  // degrade of our settings but the model's verdict on the request. Payload-free: the refusal's `category` /
-  // `explanation` / `fallbackModel` are raw upstream strings the chat bus may not carry (`bus.ts`
-  // `provider_refused`), and they already ride the infra `refusal` event into the wire-outcome ring.
-  | { readonly kind: "refusal" }
+  // Every other runner event, carried raw. `WARNING_CODE` is the resolve/wire DROP vocabulary, and these are not
+  // drops of our settings: a refusal, a billed-model change, a denied tool, and the runner's diagnostics. The engine
+  // decides which ones the room hears (`emitCapabilityDropWarnings`) and records all of them on the wire outcome.
+  | { readonly kind: "runner_event"; readonly event: ChatRunnerEvent }
   | { readonly kind: "final"; readonly economics: TurnEconomics };
 
 /** The post-generation economics a role turn reports, folded onto the variant. All optional: a runner that

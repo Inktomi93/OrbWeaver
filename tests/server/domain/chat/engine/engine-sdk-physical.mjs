@@ -27,7 +27,7 @@ async function importedHistory(runtime, sessionId) {
   return { sessionId, rowCount: rows.length, firstText: first === undefined ? "" : frameText(first), lastText: last === undefined ? "" : frameText(last) };
 }
 
-async function respond(message, policy, write, sessionId) {
+async function respond(message, policy, { write, writeAs }, sessionId) {
   const content = message.message.content;
   const prompt = typeof content === "string" ? content : content.map((block) => block.text).join("\n");
   const marker = prompt.includes("Conversation to summarize:");
@@ -43,6 +43,8 @@ async function respond(message, policy, write, sessionId) {
   }
   const failed = behavior === "fail";
   const reply = marker ? ENGINE_SDK_MARKER : ENGINE_SDK_REPLY;
+  const protocol = turnProtocol(policy, marker);
+  writeFrames(writeAs, protocol.frames);
   if (!failed) {
     write({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }], ["stop_reason"]: "end_turn" } });
   }
@@ -58,9 +60,24 @@ async function respond(message, policy, write, sessionId) {
     ["stop_reason"]: "end_turn",
     ["total_cost_usd"]: 0,
     usage: { ["input_tokens"]: marker ? 1 : policy.inputTokens, ["output_tokens"]: 1, ["cache_read_input_tokens"]: 0, ["cache_creation_input_tokens"]: 0 },
-    modelUsage: {},
-    ["permission_denials"]: [],
+    modelUsage: protocol.modelUsage,
+    ["permission_denials"]: protocol.permissionDenials,
   });
+}
+
+// The policy's protocol frames and result accounting ride the foreground turn only; each frame names its own parent
+// frame identity.
+function turnProtocol(policy, marker) {
+  if (marker) {
+    return { frames: [], modelUsage: {}, permissionDenials: [] };
+  }
+  return { frames: policy.frames ?? [], modelUsage: policy.modelUsage ?? {}, permissionDenials: policy.permissionDenials ?? [] };
+}
+
+function writeFrames(writeAs, frames) {
+  for (const { slot, frame } of frames) {
+    writeAs(slot, frame);
+  }
 }
 
 async function run() {
@@ -70,9 +87,10 @@ async function run() {
   }
   const policy = JSON.parse(policyArg.slice(ENGINE_SDK_POLICY.length));
   const { sdkSessionId, frameId, lines } = await readSdkProcessInput();
-  const write = (value) => {
-    process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? "init" : value.type), ["session_id"]: sdkSessionId })}\n`);
+  const writeAs = (slot, value) => {
+    process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(slot), ["session_id"]: sdkSessionId })}\n`);
   };
+  const write = (value) => writeAs(value.type === "system" ? "init" : value.type, value);
   for await (const line of lines) {
     const message = JSON.parse(line);
     if (writeSdkControlReply(message)) {
@@ -81,7 +99,7 @@ async function run() {
     if (message.type !== "user") {
       throw new Error(`unscripted physical engine SDK input ${message.type}`);
     }
-    await respond(message, policy, write, sdkSessionId);
+    await respond(message, policy, { write, writeAs }, sdkSessionId);
   }
 }
 
