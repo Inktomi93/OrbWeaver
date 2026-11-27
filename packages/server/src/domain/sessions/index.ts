@@ -4,6 +4,7 @@
 export type { SeedOwnerParams } from "./contract/boot.ts";
 // The binding and pending-join cookies' Max-Age at the route tier is these same windows.
 export { OIDC_PENDING_JOIN_TTL_MS, OIDC_TRANSACTION_TTL_MS } from "./contract/policy.ts";
+export type { ProvisionDenyReason } from "./contract/results.ts";
 export type { SessionsRolePolicy, SessionsRolePolicyConfig } from "./contract/role-policy.ts";
 export type { SessionsContext, SessionsCryptoOps, SessionsService } from "./contract/service.ts";
 export type { DomainOidcStore } from "./persistence/oidc-store.ts";

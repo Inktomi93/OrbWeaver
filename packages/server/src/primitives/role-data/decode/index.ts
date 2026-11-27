@@ -1,5 +1,7 @@
 // Private decoding door: native incoming edges admit only the kernel and the explicit data boundaries.
-import type { ParticipantRole, ParticipantRoleState, UserRole, UserRoleState } from "@orb/contracts/identity";
+
+import type { ParticipantRoleState, UserRole, UserRoleState } from "@orb/contracts/identity";
+import type { ParticipantRole } from "@orb/kit/message-author";
 import { participantRoleCodes, userRoleCodes } from "../registry.ts";
 
 /** Transport accepts only objects captured by a canonical global-role producer. */

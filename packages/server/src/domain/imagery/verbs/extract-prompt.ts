@@ -7,10 +7,11 @@
 // `CaptionAvatar` import here is TYPE-only, which domain-no-cross-verb permits.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ExtractionMode } from "@orb/contracts/imagery";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { ImageryNotConfiguredError, PromptExtractionFailedError } from "../contract/errors.ts";
-import type { ExtractionMode, ExtractPromptParams } from "../contract/params.ts";
+import type { ExtractPromptParams } from "../contract/params.ts";
 import type { ExtractedPrompt } from "../contract/results.ts";
 import type { CaptionAvatar, ImageryContext, ImageryService, ResolvePrompt } from "../contract/service.ts";
 import { recordPromptSpend } from "../persistence/prompt-spend.ts";

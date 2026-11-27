@@ -23,9 +23,10 @@
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
-import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
+import type { TokenProvenance, VariantMetadata } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
 import { boundedJsonObjectSchema, parseJsonText } from "@orb/kit/json";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";

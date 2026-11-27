@@ -11,9 +11,8 @@ import { useTRPC } from "./trpc.ts";
 /** The not-yet-loaded arm, hoisted so its plane list is one stable array. */
 const NO_VIEWS: readonly PluginMacroView[] = [];
 
-/** `enabled: false` is for a surface that offers no plugin rows, so it does not send the read at all. */
-export function usePluginMacroPlanes(enabled = true): readonly MacroPlane[] {
+export function usePluginMacroPlanes(): readonly MacroPlane[] {
   const trpc = useTRPC();
-  const { data } = useQuery({ ...trpc.plugin.listMacros.queryOptions(), enabled });
+  const { data } = useQuery(trpc.plugin.listMacros.queryOptions());
   return pluginMacroPlanes(data ?? NO_VIEWS);
 }

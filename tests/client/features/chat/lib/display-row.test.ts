@@ -1,6 +1,6 @@
-import type { MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { displayDepthsOf } from "#client/features/chat/lib/display-row.ts";

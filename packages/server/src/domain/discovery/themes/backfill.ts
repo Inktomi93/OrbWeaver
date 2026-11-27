@@ -14,16 +14,12 @@ import { digestThemeAssignments, messages } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { ChatDigestId, ChatId } from "@orb/kit/ids";
+import type { SeqSpan } from "@orb/kit/recall";
 import { asc, eq, inArray } from "drizzle-orm";
 import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads.ts";
 
 /** Stamps per `db.batch`: a whole corpus in one batch holds the event loop for the length of the write. */
 const STAMP_WRITE_CHUNK = 500;
-
-interface SeqSpan {
-  readonly seqStart: number;
-  readonly seqEnd: number;
-}
 
 interface Stamp {
   readonly digestId: ChatDigestId;

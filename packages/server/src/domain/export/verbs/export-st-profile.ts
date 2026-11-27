@@ -31,6 +31,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { IMAGE_EXTENSION_BY_MIME } from "@orb/kit/image-sniff";
 import { parseJsonText } from "@orb/kit/json";
+import type { ZipEntry, ZipLimits } from "#infra/storage";
 import type { StAttachedFile } from "#primitives/serde/databank";
 import { stAttachmentEntry } from "#primitives/serde/databank";
 import { parseGallery } from "#primitives/serde/gallery";
@@ -45,7 +46,7 @@ import { buildStWorldFile, parseWorldBookFile } from "#primitives/serde/world-in
 import { stClipStem, stExportFilename } from "#primitives/st-filename";
 import { volumeFold } from "#primitives/volume-fold";
 import type { HostChatRef } from "../contract/results.ts";
-import type { StEntrySource, StProfileEntry, StProfileSource, StProfileZipFile, StStreamedKind, StZipLimits } from "../contract/st-profile.ts";
+import type { StEntrySource, StProfileEntry, StProfileSource, StStreamedKind } from "../contract/st-profile.ts";
 
 // The kinds SillyTavern keeps nothing of. Each owned file of them is named in the report.
 const NO_HOME_KINDS = ["imagery", "spend"] as const satisfies readonly StStreamedKind[];
@@ -595,13 +596,13 @@ function listed({ path, kind, door }: StExportFile): StExportFile {
 const UNNAMED_ENTRIES_RESERVED = 3;
 
 // Whether the zip is too full for this row: the dry run and the zip judge by the same count.
-function pastEntryCap(entry: StProfileEntry, count: number, limits: StZipLimits): entry is StProfileEntry & { readonly source: StEntrySource } {
+function pastEntryCap(entry: StProfileEntry, count: number, limits: ZipLimits): entry is StProfileEntry & { readonly source: StEntrySource } {
   return entry.source !== null && count + UNNAMED_ENTRIES_RESERVED >= limits.maxEntries;
 }
 
 /** What the SillyTavern export would carry and leave, with no stored body read. A body too large for the zip is known
  *  only when the zip reads it, so only the zip's report names it. */
-export async function stProfileDryRun(source: StProfileSource, limits: StZipLimits): Promise<StExportReport> {
+export async function stProfileDryRun(source: StProfileSource, limits: ZipLimits): Promise<StExportReport> {
   const plan = new PlanBuilder();
   const files: StExportFile[] = [];
   for await (const entry of planEntries(source, plan)) {
@@ -616,7 +617,7 @@ export async function stProfileDryRun(source: StProfileSource, limits: StZipLimi
 
 /** The SillyTavern export's zip files, one body read per pull, then its report at the zip root. The report names the
  *  files written, and a body gone by write time among the rows left behind. */
-export async function* stProfileZip(source: StProfileSource, limits: StZipLimits): AsyncGenerator<StProfileZipFile> {
+export async function* stProfileZip(source: StProfileSource, limits: ZipLimits): AsyncGenerator<ZipEntry> {
   const plan = new PlanBuilder();
   const files: StExportFile[] = [];
   for await (const entry of planEntries(source, plan)) {

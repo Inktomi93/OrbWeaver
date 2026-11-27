@@ -8,7 +8,7 @@
 // here, the `content-classes.ts` split.
 
 import type { CharacterId } from "@orb/kit/ids";
-import type { MessageKind as KitMessageKind, ParticipantKind as KitParticipantKind } from "@orb/kit/message-author";
+import type { MessageKind, ParticipantKind } from "@orb/kit/message-author";
 import { MESSAGE_KINDS as KIT_MESSAGE_KINDS, PARTICIPANT_KINDS as KIT_PARTICIPANT_KINDS } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
@@ -16,7 +16,6 @@ import { z } from "zod";
 
 // `human`/`character` are the only live kinds.
 export const PARTICIPANT_KINDS = KIT_PARTICIPANT_KINDS;
-export type ParticipantKind = KitParticipantKind;
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS) satisfies z.ZodType<ParticipantKind>;
 
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.
@@ -64,7 +63,6 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<Messa
 // group character: that identity keeps the `__group__` memory scoping, the attribution chrome and the
 // host-owned mint. Kind is purpose; attribution remains voice.
 export const MESSAGE_KINDS = KIT_MESSAGE_KINDS;
-export type MessageKind = KitMessageKind;
 /** Schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
 export const messageKindSchema = z.enum(MESSAGE_KINDS) satisfies z.ZodType<MessageKind>;
 

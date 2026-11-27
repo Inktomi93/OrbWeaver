@@ -14,7 +14,7 @@ import { normalizeKeyword } from "./utils.ts";
 
 const DEFAULT_TOP_LIMIT = 50;
 const DEFAULT_TOP_MIN_COUNT = 2;
-const DEFAULT_COOCCUR_LIMIT = 25;
+const COOCCUR_LIMIT = 25;
 const DEFAULT_CHAR_LIMIT = 30;
 
 /** The owner's most-used distilled scene keywords (summed over their character profiles), count-descending.
@@ -38,7 +38,7 @@ export async function topKeywords(db: Db, ownerId: UserId, opts: TopKeywordsOpti
 /** The keywords that co-occur with `keyword` in the owner's scenes, count-descending. `keyword_cooccurrence`
  *  KEEPS ownerId, so the scope is a direct filter; the pair is canonical A-before-B, so the "other" side is
  *  whichever column isn't the query keyword. */
-export async function cooccurringKeywords(db: Db, ownerId: UserId, keyword: string, limit = DEFAULT_COOCCUR_LIMIT): Promise<KeywordCount[]> {
+export async function cooccurringKeywords(db: Db, ownerId: UserId, keyword: string): Promise<KeywordCount[]> {
   const norm = normalizeKeyword(keyword) ?? keyword.trim().toLowerCase();
   const other = sql<string>`CASE WHEN ${keywordCooccurrence.keywordA} = ${norm} THEN ${keywordCooccurrence.keywordB} ELSE ${keywordCooccurrence.keywordA} END`;
   return await db
@@ -46,7 +46,7 @@ export async function cooccurringKeywords(db: Db, ownerId: UserId, keyword: stri
     .from(keywordCooccurrence)
     .where(and(eq(keywordCooccurrence.ownerId, ownerId), or(eq(keywordCooccurrence.keywordA, norm), eq(keywordCooccurrence.keywordB, norm))))
     .orderBy(desc(keywordCooccurrence.count))
-    .limit(limit);
+    .limit(COOCCUR_LIMIT);
 }
 
 /** One character's keyword profile (the keywords its scenes anchor on), count-descending. Owner belt via the

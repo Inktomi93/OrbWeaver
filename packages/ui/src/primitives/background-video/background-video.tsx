@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn, usePrefersReducedMotion } from "#lib";
+import { usePrefersReducedMotion } from "#lib";
 import { backgroundVideoVariants } from "./variants.ts";
 
 /** The names the HTML standard gives a refused `play()`: the autoplay policy, an interrupting pause or load, and a
@@ -29,8 +29,6 @@ export interface BackgroundVideoProps {
   /** How the frame fills its box. @defaultValue "cover" */
   readonly fit?: VariantProps<typeof backgroundVideoVariants>["fit"];
   readonly rounded?: VariantProps<typeof backgroundVideoVariants>["rounded"];
-  /** Layout only: the box's size and placement. */
-  readonly className?: string;
 }
 
 /**
@@ -47,10 +45,10 @@ export interface BackgroundVideoProps {
  *
  * The native `<video>` attribute surface is DELIBERATELY NOT exposed: every background-loop attribute is a
  * policy invariant, so a passthrough prop would be an escape hatch around the policy — hence the narrow
- * `{ src, paused, fit, rounded, className }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
+ * `{ src, paused, fit, rounded, size }` shape, not `extends ComponentProps<"video">`. ui deps kit only;
  * positioning/scrim/z-index live in the app-shell composite (ThemeBackgroundVideoLayer).
  */
-export function BackgroundVideo({ src, paused = false, fit, rounded, size, className }: BackgroundVideoProps): ReactElement {
+export function BackgroundVideo({ src, paused = false, fit, rounded, size }: BackgroundVideoProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const osReducedMotion = usePrefersReducedMotion();
   const hidden = useSyncExternalStore(subscribeVisibility, getDocumentHidden, getDocumentHiddenServer);
@@ -86,7 +84,7 @@ export function BackgroundVideo({ src, paused = false, fit, rounded, size, class
       tabIndex={-1}
       data-slot="background-video"
       data-motion={animating ? "playing" : "still"}
-      className={cn(backgroundVideoVariants({ fit, rounded, size }), className)}
+      className={backgroundVideoVariants({ fit, rounded, size })}
       src={src}
       muted={true}
       loop={true}

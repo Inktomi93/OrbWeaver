@@ -20,6 +20,7 @@
 // only read by id, and is deleted once terminal: when the owner's next row of the kind ends, and at boot.
 
 import type {
+  ActiveWorkloadRow,
   CancelWorkloadResult,
   WorkloadError,
   WorkloadKind,
@@ -39,7 +40,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { ActiveWorkloadRow, WorkloadContributions } from "../contract/contribution.ts";
+import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { ListWorkloadsParams } from "../contract/params.ts";
 import type {
   AuthorizeWorkloadRead,

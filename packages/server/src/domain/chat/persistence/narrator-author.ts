@@ -2,10 +2,12 @@
 // SECURITY: the id arrives from a caller, so it counts only when this room's canon, at or above the viewer's history
 // floor, holds a narrator row stamped with it and the id is a synthetic group character. A seated card, another
 // room's group character and an id no row carries all fail the same way.
-import type { HistoryFloorSeq, MessageKind } from "@orb/contracts/chat";
+
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, messages } from "@orb/db";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import { and, eq, gte } from "drizzle-orm";
 
 const NARRATOR_KIND: MessageKind = "narrator";

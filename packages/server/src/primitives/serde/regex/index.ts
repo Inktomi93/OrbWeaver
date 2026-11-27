@@ -26,8 +26,6 @@ import { isPlainObject } from "@orb/kit/guards";
 import { regexBehaviorReachesText } from "@orb/kit/regex";
 import { decodePortableObject, defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
-
 const REGEX_SCRIPT_SCHEMA_VERSION = 1;
 
 const LIMIT_SUBJECT: Readonly<Record<RegexScriptLimitBreak["limit"], string>> = { "find-length": "find pattern", "replace-length": "replacement" };

@@ -137,11 +137,9 @@ export interface ListForChatParams extends RegexActorParams {
  *  are dropped in the scope arms; the GLOBAL arm PRE-GATES ownership of every id (the tier has no scope row of
  *  its own), so a script the caller does not own is `RegexNotFoundError`, never a silent reorder. */
 export interface ApplyScopeOrderParams extends RegexActorParams {
-  readonly scope: RegexAttachScopeRef;
+  /** WHICH scope an order rewrite addresses. A discriminated ref rather than four verbs: the ordering operation is
+   *  identical across scopes (only the junction table differs), where attach/detach differ in their AUTHORITY (owner
+   *  vs the chat membership chain). */
+  readonly scope: RegexAttachScope;
   readonly orderedScriptIds: readonly RegexScriptId[];
 }
-
-/** WHICH scope an order rewrite addresses — the ONE spelling, from `@orb/contracts/regex`. A discriminated
- *  ref rather than four verbs: the ordering operation is identical across scopes (only the junction table
- *  differs), where attach/detach differ in their AUTHORITY (owner vs the chat membership chain). */
-export type RegexAttachScopeRef = RegexAttachScope;

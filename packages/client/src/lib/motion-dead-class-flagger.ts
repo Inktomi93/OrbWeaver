@@ -57,13 +57,13 @@ function markMotionFlaggersSettled(): void {
  * variants as nesting) and tolerates cross-origin sheets. The per-selector tokenizer is `@orb/kit`'s
  * (`dead-css`), shared with `pnpm snap --dead-css` so both scans mean the same thing by "dead". */
 // Only cross-origin CSSOM SecurityError permits skipping a stylesheet; walk failures propagate.
-function definedClassTokens(tokenize: (selector: string) => readonly string[] = classTokensInSelector): ReadonlySet<string> {
+function definedClassTokens(): ReadonlySet<string> {
   const defined = new Set<string>();
   const walk = (rules: CSSRuleList): void => {
     for (const rule of rules) {
       const selector = (rule as CSSStyleRule).selectorText;
       if (typeof selector === "string") {
-        for (const token of tokenize(selector)) {
+        for (const token of classTokensInSelector(selector)) {
           defined.add(token);
         }
       }

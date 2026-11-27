@@ -190,11 +190,6 @@ export const DISTINCT_LOOKALIKES = [
     reason: "PlannedTool extends WireTool and adds strict: derived, not a copy.",
   },
   {
-    shape: "packages/kit/src/chunk/split.ts#Span",
-    distinctFrom: ["packages/kit/src/content/index.ts#HiddenRun"],
-    reason: "The chunker's split spans and the content scanner's hidden runs: different engines sharing {start, end}.",
-  },
-  {
     shape: "packages/server/src/domain/admin/contract/params.ts#RevokeSessionParams",
     distinctFrom: ["packages/server/src/entry/auth/seam.ts#CookieAdmission"],
     reason: "An admin verb's input and the auth seam's private cookie admission; neither feeds the other.",
@@ -476,15 +471,8 @@ export const DISTINCT_LOOKALIKES = [
   },
   {
     shape: "packages/ui/src/primitives/message-list/pin-spacer.ts#PinnedSpan",
-    distinctFrom: [
-      "packages/kit/src/chunk/split.ts#Span",
-      "packages/kit/src/content/index.ts#HiddenRun",
-      "packages/kit/src/content/index.ts#ReadSpan",
-      "packages/kit/src/content/index.ts#TextRange",
-      "packages/kit/src/speaker-label/index.ts#OpaqueRange",
-    ],
-    reason:
-      "Virtual-window pixel offsets against character ranges in text (chunks, hidden runs, reads, ranges, speaker labels): different concepts sharing {start, end}.",
+    distinctFrom: ["packages/kit/src/chunk/split.ts#Span"],
+    reason: "Virtual-window pixel offsets against the character range kit's Span names: different concepts sharing {start, end}.",
   },
   {
     shape: "packages/ui/src/stream/shimmer.tsx#StreamShimmerProps",
@@ -573,11 +561,6 @@ export const DISTINCT_LOOKALIKES = [
     shape: "packages/server/src/domain/databank/contract/params.ts#ListActiveForChatParams",
     distinctFrom: ["packages/server/src/domain/chat/contract/params.ts#CheckSendAvailabilityParams"],
     reason: "Two domains' verb inputs over a chat: each verb owns its params, and no flow links them.",
-  },
-  {
-    shape: "packages/server/src/domain/export/contract/st-profile.ts#StZipLimits",
-    distinctFrom: ["packages/server/src/infra/storage/zip.ts#EntryLimits"],
-    reason: "The export writer's caps and the extractor's private read caps, fed from its own options; only the two cap names are shared.",
   },
   {
     shape: "packages/server/src/domain/import/contract/service.ts#AdoptDefaultPersona",

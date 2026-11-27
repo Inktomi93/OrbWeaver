@@ -556,7 +556,6 @@ const GENERATION_TYPE_FOR_KIND: Record<TurnKind, GenerationType> = {
   generate: "normal",
   force: "normal",
   auto: "normal",
-  opening: "normal",
   swipe: "swipe",
   continue: "continue",
   impersonate: "impersonate",
@@ -570,7 +569,6 @@ const VOICE_FOR_KIND: Record<TurnKind, TurnVoice> = {
   generate: "anchor",
   force: "anchor",
   auto: "anchor",
-  opening: "anchor",
   swipe: "anchor",
   continue: "anchor",
   impersonate: "trigger",
@@ -3428,9 +3426,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
   };
 }
 
-/** The turn-running verb bundle the root spreads into the full service. `opening`/`generateOpening` stays
- *  internal (injected into `startChat`, not on `ChatService`); the engine path is a `kind:"opening"` runTurn
- *  with the opening instruction on `appendUserTurn`. */
+/** The turn-running verb bundle the root spreads into the full service. */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
   // Built once so `send`'s post-round auto-behaviors re-enter the SAME swipe/continue verbs the
   // service exposes (one home; the follow-ups clear every belt exactly like a manual swipe/continue).

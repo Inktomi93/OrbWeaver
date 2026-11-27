@@ -22,7 +22,8 @@ import type {
 } from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage } from "#contract";
-import type { BuildPromptArgs, OutboundMedia, PlanRow, WirePlan } from "#src/contract/v4.ts";
+import type { BuildPromptArgs, OutboundMedia, WirePlan } from "#src/contract/v4.ts";
+import type { CacheMarkerRow } from "#src/contract/wire.ts";
 import { chatHistoryText } from "../wire/history.ts";
 
 const PROMPT_JOINER = "\n\n";
@@ -203,10 +204,10 @@ interface PlanBuilder {
   readonly prompt: LanguageModelV4Message[];
   readonly names: Map<number, string>;
   readonly assistantMedia: Map<number, readonly OutboundMedia[]>;
-  readonly rows: PlanRow[];
+  readonly rows: CacheMarkerRow[];
 }
 
-function pushRow(builder: PlanBuilder, message: LanguageModelV4Message, row: PlanRow, source?: ChatHistoryMessage): void {
+function pushRow(builder: PlanBuilder, message: LanguageModelV4Message, row: CacheMarkerRow, source?: ChatHistoryMessage): void {
   const index = builder.prompt.length;
   builder.prompt.push(message);
   builder.rows.push(row);

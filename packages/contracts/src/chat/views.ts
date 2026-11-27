@@ -4,8 +4,8 @@ import type { CharacterId, ChatInjectionId, MessageVariantId } from "@orb/kit/id
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { MacroSourceRef, UserMacroInputDef } from "@orb/kit/macro";
 import { MACRO_SOURCE_KINDS } from "@orb/kit/macro";
+import type { ParticipantRole } from "@orb/kit/message-author";
 import { z } from "zod";
-import type { ParticipantRole } from "#identity";
 import type { ChoiceBlockSpec, TemplateDefId, UserMacroValues } from "#preset";
 import { choiceBlockSchema, guidedActionKindSchema, promptConfigSchema, userMacroSchema, userMacroValuesSchema } from "#preset";
 import { proseSlotIdSchema } from "#prose-slot";

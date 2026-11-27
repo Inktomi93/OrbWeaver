@@ -1,7 +1,8 @@
-import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
+import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RecorderFilter } from "#foundation/observability";
 

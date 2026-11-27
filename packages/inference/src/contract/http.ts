@@ -46,11 +46,14 @@ export interface FetchJsonArgs {
   readonly secrets: ProviderScrubSet;
   /** Names the call in error messages (`openrouter credits`, `endpoint models`). */
   readonly label: string;
+  /** The status is the answer (a probe's 501 refusal, a 400 naming a missing field): a redirect, a non-2xx and a
+   *  body that is not JSON come back as `{ status, json }` with `json` null where it did not parse, never thrown.
+   *  Only a request that gets no answer at all throws. */
+  readonly answerAnyStatus?: boolean | undefined;
 }
 
 export interface FetchJsonResult {
   readonly status: number;
-  readonly headers: Headers;
   readonly json: unknown;
 }
 

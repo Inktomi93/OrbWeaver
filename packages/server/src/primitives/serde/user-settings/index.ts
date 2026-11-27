@@ -30,8 +30,6 @@ import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export { USER_SETTINGS_SCHEMA_KIND } from "@orb/contracts/portability";
-
 // The file version every backup written before the stamp carries, and the settings version its payload was read at.
 const PRE_STAMP_FILE_VERSION = 1;
 const PRE_STAMP_SETTINGS_VERSION = 10;

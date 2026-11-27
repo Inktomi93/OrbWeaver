@@ -40,10 +40,9 @@
 // step. A knob row is NOT one of these: its control is a flexing rail, which is `KnobGrid`'s own track set
 // (`--width-label-col`), and the two tokens are deliberately different widths (see their descriptions).
 
-import type { EffortLevel, GenerationCapability, Range, Wire } from "@orb/contracts/inference";
+import type { EffortLevel, GenerationCapability, Range } from "@orb/contracts/inference";
 import { statesKnob } from "@orb/contracts/inference";
 import type { Quality, ThinkingDisplay } from "@orb/contracts/preset";
-import type { UserConnectionId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -73,31 +72,17 @@ import { thinkingDisplayItems, thinkingDisplayLabel } from "../lib/preset-nav.ts
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { CapabilityGate, CapabilityGatePending } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
+import type { ParamsLimitsProps } from "./params-limits.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
 import { SamplerOrder } from "./sampler-order.tsx";
 import { DrySequenceBreakers } from "./sequence-chips.tsx";
 
 type AppForm = AppFormInstance<PresetEditorValues>;
 
-export interface ParamsDeckProps {
-  readonly form: AppForm;
-  /** `undefined` until the capability read lands, and forever if it FAILS — the limits degrade to the
-   *  preset's own values. The model-fed clusters read the descriptor themselves under the deck's boundary,
-   *  whose PENDING arm holds a skeleton and whose FAILED arm quotes the server (`CapabilityGate`). */
-  readonly capability: GenerationCapability | undefined;
-  /** The connection `capability` was resolved on, whose limit settings the Output cluster opens. */
-  readonly chatConnectionId: UserConnectionId | undefined;
-  /** The wire `capability` was resolved on. */
-  readonly chatWire: Wire | undefined;
-  /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
-   *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
-  readonly effective: EffectiveProfileRow | undefined;
-}
-
 /** A knob row whose slider moves in whole steps — it also pages by a range-sized step. */
 const INTEGER_STEP = 1;
 
-export function ParamsDeck({ form, capability, chatConnectionId, chatWire, effective }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, chatConnectionId, chatWire, effective }: ParamsLimitsProps): ReactElement {
   return (
     <>
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to

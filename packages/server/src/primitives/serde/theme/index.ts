@@ -21,7 +21,6 @@ import { decodePortableObject, defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader
 import type { ParsedStTheme } from "./st.ts";
 import { stThemeFromJson } from "./st.ts";
 
-export { THEME_SCHEMA_KIND } from "@orb/contracts/portability";
 export type { ParsedStTheme } from "./st.ts";
 export { stThemeToJson } from "./st.ts";
 

@@ -2,9 +2,10 @@
 // only the entries this box lacks, and the bundle's closing stats rebuild folds them.
 
 import type { PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
+import { SPEND_LEDGER_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { portableParseError } from "#primitives/serde/lib";
-import { buildSpendLedger, parseSpendLedger, SPEND_LEDGER_SCHEMA_KIND } from "#primitives/serde/spend-ledger";
+import { buildSpendLedger, parseSpendLedger } from "#primitives/serde/spend-ledger";
 import type { SpendLedgerPortabilityService } from "../contract/portability.ts";
 import type { StatsContext } from "../contract/service.ts";
 import { readOwnedSpendLedger, writeImportedSpendLedger } from "../persistence/spend-ledger-portability.ts";

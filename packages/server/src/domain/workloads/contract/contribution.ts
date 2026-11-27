@@ -14,6 +14,7 @@
 // constraint that keeps `PortableEntity.exportAll` signal-free in `@orb/contracts/portability`.
 
 import type {
+  ActiveWorkloadRow,
   ModelCallCount,
   PriorStageCount,
   ReportProgress,
@@ -126,12 +127,6 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * in `active`. A rejection is logged and leaves the boot running. OMIT IT when the kind leaves nothing behind.
    */
   readonly sweepOnBoot?: (active: readonly ActiveWorkloadRow[]) => Promise<void>;
-}
-
-/** A row that may still run, of any kind, with its params as stored: a row this build cannot parse still names what it holds. */
-export interface ActiveWorkloadRow {
-  readonly kind: WorkloadKind;
-  readonly params: unknown;
 }
 
 /**

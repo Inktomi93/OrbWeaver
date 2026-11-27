@@ -6,12 +6,12 @@ import type { BindingActor, Task, UnavailableCause } from "@orb/contracts/infere
 import { canFund } from "@orb/contracts/inference";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { EmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
-import type { RerankDocument, RerankQuery, RoleClientTask, SummarizeInput } from "@orb/contracts/role-clients";
+import type { RerankCallOptions, RerankDocument, RerankQuery, RoleClientTask, SummarizeInput } from "@orb/contracts/role-clients";
 import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EmbedRequest, RerankCallOptions, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
+import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { BindRoleClients } from "../contract/runtime.ts";
 import type { ResolverContext } from "../contract/task-resolution.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
@@ -81,7 +81,7 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
         const knobs = resolveEmbed({ inputType: opts.inputType, instruction: opts.instruction }, conn.capability.embedding);
         return executor.embed(embedRequestOf(conn, input, knobs, opts.signal));
       },
-      rerank: async (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions): Promise<RerankResult> => {
+      rerank: async (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions<AbortSignal>): Promise<RerankResult> => {
         const conn = await live("rerank", opts.signal);
         return executor.rerank({
           connection: conn,

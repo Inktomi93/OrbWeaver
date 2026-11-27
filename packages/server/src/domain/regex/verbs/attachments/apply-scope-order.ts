@@ -17,6 +17,7 @@
 // The rewrite is ONE atomic `db.batch`: a half-applied reorder would leave two attachments claiming the same
 // slot.
 
+import type { RegexAttachScope } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, chatRegexScripts, globalRegexScripts, presetRegexScripts } from "@orb/db";
 import type { RowsAffectedStmt } from "@orb/db/query";
@@ -24,7 +25,7 @@ import { batchMany } from "@orb/db/query";
 import type { RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { RegexNotFoundError } from "#src/domain/regex/contract/errors.ts";
-import type { ApplyScopeOrderParams, RegexAttachScopeRef } from "#src/domain/regex/contract/params.ts";
+import type { ApplyScopeOrderParams } from "#src/domain/regex/contract/params.ts";
 import type { RegexContext, RegexService } from "#src/domain/regex/contract/service.ts";
 import { ensureCharacterOwned, ensurePresetOwned } from "#src/domain/regex/persistence/ownership.ts";
 import { loadOwnedScriptsByIds } from "#src/domain/regex/persistence/queries.ts";
@@ -122,7 +123,7 @@ export function createApplyScopeOrder(ctx: RegexContext): RegexService["applySco
 }
 
 /** The audit's soft-ref subject: the SCOPE the order belongs to (a reorder is not about one script). */
-function scopeEntityId(scope: RegexAttachScopeRef): string {
+function scopeEntityId(scope: RegexAttachScope): string {
   switch (scope.kind) {
     case "global":
       return "global";

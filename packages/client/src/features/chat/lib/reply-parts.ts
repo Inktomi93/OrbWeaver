@@ -6,7 +6,8 @@
 
 import type { CardTrust, MessageContentBlock } from "@orb/contracts/chat";
 import { CARD_FRAME_CARRIED_AUTHORS_MAX, CARD_FRAME_HTML_MAX_CHARS } from "@orb/contracts/chat";
-import type { FormingPanelSegment, FrameStyleSheet, TextRange } from "@orb/kit/content";
+import type { Span } from "@orb/kit/chunk";
+import type { FormingPanelSegment, FrameStyleSheet } from "@orb/kit/content";
 import {
   frameStyleElements,
   heldBlockRanges,
@@ -63,7 +64,7 @@ export const REPLY_FRAME_CARRY_BUDGET_CHARS = Math.floor(CARD_FRAME_HTML_MAX_CHA
  *  and a real reply's prose about 2 ms; `modelPanels` dominates. */
 export const PANEL_READ_MAX_CHARS = 1_048_576;
 
-const NO_RANGES: readonly TextRange[] = [];
+const NO_RANGES: readonly Span[] = [];
 
 /** What the panel readers say about a drawn body: the ranges no speaker label may split, and whether the body holds a
  *  panel its author wrote, which frames it on the sandboxed tier and raises the plain notice on the other. Nothing is
@@ -73,7 +74,7 @@ export function readPanels(
   text: string,
   render: Pick<RowRenderPolicy, "cardTier" | "lenientCards">,
 ): {
-  readonly opaque: readonly TextRange[];
+  readonly opaque: readonly Span[];
   readonly modelPanel: boolean;
 } {
   const sandboxed = render.cardTier === "tierB";

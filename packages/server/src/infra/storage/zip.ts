@@ -257,10 +257,9 @@ function maxDeflatedBytes(uncompressedSize: number): number {
   return uncompressedSize + Math.ceil(uncompressedSize / DEFLATE_BOUND_EIGHTH) + Math.ceil(uncompressedSize / DEFLATE_BOUND_64TH) + DEFLATE_BOUND_SLACK;
 }
 
-interface EntryLimits {
-  readonly maxEntries: number;
-  readonly maxEntryBytes: number;
-}
+/** The zip caps: the largest body one entry may hold, and the most entries one archive may hold. The writer's own
+ *  are {@link ZIP_WRITE_LIMITS}. */
+export type ZipLimits = { readonly [K in keyof typeof ZIP_WRITE_LIMITS]: number };
 
 async function parseCentralRecord(
   archive: ArchiveReader,
@@ -310,7 +309,7 @@ async function parseCentralRecord(
   };
 }
 
-async function readCentralDirectory(archive: ArchiveReader, location: CentralDirLocation, limits: EntryLimits): Promise<CentralRecord[]> {
+async function readCentralDirectory(archive: ArchiveReader, location: CentralDirLocation, limits: ZipLimits): Promise<CentralRecord[]> {
   if (location.count > limits.maxEntries) {
     throw new ZipRejectedError("too-many-entries", `${location.count} entries exceeds the cap of ${limits.maxEntries}`);
   }

@@ -8,12 +8,12 @@
 // undoes the write and refuses it. A write that can move the owner's index runs in the owner's write queue.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
+import type { BindingActorKey, ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, canFund, providerDisplayLabel, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError, EmbedUnreachableError } from "../contract/errors.ts";
-import type { BindingActorInput, SetBindingParams, StoredActor } from "../contract/params.ts";
+import type { BindingActorInput, SetBindingParams } from "../contract/params.ts";
 import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { listBindingsForActor, lookupBinding, restoreBindingIf, upsertBinding } from "../persistence/bindings.ts";
@@ -28,7 +28,7 @@ type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
 /** The caller's actor, proven: absent ⇒ their own `user` arm; a rule/plugin arm must be theirs. A plugin grant
  *  that `binds` a connection must name a task the plugin routes: an inert grant on any other task would go live
  *  the day a capability starts routing it. Clearing one (`binds` absent) stays open so a stale row can go. */
-async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: BindingActorInput | undefined, binds?: RoutableTask): Promise<StoredActor> {
+async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: BindingActorInput | undefined, binds?: RoutableTask): Promise<BindingActorKey> {
   if (actor === undefined) {
     return { actorKind: "user", actorId: userId };
   }
@@ -165,7 +165,7 @@ async function requireBindableRow(ctx: ConnectionContext, params: SetBindingPara
 async function writeVectorBinding(
   ctx: ConnectionContext,
   params: SetBindingParams,
-  actor: StoredActor,
+  actor: BindingActorKey,
   row: UserConnection | null,
 ): Promise<ConnectionBinding> {
   const before = await vectorSpacesOf(ctx, params.principal);
@@ -193,7 +193,7 @@ async function writeVectorBinding(
 async function writeBinding(
   ctx: ConnectionContext,
   params: SetBindingParams,
-  actor: StoredActor,
+  actor: BindingActorKey,
   settle: () => Promise<void> = () => Promise.resolve(),
 ): Promise<ConnectionBinding> {
   const userId = params.principal.userId;
@@ -231,7 +231,7 @@ function createUseForEverything(ctx: ConnectionContext, ownerWrites: OwnerWriteQ
 async function bindEverywhere(ctx: ConnectionContext, principal: Principal, row: UserConnection): Promise<readonly ConnectionBinding[]> {
   const userId = principal.userId;
   const tasks = await everywhereTasks(ctx, row);
-  const actor: StoredActor = { actorKind: "user", actorId: userId };
+  const actor: BindingActorKey = { actorKind: "user", actorId: userId };
   const before = tasks.some((task) => VECTOR_TASKS.includes(task)) ? await vectorSpacesOf(ctx, principal) : null;
   const priors = new Map<RoutableTask, ConnectionBinding["connectionId"]>();
   for (const task of tasks) {

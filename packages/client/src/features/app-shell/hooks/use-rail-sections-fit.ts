@@ -1,7 +1,8 @@
 // A short rail scrolls its sections. This ends the scroller on the middle of a button, so the next section shows half
 // clipped at rest, and keeps the current section in view, which nothing else does for a programmatic change.
 
-import { SCROLL_EDGE_EPSILON_PX, syncScrollFade } from "@orb/ui/scroll-area";
+import { SCROLL_EDGE_EPSILON_PX } from "@orb/ui/lib";
+import { syncScrollFade } from "@orb/ui/scroll-area";
 import type { RefObject } from "react";
 import { useEffect } from "react";
 

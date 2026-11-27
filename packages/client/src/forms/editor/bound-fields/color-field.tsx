@@ -41,8 +41,6 @@ function colorReadout(value: string): string {
   return HEX_RE.test(value) ? value.toLowerCase() : CUSTOM_LABEL;
 }
 
-export type BoundColorFieldProps = BoundFieldShellProps;
-
 /**
  * A bound colour picker — the swatch trigger PLUS its value in words.
  *
@@ -53,7 +51,7 @@ export type BoundColorFieldProps = BoundFieldShellProps;
  * colour). The mock prints the value in the swatch row for exactly this reason. The readout is also the ONE
  * place the word "Inherit" is spelled, so the cluster stops carrying three vocabularies for one idea.
  */
-export function BoundColorField(props: BoundColorFieldProps): ReactElement {
+export function BoundColorField(props: BoundFieldShellProps): ReactElement {
   const { field, fieldProps } = useBoundField<string>(props);
   const value = field.state.value;
   const readout = colorReadout(value);

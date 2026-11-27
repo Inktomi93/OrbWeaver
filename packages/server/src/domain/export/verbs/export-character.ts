@@ -9,6 +9,7 @@
 
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
+import type { PortableFile } from "@orb/contracts/portability";
 import { PORTABLE_EXPORT_CARRY } from "@orb/contracts/portability";
 import { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
@@ -22,7 +23,6 @@ import type { ExportWorldEntry } from "#primitives/serde/card";
 import { buildCardV3 } from "#primitives/serde/card";
 import { STORED_CONFIG_UNREADABLE } from "#primitives/stored-config";
 import type { ExportCharacterParams } from "../contract/params.ts";
-import type { ExportedCard } from "../contract/results.ts";
 import type { ExportContext, ExportService } from "../contract/service.ts";
 import { ACCEPTED_TAG_STATUS } from "../substrate/card-tags.ts";
 import { slug } from "../substrate/download-slug.ts";
@@ -99,7 +99,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     }
   }
 
-  return async ({ principal, characterId, format, note }: ExportCharacterParams): Promise<ExportedCard | null> => {
+  return async ({ principal, characterId, format, note }: ExportCharacterParams): Promise<PortableFile | null> => {
     const ownerId = principal.userId;
     const charRow = await fetchOwned(ctx.db, characters, characterId, ownerId);
     if (charRow === undefined) {

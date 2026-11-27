@@ -53,8 +53,6 @@ export interface RemoveCredentialParams extends CredentialActorParams {
 
 export interface MarkRevokedByUserParams extends CredentialActorParams {
   readonly credentialId: UserCredentialId;
-  /** Defaults to `"manually revoked by user"` inside the verb (log-only). */
-  readonly reason?: string;
 }
 
 export interface ClearRevokedParams extends CredentialActorParams {

@@ -11,7 +11,7 @@ import type { TurnAbortReason } from "./bus.ts";
 import type { HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 
 /** The turn-kind axis of a chat turn. */
-const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "opening", "auto", "force"] as const;
+const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "auto", "force"] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
 
 /** Model-plane story evidence keeps hidden spans; consumers slice the loaded chronological transcript. */

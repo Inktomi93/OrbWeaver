@@ -7,8 +7,6 @@ import { portableSpendLedgerSchema } from "@orb/contracts/stats";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export { SPEND_LEDGER_SCHEMA_KIND } from "@orb/contracts/portability";
-
 const SPEND_LEDGER_SCHEMA_VERSION = 1;
 
 function canonicalLedger(ledger: PortableSpendLedger): PortableSpendLedger {

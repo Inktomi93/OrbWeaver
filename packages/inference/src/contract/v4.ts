@@ -24,7 +24,6 @@ import type { ChatId, ModelId } from "@orb/kit/ids";
 import type {
   ChatHistoryMessage,
   GeneratedImage,
-  HistoryRole,
   ProviderScrubSet,
   RateLimitSnapshot,
   ReasoningContentPart,
@@ -32,6 +31,7 @@ import type {
   ToolCallInput,
   WireCaptureSink,
 } from "#contract";
+import type { CacheMarkerRow } from "./wire.ts";
 
 /** The per-call context the wrapper closes over. Built PER CALL (a transport instance is cheap), so the
  *  capture and the shaping see this turn's connection, model and chat id. */
@@ -78,7 +78,7 @@ export interface WirePlan {
   /** Wire index → the media parts of an ASSISTANT row (dropped by both converters — re-attached by the hook). */
   readonly assistantMedia: ReadonlyMap<number, readonly OutboundMedia[]>;
   /** Wire index → the row's cache-breakpoint eligibility inputs (role + tool-exchange + token estimate source). */
-  readonly rows: readonly PlanRow[];
+  readonly rows: readonly CacheMarkerRow[];
   /** True when at least one history `tool-result` carried `isError` — the OpenAI-shaped wires have no slot. */
   readonly toolResultErrorDropped: boolean;
   /** True when the delivered array ends on an assistant row — the prefill pair's second condition. */
@@ -165,11 +165,4 @@ export interface DrainCallbacks {
    *  shape; absent or `undefined` ⇒ the failure names the error part only. */
   readonly errorWords?: ((payload: unknown) => string | undefined) | undefined;
   readonly label: string;
-}
-
-/** One wire row as the cache placer sees it. `text` is the row's prose for the token estimate. */
-export interface PlanRow {
-  readonly role: HistoryRole;
-  readonly toolExchange: boolean;
-  readonly text: string;
 }

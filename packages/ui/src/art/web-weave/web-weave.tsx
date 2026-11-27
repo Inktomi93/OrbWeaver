@@ -91,7 +91,6 @@ export interface WebWeaveProps {
   interactive?: boolean;
   /** Fill the viewport's height instead of the host's. @defaultValue false */
   viewport?: boolean;
-  className?: string;
 }
 
 const DEFAULT_SEED = 7;
@@ -152,7 +151,6 @@ export function WebWeave({
   interactive = false,
   viewport = false,
   placed,
-  className,
 }: WebWeaveProps): ReactElement {
   const slots = webWeaveVariants({ interactive, viewport });
   const reduced = usePrefersReducedMotion();
@@ -423,7 +421,7 @@ export function WebWeave({
       data-slot="web-weave"
       data-pigment={WEB_WEAVE_PIGMENT}
       data-weave-state={state}
-      className={cn(slots.root(), webWeaveBoxVariants({ placed, className }))}
+      className={cn(slots.root(), webWeaveBoxVariants({ placed }))}
     >
       <div data-slot="web-weave-glow" className={slots.glow()} style={glowPosition} />
       <canvas ref={canvasRef} data-slot="web-weave-canvas" className={slots.canvas()} />

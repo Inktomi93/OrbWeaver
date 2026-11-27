@@ -255,7 +255,7 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
 };
 
 /** One canon row as the wait count reads it. */
-interface WaitCountRow {
+export interface WaitCountRow {
   readonly role: MessageRole;
   readonly authorUserId: UserId | null;
 }

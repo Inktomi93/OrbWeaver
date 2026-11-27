@@ -20,12 +20,14 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  client pass (the `INJECT-NAMED-AS-PLAYER` defect). */
 export const MERGE_SEPARATOR = "\n\n";
 
-/** The fields the adjacency rule reads from a history row. */
+/** One shaped history row, as the naming, squash and budget passes read it and as it reaches the completion runners.
+ *  File-local to assembly (the cross-boundary wire shape is the providers' ChatHistoryMessage). `role` is the full
+ *  `MessageRole` axis: `system` appears only as a capability-kept injection row, never a canon row. */
 export interface SquashRow {
-  role: MessageRole;
-  content: string;
-  name?: string;
-  messageId?: MessageId | undefined;
+  readonly role: MessageRole;
+  readonly content: string;
+  readonly name?: string;
+  readonly messageId?: MessageId | undefined;
 }
 
 /**

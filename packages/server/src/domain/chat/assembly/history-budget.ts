@@ -14,21 +14,8 @@
 import type { ContextLimit } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens, windowInputRoom } from "@orb/kit/tokens";
-
-/** One shaped history entry, as handed to the completion runners. File-local (the cross-boundary wire
- *  shape is the providers' ChatHistoryMessage; this is SHAPE's internal turn shape). */
-interface HistoryTurn {
-  /** The delivered wire-row role — the full `MessageRole` axis (`system` appears only as a capability-kept
-   *  INJECTION row, at the tail `turns.midConversationSystem` or mid-array `turns.historySystemRows`; never a
-   *  canon row, since the D129(B) narrator→`system` delivery was owner-ruled out — role-agnostic
-   *  here either way). Derived, never re-spelled. */
-  readonly role: MessageRole;
-  readonly content: string;
-  readonly name?: string;
-  readonly messageId?: MessageId | undefined;
-}
+import type { SquashRow } from "./role-squash.ts";
 
 interface HistoryBudget {
   /** The model's trustworthy context window in tokens. Undefined when unknown (custom-openai's
@@ -43,7 +30,7 @@ interface HistoryBudget {
 }
 
 interface FitResult {
-  readonly history: HistoryTurn[];
+  readonly history: SquashRow[];
   /** How many oldest turns were dropped (0 = fit as-is / no ceiling). For logging + trace. */
   readonly droppedCount: number;
   /** The id of the earliest-KEPT turn — the "last message inside context" boundary a client can render a
@@ -126,7 +113,7 @@ function trimChunkTokens(ceiling: number, reserveOutputTokens: number): number {
 
 // The first row at or after `minimalCut` that starts on a chunk boundary, where a row's start is the summed cost
 // of every row before it. Every row this drops beyond the minimal cut starts inside that cut's chunk.
-function chunkAlignedCut(history: readonly HistoryTurn[], minimalCut: number, chunk: number): number {
+function chunkAlignedCut(history: readonly SquashRow[], minimalCut: number, chunk: number): number {
   let start = history.slice(0, minimalCut).reduce((sum, turn) => sum + historyTurnTokens(turn), 0);
   const boundary = Math.ceil(start / chunk) * chunk;
   let cut = minimalCut;
@@ -187,7 +174,7 @@ export function buildHistoryBudget(args: {
  * the newest ROW instead would, under a blown budget, keep only the nudge and drop the real message —
  * and leave the preview's boundary unnameable (no kept row carries an id).
  */
-export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: HistoryBudget): FitResult {
+export function fitHistoryToWindow(history: readonly SquashRow[], budget: HistoryBudget): FitResult {
   const ceiling = Math.min(hardWindowOf(budget) ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
   const room = inputRoom(budget);
   const cost = historyTurnTokens;

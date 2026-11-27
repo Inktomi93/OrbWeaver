@@ -2,13 +2,12 @@
 // `(actorKind, actorId)` pair the runtime's `BindingStore.lookup` uses; each arm's partial unique makes the
 // upsert's conflict target — the tree's NULL-distinctness idiom, never a coalesce expression.
 
-import type { ConnectionBinding, RoutableTask } from "@orb/contracts/inference";
+import type { BindingActorKey, ConnectionBinding, RoutableTask } from "@orb/contracts/inference";
 import { connectionBindingSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
-import type { StoredActor } from "../contract/params.ts";
 
 type BindingRow = typeof connectionBindings.$inferSelect;
 
@@ -17,7 +16,7 @@ function toBinding(row: BindingRow): ConnectionBinding {
 }
 
 /** The WHERE for one actor — its kind + the one id column that kind sets. */
-function actorWhere(actor: StoredActor): ReturnType<typeof and> {
+function actorWhere(actor: BindingActorKey): ReturnType<typeof and> {
   if (actor.actorKind === "user") {
     return and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, actor.actorId));
   }
@@ -28,7 +27,7 @@ function actorWhere(actor: StoredActor): ReturnType<typeof and> {
 }
 
 /** The id columns one actor's row carries (the kind-shape CHECK's shape). */
-function actorColumns(actor: StoredActor): Pick<BindingRow, "actorKind" | "userId" | "ruleId" | "pluginId"> {
+function actorColumns(actor: BindingActorKey): Pick<BindingRow, "actorKind" | "userId" | "ruleId" | "pluginId"> {
   if (actor.actorKind === "user") {
     return { actorKind: "user", userId: actor.actorId, ruleId: null, pluginId: null };
   }
@@ -39,7 +38,7 @@ function actorColumns(actor: StoredActor): Pick<BindingRow, "actorKind" | "userI
 }
 
 /** The runtime's `BindingStore.lookup`: ONE indexed read per fold hop. */
-export async function lookupBinding(db: Db, actor: StoredActor, task: RoutableTask): Promise<ConnectionBinding | null> {
+export async function lookupBinding(db: Db, actor: BindingActorKey, task: RoutableTask): Promise<ConnectionBinding | null> {
   const rows = await db
     .select()
     .from(connectionBindings)
@@ -49,7 +48,7 @@ export async function lookupBinding(db: Db, actor: StoredActor, task: RoutableTa
   return row === undefined ? null : toBinding(row);
 }
 
-export async function listBindingsForActor(db: Db, actor: StoredActor): Promise<readonly ConnectionBinding[]> {
+export async function listBindingsForActor(db: Db, actor: BindingActorKey): Promise<readonly ConnectionBinding[]> {
   const rows = await db.select().from(connectionBindings).where(actorWhere(actor));
   return rows.map(toBinding);
 }
@@ -58,7 +57,7 @@ export async function listBindingsForActor(db: Db, actor: StoredActor): Promise<
  *  newer write that landed after it. One conditional UPDATE, so the check and the write cannot interleave. */
 export async function restoreBindingIf(
   db: Db,
-  args: { readonly actor: StoredActor; readonly task: RoutableTask; readonly from: UserConnectionId | null; readonly to: UserConnectionId | null },
+  args: { readonly actor: BindingActorKey; readonly task: RoutableTask; readonly from: UserConnectionId | null; readonly to: UserConnectionId | null },
 ): Promise<void> {
   const holdsFrom = args.from === null ? isNull(connectionBindings.connectionId) : eq(connectionBindings.connectionId, args.from);
   await db
@@ -71,7 +70,7 @@ export async function restoreBindingIf(
  *  row is re-pointed in place (never a second row). Returns the row as written. */
 export async function upsertBinding(
   db: Db,
-  args: { readonly id: ConnectionBindingId; readonly actor: StoredActor; readonly task: RoutableTask; readonly connectionId: UserConnectionId | null },
+  args: { readonly id: ConnectionBindingId; readonly actor: BindingActorKey; readonly task: RoutableTask; readonly connectionId: UserConnectionId | null },
 ): Promise<ConnectionBinding> {
   const existing = await lookupBinding(db, args.actor, args.task);
   if (existing !== null) {

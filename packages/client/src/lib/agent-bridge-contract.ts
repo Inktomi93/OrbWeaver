@@ -47,8 +47,6 @@ interface LoafScript {
   readonly forcedStyleAndLayoutDuration: number;
   readonly invoker: string;
   readonly sourceFunctionName: string;
-  readonly sourceCharPosition?: number;
-  readonly executionStart?: number;
 }
 
 export interface SelectEntranceEvidence {

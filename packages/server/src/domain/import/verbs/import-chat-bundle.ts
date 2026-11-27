@@ -41,6 +41,7 @@ import type {
   VariantMetadata,
 } from "@orb/contracts/chat";
 import type { PortableFile } from "@orb/contracts/portability";
+import { CHAT_BUNDLE_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { RpgPortableGame } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { relinkContentAssets } from "@orb/kit/content";
@@ -48,7 +49,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
 import type { PortableChat, PortableChatVariant, PortableRpgGame } from "#primitives/serde/chat-bundle";
-import { CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "#primitives/serde/chat-bundle";
+import { parseChatBundleFile } from "#primitives/serde/chat-bundle";
 import { portableParseError } from "#primitives/serde/lib";
 import type { CardIdentityHashes, RestoredSeat } from "../contract/identity.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";

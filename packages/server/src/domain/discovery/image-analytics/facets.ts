@@ -143,12 +143,7 @@ async function imageFacets(db: Db, ownerId: UserId): Promise<ImageFacets> {
     genders: counts("gender"),
     coverage: counts("coverage"),
     bodyTypes: counts("bodyType"),
-    chestSizes: counts("chestSize"),
-    skinTones: counts("skinTone"),
     outfitTypes: counts("outfitType"),
-    clothingStates: counts("clothingState"),
-    nudityLevels: counts("nudityLevel"),
-    exposedParts: counts("exposedParts"),
     topTags: counts("tags").slice(0, TOP_TAGS_LIMIT),
   };
 }

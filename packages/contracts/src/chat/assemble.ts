@@ -9,7 +9,7 @@ import type { CharacterId, MessageId, UserId, WorldEntryId } from "@orb/kit/ids"
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
 import type { MacroSourceRef, VarOp } from "@orb/kit/macro";
-import type { RoomStanding } from "@orb/kit/message-author";
+import type { MessageKind, RoomStanding } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { AuthorsNoteEdge, EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
@@ -27,7 +27,7 @@ import type { WorldInfoScope } from "#world-info";
 import type { MacroFreezeRecord, UserMacroDraws } from "./messages.ts";
 import { macroFreezeSchema, userMacroDrawsSchema } from "./messages.ts";
 import type { RoomOverrides } from "./metadata.ts";
-import type { MessageKind, SpeakerRef } from "./participants.ts";
+import type { SpeakerRef } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
 // The card's Character's-Note-\@-Depth projected onto the assemble characters — spliced into history at a
