@@ -22,8 +22,10 @@ export const ADMIN_APPROVALS_NOTE =
 export const ADMIN_GLOBAL_SETTINGS_NOTE =
   "The server-wide settings rows this deployment has stored, with the value each holds and when it was last written. Read-only.";
 export const ADMIN_GLOBAL_SETTINGS_EMPTY = "No global settings are stored.";
-/** How much of a stored value a global-settings row prints before it ends in an ellipsis. */
-export const ADMIN_GLOBAL_SETTING_VALUE_PREVIEW_CHARS = 160;
+/** The line under a list that holds only the first rows of a longer one. */
+export function adminGlobalSettingsPartialNote(shown: number, total: number): string {
+  return `Showing the first ${shown} of ${total} rows.`;
+}
 
 /** The user row menu's door to that account's sessions. */
 export const ADMIN_SESSIONS_NAME = "Sessions…";

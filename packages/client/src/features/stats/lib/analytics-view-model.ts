@@ -347,20 +347,20 @@ export function formatPeak(peak: { readonly dayOfWeek: number; readonly hour: nu
 }
 
 /** What each paid call was for, in a reader's words. A new task is a `tsc` error here. */
-export const EMBEDDING_CALL_TASK_LABELS = {
+const EMBEDDING_CALL_TASK_LABELS = {
   embed: "Text embedding",
   imageEmbed: "Image embedding",
   rerank: "Rerank",
 } as const satisfies Record<EmbeddingCallTask, string>;
 
 /** How a paid call ended. A call recorded before outcomes were kept has none. */
-export const EMBEDDING_CALL_OUTCOME_LABELS = {
+const EMBEDDING_CALL_OUTCOME_LABELS = {
   completed: "Completed",
   failed: "Failed",
 } as const satisfies Record<EmbeddingInvocationOutcome, string>;
 
 /** The note on a call whose connection has since been deleted. */
-export const EMBEDDING_CALL_CONNECTION_GONE = "connection removed";
+const EMBEDDING_CALL_CONNECTION_GONE = "connection removed";
 
 /** One call's detail line: its task, how many inputs it carried and the connection it ran under. */
 export function embeddingCallSubtitle(call: {

@@ -173,7 +173,7 @@ export const VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY = "system_fingerprint";
 export const VARIANT_METADATA_REASONING_REDACTED_KEY = "reasoning_redacted";
 
 /** The provider states a generation answered under a rate limit: warned or rejected, never a plain allowance. */
-export const MESSAGE_RATE_LIMIT_STATUSES = ["allowed_warning", "rejected"] as const;
+const MESSAGE_RATE_LIMIT_STATUSES = ["allowed_warning", "rejected"] as const;
 export type MessageRateLimitStatus = (typeof MESSAGE_RATE_LIMIT_STATUSES)[number];
 
 /** What a reader needs of the provider's rate-limit snapshot on one reply: how close or how far over the limit the
@@ -182,7 +182,7 @@ export interface MessageRateLimit {
   status: MessageRateLimitStatus;
   resetsAt: number | null;
 }
-export const messageRateLimitSchema = z
+const messageRateLimitSchema = z
   .object({ status: z.enum(MESSAGE_RATE_LIMIT_STATUSES), resetsAt: z.number().nullable() })
   .strip() satisfies z.ZodType<MessageRateLimit>;
 

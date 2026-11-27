@@ -3,6 +3,8 @@
 // The host's preview names each document passage the databank seated in the turn, with the span of its chunk in the
 // document's extracted text, so the span reads the passage back out of the stored document.
 
+import { chunkParamsSchema } from "@orb/contracts/databank";
+import { chunkText } from "@orb/kit/chunk";
 import { expect, test } from "@orb/testkit/node";
 import { attachRoomDocument, documentRoom, embedDocuments } from "../../chat/handoff-attachments-physical.ts";
 
@@ -24,15 +26,17 @@ test("the preview's trace names the document and the chunk spans its retrieved p
   const passages = trace.databankPassages ?? [];
   expect(passages.length).toBeGreaterThan(1);
 
-  // The spans are where the chunks sit in the stored text, not numbers the test copies from the same read.
+  // The spans are the chunker's own partition of the stored text, and each one reads back exactly its chunk.
   const stored = await h.root.services.databank.get({ principal: h.owner, signal: new AbortController().signal, id: documentId, includeText: true });
   const text = stored.extractedText ?? "";
+  expect(text).toBe(DOCUMENT.text);
+  const chunks = chunkText(text, chunkParamsSchema.parse({}));
+  expect(chunks.length).toBeGreaterThan(1);
+  const chunkSpans = chunks.map(({ start, end }) => ({ charStart: start, charEnd: end }));
   for (const passage of passages) {
     expect(passage.documentId).toBe(documentId);
     expect(passage.documentName).toBe(DOCUMENT.name);
-    const read = text.slice(passage.charStart, passage.charEnd);
-    expect(read.length).toBeGreaterThan(0);
-    expect(WORDS.some((word) => read.includes(word))).toBe(true);
+    expect(chunkSpans).toContainEqual({ charStart: passage.charStart, charEnd: passage.charEnd });
   }
   expect(passages.some((passage) => passage.charStart > 0)).toBe(true);
 });

@@ -111,8 +111,8 @@ function forkVariantMetadata(metadata: VariantMetadata | null, posture: ForkCopy
     [VARIANT_METADATA_REASONING_MS_KEY]: parsed[VARIANT_METADATA_REASONING_MS_KEY],
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: parsed[VARIANT_METADATA_TOKEN_COUNT_KEY],
     [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: parsed[VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY],
-    // The provider's rate-limit state rides the member-readable view, so it copies like the usage legs.
-    [VARIANT_METADATA_RATE_LIMIT_KEY]: parsed[VARIANT_METADATA_RATE_LIMIT_KEY],
+    // The rate-limit state describes the source host's connection, which the forker never held.
+    [VARIANT_METADATA_RATE_LIMIT_KEY]: undefined,
     // The redacted mark is the reasoning channel's own existence: it goes wherever the reasoning text goes.
     [VARIANT_METADATA_REASONING_REDACTED_KEY]: posture.stripReasoning ? undefined : parsed[VARIANT_METADATA_REASONING_REDACTED_KEY],
     systemTokens: parsed.systemTokens,
