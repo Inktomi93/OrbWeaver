@@ -17,8 +17,10 @@ test("backfilling a blank entry title moves the book row's stamp", async () => {
   const entry = await root.services.worldInfo.createEntry({
     principal,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Dock", content: "A dock.", keys: ["dock"] }),
+    input: createEntrySchema.parse({ title: "Dock", content: "A dock." }),
   });
+  // A title is backfilled from the entry's first key, so the blanked entry needs one.
+  await root.services.worldInfo.updateEntry({ principal, entryId: entry.id, input: { keys: ["dock"] } });
   await root.db.update(worldEntries).set({ title: "" }).where(eq(worldEntries.id, entry.id));
   const stampOf = async (): Promise<number | undefined> =>
     (await root.services.worldInfo.listBooksWithUsage({ principal })).find((row) => row.id === book.id)?.updatedAt;

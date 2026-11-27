@@ -40,10 +40,10 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
     const doc = parseSchemaDocument({
       name: patch.name ?? row.name,
       description: patch.description ?? row.description,
-      stage: patch.stage ?? row.stage,
+      stage: row.stage,
       schema: patch.schema ?? row.schema,
     });
-    const contentChanged = patch.schema !== undefined || patch.stage !== undefined || (patch.name !== undefined && patch.name !== row.name);
+    const contentChanged = patch.schema !== undefined || (patch.name !== undefined && patch.name !== row.name);
     const version = contentChanged ? row.version + 1 : row.version;
     const updated = {
       ...row,

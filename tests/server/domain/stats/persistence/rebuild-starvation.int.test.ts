@@ -16,13 +16,8 @@ import { textRoom } from "../../chat/scenario-physical.ts";
 // Both batches open with this guard: it rewrites the owner's canon version only while the snapshot still holds.
 const CANON_GUARD = /^insert into "stats_canon_versions".*\(SELECT COALESCE\(\(SELECT version FROM stats_canon_versions/u;
 
-async function overview(h: ChatRoot): Promise<Omit<OwnerStatsView, "computedAt"> | undefined> {
-  const view = await h.root.services.stats.overview(h.owner.userId);
-  if (view === null) {
-    return undefined;
-  }
-  const { computedAt: _computedAt, ...rest } = view;
-  return rest;
+async function overview(h: ChatRoot): Promise<OwnerStatsView | undefined> {
+  return (await h.root.services.stats.overview(h.owner.userId)) ?? undefined;
 }
 
 /** Park every guarded batch `act` sends, land a live write in the room under it, then let it go; returns how many

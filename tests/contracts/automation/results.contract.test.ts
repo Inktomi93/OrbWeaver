@@ -26,7 +26,6 @@ test("dry-run previews remain closed and omit absent optional fields while fire 
   const fire = {
     id: ids.next(ID_PREFIX.automationFire),
     ruleId: ids.next(ID_PREFIX.automationRule),
-    chatId: null,
     triggerType: "domain",
     outcome: "action_error",
     detail: { customArm: { arbitraryResult: [1, "retained"] } },

@@ -531,10 +531,11 @@ export interface DrainReport {
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and
  *  whether this call actually rewrote the marker (`false` for an idempotent no-op / an all-hidden span / an
  *  empty generation the caller must surface). A rewrite always covers a real seq; a no-op reports the stamp it
- *  left, `null` when the chat was never compacted. */
+ *  left, `null` when the chat was never compacted, and carries no summary: the room's stored marker is the one
+ *  home of a summary this call did not write. */
 export type CompactResult =
   | { readonly summary: string; readonly compactedAtSeq: number; readonly updated: true }
-  | { readonly summary: string; readonly compactedAtSeq: number | null; readonly updated: false };
+  | { readonly compactedAtSeq: number | null; readonly updated: false };
 
 /** The standalone `reactAsCharacter` op (`verbs/reactions.ts::createReactAsCharacter`) — NOT a
  *  `ChatService` member (its one consumer is the composition root's `react` tool definition; see

@@ -1,12 +1,13 @@
 // Shared real-root setup for native executable controls; no fixture owns engine decisions or context.
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
 import { CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
-import type { ChatRoot, ChatRootOptions, TranscriptLine } from "@orb/testkit/node/composed";
+import type { ChatRoot, ChatRootOptions, CompactionMarker, TranscriptLine } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -14,6 +15,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readCompactionMarker,
   readRoomCanon,
   SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
@@ -76,7 +78,8 @@ export async function sdkEngineRoom(
     readonly setPolicy: (patch: Partial<z.infer<typeof policySchema>>) => void;
     readonly release: () => void;
     readonly turn: (intent?: UserIntent) => ReturnType<ChatRoot["root"]["services"]["chat"]["generate"]>;
-    readonly marker: () => Promise<Pick<Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["getChat"]>>, "compactSummary" | "compactedAtSeq">>;
+    /** The checkpoint as the room's host reads it; pass the principal who holds the host seat after a handoff. */
+    readonly marker: (host?: Principal) => Promise<CompactionMarker>;
     /** The stored seq of the room's nth canon row, counted from one; production owns the numbering. */
     readonly seqOfRow: (row: number) => Promise<number | undefined>;
     readonly warnings: () => Promise<Extract<ChatBusEvent, { type: "warning" }>[]>;
@@ -163,7 +166,7 @@ export async function sdkEngineRoom(
     },
     release,
     turn: async (intent = {}) => await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent }),
-    marker: async () => await h.root.services.chat.getChat({ principal: h.owner, chatId: h.chatId }),
+    marker: async (host = h.owner) => await readCompactionMarker(h.root, host, h.chatId),
     seqOfRow: async (row) => (await readRoomCanon(h.root, h.owner, h.chatId))[row - 1]?.seq,
     warnings: async () =>
       (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) => (event.type === "warning" ? [event] : [])),

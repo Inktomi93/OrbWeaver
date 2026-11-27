@@ -86,7 +86,6 @@ export interface GetDocumentParams extends DatabankSpaceReadParams {
  *  to filter a ≤150-row sliding window by name and by ingest phase, so a term (or a health chip) that matched
  *  nothing on the loaded pages read as "no matches" over a bank of hundreds. */
 export interface ListDocumentsParams extends DatabankSpaceReadParams {
-  readonly origin?: DocOrigin;
   readonly limit?: number;
   /** The previous page's `nextCursor` (the boundary row's `(updatedAt, id)`) — absent = the first page.
    *  KEYSET, never an offset: the list's head moves whenever an ingest bumps a row's `updatedAt`, and an
@@ -109,7 +108,6 @@ export interface ListDocumentsParams extends DatabankSpaceReadParams {
 export interface DocumentListFilter {
   /** Already trimmed + lowercased by the verb; `undefined` = the unsearched bank. */
   readonly search?: string | undefined;
-  readonly origin?: DocOrigin | undefined;
   readonly phase?: DocumentPhaseScope | undefined;
 }
 

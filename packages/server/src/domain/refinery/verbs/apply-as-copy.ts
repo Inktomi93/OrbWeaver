@@ -16,7 +16,7 @@
 // live-card apply lock (`completed`).
 
 import { updateCharacterSchema } from "@orb/contracts/character";
-import { REFINERY_STAGE_PAYLOADS, refineryCustomRunConfigSchema, refinerySessionNameSchema } from "@orb/contracts/refinery";
+import { REFINERY_STAGE_PAYLOADS, refineryCustomRunConfigSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -29,7 +29,7 @@ const COPY_NAME_SUFFIX = " (refined)";
 const overallScoreCoreSchema = z.object({ overallScore: z.number() }).strip();
 
 export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyAsCopy"] {
-  return async ({ principal, sessionId, accepts, name, rewriteRunId, signal }) => {
+  return async ({ principal, sessionId, accepts, rewriteRunId, signal }) => {
     const ownerId = principal.userId;
     // Base = the LIVE card (§17 — the user reviewed diffs against it), same belts + loads as the merge
     // arm (the shared preamble resolver).
@@ -40,7 +40,7 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     }
 
     const { patch } = buildPatch(liveCard, chosen);
-    const copyName = name === undefined || name.trim().length === 0 ? `${liveCard.name}${COPY_NAME_SUFFIX}` : refinerySessionNameSchema.parse(name);
+    const copyName = `${liveCard.name}${COPY_NAME_SUFFIX}`;
     // The chassis + the overlay: duplicate carries what duplicate carries; the update runs character's
     // whole write belt over the accepted patch + the copy's name.
     const duplicated = await ctx.duplicateCharacter({ principal, characterId: session.characterId });

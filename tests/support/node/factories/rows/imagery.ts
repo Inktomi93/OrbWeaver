@@ -23,7 +23,7 @@ export async function seedImageryGenerationsRows(
 export async function captureImageryGenerationRows(db: Db, picture: GeneratedPicture): Promise<readonly ImageryGenerationRow[]> {
   return await Promise.all(
     picture.images.map(async (image): Promise<ImageryGenerationRow> => {
-      const row = await db.select().from(imageryGenerations).where(eq(imageryGenerations.id, image.generationId)).get();
+      const row = await db.select().from(imageryGenerations).where(eq(imageryGenerations.assetId, image.assetId)).get();
       if (row === undefined) {
         throw new Error("production imagery output has no canonical generation row");
       }

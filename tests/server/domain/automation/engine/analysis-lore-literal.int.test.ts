@@ -45,7 +45,8 @@ test("model lore with brace runs reaches the next turn as literal text and write
   const book = await h.root.services.worldInfo.createBook({ principal: h.owner, input: createBookSchema.parse({ name: "Gate lore" }) });
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: book.id });
   // A human entry on the same keyword is the control: it shows the turn evaluates the book's matched lore.
-  await h.caller.worldInfo.createEntry({ bookId: book.id, input: { title: "control", keys: [KEYWORD], content: "{{setvar::control::1}}The gate is old." } });
+  const control = await h.caller.worldInfo.createEntry({ bookId: book.id, input: { title: "control", content: "{{setvar::control::1}}The gate is old." } });
+  await h.caller.worldInfo.updateEntry({ entryId: control.id, input: { keys: [KEYWORD] } });
   const rule = await h.root.services.automation.createRule({
     principal: h.owner,
     chatId: h.chatId,

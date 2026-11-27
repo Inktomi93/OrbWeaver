@@ -25,7 +25,6 @@ export async function importCardBatch({ files, service }: ImportCardBatchDeps): 
         created: result.created,
         // Every name in a file is hostile, and a held row's name is the owner's own: both are clipped for the wire.
         name: clipImportText(result.name),
-        importHash: result.importHash,
         notes: result.skippedOverlays,
         attachedBooksSkipped: result.attachedBooksSkipped,
       });

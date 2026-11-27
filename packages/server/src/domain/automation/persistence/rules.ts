@@ -69,7 +69,6 @@ export function toRuleView(row: RuleRow): RuleView {
     lastError: row.lastError,
     lastFiredAt: row.lastFiredAt,
     createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
   };
 }
 

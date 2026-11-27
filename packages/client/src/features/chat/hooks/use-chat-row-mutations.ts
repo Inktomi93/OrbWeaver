@@ -36,7 +36,7 @@ const useStarChat = createEntityMutation<inferInput<Trpc["chat"]["star"]>, unkno
 
 type ArchiveChatVars = inferInput<Trpc["chat"]["archive"]>;
 
-const useArchiveChat = createEntityMutation<inferInput<Trpc["chat"]["archive"]>, unknown>({
+export const useArchiveChat = createEntityMutation<inferInput<Trpc["chat"]["archive"]>, unknown>({
   options: (trpc) => trpc.chat.archive.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't archive the chat.",

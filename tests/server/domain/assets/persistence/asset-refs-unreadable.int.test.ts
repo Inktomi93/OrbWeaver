@@ -34,13 +34,9 @@ const UNREADABLE_REFERENCES = {
     await rewriteSettings(box, "$.appearance.backgroundAssetId", { id: ref.assetId }),
   "an appearance section that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
     await rewriteSettings(box, "$.appearance", JSON.stringify({ backgroundAssetId: ref.assetId })),
-  "a profile avatar that is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.profile.avatarAssetId", [ref.assetId]),
-  "a profile section that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await rewriteSettings(box, "$.profile", JSON.stringify({ avatarAssetId: ref.assetId })),
   "a settings blob that is not JSON at all": async (box: GcBox, ref: StoredRef): Promise<string> => {
     await settingsRow(box);
-    await plantForeignSettingsBytes(box.root, box.root.ownerId, `{"profile":{"avatarAssetId":"${ref.assetId}"`);
+    await plantForeignSettingsBytes(box.root, box.root.ownerId, `{"appearance":{"backgroundAssetId":"${ref.assetId}"`);
     return box.root.ownerId;
   },
 } as const;

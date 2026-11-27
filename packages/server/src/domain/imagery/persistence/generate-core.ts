@@ -4,22 +4,19 @@
 // verb-specific parts (prompt resolution, reuse gate, the B3/edit capability gates, the request build) live in
 // each verb; this is the spend-and-persist core, so the store-then-provenance GC ordering has ONE home.
 
-import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { GenerationUsage, ProviderId } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { imageGenerationSpendDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { GeneratedImage } from "@orb/inference";
-import type { AssetId, ImageryCallId, ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { ImageryCallId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { GenerationFailedError } from "../contract/errors.ts";
 import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
 import type { ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
 import { insertGenerationStatement } from "./queries.ts";
 
-/** The media block's `alt` is the prompt, truncated (a full 2k-char prompt is not alt text). */
-const ALT_MAX_CHARS = 300;
 /** The fallback mime when neither the bytes nor the provider name an image type. */
 const DEFAULT_IMAGE_MIME = "image/png";
 /** `@orb/kit/image-sniff`'s "unrecognized signature" sentinel — the SAME table assets' `enforceMagic` uses. */
@@ -45,14 +42,9 @@ async function materialize(ctx: ImageryContext, img: GeneratedImage, signal: Abo
   return null;
 }
 
-/** The media block for one stored image. Exported for the reuse path, which rebuilds blocks from stored rows. */
-export function buildBlock(assetId: AssetId, prompt: string): MessageContentBlock {
-  return { kind: "media", media: "image", src: { kind: "asset", assetId }, alt: prompt.slice(0, ALT_MAX_CHARS) };
-}
-
 /** Store the bytes (kind `"generated"`) and build the provenance row's insert for the caller's batch (order
  *  matters — a crash before that batch leaves an unreferenced CAS blob the assets GC reaps benignly, never a
- *  provenance row pointing at nothing) beside the render-ready image. */
+ *  provenance row pointing at nothing) beside the stored image. */
 async function storeImage(
   ctx: ImageryContext,
   prov: GenerationProvenanceInput,
@@ -93,13 +85,7 @@ async function storeImage(
     createdAt: gen.createdAt,
     genTimeMs: gen.genTimeMs,
   });
-  return { image: { assetId: stored.assetId, generationId, block: buildBlock(stored.assetId, prov.prompt) }, provenance };
-}
-
-/** Null-propagating sum (doc 02 §8): any unknown component ⇒ null (a fabricated partial total is worse than an
- *  honest null); the known parts still land in stats individually. */
-export function sumCost(a: number | null, b: number | null): number | null {
-  return a === null || b === null ? null : a + b;
+  return { image: { assetId: stored.assetId }, provenance };
 }
 
 /** Run one built request through the spend-and-persist tail. Zero decodable images ⇒ `GenerationFailedError`. */
@@ -150,5 +136,5 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
     }),
   );
   await ctx.db.batch(batchMany(stmts));
-  return { images, model, costUsd: result.usage.costUsd, warnings: result.warnings };
+  return { images, warnings: result.warnings };
 }

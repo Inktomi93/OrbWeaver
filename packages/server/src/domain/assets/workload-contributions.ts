@@ -110,7 +110,13 @@ export function createAssetsWorkloadContributions(input: DbAssemblyInput<AssetsW
       run: async (_ctx, _params, report, signal): Promise<FsckReport> => {
         report({ message: "checking asset integrity" });
         const result = await deps.assets.fsck({ signal });
-        return { danglingRows: result.danglingRows, corruptBlobs: result.corruptBlobs, orphanBlobs: result.orphanBlobs };
+        return {
+          scannedRows: result.scannedRows,
+          scannedBlobs: result.scannedBlobs,
+          danglingRows: result.danglingRows,
+          corruptBlobs: result.corruptBlobs,
+          orphanBlobs: result.orphanBlobs,
+        };
       },
     },
     {

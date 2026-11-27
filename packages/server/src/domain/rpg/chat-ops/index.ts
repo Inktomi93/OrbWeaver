@@ -135,7 +135,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
       return game !== undefined && isDeceptionActive(game.config.features);
     },
     // FORK CLONES THE GAME (§3.2): re-key the source game's whole vertical onto the fork through the fork's id
-    // maps, host-secret-strip for a non-host forker, pointer LAST. `cloned:false` for a non-game source. Reads by
+    // maps, host-secret-strip for a non-host forker, pointer LAST. a no-op for a non-game source. Reads by
     // the SOURCE chat's game row directly (NOT `findEngagedGame`): a DISENGAGED game still clones — the fork
     // inherits its disengaged pointer (see `fork-game.ts`), preserving the source's front-door state, never
     // silently re-engaging it.

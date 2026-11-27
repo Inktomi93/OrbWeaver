@@ -437,10 +437,9 @@ export type TurnInitiator = (typeof TURN_INITIATORS)[number];
  *  it is turn-origin-depth vocabulary shared by two domains that cannot import each other (chat ↮ automation). */
 export const AUTOMATION_DEPTH_HARD_CAP = 3;
 
-/** A turn's origin classification — the metadata automation rules gate on (the cascade guard's depth counter
- *  + the initiator). Read back through `getTurnOrigin`; stamped on the reply slot at commit. */
+/** A turn's origin classification — the metadata automation rules gate on (the cascade guard's depth counter).
+ *  Read back through `getTurnOrigin`; stamped on the reply slot at commit. */
 export interface TurnOrigin {
-  readonly initiator: TurnInitiator;
   /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3). */
   readonly automationDepth: number;
 }

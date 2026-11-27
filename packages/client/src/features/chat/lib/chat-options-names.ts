@@ -4,6 +4,11 @@
 /** The fork's way back: opens the chat this one was forked from. */
 export const BACK_TO_PARENT_CHAT_LABEL = "Back to parent chat";
 
+/** The line under "Back to parent chat": which chat this one was forked from and when, so two forks of one parent read apart. */
+export function forkOriginLine(parentName: string, when: string | null): string {
+  return when === null ? `Forked from ${parentName}` : `Forked from ${parentName} \u00b7 ${when}`;
+}
+
 /** The room menu's destructive item, named for the room it deletes. */
 export const CHAT_DELETE_NAME = "Delete chat";
 

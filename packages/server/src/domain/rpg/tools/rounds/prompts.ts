@@ -83,12 +83,12 @@ function sliceTranscript(transcript: readonly RpgTurnTranscriptMessage[], config
  *  lever (`constrainExtractionSchema` marks scene fields REQUIRED on a fresh game); this prompt is the content-
  *  quality arm. The R1 ref enums (below) keep targets honest. */
 /** Compose the full structured-extraction system prompt: the header + the per-plane teaching (from the §1.6 registry,
- *  config/refs/prose aware — plot/trackers/emoji/day/deception-clause) + the R1 ref enumeration + (on a
+ *  config/prose aware — plot/trackers/emoji/day/deception-clause) + the R1 ref enumeration + (on a
  *  reconcile beat) the reconcile line. The registry is the ONE home both the structured extraction and the cheap
  *  tool round teach their planes from; every string in it is a PROSE-1 slot (`contracts/rpg/prose.ts`). */
 export function extractionSystem(inputs: PromptInputs): string {
-  const { config, refs, prose, reconcile } = inputs;
-  const teaching = composePlaneTeaching({ config, refs, prose });
+  const { config, prose, reconcile } = inputs;
+  const teaching = composePlaneTeaching({ config, prose });
   const refLines = refEnumerationLines(inputs);
   const parts = [
     resolveProseText("rpg.extract.systemHeader", prose),
@@ -358,14 +358,14 @@ function refEnumerationLines(inputs: PromptInputs): string {
  *  SAME per-plane teaching (from the §1.6 registry — plot/trackers/deception-clause) that the
  *  structured arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
 export function toolRoundSystem(inputs: PromptInputs): string {
-  const { config, refs, prose, reconcile } = inputs;
+  const { config, prose, reconcile } = inputs;
   // DECOMPOSITION NUDGE: the 8B under-fires — a beat that moved location AND wounded someone often
   // wrote only ONE plane. So the prompt walks the model plane-by-plane (a checklist) and gives the concrete
   // multi-call example, forcing it to consider EACH plane independently rather than settling for one call.
   // Bounded attempt ([[plan-for-small-hardware]] — if the 8B ceiling holds, the honest-arms degrade holds).
   // The bytes are a PROSE-1 slot, so a host whose model under-fires differently can retune the checklist.
   const base = resolveProseText("rpg.extract.toolRoundHeader", prose);
-  const teaching = composePlaneTeaching({ config, refs, prose });
+  const teaching = composePlaneTeaching({ config, prose });
   const refLines = refEnumerationLines(inputs);
   const parts = [base, teaching, refLines, ...(reconcile ? [resolveProseText("rpg.extract.reconcilePass", prose)] : [])];
   return parts.join("\n\n");

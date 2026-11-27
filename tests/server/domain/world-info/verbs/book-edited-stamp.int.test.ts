@@ -32,7 +32,7 @@ test("an entry written or edited moves the book row's stamp to that entry's, and
   const entry = await root.services.worldInfo.createEntry({
     principal,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Harbor", content: "A harbor.", keys: ["harbor"] }),
+    input: createEntrySchema.parse({ title: "Harbor", content: "A harbor." }),
   });
   expect(entry.updatedAt).toBeGreaterThan(created);
   expect(await bookStamp(root, book.id)).toBe(entry.updatedAt);

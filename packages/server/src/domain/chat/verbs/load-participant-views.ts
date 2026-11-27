@@ -87,7 +87,6 @@ export function createLoadParticipantViews(ctx: ChatContext): {
           activePersonaId: r.activePersonaId,
           talkativeness: r.talkativeness,
           disabled: r.disabled,
-          joinedAt: r.joinedAt,
           joinSeq: r.joinSeq,
           leftSeq: r.leftSeq,
           joinHistoryVisibility: r.joinHistoryVisibility,

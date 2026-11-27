@@ -240,7 +240,7 @@ test("a file whose strike names a character the target library never held restor
   const restoredId = present((await roomIds(target.h))[0]);
 
   const waiting = await target.h.caller.chat.memoryView({ chatId: restoredId });
-  expect(waiting.unmatchedStrikes).toEqual([expect.objectContaining({ tier: 0, scopedCharacterId: null })]);
+  expect(waiting.unmatchedStrikes).toEqual([expect.objectContaining({ scopedCharacterId: null })]);
   await expectStormStruckOnSharedCopy(target, restoredId);
 });
 
@@ -258,7 +258,7 @@ test("a strike on a character the library gained after the room was restored lan
   await expect(chatArm(target.h).importFile(target.h.root.ownerId, file)).resolves.toMatchObject({ ok: true, created: true });
   const restoredId = present((await roomIds(target.h))[0]);
   const first = await target.h.caller.chat.memoryView({ chatId: restoredId });
-  expect(first.unmatchedStrikes).toEqual([expect.objectContaining({ tier: 0, scopedCharacterId: null })]);
+  expect(first.unmatchedStrikes).toEqual([expect.objectContaining({ scopedCharacterId: null })]);
 
   // The library now holds the scout the file names, but the room never seated it. The host lifts the strike and the
   // same file is restored again, which runs its strike overlay on that room.
@@ -266,7 +266,7 @@ test("a strike on a character the library gained after the room was restored lan
   await target.h.caller.chat.restoreMemory({ chatId: restoredId, strikeId: present(present(first.unmatchedStrikes[0]).strikeId) });
   await expect(chatArm(target.h).importFile(target.h.root.ownerId, file)).resolves.toMatchObject({ ok: true, created: false });
   const again = await target.h.caller.chat.memoryView({ chatId: restoredId });
-  expect(again.unmatchedStrikes).toEqual([expect.objectContaining({ tier: 0, scopedCharacterId: null })]);
+  expect(again.unmatchedStrikes).toEqual([expect.objectContaining({ scopedCharacterId: null })]);
   expect(again.unmatchedStrikes.map((strike) => strike.scopedCharacterId)).not.toContain(scout.id);
   await expectStormStruckOnSharedCopy(target, restoredId);
 });

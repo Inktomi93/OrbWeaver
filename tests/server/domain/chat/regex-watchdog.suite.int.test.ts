@@ -161,7 +161,8 @@ test("REASONING: the committed reasoning keeps its text when the runaway is cut 
 test("WORLD_INFO: a fired entry reaches the prompt with its text when the runaway is cut off, and the next script runs", async () => {
   await using room = await openRoom("WORLD_INFO", "Noted.");
   const book = await room.h.caller.worldInfo.createBook({ input: createBookSchema.parse({ name: "Lamps" }) });
-  await room.h.caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title: "Lamp", content: NEAR_MISS, keys: ["lamp"] }) });
+  const lamp = await room.h.caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title: "Lamp", content: NEAR_MISS }) });
+  await room.h.caller.worldInfo.updateEntry({ entryId: lamp.id, input: { keys: ["lamp"] } });
   await room.h.caller.worldInfo.attachToChat({ chatId: room.h.chatId, bookId: book.id });
 
   const { newest } = await appendedBy(room.bodies, () => send(room, "Light the lamp."));

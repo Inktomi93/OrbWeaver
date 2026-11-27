@@ -1,27 +1,9 @@
-// The member-safe, present-tense connection selected for this room's next chat turn, and whether that turn can run.
-// A non-host member may see the provider label but never the host's custom label.
+// The room's pre-send verdict: whether the next chat turn can run.
 
 import { z } from "zod";
 import type { UnavailableCause } from "../inference/resolved.ts";
 import { sendAvailabilitySchema } from "../inference/resolved.ts";
 import { TURN_HOST_UNAVAILABLE_OP_CODE } from "./bus.ts";
-
-export type NextTurnConnectionView =
-  | { readonly state: "unset" }
-  | {
-      readonly state: "configured";
-      readonly connectionLabel: string | null;
-      readonly providerLabel: string;
-    };
-
-export const nextTurnConnectionViewSchema = z.discriminatedUnion("state", [
-  z.strictObject({ state: z.literal("unset") }),
-  z.strictObject({
-    state: z.literal("configured"),
-    connectionLabel: z.string().nullable(),
-    providerLabel: z.string(),
-  }),
-]) satisfies z.ZodType<NextTurnConnectionView>;
 
 /** Why the room's next turn cannot run: the host connection's own cause, or the host is outside the room's consent
  *  set. The host cause is the same code a refused send carries and names no account state. */

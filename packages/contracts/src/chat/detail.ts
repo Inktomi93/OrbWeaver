@@ -11,12 +11,14 @@ import type { ChatRpgPointer } from "#rpg";
 import { chatRpgPointerSchema } from "#rpg";
 import type { ThemeBackground } from "#theme";
 import { themeBackgroundSchema } from "#theme";
-import type { GroupConfig, OpeningPolicy, RoomOverrides } from "./metadata.ts";
-import { groupConfigSchema, openingPolicySchema, roomOverridesSchema } from "./metadata.ts";
+import type { GroupConfig, RoomOverrides } from "./metadata.ts";
+import { groupConfigSchema, roomOverridesSchema } from "./metadata.ts";
 import type { ChatIdentity } from "./producers.ts";
 import { chatIdentitySchema } from "./producers.ts";
 import type { NarratorRenderPolicy, ParticipantView } from "./roster.ts";
 import { narratorRenderPolicySchema, participantViewSchema } from "./roster.ts";
+import type { ChatRowFields } from "./row.ts";
+import { chatRowShape } from "./row.ts";
 
 // How a room's pin stands — see {@link ChatDetail.anchorState}.
 const ANCHOR_STATES = ["live", "held", "none"] as const;
@@ -25,11 +27,7 @@ export type AnchorState = (typeof ANCHOR_STATES)[number];
 /** The full chat read (getChat) — the row resolved + the present roster + the effective room behavior
  *  (`group`/`roomOverrides`/`opening` parsed from `metadata`, fault-isolated to their defaults). The message
  *  list is fetched separately (listMessages, paged). */
-export interface ChatDetail {
-  readonly id: ChatId;
-  readonly title: string | null;
-  readonly starred: boolean;
-  readonly archived: boolean;
+export interface ChatDetail extends ChatRowFields {
   /** ST "Temporary Chat" — this room is ephemeral: hidden from `listChats` and swept once past
    *  the host's TTL. Exposed because the flag is CREATION-ONLY: a user who only learns their room was
    *  temporary after the first send cannot fix it, so the room must keep saying so. Read-only here — the
@@ -120,12 +118,7 @@ export interface ChatDetail {
    *  heals to absent at the parser. */
   readonly rpg: ChatRpgPointer | null;
 
-  readonly opening: OpeningPolicy | null;
-  /** The portable compaction checkpoint (D25) — the summary text + the seq it covers through. */
-  readonly compactSummary: string | null;
-  readonly compactedAtSeq: number | null;
   readonly createdAt: number;
-  readonly updatedAt: number;
   /** The kind-polymorphic CHAT IDENTITY producer (D137, Chat-Macro-Resolution.md §1), member-gated, covering
    *  every participant's seat/active-persona id — the client derives `{{char}}`/`{{user}}`/`{{persona}}`
    *  history names via `buildIdentityNameContext` → `@orb/kit/macro`'s `resolveRowMacros`, and the row
@@ -142,10 +135,7 @@ export interface ChatDetail {
  *  the carried `background` and `rpg` pointer reuse their lenient read schemas, which heal a stale stored value
  *  and strip an unknown key rather than fail (see `participantViewSchema` for why a join must not fail on one). */
 export const chatDetailSchema = z.strictObject({
-  id: typeIdSchema(ID_PREFIX.chat),
-  title: z.string().nullable(),
-  starred: z.boolean(),
-  archived: z.boolean(),
+  ...chatRowShape,
   temporary: z.boolean(),
   parentChatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   forkedAt: z.number().nullable(),
@@ -172,11 +162,7 @@ export const chatDetailSchema = z.strictObject({
   background: themeBackgroundSchema.nullable(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   rpg: chatRpgPointerSchema.nullable(),
-  opening: openingPolicySchema.nullable(),
-  compactSummary: z.string().nullable(),
-  compactedAtSeq: z.number().nullable(),
   createdAt: z.number(),
-  updatedAt: z.number(),
   identities: z.array(chatIdentitySchema).readonly(),
 }) satisfies z.ZodType<ChatDetail>;
 

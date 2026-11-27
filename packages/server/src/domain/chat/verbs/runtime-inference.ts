@@ -94,10 +94,6 @@ export function createChatInferenceOps(deps: ChatInferenceDeps): ChatInferenceOp
     resolveConnection: ({ funderUserId, actor, signal }) => resolveChatFor(funderUserId, signal, actor),
     checkSendAvailability: async ({ funderUserId, signal }) =>
       deps.connection.availability({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId), signal }),
-    getNextTurnConnection: async ({ funderUserId }): ReturnType<ChatInferenceOps["getNextTurnConnection"]> => {
-      const row = await deps.connection.getBoundConnection({ task: "chat", principal: await deps.resolveHostPrincipal(funderUserId) });
-      return row === null ? { state: "unset" } : { state: "configured", connectionLabel: row.label, providerLabel: row.providerLabel };
-    },
     summarizerContextTokens: taskWindows.summarize,
     embedContextTokens: taskWindows.embed,
     summarizeAvailability: async (funderUserId, signal) =>

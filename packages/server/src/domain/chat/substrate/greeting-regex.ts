@@ -15,7 +15,7 @@
 // script the pass runs can read them, and reads a failed retrieval as empty when one can.
 
 import type { HostTierRegexAllow } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { ChatId, PersonaId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { RegexPassCall } from "@orb/kit/regex";
 import { regexCallReadsRetrieval } from "@orb/kit/regex";
@@ -29,7 +29,6 @@ import { resolveHostTierRegexScripts } from "./regex-tier.ts";
 
 /** One greeting as the card wrote it, by the character that speaks it, under the card's name. */
 interface GreetingText {
-  readonly characterId: CharacterId;
   readonly characterName: string;
   readonly text: string;
 }

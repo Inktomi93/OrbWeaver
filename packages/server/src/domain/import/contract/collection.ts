@@ -48,7 +48,6 @@ export interface CollectedChat {
 
 /** domain/import can't reach domain/assets — cardBytes/filename ride through to the driver that stores them. */
 export interface CollectedCard {
-  readonly handle: CharacterHandle;
   readonly cardBytes: Uint8Array;
   /** The card's import identity (`parsedCardImportHash`) and the same without its art (`parsedCardTextHash`)
    *  — what the dry run's create prediction asks by, in the one lookup order every door uses. */

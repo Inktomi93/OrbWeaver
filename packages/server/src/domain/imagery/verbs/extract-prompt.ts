@@ -104,6 +104,6 @@ export function createExtractPrompt(ctx: ImageryContext, deps: { readonly resolv
       timeZone: p.timeZone,
       signal: p.signal,
     });
-    return { prompt: resolved.prompt, mode: p.mode, source: resolved.source, costUsd: resolved.costUsd };
+    return { prompt: resolved.prompt, source: resolved.source, costUsd: resolved.costUsd };
   };
 }

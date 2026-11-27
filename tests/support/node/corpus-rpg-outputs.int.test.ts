@@ -17,7 +17,7 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   const actor = result.beforePromotion.actors.find((entry) => entry.name === RPG_OUTPUT_NAME);
   expect(actor?.actorRef.kind).toBe("npc");
   expect(actor?.volatile?.inventory).toMatchObject([{ name: "Loom shuttle" }]);
-  expect(result.promoted).toMatchObject({ ok: true, issues: [expect.stringContaining("shortened")] });
+  expect(result.promoted).toEqual({ ok: true });
   const foundingCharacterId = result.room.chat.participants.find((seat) => seat.kind === "character")?.characterId;
   const promoted = result.afterPromotion.actors.find((entry) => entry.actorRef.kind === "character" && entry.actorRef.characterId !== foundingCharacterId);
   expect(promoted?.actorRef.kind).toBe("character");
@@ -36,12 +36,12 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   expect(result.dismissed).toEqual({ ok: true });
   expect(result.afterDismissal.actors.some((entry) => entry.actorRef.kind === "character" && entry.actorRef.characterId === characterId)).toBe(true);
   expect(result.afterDismissal.actors.find((entry) => entry.actorRef.kind === "character" && entry.actorRef.characterId === characterId)?.volatile).toBeNull();
-  expect(result.dice).toEqual({ notation: "2d6+3", rolls: [2, 2], modifier: 3, total: 7, stamp: "[dice: 2d6+3 → 7]" });
+  expect(result.dice).toEqual({ rolls: [2, 2], stamp: "[dice: 2d6+3 → 7]" });
   const opening = result.room.opening?.messages[0];
   expect(result.reveal.messages.map((message) => message.messageId)).toEqual([opening?.id]);
   expect(result.reveal.messages.map((message) => message.createdAt)).toEqual([opening?.createdAt]);
   expect(result.reveal.messages[0]?.spans[0]?.fields).toContainEqual({ key: "truth", value: RPG_OUTPUT_SECRET });
-  expect(result.reveal.standingLies).toMatchObject([{ character: "Reveal witness", lies: [{ messageId: opening?.id, truth: RPG_OUTPUT_SECRET }] }]);
+  expect(result.reveal.standingLies).toMatchObject([{ lies: [{ character: "Reveal witness", messageId: opening?.id, truth: RPG_OUTPUT_SECRET }] }]);
   expect(result.withheld).toEqual({ messages: [], standingLies: [] });
   expect(result.config.hiddenContentReveal).toBe(false);
   expect(result.config.statProfile).toEqual(result.born.publicConfig.statProfile);

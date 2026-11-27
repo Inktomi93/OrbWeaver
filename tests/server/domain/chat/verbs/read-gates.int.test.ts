@@ -49,7 +49,6 @@ const READ_GATES = {
   getChatLineage: "room-read",
   getChat: "room-read",
   checkSendAvailability: "room-read",
-  getNextTurnConnection: "room-read",
   getMemberCard: "room-read",
   previewAssembly: "inspector",
   previewActionTemplates: "inspector",
@@ -198,7 +197,7 @@ test("a host cannot read another room's stored prompt by naming its variant, and
   }
   // Positive control: the same host reads that variant through the room it belongs to.
   await expect(h.root.services.chat.getVariantWire({ principal: h.owner, chatId: other, variantId: theirLine.selectedVariantId })).resolves.toMatchObject({
-    variantId: theirLine.selectedVariantId,
+    prompt: null,
   });
 
   const crossed = await h.root.services.chat
@@ -241,7 +240,6 @@ test("a non-participant gets a leak-free not-found on every room read, while the
     chatEventBounds: (principal: Principal): Promise<unknown> => h.root.services.chat.chatEventBounds({ principal, chatId: h.chatId }),
     checkSendAvailability: (principal: Principal): Promise<unknown> =>
       h.root.services.chat.checkSendAvailability({ signal: new AbortController().signal, principal, chatId: h.chatId }),
-    getNextTurnConnection: (principal: Principal): Promise<unknown> => h.root.services.chat.getNextTurnConnection({ principal, chatId: h.chatId }),
     getMemberCard: (principal: Principal): Promise<unknown> => h.root.services.chat.getMemberCard({ principal, chatId: h.chatId, characterId }),
     memoryView: (principal: Principal): Promise<unknown> => h.root.services.chat.memoryView({ principal, chatId: h.chatId }),
   };

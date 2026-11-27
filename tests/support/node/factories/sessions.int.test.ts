@@ -12,7 +12,7 @@ test("a real session mint persists only its hash and revoke settles the actual r
   await using root = await createServerHarness();
   const actor = await root.actor();
   const capture = await seedBffSessionRows(root, { userId: actor.id, userAgent: "Corpus BFF device" });
-  expect(capture.row.id).toBe(capture.created.sessionId);
+  expect(capture.row.id).toBe((await root.app.sessions.validate(capture.created.token))?.sessionId);
   expect(capture.row.userId).toBe(actor.id);
   expect(capture.row.expiresAt).toBe(capture.created.expiresAt);
   expect(JSON.stringify(capture.row)).not.toContain(capture.created.token);

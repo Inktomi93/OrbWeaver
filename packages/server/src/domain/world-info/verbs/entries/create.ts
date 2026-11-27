@@ -4,7 +4,6 @@
 
 import { worldEntries } from "@orb/db";
 import { batchMany } from "@orb/db/query";
-import { resolveEntryScope } from "@orb/kit/world-info";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { CreateEntryParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
@@ -20,8 +19,6 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
 
     const at = ctx.now();
     const entryId = ctx.newEntryId();
-    const keys = input.keys ?? null;
-    const priority = input.priority ?? 0;
 
     await ctx.db.batch(
       batchMany([
@@ -30,8 +27,6 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
           worldBookId: bookId,
           title: input.title,
           content: input.content,
-          keys,
-          priority,
           createdAt: at,
           updatedAt: at,
         }),
@@ -50,10 +45,9 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
       at,
     );
 
-    const scope = resolveEntryScope(null, keys !== null && keys.length > 0);
     const chatIds = await listChatIdsForBook(ctx.db, bookId);
     for (const chatId of chatIds) {
-      await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
+      await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope: "always" });
     }
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     // The ROOM plane (entity→room bridge §3.6) — the ASSEMBLY changed. Distinct from the `wiEntryAttached`
@@ -67,9 +61,9 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
       title: input.title,
       description: null,
       content: input.content,
-      keys,
+      keys: null,
       enabled: true,
-      priority,
+      priority: 0,
       ignoreBudget: false,
       metadata: null,
       updatedAt: at,

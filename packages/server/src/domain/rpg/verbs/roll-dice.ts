@@ -65,7 +65,7 @@ export function createRollDice(ctx: RpgContext): Pick<RpgService, "rollDice"> {
     const { rolls, total } = rollDiceNotation({ ...parsed, modifier }, ctx.randomInt);
     const notation = params.ability === undefined ? params.notation : `d20${modifier >= 0 ? "+" : ""}${modifier}`;
     const stamp = `[dice: ${label}${notation} → ${total}]`;
-    return { notation: params.notation, rolls, modifier, total, stamp };
+    return { rolls, stamp };
   }
   return { rollDice };
 }

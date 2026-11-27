@@ -160,7 +160,6 @@ const BUS_FILTERS: BusFilterMap = {
     ...chatReads(trpc),
     trpc.worldInfo.listForChat.pathFilter(),
     trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
-    trpc.chat.getNextTurnConnection.queryFilter({ chatId: e.chatId }),
     trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),
     trpc.chat.listChatInjections.queryFilter({ chatId: e.chatId }),
     // The memory view: a strike, a restore and a handoff (which moves the host whose switch the view reads) all emit this.

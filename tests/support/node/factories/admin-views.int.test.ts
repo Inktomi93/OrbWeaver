@@ -27,7 +27,6 @@ test("admin output captures retain native identities and clocks while excluding 
     enabled: true,
     ownerHandle: null,
     createdAt: root.clock.now(),
-    updatedAt: root.clock.now(),
   });
   expect(created.row.passwordHash).not.toBeNull();
   expect(await root.app.sessions.authenticate(created.view.handle, PASSWORD)).toBe(created.view.id);
@@ -37,7 +36,7 @@ test("admin output captures retain native identities and clocks while excluding 
   const otherSession = await seedBffSessionRows(root, { userId: foreign.id, userAgent: "Other native device" });
   const session = await seedAdminSessionRows(root, { userId: created.view.id, userAgent: "Admin-view native device", oidcIdToken: ID_TOKEN }, owner);
   expect(session.view).toEqual({
-    id: session.created.sessionId,
+    id: (await root.app.sessions.validate(session.created.token))?.sessionId,
     userId: created.view.id,
     expiresAt: session.created.expiresAt,
     lastSeenAt: root.clock.now(),

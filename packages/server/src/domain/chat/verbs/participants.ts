@@ -237,7 +237,6 @@ async function characterParticipantView(
     activePersonaId: row.activePersonaId,
     talkativeness: row.talkativeness,
     disabled: row.disabled,
-    joinedAt: row.joinedAt,
     joinSeq: row.joinSeq,
     leftSeq: row.leftSeq,
     joinHistoryVisibility: row.joinHistoryVisibility,

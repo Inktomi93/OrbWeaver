@@ -307,7 +307,7 @@ async function sourceEmbeddingPosture(sourceRoot: string, runRoot: string): Prom
   if (destination === undefined) {
     throw new Error("Surface posture evidence requires a file-backed database");
   }
-  await mkdir(audit.dbDir, { recursive: true, mode: 0o700 });
+  await mkdir(dirname(destination), { recursive: true, mode: 0o700 });
   try {
     for (const suffix of ["", "-wal", "-shm"]) {
       if (existsSync(source + suffix)) {

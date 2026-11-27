@@ -19,7 +19,6 @@ import type {
   MemoryDigestInput,
   MemoryItemKey,
   MemoryView,
-  NextTurnConnectionView,
   ParticipantData,
   PlanGameBirthOp,
   ReadChatUserMacrosOp,
@@ -437,7 +436,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  the copy, so anything host-only in the source (config `steeringNote`, a foreign `gmPresetId`, hidden-span
    *  tracker prose) must not launder into their new host view (the §3.6 member→host boundary — the SAME transition
    *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
-   *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
+   *  rpg isn't wired / the source isn't a game ⇒ a no-op and the fork stays plain. */
   readonly forkGame: ForkGameOp;
   /** HOST HANDOFF: the rpg-side statements `acceptHostHandoff` must commit IN ITS OWN
    *  SWAP BATCH when room authority moves to `newHostUserId`. Today that is the `gmPresetId` heal — the twin of
@@ -860,7 +859,6 @@ export interface ChatServiceDeps {
     readonly chatId: ChatId;
     readonly signal: AbortSignal;
   }) => Promise<SendAvailability>;
-  readonly getNextTurnConnection: (args: { readonly funderUserId: ConsentingHostId }) => Promise<NextTurnConnectionView>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;

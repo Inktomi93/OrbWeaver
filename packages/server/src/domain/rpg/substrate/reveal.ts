@@ -80,7 +80,7 @@ function buildStandingLies(messages: readonly RpgRevealedMessage[]): RpgRevealVi
       byCharacter.set(character, lies);
     }
   }
-  return [...byCharacter.entries()].map(([character, lies]) => ({ character, lies: [...lies.values()] }));
+  return [...byCharacter.values()].map((lies) => ({ lies: [...lies.values()] }));
 }
 
 /** The pure host-reveal projection (§3.6): the assistant bodies (selected-variant lineage, chronological) →

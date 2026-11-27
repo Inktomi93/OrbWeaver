@@ -1,8 +1,8 @@
 // @subject packages/client/src/features/chat/components/chat-options-menu.tsx
-// The room's Chat options offer a host Rename and Delete chat, and a member Leave chat in their place, because the
-// server refuses a member the first two.
+// The room's Chat options offer a host Rename, Archive and Delete chat, and a member Leave chat in their place, because the
+// server refuses a member the first ones. A fork names the chat it came from beside Back to parent chat.
 
-import { ROW_RENAME_NAME } from "@orb/client/lib";
+import { deriveChatTitle, ROW_RENAME_NAME } from "@orb/client/lib";
 import { GAME_MODE_ON_LABEL } from "@orb/client/state";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -22,6 +22,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import {
+  BACK_TO_PARENT_CHAT_LABEL,
   CHAT_DELETE_NAME,
   CHAT_LEAVE_CONFIRM_NAME,
   CHAT_LEAVE_CONFIRM_TITLE,
@@ -29,6 +30,7 @@ import {
   CHAT_OPTIONS_NAME,
   CHAT_SELECT_MESSAGES_NAME,
 } from "#client/features/chat/lib/chat-options-names.ts";
+import { CHAT_ARCHIVE_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -38,6 +40,8 @@ const SERVED = [
   ...ROOM_PROCEDURES,
   "notifications.presence",
   "invites.selfLeave",
+  "chat.archive",
+  "chat.getChatLineage",
   "rpg.getGame",
   "rpg.listTurnToolCalls",
 ] as const;
@@ -96,7 +100,7 @@ for (const role of ROLES) {
     await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
     // Positive control: the menu is open and holds the actions both roles share.
     await expect(page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME, exact: true })).toBeVisible();
-    const hostOnly = [ROW_RENAME_NAME, CHAT_DELETE_NAME];
+    const hostOnly = [ROW_RENAME_NAME, CHAT_ARCHIVE_NAME, CHAT_DELETE_NAME];
     for (const name of hostOnly) {
       await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(role === "host" ? 1 : 0);
     }
@@ -140,4 +144,31 @@ test("a member who confirms Leave chat from Chat options is out of the room", as
   const confirm = page.getByRole("alertdialog", { name: CHAT_LEAVE_CONFIRM_TITLE, exact: true });
   await confirm.getByRole("button", { name: CHAT_LEAVE_CONFIRM_NAME, exact: true }).click();
   await expect.poll(async () => (await host.chat.getChat({ chatId })).participants.some((person) => person.userId === memberId)).toBe(false);
+});
+
+test("the host archives the room from Chat options", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host");
+  const host = await root.internalCallerFor(root.ownerId);
+  expect((await host.chat.getChat({ chatId })).archived).toBe(false);
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+  await page.getByRole("menuitem", { name: CHAT_ARCHIVE_NAME, exact: true }).click();
+  await expect.poll(async () => (await host.chat.getChat({ chatId })).archived).toBe(true);
+});
+
+test("a fork's Chat options name the chat it was forked from beside Back to parent chat", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "host");
+  const host = await root.internalCallerFor(root.ownerId);
+  const fork = await host.chat.forkChat({ chatId, title: "A branch worth keeping" });
+  const parent = (await host.chat.getChatLineage({ chatId: fork.chat.id })).chain.find((summary) => summary.id === chatId);
+  if (parent === undefined) {
+    throw new Error("The fork's lineage does not name its parent");
+  }
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId: fork.chat.id });
+  await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+  const back = page.getByRole("menuitem", { name: BACK_TO_PARENT_CHAT_LABEL, exact: true });
+  await expect(back).toBeVisible();
+  await expect(back).toContainText(`Forked from ${deriveChatTitle(parent.title, parent.participantNames)}`);
 });

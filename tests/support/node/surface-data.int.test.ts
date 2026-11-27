@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
@@ -733,9 +733,9 @@ test.skipIf(process.platform === "win32")("a symlinked owner database cannot mak
   const privateRoot = join(parent, "private");
   await mkdir(privateRoot, { mode: 0o700 });
   const linkedSource = resolveDataLayout({ ["DATA_DIR"]: join(parent, "linked-source") });
-  await mkdir(linkedSource.dbDir, { recursive: true, mode: 0o700 });
   const linkedDatabase = localPath(linkedSource.databaseUrl);
   assert(linkedDatabase !== undefined);
+  await mkdir(dirname(linkedDatabase), { recursive: true, mode: 0o700 });
   await symlink(database, linkedDatabase);
   await expect(prepareSurfaceData({ dataMode: "owner", privateRoot, ownerDataDirectory: linkedSource.root, environment: LOCAL_ENVIRONMENT })).rejects.toThrow(
     /^Surface preparation failed;/u,

@@ -268,10 +268,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
   const sourceRead = await read<"settings.getTheme">({ id: source.output.id }, caller.settings.getTheme);
   const seed = initialThemes.output.find((theme) => theme.isDefault);
   const seedRead = seed === undefined ? undefined : await read<"settings.getTheme">({ id: seed.id }, caller.settings.getTheme);
-  const seedCopy =
-    seed === undefined
-      ? undefined
-      : await read<"settings.duplicateTheme">({ id: seed.id, name: "Corpus default palette copy" }, caller.settings.duplicateTheme);
+  const seedCopy = seed === undefined ? undefined : await read<"settings.duplicateTheme">({ id: seed.id }, caller.settings.duplicateTheme);
   let selected: TrpcCapture<"settings.updateUserSettingsSection">;
   let appearance: TrpcCapture<"settings.updateUserSettingsSection">;
   let echo: TrpcCapture<"settings.updateUserSettingsSection">;

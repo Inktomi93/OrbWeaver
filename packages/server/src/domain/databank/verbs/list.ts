@@ -3,8 +3,8 @@
 // is NEVER hauled (charCount is derived in SQL); chunk counts come from ONE grouped read over
 // `document_chunks` for the active model. A read: no audit.
 //
-// EVERY LENS IS SERVER-SIDE (owner ruling, the `character.list` precedent): name search, the
-// origin facet and the ingest-PHASE scope are predicates on the SAME scope the keyset windows and
+// EVERY LENS IS SERVER-SIDE (owner ruling, the `character.list` precedent): name search and the
+// ingest-PHASE scope are predicates on the SAME scope the keyset windows and
 // `totalCount` counts. The library used to filter a ≤150-row sliding window of loaded pages by name and by
 // phase, so a term — or a health chip a user had just clicked on the home tile — that matched nothing among
 // the loaded rows read as "no matches" over a bank of hundreds, and the pane had to hedge with "None among
@@ -20,7 +20,7 @@
 // this domain, deliberately). So the chunk half arrives as an id set through the injected
 // `listChunkedDocumentIds` op and the derivation stays here.
 //   DECLARED LIMIT: that id set is bound one parameter per chunked document, so a bank past SQLite's ~32k
-//   variable ceiling would fail the phase-filtered read (the unfiltered list, search and origin are
+//   variable ceiling would fail the phase-filtered read (the unfiltered list and search are
 //   unaffected). ESCALATION, if such a bank ever exists: give embeddings a PHASE-FACTS read of its own so the
 //   predicate never leaves SQL — never a `vector-scope-derived` allowlist row for databank.
 
@@ -43,13 +43,10 @@ const MAX_LIMIT = DATABANK_LIST_DEFAULT_LIMIT;
  *  two facts SQL cannot reach on its own — the chunked id set and the stall clock — which is why it is the
  *  one arm that costs a read. */
 async function lensFilterOf(ctx: DatabankContext, params: ListDocumentsParams): Promise<DocumentListFilter> {
-  const { principal, search, origin, phase } = params;
+  const { principal, search, phase } = params;
   const needle = search?.trim().toLowerCase() ?? "";
   if (phase === undefined) {
-    return {
-      ...(needle === "" ? {} : { search: needle }),
-      ...(origin === undefined ? {} : { origin }),
-    };
+    return needle === "" ? {} : { search: needle };
   }
   // The KEY SET is the whole fact this needs — "is this document chunked at all". The op returns counts
   // because its other consumer (the health census) sums them; a second id-only op would be a second read of
@@ -59,7 +56,6 @@ async function lensFilterOf(ctx: DatabankContext, params: ListDocumentsParams): 
   ];
   return {
     ...(needle === "" ? {} : { search: needle }),
-    ...(origin === undefined ? {} : { origin }),
     phase: { phase, chunkedIds, nowMs: ctx.now() },
   };
 }

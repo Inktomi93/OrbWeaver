@@ -26,31 +26,21 @@ const TURN_USD = (4 * 1 + 2 * 2) / 1_000_000;
 const LOOPBACK = "127.0.0.1";
 const HTTP_OK = 200;
 
-type Unstamped<T> = Omit<T, "computedAt">;
-
 interface Shown {
-  readonly overview: Unstamped<OwnerStatsView> | null;
+  readonly overview: OwnerStatsView | null;
   readonly models: readonly ModelStatRow[];
   readonly timeline: readonly ActivityBucket[];
-  readonly characters: readonly (Unstamped<CharacterStatsView> | null)[];
+  readonly characters: readonly (CharacterStatsView | null)[];
 }
 
-function unstamped<T extends { readonly computedAt: number }>(view: T | null): Unstamped<T> | null {
-  if (view === null) {
-    return null;
-  }
-  const { computedAt: _computedAt, ...rest } = view;
-  return rest;
-}
-
-/** Every owner figure the dashboard reads, without the rebuild's own clock stamp. */
+/** Every owner figure the dashboard reads. */
 async function shown(h: ChatRoot, characters: readonly CharacterDetail[]): Promise<Shown> {
   const stats = h.root.services.stats;
   return {
-    overview: unstamped(await stats.overview(h.owner.userId)),
+    overview: await stats.overview(h.owner.userId),
     models: await stats.byModel(h.owner.userId),
     timeline: await stats.timeseries(h.owner.userId),
-    characters: await Promise.all(characters.map(async (card) => unstamped(await stats.character(h.owner.userId, card.id)))),
+    characters: await Promise.all(characters.map(async (card) => await stats.character(h.owner.userId, card.id))),
   };
 }
 

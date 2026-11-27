@@ -11,14 +11,7 @@
 // value — the `mergeSheet` (rpg `patchSheet`) precedent. Do not "simplify" it back to a replace.
 
 import type { RefinerySelection, RefinerySelectionPatch } from "@orb/contracts/refinery";
-import {
-  refineryGuidanceSchema,
-  refinerySelectionPatchSchema,
-  refinerySelectionSchema,
-  refinerySessionNameSchema,
-  refinerySessionStatusSchema,
-  refineryStageConfigSchema,
-} from "@orb/contracts/refinery";
+import { refineryGuidanceSchema, refinerySelectionPatchSchema, refinerySelectionSchema, refineryStageConfigSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
@@ -65,9 +58,6 @@ function mergeSelection(current: RefinerySelection, patch: RefinerySelectionPatc
 /** The per-member re-parse (header): each present member through its contracts schema; `null` clears. */
 function parsePatch(patch: UpdateSessionPatch, current: RefinerySelection): Partial<typeof refinerySessions.$inferInsert> {
   const set: Partial<typeof refinerySessions.$inferInsert> = {};
-  if (patch.name !== undefined) {
-    set.name = patch.name === null ? null : refinerySessionNameSchema.parse(patch.name);
-  }
   if (patch.guidance !== undefined) {
     set.guidance = patch.guidance === null ? null : refineryGuidanceSchema.parse(patch.guidance);
   }
@@ -76,9 +66,6 @@ function parsePatch(patch: UpdateSessionPatch, current: RefinerySelection): Part
   }
   if (patch.stageConfig !== undefined) {
     set.stageConfig = refineryStageConfigSchema.parse(patch.stageConfig);
-  }
-  if (patch.status !== undefined) {
-    set.status = refinerySessionStatusSchema.parse(patch.status);
   }
   return set;
 }

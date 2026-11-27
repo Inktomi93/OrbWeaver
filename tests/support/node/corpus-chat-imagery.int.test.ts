@@ -50,7 +50,7 @@ test("native chat lifecycle preserves imported canon, exact reactions/spend/refu
   expect(result.compacted.spend).toHaveLength(1);
   expect(result.compacted.spend[0]).toMatchObject({ ownerId: root.ownerId });
   expect(result.compacted.spend[0]?.costUsd).toBeGreaterThan(0);
-  expect(result.compacted.repeated).toEqual({ ...result.compacted.compacted, updated: false });
+  expect(result.compacted.repeated).toEqual({ compactedAtSeq: result.compacted.compacted.compactedAtSeq, updated: false });
   expect(result.compacted.repeatedSpend).toEqual(result.compacted.spend);
   expect(result.compacted.refusal).toBe(CHAT_OP_CODES.emptyGeneration);
   expect(result.compacted.observations).toMatchObject([
@@ -134,7 +134,7 @@ test("native imagery keeps equal-clock calls separate, reuses the later cohort e
   expect(result.imported.claim).toMatchObject({ id: result.newest.generations[0]?.callId, ownerId: root.ownerId });
   expect(result.foreign).toMatchObject({ ok: false });
   expect(result.foreignClaims).toEqual([]);
-  expect(result.provenance.map((row) => row?.generationId)).toEqual(result.newest.generations.map((row) => row.id));
+  expect(result.provenance.map((row) => row?.prompt)).toEqual(result.newest.generations.map((row) => row.prompt));
   expect(physical.requests.filter((request) => request === "POST /v1/images/generations")).toHaveLength(3);
   await assertReferentialIntegrity(root.db);
 });

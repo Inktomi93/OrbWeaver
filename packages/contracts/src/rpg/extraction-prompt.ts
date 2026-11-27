@@ -45,12 +45,11 @@ import type { RpgStateRoundTool } from "./structured-round.ts";
 import type { RpgTrackerDef } from "./tracker.ts";
 import { gameTrackers, sortTrackers } from "./tracker.ts";
 
-/** The context a fragment builder reads: the game config (feature gates, cast-field defs + hints, dateMode),
- *  the per-call refs (widget labels, cast-field keys), and the turn's resolved PROSE overrides. A fragment
+/** The context a fragment builder reads: the game config (feature gates, cast-field defs + hints, dateMode)
+ *  and the turn's resolved PROSE overrides. A fragment
  *  returns `null` when its plane is OFF for this game (the feature-gated arm) — the composer drops a null row. */
 export interface ExtractionPromptContext {
   readonly config: RpgGameConfig;
-  readonly refs: ExtractionRefs;
   /** The GM PRESET's model-facing overrides for the extraction seam, threaded
    *  whole exactly as `LiteReminderInput.prose` is. Every string below resolves through it, so a host edit in
    *  the preset Templates tab lands on the write surface. ABSENT ⇒ `{}` ⇒ every fragment is byte-identical to
@@ -76,7 +75,7 @@ function rpgProse(ctx: ExtractionPromptContext, id: keyof typeof RPG_PROSE_SLOTS
 type ExtractionPlane = keyof typeof rpgExtractionSchema.shape;
 
 // One row per model-writable extraction plane: the schema field (the ratchet key) and its teaching-fragment
-//  builder (config/refs aware). A fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game.
+//  builder (config aware). A fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game.
 interface ExtractionPlanePrompt {
   readonly plane: ExtractionPlane;
   readonly fragment: (ctx: ExtractionPromptContext) => string | null;
@@ -335,13 +334,6 @@ function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<str
  *  The baseline consumer reads shipped DEFAULTS, always — an extraction override is a per-call fact. */
 export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = buildRpgToolDescriptions({
   config: rpgGameConfigSchema.parse({}),
-  refs: {
-    actorRefs: [],
-    trackerWriteGroups: [],
-    gameTrackerKeys: { deltaKeys: [], setKeys: [] },
-    conditionNames: [],
-    establishScene: { location: false, timeOfDay: false, presentCast: false },
-  },
 });
 
 /** `update_scene`'s worked inputs, shown beside its schema where the wire has a slot for them. They are game-free
@@ -404,7 +396,7 @@ export function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameCon
     return node === undefined ? undefined : (node.items ?? { type: "object" });
   };
   const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
-  const descriptions = buildRpgToolDescriptions({ config, refs, prose });
+  const descriptions = buildRpgToolDescriptions({ config, prose });
   const describeTool = (name: string): string => descriptions.get(name) ?? "";
   const tools: RpgStateRoundTool[] = [
     { name: "update_party", description: describeTool("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
@@ -422,7 +414,7 @@ export function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameCon
     { name: "add_journal_entry", description: describeTool("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
     {
       name: RPG_NO_CHANGES_TOOL,
-      description: rpgProse({ config, refs, prose }, "rpg.extract.tool.noChanges"),
+      description: rpgProse({ config, prose }, "rpg.extract.tool.noChanges"),
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   );

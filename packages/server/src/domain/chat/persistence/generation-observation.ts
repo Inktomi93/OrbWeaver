@@ -295,7 +295,7 @@ async function attachGenerationObservations(
     return;
   }
   const usageLegs = [...metadata.usageLegs, ...facts.map((fact) => fact.leg)];
-  const usage = projectGenerationUsage(usageLegs).total;
+  const usage = projectGenerationUsage(usageLegs);
   const next = {
     ...variant,
     ...usage,

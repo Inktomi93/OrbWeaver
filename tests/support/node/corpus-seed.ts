@@ -143,11 +143,12 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   const asset = storedAsset.stored;
   const gallery = await seedGalleryItemRows(root, { principal, assetId: asset.assetId, subjectCharacterId: character.id });
   const book = await seedWorldBookRows(root, { principal, input: createBookSchema.parse({ name: "Orbital ledger canon" }) });
-  await seedWorldEntryRows(root, {
+  const loom = await seedWorldEntryRows(root, {
     principal,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "The orbital loom", content: "The loom records every completed ledger scene.", keys: ["loom"] }),
+    input: createEntrySchema.parse({ title: "The orbital loom", content: "The loom records every completed ledger scene." }),
   });
+  await root.services.worldInfo.updateEntry({ principal, entryId: loom.id, input: { keys: ["loom"] } });
   await seedCharacterBookRows(root, { principal, characterId: character.id, bookId: book.id, role: "primary" });
   await seedChatBookRows(root, { principal, chatId: room.chat.id, bookId: book.id });
   await seedGlobalBookRows(root, { principal, bookId: book.id });

@@ -5,8 +5,8 @@
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR, resolveHostDisplayScripts, resolveNarratorRenderPolicy } from "@orb/contracts/chat";
+import type { ChatIdentity, ParticipantData } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, resolveHostDisplayScripts, resolveNarratorRenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
 import type { ResolvedAnchor } from "../persistence/anchor.ts";
@@ -23,37 +23,19 @@ interface ToChatDetailInput {
   readonly participants: readonly ParticipantData[];
   readonly identities: readonly ChatIdentity[];
   readonly viewerUserId: UserId;
-  /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
-   *  so a new `ChatDetailData` producer must state the viewer's clamp rather than inherit an open one. */
-  readonly viewerHistoryFloorSeq: HistoryFloorSeq;
-  /** `resolveViewerOwnedCharacterIds` over the same roster. REQUIRED for the same reason as the floor. */
+  /** `resolveViewerOwnedCharacterIds` over the same roster. REQUIRED, not defaulted, so a new producer states it. */
   readonly viewerOwnedCharacterIds: readonly CharacterId[];
   /** `resolveAnchor` over the same roster (`substrate/participants-humans.ts`). */
   readonly anchor: ResolvedAnchor;
 }
 
-/** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetailData`.
- *
- *  The COMPACTION CHECKPOINT is D16-clamped here (the one home every detail producer shares): the summary is
- *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
- *  (`viewerHistoryFloorSeq > 0`) would be reading a distillation of the transcript their floor withholds.
- *  Both fields drop together — a `compactedAtSeq` with no summary is a divider anchored to nothing. */
-export function toChatDetail({
-  chat,
-  participants,
-  identities,
-  viewerUserId,
-  viewerHistoryFloorSeq,
-  viewerOwnedCharacterIds,
-  anchor,
-}: ToChatDetailInput): ChatDetailData {
+/** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetailData`. */
+export function toChatDetail({ chat, participants, identities, viewerUserId, viewerOwnedCharacterIds, anchor }: ToChatDetailInput): ChatDetailData {
   const viewer = participants.find((p) => p.userId === viewerUserId);
-  const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   const narratorRender = resolveNarratorRenderPolicy(participants);
   return {
     id: chat.id,
     title: chat.title,
-    starred: chat.starred,
     archived: chat.archived,
     temporary: chat.temporary,
     parentChatId: chat.parentChatId,
@@ -87,11 +69,7 @@ export function toChatDetail({
     memberPersonaLore: chat.metadata.memberPersonaLore !== false,
     background: chat.metadata.background ?? null,
     rpg: chat.metadata.rpg ?? null,
-    opening: chat.metadata.opening ?? null,
-    compactSummary: checkpointVisible ? chat.compactSummary : null,
-    compactedAtSeq: checkpointVisible ? chat.compactedAtSeq : null,
     createdAt: chat.createdAt,
-    updatedAt: chat.updatedAt,
     identities,
   };
 }

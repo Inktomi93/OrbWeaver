@@ -11,7 +11,6 @@ import type {
   RefinerySchemaDocument,
   RefinerySchemaStage,
   RefinerySelectionPatch,
-  RefinerySessionStatus,
   RefineryStage,
   RefineryStageConfig,
 } from "@orb/contracts/refinery";
@@ -29,8 +28,6 @@ interface RefineryCallParams extends RefineryActorParams {
 
 export interface StartSessionParams extends RefineryActorParams {
   readonly characterId: CharacterId;
-  /** Optional roster label (bounded by `refinerySessionNameSchema` at the verb); absent/null ⇒ unnamed. */
-  readonly name?: string | null;
 }
 
 export interface GetSessionParams extends RefineryActorParams {
@@ -43,8 +40,8 @@ export interface ListRunsParams extends RefineryActorParams {
   readonly sessionId: RefinerySessionId;
 }
 
-/** The session-config patch (the D62 Setup surface's write). Absent = leave unchanged; `null` on the two
- *  nullable text fields = clear. Each present member is re-parsed through its contracts schema AT THE VERB
+/** The session-config patch (the D62 Setup surface's write). Absent = leave unchanged; `null` on the
+ *  nullable guidance = clear. Each present member is re-parsed through its contracts schema AT THE VERB
  *  (the internal-boundary re-parse posture) — the tRPC wire parse does not cover a
  *  future internal caller.
  *
@@ -53,11 +50,9 @@ export interface ListRunsParams extends RefineryActorParams {
  *  three-state greeting arm (absent = keep · null = every greeting · array = exactly these) is stated on
  *  `refinerySelectionPatchSchema`. */
 export interface UpdateSessionPatch {
-  readonly name?: string | null | undefined;
   readonly guidance?: string | null | undefined;
   readonly selection?: RefinerySelectionPatch | undefined;
   readonly stageConfig?: RefineryStageConfig | undefined;
-  readonly status?: RefinerySessionStatus | undefined;
 }
 
 export interface UpdateSessionParams extends RefineryActorParams {
@@ -80,9 +75,6 @@ export interface RunStageParams extends RefineryCallParams {
 
 export interface IterateParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
-  /** Loop guidance for THIS and later rounds — persisted onto the session (parsed via
-   *  `refineryGuidanceSchema`); absent ⇒ the session's stored guidance stands. */
-  readonly guidance?: string;
 }
 
 /** One user-accepted rewrite entry (the Keep set of the arm-B review). EXACTLY ONE index is legal, and only
@@ -121,11 +113,10 @@ export interface DecideRewriteParams extends RefineryActorParams {
 
 /** `applyAsCopy` — the branch-off terminal act (schema-renderer §17): the SAME reviewed accept set, but
  *  the write arm creates a NEW character (duplicate chassis + patch overlay) and the live card is never
- *  touched. `name` defaults to `"<name> (refined)"`. */
+ *  touched. The copy is named `"<name> (refined)"`. */
 export interface ApplyAsCopyParams extends RefineryCallParams {
   readonly sessionId: RefinerySessionId;
   readonly accepts: readonly AcceptedField[];
-  readonly name?: string | undefined;
   readonly rewriteRunId?: RefineryRunId | undefined;
 }
 
@@ -169,12 +160,11 @@ export interface CreateSchemaParams extends RefineryActorParams, RefinerySchemaD
 
 export interface UpdateSchemaParams extends RefineryActorParams {
   readonly schemaId: RefinerySchemaId;
-  /** Absent = unchanged. A `schema`/`stage`/`name`/`description` change re-runs the WHOLE document belt
+  /** Absent = unchanged. A `schema`/`name`/`description` change re-runs the WHOLE document belt
    *  and bumps `version`. */
   readonly patch: {
     readonly name?: string | undefined;
     readonly description?: string | undefined;
-    readonly stage?: RefinerySchemaStage | undefined;
     readonly schema?: Record<string, unknown> | undefined;
   };
 }

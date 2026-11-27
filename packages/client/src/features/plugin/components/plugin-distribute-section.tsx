@@ -17,7 +17,8 @@
 // bundle asks for at the confirm step — an admin choosing what to push to every account should see what they
 // are pushing, even though they are not the one granting it.
 
-import { PLUGIN_BUNDLE_MAX_BYTES } from "@orb/contracts/plugin";
+import type { PluginFanoutSkip } from "@orb/contracts/plugin";
+import { PLUGIN_BUNDLE_MAX_BYTES, PLUGIN_FANOUT_SKIP_REASONS } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -59,24 +60,29 @@ export function PluginDistributeSection({ anchorId }: { readonly anchorId: strin
   );
 }
 
-/** One sentence for the fan-out's outcome: who got it, and who was passed over and WHY. A bare count would
- *  hide the fact an admin actually needs — that somebody's own copy of this plugin was left alone. */
-function fanoutSentence(result: { readonly applied: number; readonly skipped: readonly { readonly userHandle: string }[] }, name: string): string {
-  const served = `${name} is now on ${result.applied} account${result.applied === 1 ? "" : "s"}, switched off until each person allows it.`;
-  if (result.skipped.length === 0) {
-    return served;
-  }
-  const who = result.skipped.map((s) => s.userHandle).join(", ");
-  return `${served} Left alone (they already had their own copy): ${who}.`;
+// What an admin is told about the accounts a fan-out passed over, per reason, so a new reason fails `tsc` here.
+const SKIP_LEAD: Readonly<Record<PluginFanoutSkip["reason"], string>> = {
+  "already-installed": "Left alone (they already had their own copy)",
+  "version-diverged": "Kept (they had updated it themselves)",
+};
+
+function skippedSentence(skipped: readonly PluginFanoutSkip[]): string {
+  return PLUGIN_FANOUT_SKIP_REASONS.flatMap((reason) => {
+    const handles = skipped.filter((skip) => skip.reason === reason).map((skip) => skip.userHandle);
+    return handles.length === 0 ? [] : [` ${SKIP_LEAD[reason]}: ${handles.join(", ")}.`];
+  }).join("");
 }
 
-function withdrawSentence(result: { readonly applied: number; readonly skipped: readonly { readonly userHandle: string }[] }, name: string): string {
+/** One sentence for the fan-out's outcome: who got it, and who was passed over and WHY. A bare count would
+ *  hide the fact an admin actually needs — that somebody's own copy of this plugin was left alone. */
+function fanoutSentence(result: { readonly applied: number; readonly skipped: readonly PluginFanoutSkip[] }, name: string): string {
+  const served = `${name} is now on ${result.applied} account${result.applied === 1 ? "" : "s"}, switched off until each person allows it.`;
+  return `${served}${skippedSentence(result.skipped)}`;
+}
+
+function withdrawSentence(result: { readonly applied: number; readonly skipped: readonly PluginFanoutSkip[] }, name: string): string {
   const removed = `${name} was removed from ${result.applied} account${result.applied === 1 ? "" : "s"} and is no longer given to new ones.`;
-  if (result.skipped.length === 0) {
-    return removed;
-  }
-  const who = result.skipped.map((s) => s.userHandle).join(", ");
-  return `${removed} Kept (they had updated it themselves): ${who}.`;
+  return `${removed}${skippedSentence(result.skipped)}`;
 }
 
 function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): ReactElement {

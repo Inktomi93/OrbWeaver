@@ -5,7 +5,7 @@
 // from `contracts/character`/`persona`) so `chat` avoids a `chat → character`/`persona` DAG edge.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-import type { CharacterId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
 import type { MacroSourceRef, VarOp } from "@orb/kit/macro";
@@ -641,7 +641,6 @@ type SentPrompt = z.infer<typeof sentPromptSchema>;
  * only in the ephemeral debug ring (`WIRE_CAPTURE`, `foundation/observability/debug/wire-capture`), never the DB.
  */
 export interface VariantWireView {
-  variantId: MessageVariantId;
   prompt: SentPrompt | null;
   params: UserIntent | null;
   macroDraws: UserMacroDraws | null;
@@ -1001,7 +1000,6 @@ export const assembledPromptSchema = z.strictObject({
 }) satisfies z.ZodType<AssembledPrompt>;
 
 export const variantWireViewSchema = z.strictObject({
-  variantId: typeIdSchema(ID_PREFIX.messageVariant),
   prompt: sentPromptViewSchema.nullable(),
   params: userIntentViewSchema.nullable(),
   macroDraws: userMacroDrawsSchema.nullable(),

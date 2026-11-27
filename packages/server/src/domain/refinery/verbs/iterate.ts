@@ -22,7 +22,6 @@
 //   · A plain in-flight BOOLEAN wedges the session forever when the holding process dies.
 // So the counter stays the ledger it says it is, and the claim is a self-clearing lease deadline beside it.
 
-import { refineryGuidanceSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq, sql } from "drizzle-orm";
@@ -33,7 +32,7 @@ import { latestRunRowOf, loadOwnedSessionRow } from "../persistence/queries.ts";
 import { releaseRoundClaim, takeRoundClaim } from "../persistence/round-claim.ts";
 
 export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): RefineryService["iterate"] {
-  return async ({ principal, sessionId, guidance, signal }) => {
+  return async ({ principal, sessionId, signal }) => {
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
@@ -44,19 +43,11 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
     if (latestAnalyze === undefined) {
       throw new RefineryStageNotReadyError("There is no analysis to refine against yet — run analyze first.");
     }
-    // THE CLAIM, taken before ANY spend and before the guidance write — a refused round must leave the
-    // session byte-identical, and persisting a loser's guidance would mutate the prompt the RUNNING round is
-    // about to read. A live claim held by another round refuses here, free.
+    // THE CLAIM, taken before ANY spend — a refused round must leave the session byte-identical. A live claim
+    // held by another round refuses here, free.
     const claim = await takeRoundClaim(ctx.db, sessionId, ctx.now());
     if (claim === undefined) {
       throw new RefineryRoundInFlightError();
-    }
-
-    // New guidance persists BEFORE the stages so both halves' prompts read it (the internal-boundary
-    // re-parse posture — the wire parse does not cover this seam).
-    if (guidance !== undefined) {
-      const parsed = refineryGuidanceSchema.parse(guidance);
-      await ctx.db.update(refinerySessions).set({ guidance: parsed, updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
     }
 
     try {

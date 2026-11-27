@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
 import { cwd } from "node:process";
 import { createDb, localPath } from "@orb/db";
-import { DB_FILE_NAME, fileDatabaseUrl, resolveDataLayout } from "@orb/server/foundation/data-layout";
+import { DATA_LAYOUT_DIRS, DB_FILE_NAME, fileDatabaseUrl, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { ownDb } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
@@ -14,7 +14,7 @@ for (const name of ["ordinary space", "capsule%20root", "literal% root #?", "uni
   test(`DataLayout opens the exact filesystem root: ${name}`, async ({ importStagingDir }) => {
     const root = join(importStagingDir, name);
     const layout = resolveDataLayout({ ["DATA_DIR"]: root });
-    const path = join(layout.dbDir, DB_FILE_NAME);
+    const path = join(root, DATA_LAYOUT_DIRS.db, DB_FILE_NAME);
     using opened = ownDb(await createDb(layout.databaseUrl));
     const db = opened.db;
     expect(localPath(layout.databaseUrl)).toBe(path);

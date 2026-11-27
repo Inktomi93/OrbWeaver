@@ -9,7 +9,6 @@ const importedCardSchema = z.strictObject({
   created: z.boolean(),
   /** The card's name, clipped: the held character's current name, else the written character's. */
   name: importTextSchema,
-  importHash: z.string(),
   notes: z.array(z.string()).readonly().optional(),
   /** The book references the card carried that named no book this library holds, so they linked nothing. */
   attachedBooksSkipped: z.number().int().nonnegative(),

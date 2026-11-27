@@ -65,9 +65,8 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     // THE CARD-NAME BOUND — clamped here, on the RECEIVING side's own terms, exactly like the handle
     // above: `rawName` is model-authored at the extraction boundary with no max, and
     // `cardFaceFields.name` caps at `CARD_FACE_LIMITS.nameMax`. A refusal here would drop a model-authored
-    // actor from canon over a name, so the mint CLAMPS instead (`clampActorCardName`, `contracts/rpg/actor.ts`)
-    // and reports the cut back as data (`issues`) rather than it vanishing silently into a shortened card.
-    const { value: name, truncated: nameTruncated } = clampActorCardName(rawName);
+    // actor from canon over a name, so the mint CLAMPS instead (`clampActorCardName`, `contracts/rpg/actor.ts`).
+    const { value: name } = clampActorCardName(rawName);
     const participants = await ctx.resolveParticipants(game.chatId);
 
     // No claim of its own: the seat (`addCharacterToChat`) and the rekey (`writeHandState`) each claim after the
@@ -110,12 +109,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
     // The whole panel re-resolves: she leaves the Scene tab's cast and appears on the Status participant list, under the
     // card's name, carrying the state she arrived with (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId: written.snapshotId });
-    return {
-      ok: true,
-      issues: nameTruncated
-        ? [`"${rawName}" was shortened to "${name}" to fit the card name limit — the model wrote a longer name than the card wire allows`]
-        : [],
-    };
+    return { ok: true };
   }
   return { promoteActor };
 }

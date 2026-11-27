@@ -632,7 +632,7 @@ async function commitForkBatch(ctx: ChatContext, chatId: ChatId, metadata: ChatM
 /** FORK CLONES THE GAME (fork-clones-the-game §3.2): AFTER the chat's atomic fork batch commits, ask rpg to
  *  re-key its whole vertical onto the fork through the id maps `buildCanonCopy` built (they encode the fork
  *  horizon — floor-clamped + throughSeq-truncated). rpg writes the fork's OWN pointer LAST (crash-safe). A
- *  non-game source is a no-op (`cloned:false`) and the fork stays plain — reconciling with the metadata strip.
+ *  non-game source is a no-op and the fork stays plain — reconciling with the metadata strip.
  *  A clone FAILURE is DEGRADED-not-broken: the fork already committed as a valid plain chat, so LOG and ship it
  *  plain rather than fail the whole fork (the stopgap posture — a plain fork never crashes; the W-G
  *  dangling-pointer heal covers any desync). Runs BEFORE the fork's read-back so the returned `ChatDetailData`
@@ -814,7 +814,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           // copied pointer would dangle (getGame(fork) → NOT_FOUND → the panel crashed). The fork is born a plain
           // chat HERE; the rpg game (if any) is CLONED below via `ctx.rpg?.forkGame`, which writes the fork's OWN
           // (valid) pointer LAST. So the copied-metadata strip stays correct AND the game clones — the two
-          // reconcile: a plain-chat fork stays plain (forkGame → cloned:false), a game-chat fork gains a fresh
+          // reconcile: a plain-chat fork stays plain (forkGame is a no-op), a game-chat fork gains a fresh
           // game + fresh pointer. Everything else in metadata carries.
           metadata: forkMetadata,
           variableValues: variables,
@@ -868,7 +868,6 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, principal.userId),
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.
-        viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
         anchor: await resolveAnchor(ctx, participants, forkRow.anchorPersonaId),
       }),
     };

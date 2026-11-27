@@ -494,7 +494,6 @@ export function schemaSummaryOf(row: RefinerySchemaRow): RefinerySchemaSummary {
     id: row.id,
     name: row.name,
     description: row.description,
-    stage: row.stage,
     version: row.version,
     schema: row.schema,
     createdAt: row.createdAt,

@@ -47,7 +47,6 @@ export interface AdminUserView {
   readonly kind: UserKind;
   readonly ownerHandle: Handle | null;
   readonly createdAt: number;
-  readonly updatedAt: number;
 }
 
 /** Strict output parsing refuses extra fields instead of exposing them to the browser. */
@@ -60,7 +59,6 @@ export const adminUserViewSchema = z.strictObject({
   kind: userKindSchema,
   ownerHandle: brandedId("Handle").nullable(),
   createdAt: z.number(),
-  updatedAt: z.number(),
 }) satisfies z.ZodType<AdminUserView>;
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the

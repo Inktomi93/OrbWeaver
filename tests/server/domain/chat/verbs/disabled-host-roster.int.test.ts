@@ -18,12 +18,12 @@ const PNG = "image/png";
 const ROOM = "<room>";
 
 // The room's character seat with the fields that name the room and the seat row lifted out, so two rooms compare.
-function characterSeatOf(participants: readonly ParticipantView[]): Omit<ParticipantView, "id" | "chatId" | "joinedAt" | "joinSeq"> {
+function characterSeatOf(participants: readonly ParticipantView[]): Omit<ParticipantView, "id" | "chatId" | "joinSeq"> {
   const seat = participants.find((participant) => participant.kind === "character");
   if (seat === undefined) {
     throw new Error("the room seats no character");
   }
-  const { id: _id, chatId: _chatId, joinedAt: _joinedAt, joinSeq: _joinSeq, ...display } = seat;
+  const { id: _id, chatId: _chatId, joinSeq: _joinSeq, ...display } = seat;
   return display;
 }
 

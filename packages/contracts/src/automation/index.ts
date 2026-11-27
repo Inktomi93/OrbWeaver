@@ -1150,7 +1150,7 @@ export type AutomationRuleTools = z.output<typeof automationRuleToolsSchema>;
 
 // Canon-room projections consumed by the automation fact resolver.
 
-// A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the initiator + the depth
+// A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the depth
 //  the turn ran at. `null` when the ref names no committed reply slot in the chat.
 export interface ChatAutomationReads {
   /** The triggering message projected to the CEL fact (the SELECTED variant's content, D26). `null` when
@@ -1249,7 +1249,6 @@ export interface RuleView {
   readonly lastError: string | null;
   readonly lastFiredAt: number | null;
   readonly createdAt: number;
-  readonly updatedAt: number;
 }
 
 export interface CreateRuleFromPresetParams {
@@ -1298,7 +1297,6 @@ export type ListRulePresetsOp = () => RulePresetView[];
 export interface FireView {
   readonly id: AutomationFireId;
   readonly ruleId: AutomationRuleId;
-  readonly chatId: ChatId | null;
   readonly triggerType: string;
   readonly outcome: AutomationFireOutcome;
   readonly detail: JsonObject | null;
@@ -1349,13 +1347,11 @@ export const ruleViewSchema = z.strictObject({
   lastError: z.string().nullable(),
   lastFiredAt: z.number().nullable(),
   createdAt: z.number(),
-  updatedAt: z.number(),
 }) satisfies z.ZodType<RuleView>;
 
 export const fireViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.automationFire),
   ruleId: typeIdSchema(ID_PREFIX.automationRule),
-  chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   triggerType: z.string(),
   outcome: automationFireOutcomeSchema,
   detail: jsonObjectSchema.nullable(),

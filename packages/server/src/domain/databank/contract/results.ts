@@ -4,13 +4,11 @@
 // from there directly — one home, no re-export.
 
 import type { DatabankPassage, IngestOutcome } from "@orb/contracts/databank";
-import type { WorkloadId } from "@orb/kit/ids";
 
 /** The enqueue's two arms as `substrate/queue-ingest` reports them, plus the audit metadata each producer
- *  stamps on its own row. `workloadId` is null exactly when `ingest` is `not-queued`. */
+ *  stamps on its own row. */
 export interface QueuedIngest {
   readonly ingest: IngestOutcome;
-  readonly workloadId: WorkloadId | null;
 }
 
 /** The `{{databank}}` gather op's return. Never empty — an empty retrieval /

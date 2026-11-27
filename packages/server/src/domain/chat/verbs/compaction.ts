@@ -152,7 +152,7 @@ async function buildMarker(
  *  product. `fallbackSeq` covers the (unreachable-in-practice) racing-delete read. */
 async function settledMarker(ctx: ChatContext, chatId: ChatId, fallbackSeq: number | null): Promise<CompactResult> {
   const settled = await loadChatRow(ctx.db, chatId);
-  return { summary: settled?.compactSummary ?? "", compactedAtSeq: settled?.compactedAtSeq ?? fallbackSeq, updated: false };
+  return { compactedAtSeq: settled?.compactedAtSeq ?? fallbackSeq, updated: false };
 }
 
 /** The stamp-only advance: the whole new span is prompt-INELIGIBLE, so there is nothing summarizable, but the
@@ -164,7 +164,6 @@ async function advanceCoverageOnly(
   env: {
     readonly chatId: ChatId;
     readonly ownerId: UserId;
-    readonly priorSummary: string | null;
     readonly priorCoverage: number | null;
     readonly coveredThroughSeq: number;
   },
@@ -180,7 +179,7 @@ async function advanceCoverageOnly(
   if (stamped.length === 0) {
     return await settledMarker(ctx, env.chatId, env.priorCoverage);
   }
-  return { summary: env.priorSummary ?? "", compactedAtSeq: env.coveredThroughSeq, updated: false };
+  return { compactedAtSeq: env.coveredThroughSeq, updated: false };
 }
 
 /** The lock-free compaction core. Rebuilds ONE marker over [prior marker + prompt-eligible turns since it,
@@ -208,13 +207,12 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): Engi
     const window = capped.filter((m) => isPromptEligible(m));
     if (coveredThroughSeq === undefined) {
       // Nothing new to compact — the marker is already current (idempotent no-op; the coverage point unchanged).
-      return { summary: chat.compactSummary ?? "", compactedAtSeq: fromSeq, updated: false };
+      return { compactedAtSeq: fromSeq, updated: false };
     }
     if (window.length === 0) {
       return await advanceCoverageOnly(ctx, {
         chatId,
         ownerId,
-        priorSummary: chat.compactSummary,
         priorCoverage: chat.compactedAtSeq,
         coveredThroughSeq,
       });

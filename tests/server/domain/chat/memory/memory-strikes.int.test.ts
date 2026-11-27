@@ -182,7 +182,7 @@ test("a strike outlives its scene's summary being dropped: it waits listed, then
   // The premise: the scene's summary and the longer one built from it are both gone, so the strike matches nothing.
   expect(nonEmpty([...dropped.items]).some((item) => item.key.tier === 0 && item.key.blockIdx === blockOf("storm"))).toBe(false);
   expect(nonEmpty([...dropped.items]).some((item) => item.key.tier === 1 && item.key.blockIdx === arc.key.blockIdx)).toBe(false);
-  expect(dropped.unmatchedStrikes).toEqual([expect.objectContaining({ strikeId, tier: 0 })]);
+  expect(dropped.unmatchedStrikes).toEqual([expect.objectContaining({ strikeId })]);
 
   // The summarizer answers again: the scene's summary comes back struck, as changed since, and the longer one with it.
   blankStorm = false;
@@ -528,10 +528,10 @@ test("a member reads an unmatched strike with no strike id while the host reads 
 
   const anchor = "Arc storm";
   const asHost = await w.h.caller.chat.memoryView({ chatId });
-  expect(asHost.unmatchedStrikes).toEqual([{ strikeId, tier: 0, scopedCharacterId: null, topicAnchor: anchor }]);
+  expect(asHost.unmatchedStrikes).toEqual([{ strikeId, scopedCharacterId: null, topicAnchor: anchor }]);
   expect(asHost.items.filter((item) => item.strike !== null)).toEqual([]);
   const asMember = await root.services.chat.memoryView({ principal: member, chatId });
-  expect(asMember.unmatchedStrikes).toEqual([{ strikeId: null, tier: 0, scopedCharacterId: null, topicAnchor: anchor }]);
+  expect(asMember.unmatchedStrikes).toEqual([{ strikeId: null, scopedCharacterId: null, topicAnchor: anchor }]);
 });
 
 test("a member reads no strike id on a strike carried by another copy, while the host reads it", async () => {

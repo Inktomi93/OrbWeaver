@@ -180,7 +180,7 @@ function unmatchedSpans(strikes: readonly Strike[], match: StrikeMatch<unknown, 
   for (const s of strikes) {
     const key = spanKey(s);
     if (!(matched.has(key) || out.has(key))) {
-      out.set(key, { strikeId: isHost ? s.id : null, tier: s.tier, scopedCharacterId: s.scopedCharacterId, topicAnchor: s.topicAnchor });
+      out.set(key, { strikeId: isHost ? s.id : null, scopedCharacterId: s.scopedCharacterId, topicAnchor: s.topicAnchor });
     }
   }
   return [...out.values()];

@@ -160,7 +160,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
     expectSyntheticSkips(unsentPaths, root);
   }
 
-  const before = await host.trpc.workloads.list.query({ kind: "import-st", limit: WORKLOAD_LIST_MAX_LIMIT });
+  const before = await host.trpc.workloads.list.query({ kind: "import-st" });
   expect(before.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
   const beforeIds = new Set(before.map((row) => row.id));
   const statuses: number[] = [];
@@ -186,7 +186,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
   // The browser sends the production plan's uploads twice, each accepted: the preview's dry run, then the import.
   expect(statuses).toEqual([...plan.batches, ...plan.batches].map(() => 202));
 
-  const after = await host.trpc.workloads.list.query({ kind: "import-st", limit: WORKLOAD_LIST_MAX_LIMIT });
+  const after = await host.trpc.workloads.list.query({ kind: "import-st" });
   expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
   // The preview's dry runs are transient rows no list shows, so the list holds the import's own runs alone.
   const created = after.filter((row) => !beforeIds.has(row.id));

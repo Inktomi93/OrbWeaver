@@ -232,7 +232,6 @@ export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise
       assetId: assets.id,
       hash: assets.hash,
       mime: assets.mime,
-      size: assets.size,
       uploadedAt: assets.uploadedAt,
       animated: assets.animated,
     })
@@ -326,10 +325,8 @@ export async function galleryItemViewById(db: Db, ownerId: UserId, galleryItemId
   const rows = await db
     .select({
       galleryItemId: galleryItems.id,
-      assetId: galleryItems.assetId,
       hash: assets.hash,
       animated: assets.animated,
-      subjectCharacterId: galleryItems.subjectCharacterId,
       createdAt: galleryItems.createdAt,
     })
     .from(galleryItems)
@@ -473,10 +470,8 @@ export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Prom
   const rows = await db
     .select({
       galleryItemId: galleryItems.id,
-      assetId: galleryItems.assetId,
       hash: assets.hash,
       animated: assets.animated,
-      subjectCharacterId: galleryItems.subjectCharacterId,
       createdAt: galleryItems.createdAt,
     })
     .from(galleryItems)

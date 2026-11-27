@@ -267,7 +267,7 @@ function observedResult(
     return result;
   }
   const { responseCache: _aggregateCache, ...economics } = result.economics;
-  return { ...result, economics: { ...economics, ...projectGenerationUsage(legs).total, usageLegs: [...legs] } };
+  return { ...result, economics: { ...economics, ...projectGenerationUsage(legs), usageLegs: [...legs] } };
 }
 
 /**

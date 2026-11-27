@@ -2230,7 +2230,7 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     const name = `Surface refinery ${flow.ids.uuid()}`;
     await flow.client.character.update.mutate({ characterId: copy.id, input: { name } });
     const before = await flow.client.character.get.query({ characterId: copy.id });
-    const session = await flow.client.refinery.startSession.mutate({ characterId: copy.id, name });
+    const session = await flow.client.refinery.startSession.mutate({ characterId: copy.id });
     sessions.add(session.id);
     expect(nonEmpty(flow.run.subjects.refinerySessions).some(({ id }) => id === session.id)).toBe(false);
     await attachNativeFile(flow.info, flow.info, "refinery-execution-custody", {
@@ -2504,8 +2504,7 @@ async function disposableRefinery(journey: Journey): Promise<void> {
     observe(journey, "refinery/disposable-workbench", "unvisited", "No original owned character can anchor a separately labelled disposable session");
     return;
   }
-  const name = `Surface session ${journey.ids.uuid()}`;
-  const session = await journey.client.refinery.startSession.mutate({ characterId: character.id, name });
+  const session = await journey.client.refinery.startSession.mutate({ characterId: character.id });
   expect(nonEmpty(journey.run.subjects.refinerySessions).some(({ id }) => id === session.id)).toBe(false);
   try {
     const summaries = await journey.client.refinery.listSessions.query();
@@ -2514,7 +2513,7 @@ async function disposableRefinery(journey: Journey): Promise<void> {
       throw new Error("The disposable refinery session has no actual production library identity");
     }
     const search = pane(journey, "list").getByRole("textbox", { name: REFINERY_SEARCH_SESSIONS_NAME, exact: true });
-    await search.fill(name);
+    await search.fill(summary.characterName);
     const row = pane(journey, "list").getByRole("button", { name: summary.characterName, exact: true });
     await expect(row).toHaveCount(1);
     await expect(row).toBeVisible();

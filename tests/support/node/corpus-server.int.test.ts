@@ -144,7 +144,7 @@ test("independently restored corpus graphs continue deterministic production wri
       const created = await caller.persona.create({ input: createPersonaSchema.parse({ name: "Corpus continuation", description: baseline.description }) });
       expect(created.id).not.toBe(baseline.id);
       expect(created.updatedAt).toBe(root.clock.now());
-      expect(created.updatedAt).toBeGreaterThanOrEqual(Math.max(...root.corpus.wire.reads["chat.getChat"].map(({ output }) => output.updatedAt)));
+      expect(created.updatedAt).toBeGreaterThanOrEqual(Math.max(...root.corpus.wire.reads["chat.getChat"].map(({ output }) => output.createdAt)));
       root.timers.advance(1);
       const updated = await caller.persona.update({ personaId: created.id, input: { name: "Corpus continued" } });
       expect(updated.updatedAt).toBe(root.clock.now());

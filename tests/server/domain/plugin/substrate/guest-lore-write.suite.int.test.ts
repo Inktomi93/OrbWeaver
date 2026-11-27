@@ -96,10 +96,11 @@ test("a guest lore write is stored macro-inert, so the turn that renders it chan
   const room = await loreRoom();
   await using h = room.h;
   // A human entry with a live macro on the same key is the control: it shows the turn renders matched lore.
-  await h.caller.worldInfo.createEntry({
+  const control = await h.caller.worldInfo.createEntry({
     bookId: room.attached,
-    input: { title: "control", keys: ["mood"], content: "{{setvar::control::1}}The room is calm." },
+    input: { title: "control", content: "{{setvar::control::1}}The room is calm." },
   });
+  await h.caller.worldInfo.updateEntry({ entryId: control.id, input: { keys: ["mood"] } });
   const run = await room.guest("lore-writer");
 
   expect(await run("lore", { entry: entryOf(room.attached, "mood", LIVE_TEMPLATE) })).toEqual({ ok: true, value: null });
@@ -129,7 +130,8 @@ test("a guest lore write reaches only a book attached to the invoking room", { t
 test("each plugin writes its own entry per key: a re-write updates it, and a human's same-named entry is untouched", { tags: ["slow"] }, async () => {
   const room = await loreRoom();
   await using h = room.h;
-  const human = await h.caller.worldInfo.createEntry({ bookId: room.attached, input: { title: "mood", keys: ["mood"], content: "Written by hand." } });
+  const written = await h.caller.worldInfo.createEntry({ bookId: room.attached, input: { title: "mood", content: "Written by hand." } });
+  const human = await h.caller.worldInfo.updateEntry({ entryId: written.id, input: { keys: ["mood"] } });
   const first = await room.guest("lore-writer");
   const second = await room.guest("other-lore-writer");
 
@@ -240,7 +242,8 @@ test("the app process raises no ask for a malformed lore entry a broker forges",
 test("a plugin's entries in one book stop at the ceiling, while updates and other plugins still write", { tags: ["slow"] }, async () => {
   const room = await loreRoom();
   await using h = room.h;
-  await h.caller.worldInfo.createEntry({ bookId: room.attached, input: { title: "human", keys: ["mood"], content: "Written by hand." } });
+  const written = await h.caller.worldInfo.createEntry({ bookId: room.attached, input: { title: "human", content: "Written by hand." } });
+  await h.caller.worldInfo.updateEntry({ entryId: written.id, input: { keys: ["mood"] } });
   const run = await room.guest("lore-writer");
   const other = await room.guest("other-lore-writer");
   const entry = entryOf(room.attached, "unused", "Filled.");

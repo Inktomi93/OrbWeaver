@@ -1,18 +1,15 @@
 // domain/imagery/contract/results — the verb result shapes. GeneratedPicture is the orchestrator's
-// return: n stored images, the resolved prompt + its source, the mode/model/cost provenance, and warnings.
-// Free mode always returns promptSource:"user", reused:false, warnings:[].
+// return: n stored images, whether they were reused, and warnings. The prompt, model and cost live on each
+// image's provenance row.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { GeneratedPictureImage, ImageryWarning, PromptTemplateMode } from "@orb/contracts/imagery";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 
 /** One reuse-candidate row the B2 hit path rebuilds a picture from (doc 03 §4.4) — the persistence lookup's
  *  projection, consumed by the generate-picture orchestrator. */
 export interface ReuseRow {
-  readonly generationId: ImageryGenerationId;
   readonly assetId: AssetId;
-  readonly prompt: string;
-  readonly model: ModelId;
 }
 
 /** The provenance fields the caller stamps on every row of one generation (one `imagery_generations` row per
@@ -30,12 +27,10 @@ export interface GenerationProvenanceInput {
   readonly edited: boolean;
 }
 
-/** The shared generation tail's return: the stored images + the model + the GENERATION-only cost (the caller
- *  sums in any extraction/caption spend) + the runner's edit-strip belt warnings surfaced onto the result. */
+/** The shared generation tail's return: the stored images + the runner's edit-strip belt warnings surfaced
+ *  onto the result. */
 export interface GenerationOutcome {
   readonly images: readonly GeneratedPictureImage[];
-  readonly model: ModelId;
-  readonly costUsd: number | null;
   readonly warnings: readonly ImageryWarning[];
 }
 
