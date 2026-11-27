@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-After the fields review, every other unwired report needs a judged pass on main after the scanner fixes: params, shapes, ports, the unbuilt unions rows, removed-keys, and the first runs of codes, procedures and columns, plus one --cross-check run of each scan that has engine two. Rows judged by the fields review are tracked by 3837.
+After the fields review, every other unwired report needs a judged pass on main after the scanner fixes: params, shapes, ports, the unbuilt unions rows, removed-keys, and the first runs of codes, procedures and columns. D357 rules the tool is one reference graph, so no scan has a second engine to cross-check. Rows judged by the fields review are tracked by 3837.
 
 ## Why
 
