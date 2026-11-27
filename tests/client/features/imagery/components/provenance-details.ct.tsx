@@ -57,7 +57,7 @@ async function pictureRoom(reportsUsage: boolean): Promise<PictureRoom & AsyncDi
     images: [],
     chatText: "The keeper nods.",
   });
-  let pixels = new Uint8Array();
+  let pixels: Uint8Array = new Uint8Array();
   const imageReply = (): Response =>
     Response.json({
       created: 0,
