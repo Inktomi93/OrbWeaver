@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-14
+status: doing
+updated: 2026-11-27
 priority: P3
 area: tooling
+lane: wt/agent-a107cca3f11de43e4
 plan: test-foundation
 ---
 

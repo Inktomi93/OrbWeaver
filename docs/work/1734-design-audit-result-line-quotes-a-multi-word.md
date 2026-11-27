@@ -1,10 +1,11 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-01
+status: doing
+updated: 2026-11-27
 priority: P3
-plan: surface-walk
 area: tooling
+lane: wt/agent-a8a76b60ece6b02c7
+plan: surface-walk
 ---
 
 # Design audit RESULT line quotes a multi-word theme name instead of splitting it into tokens

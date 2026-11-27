@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-11-27
 priority: P3
 area: release
+lane: wt/agent-a61304ba6a237266b
 ---
 
 # Release follow-ups from lane F
