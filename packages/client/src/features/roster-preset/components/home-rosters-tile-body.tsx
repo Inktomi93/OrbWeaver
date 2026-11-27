@@ -13,6 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { CollectionGrid } from "#components";
 import { useSuspenseQueries, useTRPC } from "#data";
+import { createdStamp, timeLib } from "#lib";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterCountsSuffix } from "../lib/roster-copy.ts";
 import { rosterScent } from "../lib/roster-model.ts";
@@ -59,7 +60,7 @@ function RosterStartRow(props: {
       // Two-up rows wrap their pitch to two lines; the faces and Start stay on the name's line instead of centring on it.
       align="start"
       // A roster saved from a room has no description; its census and names stand in.
-      subtitle={roster.description === "" ? rosterScent(roster) : roster.description}
+      subtitle={roster.description === "" ? rosterScent(roster, createdStamp(timeLib.formatRelative(roster.createdAt))) : roster.description}
       subtitleStep="label"
       subtitleWrap={true}
       title={roster.name}

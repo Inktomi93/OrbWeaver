@@ -43,6 +43,7 @@ export function toEntryView(row: EntryRow): EntryView {
     enabled: row.enabled,
     priority: row.priority,
     ignoreBudget: row.ignoreBudget,
+    updatedAt: row.updatedAt,
     // Stored text that is not JSON degrades like a blob out of shape; it is tested first because the open schema would
     // admit the marker's own `text` key as metadata.
     metadata: row.metadata instanceof UnreadableJsonText ? null : entryMetadataSchema.nullable().catch(null).parse(row.metadata),
@@ -126,6 +127,7 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
       ...toBookView(row),
       entryCount: entries[row.id] ?? 0,
       usage: { ...usage, total: usage.characters + usage.personas + usage.chats + (global ? 1 : 0) },
+      updatedAt: row.updatedAt,
     };
   });
 }

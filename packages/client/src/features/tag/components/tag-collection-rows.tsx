@@ -21,6 +21,7 @@ import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import {
   CLEAR_FILTER_NAME,
   COLLECTION_LARGE_GROUP,
+  createdStamp,
   deleteConfirmTitle,
   ESTIMATED_ROW_PX,
   LABELS_NONE,
@@ -28,6 +29,7 @@ import {
   pruneConfirmLabel,
   sortTagsBy,
   tagUsageLabel,
+  timeLib,
   unusedTagsLabel,
   usageBreakdown,
 } from "#lib";
@@ -306,7 +308,7 @@ function TagCollectionRow({
       leading={<ColorSwatch aria-hidden={true} size="sm" value={tag.color} />}
       onSelect={onSelect}
       selected={selected}
-      subtitle={tagUsageLabel(tag)}
+      subtitle={`${tagUsageLabel(tag)} · ${createdStamp(timeLib.formatRelative(tag.createdAt))}`}
       subtitleStep="label"
       title={tag.name}
     />

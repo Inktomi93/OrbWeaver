@@ -3,8 +3,9 @@
 // NOT_FOUND). A disabled schedule stays but the tick never enqueues from it (`findDueSchedules` filters on
 // `enabled`).
 
+import type { WorkloadScheduleView } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { SetScheduleEnabledParams, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { SetScheduleEnabledParams } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadSchedule, setScheduleEnabledQuery } from "../persistence/schedule-queries.ts";
 import { isVisibleToCaller, mayActOnRow } from "../substrate/authorize.ts";
@@ -12,7 +13,7 @@ import { isVisibleToCaller, mayActOnRow } from "../substrate/authorize.ts";
 const ENTITY = "workload_schedule";
 
 export function createSetScheduleEnabled(ctx: WorkloadServiceContext): Pick<WorkloadService, "setScheduleEnabled"> {
-  async function setScheduleEnabled(params: SetScheduleEnabledParams): Promise<WorkloadScheduleRow> {
+  async function setScheduleEnabled(params: SetScheduleEnabledParams): Promise<WorkloadScheduleView> {
     const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
     if (existing === null || !(await mayActOnRow(ctx, params.caller, existing))) {
       throw new DomainNotFoundError({ kind: ENTITY, id: params.id });

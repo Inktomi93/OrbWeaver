@@ -673,6 +673,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/discovery/lib/corpus-computed-copy.ts":
+    "CORPUS_COMPUTED_LEAD and CORPUS_EMBEDDING_SPACE_LEAD: the words the stamp under each Corpus result list opens with",
   "packages/client/src/features/app-shell/lib/app-shell-names.ts":
     "BUG_REPORT_NAME and its siblings: the bug report door and form, the command chip, the skip link, the You sheet groups and the Background section's names",
   "packages/client/src/features/user-admin/lib/user-admin-names.ts":

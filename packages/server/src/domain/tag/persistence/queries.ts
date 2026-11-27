@@ -334,7 +334,7 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
       total: 0,
     };
     usage.total = usage.characters + usage.chats + usage.worldBooks + usage.personas + usage.presets;
-    return { ...toTagView(row), usage, pendingSuggestions: (allCharacters[row.id] ?? 0) - usage.characters };
+    return { ...toTagView(row), usage, pendingSuggestions: (allCharacters[row.id] ?? 0) - usage.characters, createdAt: row.createdAt };
   });
 }
 

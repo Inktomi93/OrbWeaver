@@ -1,7 +1,10 @@
 // @subject packages/client/src/features/chat/components/invite-dialog.tsx
 // An outstanding targeted invite names the handle it is for, in its row and in its Revoke control; a share link names none.
-// A handle nobody holds is refused inline, keyed on the refusal code the server sends.
+// A handle nobody holds is refused inline, keyed on the refusal code the server sends. Two invites with the same limits
+// are told apart by how long ago each was made.
+import { CREATED_STAMP_LEAD } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
+import { MS_PER_WEEK } from "@orb/kit/time";
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, toggleStripLayout, watchToastMounts } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -66,6 +69,28 @@ test("the outstanding invite for a person names their handle and its Revoke cont
   await expect(dialog.getByText(handle)).toHaveCount(1);
   // The control: both invites are listed, so the share link's Revoke is on screen and carries no handle.
   await expect(dialog.getByRole("button", { name: nameShape((kind) => inviteRevokeName(kind, "")) })).toHaveCount(2);
+});
+
+test("two share links with the same limits are told apart by when each was made", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const chatId = await hostedRoom(root);
+  const host = await root.internalCallerFor(root.ownerId);
+  await host.invites.createInvite({ chatId, input: { maxUses: 2 } });
+  // A year apart, so the two ages fall in different units whatever the browser's clock reads.
+  root.clock.advance(MS_PER_WEEK * 52);
+  await host.invites.createInvite({ chatId, input: { maxUses: 2 } });
+  await seedShellState(page, { activeSection: "chats" });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(host, READS));
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u") }).click();
+  await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: nameShape((kind) => inviteRevokeName(kind, "")) })).toHaveCount(2);
+  const ages = dialog.locator('[data-slot="list-row-root"]').getByText(CREATED_STAMP_LEAD);
+  await expect(ages).toHaveCount(2);
+  const stamps = await ages.allTextContents();
+  expect(new Set(stamps).size).toBe(2);
 });
 
 test("an invite to a handle nobody holds says so inline, from the server's own refusal code, and keeps the typed handle", async ({ mount, page }) => {

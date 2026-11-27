@@ -19,6 +19,7 @@ test("a pair that reads like another keeps its name when an unrelated pair is de
     titleB,
     similarity: SIMILARITY,
     relation: "duplicate",
+    computedAt: root.clock.now(),
   });
   await mount<typeof DuplicateChatsStory>(STORY, {
     pairs: [pair("Lantern", "Ferry"), pair(TWIN_TITLE, TWIN_TITLE), pair(TWIN_TITLE, TWIN_TITLE)],

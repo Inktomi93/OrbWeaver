@@ -299,9 +299,8 @@ export const workloadScheduleViewSchema = z.strictObject({
   nextRunAt: z.number(),
   lastRunAt: z.number().nullable(),
   enabled: z.boolean(),
-  createdAt: z.number(),
-  updatedAt: z.number(),
 });
+export type WorkloadScheduleView = z.output<typeof workloadScheduleViewSchema>;
 
 /** `workloads.listSchedules`: a stored schedule and the refusal its tick meets, so the holder sees why it starts nothing.
  *  Absent when the run may start; a schedule whose params no longer parse is judged by the tick, not here. */

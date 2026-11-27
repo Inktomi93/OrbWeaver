@@ -23,8 +23,9 @@ export async function topKeywords(db: Db, ownerId: UserId, opts: TopKeywordsOpti
   const limit = opts.limit ?? DEFAULT_TOP_LIMIT;
   const minCount = opts.minCount ?? DEFAULT_TOP_MIN_COUNT;
   const summed = sql<number>`sum(${characterKeywordProfiles.count})`;
+  const latest = sql<number>`max(${characterKeywordProfiles.computedAt})`;
   return await db
-    .select({ keyword: characterKeywordProfiles.keyword, count: summed })
+    .select({ keyword: characterKeywordProfiles.keyword, count: summed, computedAt: latest })
     .from(characterKeywordProfiles)
     .innerJoin(characters, eq(characters.id, characterKeywordProfiles.characterId))
     .where(eq(characters.ownerId, ownerId))
@@ -41,7 +42,7 @@ export async function cooccurringKeywords(db: Db, ownerId: UserId, keyword: stri
   const norm = normalizeKeyword(keyword) ?? keyword.trim().toLowerCase();
   const other = sql<string>`CASE WHEN ${keywordCooccurrence.keywordA} = ${norm} THEN ${keywordCooccurrence.keywordB} ELSE ${keywordCooccurrence.keywordA} END`;
   return await db
-    .select({ keyword: other, count: keywordCooccurrence.count })
+    .select({ keyword: other, count: keywordCooccurrence.count, computedAt: keywordCooccurrence.computedAt })
     .from(keywordCooccurrence)
     .where(and(eq(keywordCooccurrence.ownerId, ownerId), or(eq(keywordCooccurrence.keywordA, norm), eq(keywordCooccurrence.keywordB, norm))))
     .orderBy(desc(keywordCooccurrence.count))
@@ -52,7 +53,7 @@ export async function cooccurringKeywords(db: Db, ownerId: UserId, keyword: stri
  *  `characters` join (`character_keyword_profiles` has no ownerId — a foreign character yields no rows). */
 export async function characterKeywords(db: Db, ownerId: UserId, characterId: CharacterId, limit = DEFAULT_CHAR_LIMIT): Promise<KeywordCount[]> {
   return await db
-    .select({ keyword: characterKeywordProfiles.keyword, count: characterKeywordProfiles.count })
+    .select({ keyword: characterKeywordProfiles.keyword, count: characterKeywordProfiles.count, computedAt: characterKeywordProfiles.computedAt })
     .from(characterKeywordProfiles)
     .innerJoin(characters, eq(characters.id, characterKeywordProfiles.characterId))
     .where(and(eq(characters.ownerId, ownerId), eq(characterKeywordProfiles.characterId, characterId)))

@@ -45,7 +45,7 @@ import { useId } from "react";
 import { ContextTabBody, QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQueries, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
-import { CHARACTER_NEVER_SPOKE_TEXT } from "../lib/character-names.ts";
+import { CHARACTER_EDITED_LABEL, CHARACTER_NEVER_SPOKE_TEXT } from "../lib/character-names.ts";
 
 const REFINERY_SCORE_DECIMALS = 2;
 
@@ -113,6 +113,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
       <Stack gap="row">
         <Kicker>Origin</Kicker>
         <OverviewRow label="Added" value={timeLib.formatRelative(data.createdAt)} mono={false} />
+        <OverviewRow label={CHARACTER_EDITED_LABEL} value={timeLib.formatRelative(data.updatedAt)} mono={false} />
         {/* A URL reads as a measurement (mono); the two phrases read as prose — `OverviewRow`'s own rule. */}
         <OverviewRow label="Source" value={sourceLabel(data)} mono={data.provenance === "imported"} />
         {data.refinery === null || data.refinery.score === null ? null : (

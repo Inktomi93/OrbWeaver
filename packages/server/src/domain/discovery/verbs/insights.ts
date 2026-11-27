@@ -25,12 +25,14 @@ export function createInsights(ctx: DiscoveryContext): Pick<DiscoveryService, "t
 async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"): Promise<ThemeDriftBucket[]> {
   const bucket = storyTimeBucketStart();
   const count = sql<number>`count(*)`;
+  const latest = sql<number>`max(${digestThemeAssignments.computedAt})`;
   const rows = await db
     .select({
       bucket,
       clusterIdx: themeClusters.clusterIdx,
       themeName: themeClusters.name,
       count,
+      computedAt: latest,
     })
     .from(digestThemeAssignments)
     .innerJoin(themeClusters, eq(themeClusters.id, digestThemeAssignments.themeClusterId))
@@ -41,7 +43,7 @@ async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"):
   const byBucket = new Map<number, ThemeDriftTheme[]>();
   for (const r of rows) {
     const list = byBucket.get(r.bucket);
-    const theme = { clusterIdx: r.clusterIdx, themeName: r.themeName, count: r.count };
+    const theme = { clusterIdx: r.clusterIdx, themeName: r.themeName, count: r.count, computedAt: r.computedAt };
     if (list === undefined) {
       byBucket.set(r.bucket, [theme]);
     } else {

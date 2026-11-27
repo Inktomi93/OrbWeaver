@@ -203,6 +203,7 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     game: rpgGameTemplateSchema.nullable().parse(row.gameTemplate),
     members,
     rules,
+    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
@@ -219,6 +220,7 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     hasGroupConfig: row.groupConfig !== null,
     game: rpgGameTemplateSchema.nullable().parse(row.gameTemplate),
     rules,
+    createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }

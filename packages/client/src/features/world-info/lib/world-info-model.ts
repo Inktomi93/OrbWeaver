@@ -19,7 +19,7 @@ function entryCountLabel(entryCount: number): string {
  *  needs before opening a book: how big it is, and whether it is switched on anywhere at all. `unattached`
  *  is spelled as a WORD rather than "attached ×0" because a book that fires nowhere is the actionable
  *  state, not a smaller number. */
-export function bookScent(book: BookWithUsage): string {
+export function bookScent(book: BookWithUsage, edited: string): string {
   const attachment = book.usage.total === 0 ? "unattached" : `attached ×${book.usage.total}`;
-  return `${entryCountLabel(book.entryCount)} · ${attachment}`;
+  return `${entryCountLabel(book.entryCount)} · ${attachment} · ${edited}`;
 }

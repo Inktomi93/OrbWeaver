@@ -126,6 +126,7 @@ export interface RosterPresetView {
   readonly members: readonly RosterPresetMemberView[];
   /** Capture order (= apply order). Empty = the roster carries no rules. */
   readonly rules: readonly RosterPresetRuleView[];
+  readonly createdAt: number;
   readonly updatedAt: number;
 }
 
@@ -146,6 +147,7 @@ export interface RosterPresetSummary {
   /** The picker's "N rules" badge reads the length; a roster row caps at the
    *  catalogue size, so the "preview" is simply all of them (the members posture). */
   readonly rules: readonly RosterPresetRuleView[];
+  readonly createdAt: number;
   readonly updatedAt: number;
 }
 
@@ -205,6 +207,7 @@ export const rosterPresetViewSchema = z.strictObject({
   game: rpgGameTemplateSchema.strict().nullable(),
   members: z.array(rosterPresetMemberViewSchema).readonly(),
   rules: z.array(rosterPresetRuleViewSchema).readonly(),
+  createdAt: z.number(),
   updatedAt: z.number(),
 }) satisfies z.ZodType<RosterPresetView>;
 
