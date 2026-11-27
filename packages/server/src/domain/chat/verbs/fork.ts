@@ -28,7 +28,9 @@ import {
   memberToolCalls,
   NO_HISTORY_FLOOR,
   parseVariantMetadata,
+  VARIANT_METADATA_RATE_LIMIT_KEY,
   VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_REASONING_REDACTED_KEY,
   VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
   variableDeltaSchema,
@@ -97,7 +99,8 @@ interface ForkCopyPosture {
   readonly stripReasoning: boolean;
 }
 
-function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: boolean, afterContent: string, currentContent: string): VariantMetadata | null {
+function forkVariantMetadata(metadata: VariantMetadata | null, posture: ForkCopyPosture, afterContent: string, currentContent: string): VariantMetadata | null {
+  const stripHostPlane = posture.stripHidden;
   if (!stripHostPlane || metadata === null) {
     return metadata;
   }
@@ -108,6 +111,10 @@ function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: b
     [VARIANT_METADATA_REASONING_MS_KEY]: parsed[VARIANT_METADATA_REASONING_MS_KEY],
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: parsed[VARIANT_METADATA_TOKEN_COUNT_KEY],
     [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: parsed[VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY],
+    // The provider's rate-limit state rides the member-readable view, so it copies like the usage legs.
+    [VARIANT_METADATA_RATE_LIMIT_KEY]: parsed[VARIANT_METADATA_RATE_LIMIT_KEY],
+    // The redacted mark is the reasoning channel's own existence: it goes wherever the reasoning text goes.
+    [VARIANT_METADATA_REASONING_REDACTED_KEY]: posture.stripReasoning ? undefined : parsed[VARIANT_METADATA_REASONING_REDACTED_KEY],
     systemTokens: parsed.systemTokens,
     providerMetadata: parsed.providerMetadata,
     usageLegs: parsed.usageLegs,
@@ -272,7 +279,7 @@ function forkVariantValues(args: {
     toolCalls:
       posture.stripHidden && activeTools !== null ? memberToolCalls(activeTools, activeBefore ? snapshot.beforeContent : afterToolContent) : variant.toolCalls,
     variableDelta: variant.variableDelta,
-    metadata: forkVariantMetadata(variant.metadata, posture.stripHidden, afterToolContent, variant.content),
+    metadata: forkVariantMetadata(variant.metadata, posture, afterToolContent, variant.content),
     createdAt: variant.createdAt,
   };
 }

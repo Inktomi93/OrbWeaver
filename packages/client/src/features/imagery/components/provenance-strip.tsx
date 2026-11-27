@@ -8,7 +8,6 @@ import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
@@ -80,18 +79,28 @@ function LoadedProvenance({ assetId }: { readonly assetId: AssetId }): ReactElem
   );
 }
 
-/** The character the picture is of. The name is a separate read, so a slow or failed one never holds the rest of the strip. */
-function ProvenanceSubject({ characterId }: { readonly characterId: CharacterId }): ReactElement | null {
+/** The character the picture is of. The name is a separate read under its own boundary, so a slow or failed one
+ *  never holds the rest of the strip: pending shows nothing, a failed read shows the gone badge. */
+function ProvenanceSubject({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  return (
+    <QueryBoundary
+      resetKeys={[characterId]}
+      fallback={null}
+      renderError={(): ReactElement => (
+        <Badge size="sm" data-slot="provenance-subject">
+          {IMAGE_PROVENANCE_SUBJECT_GONE}
+        </Badge>
+      )}
+    >
+      <ProvenanceSubjectName characterId={characterId} />
+    </QueryBoundary>
+  );
+}
+
+function ProvenanceSubjectName({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   const trpc = useTRPC();
-  const { data, isError } = useQuery(trpc.character.get.queryOptions({ characterId }));
-  if (isError) {
-    return (
-      <Badge size="sm" data-slot="provenance-subject">
-        {IMAGE_PROVENANCE_SUBJECT_GONE}
-      </Badge>
-    );
-  }
-  return data === undefined ? null : (
+  const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
+  return (
     <Badge size="sm" data-slot="provenance-subject">
       {data.name}
     </Badge>

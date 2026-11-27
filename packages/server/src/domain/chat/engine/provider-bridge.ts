@@ -142,6 +142,12 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       terminalReason: result.terminalReason,
       generationId: result.generationId ?? null,
       systemFingerprint: result.systemFingerprint ?? null,
+      reasoningRedacted: result.reasoningRedacted,
+      // A plain allowance is the common case and says nothing a reader needs; only a warned or refused turn keeps its reset.
+      rateLimit:
+        result.rateLimit === null || result.rateLimit.status === "allowed"
+          ? null
+          : { status: result.rateLimit.status, resetsAt: result.rateLimit.resetsAt ?? null },
       // §5.3c class 3 — the per-provider sidecar, already NARROWED by the runtime to the closed union
       // (`backends/wire/provider-metadata.ts`). This seam carries it and decides nothing about its shape: the
       // per-vendor spelling is backend knowledge, and re-deriving it here would put provider shape above the

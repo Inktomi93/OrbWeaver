@@ -139,6 +139,7 @@ export function makeMessageView(overrides: Partial<MessageView> & Pick<MessageVi
       content: "A line in the room.",
       reasoning: null,
       reasoningRedacted: false,
+      rateLimit: null,
       model: null,
       provider: null,
       finishReason: null,

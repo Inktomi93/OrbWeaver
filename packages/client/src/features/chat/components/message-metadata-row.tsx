@@ -11,7 +11,7 @@ import { Fragment } from "react";
 import { cacheTokensLabel, timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
 import { canRevealGenerationCost, messageNumberLabel, readerStoppedReply } from "../lib/message-readout.ts";
-import { MESSAGE_STOPPED_MARK } from "../lib/transcript-copy.ts";
+import { MESSAGE_STOPPED_MARK, messageRateLimitLabel } from "../lib/transcript-copy.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 export type MessageMetadataVisibility = Pick<
@@ -71,6 +71,17 @@ function numberDatum(message: MessageView, shown: boolean): readonly ReactElemen
   return number === null ? [] : [<Fragment key="id">{metadatum("message-metadata-id", number)}</Fragment>];
 }
 
+/** Essential provenance like the cap receipt: a reply that drew a provider rate-limit warning says so, with the reset
+ *  moment when the provider reported one, so a throttled connection explains itself where it happened. */
+function rateLimitDatum(message: MessageView): readonly ReactElement[] {
+  const { rateLimit } = message;
+  if (rateLimit === null) {
+    return [];
+  }
+  const resetAt = rateLimit.resetsAt === null ? null : timeLib.formatDateTime(rateLimit.resetsAt);
+  return [<Fragment key="rate-limit">{metadatum("message-metadata-rate-limit", messageRateLimitLabel(rateLimit.status, resetAt))}</Fragment>];
+}
+
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
  *  greeting row, or every toggle off) — never an empty `<Row>` shell. Timestamps are handled by
  *  `MessageTimestamp` in the name row, not here. */
@@ -93,6 +104,8 @@ export function MessageMetadataRow({ message, visibility }: MessageMetadataRowPr
       </Fragment>,
     );
   }
+
+  items.push(...rateLimitDatum(message));
 
   if (visibility.showTokenCount && tokens !== null && message.tokenProvenance !== "unrecorded") {
     const prefix = message.tokenProvenance === "estimated" ? "~" : "";
