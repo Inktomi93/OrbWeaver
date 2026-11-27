@@ -145,7 +145,7 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
 
 // V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
 // e.g. `{type:"icon",uri:"ccdefault:",name:"main",ext:"png"}` or an `embeded://…` charx-ZIP path). PARSED +
-// PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and
+// PRESERVED only, so a card round-trips (docs/law/Spine-Config-and-Serialization.md). Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and
 // consuming it is outside this parser. URI fetches must use the network egress guard: a card is untrusted,
 // so a URI fetch is an SSRF surface. The serde stays
 // pure parse-and-validate (kit is isomorphic, zero I/O). `z.looseObject` keeps unknown asset keys; the fields are

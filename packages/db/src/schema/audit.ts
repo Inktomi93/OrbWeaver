@@ -1,7 +1,7 @@
 // schema/audit — the append-only audit log. Reserved cross-cutting (the `logAudit` WRITER lives in
 // foundation/observability; the TABLE stays here). PK is a TypeID (`audit_log`).
 //
-// FORENSIC RECORD, DATABASE-ONLY: the app has no reader and none is planned — no verb, route or screen selects
+// FORENSIC RECORD, DATABASE-ONLY (docs/law/Tier-1-DB.md): the app has no reader and none is planned — no verb, route or screen selects
 // from this table. An operator reads it with database tools on a copy of the file. A reader added here turns a
 // free-form record into a product surface: `action` and `metadata` would need a closed shape first.
 // RETENTION: a row is kept for the life of the database. Nothing prunes, rotates or exports it, and deleting

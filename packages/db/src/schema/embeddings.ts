@@ -251,8 +251,8 @@ export const imageEmbeddings = sqliteTable(
     // The staleness/collapse key. Both lenses for one asset share a content_hash (the immutable CAS bytes), so a
     // re-index de-dups. NOT NULL.
     contentHash: nulFreeText("content_hash").notNull(),
-    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — RESERVED for image↔image use only (cross-modal
-    // cosine scale mismatch means `search` deliberately omits it on text→image paths; docs/law/Knowledge-Cluster.md
+    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — read for image↔image similarity only (`similarArt`; the
+    // cross-modal cosine scale mismatch means text→image search deliberately omits it; docs/law/Knowledge-Cluster.md
     // invariant 3). Written ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
