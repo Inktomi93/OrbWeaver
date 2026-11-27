@@ -231,7 +231,8 @@ export const isDeclKey = (key: GraphKey): key is DeclKey => !key.startsWith(MODU
 
 // Why a member is judged by nothing: `x?: never` closes a union arm against a sibling's field, a member of a type
 // literal that only types a `satisfies` clause checks a value's shape, and a member keyed by a `declare const` unique
-// symbol brands a type with a key no value has at run time. None holds data.
+// symbol, or a private member of a `declare class`, brands a type with a member no value has at run time. None holds
+// data.
 const SHAPE_ONLY = ["exclusion-marker", "satisfies-check", "brand-marker"] as const;
 type ShapeOnly = (typeof SHAPE_ONLY)[number];
 
@@ -379,6 +380,9 @@ function typesOnlyASatisfies(member: Node): boolean {
 const signatureType = (node: PropertySignatureDeclaration): TypeNode | undefined => node.type;
 
 function shapeOnlyOf(node: Node): ShapeOnly | null {
+  if (isAmbientPrivateMember(node)) {
+    return "brand-marker";
+  }
   if (!isPropertySignatureDeclaration(node)) {
     return null;
   }
@@ -390,6 +394,14 @@ function shapeOnlyOf(node: Node): ShapeOnly | null {
   }
   return typesOnlyASatisfies(node) ? "satisfies-check" : null;
 }
+
+// `declare class Mint { private mint(): void }`: a private member makes a type nominal, and an ambient class has no
+// body that could run or read it.
+const isAmbientPrivateMember = (node: Node): boolean =>
+  (isMethodDeclaration(node) || isPropertyDeclaration(node)) &&
+  hasFlag(getCombinedModifierFlags(node), ModifierFlags.Private) &&
+  isClassDeclaration(node.parent) &&
+  hasFlag(getCombinedModifierFlags(node.parent), ModifierFlags.Ambient);
 
 // `readonly [brand]: B` beside `declare const brand: unique symbol` in the same file: the key exists only in the type.
 function isPhantomKey(node: PropertySignatureDeclaration): boolean {

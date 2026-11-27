@@ -6,7 +6,7 @@ import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
-import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
+import { MEMBER_BUCKETS, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 const [CONFIRMED] = TRIAL_VERDICTS;
@@ -570,6 +570,22 @@ test("a JSX attribute's value fills the prop it is handed to", { timeout: 120_00
   );
   // Entry.value fills Option.value, which requires it: the one row is the prop's, and the two delete together
   expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Option.value", "Entry.note"]);
+});
+
+// A private member of a `declare class` makes a type nominal, as `PrincipalMint` does: no body runs it and no value
+// carries it, so it is judged by nothing. The same unread private method on a class with a body keeps its row.
+test("a private member of an ambient class brands a type and holds no data", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "declare class Mint { private mint(): void }",
+      "export type Minted = Mint & { readonly id: string };",
+      "export const idOf = (minted: Minted): string => minted.id;",
+      "class Real { private spare(): void {} }",
+      "export const real = new Real();",
+    ]),
+  );
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual(["member-untouched Real.spare"]);
 });
 
 // The package a form instance's field methods are declared by, as TanStack Form's are.
