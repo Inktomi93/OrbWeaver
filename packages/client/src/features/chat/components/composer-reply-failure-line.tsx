@@ -66,7 +66,7 @@ export function ComposerReplyFailureLine({ chatId, failure, onRetry, id }: Compo
         id={id}
       >
         {reason === null ? failure.lead : `${failure.lead} ${reason}`}
-        {offersReset && failure.resetsAt !== null ? (
+        {offersReset ? (
           <>
             {" "}
             <span data-slot="composer-reply-failure-reset" data-resets-at={failure.resetsAt}>
