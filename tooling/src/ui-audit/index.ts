@@ -136,6 +136,7 @@ export {
   printObscuredScan,
   printPopulationAccounting,
   printSurfaceState,
+  resultToken,
 } from "./ops/report.ts";
 export { WALKER_ACCESSIBLE_NAME } from "./ops/walker/accessible-name.ts";
 export { WALKER_PRIMITIVES } from "./ops/walker/core.ts";

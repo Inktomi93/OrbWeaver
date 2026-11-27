@@ -4,6 +4,7 @@
 import { AA_LARGE_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
+  compositeForeground,
   coveredBackdrop,
   FOREGROUND_OPACITY_EPS,
   INACTIVE_ADVISORY_MAX_RATIO,
@@ -69,10 +70,16 @@ function frameOutcome(input: ContrastInput): ContrastOutcome | null {
 function ratioOver(input: ContrastInput, over: Rgb, opacity: number): number {
   const cover = input.cover;
   if (opacity >= FOREGROUND_OPACITY_EPS && cover === undefined) {
-    return wcagContrastRatio(input.color, over);
+    return wcagContrastRatio(paintedInk(input.color, over), over);
   }
   const ring = cover === undefined || input.backdropMethod === "pixel-sample" ? over : coveredBackdrop(over, cover);
-  return wcagContrastRatio(inkOverRing(input.color, ring, { inner: opacity, outer: 1, fill: ring }, cover), ring);
+  return wcagContrastRatio(inkOverRing(paintedInk(input.color, ring), ring, { inner: opacity, outer: 1, fill: ring }, cover), ring);
+}
+
+/** A translucent ink paints its blend with what lies behind it, not its authored channels: the reader sees the blend. */
+function paintedInk(color: Rgb, ring: Rgb): Rgb {
+  const alpha = color.a ?? 1;
+  return alpha >= FOREGROUND_OPACITY_EPS ? color : compositeForeground(color, ring, alpha);
 }
 
 function contrastOutcome(input: ContrastInput): ContrastOutcome {

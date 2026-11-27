@@ -125,8 +125,9 @@ export function printObscuredScan(scan: ObscuredScanInput | undefined): void {
 }
 
 /** A RESULT-line value is ONE whitespace-free token — every reader of this line splits on whitespace —
- *  so the two summaries below join with `+` and slug their reason strings rather than reading as prose. */
-function resultToken(value: string): string {
+ *  so the two summaries below join with `+` and slug their reason strings rather than reading as prose.
+ *  A caller-authored name (a theme) takes the same slug, so the whole name rides in one token. */
+export function resultToken(value: string): string {
   return value.replace(/\s+/gu, "-");
 }
 

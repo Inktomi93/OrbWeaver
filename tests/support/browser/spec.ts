@@ -69,5 +69,6 @@ export type {
   TrpcInput,
   TrpcPath,
 } from "./trpc-wire.ts";
+export { formatTypeRampFindings } from "./type-ramp.ts";
 export type { WebVitalsEmission } from "./web-vitals.ts";
 export { drainWebVitals, installWebVitals, readWebVitals, webVitalsInitScript } from "./web-vitals.ts";

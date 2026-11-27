@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-09-22
+updated: 2026-11-27
 ---
 
 # Impeccable → Orbweaver adoption record
@@ -186,3 +186,32 @@ translucent stop, as `image-indeterminate` (hand-verify) rather than trusting al
 | - | - |
 | `text-occlusion` | a large stacked-heuristic port with its own fixture corpus, not ported; overlap is covered today by `--expect-no-overflow`, `clipped-overflow`, `text-overflow`, and the driven review |
 | `cramped-padding` (both variants) | neither variant shipped; a rule that is genuinely wanted gets its own build and its own firing and silence proof pair, not a table cell |
+
+## Resync against upstream 7510e233
+
+Upstream moved its detectors to a Rust engine; the registry is `crates/foundation/src/registry.rs` and the browser facts are in `crates/core/src/browser/`. The decisions below cover every upstream rule that is new to this record, retired upstream, or demoted upstream. Nothing here is adopted: the audit exists to find defects the closed world cannot already prevent, and each candidate below is either prevented by construction, a taste verdict, or already owned.
+
+### New to this record
+
+| upstream id | decision | reason |
+| - | - | - |
+| `straggler` | reject | A stray last word is what `text-wrap: pretty` removes, and `docs/law/ui-platform-rulings.md` defers that property until a reviewed surface shows the defect. No such defect is on record. The verdict also flips with the viewport for the same markup, the mechanism fault `census-cohort.ts` records for inline runs. Reopen when a reviewed surface shows a stray last word in authored chrome copy; the build then reads Range line rectangles and ships a healthy and a defect control on a real `@orb/ui` component. |
+| `unbalanced-heading` | reject | Closed by construction: `packages/ui/src/styles/primitives.css` sets `text-wrap: balance` on every heading, and the platform ruling adopts it. A detector could only fire on a heading that opts out of that base rule, which is a source defect, not a rendered one. |
+| `hard-offset-shadow` | reject | Upstream labels it advisory. No Orbweaver law prohibits a hard offset shadow, so the rule would grade intent. Elevation recipes are tokens. |
+| `organic-clip-path` | reject | A clip path is art direction. Complex geometry is not evidence of a broken interface. |
+| `buried-raster` | keep the adopted rule, reject the gradient-wash arm | `lib/checks-media.ts` already measures the effective ancestor opacity, which covers more than upstream's own-opacity read. The wash arm joins only when a rendered case shows a miss the opacity predicate cannot see. |
+
+### Retired upstream
+
+| upstream id | decision | reason |
+| - | - | - |
+| `image-hover-transform` | keep `animated-img-hover` | The treatment stays prohibited by Orbweaver motion law (`docs/law/motion-and-animation-guide.md`). Upstream's retirement is its own policy, not a law change here. |
+| `layout-transition` | keep | Same ruling: the motion guide names the few layout transitions it allows, and the rule already exempts the accordion and collapsible panel slots. |
+
+### Demoted upstream
+
+| upstream behavior | decision | reason |
+| - | - | - |
+| `bounce-easing` and `clipped-overflow-container` advisory severity | keep `bounce-easing` at P2 and `clipped-overflow` at P1 or P2 | Severity here follows the owner's motion and containment law. Upstream's population facts for clipped popovers are a candidate only against a rendered miss. |
+| near-bar contrast printed at 4.2 to 4.5 or 2.8 to 3 as advisory | reject | Those ratios are below the applicable AA threshold. Rounding a printed ratio never turns a standards failure into a pass. |
+| known recoverable script errors demoted | reject | `script-error` keeps the full page-error capture. A classifier may annotate provenance and never suppress a finding. |

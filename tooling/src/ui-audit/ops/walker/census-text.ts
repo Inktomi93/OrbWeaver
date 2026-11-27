@@ -401,7 +401,9 @@ export const WALKER_CENSUS_TEXT = `
         inkBox: textInkBox === null ? undefined : textInkBox,
         groundMarks: textGroundMarks === null ? undefined : textGroundMarks,
         selector: describe(el),
-        color: { r: color.r, g: color.g, b: color.b },
+        // The ink's own alpha rides along: a translucent colour paints its blend with the backdrop, and the
+        // check judges that blend rather than the authored channels (lib/checks-color.ts paintedInk).
+        color: { r: color.r, g: color.g, b: color.b, a: color.a },
         backdrop: textBackdrop,
         fontSizePx: fontSizePx,
         fontWeight: fontWeight,
