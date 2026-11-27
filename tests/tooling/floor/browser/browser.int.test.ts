@@ -705,6 +705,40 @@ test("snap map reports a button inside a disabled fieldset as disabled by its an
   expect(result.stdout).not.toContain("map could not mint one unique");
 });
 
+// The page removes the button the moment the map's read of the DOM returns, so every candidate locator it minted matches nothing by the time it is proven.
+const VANISHING_BUTTON = `<button id="vanishing" aria-label="Vanishing">Vanishing</button>
+<script>
+  const readAll = Element.prototype.querySelectorAll;
+  Element.prototype.querySelectorAll = function (selector) {
+    const found = readAll.call(this, selector);
+    const button = document.getElementById("vanishing");
+    if (button !== null && Array.from(found).includes(button)) {
+      queueMicrotask(() => button.remove());
+    }
+    return found;
+  };
+</script>`;
+
+test("snap map refuses a row whose page changed between the read and the locator proof", () => {
+  const refused = runSnap(["--file", fixture("map-vanishes", VANISHING_BUTTON), "--no-shot", "--map", "--json", "--no-failure-evidence"]);
+
+  expect(refused.status, refused.stdout + refused.stderr).not.toBe(0);
+  expect(refused.stdout).toContain('map could not mint one unique visible locator for button "Vanishing"');
+
+  // The control: the same button on a page that leaves it in place is minted, so the refusal above is the vanished row and nothing else.
+  const minted = runSnap([
+    "--file",
+    fixture("map-stays", '<button aria-label="Vanishing">Vanishing</button>'),
+    "--no-shot",
+    "--map",
+    "--json",
+    "--no-failure-evidence",
+  ]);
+
+  expect(minted.status, minted.stdout + minted.stderr).toBe(0);
+  expect(minted.stdout).toContain('button  "Vanishing"');
+});
+
 test("snap evaluates bare arrows and already-invoked arrow IIFEs exactly once", () => {
   const page = fixture("eval-functions", '<main data-value="works">eval</main>');
   const result = runSnap([
