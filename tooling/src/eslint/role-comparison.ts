@@ -3,8 +3,8 @@
 // lookup whose operand is a role: a `UserRole` or a `ParticipantRole`, an alias, a branded, optional or nullable form, or
 // the same closed union inferred from the role schema.
 //
-// A role is recognised by its literal set, read from the identity contracts in the linted program: the union equals one
-// role tuple exactly, or carries that tuple's alias. A subset such as `GlobalAction` (`admin | owner`) is a different
+// A role is recognised by its literal set, read from each role type's one home in the linted program: the union equals
+// one role tuple exactly, or carries that tuple's alias. A subset such as `GlobalAction` (`admin | owner`) is a different
 // vocabulary and is not a role. A narrowed reference (`"user"` after a refused comparison) is still a role through the
 // declared type of the variable or field it reads.
 
@@ -18,8 +18,11 @@ import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 const MESSAGE =
   "Ask @orb/contracts/identity what a role means (isHostRole, userRoleSatisfies or a named predicate there); a role compared, switched on or used as a key here restates it (Spine-Identity-and-Auth.md invariant 6).";
-const IDENTITY_CONTRACTS = "/packages/contracts/src/identity/index.ts";
-const ROLE_ALIASES = ["UserRole", "ParticipantRole"] as const;
+// Each role type at the one file that declares it; a second export of the same type is a defect, not a home.
+const ROLE_HOMES = [
+  { file: "/packages/contracts/src/identity/index.ts", name: "UserRole" },
+  { file: "/packages/kit/src/message-author/index.ts", name: "ParticipantRole" },
+] as const;
 const EQUALITY = new Set(["===", "!==", "==", "!="]);
 // The collection reads whose argument is the probed value: an array or set membership, a position, a map key.
 const MEMBERSHIP_READS = new Set(["includes", "indexOf", "lastIndexOf", "has", "get"]);
@@ -53,17 +56,17 @@ function stringLiterals(type: ts.Type): ReadonlySet<string> | undefined {
   return literals.size === 0 ? undefined : literals;
 }
 
-// The role tuples as the program declares them; a program that never loads the identity contracts holds no role value.
+// The role tuples as the program declares them; a program that never loads a role's home holds no value of that role.
 function roleAxes(program: ts.Program, checker: ts.TypeChecker): readonly RoleAxis[] {
   const held = axesByProgram.get(program);
   if (held !== undefined) {
     return held;
   }
-  const file = program.getSourceFiles().find(({ fileName }) => fileName.replaceAll("\\", "/").endsWith(IDENTITY_CONTRACTS));
-  const module = file === undefined ? undefined : checker.getSymbolAtLocation(file);
-  const exported = module === undefined ? [] : checker.getExportsOfModule(module);
-  const axes = ROLE_ALIASES.flatMap((name) => {
-    const alias = exported.find((symbol) => symbol.name === name);
+  const sources = program.getSourceFiles();
+  const axes = ROLE_HOMES.flatMap(({ file, name }) => {
+    const home = sources.find(({ fileName }) => fileName.replaceAll("\\", "/").endsWith(file));
+    const module = home === undefined ? undefined : checker.getSymbolAtLocation(home);
+    const alias = module === undefined ? undefined : checker.getExportsOfModule(module).find((symbol) => symbol.name === name);
     const literals = alias === undefined ? undefined : stringLiterals(checker.getDeclaredTypeOfSymbol(alias));
     return alias === undefined || literals === undefined ? [] : [{ alias, literals }];
   });

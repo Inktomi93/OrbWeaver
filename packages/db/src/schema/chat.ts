@@ -71,8 +71,7 @@ import {
   TOKEN_PROVENANCES,
   TURN_INITIATORS,
 } from "@orb/contracts/chat";
-// PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis).
-import { AUTH_MODES, PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import { AUTH_MODES } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS, WIRES } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
@@ -98,6 +97,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";

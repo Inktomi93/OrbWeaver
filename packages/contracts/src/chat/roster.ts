@@ -8,10 +8,10 @@ import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import { MS_PER_DAY } from "@orb/kit/time";
 import { z } from "zod";
 import type { AuthMode } from "#identity";
-import { PARTICIPANT_ROLES } from "#identity";
 import { joinerPersonaSchema } from "#persona";
 import type { TagView } from "#tag";
 import { tagViewSchema } from "#tag";
@@ -22,8 +22,9 @@ import { memberCardVisibilitySchema } from "./metadata.ts";
 import { participantKindSchema } from "./participants.ts";
 
 /** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME: the tuple +
- *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
- *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema. */
+ *  `ParticipantRole` type are DEFINED in `@orb/kit/message-author` (a regex script scopes by them, and
+ *  `@orb/contracts/identity` encodes their meaning) — every consumer imports them from there (no second name,
+ *  no alias); this only derives the schema. */
 export const participantRoleSchema = z.enum(PARTICIPANT_ROLES) satisfies z.ZodType<ParticipantRole>;
 
 /** How much history a (re)joining member sees: `full` (the whole room canon — the COLUMN DEFAULT, owner

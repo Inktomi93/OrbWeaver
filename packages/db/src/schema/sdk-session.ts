@@ -16,7 +16,7 @@ import { userConnections } from "./connection.ts";
 // exactly one entry per `(chat, connection)` is the live primary at a time. Staleness is DETECTED VS CANON,
 // NOT A FLAG (D25) — the shipped gate is the inference session store's live-frame comparison
 // (`sessionMatchesSeed`: the SDK's stored frames vs the re-derived seed, beside content-addressed lineage
-// ids), not these columns; there is NO stored dirty flag.
+// ids); the table stores no staleness column and no dirty flag.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const sessionEntries = sqliteTable(

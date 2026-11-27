@@ -11,10 +11,10 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
   const characterId = mintTypeId(ID_PREFIX.character, ids.next);
   const result = cardImportResultSchema.parse({
     imported: [
-      { filename: "duplicate.png", characterId, created: false, name: "Aria", importHash: "duplicate", attachedBooksSkipped: 0, notes: ["Book kept"] },
-      { filename: "created.png", characterId, created: true, name: "Aria", importHash: "created", attachedBooksSkipped: 0, notes: ["Regex kept"] },
-      { filename: null, characterId, created: true, name: "Aria", importHash: "legacy", attachedBooksSkipped: 0 },
-      { filename: "empty.png", characterId, created: false, name: "Aria", importHash: "empty", attachedBooksSkipped: 0, notes: [] },
+      { filename: "duplicate.png", characterId, created: false, name: "Aria", attachedBooksSkipped: 0, notes: ["Book kept"] },
+      { filename: "created.png", characterId, created: true, name: "Aria", attachedBooksSkipped: 0, notes: ["Regex kept"] },
+      { filename: null, characterId, created: true, name: "Aria", attachedBooksSkipped: 0 },
+      { filename: "empty.png", characterId, created: false, name: "Aria", attachedBooksSkipped: 0, notes: [] },
     ],
     failed: [{ filename: "broken.png", reason: INVALID, error: "Invalid card" }],
   });
@@ -43,8 +43,8 @@ test("a card whose book references linked nothing says how many on its own outco
   const characterId = mintTypeId(ID_PREFIX.character, ids.next);
   const result = cardImportResultSchema.parse({
     imported: [
-      { filename: "far.png", characterId, created: true, name: "Aria", importHash: "far", attachedBooksSkipped: 2 },
-      { filename: "whole.png", characterId, created: true, name: "Aria", importHash: "whole", attachedBooksSkipped: 0 },
+      { filename: "far.png", characterId, created: true, name: "Aria", attachedBooksSkipped: 2 },
+      { filename: "whole.png", characterId, created: true, name: "Aria", attachedBooksSkipped: 0 },
     ],
     failed: [],
   });

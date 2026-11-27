@@ -134,7 +134,9 @@ for (const regime of [
       await expect(list.getByRole("button", { name: character.name, exact: true })).toBeVisible();
       expect(await list.evaluate((node) => node.contains(document.activeElement) && document.activeElement !== document.body)).toBe(true);
       expect(calls.count("refinery.startSession")).toBe(0);
-      expect((await caller.refinery.listSessions()).map((row) => row.id)).toEqual([session.id]);
+      // The corpus owner holds sessions of its own; the witness character's sessions are exactly the one this case started.
+      const sessions = await caller.refinery.listSessions();
+      expect(sessions.filter((row) => row.characterId === character.id).map((row) => row.id)).toEqual([session.id]);
       await page.screenshot({ path: test.info().outputPath("refinery-search-recovery.png") });
     });
 

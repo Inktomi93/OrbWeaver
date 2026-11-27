@@ -15,6 +15,9 @@ const POST_ROW_IDENTITY_NAMES = alternation([
   "ResourceRef",
 ]);
 
+// The modules that export those names: the room-role type and tuple are homed in kit's message-author module.
+const POST_ROW_IDENTITY_DOORS = String.raw`/^@orb\/(contracts\/identity|kit\/message-author)$/`;
+
 export const INFRA_AUTH_RESTRICTIONS = [
   {
     id: "infra-auth-no-userid",
@@ -29,11 +32,11 @@ export const INFRA_AUTH_RESTRICTIONS = [
     id: "infra-auth-pre-row-imports",
     selectors: [
       {
-        selector: `:matches(ImportDeclaration, ExportNamedDeclaration)[source.value='@orb/contracts/identity'] > :matches(ImportSpecifier[imported.name=${POST_ROW_IDENTITY_NAMES}], ImportSpecifier[imported.value=${POST_ROW_IDENTITY_NAMES}], ExportSpecifier[local.name=${POST_ROW_IDENTITY_NAMES}], ExportSpecifier[local.value=${POST_ROW_IDENTITY_NAMES}], ImportNamespaceSpecifier)`,
+        selector: `:matches(ImportDeclaration, ExportNamedDeclaration)[source.value=${POST_ROW_IDENTITY_DOORS}] > :matches(ImportSpecifier[imported.name=${POST_ROW_IDENTITY_NAMES}], ImportSpecifier[imported.value=${POST_ROW_IDENTITY_NAMES}], ExportSpecifier[local.name=${POST_ROW_IDENTITY_NAMES}], ExportSpecifier[local.value=${POST_ROW_IDENTITY_NAMES}], ImportNamespaceSpecifier)`,
         message: "D1/D40: post-row identity and authorization belong above infra/auth; import only pre-row verification contracts here.",
       },
       {
-        selector: "ExportAllDeclaration[source.value='@orb/contracts/identity']",
+        selector: `ExportAllDeclaration[source.value=${POST_ROW_IDENTITY_DOORS}]`,
         message: "D1/D40: infra/auth cannot reexport post-row identity or authorization through a namespace or star door.",
       },
     ],

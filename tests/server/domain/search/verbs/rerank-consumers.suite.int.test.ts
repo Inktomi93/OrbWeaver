@@ -337,7 +337,7 @@ test.for(SHAPES)("the databank gather keeps the reranked chunk inside its k cut,
   }
 });
 
-test("a failed rerank call degrades the databank gather to vector order and warns once, where the omnibox refuses", async () => {
+test("a failed rerank call degrades the databank gather to vector order and warns once", async () => {
   await using world = await rerankWorld("text");
   const { h } = world;
   await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: "off" } } });

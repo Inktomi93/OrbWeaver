@@ -11,8 +11,8 @@ const CHAT_ACTION_SCOPES = ["open"] as const;
 
 type ChatActionScope = (typeof CHAT_ACTION_SCOPES)[number];
 
-/** Which verbs each surface offers, in its render order. */
-export const CHAT_ACTION_SCOPE_IDS = {
+// Which verbs each surface offers, in its render order.
+const CHAT_ACTION_SCOPE_IDS = {
   open: ["archive"],
 } as const satisfies Readonly<Record<ChatActionScope, readonly string[]>>;
 
@@ -28,8 +28,8 @@ export interface ChatActionDef<Id extends ChatActionId = ChatActionId> {
   readonly glyph: LucideIcon;
 }
 
-/** The vocabulary; the mapped `Id` pins each entry's own `id` to its key. */
-export const CHAT_ACTIONS: { readonly [Id in ChatActionId]: ChatActionDef<Id> } = {
+// The vocabulary; the mapped `Id` pins each entry's own `id` to its key.
+const CHAT_ACTIONS: { readonly [Id in ChatActionId]: ChatActionDef<Id> } = {
   archive: { id: "archive", label: ({ archived }) => chatArchiveToggleName(archived), glyph: Archive },
 };
 

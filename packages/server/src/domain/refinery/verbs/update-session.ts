@@ -1,7 +1,7 @@
-// verb: updateSession — the session-config patch (the D62 Setup surface's write; collapses the study's
-// `renameSession` — one patch verb, the `updateCharacterSchema` precedent). Every present member is
-// RE-PARSED through its contracts schema here (the internal-boundary posture — the
-// tRPC wire parse does not cover a future internal caller). `null` clears the two nullable text fields.
+// verb: updateSession — the session-config patch (the D62 Setup surface's write; one patch verb, the
+// `updateCharacterSchema` precedent). It writes guidance, selection and stage config, never the session name or
+// status. Every present member is RE-PARSED through its contracts schema here (the internal-boundary posture — the
+// tRPC wire parse does not cover a future internal caller). `null` clears guidance, the one nullable member.
 //
 // `selection` IS NOT WHOLE-REPLACED — it is the one column with a SECOND writer. `applyFields` remaps
 // `greetingIndexes` when an accepted rewrite removes a greeting (the session addresses greetings by

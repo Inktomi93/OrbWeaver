@@ -13,7 +13,6 @@
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { ParticipantRole } from "@orb/kit/message-author";
-import { PARTICIPANT_ROLES as KIT_PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import { z } from "zod";
 import type { ParticipantRoleState, UserRoleState } from "./role-data.ts";
 
@@ -443,10 +442,6 @@ export type GlobalAction = (typeof GLOBAL_ACTIONS)[number];
 // Chat-resource authority actions. `read` = the present-member floor; `host` = room authority.
 const CHAT_ACTIONS = ["read", "host"] as const;
 export type ChatAction = (typeof CHAT_ACTIONS)[number];
-
-/** A chat participant's room authority. The tuple is `@orb/kit/message-author`, so a regex script can scope by it;
- *  it is named here because `can()` reads it and identity is the DAG root, and chat imports it from kit. */
-export const PARTICIPANT_ROLES = KIT_PARTICIPANT_ROLES;
 
 // Which participant role holds room authority. A mapped record over the closed tuple, so a new role fails tsc here.
 const HOLDS_ROOM_AUTHORITY = { host: true, member: false } as const satisfies Record<ParticipantRole, boolean>;

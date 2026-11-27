@@ -26,12 +26,15 @@ beforeAll(async () => {
 }, 120_000);
 
 const DECLARATIONS = [
-  'import type { GlobalAction, ParticipantRole, UserRole } from "@orb/contracts/identity";',
+  'import type { GlobalAction, UserRole } from "@orb/contracts/identity";',
   'import { USER_ROLES, isHostRole, userRoleSatisfies, userRoleSchema } from "@orb/contracts/identity";',
+  'import type { ParticipantRole, RoomStanding } from "@orb/kit/message-author";',
+  'import { standingOf } from "@orb/kit/message-author";',
   'import type { z } from "zod";',
   "declare const principal: { readonly role: UserRole };",
   "declare const other: { readonly role: UserRole };",
   "declare const seat: { readonly role: ParticipantRole };",
+  "declare const room: RoomStanding;",
   "declare const renamed: { readonly standing: UserRole };",
   "type Rank = UserRole;",
   "declare const rank: Rank;",
@@ -90,6 +93,11 @@ test.for([
   ["a nullable role", 'export const f = (): boolean => nullable === "admin";', 1],
   ["a role inferred from the wire schema", 'export const f = (): boolean => wire === "owner";', 1],
   ["a room role", 'export const f = (): boolean => seat.role === "host";', 1],
+  [
+    "a room role the kit standing read returns",
+    'export const f = (authorUserId: Parameters<typeof standingOf>[0]["authorUserId"]): boolean => standingOf({ authorUserId }, room) === "host";',
+    1,
+  ],
   ["a role-constrained type parameter", 'export const f = <R extends UserRole>(role: R): boolean => role === "owner";', 1],
   ["a narrowed role", 'export function f(role: UserRole): boolean {\n  if (role !== "user") {\n    return false;\n  }\n  return role === "user";\n}', 2],
   [

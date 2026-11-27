@@ -46,7 +46,6 @@ import {
   variableDeltaSchema,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -55,6 +54,7 @@ import { chatRecencyExpr, immutableCollection, memberVisibleChatScope, rowTuple 
 import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, or, sql } from "drizzle-orm";
