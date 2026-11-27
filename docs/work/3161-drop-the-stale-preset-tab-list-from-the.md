@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-15
+status: doing
+updated: 2026-11-27
 priority: P3
 area: tooling
+lane: wt/agent-a8a76b60ece6b02c7
 ---
 
 # Drop the stale preset tab list from the design-audit fixtures

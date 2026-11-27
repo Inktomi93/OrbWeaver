@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-21
+status: doing
+updated: 2026-11-27
 priority: P3
 area: tooling
+lane: wt/agent-a1902dde200366c39
 ---
 
 # A snap stage does not store provider keys inherited from the caller's shell
