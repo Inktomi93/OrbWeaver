@@ -40,7 +40,7 @@ export function ComposerReplyFailureLine({ chatId, failure, onRetry, id }: Compo
   // An unknown viewer reads as a member: the host's connection detail is never shown on a guess.
   const viewerIsHost = chat.data?.viewerIsHost === true;
   const reason = failure.roomState ?? providerFailureReason(failure, viewerIsHost) ?? failure.message;
-  const offersConnections = viewerIsHost && CONNECTION_FIXABLE.has(failure.reason);
+  const offersConnections = viewerIsHost && failure.reason !== null && CONNECTION_FIXABLE.has(failure.reason);
   // The preset the host's turns run is the host's own default, so only the host is sent to its Params, and only for the
   // failure its output limit causes.
   const presetId = viewerIsHost ? seedPresetId(settings.data?.config.seeds.defaultPresetId) : null;
@@ -58,7 +58,7 @@ export function ComposerReplyFailureLine({ chatId, failure, onRetry, id }: Compo
         wrap="word"
         role="alert"
         data-slot="composer-reply-failure"
-        data-reason={failure.reason === "" ? undefined : failure.reason}
+        data-reason={failure.reason ?? undefined}
         data-cause={failure.cause === "" ? undefined : failure.cause}
         id={id}
       >

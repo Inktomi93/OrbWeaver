@@ -59,7 +59,7 @@ function routeFrame(payload: SocketPayload): void {
     return;
   }
   if (payload.type === "roomFailed") {
-    roomRegistry.failed(payload.message, payload.ref);
+    roomRegistry.failed(payload.code, payload.message, payload.ref);
     return;
   }
   if (payload.type === "roomLagged") {

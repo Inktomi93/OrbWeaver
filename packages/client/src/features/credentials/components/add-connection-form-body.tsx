@@ -12,7 +12,8 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { CommitFooter } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { trpcErrorReason } from "#lib";
+import type { ConnectionFieldRefusal, ConnectionRefusalTarget } from "#lib";
+import { connectionFieldRefusalOf, trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredentialOwned, useCreateConnection, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
@@ -62,6 +63,16 @@ export interface AddConnectionFormBodyProps {
 }
 
 type CreateConnectionInput = inferInput<Trpc["connection"]["create"]>;
+
+/** The form field each refusal target lands on; a refusal of the row itself has none. */
+const FORM_FIELD_OF_TARGET = {
+  label: "label",
+  provider: "providerId",
+  api: "api",
+  baseUrl: "baseUrl",
+  model: "model",
+  credential: "credentialId",
+} as const satisfies Partial<Record<ConnectionRefusalTarget, keyof AddConnectionFormValues>>;
 
 /** The `connection.create` input for a submitted draft. No secret rides it: the key is referenced by id. */
 function connectionInput(args: {
@@ -152,6 +163,13 @@ export function AddConnectionFormBody({
     form.setFieldMeta("baseUrl", (prev) => ({ ...prev, isTouched: true, errorMap: { ...prev.errorMap, onServer: errorMessage(err) } }));
     setRefusedAuthority(trpcErrorReason(err) === CONNECTION_OP_CODES.baseUrlRefused ? endpointAuthorityOf(form.state.values.baseUrl.trim()) : null);
   };
+  /** A refusal of one field goes on that field, where it is fixed; editing the field clears it (`useAddConnectionForm`). */
+  const placeRefusal = (refusal: ConnectionFieldRefusal | null): void => {
+    if (refusal === null || refusal.target === "connection") {
+      return;
+    }
+    form.setFieldMeta(FORM_FIELD_OF_TARGET[refusal.target], (prev) => ({ ...prev, isTouched: true, errorMap: { ...prev.errorMap, onServer: refusal.copy } }));
+  };
   const clearUrlRefusal = (): void => {
     form.setFieldMeta("baseUrl", (prev) => ({ ...prev, errorMap: { ...prev.errorMap, onServer: undefined } }));
     setRefusedAuthority(null);
@@ -218,9 +236,11 @@ export function AddConnectionFormBody({
       created = await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelCheck, purpose }));
       checkSignIn(provider, created.id);
     } catch (err) {
-      if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
+      const reason = trpcErrorReason(err);
+      if (reason !== null && URL_REFUSAL_CODES.has(reason)) {
         markUrlRefused(err);
       }
+      placeRefusal(connectionFieldRefusalOf(err));
       throw err;
     }
     // Recent holds models a connection was SAVED with, from the list; a pick alone never reorders the list.
@@ -312,7 +332,10 @@ export function AddConnectionFormBody({
               submitFailure === null || !sameFormValues(values, submitFailure.values) ? null : (
                 <AddConnectionFailure
                   ref={failureRef}
-                  sentence={submitFailureSentence({ heldKeyLabel: held === null ? undefined : held.name, reason: errorMessage(submitFailure.error) })}
+                  sentence={submitFailureSentence({
+                    heldKeyLabel: held === null ? undefined : held.name,
+                    reason: connectionFieldRefusalOf(submitFailure.error)?.copy ?? errorMessage(submitFailure.error),
+                  })}
                 />
               )
             }

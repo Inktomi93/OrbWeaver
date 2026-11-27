@@ -41,6 +41,7 @@ import {
   REFINERY_SESSION_COMPLETED_REASON,
   REFINERY_STAGE_NOT_READY_REASON,
 } from "@orb/contracts/refinery";
+import type { RefusalReason } from "@orb/contracts/refusal";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -60,7 +61,7 @@ function refineryFailureMessage(error: unknown): string | null {
 /** The refusals whose server sentence IS the deliverable — every CODED refinery error. Kept as a set rather
  *  than an `||` chain so adding a fourth typed error is a one-line decision at the contract's own vocabulary,
  *  not an edit to a predicate. */
-const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([
+const QUOTED_REFUSAL_REASONS: ReadonlySet<RefusalReason> = new Set<RefusalReason>([
   REFINERY_STAGE_NOT_READY_REASON,
   REFINERY_OUTPUT_BUDGET_REASON,
   REFINERY_ROUND_IN_FLIGHT_REASON,
@@ -80,7 +81,10 @@ const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([
  * `DomainOperationError` carries a reason.
  */
 function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
-  return (error): string => (QUOTED_REFUSAL_REASONS.has(trpcErrorReason(error)) ? (refineryFailureMessage(error) ?? fallback) : fallback);
+  return (error): string => {
+    const reason = trpcErrorReason(error);
+    return reason !== null && QUOTED_REFUSAL_REASONS.has(reason) ? (refineryFailureMessage(error) ?? fallback) : fallback;
+  };
 }
 
 /** The client-owned copy for `CHARACTER_STALE_BASIS` (#1551) — belt 14's refusal (`apply-fields.ts`)

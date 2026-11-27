@@ -2,6 +2,8 @@
 // (`transport/trpc/error-mapping.ts`), and a coded refusal's stated facts on `data.detail`. Clients key on those
 // structured fields, never on message text.
 
+import type { RefusalReason } from "@orb/contracts/refusal";
+import { isRefusalReason } from "@orb/contracts/refusal";
 import { CancelledError } from "@tanstack/react-query";
 import { isTRPCClientError } from "@trpc/client";
 
@@ -22,10 +24,12 @@ function errorData(error: unknown): unknown {
   return typeof error === "object" && error !== null && "data" in error ? error.data : null;
 }
 
-/** The refusal reason off a tRPC error's `data.reason`, else `""`. */
-export function trpcErrorReason(error: unknown): string {
+/** The refusal reason off a tRPC error's `data.reason`, or `null` when the error carries none or a reason no contract
+ *  declares (a reason only a server domain names is one no client branch can read). */
+export function trpcErrorReason(error: unknown): RefusalReason | null {
   const data = errorData(error);
-  return typeof data === "object" && data !== null && "reason" in data && typeof data.reason === "string" ? (data as { reason: string }).reason : "";
+  const reason = typeof data === "object" && data !== null && "reason" in data && typeof data.reason === "string" ? data.reason : null;
+  return reason !== null && isRefusalReason(reason) ? reason : null;
 }
 
 /** The server's sentence on a tRPC error, else `null`. The transport formatter only lets through copy written for the

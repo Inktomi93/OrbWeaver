@@ -1068,6 +1068,14 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/credentials/lib/connection-capability-fact-model.ts":
       "capabilityFactRows: the feature-private capability rows whose number facts the case compares with the contract's declared schema",
   },
+  "tests/client/features/user-admin/components/share-ip-certificate-failure.ct.tsx": {
+    "packages/client/src/features/user-admin/lib/share-model.ts":
+      "ipCertificateFailureGuidance: the per-code guidance the failed card shows, which only that card reads and no door forwards; the case asserts each code lands its own line",
+  },
+  "tests/client/data/bus/room-failed-notice.ct.tsx": {
+    "packages/client/src/data/bus/room-failure-notice.ts":
+      "roomFailureNotice: the words the room hook toasts per refusal code, which only the room registry reads and no door forwards",
+  },
   "tests/client/lib/bug-report-bundle.dom.test.ts": {
     "packages/client/src/lib/bug-report-bundle.ts":
       "sliceMotionEvidence: the motion slices the dev bug-report capture builds, whose only caller is that capture and which no door forwards",

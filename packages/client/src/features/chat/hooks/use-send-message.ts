@@ -14,7 +14,16 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, isUploadFailure, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { notify, rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorMessage, trpcErrorReason, turnMutationToast, viewerTimeZone } from "#lib";
+import {
+  notify,
+  rethrowUnlessTrpcFailure,
+  trpcErrorCode,
+  trpcErrorMessage,
+  trpcErrorReason,
+  turnMutationToast,
+  uploadRefusalClause,
+  viewerTimeZone,
+} from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
 import { providerFailureReason } from "../lib/provider-failure-reason.ts";
 import { clearReplyFailure, recordReplyFailure } from "../lib/reply-failure.ts";
@@ -85,7 +94,10 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     // The upload is a raw POST outside the send mutation, so its `errorToast` never sees a refusal: say it
     // here, with the server's own reason when it gave one, and rethrow so the draft and strip stay put.
     const attachmentAssetIds = await uploadAttachments(upload, attachments).catch((err: unknown) => {
-      notify.error({ title: SEND_FAILED_TITLE, ...(err instanceof UploadRefusedError ? { description: err.reason } : {}) });
+      notify.error({
+        title: SEND_FAILED_TITLE,
+        ...(err instanceof UploadRefusedError ? { description: err.reason === null ? err.sentence : `${uploadRefusalClause(err)}.` } : {}),
+      });
       throw err;
     });
     // Whether this send's own message landed: after that, a failure is the reply's, and the message is in the room.

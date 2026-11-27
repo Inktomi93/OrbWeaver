@@ -66,6 +66,7 @@ import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import { rethrowUnlessTrpcFailure } from "#lib";
 import { RECOVERY_RETRY_BACKOFF_MS } from "./recovery-retry.ts";
+import { roomFailureNotice } from "./room-failure-notice.ts";
 import type { RoomRegistry, RoomSubscriber, RoomTransport, SinceSeqSource } from "./room-registry-contract.ts";
 
 export type { RoomRegistry, RoomSubscriber, SinceSeqSource } from "./room-registry-contract.ts";
@@ -366,10 +367,11 @@ function createRoomRegistry(): RoomRegistry {
         announce(entry, true);
       }
     },
-    failed: (message, ref): void => {
+    failed: (code, message, ref): void => {
       const entry = rooms.get(roomKey(ref));
+      const notice = roomFailureNotice(code, message);
       for (const subscriber of entry?.subscribers ?? []) {
-        subscriber.onError?.(message);
+        subscriber.onError?.(notice);
       }
     },
     liveEpoch: (ref): number => liveEdgesByRoom.get(roomKey(ref)) ?? 0,

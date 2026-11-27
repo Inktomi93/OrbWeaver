@@ -18,7 +18,8 @@ import { useEffect, useRef, useState } from "react";
 import { QueryBoundary, useEmbedRefusalToastAfterUnmount, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
-import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, embedRefusalText } from "#lib";
+import type { ConnectionFieldRefusal, ConnectionRefusalTarget } from "#lib";
+import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, connectionFieldRefusalOf, embedRefusalOf, embedRefusalText } from "#lib";
 import type { ConnectionEditorFact } from "#state";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import {
@@ -75,6 +76,23 @@ export interface ConnectionEditorProps {
 }
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
+
+/** The refusal's copy when it belongs on the field `target` names, else `null`. */
+function refusalOn(refusal: ConnectionFieldRefusal | null, target: ConnectionRefusalTarget): string | null {
+  return refusal !== null && refusal.target === target ? refusal.copy : null;
+}
+
+/** A refusal no control here holds (the provider, the protocol, the saved key): the editor says it on one line above the tiers. */
+function UnplacedRefusalLine({ refusal }: { readonly refusal: ConnectionFieldRefusal | null }): ReactNode {
+  if (refusal === null || ["baseUrl", "label", "model"].includes(refusal.target)) {
+    return null;
+  }
+  return (
+    <Text data-slot="connection-editor-refusal" role="alert" tone="destructive" voice="gloss">
+      {refusal.copy}
+    </Text>
+  );
+}
 type ProviderDef = inferOutput<Trpc["connection"]["providersAvailable"]>[number]["provider"];
 
 export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
@@ -178,6 +196,8 @@ function AvailableConnectionEditorBody({
   // Counts refused writes: an uncontrolled field keyed on the saved value alone would keep the refused draft, because a
   // refusal leaves that value unchanged.
   const [refusedWrites, setRefusedWrites] = useState(0);
+  // The last write the server refused on a field the editor holds, said under that field; any other write clears it.
+  const [fieldRefusal, setFieldRefusal] = useState<ConnectionFieldRefusal | null>(null);
   const toastRefusalIfClosed = useEmbedRefusalToastAfterUnmount();
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed. The row the
@@ -204,8 +224,16 @@ function AvailableConnectionEditorBody({
       // an embedder refusal becomes `setEmbedRefusal` alert state (TopEmbedderNote and the fact note); any other failure toasts through `useUpdateConnection`'s errorToast (components/connection-role-mutations.ts, `unlessEmbedRefusal`). Ends if either surface goes.
       void saved
         .then(
-          (): void => setEmbedRefusal(null),
+          (): void => {
+            setEmbedRefusal(null);
+            setFieldRefusal(null);
+          },
           (error: unknown): void => {
+            const fieldRefused = connectionFieldRefusalOf(error);
+            setFieldRefusal(fieldRefused);
+            if (fieldRefused !== null) {
+              setRefusedWrites((count) => count + 1);
+            }
             const refusal = embedRefusalOf(error);
             setEmbedRefusal(refusal === null ? null : { refusal, path: factPath });
             if (refusal !== null) {
@@ -242,6 +270,7 @@ function AvailableConnectionEditorBody({
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}
         <TopEmbedderNote checking={checking} refused={embedRefusal} />
+        <UnplacedRefusalLine refusal={fieldRefusal} />
 
         <EditorTier defaultOpen={true} title={CONNECTION_EDITOR_TIER_TITLES.essential}>
           <Stack gap="row">
@@ -266,6 +295,7 @@ function AvailableConnectionEditorBody({
               <SavedTextField
                 busy={busy}
                 description="Your own server. Nothing is sent anywhere else."
+                error={refusalOn(fieldRefusal, "baseUrl")}
                 label="Server URL"
                 onCommit={(next): void => patch({ baseUrl: next })}
                 resetKey={refusedWrites}
@@ -276,6 +306,7 @@ function AvailableConnectionEditorBody({
             <ModelField
               busy={busy}
               connectionId={connectionId}
+              error={refusalOn(fieldRefusal, "model")}
               kind={inferredKindOf(connection.tasks)}
               listOwner={hostLabel(connection.baseUrl, providerLabel)}
               model={connection.model}
@@ -287,8 +318,10 @@ function AvailableConnectionEditorBody({
             <SavedTextField
               busy={busy}
               description="Auto-named from the provider and the model. Rename it if you keep several on one server."
+              error={refusalOn(fieldRefusal, "label")}
               label={CONNECTION_NAME_FIELD_NAME}
               onCommit={(next): void => patch({ label: next })}
+              resetKey={refusedWrites}
               value={connection.label}
             />
           </Stack>

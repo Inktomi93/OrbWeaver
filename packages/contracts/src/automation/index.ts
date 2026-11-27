@@ -1090,8 +1090,11 @@ export type AutomationRuleRefusalCode = (typeof AUTOMATION_RULE_REFUSAL_CODES)[n
 
 const RULE_REFUSAL_PREFIX = "automation_rule_";
 
+/** The wire reason a rule refusal carries: the prefix and one refusal code. */
+export type AutomationRuleReason = `${typeof RULE_REFUSAL_PREFIX}${AutomationRuleRefusalCode}`;
+
 /** The wire reason a rule refusal carries for `code`. */
-export function ruleRefusalReason(code: AutomationRuleRefusalCode): string {
+export function ruleRefusalReason(code: AutomationRuleRefusalCode): AutomationRuleReason {
   return `${RULE_REFUSAL_PREFIX}${code}`;
 }
 

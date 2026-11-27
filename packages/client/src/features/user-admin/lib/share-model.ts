@@ -3,6 +3,7 @@
 
 import type {
   AuthMode,
+  IpCertificateFailureCode,
   IpCertificateRefusal,
   IpCertificateState,
   RelayBinaryRefusal,
@@ -137,7 +138,7 @@ function isShareStartRefusal(reason: string): reason is ShareStartRefusal {
 /** The coded refusal off a `share.start` error, or null for any other failure (which the toast reports). */
 export function shareStartFailure(error: unknown): ShareStartFailure | null {
   const reason = trpcErrorReason(error);
-  if (!isShareStartRefusal(reason)) {
+  if (reason === null || !isShareStartRefusal(reason)) {
     return null;
   }
   return { code: reason, message: error instanceof Error ? error.message : "" };
@@ -237,6 +238,24 @@ export function shareStatusPollMs(status: Pick<ShareStatus, "relay" | "certifica
 /** A fresh offer: no address, and the ports it suggests, 8443 for https and 8080 for the port-80 check. */
 export const IP_CERTIFICATE_FORM_DEFAULTS: IpCertificateFormValues = { address: "", httpsPort: 8443, challengePort: 8080 };
 
+// Each failure names a different fix: the challenge port the authority could not reach, the authority's own answer, the
+// https port this server could not open, or a certificate that ran out after every renewal failed.
+/** What to change after a failed certificate, by the failure's code. */
+export function ipCertificateFailureGuidance(code: IpCertificateFailureCode): string {
+  switch (code) {
+    case "validation_failed":
+      return "Let's Encrypt could not reach this server on port 80. On your router, forward port 80 to the challenge port above, then try again.";
+    case "issuance_failed":
+      return "Let's Encrypt did not issue the certificate. Wait a few minutes, then try again.";
+    case "listener_failed":
+      return "This server could not open the https port. Pick a free port above, or stop whatever is using it, then try again.";
+    case "expired":
+      return "The certificate ran out because every renewal failed. Check the port forwarding below, then get a new one.";
+    default:
+      throw new Error("Unreachable IP certificate failure code", { cause: code satisfies never });
+  }
+}
+
 function isIpCertificateRefusal(reason: string): reason is IpCertificateRefusal {
   return (IP_CERTIFICATE_REFUSALS as readonly string[]).includes(reason);
 }
@@ -244,7 +263,7 @@ function isIpCertificateRefusal(reason: string): reason is IpCertificateRefusal 
 /** The coded refusal off an enable error, or null for any other failure (which the toast reports). */
 export function ipCertificateRefusal(error: unknown): IpCertificateRefusalView | null {
   const reason = trpcErrorReason(error);
-  if (!isIpCertificateRefusal(reason)) {
+  if (reason === null || !isIpCertificateRefusal(reason)) {
     return null;
   }
   return { code: reason, message: error instanceof Error ? error.message : "" };

@@ -57,6 +57,7 @@ import {
   notify,
   oversizeUploadMessage,
   rethrowUnlessTrpcFailure,
+  uploadRefusalClause,
 } from "#lib";
 import { useFileDrop } from "./use-file-drop.ts";
 
@@ -145,7 +146,7 @@ export function useAvatarUpload({ hueSeed, initials, size, avatarHash, commit }:
 
   // The upload's failure shows on the line while the host is on screen, and by toast once there is no place for the line.
   function reportUploadFailure(error: unknown): void {
-    const line = avatarUploadFailedLine(error instanceof UploadRefusedError ? error.reason : undefined);
+    const line = avatarUploadFailedLine(error instanceof UploadRefusedError ? uploadRefusalClause(error) : undefined);
     if (mounted.current) {
       setWorking(false);
       setFailure(line);

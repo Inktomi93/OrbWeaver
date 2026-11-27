@@ -28,6 +28,7 @@ export {
   WORKLOAD_RUN_ACCOUNT_REFUSAL,
   WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES,
   WORKLOAD_RUN_ACCOUNT_REFUSAL_SENTENCES,
+  WORKLOAD_UNFUNDED,
 } from "./admission.ts";
 export type { IndexSource, ScheduleCadence, WireWorkloadKind, WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 export {
