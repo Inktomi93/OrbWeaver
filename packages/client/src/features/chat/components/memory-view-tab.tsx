@@ -151,7 +151,7 @@ function MemoryViewBody({ chatId, isHost, participants }: MemoryViewTabProps): R
           />
         ))}
       </Stack>
-      <UnmatchedStrikes view={view} controls={controls} refusal={refusal} />
+      <UnmatchedStrikes view={view} nameOf={nameOf} controls={controls} refusal={refusal} />
       {view.recentWindowStartsAt === null ? null : <Text voice="gloss">{MEMORY_RECENT_WINDOW_NOTE}</Text>}
     </Stack>
   );
@@ -327,10 +327,12 @@ function RefusalLine({ kind }: { readonly kind: RefusalKind }): ReactElement {
 
 function UnmatchedStrikes({
   view,
+  nameOf,
   controls,
   refusal,
 }: {
   readonly view: MemoryView;
+  readonly nameOf: (id: CharacterId) => string;
   readonly controls: RowControls | null;
   readonly refusal: Refusal | null;
 }): ReactElement | null {
@@ -347,6 +349,7 @@ function UnmatchedStrikes({
               // A member's rows carry no id; the list order is the server's and stable between reads.
               key={strike.strikeId ?? `unmatched-${index}`}
               strike={strike}
+              nameOf={nameOf}
               controls={controls}
               refusal={strike.strikeId !== null && refusal?.at === strike.strikeId ? refusal.kind : null}
             />
@@ -359,19 +362,24 @@ function UnmatchedStrikes({
 
 function UnmatchedRow({
   strike,
+  nameOf,
   controls,
   refusal,
 }: {
   readonly strike: UnmatchedStrikeView;
+  readonly nameOf: (id: CharacterId) => string;
   readonly controls: RowControls | null;
   readonly refusal: RefusalKind | null;
 }): ReactElement {
   const scene = strike.topicAnchor ?? MEMORY_UNMATCHED_UNTITLED;
-  const { strikeId } = strike;
+  const { strikeId, scopedCharacterId } = strike;
+  // A strike stores no character for the shared bucket, so null reads as everyone, as a listed shared item does.
+  const remembers = scopedCharacterId === null ? MEMORY_EVERYONE_REMEMBERS : memoryScopedRemembersLabel(nameOf(scopedCharacterId));
   return (
-    <Card role="listitem" dashed={true}>
+    <Card role="listitem" dashed={true} data-memory-bucket={scopedCharacterId === null ? "shared" : "scoped"}>
       <Stack gap="field">
         <Text voice="label">{scene}</Text>
+        <Text voice="gloss">{remembers}</Text>
         {controls === null || strikeId === null ? null : (
           <Button
             self="start"
