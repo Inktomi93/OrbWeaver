@@ -25,6 +25,8 @@ import { freeLoopbackPort, GENERAL_NAME_IP_TAG, ipBytes, readCsr, startFakeAcme,
 const ADDRESS = "81.2.69.160";
 const TOKEN = "native_root_http01_token";
 const NOT_AFTER = FROZEN_AT_MS + 1000 * 160 * 3_600_000;
+// No case reads a seeded library, and each sign-in would seed one.
+const SHARE_ENV = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner", ["SEED_CONTENT"]: "off" } as const;
 
 interface AcmeSubject extends AsyncDisposable {
   readonly harness: ServerTestHarness;
@@ -43,7 +45,7 @@ async function setup(holdPath?: string, options: ServerHarnessOptions = {}): Pro
   const held = holdPath === undefined ? undefined : authority.hold(holdPath);
   const harness = owners.use(
     await createServerHarness({
-      env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
+      env: SHARE_ENV,
       bindHost: "0.0.0.0",
       allowPublicBind: true,
       share: { acme: { directoryUrl: authority.directoryUrl, polling: { attempts: 2, minMs: 1, maxMs: 2 } } },
@@ -69,7 +71,7 @@ function tlsConfig(port: number, certificate: string): Promise<TlsAnswer> {
   });
 }
 
-test("the real root obtains an IP certificate through native ACME, stores private bytes and serves verified TLS", async () => {
+test("the real root obtains an IP certificate through native ACME, stores private bytes and serves verified TLS", { tags: ["slow"] }, async () => {
   await using subject = await setup();
   const { harness, caller, authority, setting } = subject;
   await expect(caller.share.enableIpCertificate(setting)).resolves.toMatchObject({ certificate: { state: "obtaining" } });
@@ -305,7 +307,7 @@ test("a real TLS listener still closes and root storage releases when a supplied
   expect(timers.pending()).toBe(0);
 });
 
-test("shutdown preserves borrowed certificates for real restart; a corrupt stored key forces another native order", async () => {
+test("shutdown preserves borrowed certificates for real restart; a corrupt stored key forces another native order", { tags: ["slow"] }, async () => {
   using fresh = await freshDb();
   const db = fresh.db;
   await using resources = new AsyncDisposableStack();
@@ -323,7 +325,7 @@ test("shutdown preserves borrowed certificates for real restart; a corrupt store
     db,
     ownerId: first.harness.ownerId,
     secretsDir: first.harness.secretsDir,
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" },
+    env: SHARE_ENV,
     bindHost: "0.0.0.0",
     allowPublicBind: true,
     share: { acme: { directoryUrl: first.authority.directoryUrl, polling: { attempts: 2, minMs: 1, maxMs: 2 } } },
@@ -345,7 +347,7 @@ test("shutdown preserves borrowed certificates for real restart; a corrupt store
   expect(await readFile(path, "utf8")).not.toBe(certificate);
 });
 
-test("native renewals keep the serving certificate on failure, replace it on recovery and close TLS at expiry", async () => {
+test("native renewals keep the serving certificate on failure, replace it on recovery and close TLS at expiry", { tags: ["slow"] }, async () => {
   const clock = createFrozenClock();
   // biome-ignore lint/nursery/useDisposables: setup transfers this scheduler to the real server root, including its disposal method.
   const baseTimers = createControlledTimers(clock);

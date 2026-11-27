@@ -110,77 +110,119 @@ test("text-only native output stays byte-identical and creates no image asset, s
   expect(await inlineImageRows(fixture.h).links()).toEqual([]);
 });
 
+type ImageRoom = Awaited<ReturnType<typeof imageRoom>>;
+type ImageScript = Parameters<ImageRoom["openChat"]>[0];
+
+// The four tool cases share one root and one enabled guest, so the guest's process starts once; each case runs in its own chat.
+const toolTest = test.extend<{ toolRoom: ImageRoom }>({
+  toolRoom: [
+    async ({}, use): Promise<void> => {
+      await using room = await imageRoom([], true);
+      await use(room);
+    },
+    { scope: "file" },
+  ],
+});
+
+type ImageRows = ReturnType<typeof inlineImageRows>;
+interface ToolChat {
+  readonly turn: Awaited<ReturnType<ImageRoom["openChat"]>>["turn"];
+  readonly rows: ImageRows;
+  readonly generated: ImageRows["generated"];
+  readonly canon: ImageRoom["canon"];
+  readonly inputs: ImageRoom["inputs"];
+}
+
+/** One case's chat in the shared root: its stored rows, the generated assets it linked, its canon and the provider inputs it spent. */
+async function toolChat(room: ImageRoom, script: ImageScript): Promise<ToolChat> {
+  const chat = await room.openChat(script);
+  const rows = inlineImageRows({ ...room.h, chatId: chat.chatId });
+  const requestsBefore = (await room.inputs()).length;
+  return {
+    turn: chat.turn,
+    rows,
+    generated: async (): ReturnType<ImageRows["generated"]> => {
+      const linked = new Set((await rows.links()).map(({ assetId }) => assetId));
+      return (await rows.generated()).filter(({ id }) => linked.has(id));
+    },
+    canon: async (): ReturnType<ImageRoom["canon"]> => await room.h.caller.chat.listMessages({ chatId: chat.chatId }),
+    inputs: async (): ReturnType<ImageRoom["inputs"]> => (await room.inputs()).slice(requestsBefore),
+  };
+}
+
 for (const imageBeforeTool of [true, false]) {
-  test(`two native completion legs preserve imageBeforeTool=${String(imageBeforeTool)} at an equal prose boundary`, async () => {
-    const image = nativeImage();
-    await using fixture = await imageRoom(
-      [
+  toolTest(
+    `two native completion legs preserve imageBeforeTool=${String(imageBeforeTool)} at an equal prose boundary`,
+    { tags: ["slow"] },
+    async ({ toolRoom }) => {
+      const image = nativeImage();
+      const fixture = await toolChat(toolRoom, [
         [nativeText("Before."), ...(imageBeforeTool ? [image] : []), nativeTool()],
         [...(imageBeforeTool ? [] : [image]), nativeText("After.")],
         [nativeText("Explain.")],
-      ],
-      true,
-    );
-    const outcome = await fixture.turn();
-    expect(outcome.aborted).toBe(false);
-    const stored = (await inlineImageRows(fixture.h).generated())[0];
-    expect(await inlineImageRows(fixture.h).generated()).toHaveLength(1);
-    expect(outcome.messages[0]?.content).toBe(`Before.\n\n![Before.](asset:${stored?.id})\n\nAfter.`);
-    expect(outcome.messages[0]?.toolCalls).toMatchObject([{ name: IMAGE_TOOL, toolCallId: "same", result: "Moon", isError: false }]);
-    expect((await inlineImageRows(fixture.h).selected())?.contentSignatures).toMatchObject({
-      images: [{ assetId: stored?.id, thoughtSignature: IMAGE_SIGNATURE }],
-      tools: [{ toolCallId: "same", thoughtSignature: TOOL_SIGNATURE }],
-    });
-    expect(JSON.stringify(await fixture.canon())).not.toContain("private-native-");
-    expect((await fixture.turn()).aborted).toBe(false);
-    const inputs = await fixture.inputs();
-    expect(inputs).toHaveLength(3);
-    const parts = wireParts(inputs[2] ?? []);
-    expect(parts).toContainEqual({ text: imageBeforeTool ? "Before.\n\n" : "Before." });
-    expect(parts).toContainEqual({ text: imageBeforeTool ? "After." : "\n\nAfter." });
-    const orderParts = parts.map((part) =>
-      part !== null && typeof part === "object" && !Array.isArray(part) && typeof part["text"] === "string" ? { ...part, text: part["text"].trim() } : part,
-    );
-    expect(partKinds(orderParts)).toEqual(
-      imageBeforeTool ? ["Before.", "image", "call", "result", "After."] : ["Before.", "call", "result", "image", "After."],
-    );
-    expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
-    expect(parts).toContainEqual(
-      expect.objectContaining({ functionCall: expect.objectContaining({ id: "same", name: IMAGE_TOOL }), thoughtSignature: TOOL_SIGNATURE }),
-    );
-  });
+      ]);
+      const outcome = await fixture.turn();
+      expect(outcome.aborted).toBe(false);
+      const stored = (await fixture.generated())[0];
+      expect(await fixture.generated()).toHaveLength(1);
+      expect(outcome.messages[0]?.content).toBe(`Before.\n\n![Before.](asset:${stored?.id})\n\nAfter.`);
+      expect(outcome.messages[0]?.toolCalls).toMatchObject([{ name: IMAGE_TOOL, toolCallId: "same", result: "Moon", isError: false }]);
+      expect((await fixture.rows.selected())?.contentSignatures).toMatchObject({
+        images: [{ assetId: stored?.id, thoughtSignature: IMAGE_SIGNATURE }],
+        tools: [{ toolCallId: "same", thoughtSignature: TOOL_SIGNATURE }],
+      });
+      expect(JSON.stringify(await fixture.canon())).not.toContain("private-native-");
+      expect((await fixture.turn()).aborted).toBe(false);
+      const inputs = await fixture.inputs();
+      expect(inputs).toHaveLength(3);
+      const parts = wireParts(inputs[2] ?? []);
+      expect(parts).toContainEqual({ text: imageBeforeTool ? "Before.\n\n" : "Before." });
+      expect(parts).toContainEqual({ text: imageBeforeTool ? "After." : "\n\nAfter." });
+      const orderParts = parts.map((part) =>
+        part !== null && typeof part === "object" && !Array.isArray(part) && typeof part["text"] === "string" ? { ...part, text: part["text"].trim() } : part,
+      );
+      expect(partKinds(orderParts)).toEqual(
+        imageBeforeTool ? ["Before.", "image", "call", "result", "After."] : ["Before.", "call", "result", "image", "After."],
+      );
+      expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
+      expect(parts).toContainEqual(
+        expect.objectContaining({ functionCall: expect.objectContaining({ id: "same", name: IMAGE_TOOL }), thoughtSignature: TOOL_SIGNATURE }),
+      );
+    },
+  );
 
-  test(`one native completion preserves imageBeforeTool=${String(imageBeforeTool)} through conversion, in-turn tools, commit and replay`, async () => {
-    const image = nativeImage();
-    const tool = nativeTool();
-    await using fixture = await imageRoom(
-      [
+  toolTest(
+    `one native completion preserves imageBeforeTool=${String(imageBeforeTool)} through conversion, in-turn tools, commit and replay`,
+    { tags: ["slow"] },
+    async ({ toolRoom }) => {
+      const image = nativeImage();
+      const tool = nativeTool();
+      const fixture = await toolChat(toolRoom, [
         [nativeText("Before.", BEFORE_SIGNATURE), ...(imageBeforeTool ? [image, tool] : [tool, image]), nativeText("After.", AFTER_SIGNATURE)],
         [nativeText("Done.")],
         [nativeText("Explain.")],
-      ],
-      true,
-    );
-    const outcome = await fixture.turn();
-    expect(outcome.aborted).toBe(false);
-    const stored = (await inlineImageRows(fixture.h).generated())[0];
-    expect(await inlineImageRows(fixture.h).generated()).toHaveLength(1);
-    expect(outcome.messages[0]?.content).toBe(`Before.\n\n![Before.](asset:${stored?.id})\n\nAfter.Done.`);
-    expect(outcome.messages[0]?.toolCalls).toMatchObject([{ name: IMAGE_TOOL, toolCallId: "same", result: "Moon", isError: false }]);
-    const inTurn = (await fixture.inputs())[1] ?? [];
-    expect(partKinds(wireParts(inTurn, "model"))).toEqual(imageBeforeTool ? ["Before.", "image", "call", "After."] : ["Before.", "call", "image", "After."]);
-    expect(JSON.stringify(await fixture.canon())).not.toContain("private-native-");
-    expect((await fixture.turn()).aborted).toBe(false);
-    const inputs = await fixture.inputs();
-    expect(inputs).toHaveLength(3);
-    const parts = wireParts(inputs[2] ?? [], "model");
-    expect(partKinds(parts)).toEqual(imageBeforeTool ? ["Before.", "image", "call", "After.", "Done."] : ["Before.", "call", "image", "After.", "Done."]);
-    expect(parts).toContainEqual({ text: "Before.", thoughtSignature: BEFORE_SIGNATURE });
-    expect(parts).toContainEqual({ text: "After.", thoughtSignature: AFTER_SIGNATURE });
-    expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
-    expect(parts).toContainEqual(
-      expect.objectContaining({ functionCall: expect.objectContaining({ id: "same", name: IMAGE_TOOL }), thoughtSignature: TOOL_SIGNATURE }),
-    );
-    expect(JSON.stringify(await inlineImageRows(fixture.h).events())).not.toContain("private-native-");
-  });
+      ]);
+      const outcome = await fixture.turn();
+      expect(outcome.aborted).toBe(false);
+      const stored = (await fixture.generated())[0];
+      expect(await fixture.generated()).toHaveLength(1);
+      expect(outcome.messages[0]?.content).toBe(`Before.\n\n![Before.](asset:${stored?.id})\n\nAfter.Done.`);
+      expect(outcome.messages[0]?.toolCalls).toMatchObject([{ name: IMAGE_TOOL, toolCallId: "same", result: "Moon", isError: false }]);
+      const inTurn = (await fixture.inputs())[1] ?? [];
+      expect(partKinds(wireParts(inTurn, "model"))).toEqual(imageBeforeTool ? ["Before.", "image", "call", "After."] : ["Before.", "call", "image", "After."]);
+      expect(JSON.stringify(await fixture.canon())).not.toContain("private-native-");
+      expect((await fixture.turn()).aborted).toBe(false);
+      const inputs = await fixture.inputs();
+      expect(inputs).toHaveLength(3);
+      const parts = wireParts(inputs[2] ?? [], "model");
+      expect(partKinds(parts)).toEqual(imageBeforeTool ? ["Before.", "image", "call", "After.", "Done."] : ["Before.", "call", "image", "After.", "Done."]);
+      expect(parts).toContainEqual({ text: "Before.", thoughtSignature: BEFORE_SIGNATURE });
+      expect(parts).toContainEqual({ text: "After.", thoughtSignature: AFTER_SIGNATURE });
+      expect(parts).toContainEqual(expect.objectContaining({ inlineData: expect.any(Object), thoughtSignature: IMAGE_SIGNATURE }));
+      expect(parts).toContainEqual(
+        expect.objectContaining({ functionCall: expect.objectContaining({ id: "same", name: IMAGE_TOOL }), thoughtSignature: TOOL_SIGNATURE }),
+      );
+      expect(JSON.stringify(await fixture.rows.events())).not.toContain("private-native-");
+    },
+  );
 }

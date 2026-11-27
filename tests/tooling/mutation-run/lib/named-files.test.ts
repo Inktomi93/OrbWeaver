@@ -45,6 +45,18 @@ test.for([
   expect(() => planMutationRun([DICE, path], scratch)).toThrow(reason);
 });
 
+test.for([
+  ["tests/kit/dice/**/*.ct.tsx", "playwright-ct"],
+  ["tests/e2e/dice.spec.ts", "playwright-e2e"],
+  ["tests/kit/dice/shape.test-d.ts", "vitest-typecheck"],
+] as const)("--tests %s is refused, because only Vitest runs inside the sandbox", ([spec, runtime], { scratch }) => {
+  plantSource(scratch);
+  // The accepted Vitest entries beside it are the control: the same call passes without the spec.
+  const vitestTests = ["tests/kit/dice/a.test.ts", "tests/kit/dice/b.int.test.ts"];
+  expect(planMutationRun([DICE, "--tests", ...vitestTests], scratch).tests).toEqual(vitestTests);
+  expect(() => planMutationRun([DICE, "--tests", ...vitestTests, spec], scratch)).toThrow(new RegExp(`${runtime}.*Vitest suites only`, "u"));
+});
+
 test("no files, or a bare --tests, is misuse and never Stryker's default of every source file", ({ scratch }) => {
   plantSource(scratch);
   expect(() => planMutationRun([], scratch)).toThrow(UsageError);
