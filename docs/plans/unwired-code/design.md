@@ -84,7 +84,7 @@ A tuple a lib key selection names is a key list: `Pick<T, K>`, `Omit<T, K>`, `Ex
 
 ## Key resolver
 
-A key resolver in `tooling/src/unwired/` is not yet built (3812). It will be the one place that maps a property read or a string key to the members it names. Every scan that asks "which member does this key reach" calls it, and none keeps its own name match.
+`tooling/src/unwired/key-resolver.ts` is the one place that maps a property read or a string key to the members it names. Every scan that asks "which member does this key reach" calls it, and none keeps its own name match.
 
 It tries these steps in order, and a later step sees only what earlier steps left:
 
