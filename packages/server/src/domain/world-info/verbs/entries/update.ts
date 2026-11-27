@@ -49,7 +49,7 @@ export function createUpdateEntry(ctx: WorldInfoContext): WorldInfoService["upda
           .set({ ...edits, updatedAt: at })
           .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
           .returning(),
-        [stampEntriesChanged(ctx.db, current.worldBookId, at)],
+        [stampEntriesChanged(ctx.db, current.worldBookId, at, entryId)],
       ),
     );
     const updated = rows[0];

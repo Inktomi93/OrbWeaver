@@ -1,10 +1,10 @@
 // verb: removeEntry — delete an entry, owner-scoped via the owned-book `inArray` subquery (never a bare
-// `eq(id)`). DELETE … WHERE id=? AND worldBookId IN (caller's books) RETURNING folds the gate +
-// the deletion into one round-trip; an empty result = not owned / not found → typed NotFound.
+// `eq(id)`). The owned entry is read first, for its book: the surviving entries cannot say a removal happened, so the
+// book's `entries_changed_at` is stamped in the same batch, BEFORE the delete, and only while the entry still exists.
+// That stamp's `rowsAffected` is the verdict: 0 = not owned / already gone → typed NotFound, with no stamp left behind.
 //
 // A removed entry leaves the WI pool of every chat the book is attached to — fan out `wiEntryDetached`
-// over `listChatIdsForBook`, read off the deleted row's `worldBookId` (the RETURNING clause below), so the
-// fan-out target is known WITHOUT a pre-delete read. Empty fan-out (book attached to zero chats) is correct.
+// over `listChatIdsForBook` for the book read before the delete. Empty fan-out (book attached to zero chats) is correct.
 
 import { worldBooks, worldEntries } from "@orb/db";
 import { batchLed } from "@orb/db/query";
@@ -23,18 +23,12 @@ export function createRemoveEntry(ctx: WorldInfoContext): WorldInfoService["remo
       throw new WorldInfoNotFoundError("world_entry", entryId);
     }
     const at = ctx.now();
-    // The stamp rides the delete's batch: the surviving entries cannot say a removal happened, so the book does.
-    const [deleted] = await ctx.db.batch(
-      batchLed(
-        ctx.db
-          .delete(worldEntries)
-          .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
-          .returning({ id: worldEntries.id, worldBookId: worldEntries.worldBookId }),
-        [stampEntriesChanged(ctx.db, current.worldBookId, at)],
-      ),
+    const [stamped] = await ctx.db.batch(
+      batchLed(stampEntriesChanged(ctx.db, current.worldBookId, at, entryId), [
+        ctx.db.delete(worldEntries).where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks))),
+      ]),
     );
-    const removed = deleted[0];
-    if (removed === undefined) {
+    if (stamped.rowsAffected === 0) {
       throw new WorldInfoNotFoundError("world_entry", entryId);
     }
 
@@ -48,13 +42,13 @@ export function createRemoveEntry(ctx: WorldInfoContext): WorldInfoService["remo
       ctx.now(),
     );
 
-    const chatIds = await listChatIdsForBook(ctx.db, removed.worldBookId);
+    const chatIds = await listChatIdsForBook(ctx.db, current.worldBookId);
     for (const chatId of chatIds) {
       await ctx.emitWiEvent({ type: "wiEntryDetached", chatId, surface: "chat", entryId });
     }
-    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: removed.worldBookId });
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: current.worldBookId });
     // The ROOM plane (entity→room bridge §3.6). Safe on a DELETE here — unlike a book delete — because the
     // BOOK survives an entry removal, so the reach junctions are all intact when the engine resolves.
-    ctx.emit({ type: "world-info.updated", bookId: removed.worldBookId });
+    ctx.emit({ type: "world-info.updated", bookId: current.worldBookId });
   };
 }

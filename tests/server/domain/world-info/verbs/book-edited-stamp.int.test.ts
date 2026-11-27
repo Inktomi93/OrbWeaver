@@ -1,7 +1,10 @@
-// The library row's updatedAt is the book's last change, derived at read time: the newer of the book row's own stamp
-// (a rename moves it) and its entries' newest stamp (writing or editing an entry moves it). The row stores nothing for it.
+// The library row's updatedAt is the book's last change: the newer of the book row's own stamp (a rename moves it) and its
+// entries_changed_at, which every entry write and removal stamps in the same batch as the write.
 // @subject packages/server/src/domain/world-info/verbs/books/update.ts
 // @subject packages/server/src/domain/world-info/verbs/entries/update.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/remove.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/reorder.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/upsert-entries.ts
 
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { WorldBookId } from "@orb/kit/ids";
@@ -81,4 +84,43 @@ test("a rename moves the book row's stamp past every entry's", async () => {
   root.clock.advance(MS_PER_HOUR);
   await root.services.worldInfo.updateBook({ principal, bookId: book.id, input: { name: "Ledger of docks" } });
   expect(await bookStamp(root, book.id)).toBeGreaterThan(entry.updatedAt);
+});
+
+test("reordering a book's entries moves the book row's stamp", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
+  const first = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Dock", content: "A dock." }),
+  });
+  const second = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Harbor", content: "A harbor." }),
+  });
+  const before = await bookStamp(root, book.id);
+
+  root.clock.advance(MS_PER_HOUR);
+  await root.services.worldInfo.applyEntryOrder({ principal, bookId: book.id, orderedEntryIds: [second.id, first.id] });
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(before);
+});
+
+test("a machine upsert, whether it inserts an entry or rewrites one, moves the book row's stamp", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
+  const upsert = (content: string): Promise<void> =>
+    root.services.worldInfo.upsertEntries({ principal, bookId: book.id, entries: [{ title: "auto/ledger", keys: ["ledger"], content }] });
+  const created = await bookStamp(root, book.id);
+
+  root.clock.advance(MS_PER_HOUR);
+  await upsert("First.");
+  const inserted = await bookStamp(root, book.id);
+  expect(inserted).toBeGreaterThan(created);
+
+  root.clock.advance(MS_PER_HOUR);
+  await upsert("Second.");
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(inserted);
 });
