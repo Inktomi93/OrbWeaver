@@ -12,10 +12,10 @@ import { EFFORT_LEVELS, parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
-import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
+import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
 import type { EndpointFetchArgs } from "../contract/catalog.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
-import type { FetchJsonArgs } from "../contract/http.ts";
+import type { FetchJsonArgs, FetchJsonResult } from "../contract/http.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 
 const rowSchema = z.looseObject({
@@ -535,41 +535,25 @@ function nativeReader(args: EndpointFetchArgs): NativeRead {
     });
 }
 
-interface ProbeAnswer {
-  readonly status: number;
-  readonly json: unknown;
-}
-
-/** A native request whose STATUS is the answer (a 501 refusal, a 400 naming the missing field), so a non-2xx
- *  is returned rather than thrown. Only a server that does not answer at all throws. */
-async function probeNative(args: EndpointFetchArgs, path: string, body: unknown): Promise<ProbeAnswer> {
+/** A native request whose STATUS is the answer (a 501 refusal, a 400 naming the missing field), so a non-2xx,
+ *  a redirect and a body that is not JSON are returned rather than thrown. Only a server that does not answer
+ *  at all throws. Every caller reads the status or a zod `safeParse` of `json`. */
+async function probeNative(args: EndpointFetchArgs, path: string, body: unknown): Promise<FetchJsonResult> {
   const deadline = deadlineSignal(args.signal, MODEL_PROBE_TIMEOUT_MS, args.scheduleTimeout);
   try {
-    return await probeNativeWithin(args, path, body, deadline.signal);
+    return await fetchJson({
+      fetch: args.fetch,
+      url: `${serverRootOf(args.baseUrl)}${path}`,
+      method: "POST",
+      headers: authHeaders(args.secret, args.headers),
+      body,
+      secrets: args.secrets,
+      signal: deadline.signal,
+      label: `${args.modelInfoApi ?? "endpoint"} ${path}`,
+      answerAnyStatus: true,
+    });
   } finally {
     deadline.dispose();
-  }
-}
-
-async function probeNativeWithin(args: EndpointFetchArgs, path: string, body: unknown, signal: AbortSignal): Promise<ProbeAnswer> {
-  const res = await args.fetch(`${serverRootOf(args.baseUrl)}${path}`, {
-    method: "POST",
-    headers: { ...authHeaders(args.secret, args.headers), "content-type": "application/json" },
-    body: JSON.stringify(body),
-    // Host pin (#25): a redirect would replay the headers and the body to another origin, so it is no answer.
-    redirect: "manual",
-    signal,
-  });
-  if (isRedirect(res)) {
-    return { status: res.status, json: null };
-  }
-  const text = await res.text();
-  // only JSON.parse of the text above can throw; a non-JSON answer is `{ status, json: null }` and every caller (`llamaCppKind`, `measuredWidth`, `ollamaPrefill`, `llamaCppPrefill`, `llamaCppEmbedLimit`)
-  // reads the status or a zod `safeParse` of `json`. Ends if a probed route can answer a fact in a non-JSON body.
-  try {
-    return { status: res.status, json: JSON.parse(text) };
-  } catch {
-    return { status: res.status, json: null };
   }
 }
 
@@ -985,7 +969,7 @@ function llamaCppRowInput(listed: readonly string[] | undefined, server: LlamaCp
   return modalities.length > 0 ? modalities : server.input;
 }
 
-function refusalMessage(answer: ProbeAnswer): string {
+function refusalMessage(answer: FetchJsonResult): string {
   const parsed = llamaCppErrorSchema.safeParse(answer.json);
   return parsed.success ? parsed.data.error.message : "";
 }

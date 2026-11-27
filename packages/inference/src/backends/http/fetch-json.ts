@@ -17,6 +17,9 @@
 //   • SCRUB BEFORE YOU MANGLE. `sanitizeApiError` mutates (tag strip, control strip, whitespace
 //     collapse, hard cap), each of which can bite a known literal in half, so the by-value belt reads
 //     INTACT text and the cap applies to already-scrubbed bytes.
+//
+// `answerAnyStatus` is for a probe whose status is the answer: the host pin holds (a redirect is never followed), but a
+// redirect, a non-2xx and a non-JSON body return as `{ status, json }`, so no upstream prose reaches a message.
 
 import { parseJsonText } from "@orb/kit/json";
 import type { ProviderScrubSet } from "#contract";
@@ -128,12 +131,18 @@ export async function fetchJson(args: FetchJsonArgs): Promise<FetchJsonResult> {
       throw transportError(args, cause);
     });
   if (isRedirect(res)) {
+    if (args.answerAnyStatus === true) {
+      return { status: res.status, json: null };
+    }
     throw new ProviderError({
       kind: "invalid",
       retryable: false,
       message: `${args.label}: the endpoint answered ${res.status} with a redirect, which is never followed (host pin)`,
       apiErrorStatus: res.status,
     });
+  }
+  if (args.answerAnyStatus === true) {
+    return { status: res.status, json: parseJsonText(await res.text()) ?? null };
   }
   if (!res.ok) {
     const { text, body } = await safeErrorBody(res, args.secrets);
@@ -147,7 +156,7 @@ export async function fetchJson(args: FetchJsonArgs): Promise<FetchJsonResult> {
     });
   }
   const text = await res.text();
-  return { status: res.status, headers: res.headers, json: parseJson(args, res.status, text) };
+  return { status: res.status, json: parseJson(args, res.status, text) };
 }
 
 /** The bearer + extra headers a connection's request carries; `null` secret ⇒ no Authorization header. */

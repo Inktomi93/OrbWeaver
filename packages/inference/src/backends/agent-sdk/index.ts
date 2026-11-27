@@ -3,6 +3,7 @@
 // The SDK is this backend's PRIVATE dep — it never leaks upward (D8). Registration of the wire is "the bundled
 // `claude` executable resolves" (`deps.env.claudeExecutable`), decided by the registry, not here.
 
+import type { SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import { providerIdSchema } from "@orb/contracts/inference";
@@ -36,7 +37,7 @@ import { SessionCache } from "./session/index.ts";
 const CLAUDE_TOOL = "claude";
 const CLAUDE_SUB_PROVIDER_ID = providerIdSchema.parse("claude-sub");
 
-function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
+function isSessionStore(value: unknown): value is SessionStore {
   return value !== null && typeof value === "object" && "append" in value && "load" in value;
 }
 
@@ -66,8 +67,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     now: deps.now,
     log: deps.log,
     execution,
-    sessionStore: sessions.store,
-    ...(deps.agentSdk.sessionWriter !== undefined ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
     normalizeImageBytes,
     scheduleTimeout: deps.scheduleTimeout,
     scheduleIdleTimeout: deps.scheduleIdleTimeout,
