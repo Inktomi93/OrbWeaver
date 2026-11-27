@@ -370,6 +370,16 @@ function containerTypeParameters(member: Node): readonly string[] {
   return isTypeAliasDeclaration(at) ? typeParametersOf(at) : [];
 }
 
+const SYMBOL_MEMBER_PREFIX = "__@";
+
+/** The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id. The API reports
+ *  that name but `getPropertyOfType` finds no member by it, so a lookup lists the members and matches the name
+ *  ({@link isSymbolMemberName}). */
+export const symbolMemberName = (symbol: NativeSymbol): string => `${SYMBOL_MEMBER_PREFIX}${symbol.name}@${String(symbol.id)}`;
+
+/** Whether a member name is the checker's spelling of a unique symbol key, as {@link symbolMemberName} builds it. */
+export const isSymbolMemberName = (name: string): boolean => name.startsWith(SYMBOL_MEMBER_PREFIX);
+
 /** A literal key's text: an identifier, a string or numeric literal, or a computed key holding a string. */
 export function keyText(name: Node | undefined): string | undefined {
   if (name === undefined) {

@@ -36,7 +36,7 @@ import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { FORM_NAME } from "./library-names.ts";
 import { tracing } from "./options.ts";
-import { answer, constituentsOf } from "./resolve.ts";
+import { answer, constituentsOf, symbolMemberName } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
@@ -70,8 +70,6 @@ const byRole = <T extends { readonly roles: readonly Role[] }>(asks: readonly T[
 // A key typed as a symbol (`built[Symbol.asyncDispose]`) names the one member declared under that symbol, never every
 // member of the table.
 const symbolKey = (type: Type | undefined): boolean => type !== undefined && hasFlag(type.flags, TypeFlags.ESSymbolLike);
-// The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id.
-const symbolMemberName = (symbol: NativeSymbol): string => `__@${symbol.name}@${String(symbol.id)}`;
 
 export class Keys {
   readonly #state: GraphState;

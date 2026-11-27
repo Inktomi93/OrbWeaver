@@ -252,7 +252,7 @@ const CENSUS_LIMITS: readonly string[] = [
   "A site is a reference only where find-references links it to the member: a string key under a keyof constraint (Pick, Omit), a computed key and a name read from data are no reference, so no shape of theirs is listed. The literal stage and the delete trial see those.",
   "The census asks the merged program. A member only a program apart declares is unresolved, and a reference only such a program holds is not asked.",
   "An elsewhere site has a role for its member in the same statement at a node no reference names (a destructuring pattern, a call that stores a whole value): the role is not proven to be this reference's.",
-  "A late-bound member is answered by the checker's per-file references, which leave out a read through the constant that keys it.",
+  "A late-bound member is answered by the checker's per-file references, which leave out a use through the constant that keys it: the graph places a computed key's read, write and destructuring from the key's type, but no census row checks those sites.",
 ];
 
 // Why the merged program holds no name for a member: no source file of that path, no node of the key's kind at its

@@ -6,6 +6,10 @@
 //   references and instantiations to `(typeof T)[number]`. A type never names a tuple by itself: TS7 keeps no alias for
 //   that idiom, and a union holding a tuple's members may be a re-spelling or a coincidence. A slot no declaration
 //   traces names no tuple.
+// - An unannotated `const` that copies a name or a member access is read through to what it copies, so a switch on
+//   `const code = warning.code` takes `warning.code`'s vocabulary. A `let` may be rebound and reads nothing.
+// - A lib type (`Map`, `Array`, `Exclude`) is one the default library declares; a package's augmentation of it
+//   (ts-reset's `Map`) keeps it a lib type, and a declaration of the tree's own makes it none.
 // - A declaration is read only in a product file. A library's parameter is read off its declared type with its type
 //   parameters bound to the nodes that instantiate them: the call's explicit type arguments, the declared type of the
 //   argument a parameter is inferred from, and a method receiver's declared type arguments.
@@ -139,10 +143,12 @@ import {
   isTypeReferenceNode,
   isUnionTypeNode,
   isVariableDeclaration,
+  isVariableDeclarationList,
   isVariableStatement,
+  NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeParameter, TypeReference } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Signature, Type, TypeParameter, TypeReference } from "@typescript/native/sync";
 import { all, SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import type { Site } from "../classify.ts";
 import type { NativeWorld } from "../native.ts";
@@ -900,10 +906,15 @@ function* ownBinding(world: NativeWorld, own: OwnParameter, declaration: TypePar
   if (inferred !== null) {
     return { spellings: inferred, index };
   }
+  const spellings = yield* constraintSpellings(world, declaration);
+  return spellings === null && index === null ? undefined : { spellings: spellings ?? [], index };
+}
+
+// A type parameter's constraint as its spelling, when the constraint names exactly one tuple; null otherwise.
+function* constraintSpellings(world: NativeWorld, declaration: TypeParameterDeclaration): APIRequestGenerator<readonly Spelling[] | null> {
   const { constraint } = declaration;
   const named = constraint === undefined ? null : yield* originsOf(world, [unbound(constraint)]);
-  const spellings = constraint !== undefined && named !== null && named.tuples.size === 1 ? [unbound(constraint)] : null;
-  return spellings === null && index === null ? undefined : { spellings: spellings ?? [], index };
+  return constraint !== undefined && named !== null && named.tuples.size === 1 ? [unbound(constraint)] : null;
 }
 
 // The property names the declared type of an argument spells: a variable typed `"theme"` or `Key` selects those
@@ -1506,8 +1517,11 @@ function* receivingSpellings(world: NativeWorld, start: Node, path: readonly str
   return step.done;
 }
 
+// How many unannotated `const` hops an operand is read through to the value it copies.
+const CONST_HOP_DEPTH = 4;
+
 // The annotations of the declaration an operand reads: a name, or a member access.
-function* operandSpellings(world: NativeWorld, operand: Node): APIRequestGenerator<Declared> {
+function* operandSpellings(world: NativeWorld, operand: Node, hops = 0): APIRequestGenerator<Declared> {
   let node = operand;
   while (isParenthesizedExpression(node) || isNonNullExpression(node)) {
     node = node.expression;
@@ -1527,7 +1541,7 @@ function* operandSpellings(world: NativeWorld, operand: Node): APIRequestGenerat
   const bindings = isPropertyAccessExpression(node) ? yield* receiverInstanceBindings(world, node.expression) : NO_BINDINGS;
   const spelled: Spelling[] = [];
   for (const site of sites) {
-    const spellings = yield* declarationSpellings(world, declarationAt(world, site), bindings);
+    const spellings = yield* declarationSpellings(world, declarationAt(world, site), bindings, hops);
     if (spellings === null) {
       return null;
     }
@@ -1548,13 +1562,29 @@ function* libraryMemberSpellings(world: NativeWorld, access: PropertyAccessExpre
   return yield* typeSpellings(world, yield* world.checker.getTypeOfSymbol.gen(property), bound, NO_POSITIONS);
 }
 
-// What one declaration of an operand spells: its annotation, or a destructured name's property declaration.
-function* declarationSpellings(world: NativeWorld, declaration: Node | null, bindings: Bindings): APIRequestGenerator<Declared> {
+// What one declaration of an operand spells: its annotation, a destructured name's property declaration, or what an
+// unannotated `const` copies (`const code = warning.code`), which holds that value's type and so its vocabulary.
+function* declarationSpellings(world: NativeWorld, declaration: Node | null, bindings: Bindings, hops: number): APIRequestGenerator<Declared> {
   const type = annotationOf(declaration);
   if (type !== undefined) {
     return [{ node: type, bindings }];
   }
-  return declaration !== null && isBindingElement(declaration) ? yield* destructuredSpellings(world, declaration) : null;
+  if (declaration !== null && isBindingElement(declaration)) {
+    return yield* destructuredSpellings(world, declaration);
+  }
+  const copied = declaration !== null && hops < CONST_HOP_DEPTH ? constCopy(declaration) : undefined;
+  return copied === undefined ? null : yield* operandSpellings(world, copied, hops + 1);
+}
+
+// The name or member access an unannotated `const` is initialized with; a `let` may be rebound, and any other
+// initializer computes a value of its own.
+function constCopy(declaration: Node): Expression | undefined {
+  if (!(isVariableDeclaration(declaration) && declaration.type === undefined && isVariableDeclarationList(declaration.parent))) {
+    return undefined;
+  }
+  const value = declaration.initializer;
+  const copied = value !== undefined && hasFlag(declaration.parent.flags, NodeFlags.Const) && (isIdentifier(value) || isPropertyAccessExpression(value));
+  return copied ? value : undefined;
 }
 
 // A name destructured from an annotated object (`function View({ initial }: Props)`): the declaration of the property it
@@ -1714,7 +1744,9 @@ function typeExpansion(site: Site, declaration: Node): Expansion | undefined {
 }
 
 // The bindings a reference to a generic declaration gives its type parameters: each type argument, else the
-// parameter's default, read under the reference's own bindings.
+// parameter's default, read under the reference's own bindings. A written argument of bare literals (`Header<"train">`)
+// spells no vocabulary, so the parameter's constraint spells it when that names exactly one tuple: the checker holds the
+// argument to it.
 function* typeArgumentBindings(
   world: NativeWorld,
   name: Identifier,
@@ -1730,7 +1762,11 @@ function* typeArgumentBindings(
   for (const [at, parameter] of parameters.entries()) {
     const node = written?.[at] ?? parameter.defaultType;
     if (node !== undefined) {
-      bindings.set(siteKey(world.siteOf(parameter.name)), { spellings: [{ node, bindings: current }], index: yield* forwardedKeys(world, node, current) });
+      const checked = written?.[at] !== undefined && literalKeys(node) !== null ? ((yield* constraintSpellings(world, parameter)) ?? []) : [];
+      bindings.set(siteKey(world.siteOf(parameter.name)), {
+        spellings: [{ node, bindings: current }, ...checked],
+        index: yield* forwardedKeys(world, node, current),
+      });
     }
   }
   return bindings;
@@ -2515,12 +2551,24 @@ export const isKeyTypeName = (name: string): boolean => KEY_SELECTORS.has(name) 
 
 const isKeyof = (node: TypeNode | undefined): boolean => node !== undefined && isTypeOperatorNode(node) && node.operator === SyntaxKind.KeyOfKeyword;
 
-// A lib type reference: every declaration its name resolves to is the compiler's default library, so a type of the
-// same name declared anywhere in the tree, a test's or a tool's included, is no lib type.
+// A lib type reference: its name resolves to a default library declaration, and every other declaration of it is an
+// external package's, as ts-reset augments `Map` from node_modules. A type of the same name declared anywhere in the
+// tree, a test's or a tool's included, is no lib type.
 function* isLibReference(world: NativeWorld, name: Identifier): APIRequestGenerator<boolean> {
   const declarations = (yield* resolvedSymbol(world, name))?.declarations ?? [];
-  const library = yield* all(...declarations.map((handle) => world.isDefaultLibrary(handle)));
-  return library.length > 0 && library.every(Boolean);
+  const homes = yield* all(...declarations.map((handle) => libraryHome(world, handle)));
+  return homes.includes("default") && homes.every((home) => home !== "ours");
+}
+
+// Where a declaration comes from: the compiler's default library, an external package, or the tree's own source.
+const DECLARATION_HOMES = ["default", "package", "ours"] as const;
+type DeclarationHome = (typeof DECLARATION_HOMES)[number];
+
+function* libraryHome(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<DeclarationHome> {
+  if (yield* world.isDefaultLibrary(handle)) {
+    return "default";
+  }
+  return (yield* world.packageOf(handle)) === null ? "ours" : "package";
 }
 
 // The key set a key position spells, reduced to the type nodes that name its keys.

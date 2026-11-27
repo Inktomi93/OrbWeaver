@@ -18,7 +18,7 @@ import { isProduction } from "../worlds.ts";
 import type { GraphOptions } from "./options.ts";
 import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
-import { answer, constituentsOf, declKeyParts, EXHAUSTED, Resolver } from "./resolve.ts";
+import { answer, constituentsOf, declKeyParts, EXHAUSTED, isSymbolMemberName, Resolver, symbolMemberName } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
@@ -530,9 +530,12 @@ export class GraphState implements GraphFacts {
     return this.slotTypes(this.batch(nodes.map((node) => checker.getContextualType.gen(node))));
   }
 
-  /** The properties named `name` on a slot type: the whole type's, else each union arm's. */
+  /** The properties named `name` on a slot type: the whole type's, else each union arm's; a unique symbol key by listing. */
   *propsOnSlot(type: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
     const { checker } = this.world;
+    if (isSymbolMemberName(name)) {
+      return (yield* this.membersOf(type)).filter((member) => member.name === name);
+    }
     const whole = yield* checker.getPropertyOfType.gen(type, name);
     if (whole !== undefined || !type.isUnionType()) {
       return whole === undefined ? [] : [whole];
@@ -633,6 +636,16 @@ export function* literalValues(type: Type | undefined): APIRequestGenerator<read
     }
   }
   return out;
+}
+
+/** The member names a computed key (`[KEY]`, `[Symbol.dispose]`) can be, from the key's type: each literal it can be,
+ *  or the name of the member a unique symbol declares. A wide key names no one member. */
+export function* computedKeyNames(type: Type | undefined): APIRequestGenerator<readonly string[]> {
+  if (type !== undefined && hasFlag(type.flags, TypeFlags.UniqueESSymbol)) {
+    const symbol = yield* type.getSymbol.gen();
+    return symbol === undefined ? [] : [symbolMemberName(symbol)];
+  }
+  return (yield* literalValues(type)) ?? [];
 }
 
 const originKey = (type: Type, name: string): string => `${String(type.id)}:${name}`;

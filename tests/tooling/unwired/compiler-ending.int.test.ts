@@ -1,6 +1,7 @@
 // A compiler's memory high-water mark is gone once it exits, and one that starts, serves and closes inside a single
 // synchronous call falls in no timed sample. Every API closes through dispose, which announces its compiler processes on
 // COMPILER_ENDING_CHANNEL while they still run, and the profile reads each one's memory there.
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { once } from "node:events";
@@ -46,6 +47,48 @@ test("each way a compiler session closes announces its running compiler first", 
   expect(started).toHaveLength(3);
   expect(ending.map(({ config }) => config).toSorted()).toEqual(started.toSorted());
   expect(ending.map(({ running }) => running)).toEqual([true, true, true]);
+});
+
+// The world's constructor asks `declarations` which declaration files to keep, so a set that refuses the planted one
+// throws from inside the constructor, after its compiler started.
+class RefusingDeclarations extends Set<string> {
+  override has(file: string): boolean {
+    throw new Error(`refused ${file}`);
+  }
+}
+
+test("a world whose constructor throws closes its compiler session before the throw leaves open", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: LIB }),
+    "packages/a/src/one.ts": "export const one = 1;",
+    "packages/a/src/ambient.d.ts": "declare const ambient: number;",
+  });
+  const started: ChildProcess[] = [];
+  const ending: { readonly pid: number | undefined; readonly running: boolean }[] = [];
+  const onStart = (message: unknown): void => {
+    const start = compilerStartOf(message);
+    if (start !== undefined) {
+      started.push(start.process);
+    }
+  };
+  const onEnding = (message: unknown): void => {
+    const start = compilerStartOf(message);
+    if (start !== undefined) {
+      ending.push({ pid: start.process.pid, running: start.process.exitCode === null && start.process.signalCode === null });
+    }
+  };
+  subscribe(COMPILER_CHANNEL, onStart);
+  subscribe(COMPILER_ENDING_CHANNEL, onEnding);
+  try {
+    expect(() => NativeWorld.open(root, WORLD, new RefusingDeclarations())).toThrow("refused packages/a/src/ambient.d.ts");
+  } finally {
+    unsubscribe(COMPILER_CHANNEL, onStart);
+    unsubscribe(COMPILER_ENDING_CHANNEL, onEnding);
+  }
+  expect(started).toHaveLength(1);
+  expect(ending).toEqual([{ pid: started[0]?.pid, running: true }]);
+  // the session's dispose ends the compiler, so the process exits without anyone killing it
+  await Promise.all(started.map(async (child) => (child.exitCode === null && child.signalCode === null ? once(child, "exit") : undefined)));
 });
 
 // Linux alone reads another process's memory.
