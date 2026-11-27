@@ -34,6 +34,7 @@ import type {
 } from "@orb/contracts/chat";
 import { ADJUSTED_KNOB_NAMES } from "@orb/contracts/chat";
 import type { NotifyNotice } from "#lib";
+import { BUG_REPORT_NAME } from "#lib";
 import { regexNotAppliedDescription, regexNotAppliedTitle } from "./regex-stop-copy.ts";
 
 /** The user-visible notice for a chat `warning` — honest, plain-language copy voiced like the
@@ -206,13 +207,13 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       };
     case "model_downgraded":
       return {
-        description: "The provider billed a different model than the one this connection names. Check the connection's model and your plan's limits.",
+        description: "The provider answered with a different model than the one this connection names. Check the connection's model.",
         title: "A different model wrote this reply",
       };
     // Says that nothing ran, so the reader knows the reply is safe to keep, and names the one thing that helps.
     case "tool_permission_denied":
       return {
-        description: "The model asked to use a tool this chat never offered. It was blocked, so nothing ran. If this keeps happening, send a bug report.",
+        description: `The model asked to use a tool this chat never offered. It was blocked, so nothing ran. If this keeps happening, use ${BUG_REPORT_NAME}.`,
         title: "A tool request was blocked",
       };
     // The model DID draw something and we couldn't keep it. Says so plainly and offers the one thing that

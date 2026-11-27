@@ -2,6 +2,7 @@
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import {
+  BUG_REPORT_NAME,
   CHAT_NAME_FIELD_NAME,
   censusSuffix,
   chatRoomTitle,
@@ -35,7 +36,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { BUG_REPORT_NAME, COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
+import { COMMAND_CHIP_NAME_LEAD } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MEMBERS_ENTRY_PREFIX, CHAT_MEMORY_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";

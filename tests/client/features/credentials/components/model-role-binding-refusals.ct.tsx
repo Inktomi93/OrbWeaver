@@ -67,7 +67,9 @@ for (const reason of [...REFUSALS, UNCODED] as const) {
     await page.getByRole("option", { name: added.label, exact: true }).click();
 
     const said =
-      reason === UNCODED ? `Couldn't change ${role.label}. Try again.` : connectionBindingRefusalOf({ data: { code: "BAD_REQUEST", reason } }, role.label);
+      reason === UNCODED
+        ? `Couldn't change ${role.label}. Try again.`
+        : connectionBindingRefusalOf({ data: { code: "BAD_REQUEST", reason } }, role.label, added.label);
     if (said === null) {
       throw new Error(`${reason} is a binding refusal, so the role slot reads it`);
     }

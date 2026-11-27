@@ -98,6 +98,8 @@ function KeywordExplorerRead(): ReactElement | null {
   return (
     <Section kicker="Keywords" level={2}>
       <Stack data-testid={testId("corpusKeywordExplorer")} gap="block">
+        {/* Above the bars, as every other Corpus list carries it: under the chart it sat directly over the "Cooccurs with" picker and read as that picker's caption. */}
+        <CorpusComputedStamp rows={top} />
         <BarList
           // `quiet`: keyword frequency is REFERENCE data at the foot of the overview, and `accent` here is
           // literally `color.primary` — a full-height accent series is the surface's whole "look here"
@@ -123,7 +125,6 @@ function KeywordExplorerRead(): ReactElement | null {
             "uses",
           )}`}
         />
-        <CorpusComputedStamp rows={top} />
         <ParamSelect items={items} label={CORPUS_PARAM_NAMES.cooccursWith} onValueChange={setKeyword} value={keyword} />
         {keyword === NO_KEYWORD ? null : (
           <>

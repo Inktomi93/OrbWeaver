@@ -12,41 +12,51 @@ export type ConnectionRefusalTarget = (typeof CONNECTION_REFUSAL_TARGETS)[number
 
 export interface ConnectionFieldRefusal {
   readonly target: ConnectionRefusalTarget;
+  /** What is wrong, with no step to take: the editor restores the saved value, so it has nothing to ask the person to do. */
+  readonly reason: string;
+  /** The add form's line: the reason, then the step it can take. */
   readonly copy: string;
+}
+
+function fieldRefusal(target: ConnectionRefusalTarget, reason: string, step?: string): ConnectionFieldRefusal {
+  return { target, reason, copy: step === undefined ? `${reason}.` : `${reason}. ${step}` };
 }
 
 /** A refused connection create or update, or `null` for any other failure. */
 export function connectionFieldRefusalOf(error: unknown): ConnectionFieldRefusal | null {
   const reason = trpcErrorReason(error);
   if (reason === CONNECTION_OP_CODES.notFound) {
-    return { target: "connection", copy: "That connection is gone. Pick another one from Connections." };
+    return fieldRefusal("connection", "That connection is gone", "Pick another one from Connections");
   }
   if (reason === CONNECTION_OP_CODES.labelEmpty) {
-    return { target: "label", copy: "A connection needs a name. Type one." };
+    return fieldRefusal("label", "A connection needs a name", "Type one");
   }
   if (reason === CONNECTION_OP_CODES.providerUnknown) {
-    return { target: "provider", copy: "That provider isn't available. Pick another one." };
+    return fieldRefusal("provider", "That provider isn't available", "Pick another one");
   }
   if (reason === CONNECTION_OP_CODES.apiIncoherent) {
-    return { target: "api", copy: "This provider doesn't speak that protocol. Pick one from its list, or leave it on Auto." };
+    return fieldRefusal("api", "This provider doesn't speak that protocol", "Pick one from its list, or leave it on Auto");
   }
   if (reason === CONNECTION_OP_CODES.baseUrlShape) {
-    return { target: "baseUrl", copy: "The Server URL doesn't fit this provider. A hosted provider takes none, and your own server needs one." };
+    return fieldRefusal("baseUrl", "The Server URL doesn't fit this provider. A hosted provider takes none, and your own server needs one");
   }
   if (reason === CONNECTION_OP_CODES.modelNotInCatalog) {
-    return { target: "model", copy: "This provider doesn't run that model. Pick one from its list." };
+    return fieldRefusal("model", "This provider doesn't run that model", "Pick one from its list");
   }
   if (reason === CONNECTION_OP_CODES.modelIdShape) {
-    return { target: "model", copy: "This provider loads Hugging Face models by their owner/repo id, not a path or a link. Type that id." };
+    return fieldRefusal("model", "This provider loads Hugging Face models by their owner/repo id, not a path or a link", "Type that id");
   }
   if (reason === CONNECTION_OP_CODES.taskUnservable) {
-    return { target: "model", copy: "A connection needs a model. Pick one from the list or type its id." };
+    return fieldRefusal("model", "A connection needs a model", "Pick one from the list or type its id");
   }
   if (reason === CONNECTION_OP_CODES.credentialForeign) {
-    return { target: "credential", copy: "That saved key is no longer available. Pick another key, or paste a new one." };
+    return fieldRefusal("credential", "That saved key is no longer available", "Pick another key, or paste a new one");
   }
   return null;
 }
+
+/** What the editor calls each field it restores, in the sentence that says the saved value was kept. */
+const RESTORED_FIELD_NAMES = { label: "name", baseUrl: "Server URL", model: "model" } as const satisfies Partial<Record<ConnectionRefusalTarget, string>>;
 
 const EDITOR_PLACED_TARGETS = ["label", "baseUrl", "model"] as const satisfies readonly ConnectionRefusalTarget[];
 
@@ -55,14 +65,15 @@ export function editorPlacesRefusal(target: ConnectionRefusalTarget): boolean {
   return EDITOR_PLACED_TARGETS.some((placed) => placed === target);
 }
 
-/** What the editor says for a refusal. A refused field was dropped for the saved value, so its line quotes the draft and
- *  says the saved one is back; a target the editor has no control for gives the step the editor can take. */
+/** What the editor says for a refusal. A refused field was dropped for the saved value, so its line quotes the draft, gives
+ *  the reason and says the saved value was kept, never an instruction to type again; a target the editor has no control for
+ *  gives the step the editor can take. */
 export function connectionEditorRefusalLine(refusal: ConnectionFieldRefusal, draft: string | null): string {
   switch (refusal.target) {
     case "label":
     case "baseUrl":
     case "model":
-      return `${draft === null ? "" : `"${draft}" wasn't saved. `}${refusal.copy} The saved one is back.`;
+      return `${draft === null ? "" : `"${draft}" wasn't saved: `}${refusal.reason}. Kept the saved ${RESTORED_FIELD_NAMES[refusal.target]}.`;
     case "provider":
       return "That provider isn't available. To use a different one, add a new connection.";
     case "api":
@@ -77,14 +88,15 @@ export function connectionEditorRefusalLine(refusal: ConnectionFieldRefusal, dra
 }
 
 /** A refused role or plugin binding, said for the role it concerns (`subject`, such as "Chat"), or `null` for any other
- *  failure. */
-export function connectionBindingRefusalOf(error: unknown, subject: string): string | null {
+ *  failure. `picked` names the connection that was chosen, for a caller that knows it; the picker has rolled back to the
+ *  bound one, so "That connection" would point at nothing on screen. */
+export function connectionBindingRefusalOf(error: unknown, subject: string, picked?: string): string | null {
   const reason = trpcErrorReason(error);
   if (reason === CONNECTION_OP_CODES.notFound) {
     return `That connection is gone. Pick another for ${subject}.`;
   }
   if (reason === CONNECTION_OP_CODES.taskUnservable) {
-    return `That connection can't do ${subject}. Pick another one.`;
+    return `${picked ?? "That connection"} can't do ${subject}. Pick another one.`;
   }
   return reason === CONNECTION_OP_CODES.actorTaskUnrouted ? `This no longer uses ${subject}. Reload the page to see what it uses.` : null;
 }

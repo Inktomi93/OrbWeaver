@@ -1,5 +1,5 @@
-// A book's updatedAt is the stamp of the book row itself: a rename moves it, and creating, editing or removing an entry
-// does not. The library row labels it as the book's own details edit, so this is the behaviour that label rests on.
+// The library row's updatedAt is the book's last change, derived at read time: the newer of the book row's own stamp
+// (a rename moves it) and its entries' newest stamp (writing or editing an entry moves it). The row stores nothing for it.
 // @subject packages/server/src/domain/world-info/verbs/books/update.ts
 // @subject packages/server/src/domain/world-info/verbs/entries/update.ts
 
@@ -19,7 +19,7 @@ async function bookStamp(root: ServerTestHarness, bookId: WorldBookId): Promise<
   return book.updatedAt;
 }
 
-test("an entry written, edited and removed leaves the book's edit stamp where the book's own edit put it", async () => {
+test("an entry written or edited moves the book row's stamp to that entry's, and a rename still moves it", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
@@ -31,17 +31,16 @@ test("an entry written, edited and removed leaves the book's edit stamp where th
     bookId: book.id,
     input: createEntrySchema.parse({ title: "Harbor", content: "A harbor.", keys: ["harbor"] }),
   });
+  expect(entry.updatedAt).toBeGreaterThan(created);
+  expect(await bookStamp(root, book.id)).toBe(entry.updatedAt);
+
   root.clock.advance(MS_PER_HOUR);
   const edited = await root.services.worldInfo.updateEntry({ principal, entryId: entry.id, input: { content: "A loud harbor." } });
-  root.clock.advance(MS_PER_HOUR);
-  await root.services.worldInfo.removeEntry({ principal, entryId: entry.id });
-
-  // The entry's own stamp moved with each write, so the book stamp holding still is the verbs' contract, not a clock that stood still.
   expect(edited.updatedAt).toBeGreaterThan(entry.updatedAt);
-  expect(await bookStamp(root, book.id)).toBe(created);
+  expect(await bookStamp(root, book.id)).toBe(edited.updatedAt);
 
-  // Positive control: the book's own edit moves it.
+  // Positive control: the book's own edit, newer than every entry, moves it.
   root.clock.advance(MS_PER_HOUR);
   await root.services.worldInfo.updateBook({ principal, bookId: book.id, input: { name: "Ledger of harbors" } });
-  expect(await bookStamp(root, book.id)).toBeGreaterThan(created);
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(edited.updatedAt);
 });

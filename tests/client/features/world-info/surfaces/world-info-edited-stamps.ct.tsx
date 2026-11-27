@@ -1,12 +1,12 @@
 // @subject packages/client/src/features/world-info/components/world-info-collection-rows.tsx
 // @subject packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx
-// A book row in the library says when the book's own details were last edited, and each entry row inside a book says when that entry was.
+// A book row in the library says when the book or any entry in it last changed, and each entry row inside a book says when that entry was edited.
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { WORLD_INFO_BOOK_EDITED_LEAD, WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
+import { WORLD_INFO_GROUP_LABEL } from "#client/features/world-info/lib/world-info-names.ts";
 import { EDITED_STAMP_LEAD } from "#client/lib/stamp-copy.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
@@ -25,7 +25,7 @@ const MEMBER_PROCEDURES = [
 
 test.use({ viewport: { width: 1280, height: 900 }, isMobile: false, hasTouch: false });
 
-test("every book row on screen in the World Info library says when the book's own details were last edited", async ({ corpus, mount, page }) => {
+test("every book row on screen in the World Info library says when the book last changed", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const books = await caller.worldInfo.listBooksWithUsage();
@@ -38,15 +38,15 @@ test("every book row on screen in the World Info library says when the book's ow
     .first()
     .click();
   // The library is virtualized, so the rows in the DOM are the window of books on screen; the rendered window is non-empty and each
-  // row in it carries the stamp. The book's stamp is its own row's edit (an entry edit does not move it), so the lead names the details.
+  // row in it carries the stamp. The book row's stamp is the newer of its own edit and its entries', so it carries the shared edited lead.
   const rows = page.locator('[data-slot="list-row-root"]');
   await expect(rows.filter({ hasText: books[0]?.name ?? "" }).first()).toBeVisible();
   const rendered = await rows.count();
   expect(rendered).toBeGreaterThan(0);
-  await expect(rows.filter({ hasText: WORLD_INFO_BOOK_EDITED_LEAD })).toHaveCount(rendered);
+  await expect(rows.filter({ hasText: EDITED_STAMP_LEAD })).toHaveCount(rendered);
 });
 
-test("every entry row inside a book says when the entry was last edited", async ({ corpus, mount, page }) => {
+test("every entry row inside a book carries its own compact edit stamp in the meta column", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const bookId = corpus.worldInfoLibrary?.ids.libraryBookId;
@@ -59,5 +59,4 @@ test("every entry row inside a book says when the entry was last edited", async 
   const component = await mount<typeof WorldInfoMemberStory>(MEMBER_STORY, { bookId, context: false });
   const stamps = component.locator('[data-slot="list-row-meta"]');
   await expect(stamps).toHaveCount(entries.length);
-  await expect(stamps.filter({ hasText: EDITED_STAMP_LEAD })).toHaveCount(entries.length);
 });

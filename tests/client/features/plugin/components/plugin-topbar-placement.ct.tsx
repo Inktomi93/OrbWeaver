@@ -3,7 +3,7 @@
 // that keeps an unplaced command reachable.
 
 import { spawn } from "node:child_process";
-import { MESSAGE_TOOLS_LABEL, sectionBackName, TRAIL_OVERFLOW_LABEL, YOU_TAB_LABEL } from "@orb/client/lib";
+import { BUG_REPORT_NAME, MESSAGE_TOOLS_LABEL, sectionBackName, TRAIL_OVERFLOW_LABEL, YOU_TAB_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
@@ -13,7 +13,6 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { BUG_REPORT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";

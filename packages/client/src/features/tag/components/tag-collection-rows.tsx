@@ -28,7 +28,7 @@ import {
   NO_MATCHES_TITLE,
   pruneConfirmLabel,
   sortTagsBy,
-  tagUsageLabel,
+  tagRowScent,
   timeLib,
   unusedTagsLabel,
   usageBreakdown,
@@ -308,7 +308,7 @@ function TagCollectionRow({
       leading={<ColorSwatch aria-hidden={true} size="sm" value={tag.color} />}
       onSelect={onSelect}
       selected={selected}
-      subtitle={`${tagUsageLabel(tag)} · ${createdStamp(timeLib.formatRelative(tag.createdAt))}`}
+      subtitle={tagRowScent(tag, createdStamp(timeLib, tag.createdAt))}
       subtitleStep="label"
       title={tag.name}
     />

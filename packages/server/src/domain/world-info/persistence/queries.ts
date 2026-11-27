@@ -96,6 +96,16 @@ async function countByBook(db: Db, table: SQLiteTable, bookCol: SQLiteColumn, id
   return Object.fromEntries(rows.map((r): [string, number] => [String(r.bookId), r.n]));
 }
 
+/** The newest `updatedAt` among each book's entries, keyed by book id; a book with no entries is absent. Same owned-id scoping as {@link countByBook}. */
+async function newestEntryEditByBook(db: Db, ids: readonly WorldBookId[]): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ bookId: worldEntries.worldBookId, newest: sql<number>`max(${worldEntries.updatedAt})` })
+    .from(worldEntries)
+    .where(inArray(worldEntries.worldBookId, [...ids]))
+    .groupBy(worldEntries.worldBookId);
+  return Object.fromEntries(rows.map((r): [string, number] => [String(r.bookId), r.newest]));
+}
+
 /** Every owned book plus its entry count and its four-scope attachment rollup (the Configuration
  *  workspace's roster read). Owner-scoped through `listOwnedBooks`; the junction counts are then keyed to
  *  those ids only, so a foreign book can never contribute a count. */
@@ -107,8 +117,9 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
   const ids = owned.map((b) => b.id);
   // Named `*Counts` because the table symbols `characters`/`personas` are imported into this module (the
   // attachment-target join below) — a bare `characters` here would shadow one of them.
-  const [entries, characterCounts, personaCounts, chats, globals] = await Promise.all([
+  const [entries, newestEntryEdit, characterCounts, personaCounts, chats, globals] = await Promise.all([
     countByBook(db, worldEntries, worldEntries.worldBookId, ids),
+    newestEntryEditByBook(db, ids),
     countByBook(db, characterBooks, characterBooks.worldBookId, ids),
     countByBook(db, personaBooks, personaBooks.worldBookId, ids),
     countByBook(db, chatBooks, chatBooks.worldBookId, ids),
@@ -127,7 +138,8 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
       ...toBookView(row),
       entryCount: entries[row.id] ?? 0,
       usage: { ...usage, total: usage.characters + usage.personas + usage.chats + (global ? 1 : 0) },
-      updatedAt: row.updatedAt,
+      // The row's stamp is the book's last CHANGE: its own edit or any entry's, whichever is newer. `worldBooks.updatedAt` itself moves with the book's details only.
+      updatedAt: Math.max(row.updatedAt, newestEntryEdit[row.id] ?? row.updatedAt),
     };
   });
 }

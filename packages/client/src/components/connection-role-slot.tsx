@@ -250,6 +250,7 @@ export function ConnectionRoleSlot({
                     .catch(
                       rollBackOnRefusal({
                         role: row.label,
+                        picked: embedder,
                         setDraft,
                         setEmbedRefusal: (refusal) => setEmbedRefusal({ refusal, embedder }),
                         setBindingFailure,
@@ -323,11 +324,14 @@ function connectionItems({
  *  yet, and says the write failed. */
 function rollBackOnRefusal({
   role,
+  picked,
   setDraft,
   setEmbedRefusal,
   setBindingFailure,
 }: {
   readonly role: string;
+  /** The label of the connection that was picked, `undefined` when the row has none. */
+  readonly picked: string | undefined;
   readonly setDraft: (draft: undefined) => void;
   readonly setEmbedRefusal: (refusal: EmbedTargetRefusal) => void;
   readonly setBindingFailure: (sentence: string) => void;
@@ -339,7 +343,7 @@ function rollBackOnRefusal({
       setEmbedRefusal(refusal);
       return;
     }
-    const bindingRefusal = connectionBindingRefusalOf(error, role);
+    const bindingRefusal = connectionBindingRefusalOf(error, role, picked);
     if (bindingRefusal !== null) {
       setDraft(undefined);
     }

@@ -36,9 +36,18 @@ export const WORKLOAD_CANCEL_TITLE = "Cancel this job?";
 export const WORKLOAD_CANCEL_CONFIRM_NAME = "Cancel job";
 export const WORKLOAD_KEEP_RUNNING_NAME = "Keep running";
 
+const NO_BREAK_SPACE_CODE_POINT = 0xa0;
+const NO_BREAK_SPACE = String.fromCodePoint(NO_BREAK_SPACE_CODE_POINT);
+
+// A narrow row wraps at spaces, and a run time has five of them: without this the break lands inside the stamp and leaves "02:54 PM" alone on a line.
+// The lead keeps its plain space, so the stamp as a whole is what moves to the next line.
+function unbreakable(when: string): string {
+  return when.replaceAll(" ", NO_BREAK_SPACE);
+}
+
 /** An enabled schedule's next-run line, over the run time as the row prints it. */
 export function scheduleNextRunLine(when: string): string {
-  return `Next ${when}`;
+  return `Next ${unbreakable(when)}`;
 }
 
 /** The lead of a schedule row's last-run line, over the run time as the row prints it. */
@@ -49,7 +58,7 @@ export const SCHEDULE_NEVER_RUN_TEXT = "Never run";
 
 /** A schedule row's last-run line; `null` is a schedule whose tick has never started a run. */
 export function scheduleLastRunLine(when: string | null): string {
-  return when === null ? SCHEDULE_NEVER_RUN_TEXT : `${SCHEDULE_LAST_RUN_LEAD} ${when}`;
+  return when === null ? SCHEDULE_NEVER_RUN_TEXT : `${SCHEDULE_LAST_RUN_LEAD} ${unbreakable(when)}`;
 }
 
 /** A run row's cancel button, named for the job it stops. */

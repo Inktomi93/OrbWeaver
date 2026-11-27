@@ -1,14 +1,14 @@
 // The shell at phone widths on the production registry: the You sheet and its handoffs, the one-shell screens and
 // their landmarks, the phone drawers and sheets, and the reading order of the tab bar.
 
-import { contextToggleLabel, PRIMARY_NAV_NAME, sectionBackName, YOU_TAB_LABEL } from "@orb/client/lib";
+import { BUG_REPORT_NAME, contextToggleLabel, PRIMARY_NAV_NAME, sectionBackName, YOU_TAB_LABEL } from "@orb/client/lib";
 import { dispatchCommandKey, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME, bugReportPrepareLabel, SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
+import { BUG_REPORT_NOTE_NAME, bugReportPrepareLabel, SKIP_TO_CONTENT_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { HOME_QUICK_PICKS_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";

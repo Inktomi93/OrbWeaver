@@ -53,6 +53,7 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
   const cadence = createTurnWarningCadence();
   const actionFor = new Map<ChatWarning["code"], NotifyAction>([
     ["custom_parameters_ignored", deps.openConnections],
+    ["model_downgraded", deps.openConnections],
     ["smart_arbitration_degraded", deps.openUtilityModel],
     ["speaker_rerank_unavailable", deps.openRerankModel],
   ]);

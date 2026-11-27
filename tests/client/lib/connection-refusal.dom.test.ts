@@ -31,10 +31,14 @@ test("the saved-key refusal is true for a key that is foreign and for one that n
   expect(connectionEditorRefusalLine(refusalOf(CONNECTION_OP_CODES.credentialForeign), null)).not.toMatch(/\byours?\b/iu);
 });
 
-test("a refused field quotes the draft it dropped and says the saved value is back", () => {
-  const refusal = refusalOf(CONNECTION_OP_CODES.baseUrlShape);
-  const line = connectionEditorRefusalLine(refusal, "http://host:9999/v1");
-  expect(line).toContain('"http://host:9999/v1"');
-  expect(line).toContain(refusal.copy);
-  expect(line).toMatch(/saved one is back/u);
+test("a refused field quotes the draft it dropped and gives the reason, with no step to take for a value the editor already restored", () => {
+  for (const reason of [CONNECTION_OP_CODES.labelEmpty, CONNECTION_OP_CODES.modelNotInCatalog]) {
+    const refusal = refusalOf(reason);
+    const line = connectionEditorRefusalLine(refusal, "draft value");
+    expect(line).toContain('"draft value"');
+    expect(line).toContain(refusal.reason);
+    // The add form says what to do; the editor has put the saved value back, so its line holds only the reason.
+    expect(refusal.copy).not.toBe(`${refusal.reason}.`);
+    expect(line).not.toContain(refusal.copy);
+  }
 });

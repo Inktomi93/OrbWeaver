@@ -218,6 +218,8 @@ test("a model downgrade on every turn of one connection is said once", async ({ 
 
   const downgraded = noticeToast(page, warningNotice(DOWNGRADED));
   await expect(downgraded).toBeVisible();
+  // The notice sends the reader to the connection whose model they should check, so it carries the connection door.
+  await expect(downgraded.getByRole("button", { name: OPEN_CONNECTIONS_NAME, exact: true })).toBeVisible();
   await downgraded.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
   await expect(downgraded).toHaveCount(0);
   phase += 1;

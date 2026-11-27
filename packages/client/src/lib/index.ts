@@ -20,6 +20,7 @@ export {
 export type { BackgroundJob } from "./background-jobs.ts";
 export { BACKGROUND_JOB_LOGS } from "./background-jobs.ts";
 export { setBootReadPending } from "./boot-reads.ts";
+export { BUG_REPORT_NAME } from "./bug-report-name.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
@@ -366,7 +367,7 @@ export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
-export { createdStamp, editedStamp } from "./stamp-copy.ts";
+export { createdStamp, editedStamp, savedStamp, stampWhen, wasEditedAfterCreate } from "./stamp-copy.ts";
 export { isStorageRefusal } from "./storage-refusal.ts";
 export type { UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
 export { PRESET_UNREADABLE_COPY, PRESET_UNREADABLE_ROW_MARKER, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
@@ -378,6 +379,7 @@ export {
   LABELS_NONE,
   NEW_LABEL_NAME,
   pruneConfirmLabel,
+  tagRowScent,
   tagSortItems,
   tagTargetTitle,
   tagUsageLabel,

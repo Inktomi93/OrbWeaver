@@ -3,7 +3,7 @@
 
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { timeLib } from "#lib";
+import { stampWhen, timeLib } from "#lib";
 import { corpusComputedLine } from "../lib/corpus-computed-copy.ts";
 
 export function CorpusComputedStamp({
@@ -18,5 +18,5 @@ export function CorpusComputedStamp({
   if (latest === null) {
     return null;
   }
-  return <Text voice="gloss">{corpusComputedLine(timeLib.formatRelative(latest), [...new Set(spaces)])}</Text>;
+  return <Text voice="gloss">{corpusComputedLine(stampWhen(timeLib, latest), [...new Set(spaces)])}</Text>;
 }

@@ -162,7 +162,7 @@ export interface BookUsage {
 export interface BookWithUsage extends BookView {
   entryCount: number;
   usage: BookUsage;
-  /** The last time the book was edited. */
+  /** The last time the book or any of its entries changed: the newer of the book row's own stamp and its entries' newest. */
   updatedAt: number;
 }
 
