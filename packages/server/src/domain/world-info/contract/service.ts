@@ -17,10 +17,8 @@ import type {
   BookView,
   BookWithUsage,
   ChatBookView,
-  DetachResult,
   EntryView,
   LoreEntryIndexRow,
-  ReorderResult,
   WiBusEvent,
 } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -124,25 +122,25 @@ export interface WorldInfoService {
   /** Fills the title of every blank-titled entry from its keys (comma-joined). */
   readonly backfillTitles: (params: BackfillTitlesParams) => Promise<BackfillResult>;
   /** Rewrites entry order: position i → priority = N - i. Stale/foreign ids dropped. */
-  readonly applyEntryOrder: (params: ApplyEntryOrderParams) => Promise<ReorderResult>;
+  readonly applyEntryOrder: (params: ApplyEntryOrderParams) => Promise<void>;
 
   /** Only scope carrying a role. `primary` atomically demotes any other primary on that character. */
   readonly attachToCharacter: (params: AttachToCharacterParams) => Promise<void>;
-  readonly detachFromCharacter: (params: DetachFromCharacterParams) => Promise<DetachResult>;
+  readonly detachFromCharacter: (params: DetachFromCharacterParams) => Promise<void>;
   readonly listForCharacter: (params: ListForCharacterParams) => Promise<BookAttachmentView[]>;
 
   /** Marks a book global (fires for every chat). Gate is plain book ownership. */
   readonly attachGlobal: (params: AttachGlobalParams) => Promise<void>;
-  readonly detachGlobal: (params: DetachGlobalParams) => Promise<DetachResult>;
+  readonly detachGlobal: (params: DetachGlobalParams) => Promise<void>;
   readonly listGlobal: (params: ListGlobalParams) => Promise<BookAttachmentView[]>;
 
   readonly attachToPersona: (params: AttachToPersonaParams) => Promise<void>;
-  readonly detachFromPersona: (params: DetachFromPersonaParams) => Promise<DetachResult>;
+  readonly detachFromPersona: (params: DetachFromPersonaParams) => Promise<void>;
   readonly listForPersona: (params: ListForPersonaParams) => Promise<BookAttachmentView[]>;
 
   /** Host authority — room-wide prompt content is a one-shot jailbreak surface. */
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
-  readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
+  readonly detachFromChat: (params: DetachFromChatParams) => Promise<void>;
   /** Member-read: the room's pool is what every member's turns assemble against. Lists only the present host's own books, the set a turn applies (D64). */
   readonly listForChat: (params: ListForChatParams) => Promise<ChatBookView[]>;
 

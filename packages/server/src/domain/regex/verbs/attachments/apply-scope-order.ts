@@ -95,7 +95,7 @@ export function createApplyScopeOrder(ctx: RegexContext): RegexService["applySco
   return async (params: ApplyScopeOrderParams) => {
     const writes = await buildOrderWrites(ctx, params);
     if (writes.length === 0) {
-      return { reordered: 0 };
+      return;
     }
     const results = await ctx.db.batch(batchMany(writes));
     const reordered = results.reduce((sum: number, r) => sum + r.rowsAffected, 0);
@@ -118,7 +118,6 @@ export function createApplyScopeOrder(ctx: RegexContext): RegexService["applySco
     } else {
       await Promise.all(params.orderedScriptIds.map((scriptId) => ctx.fanRegexScriptRooms(scriptId)));
     }
-    return { reordered };
   };
 }
 

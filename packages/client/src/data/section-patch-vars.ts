@@ -16,7 +16,7 @@ type SectionWrite = inferInput<Trpc["settings"]["updateUserSettingsSection"]>;
 
 /** One section's mutation variables. The verb deep-merges objects and replaces arrays.
  *  @remarks `patch` replaces the router's member: intersecting its `Record<string, unknown>` would re-admit every key. */
-export type SectionPatchVars<S extends UserSettingsSection> = Omit<SectionWrite, "section" | "patch"> & {
+export type SectionPatchVars<S extends UserSettingsSection> = Omit<SectionWrite, "patch"> & {
   readonly section: S;
   readonly patch: DeepPartial<UserSettings[S]>;
 };

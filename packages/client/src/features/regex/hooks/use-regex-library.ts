@@ -43,7 +43,7 @@ export const useAttachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"
   errorToast: "Couldn't make that script global.",
 });
 
-export const useDetachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"]["detachGlobal"]>, { readonly detached: boolean }>({
+export const useDetachRegexGlobal = createEntityMutation<inferInput<Trpc["regex"]["detachGlobal"]>, void>({
   options: (trpc) => trpc.regex.detachGlobal.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't clear that script's global scope.",

@@ -76,7 +76,7 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
     usage: { characters: 1, personas: 1, chats: 1, global: true, total: 4 },
   });
   expect(views.targets.output).toEqual({ characters: [{ characterId: library.character.id, role: "primary" }], personaIds: [library.persona.id] });
-  expect(views.ordered.output).toEqual({ reordered: 2 });
+  expect(views.ordered.output).toBeUndefined();
   expect(views.orderedEntries.output.map((entry) => [entry.id, entry.worldBookId, entry.priority])).toEqual([
     [views.second.id, views.book.id, 2],
     [views.first.id, views.book.id, 1],
@@ -110,9 +110,9 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   expect(await caller.worldInfo.countBooks()).toBe(views.books.output.length);
   await expect(other.worldInfo.listAttachmentsForBook(views.targets.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   await expect(other.worldInfo.detachGlobal({ bookId: library.world.book.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
-  expect(await caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).toEqual({ detached: true });
+  await expect(caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).resolves.toBeUndefined();
   expect((await caller.worldInfo.listGlobal()).map((book) => book.id)).not.toContain(library.world.book.id);
-  expect(await caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).toEqual({ detached: false });
+  await expect(caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).resolves.toBeUndefined();
   expect((await caller.worldInfo.listEntries({ bookId: views.book.id })).map((entry) => entry.id)).toContain(views.first.id);
   await caller.worldInfo.removeEntry({ entryId: views.first.id });
   const remaining = (await caller.worldInfo.listEntries({ bookId: views.book.id })).map((entry) => entry.id);
@@ -128,7 +128,7 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   const other = await root.internalCallerFor(actor.id);
   const views = await seedRegexLibraryViews(root, library, caller, other);
   expect(views.after.output.map((script) => script.id)).toEqual([views.second.id, views.first.id]);
-  expect(views.ordered.output).toEqual({ reordered: 2 });
+  expect(views.ordered.output).toBeUndefined();
   expect(views.displayOff.output).toEqual([]);
   expect(views.displayOn.output).toHaveLength(views.after.output.length);
   expect(views.displayOn.output.map(({ script }) => script)).toEqual(expect.arrayContaining([...views.after.output]));
@@ -147,8 +147,8 @@ test("regex output captures preserve execution order, host opt-in, portable reus
   expect(views.imported.output).toEqual({ created: true, notes: [] });
   expect(views.repeated.output).toEqual({ created: false, notes: [] });
   expect(views.bulk.output).toEqual({ affected: 1 });
-  expect(views.detached.output).toEqual({ detached: true });
-  expect(views.detachedAgain.output).toEqual({ detached: false });
+  expect(views.detached.output).toBeUndefined();
+  expect(views.detachedAgain.output).toBeUndefined();
   expect(views.deleted.output).toBeUndefined();
   expect(views.list.output.map((script) => script.id)).not.toContain(views.deleted.input.scriptId);
   const foreign = (await other.regex.listScripts()).find((script) => script.name === views.first.name);

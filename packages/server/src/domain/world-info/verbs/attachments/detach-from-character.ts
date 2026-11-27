@@ -1,4 +1,4 @@
-// verb: detachFromCharacter — remove a book↔character attachment (idempotent — `detached:false` when the
+// verb: detachFromCharacter — remove a book↔character attachment (idempotent — a no-op when the
 // row was already absent). Gates character ownership (`ensureCharacterOwned`); the junction row is scoped to
 // that owned character. Only a real removal audits.
 
@@ -19,7 +19,7 @@ export function createDetachFromCharacter(ctx: WorldInfoContext): WorldInfoServi
       .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.worldBookId, bookId)))
       .returning({ worldBookId: characterBooks.worldBookId });
     if (removed.length === 0) {
-      return { detached: false };
+      return;
     }
     await ctx.audit(
       {
@@ -33,6 +33,5 @@ export function createDetachFromCharacter(ctx: WorldInfoContext): WorldInfoServi
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     fanReach();
-    return { detached: true };
   };
 }

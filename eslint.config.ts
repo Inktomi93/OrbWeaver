@@ -2039,7 +2039,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/room-token-mint": "error" } },
     { files: ["packages/server/src/**/*.{ts,tsx}"], rules: { "orb/viewer-visibility-parameter-checked": "error" } },
     { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/wire-object-declares-mode": "error" } },
-    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/mutation-vars-derived": "error", "orb/trpc-error-code-via-helper": "error" } },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/trpc-error-code-via-helper": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-raw-intrinsic-paint": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/text-voice-only": "error" } },
     // Tooling is outside: its CLI flags share the `--appearance-` prefix (`--appearance-preset`). The owner-CSS rename

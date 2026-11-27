@@ -1,4 +1,4 @@
-// verb: detachFromPersona — remove a book↔persona attachment (idempotent — `detached:false` when already
+// verb: detachFromPersona — remove a book↔persona attachment (idempotent — a no-op when already
 // absent). Gates persona ownership (`ensurePersonaOwned`). Only a real removal audits.
 
 import { personaBooks } from "@orb/db";
@@ -18,7 +18,7 @@ export function createDetachFromPersona(ctx: WorldInfoContext): WorldInfoService
       .where(and(eq(personaBooks.personaId, personaId), eq(personaBooks.worldBookId, bookId)))
       .returning({ worldBookId: personaBooks.worldBookId });
     if (removed.length === 0) {
-      return { detached: false };
+      return;
     }
     await ctx.audit(
       {
@@ -32,6 +32,5 @@ export function createDetachFromPersona(ctx: WorldInfoContext): WorldInfoService
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     fanReach();
-    return { detached: true };
   };
 }

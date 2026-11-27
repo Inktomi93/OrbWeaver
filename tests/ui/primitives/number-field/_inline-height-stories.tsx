@@ -1,3 +1,4 @@
+import { ADJUSTED_KNOB_NAMES } from "@orb/contracts/chat";
 import { CtIsolation } from "@orb/testkit/browser";
 import { NumberField } from "@orb/ui/number-field";
 import { TOKENS } from "@orb/ui/tokens";
@@ -7,7 +8,7 @@ import type { ReactElement } from "react";
 export function InlineNumberFieldStory(): ReactElement {
   return (
     <CtIsolation subject="NumberField" isolates="The inline cell's and the stepped field's boxes at each pointer class, without the preset row around them">
-      <NumberField aria-label="Temperature" defaultValue={7} layout="inline" />
+      <NumberField aria-label={ADJUSTED_KNOB_NAMES.temperature.label} defaultValue={7} layout="inline" />
       <NumberField aria-label="Retries" defaultValue={3} />
       <span data-probe="touch-target" style={{ display: "block", blockSize: `var(${TOKENS["size.touch-target"].cssVar})` }} />
     </CtIsolation>

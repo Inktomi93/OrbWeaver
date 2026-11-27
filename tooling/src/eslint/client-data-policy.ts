@@ -77,16 +77,6 @@ export const CLIENT_DATA_RESTRICTIONS = [
     ],
   },
   {
-    id: "mutation-vars-derived",
-    selectors: [
-      {
-        selector: "CallExpression[callee.name='createEntityMutation'] > TSTypeParameterInstantiation > TSTypeLiteral:first-child",
-        message:
-          'A hand-written literal type for createEntityMutation\'s variables: derive them from the procedure (`type XVars = inferInput<Trpc["domain"]["verb"]>`) so the input shape has one home.',
-      },
-    ],
-  },
-  {
     id: "trpc-error-code-via-helper",
     selectors: [
       {

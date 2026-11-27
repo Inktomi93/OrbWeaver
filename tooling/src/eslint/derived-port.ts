@@ -4,8 +4,9 @@ import ts from "typescript";
 import { requireTypeServices } from "./checker.ts";
 import { librarySources } from "./library-source.ts";
 import { passesDbHandle, runtimeTypes } from "./port-ownership/foreign-types.ts";
+import { procedureRestatements } from "./port-ownership/procedure-bound.ts";
 import type { Restatement } from "./port-ownership/restated-port.ts";
-import { memberLabel, RELATION, restatementsAt } from "./port-ownership/restated-port.ts";
+import { memberLabel, placementOf, RELATION, restatementsAt } from "./port-ownership/restated-port.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { CONTRACT_FILE, declaredHere } from "./trpc-output.ts";
 
@@ -21,6 +22,8 @@ const MESSAGES = {
     "{{restating}} restates {{owner}} across domains, and no domain imports another: move the shape to packages/contracts and derive both members from it.",
   restatedFields:
     "{{local}} restates fields of a contract type that flows straight into it ({{fields}}): derive it from the contract type (`Pick<Contract, …>`) so the reference stays linked.",
+  restatedProcedure:
+    "{{written}} restates the {{side}} of {{procedure}} ({{fields}}): derive it (`inferInput<…>` or `inferOutput<…>`, or the contracts type) and intersect only the client-only fields, so the reference stays linked.",
 };
 
 function reportFor(found: Restatement): { readonly messageId: keyof typeof MESSAGES; readonly data: Record<string, string> } {
@@ -37,7 +40,7 @@ function reportFor(found: Restatement): { readonly messageId: keyof typeof MESSA
   return { messageId: "crossDomainShape", data: pair };
 }
 
-// A one-field type is a name for one column, not a copy of a contract's shape.
+// A one-field type picked from a wider contract shape is a name for one column; one that is the whole shape copies it.
 const SUBSET_MIN_FIELDS = 2;
 
 // The element of an array type, else the type itself.
@@ -73,6 +76,13 @@ function localDeclaration(type: ts.Type, file: ts.SourceFile): ts.InterfaceDecla
   return exported ? null : declaration;
 }
 
+const writtenLabel = (node: ts.TypeNode): string => {
+  if (ts.isTypeReferenceNode(node)) {
+    return node.typeName.getText();
+  }
+  return ts.isTypeLiteralNode(node) ? "This inline type" : "This type argument";
+};
+
 interface SubsetRestatement {
   readonly local: ts.InterfaceDeclaration | ts.TypeAliasDeclaration;
   readonly fields: readonly string[];
@@ -84,7 +94,8 @@ function subsetRestatement(checker: ts.TypeChecker, argument: ts.Expression, par
   const local = localDeclaration(slot, argument.getSourceFile());
   const carried = elementOrSelf(checker, checker.getTypeAtLocation(argument));
   const fields = checker.getPropertiesOfType(slot);
-  if (parameter.dotDotDotToken !== undefined || local === null || !declaredHere(carried) || fields.length < SUBSET_MIN_FIELDS) {
+  const column = fields.length < SUBSET_MIN_FIELDS && checker.getPropertiesOfType(carried).length > fields.length;
+  if (parameter.dotDotDotToken !== undefined || local === null || !declaredHere(carried) || fields.length === 0 || column) {
     return null;
   }
   const held = fields.every((field) => {
@@ -97,7 +108,8 @@ function subsetRestatement(checker: ts.TypeChecker, argument: ts.Expression, par
 }
 
 /** Refuses a port member whose hand-written function type is identical to the member flowing into it, and a local type
- *  that only repeats a subset of the fields of the contract type flowing into it.
+ *  that only repeats a subset of the fields of the contract type flowing into it, and a hand-written type argument a
+ *  library binds to a tRPC procedure's whole input or output.
  *  The restating member is the higher-tier one. A cross-domain pair has no legal derive: its data moves to contracts,
  *  and a consumer signature left naming only contracts data and runtime types, or a ledger-ruled db handle, is the
  *  consumer's own contract. */
@@ -127,6 +139,19 @@ export const derivedPortMemberRule: OrbRule = {
         }
       }
     };
+    // A type argument the call's library binds to a tRPC procedure's input or output, written by hand, restates it.
+    // Only the linting package's own declarations are hand-written: a contracts, server or library field is a home.
+    const site = placementOf(context.filename)?.pkg ?? null;
+    const handWritten = (declaration: ts.Declaration): boolean => {
+      const file = declaration.getSourceFile();
+      return !(sources.isLibrary(file) || sources.isDefaultLibrary(file)) && (placementOf(file.fileName)?.pkg ?? null) === site;
+    };
+    const judgeProcedure = (node: TSESTree.CallExpression): void => {
+      for (const found of procedureRestatements(checker, toTsMap.get(node), handWritten)) {
+        const data = { written: writtenLabel(found.typeArgument), side: found.side, procedure: found.procedure, fields: found.fields.join(", ") };
+        context.report({ node: toEsMap.get(found.typeArgument), messageId: "restatedProcedure", data });
+      }
+    };
     const judge = (node: TSESTree.Node): void => {
       for (const found of restatementsAt(sources, checker, toTsMap.get(node))) {
         // A ledger-ruled joint batch keeps its handle by ruling: the consumer's signature is its own contract.
@@ -143,6 +168,7 @@ export const derivedPortMemberRule: OrbRule = {
       ReturnStatement: judge,
       CallExpression: (node: TSESTree.CallExpression): void => {
         judge(node);
+        judgeProcedure(node);
         if (!inContract) {
           judgeSubset(node);
         }

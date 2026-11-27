@@ -1,6 +1,7 @@
 // @subject packages/ui/src/primitives/number-field/variants.ts
 // The inline number cell sits on the control scale, and the stepped field's input and steppers reach the touch floor under a finger.
 
+import { ADJUSTED_KNOB_NAMES } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { InlineNumberFieldStory } from "./_inline-height-stories.tsx";
@@ -13,7 +14,7 @@ test.describe("coarse pointer", () => {
   test("the inline cell is at least the touch-target token tall", async ({ mount, page }) => {
     expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["pointer-coarse"])).toBe(true);
     const component = await mount<typeof InlineNumberFieldStory>(STORY);
-    const input = component.getByRole("textbox", { name: "Temperature", exact: true });
+    const input = component.getByRole("textbox", { name: ADJUSTED_KNOB_NAMES.temperature.label, exact: true });
     const token = await component.locator('[data-probe="touch-target"]').evaluate((node) => node.getBoundingClientRect().height);
     const box = await input.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(token - 2);

@@ -1,6 +1,6 @@
 // verb: detachFromCharacter — remove a script's character attachment. Both sides gated (the script must be
 // the caller's, so a foreign attachment is unreachable). Idempotent: an already-absent row is
-// `{detached:false}`, not a throw.
+// a no-op, not a throw.
 
 import { characterRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
@@ -19,8 +19,7 @@ export function createDetachFromCharacter(ctx: RegexContext): RegexService["deta
     const result = await ctx.db
       .delete(characterRegexScripts)
       .where(and(eq(characterRegexScripts.characterId, characterId), eq(characterRegexScripts.regexScriptId, scriptId)));
-    const detached = result.rowsAffected > 0;
-    if (detached) {
+    if (result.rowsAffected > 0) {
       await ctx.audit(
         { actorUserId: ownerId, action: "regex.detachFromCharacter", entityType: "regex_script", entityId: scriptId, metadata: { characterId } },
         at,
@@ -28,6 +27,5 @@ export function createDetachFromCharacter(ctx: RegexContext): RegexService["deta
       ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
       announce([scriptId]);
     }
-    return { detached };
   };
 }

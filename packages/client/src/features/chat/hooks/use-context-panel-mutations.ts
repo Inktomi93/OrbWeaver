@@ -8,11 +8,8 @@
 // TData is `unknown` on all three (the appearance-mutation precedent): the return value is never read.
 // TVars derive from the router input so a params reshape breaks here at compile time (§5.5).
 
-import type { ChatInjectionInput } from "@orb/contracts/chat";
 import { USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
-import type { ChoiceBlockValues, UserMacroValues } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { ChatId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -84,10 +81,7 @@ export const useSetToolRecurseLimit = createEntityMutation<inferInput<Trpc["chat
 
 /** `chat.setUserMacroValues` vars (#24) — the WHOLE per-chat user-macro pick bag (the verb is a column
  *  flush, so every edit sends the rebuilt bag) + the target chat. Member-gated INSIDE the verb. */
-interface SetUserMacroValuesVars {
-  readonly chatId: ChatId;
-  readonly values: UserMacroValues;
-}
+type SetUserMacroValuesVars = inferInput<Trpc["chat"]["setUserMacroValues"]>;
 
 type UserMacroPicks = inferOutput<Trpc["chat"]["getUserMacroPicks"]>;
 
@@ -135,10 +129,7 @@ export const useSetUserMacroValues = createEntityMutation<SetUserMacroValuesVars
 /** `chat.setVariables` vars — the WHOLE per-chat ChoiceBlock pick bag (the verb is a column flush, so every
  *  edit sends the rebuilt map, orphan keys included) + the target chat. Member-gated INSIDE the verb — the
  *  `setUserMacroValues` sibling, the picks pane's second knob family. */
-interface SetVariablesVars {
-  readonly chatId: ChatId;
-  readonly values: ChoiceBlockValues;
-}
+type SetVariablesVars = inferInput<Trpc["chat"]["setVariables"]>;
 
 type VariablePicks = inferOutput<Trpc["chat"]["getVariablePicks"]>;
 
@@ -155,9 +146,9 @@ export const useSetVariables = createEntityMutation<SetVariablesVars, unknown, V
   errorToast: "Couldn't save the variable picks.",
 });
 
-/** `chat.setChatInjection` vars — the authored injection fields (`ChatInjectionInput`: id?/position/
- *  depth/role/content/order?) + the target chat. `id` present ⇒ update; absent ⇒ create (upsert). */
-type SetChatInjectionVars = ChatInjectionInput & { readonly chatId: ChatId };
+/** `chat.setChatInjection` vars — the authored injection fields + the target chat. `id` present ⇒ update;
+ *  absent ⇒ create (upsert). */
+type SetChatInjectionVars = inferInput<Trpc["chat"]["setChatInjection"]>;
 
 export const useSetChatInjection = createEntityMutation<SetChatInjectionVars, unknown>({
   options: (trpc) => trpc.chat.setChatInjection.mutationOptions(),
@@ -189,11 +180,9 @@ export const useSetGroupConfig = createEntityMutation<inferInput<Trpc["chat"]["s
   errorToast: "Couldn't save the group settings.",
 });
 
-/** `chat.setChatBackground` vars (BG-C) — the host-only per-chat carried background source + target chat. */
-interface SetChatBackgroundVars {
-  readonly chatId: ChatId;
-  readonly background: ThemeBackground;
-}
+/** `chat.setChatBackground` vars (BG-C) — the host-only per-chat carried background source + target chat.
+ *  `background` narrows to the read's `ThemeBackground` so the optimistic patch writes `getChat`'s own shape. */
+type SetChatBackgroundVars = inferInput<Trpc["chat"]["setChatBackground"]> & { readonly background: ThemeBackground };
 
 export const useSetChatBackground = createEntityMutation<SetChatBackgroundVars, unknown, ChatDetail>({
   options: (trpc) => trpc.chat.setChatBackground.mutationOptions(),

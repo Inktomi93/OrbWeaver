@@ -244,18 +244,10 @@ export const bookAttachmentTargetsSchema = z.strictObject({
   characters: z.array(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), role: worldBookRoleSchema })).readonly(),
   personaIds: z.array(typeIdSchema(ID_PREFIX.persona)).readonly(),
 }) satisfies z.ZodType<BookAttachmentTargets>;
-export interface DetachResult {
-  readonly detached: boolean;
-}
 export interface BackfillResult {
   readonly filled: number;
 }
-export interface ReorderResult {
-  readonly reordered: number;
-}
-export const detachResultSchema = z.strictObject({ detached: z.boolean() }) satisfies z.ZodType<DetachResult>;
 export const backfillResultSchema = z.strictObject({ filled: z.number() }) satisfies z.ZodType<BackfillResult>;
-export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 
 // Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove}.
 
