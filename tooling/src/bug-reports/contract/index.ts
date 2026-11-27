@@ -17,9 +17,9 @@ export interface BugReportSummary {
   readonly noteFirstLine: string;
   /** Where the report was taken — the client bundle's `route.pathname`, or `null` when it carried none. */
   readonly route: string | null;
-  /** The RELEASE identity at capture — the root manifest's version and the short commit the process derived
-   *  for itself, as `v0.4.1 (a1b2c3d4e5f6, container)`. `null` when the bundle predates the field or was
-   *  written by a different writer; the listing prints `no-version` rather than a blank column, because a
+  /** The RELEASE identity at capture, as `formatVersionIdentity` prints it: `v0.4.1` for a stable release,
+   *  `0.4.1-dev+a1b2c3d4e5f6` for anything else. `null` when the bundle predates the field, carries a block
+   *  that is not a whole identity, or was written by a different writer; the listing prints `no-version` rather than a blank column, because a
    *  report that cannot say what it ran against is a fact about the report. */
   readonly version: string | null;
   /** The build identity at capture. `sha: null` = git could not answer; `dirty` = NOT the commit it names. */

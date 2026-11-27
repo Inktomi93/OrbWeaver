@@ -11,6 +11,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { BUG_REPORT_DIR, bugReportIdOfStem } from "@orb/kit/bug-report";
+import { formatVersionIdentity, versionIdentitySchema } from "@orb/kit/version-identity";
 import { isMissingEntryError } from "../../floor/host/errno.ts";
 import type { BugReportListing, BugReportSummary } from "../contract/index.ts";
 
@@ -72,22 +73,13 @@ function truncatedSourcesOf(record: Readonly<Record<string, unknown>>): readonly
   return names;
 }
 
-/** The bundle's `version` block rendered as the one line the listing prints. Read through the SAME foreign-
- *  data narrowing as every other field — an older bundle carries no `version` at all, which is `null`, not a
- *  crash. `formatVersionIdentity` is not reused here because it demands a fully-typed identity and this is a
- *  hand-parsed object off disk; the two-field degrade below is what an incomplete block should print. */
+/** The bundle's `version` block rendered as the one line the listing prints, in the app's own format. The
+ *  block is foreign data, so it is parsed with the production schema first: an older bundle carries no
+ *  `version`, and a block that is not a whole identity cannot be formatted truthfully — both are `null`,
+ *  which the listing prints as `no-version`. */
 function versionLabelOf(record: Readonly<Record<string, unknown>>): string | null {
-  const version = bundleField(record, "version");
-  if (!isRecord(version)) {
-    return null;
-  }
-  const release = asString(version["version"]);
-  const short = asString(version["short"]);
-  const source = asString(version["source"]);
-  if (release === null) {
-    return null;
-  }
-  return `v${release} (${short ?? "no-commit"}${source === null ? "" : `, ${source}`})`;
+  const parsed = versionIdentitySchema.safeParse(bundleField(record, "version"));
+  return parsed.success ? formatVersionIdentity(parsed.data) : null;
 }
 
 /** The note's first non-empty line, collapsed to one line and capped — a listing is an index, not a read. */
