@@ -75,7 +75,7 @@ import {
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, ObjectFlags, SymbolFlags } from "@typescript/native/sync";
 import type { RowTable } from "../drizzle-rows.ts";
 import { rowTables, rowTablesOf } from "../drizzle-rows.ts";
@@ -379,6 +379,15 @@ export const symbolMemberName = (symbol: NativeSymbol): string => `${SYMBOL_MEMB
 
 /** Whether a member name is the checker's spelling of a unique symbol key, as {@link symbolMemberName} builds it. */
 export const isSymbolMemberName = (name: string): boolean => name.startsWith(SYMBOL_MEMBER_PREFIX);
+
+/** A type's member by the name the checker reports for it: `getPropertyOfType`, else, for a unique symbol's name, which
+ *  that request cannot find, the listed member of that name. */
+export function* propertyNamed(checker: Checker, type: Type, name: string): APIRequestGenerator<NativeSymbol | undefined> {
+  if (!isSymbolMemberName(name)) {
+    return yield* checker.getPropertyOfType.gen(type, name);
+  }
+  return (yield* checker.getPropertiesOfType.gen(type)).find((member) => member.name === name);
+}
 
 /** A literal key's text: an identifier, a string or numeric literal, or a computed key holding a string. */
 export function keyText(name: Node | undefined): string | undefined {
@@ -826,7 +835,7 @@ export class Resolver {
   *#levelHomes(level: readonly Type[], live: LiveNames, ownCount: boolean): APIRequestGenerator<LevelHomes> {
     const { checker } = this.#world;
     const asks = level.flatMap((type, at) => [...live].flatMap(([name, on]) => (on.has(type.id) ? [{ type, at, name }] : [])));
-    const props = yield* allOf(asks.map((ask) => checker.getPropertyOfType.gen(ask.type, ask.name)));
+    const props = yield* allOf(asks.map((ask) => propertyNamed(checker, ask.type, ask.name)));
     const homes: LevelHomes = { carries: level.map(() => new Set<string>()), found: new Map(), ended: new Map(), stops: new Map(), spelled: [] };
     for (const [x, ask] of asks.entries()) {
       const declared = (props[x]?.declarations ?? []).filter((declaration) => declaration.kind !== SyntaxKind.MappedType);

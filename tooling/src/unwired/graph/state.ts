@@ -18,7 +18,7 @@ import { isProduction } from "../worlds.ts";
 import type { GraphOptions } from "./options.ts";
 import type { GraphProfile } from "./profile.ts";
 import type { DeclKey, OriginWalk } from "./resolve.ts";
-import { answer, constituentsOf, declKeyParts, EXHAUSTED, isSymbolMemberName, Resolver, symbolMemberName } from "./resolve.ts";
+import { answer, constituentsOf, declKeyParts, EXHAUSTED, propertyNamed, Resolver, symbolMemberName } from "./resolve.ts";
 import type { Role, RoleSet } from "./roles.ts";
 import { NO_ROLES, READS, withRoles } from "./roles.ts";
 import type { Roots } from "./roots.ts";
@@ -530,19 +530,16 @@ export class GraphState implements GraphFacts {
     return this.slotTypes(this.batch(nodes.map((node) => checker.getContextualType.gen(node))));
   }
 
-  /** The properties named `name` on a slot type: the whole type's, else each union arm's; a unique symbol key by listing. */
+  /** The properties named `name` on a slot type: the whole type's, else each union arm's. */
   *propsOnSlot(type: Type, name: string): APIRequestGenerator<readonly NativeSymbol[]> {
     const { checker } = this.world;
-    if (isSymbolMemberName(name)) {
-      return (yield* this.membersOf(type)).filter((member) => member.name === name);
-    }
-    const whole = yield* checker.getPropertyOfType.gen(type, name);
+    const whole = yield* propertyNamed(checker, type, name);
     if (whole !== undefined || !type.isUnionType()) {
       return whole === undefined ? [] : [whole];
     }
     const found: NativeSymbol[] = [];
     for (const arm of yield* type.getTypes.gen()) {
-      const property = yield* checker.getPropertyOfType.gen(arm, name);
+      const property = yield* propertyNamed(checker, arm, name);
       if (property !== undefined) {
         found.push(property);
       }

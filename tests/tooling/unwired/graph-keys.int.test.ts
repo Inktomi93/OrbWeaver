@@ -63,6 +63,21 @@ test("a computed literal key writes the member its constant or unique symbol nam
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Late.unset"]);
 });
 
+// `Object.freeze` takes a bare type parameter, so a frozen literal's keys reach the annotated slot only along the flow
+// from the frozen value: a member under a unique symbol pairs there as a string-keyed one does. `spare` nothing writes.
+test("a literal frozen into an annotated slot writes the slot's symbol-keyed member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'const HANDLE = Symbol("handle");',
+      "export interface Handle { readonly [HANDLE]: true; readonly named: true; readonly spare?: true }",
+      "export const handle: Handle = Object.freeze({ [HANDLE]: true as const, named: true as const });",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE).toSorted()).toEqual(["Handle.[HANDLE]", "Handle.named"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Handle.spare"]);
+});
+
 // A destructuring key computed from a constant or a unique symbol reads the member it names, in a declaration and in an
 // assignment; `spare` sits beside them and nothing reads it.
 test("a computed destructuring key reads the member its constant or unique symbol names", { timeout: 120_000 }, async ({ plantedTree }) => {

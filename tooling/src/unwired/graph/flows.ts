@@ -77,7 +77,7 @@ import { isProduction } from "../worlds.ts";
 import { LIST_WRITES, libraryNames, PLATFORM, ZOD_PACKAGE } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
+import { allOf, answer, constituentsOf, keyText, propertyNamed } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
@@ -1412,7 +1412,7 @@ export class Flows {
       const shadowed = pair.whole === true ? shadowedBySpread(this.#siteNodes.get(pair.site)) : NO_NAMES;
       return (slotMembers[x] ?? []).filter((member) => !shadowed.has(member.name)).map((member) => ({ pair, member, x }));
     });
-    const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
+    const valueMembers = state.batch(asks.map(({ pair, member }) => propertyNamed(checker, pair.value, member.name)));
     this.#recordTraces(
       asks.filter((_, y) => valueMembers[y] === undefined),
       file,
