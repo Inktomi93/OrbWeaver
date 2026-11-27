@@ -1,6 +1,6 @@
 // Pure connection-editor fact grammar; pricing and capability row builders share one shape.
 
-import type { EndpointFeatures } from "@orb/contracts/inference";
+import type { ProviderId } from "@orb/contracts/inference";
 
 /**
  * The control an Override reveals for ONE fact. Six kinds cover every row in both blocks — which is WHY
@@ -25,6 +25,9 @@ type FactEdit =
   | { readonly kind: "list" }
   | { readonly kind: "enum"; readonly options: readonly string[] }
   | { readonly kind: "choice"; readonly choices: readonly FactChoice[] };
+
+/** The control of a number fact: whole, above zero and bounded as its server schema says (`connection-fact-bounds.ts`). */
+export type NumberEdit = Extract<FactEdit, { readonly kind: "number" }>;
 
 /** How a boolean fact reads when "yes"/"no" would hide what the value means. */
 export interface BooleanLabels {
@@ -85,6 +88,7 @@ export interface FactLeaf {
   readonly estimatedBy?: string;
   /** What the server must be for a yes to be true, and what a wrong yes costs, drawn under the row at all times. */
   readonly needs?: string;
-  /** Present ⇒ an unset row shows only for a server whose folded quirks pass this; a stated value always shows. */
-  readonly offeredWhen?: (folded: EndpointFeatures) => boolean;
+  /** Present ⇒ an unset row shows only for the server whose row id passes this (the row the connection is served as, the
+   *  detected one when the registered row detects); a stated value always shows. */
+  readonly offeredWhen?: (servedAs: ProviderId) => boolean;
 }

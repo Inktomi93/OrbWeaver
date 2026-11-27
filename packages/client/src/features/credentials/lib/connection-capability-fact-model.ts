@@ -3,8 +3,9 @@
 // field, so it states the folded value, "assumed" where the fold marks a floor guess, and the baseline it replaced.
 
 import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
-import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
+import { embeddingCapabilitySchema, REASONING_MODES, RERANK_MIN_WINDOW_TOKENS, rerankCapabilitySchema } from "@orb/contracts/inference";
 import type { ConnectionEditorFact } from "#state";
+import { numberEdit } from "./connection-fact-bounds.ts";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
 import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow, withDeclaredOverride } from "./connection-fact-model.ts";
 import { FACT_NAMES, VECTOR_WIDTH_FACT_NAME } from "./credentials-names.ts";
@@ -80,12 +81,18 @@ const EMBEDDING_LEAVES: readonly FactLeaf[] = [
   {
     path: VECTOR_WIDTH_FACT_PATH,
     name: VECTOR_WIDTH_FACT_NAME,
-    edit: { kind: "number" },
+    edit: numberEdit(embeddingCapabilitySchema.shape.dims),
     format: (value): string => `${String(value)} numbers`,
     estimatedBy: "embedding.dimsEstimated",
   },
   { path: "embedding.mrl", name: "truncatable", edit: { kind: "boolean" } },
-  { path: "embedding.maxInputTokens", name: "max input", edit: { kind: "number" }, format: tokens, estimatedBy: "embedding.windowEstimated" },
+  {
+    path: "embedding.maxInputTokens",
+    name: "max input",
+    edit: numberEdit(embeddingCapabilitySchema.shape.maxInputTokens),
+    format: tokens,
+    estimatedBy: "embedding.windowEstimated",
+  },
   { path: "embedding.input", name: "takes", edit: { kind: "list" } },
 ];
 
@@ -94,7 +101,7 @@ const RERANK_LEAVES: readonly FactLeaf[] = [
     path: "rerank.maxInputTokens",
     name: "max input",
     // The resolver raises a smaller window to its floor, so a value under it is refused where it is typed.
-    edit: { kind: "number", min: { value: RERANK_MIN_WINDOW_TOKENS, reads: tokens(RERANK_MIN_WINDOW_TOKENS) } },
+    edit: { ...numberEdit(rerankCapabilitySchema.shape.maxInputTokens), min: { value: RERANK_MIN_WINDOW_TOKENS, reads: tokens(RERANK_MIN_WINDOW_TOKENS) } },
     format: tokens,
     estimatedBy: "rerank.windowEstimated",
   },

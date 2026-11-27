@@ -4,6 +4,7 @@
 // endpoint floor's fail-closed `silencesProse: true` (`../../floor.ts`).
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
+import { VLLM_PROVIDER_ID } from "@orb/contracts/inference";
 
 // Matches the served name, the GGUF file name, the checkpoint path and an Ollama tag alike ("qwen3.8-27b",
 // "Qwen3.8-27B-UD-Q4_K_M.gguf", ".../Qwen3.8-27B-W8A8-…", "qwen3.8:27b"); not Flash-Next or other sizes.
@@ -14,7 +15,7 @@ const PROBE = "scripts/probes/prose-with-tools/results/2026-10-03/RESULTS.md";
 
 export const measuredLocalServerRows = [
   {
-    match: { provider: "vllm", model: QWEN38_27B },
+    match: { provider: VLLM_PROVIDER_ID, model: QWEN38_27B },
     generation: { tools: { parallel: true, silencesProse: false } },
     evidence: {
       tier: "measured",

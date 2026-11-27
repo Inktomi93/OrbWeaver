@@ -27,6 +27,54 @@ export const ADJUSTED_KNOBS = [
 ] as const;
 export type AdjustedKnob = (typeof ADJUSTED_KNOBS)[number];
 
+/** How a knob reads to the user: its name as the preset deck prints it, and whether that name is a plural noun, so a sentence
+ *  that takes the name for its subject agrees with it. The number is stated beside the name because no rule reads it off the
+ *  words ("Word bias" is one knob, "Banned phrases" are several). One home for every surface that names a knob, exhaustive
+ *  over {@link ADJUSTED_KNOBS}, so a new knob is named, and given its number, here before it can reach a notice. */
+export const ADJUSTED_KNOB_NAMES: Readonly<Record<AdjustedKnob, { readonly label: string; readonly plural: boolean }>> = {
+  adaptiveDecay: { label: "Adaptive-P decay", plural: false },
+  adaptiveTarget: { label: "Adaptive-P target", plural: false },
+  banEos: { label: "Ban end of reply", plural: false },
+  bannedStrings: { label: "Banned phrases", plural: true },
+  carryReasoning: { label: "Reasoning carry", plural: false },
+  dryAllowedLength: { label: "DRY allowed length", plural: false },
+  dryBase: { label: "DRY base", plural: false },
+  dryMultiplier: { label: "DRY strength", plural: false },
+  dryPenaltyLastN: { label: "DRY range", plural: false },
+  drySequenceBreakers: { label: "DRY sequence breakers", plural: true },
+  dynatempExponent: { label: "Dynamic temperature exponent", plural: false },
+  dynatempRange: { label: "Dynamic temperature range", plural: false },
+  frequencyPenalty: { label: "Frequency penalty", plural: false },
+  logitBias: { label: "Word bias", plural: false },
+  minKeep: { label: "Min keep", plural: false },
+  minP: { label: "Min-P", plural: false },
+  mirostatEta: { label: "Mirostat eta", plural: false },
+  mirostatMode: { label: "Mirostat", plural: false },
+  mirostatTau: { label: "Mirostat tau", plural: false },
+  parallelToolCalls: { label: "Parallel tool calls", plural: true },
+  presencePenalty: { label: "Presence penalty", plural: false },
+  quality: { label: "Quality", plural: false },
+  repetitionPenalty: { label: "Repetition penalty", plural: false },
+  repetitionPenaltyRange: { label: "Repetition range", plural: false },
+  replyMedia: { label: "Reply pictures", plural: true },
+  samplerOrder: { label: "Sampler order", plural: false },
+  seed: { label: "Seed", plural: false },
+  slopList: { label: "Slop list", plural: false },
+  slopStrength: { label: "Slop strength", plural: false },
+  smoothingCurve: { label: "Smoothing curve", plural: false },
+  smoothingFactor: { label: "Smoothing factor", plural: false },
+  stop: { label: "Stop sequences", plural: true },
+  temperature: { label: "Temperature", plural: false },
+  thinkingBudgetTokens: { label: "Thinking budget", plural: false },
+  topA: { label: "Top-A", plural: false },
+  topK: { label: "Top-K", plural: false },
+  topNSigma: { label: "Top-nσ", plural: false },
+  topP: { label: "Top-P", plural: false },
+  typicalP: { label: "Typical-P", plural: false },
+  xtcProbability: { label: "XTC chance", plural: false },
+  xtcThreshold: { label: "XTC threshold", plural: false },
+};
+
 /** Why a banned-phrase drop happened, when the user can act on it. A closed union, never free text: the chat bus
  *  reaches every member of the room, and the phrases themselves are the host's. `sequence` = the server cannot ban the
  *  phrase as a sequence mid-sentence (llama.cpp bans every token of a phrase; vLLM bans only its space-less form);

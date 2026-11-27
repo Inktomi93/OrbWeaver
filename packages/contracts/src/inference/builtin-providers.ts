@@ -3,6 +3,7 @@
 // Most rows are `wire: openai-compat` + a `features` block and need ZERO code; adding a provider is a row
 // here + the table test, never a `Record` entry.
 
+import { VLLM_PROVIDER_ID } from "./provider-id.ts";
 import type { ProviderDefInput } from "./provider-schema.ts";
 
 export const BUILTIN_PROVIDER_ROWS = [
@@ -178,7 +179,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     docsUrl: "https://api-docs.deepseek.com",
   },
   {
-    id: "vllm",
+    id: VLLM_PROVIDER_ID,
     label: "vLLM",
     wire: "openai-compat",
     dialect: "openai-compatible",
@@ -344,7 +345,7 @@ export const BUILTIN_IMAGE_BASE_URLS: Readonly<Partial<Record<(typeof BUILTIN_PR
 /** A typical Server URL per built-in endpoint row, shown as the field placeholder. Static pane metadata kept out of
  *  the persisted provider row, so plugin and admin rows carry none. */
 export const BUILTIN_EXAMPLE_BASE_URLS: Readonly<Record<string, string>> = {
-  vllm: "http://localhost:8000",
+  [VLLM_PROVIDER_ID]: "http://localhost:8000",
   "lm-studio": "http://localhost:1234",
   ollama: "http://localhost:11434",
   "llama-cpp": "http://localhost:8080",

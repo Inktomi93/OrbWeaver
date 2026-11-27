@@ -7,6 +7,8 @@ import { z } from "zod";
 const PROVIDER_ID = /^(?:[a-z0-9-]+|plugin:[a-z0-9-]+\/[a-z0-9-]+)$/;
 const PLUGIN_PROVIDER_ID = /^plugin:([a-z0-9-]+)\/[a-z0-9-]+$/;
 export const PLUGIN_PROVIDER_ID_PREFIX = "plugin:";
+/** The id of the built-in vLLM row: the one spelling the curated rows, the server detector and the connection editor compare a server against. */
+export const VLLM_PROVIDER_ID = "vllm";
 export type ProviderId = Branded<"ProviderId">;
 export const providerIdSchema: z.ZodType<ProviderId, string> = z
   .string()

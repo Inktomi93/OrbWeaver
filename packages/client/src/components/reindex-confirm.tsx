@@ -9,9 +9,12 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useTRPCClient } from "#data";
-import { embedRefusalText, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm, rethrowUnlessTrpcFailure } from "#lib";
+import { embedRefusalText, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm, rethrowUnlessTrpcFailure, trpcErrorCode } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
+
+/** The tRPC code of a request the server refused as bad input. */
+const BAD_REQUEST_CODE = "BAD_REQUEST";
 
 type EmbedSpaceChange = inferInput<Trpc["connection"]["embedSpaceChangePreview"]>["change"];
 
@@ -67,11 +70,18 @@ export function useReindexConfirm(finalFocus?: ConfirmDialogProps["finalFocus"])
             write(preview.reindex);
           }
         },
-        // A preview that fails (a tRPC failure) cannot establish that writing is safe; retain the unknown-cost
-        // confirmation. Any other fault rejects.
+        // A preview the server refused as bad input (`BAD_REQUEST`) says nothing about the user's index, so it never raises
+        // the "deletes your search index" confirm: the write goes on, and its own refusal of the same change (both run
+        // `validatedPatch` first) is the answer the user reads. Any other tRPC failure cannot establish that writing is safe;
+        // retain the unknown-cost confirmation. Any non-tRPC fault rejects.
         (error: unknown): void => {
           rethrowUnlessTrpcFailure(error);
-          if (request === latest.current) {
+          if (request !== latest.current) {
+            return;
+          }
+          if (trpcErrorCode(error) === BAD_REQUEST_CODE) {
+            write(false);
+          } else {
             setPending({ preview: null, write });
           }
         },

@@ -38,6 +38,7 @@ import {
   servableRoles,
 } from "../lib/connection-editor-model.ts";
 
+import type { FactRow } from "../lib/connection-fact-model.ts";
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
 import { API_KEY_FIELD_NAME, CONNECTION_EDITOR_TIER_TITLES, CONNECTION_NAME_FIELD_NAME } from "../lib/credentials-names.ts";
@@ -179,19 +180,21 @@ function AvailableConnectionEditorBody({
   const [refusedWrites, setRefusedWrites] = useState(0);
   const toastRefusalIfClosed = useEmbedRefusalToastAfterUnmount();
   const providerLabel = providerDisplayLabel(provider);
-  // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
+  // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed. The row the
+  // connection is served as is the detected one, else its own: the client's twin of `behaveAs`.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
-  const quirkFeatures = detected === undefined ? provider.features : { ...provider.features, ...detected.features };
+  const quirkLayers = [provider.features, detected?.features];
+  const servedAs = (detected ?? provider).id;
   const quirkLabel = detected === undefined ? providerLabel : providerDisplayLabel(detected);
   const declared = connection.declared;
   const imageSwitch = imageInputSwitch(capabilityView.capability, declared, capabilityView.baseline);
   const busy = update.isPending;
-  const servesEmbedding = inferredKindOf(connection.tasks) === "embedding";
 
   // A patch to an identity field of the user's embedder can rebuild their index, so the server is asked first; any other
   // field is written straight through. A fact row's Override or Reset button goes away with the change, so focus returns
-  // to the row, and a write the server checks the embedder for says so where its refusal would land.
-  const patch = (part: Parameters<typeof update.mutate>[0]["patch"], factPath: string | null = null): void => {
+  // to the row, unless the control survives it (a switch), and a write the server checks the embedder for says so where its
+  // refusal would land.
+  const patch = (part: Parameters<typeof update.mutate>[0]["patch"], factPath: string | null = null, returnsFocus = true): void => {
     const write = (checksEmbedder: boolean): void => {
       if (checksEmbedder) {
         setChecking({ path: factPath });
@@ -212,18 +215,24 @@ function AvailableConnectionEditorBody({
         )
         .finally((): void => {
           setChecking(null);
-          focusFact(factNodes.current, factPath);
+          if (returnsFocus) {
+            focusFact(factNodes.current, factPath);
+          }
         });
     };
-    // Only a connection that serves an embedding role can sit in the owner's vector space, so a write to any other is never
-    // held for a rebuild confirm, whatever the preview would have said.
-    if (servesEmbedding && EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
+    // Whether the connection sits in the owner's vector space is the server's call (the preview reads the real bindings), so
+    // every write to an identity field asks it, and a connection with no index to rebuild gets no confirm.
+    if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
       reindex.guard({ kind: "update", connectionId, patch: part }, write);
     } else {
       write(false);
     }
   };
 
+  // A switch stays where it was pressed, so it keeps focus; the Override and Reset buttons go away with the change.
+  const overrideFact = (row: FactRow, value: unknown): void =>
+    patch({ declared: withDeclaredOverride(declared, row, value) }, row.path, row.edit.kind !== "switch");
+  const resetFact = (row: FactRow): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path, row.edit.kind !== "switch");
   const factNote = factNoteOf(checking, embedRefusal);
 
   return (
@@ -367,8 +376,8 @@ function AvailableConnectionEditorBody({
               <FactRowList
                 busy={busy}
                 note={factNote}
-                onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
-                onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
+                onOverride={overrideFact}
+                onReset={resetFact}
                 rowRef={registerFact}
                 rows={capabilityFactRows(capabilityView.capability, declared, capabilityView.baseline)}
               />
@@ -377,11 +386,9 @@ function AvailableConnectionEditorBody({
               busy={busy}
               declared={declared}
               note={factNote}
-              onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
-              onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
-              ownServer={provider.auth === "endpoint"}
-              providerFeatures={quirkFeatures}
-              providerLabel={quirkLabel}
+              onOverride={overrideFact}
+              onReset={resetFact}
+              provider={{ layers: quirkLayers, label: quirkLabel, servedAs, ownServer: provider.auth === "endpoint" }}
               rowRef={registerFact}
             />
           </Stack>
