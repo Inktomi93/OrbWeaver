@@ -10,11 +10,11 @@ area: inference
 
 ## What
 
-A side-generation turn with no speaker names sends no slop list, so a connection's antislop slop list does nothing on digests, summaries, extraction and captions; the digest layer holds no cast, and backfill batches mix chats under one request option.
+A side-generation turn with no speaker names sends no slop list, so the preset's slop list does nothing on digests, summaries, extraction and captions over an antislop connection; the digest layer holds no cast, and backfill batches mix chats under one request option.
 
 ## Why
 
-Those turns lose the slop list's effect on an antislop connection, though they never push a name down.
+Those turns lose the slop list's effect, though they never push a name down.
 
 ## Done when
 

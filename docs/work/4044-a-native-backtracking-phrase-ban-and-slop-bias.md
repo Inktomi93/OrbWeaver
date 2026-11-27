@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-26
+updated: 2026-11-27
 priority: P2
 area: inference
 ---
@@ -18,7 +18,7 @@ llama.cpp and vLLM cannot ban a multi-token phrase, and the owner's antislop pro
 
 ## Done when
 
-The ban runs only on a connection whose row is unmetered and declares prefill and logit bias; a metered or hosted connection never retries and gets the server's own ban or a warning, which a test proves. The Word lists library of D358 ships with it: named lists with one effect scale, attachment from presets and the connection, one import path, search and bulk edit, per-entry connection status, and existing preset bias and banned phrases migrated to inline extras. A UX review passes before merge, and body and stream tests through the composed root cover a banned phrase cut and retried, a slop bias, the retry cap, and the refusal on a metered row.
+The ban runs only on a connection whose row is unmetered and declares prefill and logit bias; a metered or hosted connection never retries and gets the server's own ban or a warning, which a test proves. The Word lists library of D358 ships with it: named lists with one effect scale, attached from presets, one import path, search and bulk edit, per-entry connection status, and existing preset bias, banned phrases and the preset slop list migrated to the library or inline extras. A UX review passes before merge, and body and stream tests through the composed root cover a banned phrase cut and retried, a slop bias, the retry cap, and the refusal on a metered row.
 
 ## Evidence
 
