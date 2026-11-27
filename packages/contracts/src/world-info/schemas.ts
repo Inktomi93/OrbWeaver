@@ -51,9 +51,12 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 //  `upsertEntries` re-run that finds the CURRENT content no longer hashing to this value knows a human
 //  curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the shared
 //  `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
+//  `position` is the seat the writer last stamped, the same belt for the seat: an entry whose stored
+//  `metadata.position` differs from it was moved by the host, and a re-write leaves that seat.
 const loreEntryProvenanceSchema = z
   .object({
     contentHash: z.string(),
+    position: z.enum(ENTRY_POSITIONS).exactOptional(),
   })
   .strip();
 export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
