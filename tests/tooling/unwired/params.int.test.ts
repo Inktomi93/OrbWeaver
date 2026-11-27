@@ -231,8 +231,8 @@ const SUPPLY_TREE = {
     "  return list.matches;",
     "}",
   ].join("\n"),
-  // A callee filling its own default, a relay of the prop's own value and a constant nothing passes supply nothing; a
-  // constant passed by name to its callable does.
+  // A callee filling its own default and a relay of the prop's own value supply nothing. A constant passed by name to a
+  // callable supplies its props for every callable of their declaration, so `go(LOUD)` supplies `run`'s mode too.
   "packages/a/src/self-default.ts": [
     "export interface ColorOpts {",
     "  readonly color?: string;",
@@ -342,9 +342,7 @@ test("the params scan credits spread, shared-type and callee-body supplies and k
   expect.soft(inFile("shared-args")).toEqual(["unsupplied-prop displayScripts(args.passLength)", "unsupplied-prop everywhereTasks(read.staleAfter)"]);
   expect.soft(inFile("shared-hook-options")).toEqual(["unsupplied fadeX(options)"]);
   expect.soft(inFile("callee-body")).toEqual(["unsupplied-prop completeCommand(response.retried)"]);
-  expect
-    .soft(inFile("self-default"))
-    .toEqual(["unsupplied-prop paint(options.color)", "unsupplied-prop run(options.mode)", "unsupplied-prop shade(options.tone)"]);
+  expect.soft(inFile("self-default")).toEqual(["unsupplied-prop paint(options.color)", "unsupplied-prop shade(options.tone)"]);
   expect.soft(inFile("platform-view")).toEqual(["same-literal Bus.emit(event)"]);
   expect
     .soft(inFile("true-findings"))
@@ -430,3 +428,39 @@ test.for(["before", "after"])(
     expect(report.unwired.map(({ home, member, kind }) => `${kind} ${home}(${member})`)).toEqual(["unsupplied-prop Executor.embed(req.dimensions)"]);
   },
 );
+
+// A constant options object handed to a sibling callee by name in its own file supplies each prop it sets for every
+// callable that takes the shared options type, as `SEARCH_OPTIONS` sets `boost` for `fuzzySearch` beside the
+// `useFuzzySearch` hook. A constant nothing hands to a call supplies nothing, so `limit` keeps reporting.
+const CONSTANT_OPTIONS_TREE = {
+  "packages/a/src/search.ts": [
+    "export interface SearchOptions {",
+    "  readonly fields: readonly string[];",
+    "  readonly boost?: number;",
+    "  readonly limit?: number;",
+    "  readonly fuzz?: number;",
+    "}",
+    "export function search(items: readonly string[], options: SearchOptions): number {",
+    "  return items.length + (options.boost ?? 0) + (options.limit ?? 0) + (options.fuzz ?? 0);",
+    "}",
+    "export function useSearch(items: readonly string[], options: SearchOptions): number {",
+    "  return search(items, options);",
+    "}",
+  ].join("\n"),
+  "packages/a/src/panel.ts": [
+    'import { search, useSearch } from "./search.ts";',
+    'const SEARCH_OPTIONS = { fields: ["label"], boost: 4 } as const;',
+    'const UNUSED_OPTIONS = { fields: ["label"], limit: 9 } as const;',
+    "export const ranked = search([], SEARCH_OPTIONS);",
+    'export const picked = [useSearch([], { fields: ["name"] }), useSearch([], { fields: ["id"] })];',
+    "export const unused = UNUSED_OPTIONS.fields;",
+  ].join("\n"),
+};
+
+test("a constant options object a sibling callee takes by name supplies the props it sets", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const report = await scanParams(await plantedTree(graphTree(CONSTANT_OPTIONS_TREE)));
+  expect(report.unwired.map(({ home, member, kind }) => `${home}(${member}) ${kind}`).toSorted()).toEqual([
+    "useSearch(options.fuzz) unsupplied-prop",
+    "useSearch(options.limit) unsupplied-prop",
+  ]);
+});

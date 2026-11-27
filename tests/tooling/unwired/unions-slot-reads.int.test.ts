@@ -82,3 +82,48 @@ test("a switch label handed on from an object vocabulary builds the member that 
 }) => {
   expect(await rows(plantedTree, OBJECT_VOCABULARY_TREE)).toEqual(["ADJUSTMENTS.display_dropped"]);
 });
+
+// The same hand-on where the warning is spelled as the provider warnings are: one shape per detail field, picked by a
+// mapped type over the detail table, beside the shape of every code no detail names, an `Exclude` of the vocabulary.
+// The switch subject's code and the producer's pushed literal are both read through the mapped type and the `Exclude`.
+const DETAILED_VOCABULARY_TREE = {
+  "packages/a/src/warnings.ts": [
+    'export const CODE = { effortDropped: "effort_dropped", displayDropped: "display_dropped", knobDropped: "knob_dropped" } as const;',
+    "export type WarningCode = (typeof CODE)[keyof typeof CODE];",
+    "const DETAIL_CODES = { knob: [CODE.knobDropped] } as const;",
+    "type WarningDetail = keyof typeof DETAIL_CODES;",
+    "interface WarningWire { readonly knob: string }",
+    "type WarningShape<Code extends WarningCode, Detail extends WarningDetail> = {",
+    "  readonly code: Code;",
+    "  readonly message: string;",
+    "} & Readonly<Pick<WarningWire, Detail>> & { readonly [Other in Exclude<WarningDetail, Detail>]?: never };",
+    "type DetailedCode = (typeof DETAIL_CODES)[WarningDetail][number];",
+    "type DetailedWarning = { [Field in WarningDetail]: WarningShape<(typeof DETAIL_CODES)[Field][number], Field> }[WarningDetail];",
+    "export type Warning = DetailedWarning | WarningShape<Exclude<WarningCode, DetailedCode>, never>;",
+    "export function warn(warnings: Warning[]): void {",
+    '  warnings.push({ code: "effort_dropped", message: "ignored" });',
+    "}",
+  ].join("\n"),
+  "packages/a/src/adjust.ts": [
+    'import { CODE, type Warning } from "./warnings.ts";',
+    "const ADJUSTMENTS = [CODE.effortDropped, CODE.displayDropped] as const;",
+    "type Adjustment = (typeof ADJUSTMENTS)[number];",
+    "export interface Notice { readonly adjustment: Adjustment }",
+    "export function toNotice(warning: Warning): Notice | null {",
+    "  const code = warning.code;",
+    "  switch (code) {",
+    '    case "effort_dropped":',
+    '    case "display_dropped":',
+    "      return { adjustment: code };",
+    "    default:",
+    "      return null;",
+    "  }",
+    "}",
+  ].join("\n"),
+};
+
+test("a switch label handed on from a vocabulary a mapped type and an Exclude spell builds what that vocabulary's producers build", {
+  timeout: 120_000,
+}, async ({ plantedTree }) => {
+  expect(await rows(plantedTree, DETAILED_VOCABULARY_TREE)).toEqual(["ADJUSTMENTS.display_dropped"]);
+});
