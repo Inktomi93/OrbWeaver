@@ -2,10 +2,12 @@
 // @subject packages/server/src/domain/import/verbs/import-character.ts
 // @subject packages/server/src/domain/import/verbs/import-chat-bundle.ts
 // @subject packages/server/src/entry/compose/current-export.ts
+// @subject packages/server/src/domain/persona/verbs/import.ts
 // A whole-library backup restored onto the library that wrote it. A card or room the app wrote carries no stored
 // import key, so the lookup compares it with what the library exports now (D290): an unchanged library gains no row,
 // a row edited since the backup keeps its edit and the backup's version lands beside it, and an imported row still
-// matches by its stored key without an export.
+// matches by its stored key without an export. A persona file names its avatar by content hash, so a persona with art
+// is found again too.
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema } from "@orb/contracts/inference";
@@ -273,6 +275,38 @@ test("a character edited after the backup keeps the edit, and the backup's versi
   // The room's seat card changed with the edit, so the backup's room lands with the backup's card.
   expect((await rowCounts(root)).characters).toBe(before.characters + 1);
   expect((await rowCounts(root)).chats).toBe(before.chats + 1);
+});
+
+test("a persona with an avatar restored onto its own library adds no persona, and restored into an empty one keeps its avatar", {
+  tags: ["slow"],
+}, async () => {
+  await using root = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
+  const owner = await root.principalFor(root.ownerId);
+  const art = await root.services.assets.store({
+    principal: owner,
+    bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
+    mime: "image/png",
+    kind: "avatar",
+    enforceMagic: true,
+  });
+  const traveller = await root.services.persona.create({
+    principal: owner,
+    input: createPersonaSchema.parse({ name: "Traveller", description: "Crosses bridges.", avatarAssetId: art.assetId }),
+  });
+  const bundle = await exportLibrary(root);
+  const { files } = await readLibraryExport(root);
+  const before = await rowCounts(root);
+
+  // The persona file names its art by content, so the restore finds the owned row it came from.
+  expect(await restoreBundleTally(root, bundle)).toEqual({ status: "succeeded", imported: 0, inLibrary: files.size, skipped: 0, failed: 0 });
+  expect((await rowCounts(root)).personas).toBe(before.personas);
+
+  await using target = await signedInBox();
+  expect(await restoreBundleTally(target, bundle)).toMatchObject({ status: "succeeded", skipped: 0, failed: 0 });
+  const restored = (await target.services.persona.list({ principal: await target.principalFor(target.ownerId) })).filter(
+    (persona) => persona.name === traveller.name,
+  );
+  expect(restored.map((persona) => persona.avatarHash)).toEqual([art.hash]);
 });
 
 /** Restore one card file through the production character descriptor the bundle loader routes it to. */

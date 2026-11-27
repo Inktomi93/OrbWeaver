@@ -1,6 +1,6 @@
 // verb: export — read an owned persona as ONE portable file. Resolves the owned row to PersonaDetail, then
-// hands the fields to `#primitives/serde/persona`, which deliberately excludes avatarAssetId (a binary asset
-// reference can't travel in a JSON backup). ONE producer for both doors: the bundle descriptor streams this
+// hands the fields to `#primitives/serde/persona`, which carries the avatar's content hash and never its asset id
+// (a row id means nothing on another box); the bytes ride the bundle's `assets/`. ONE producer for both doors: the bundle descriptor streams this
 // file and the single-entity export door serves the same bytes. import.ts is the round-trip twin. Stored metadata
 // that is not JSON is written as none and reported to `note`, never dropped silently.
 
@@ -38,6 +38,7 @@ export function createExport(ctx: PersonaContext): PersonaService["export"] {
         description: detail.description,
         starred: detail.starred,
         metadata: detail.metadata,
+        avatarHash: detail.avatarHash,
       }),
     };
   };

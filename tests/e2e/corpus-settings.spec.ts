@@ -42,6 +42,8 @@ const IMPORT_GROUP_NAME = new RegExp(`^${RegExp.escape(IMPORT_PREFLIGHT_LEAD)} `
 // Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
 const BACKUP_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
+// Each restore first removes the one regex script it then proves restored.
+const REMOVED_WITNESS_FILES = 1;
 
 async function toggleAndReload(page: Page, group: ConfigGroupId, label: string): Promise<boolean> {
   await openGroup(page, group);
@@ -105,6 +107,7 @@ async function assertNativeRestore(
     expect(created).toHaveLength(statuses.length);
     expect(created).toHaveLength(folder ? statuses.length : 1);
     let imported = 0;
+    let inLibrary = 0;
     let skipped = 0;
     let failed = 0;
     for (const row of created) {
@@ -116,13 +119,16 @@ async function assertNativeRestore(
       }
       expect(workload.params.source ?? "zip").toBe(folder ? "dir" : "zip");
       imported += workload.result.imported;
+      inLibrary += workload.result.inLibrary;
       skipped += workload.result.skipped;
       failed += workload.result.failed;
     }
-    // Native successful reuse counts as imported; skipped means an unsupported or unattempted file.
+    // The backup is restored onto the library that wrote it, less the removed witness: every other file is already
+    // held (D290), so the witness is the one file that writes. Skipped means an unsupported or unattempted file.
     expect(failed).toBe(0);
     expect(skipped).toBe(0);
-    expect(imported + skipped + failed).toBe(entries);
+    expect(imported).toBe(REMOVED_WITNESS_FILES);
+    expect(imported + inLibrary + skipped + failed).toBe(entries);
     await expect(page.getByTestId(testId("importReport"))).toContainText(importSummaryImported(imported));
   } finally {
     page.off("response", record);

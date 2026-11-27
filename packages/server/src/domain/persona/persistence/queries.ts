@@ -197,6 +197,22 @@ export async function loadOwnedAssetHashes(
     .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...ids])));
 }
 
+/** The caller's own picture asset whose bytes hash to `hash`, or null: the avatar a persona backup names by content.
+ *  The owner predicate rides the WHERE, so a hash only another account's asset holds never resolves. */
+export async function findOwnedPictureAssetByHash(db: Db, ownerId: UserId, hash: string): Promise<AssetId | null> {
+  const rows = await db
+    .select({ id: assets.id, mime: assets.mime })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), eq(assets.hash, hash)))
+    .limit(LIMIT_ONE);
+  const row = rows[0];
+  if (row === undefined) {
+    return null;
+  }
+  const kinds = await loadAssetKinds(db, [row.id]);
+  return isPictureAsset({ kinds: kinds.get(row.id) ?? [], mime: row.mime }) ? row.id : null;
+}
+
 /** The caller's existing owned persona whose name DEDUPS to `name`, or null. Newest wins when names collide. */
 export async function findOwnedPersonaByName(db: Db, ownerId: UserId, name: string): Promise<PersonaId | null> {
   return (await loadOwnedPersonaIdsByDedupName(db, ownerId)).get(foldPersonaName(name)) ?? null;
