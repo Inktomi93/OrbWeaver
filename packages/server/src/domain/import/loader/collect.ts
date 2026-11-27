@@ -96,6 +96,7 @@ interface CollectState {
   readonly missingPersonaAvatars: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
+  readonly collidedCards: { file: string; handle: CharacterHandle }[];
   /** Top-level profile entries the importer does not process (assets/backgrounds/extensions/presets/…). */
   readonly unhandled: string[];
   /** settings.json top-level sections the importer does not process (only `power_user.personas` is read). */
@@ -257,13 +258,16 @@ async function planeFiles(plane: ImportDirectory | null, state: CollectState): P
 
 // Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
 // filename-derived slug becomes a card handle: it parses here, so every downstream position stays branded.
-function disambiguate(state: CollectState, base: string): CharacterHandle {
+function disambiguate(state: CollectState, file: string, base: string): CharacterHandle {
   const parsed = characterHandleSchema.parse(base);
   let handle = parsed;
   let n = 2;
   while (state.byHandle.get(handle)?.card !== undefined) {
     handle = deriveCharacterHandle(parsed, `-${n}`);
     n += 1;
+  }
+  if (handle !== parsed) {
+    state.collidedCards.push({ file, handle });
   }
   return handle;
 }
@@ -308,7 +312,7 @@ async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state
       state.skippedCharacters.push(parsed.card.name);
       continue;
     }
-    const handle = disambiguate(state, slugifyHandle(stem));
+    const handle = disambiguate(state, ent.name, slugifyHandle(stem));
     // The card's `extensions.world` NAME-LINK (a lorebook NAME, not an id — 35 of 313 corpus cards carry
     // one). It stays in the extensions residue too (lossless); this copy is the driver's attach key.
     const worldRaw = parsed.card.extensions?.["world"];
@@ -384,7 +388,8 @@ async function collectChats(fs: ImportFsPort, profileDir: ImportDirectory, state
 
 // A chat dir whose slug minus an ST folder-name decoration matches a card (`chatDirCardCandidates`, the one
 // rule the browser planner also pairs by). First candidate wins.
-function fuzzyPair(state: CollectState): void {
+function fuzzyPair(state: CollectState): CollectResult["fuzzyPairedDirs"] {
+  const fuzzyPairedDirs: CollectResult["fuzzyPairedDirs"] = [];
   for (const [handle, g] of state.byHandle) {
     if (g.card !== undefined || g.chats.length === 0) {
       continue;
@@ -394,10 +399,12 @@ function fuzzyPair(state: CollectState): void {
       if (target?.card !== undefined && !state.skippedHandles.has(base)) {
         target.chats.push(...g.chats);
         g.chats = [];
+        fuzzyPairedDirs.push({ chatDir: g.dirName ?? handle, handle: target.card.handle });
         break;
       }
     }
   }
+  return fuzzyPairedDirs;
 }
 
 // Standalone lorebooks: `<profileDir>/worlds/*.json`, the ST grammar or an orb export, through the ONE
@@ -989,6 +996,7 @@ export async function collectBundlesFromDir(
     missingPersonaAvatars: [],
     skippedChats: [],
     skippedCharacters: [],
+    collidedCards: [],
     unhandled: [],
     unhandledSettings: [],
     truncatedDirs: [],
@@ -1006,7 +1014,7 @@ export async function collectBundlesFromDir(
 
   await collectChats(fs, profileDir, state);
 
-  fuzzyPair(state);
+  const fuzzyPairedDirs = fuzzyPair(state);
   const personas = await collectPersonas(fs, profile, state);
   const tagsByEntityKey = await collectTags(fs, profileDir);
   const appearance = await collectAppearance(fs, profileDir);
@@ -1063,6 +1071,8 @@ export async function collectBundlesFromDir(
     missingPersonaAvatars: state.missingPersonaAvatars,
     skippedChats: state.skippedChats,
     skippedCharacters: state.skippedCharacters,
+    collidedCards: state.collidedCards,
+    fuzzyPairedDirs,
     unhandled: state.unhandled,
     unhandledSettings: state.unhandledSettings,
     truncatedDirs: state.truncatedDirs,

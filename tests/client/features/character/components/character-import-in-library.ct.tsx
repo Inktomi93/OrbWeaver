@@ -1,13 +1,15 @@
 // A card the library already holds says so by the character's current name and adds nothing, instead of reporting an import. The
 // card is the owner's own, exported and dropped back on the characters band's import dialog; the file goes to a real server's card
 // import route, so the answer is the one the server gives a card it already holds (D290). Only the transport between them is the test's.
+// A card that points at books this library lacks says so in the same notice.
 // @subject packages/client/src/features/character/components/character-import-dialog.tsx
 
-import { createCharacterSchema } from "@orb/contracts/character";
+import { ATTACHED_BOOKS_WIRE_KEY, createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { CARD_REFUSAL_CODES, cardImportResultSchema } from "@orb/contracts/import";
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { noticeToast, routeAuthConfig, routeToServer, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -16,7 +18,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
-import { cardImportPartialLine } from "#client/lib/card-import-copy.ts";
+import { cardBooksNotLinkedNote, cardImportPartialLine } from "#client/lib/card-import-copy.ts";
 import { cardInLibraryNotice } from "#client/lib/in-library-copy.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -139,4 +141,42 @@ test("a batch of a held card and a refused file counts the held card as held, no
   const line = cardImportPartialLine(0, 1, [{ filename: REFUSED_FILE, reason: unreadable }]);
   await expect(noticeToast(page, { title: line })).toHaveCount(1);
   expect(dialog.sent()).toBe(1);
+});
+
+const TOAST_TITLE = '[data-slot="toast-title"]';
+const JSON_CARD_FILE = "keeper.json";
+
+/** A V2 card file, pointing at the given world books of some other library. */
+function cardPointingAt(bookIds: readonly string[]): Buffer {
+  return Buffer.from(
+    JSON.stringify({
+      spec: "chara_card_v2",
+      ["spec_version"]: "2.0",
+      data: {
+        name: "Lantern Keeper",
+        description: "Keeps the light.",
+        ["first_mes"]: "The lamp is lit.",
+        [ATTACHED_BOOKS_WIRE_KEY]: bookIds.map((worldBookId) => ({ worldBookId, role: "primary" })),
+      },
+    }),
+  );
+}
+
+test("a card that points at a world book this library lacks says so beside its imported notice", async ({ corpus, mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const dialog = await openCardImport({ page, root, signedInConfig: corpus.auth.signedInConfig, mountShell: () => mount<typeof ShellAmbientStory>(STORY, {}) });
+
+  await dialog.drop([{ name: JSON_CARD_FILE, buffer: cardPointingAt([root.idSource.typeId(ID_PREFIX.worldBook)]) }]);
+
+  await expect(page.locator(TOAST_TITLE).filter({ hasText: cardBooksNotLinkedNote(1) })).toHaveCount(1);
+});
+
+test("a card that points at no world book gets the imported notice and no mention of books", async ({ corpus, mount, page }) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const dialog = await openCardImport({ page, root, signedInConfig: corpus.auth.signedInConfig, mountShell: () => mount<typeof ShellAmbientStory>(STORY, {}) });
+
+  await dialog.drop([{ name: JSON_CARD_FILE, buffer: cardPointingAt([]) }]);
+
+  await expect(page.locator(TOAST_TITLE)).toHaveCount(1);
+  await expect(page.locator(TOAST_TITLE).filter({ hasText: cardBooksNotLinkedNote(1) })).toHaveCount(0);
 });

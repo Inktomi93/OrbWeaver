@@ -27,6 +27,7 @@ export async function importCardBatch({ files, service }: ImportCardBatchDeps): 
         name: clipImportText(result.name),
         importHash: result.importHash,
         notes: result.skippedOverlays,
+        attachedBooksSkipped: result.attachedBooksSkipped,
       });
     } catch (err) {
       failed.push({

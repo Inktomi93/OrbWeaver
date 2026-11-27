@@ -11,6 +11,8 @@ const importedCardSchema = z.strictObject({
   name: importTextSchema,
   importHash: z.string(),
   notes: z.array(z.string()).readonly().optional(),
+  /** The book references the card carried that named no book this library holds, so they linked nothing. */
+  attachedBooksSkipped: z.number().int().nonnegative(),
 });
 export type ImportedCard = z.infer<typeof importedCardSchema>;
 

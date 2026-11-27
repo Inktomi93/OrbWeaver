@@ -21,7 +21,7 @@ import {
   IMPORT_PREVIEW_SHOW_NAMES,
   importPreviewProfileLabel,
 } from "../lib/import-library-names.ts";
-import { counted, KIND_NOUNS, previewKindLine, previewPresetDetailLines, previewProfiles } from "../lib/portability-model.ts";
+import { counted, KIND_NOUNS, previewItemDetailLines, previewKindLine, previewProfiles } from "../lib/portability-model.ts";
 import type { PreviewLine, PreviewReasonGroup } from "../lib/st-export-model.ts";
 import { stExportKindLines, stExportLeftGroups, stExportNameLines } from "../lib/st-export-model.ts";
 import { ST_EXPORT_GOES_HEADING, ST_EXPORT_PREVIEW_FAILED, ST_EXPORT_READING, ST_EXPORT_REPORT_NAME, ST_EXPORT_RUNNING } from "../lib/st-export-names.ts";
@@ -71,7 +71,7 @@ function ScopeNames({
               {`${KIND_NOUNS[kind][1]}: ${namesLine(names, scope === undefined ? total : names.length)}`}
             </Text>
             {listed.flatMap((item) =>
-              previewPresetDetailLines(item).map((line) => (
+              previewItemDetailLines(item).map((line) => (
                 <Text key={`${item.sourceDigest}-${line}`} voice="gloss" cap="prose" prose={true} wrap="anywhere">
                   {line}
                 </Text>

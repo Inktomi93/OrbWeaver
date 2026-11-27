@@ -221,6 +221,14 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
     section(
+      "Characters imported under a different handle (another card already had the handle their file name gives)",
+      report.collidedCards.map((c) => `\`${c.file}\` — handle \`${c.handle}\``),
+    ),
+    section(
+      "Chat folders paired to a character by name (no folder had the character's exact name)",
+      report.fuzzyPairedDirs.map((d) => `\`${d.chatDir}\` → \`${d.handle}\``),
+    ),
+    section(
       "Character planes that did NOT land (the character imported)",
       report.cardNotes.map((n) => `\`${n.file}\` — ${n.reason}`),
     ),

@@ -13,7 +13,7 @@
 import type { ImportAnswer, ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewSkip } from "@orb/contracts/import";
 import { clipImportText, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewListOf } from "@orb/contracts/import";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedChat, CollectedGroup, CollectedPreset, CollectResult } from "../contract/collection.ts";
+import type { CollectedCard, CollectedChat, CollectedGroup, CollectedPreset, CollectResult } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
 import type { GroupRefusal } from "./group.ts";
 import { partitionGroups } from "./group.ts";
@@ -135,6 +135,19 @@ function listed<Entry>(entry: Entry, judged: ReadonlyMap<Entry, ImportAnswer>, b
   return answer === undefined || answer.reuse === null ? keyed : { ...keyed, reuse: answer.reuse };
 }
 
+/** A card's item, with the handle its file name lost to an earlier card and the chat folders that joined it by the name
+ *  match. */
+function characterBase(profile: LabeledProfile, bundle: CollectedCard): ItemBase {
+  const { collidedCards, fuzzyPairedDirs } = profile.result;
+  const collided = collidedCards.find(({ file }) => file === bundle.filename);
+  const folders = fuzzyPairedDirs.filter(({ handle }) => handle === bundle.handle).map(({ chatDir }) => clipImportText(chatDir));
+  return {
+    ...item(profile, bundle.filename, bundle.cardName),
+    ...(collided === undefined ? {} : { collidedHandle: collided.handle }),
+    ...(folders.length === 0 ? {} : { pairedChatFolders: folders.slice(0, IMPORT_PREVIEW_LIST_MAX) }),
+  };
+}
+
 /** A preset's item with what its run does with its own scripts and the fields it leaves behind, each clipped and
  *  capped as a list is. */
 function presetItem(profile: LabeledProfile, preset: CollectedPreset, owned: ImportOwnership): ImportPreviewItem {
@@ -180,7 +193,7 @@ function profileKindItems(
   const { result } = profile;
   const groups = result.groups.filter((group) => importable.has(group));
   return {
-    characters: result.bundles.map((bundle) => listed(bundle, owned.characters, item(profile, bundle.filename, bundle.cardName))),
+    characters: result.bundles.map((bundle) => listed(bundle, owned.characters, characterBase(profile, bundle))),
     chats: [
       ...result.bundles.flatMap((bundle) => chatItems(profile, bundle.cardName, bundle.chats, owned.chats)),
       ...groups.flatMap((group) => chatItems(profile, group.parsed.name, group.chats, owned.chats)),

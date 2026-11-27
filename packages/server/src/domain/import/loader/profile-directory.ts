@@ -120,6 +120,8 @@ function mergeRecords(into: ProfileCollectRecords, from: Awaited<ReturnType<type
   into.skippedChats.push(...from.skippedChats);
   into.orphanChatDirs.push(...from.orphanChatDirs);
   into.skippedCharacters.push(...from.skippedCharacters);
+  into.collidedCards.push(...from.collidedCards);
+  into.fuzzyPairedDirs.push(...from.fuzzyPairedDirs);
   into.unhandled.push(...from.unhandled);
   into.unhandledSettings.push(...from.unhandledSettings);
   into.truncatedDirs.push(...from.truncatedDirs);
@@ -165,6 +167,8 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     skippedChats: [],
     orphanChatDirs: [],
     skippedCharacters: [],
+    collidedCards: [],
+    fuzzyPairedDirs: [],
     unhandled: [],
     unhandledSettings: [],
     truncatedDirs: [],
@@ -507,6 +511,8 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves, found, d
     skippedChats: collected.skippedChats,
     orphanChatDirs: collected.orphanChatDirs,
     skippedCharacters: collected.skippedCharacters,
+    collidedCards: collected.collidedCards,
+    fuzzyPairedDirs: collected.fuzzyPairedDirs,
     unhandled: [...new Set(collected.unhandled)],
     unhandledSettings: [...new Set(collected.unhandledSettings)],
     truncatedDirs: collected.truncatedDirs,
@@ -787,6 +793,11 @@ async function importOrphanBundles(
   };
 }
 
+/** The report's line for the world books a card pointed at that this library does not hold. */
+function skippedBookReferencesNote(count: number): string {
+  return `${String(count)} world book reference(s) not linked: the card names a book this library does not hold`;
+}
+
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
  *  net-new count (created character + imported chats) and the resolved character id (for the tag attach).
  *  Throws are the CALLER's to isolate. */
@@ -823,7 +834,7 @@ async function importOneBundle(
   const scripts = {
     scriptsLifted: cardResult.regexScriptsLifted,
     scriptsReused: cardResult.regexScriptsReused,
-    notes: cardResult.skippedOverlays,
+    notes: [...cardResult.skippedOverlays, ...(cardResult.attachedBooksSkipped === 0 ? [] : [skippedBookReferencesNote(cardResult.attachedBooksSkipped)])],
     embeddedBook: cardResult.embeddedBook,
   };
   if (bundle.chats.length === 0) {

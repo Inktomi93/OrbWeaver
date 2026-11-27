@@ -5,15 +5,19 @@
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
 import type { CardImportResult, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
+import { clipImportText, IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS, WHOLE_LIBRARY_ONLY_KINDS } from "@orb/contracts/portability";
 import type { TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
-import { cardImportFailedDetail, cardImportRefusalLine, IN_LIBRARY_DETAIL, inLibraryClause } from "#lib";
+import { cardBooksNotLinkedNote, cardImportFailedDetail, cardImportRefusalLine, IN_LIBRARY_DETAIL, inLibraryClause } from "#lib";
 import {
+  IMPORT_LEFT_BEHIND_NAMED_MAX,
   IMPORT_LEFT_ON_DISK_PHRASE,
   IMPORT_PREVIEW_SCRIPT_VERDICTS,
+  importLeftBehindFiles,
+  importPreviewCollidedHandleLine,
+  importPreviewPairedFoldersLine,
   importPreviewPresetLeftOutLine,
   importPreviewPresetScriptsLine,
   importPreviewScriptEntry,
@@ -154,11 +158,17 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
   };
 }
 
+/** The first few left-behind files by path, clipped, and how many more there are. A path is the owner's own file name, drawn as text. */
+function leftBehindFiles(paths: readonly string[]): string {
+  const named = paths.slice(0, IMPORT_LEFT_BEHIND_NAMED_MAX).map((path) => clipImportText(path));
+  return importLeftBehindFiles(named, paths.length - named.length);
+}
+
 /** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
  *  uploads the folder takes. One builder, so the two surfaces cannot disagree. */
 export function planNotes(plan: TreeImportPlan): string[] {
   const lines = skippedByReason(plan.skipped).map(
-    ({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} ${IMPORT_LEFT_ON_DISK_PHRASE}: ${reason}.`,
+    ({ reason, paths }) => `${String(paths.length)} file${paths.length === 1 ? "" : "s"} ${IMPORT_LEFT_ON_DISK_PHRASE}: ${reason}. ${leftBehindFiles(paths)}`,
   );
   if (plan.batches.length > 1) {
     lines.push(
@@ -176,6 +186,13 @@ export function summarizeBundleCounts({ mergedKeys, ...counts }: BundleCounts): 
 const UNNAMED_CARD = "Unnamed card";
 
 /** Summarize validated per-card outcomes. Optional notes preserve compatibility with older responses. */
+/** What a landed card did not land: the server's own notes, then the book references that linked nothing. A card with neither
+ *  keeps the notes array it came with. */
+function cardOutcomeNotes(card: CardImportResult["imported"][number]): readonly string[] {
+  const notes = card.notes ?? [];
+  return card.attachedBooksSkipped === 0 ? notes : [...notes, cardBooksNotLinkedNote(card.attachedBooksSkipped)];
+}
+
 export function summarizeCardImport(result: CardImportResult): ImportSummary {
   const created = result.imported.filter((card) => card.created);
   const deduped = result.imported.filter((card) => !card.created);
@@ -193,7 +210,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
     memoryScope: null,
     outcomes: [
       ...created.map((card): ImportOutcomeView => {
-        const notes = card.notes ?? [];
+        const notes = cardOutcomeNotes(card);
         return {
           path: card.filename ?? UNNAMED_CARD,
           ok: true,
@@ -202,7 +219,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
         };
       }),
       ...deduped.map((card): ImportOutcomeView => {
-        const notes = card.notes ?? [];
+        const notes = cardOutcomeNotes(card);
         return {
           path: card.filename ?? UNNAMED_CARD,
           ok: true,
@@ -302,12 +319,16 @@ function scriptVerdict(script: PreviewScript): string {
   return script.reuse === undefined ? IMPORT_PREVIEW_SCRIPT_VERDICTS.added : IMPORT_PREVIEW_SCRIPT_VERDICTS[script.reuse];
 }
 
-/** A preset entry's detail lines in the names panel: its own regex scripts with what the run does with each, then the
- *  fields the run leaves out. Empty for any other entry, and for a preset with neither. */
-export function previewPresetDetailLines(item: ImportPreviewItem): readonly string[] {
+/** An entry's detail lines in the names panel. A preset: its own regex scripts with what the run does with each, then the
+ *  fields the run leaves out. A card: the handle it takes when its file name's was held, then the chat folders that joined
+ *  it by the name match. Empty for an entry with none of these. */
+export function previewItemDetailLines(item: ImportPreviewItem): readonly string[] {
   const scripts = item.regexScripts ?? [];
   const leftOut = item.leftOut ?? [];
+  const folders = item.pairedChatFolders ?? [];
   return [
+    ...(item.collidedHandle === undefined ? [] : [importPreviewCollidedHandleLine(item.name, item.collidedHandle)]),
+    ...(folders.length === 0 ? [] : [importPreviewPairedFoldersLine(item.name, folders)]),
     ...(scripts.length === 0
       ? []
       : [

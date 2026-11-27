@@ -156,6 +156,8 @@ export interface ProfileCollectRecords
     | "skippedChats"
     | "orphanChatDirs"
     | "skippedCharacters"
+    | "collidedCards"
+    | "fuzzyPairedDirs"
     | "unhandled"
     | "unhandledSettings"
     | "truncatedDirs"

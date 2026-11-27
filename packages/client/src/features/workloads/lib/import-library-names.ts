@@ -97,6 +97,16 @@ export function importPreviewPresetLeftOutLine(preset: string, fields: readonly 
   return `${preset}, left out: ${fields.map(({ field, reason }) => `${field} (${reason})`).join("; ")}`;
 }
 
+/** A card's names-panel line for the handle it takes because another card of its profile already held the one its file name gives. */
+export function importPreviewCollidedHandleLine(card: string, handle: string): string {
+  return `${card}, imports under the handle ${handle}: another card already holds the handle its file name gives`;
+}
+
+/** A card's names-panel line for the chat folders that join it by the name match, no folder carrying the card's exact name. */
+export function importPreviewPairedFoldersLine(card: string, folders: readonly string[]): string {
+  return `${card}, chat folders joined by name: ${folders.join(", ")}`;
+}
+
 /** The count line's note for entries of a folder sent in several uploads that could not be checked against the other
  *  uploads: some may already be there, or be counted twice. */
 export function importPreviewUncomparedNote(count: number): string {
@@ -130,6 +140,14 @@ export const IMPORT_ZIP_REFUSAL: Record<ProfileZipRefusal, string> = {
 
 /** The words of a plan note that counts the files a folder import leaves behind. */
 export const IMPORT_LEFT_ON_DISK_PHRASE = "will stay on your disk";
+
+/** How many left-behind files a plan note names by path. */
+export const IMPORT_LEFT_BEHIND_NAMED_MAX = 3;
+
+/** The files a plan note names after its reason: each path, then how many more are not named. */
+export function importLeftBehindFiles(named: readonly string[], more: number): string {
+  return `${named.join(", ")}${more > 0 ? ` and ${String(more)} more` : ""}.`;
+}
 
 /** The persona review's answer-all buttons. */
 export const COLLISION_MERGE_ALL_NAME = "Merge all";

@@ -75,13 +75,19 @@ async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags
   }
 }
 
-/** Re-link the carried attached-book references (owned-source gated in the op) and return how many linked.
- *  Zero when the op is unwired (card-only slice) or the card carries none. */
-async function relinkCarriedBooks(ctx: ImportContext, characterId: CharacterId, refs: readonly AttachedBookRef[]): Promise<number> {
+/** Re-link the carried attached-book references (owned-source gated in the op) and return how many linked and how many
+ *  did not: a reference whose id names no book this owner holds (absent or foreign), which a cross-install import
+ *  surfaces as the books that did not travel. Both zero when the op is unwired (card-only slice) or the card carries none. */
+async function relinkCarriedBooks(
+  ctx: ImportContext,
+  characterId: CharacterId,
+  refs: readonly AttachedBookRef[],
+): Promise<{ readonly linked: number; readonly skipped: number }> {
   if (ctx.linkCarriedBooks === undefined || refs.length === 0) {
-    return 0;
+    return { linked: 0, skipped: 0 };
   }
-  return (await ctx.linkCarriedBooks({ ownerId: ctx.ownerId, characterId, refs })).linked;
+  const { linked } = await ctx.linkCarriedBooks({ ownerId: ctx.ownerId, characterId, refs });
+  return { linked, skipped: refs.length - linked };
 }
 
 /** The content a card CARRIES beyond its own fields: its lorebook (embedded and/or by reference) and its
@@ -132,8 +138,8 @@ async function attachCarriedContent(
   ctx: ImportContext,
   characterId: CharacterId,
   carried: CarriedContent,
-): Promise<Pick<ImportCharacterResult, "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays" | "embeddedBook">> {
-  const attachedBooksLinked = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
+): Promise<Pick<ImportCharacterResult, "attachedBooksSkipped" | "regexScriptsLifted" | "regexScriptsReused" | "skippedOverlays" | "embeddedBook">> {
+  const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
   const skippedOverlays: string[] = [];
 
   let embeddedBook: ImportBookNote | null = null;
@@ -166,7 +172,7 @@ async function attachCarriedContent(
     skippedOverlays.push(...lift.refused.map((refusal) => `regex script ${JSON.stringify(clipImportText(refusal.name))} not imported: ${refusal.reason}`));
   }
 
-  return { regexScriptsLifted, regexScriptsReused, skippedOverlays, embeddedBook };
+  return { attachedBooksSkipped, regexScriptsLifted, regexScriptsReused, skippedOverlays, embeddedBook };
 }
 
 /** EVERY plane a card lands beyond the character row, in one place, because BOTH arms of the verb run it:

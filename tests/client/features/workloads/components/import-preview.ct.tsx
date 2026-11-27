@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -43,6 +43,8 @@ import {
   IMPORT_PREVIEW_SHOW_NAMES,
   IMPORT_PROGRESS_NAME,
   IMPORT_RESULT_NAME,
+  importPreviewCollidedHandleLine,
+  importPreviewPairedFoldersLine,
   importPreviewPresetLeftOutLine,
   importPreviewPresetScriptsLine,
   importPreviewProfileLabel,
@@ -653,6 +655,8 @@ test("the folder's skip reasons and left-out files read at least as large as the
   expect(reason).toBeGreaterThanOrEqual(policy);
   expect(leftOnDisk).toBeGreaterThanOrEqual(policy);
   expect(question).toBeGreaterThanOrEqual(policy);
+  // The note names which file stays behind, not only how many.
+  await expect(preflight.getByText(IMPORT_LEFT_ON_DISK_PHRASE)).toContainText(ST_SECRETS_FILE);
 
   // The folder's own facts come before the policy that holds for every import, and the disclosed names read at the label step, not the micro gloss.
   const policyBox = await preflight.getByText(IMPORT_CONSEQUENCE[0], { exact: true }).boundingBox();
@@ -785,6 +789,45 @@ test("the names panel lists each preset's regex scripts with what the run does w
   ).toBeVisible();
   await expect(report.getByText(importPreviewPresetLeftOutLine("Amber (OpenAI)", leftOut), { exact: true })).toBeVisible();
   await expect(report.getByText(importPreviewPresetLeftOutLine("Birch (OpenAI)", leftOut), { exact: true })).toHaveCount(0);
+});
+
+test("the names panel says which card took another handle because its file name's was held, and which chat folder joined a card by name", async ({
+  mount,
+  page,
+  baseURL,
+}, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  // The staged card again under a file name that slugs the same, and a chat folder whose name is the card's plus a number.
+  await copyFile(join(folder, "characters", "preview-card.png"), join(folder, "characters", "Preview Card.png"));
+  const chatFolder = "Preview card 9";
+  await mkdir(join(folder, "chats", chatFolder), { recursive: true });
+  await writeFile(
+    join(folder, "chats", chatFolder, "one.jsonl"),
+    [
+      JSON.stringify({ ["user_name"]: "Bob", ["character_name"]: "Preview card", ["create_date"]: "2025-07-18@12h00m00s" }),
+      JSON.stringify({ ["is_user"]: false, mes: "Hello.", ["send_date"]: "2025-07-18@12h00m01s" }),
+    ].join("\n"),
+  );
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: IMPORT_PREVIEW_REPORT_NAME, exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  // The control: the wire carries each fact on exactly one card, so a line below has its subject and a card without the fact has none.
+  const [preview] = nonEmpty(await dryRunPreviews(root));
+  const [collided] = nonEmpty(preview.kinds.characters.items.filter((item) => item.collidedHandle !== undefined));
+  const [paired] = nonEmpty(preview.kinds.characters.items.filter((item) => item.pairedChatFolders !== undefined));
+  expect(paired.pairedChatFolders).toEqual([chatFolder]);
+  expect(paired.sourceDigest).not.toBe(collided.sourceDigest);
+  await report.getByRole("button", { name: IMPORT_PREVIEW_SHOW_NAMES }).click();
+
+  await expect(report.getByText(importPreviewCollidedHandleLine(collided.name, present(collided.collidedHandle)), { exact: true })).toBeVisible();
+  await expect(report.getByText(importPreviewPairedFoldersLine(paired.name, [chatFolder]), { exact: true })).toBeVisible();
 });
 
 test("a folder of two profiles lists both cards under their own profile, and a refusal stays with the profile it came from", async ({
