@@ -66,7 +66,7 @@ export {
   partialValueToken,
 } from "./config-search-tokens.ts";
 export type { ConnectionFieldRefusal, ConnectionRefusalTarget } from "./connection-refusal.ts";
-export { connectionBindingRefusalOf, connectionFieldRefusalOf } from "./connection-refusal.ts";
+export { connectionBindingRefusalOf, connectionEditorRefusalLine, connectionFieldRefusalOf, editorPlacesRefusal } from "./connection-refusal.ts";
 export type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
@@ -398,7 +398,7 @@ export { formatTrpcOp } from "./trpc-devlog.ts";
 export { rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast, turnRoomStateCopy } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
-export { uploadRefusalClause } from "./upload-refusal-copy.ts";
+export { attachmentRefusalSentence, uploadRefusalClause } from "./upload-refusal-copy.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";
 export { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "./use-debounced-value.ts";
 export { useElapsedSeconds } from "./use-elapsed-seconds.ts";

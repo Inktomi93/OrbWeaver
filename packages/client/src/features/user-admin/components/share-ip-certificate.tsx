@@ -77,11 +77,12 @@ function CertificateBody({ certificate }: { readonly certificate: IpCertificateS
   return (
     <Stack gap="field">
       <Stack gap="tight" role="note" data-ip-certificate-warning="plain-http" data-ip-certificate-failure={failed.failure.code}>
-        <ShareWarningText role="alert">{`No certificate: ${failed.failure.message}`}</ShareWarningText>
+        <ShareWarningText role="alert">{`No certificate. ${ipCertificateFailureGuidance(failed.failure.code, failed.setting)}`}</ShareWarningText>
         <ShareWarningText>
-          {`This server answers over plain http only, so a password typed at ${httpAddress(failed.setting.address)} crosses the internet in clear.`}
+          {`This server answers over plain http only, so a password typed at ${httpAddress(failed.setting.address)} crosses the internet in clear. Until it works, share through the relay instead.`}
         </ShareWarningText>
-        <ShareWarningText>{`${ipCertificateFailureGuidance(failed.failure.code)} Until it works, share through the relay instead.`}</ShareWarningText>
+        {/* What the server reported, kept for someone who needs the exact words; the line above is what to do. */}
+        <ShareProse>{`Details: ${failed.failure.message}`}</ShareProse>
       </Stack>
       <Offer initial={failed.setting} />
       <TurnOff />

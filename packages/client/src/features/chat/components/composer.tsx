@@ -346,7 +346,7 @@ export function Composer({
             is what tells a non-sighted user that typing `/` surfaced offers. The primitive stays mounted so
             the text CHANGE announces (its own header states the never-unmount rule). */}
       <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
-      <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
+      <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} refused={sendMessage.refusedAttachment} />
       {/* Utilities precede the input row; the menu doors and terminal Send stay beside the draft. */}
       <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
         <ComposerGuidedCluster

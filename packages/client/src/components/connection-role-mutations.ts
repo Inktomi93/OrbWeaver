@@ -23,10 +23,11 @@ function unlessSaidOnField(toast: string): (error: unknown) => string | null {
   };
 }
 
-/** The toast for a failed role binding: an embedder refusal is said under the control that made it, a binding refusal
- *  says why this connection cannot take the role, and any other failure is the generic line. */
+/** The toast for a failed role binding, for a caller whose own line is not on screen: an embedder refusal is said under
+ *  the control that made it, a binding refusal says why this connection cannot take the role, and any other failure is
+ *  the generic line. A role slot declares its own line and stays silent while it shows. */
 function bindingToast(toast: string): (error: unknown) => string | null {
-  return (error) => (embedRefusalOf(error) === null ? (connectionBindingRefusalOf(error) ?? toast) : null);
+  return (error) => (embedRefusalOf(error) === null ? (connectionBindingRefusalOf(error, "this role") ?? toast) : null);
 }
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;

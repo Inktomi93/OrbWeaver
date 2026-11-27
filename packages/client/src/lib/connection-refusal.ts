@@ -19,7 +19,7 @@ export interface ConnectionFieldRefusal {
 export function connectionFieldRefusalOf(error: unknown): ConnectionFieldRefusal | null {
   const reason = trpcErrorReason(error);
   if (reason === CONNECTION_OP_CODES.notFound) {
-    return { target: "connection", copy: "That connection is gone. Close this and pick another from the list." };
+    return { target: "connection", copy: "That connection is gone. Pick another one from Connections." };
   }
   if (reason === CONNECTION_OP_CODES.labelEmpty) {
     return { target: "label", copy: "A connection needs a name. Type one." };
@@ -43,19 +43,48 @@ export function connectionFieldRefusalOf(error: unknown): ConnectionFieldRefusal
     return { target: "model", copy: "A connection needs a model. Pick one from the list or type its id." };
   }
   if (reason === CONNECTION_OP_CODES.credentialForeign) {
-    return { target: "credential", copy: "That saved key isn't yours. Pick one of your own keys, or paste a new one." };
+    return { target: "credential", copy: "That saved key is no longer available. Pick another key, or paste a new one." };
   }
   return null;
 }
 
-/** A refused role or plugin binding, or `null` for any other failure. */
-export function connectionBindingRefusalOf(error: unknown): string | null {
+const EDITOR_PLACED_TARGETS = ["label", "baseUrl", "model"] as const satisfies readonly ConnectionRefusalTarget[];
+
+/** Whether the editor holds a control for the refusal's target, so the refusal is said under that field. */
+export function editorPlacesRefusal(target: ConnectionRefusalTarget): boolean {
+  return EDITOR_PLACED_TARGETS.some((placed) => placed === target);
+}
+
+/** What the editor says for a refusal. A refused field was dropped for the saved value, so its line quotes the draft and
+ *  says the saved one is back; a target the editor has no control for gives the step the editor can take. */
+export function connectionEditorRefusalLine(refusal: ConnectionFieldRefusal, draft: string | null): string {
+  switch (refusal.target) {
+    case "label":
+    case "baseUrl":
+    case "model":
+      return `${draft === null ? "" : `"${draft}" wasn't saved. `}${refusal.copy} The saved one is back.`;
+    case "provider":
+      return "That provider isn't available. To use a different one, add a new connection.";
+    case "api":
+      return "This provider doesn't speak that protocol. To use another one, add a new connection.";
+    case "credential":
+      return "This connection's saved key is no longer available. Replace it under Saved keys.";
+    case "connection":
+      return refusal.copy;
+    default:
+      throw new Error("Unreachable connection refusal target", { cause: refusal.target satisfies never });
+  }
+}
+
+/** A refused role or plugin binding, said for the role it concerns (`subject`, such as "Chat"), or `null` for any other
+ *  failure. */
+export function connectionBindingRefusalOf(error: unknown, subject: string): string | null {
   const reason = trpcErrorReason(error);
   if (reason === CONNECTION_OP_CODES.notFound) {
-    return "That connection is gone. Pick another for this role.";
+    return `That connection is gone. Pick another for ${subject}.`;
   }
   if (reason === CONNECTION_OP_CODES.taskUnservable) {
-    return "That connection can't do this job. Pick another one.";
+    return `That connection can't do ${subject}. Pick another one.`;
   }
-  return reason === CONNECTION_OP_CODES.actorTaskUnrouted ? "This plugin doesn't use that role. Reload the page to see the roles it uses." : null;
+  return reason === CONNECTION_OP_CODES.actorTaskUnrouted ? `This no longer uses ${subject}. Reload the page to see what it uses.` : null;
 }

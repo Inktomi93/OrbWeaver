@@ -1,6 +1,8 @@
 // Each way a certificate order fails (the authority cannot reach the challenge port, the authority refuses, the https
-// port will not open) leaves the Share card in `failed` with its own guidance. Production entry: the Multi-user admin
-// section's Share card over a composed server whose fake authority and occupied port produce each failure for real.
+// port will not open) leaves the Share card in `failed` with its own guidance, and the line announced as the alert is that
+// guidance, never the server's raw diagnostic (which stays on the card as secondary details). Production entry: the
+// Multi-user admin section's Share card over a composed server whose fake authority and occupied port produce each failure
+// for real. Layer: Playwright CT. Red: announcing the failure's message in the alert, or a guidance that points above.
 import { createServer } from "node:net";
 import type { IpCertificateFailureCode } from "@orb/contracts/identity";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, ipCertificateSettingSchema } from "@orb/contracts/identity";
@@ -55,7 +57,11 @@ for (const code of PROVOKED) {
     await caller.share.enableIpCertificate(ipCertificateSettingSchema.parse({ address: ADDRESS, challengePort, httpsPort }));
     await harness.settleSharing();
     // The server's own status says which failure this is; the card is read against it.
-    expect((await caller.share.status()).certificate).toMatchObject({ state: "failed", failure: { code } });
+    const { certificate } = await caller.share.status();
+    if (certificate.state !== "failed") {
+      throw new Error(`The order was expected to fail with ${code}, not leave the card ${certificate.state}`);
+    }
+    expect(certificate.failure.code).toBe(code);
 
     await page.route("**/api/auth/config", async (route) => {
       const response = await harness.http.request("/api/auth/config");
@@ -75,9 +81,15 @@ for (const code of PROVOKED) {
     await mount<typeof AdminResetNamesStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
     const failed = page.locator(`[data-ip-certificate-failure="${code}"]`);
     await expect(failed).toHaveCount(1);
-    await expect(failed.getByText(ipCertificateFailureGuidance(code), { exact: false })).toBeVisible();
+    const guidance = ipCertificateFailureGuidance(code, certificate.setting);
+    // The alert is what a screen reader hears: the fix, not the socket error.
+    await expect(failed.getByRole("alert")).toContainText(guidance);
+    await expect(failed.getByRole("alert")).not.toContainText(certificate.failure.message);
+    await expect(failed.getByText(certificate.failure.message, { exact: false })).toBeVisible();
+    // The port fields render below the failure, so the guidance never sends the person above it.
+    await expect(failed.getByRole("alert")).not.toContainText("above");
     for (const other of PROVOKED.filter((candidate) => candidate !== code)) {
-      await expect(page.getByText(ipCertificateFailureGuidance(other), { exact: false })).toHaveCount(0);
+      await expect(page.getByText(ipCertificateFailureGuidance(other, certificate.setting), { exact: false })).toHaveCount(0);
     }
   });
 }

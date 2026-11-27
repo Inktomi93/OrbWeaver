@@ -22,6 +22,7 @@ import {
   backgroundRepairs,
   bindRefusal,
   CONNECTIONS_LIST_ADDRESS,
+  connectionBindingRefusalOf,
   connectionHost,
   connectionSummary,
   EMBED_REFUSAL_SLOTS,
@@ -155,7 +156,7 @@ export function ConnectionRoleSlot({
 }: ConnectionRoleSlotProps): ReactElement {
   const headingId = useId();
   const deps = { trpc, invalidation };
-  const setBinding = useSetBinding(deps);
+  const setBinding = useSetBinding({ ...deps, failureShownInline: "the role row's refusal line" });
   const pickerLabel = connectionRolePickerName(row.label);
   // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
   const pickerRef = useRef<HTMLButtonElement>(null);
@@ -168,6 +169,9 @@ export function ConnectionRoleSlot({
   // The last pick the server refused because the embedder does not make the width its connection states, or did not
   // answer, and the picked connection's name: the picker has rolled back to what is bound, so it no longer shows it.
   const [embedRefusal, setEmbedRefusal] = useState<SlotEmbedRefusal | null>(null);
+  // The last write that failed for any other reason, in the row's words. A binding refusal rolls the picker back to what
+  // is bound; a failure with no refusal keeps the draft, so the row says it is not applied yet.
+  const [bindingFailure, setBindingFailure] = useState<string | null>(null);
   // The pick whose embedder the server is checking before the binding lands.
   const [checking, setChecking] = useState<{ readonly embedder: string | undefined } | null>(null);
   // The pick whose change the server is still sizing, before the confirm or the write; the row says it is checking.
@@ -235,13 +239,22 @@ export function ConnectionRoleSlot({
                 const write = (checksEmbedder: boolean): void => {
                   setDraft(picked);
                   setEmbedRefusal(null);
+                  setBindingFailure(null);
                   setChecking(checksEmbedder ? { embedder } : null);
                   const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
                   toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
-                  // an embedder refusal reaches `setEmbedRefusal` and renders as the row's alert (EmbedRefusalLine); any other
-                  // failure is toasted by `useSetBinding`'s errorToast (connection-role-mutations.ts). Ends if either of those stops surfacing its failure.
+                  // an embedder refusal reaches `setEmbedRefusal` and renders as the row's embedder alert (EmbedRefusalLine); any
+                  // other failure reaches `setBindingFailure` and renders as the row's failure line (BindingFailureLine). The
+                  // hook declares that line, so its errorToast stays silent while this row is mounted.
                   void bound
-                    .catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder })))
+                    .catch(
+                      rollBackOnRefusal({
+                        role: row.label,
+                        setDraft,
+                        setEmbedRefusal: (refusal) => setEmbedRefusal({ refusal, embedder }),
+                        setBindingFailure,
+                      }),
+                    )
                     .finally((): void => setChecking(null));
                 };
                 // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
@@ -267,6 +280,7 @@ export function ConnectionRoleSlot({
           )}
           <EmbedWindowNote own={isVectorRole} task={row.task} view={view} />
           <EmbedderNote check={shownCheck} refused={embedRefusal} />
+          <BindingFailureLine sentence={bindingFailure} />
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
             <BackgroundRepair key={connection.id} connection={connection} />
@@ -303,16 +317,33 @@ function connectionItems({
     : [...items, { label: connectionSummary(stranded), value: stranded.id, disabled: true, description: STRANDED_BOUND_REASON }];
 }
 
-/** A failed pick's handler: the server undid a write onto an embedder whose width it could not accept or could not
- *  check, so the picker goes back to what is bound and the row says why. Any other failure keeps the draft, so the
- *  row says it is not applied yet. */
-function rollBackOnEmbedRefusal(setDraft: (draft: undefined) => void, setEmbedRefusal: (refusal: EmbedTargetRefusal) => void): (error: unknown) => void {
+/** A failed pick's handler. The server undid a write onto an embedder whose width it could not accept or could not
+ *  check, or refused the binding itself (the connection is gone, it cannot do the role): the picker goes back to what is
+ *  bound and the row says why, naming the role. Any other failure keeps the draft, so the row says it is not applied
+ *  yet, and says the write failed. */
+function rollBackOnRefusal({
+  role,
+  setDraft,
+  setEmbedRefusal,
+  setBindingFailure,
+}: {
+  readonly role: string;
+  readonly setDraft: (draft: undefined) => void;
+  readonly setEmbedRefusal: (refusal: EmbedTargetRefusal) => void;
+  readonly setBindingFailure: (sentence: string) => void;
+}): (error: unknown) => void {
   return (error) => {
     const refusal = embedRefusalOf(error);
     if (refusal !== null) {
       setDraft(undefined);
       setEmbedRefusal(refusal);
+      return;
     }
+    const bindingRefusal = connectionBindingRefusalOf(error, role);
+    if (bindingRefusal !== null) {
+      setDraft(undefined);
+    }
+    setBindingFailure(bindingRefusal ?? `Couldn't change ${role}. Try again.`);
   };
 }
 
@@ -359,6 +390,15 @@ function EmbedderNote({
   ) : (
     <Text voice="gloss" role="status" data-embedder-check="" cap="prose">
       {embedderCheckingText(check.embedder)}
+    </Text>
+  );
+}
+
+/** The row's line for a write that failed without an embedder refusal; the refused pick is already out of the picker. */
+function BindingFailureLine({ sentence }: { readonly sentence: string | null }): ReactElement | null {
+  return sentence === null ? null : (
+    <Text voice="gloss" role="alert" data-refusal="binding" cap="prose" tone="warning">
+      {sentence}
     </Text>
   );
 }
