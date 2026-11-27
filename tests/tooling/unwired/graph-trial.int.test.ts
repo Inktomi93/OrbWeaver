@@ -1090,8 +1090,30 @@ test("a member deletes with the unread port copy its value fills", { timeout: 12
   ]);
 });
 
-// A string that names a member as a key reads no data: a disposition returned into `keyof`, a key handed to a
-// `keyof` slot, and a `Pick` argument each break when the member goes, and each is a key use. The
+// A union arm that loses its discriminant leaves the literal that writes it matching no arm: the error sits at the
+// literal's property or at the declaration it is bound to, a write either way, so each arm's discriminant nothing
+// narrows on stays named-only.
+test("an error at a literal's property after its arm's discriminant goes is a write", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "export type Meta = { readonly ok: true; readonly at: number } | { readonly ok: false; readonly reason: string };",
+        "export const good: Meta = { ok: true, at: 1 };",
+        'export const bad: Meta = { ok: false, reason: "r" };',
+        'export const shown = (meta: Meta): string => ("at" in meta ? String(meta.at) : meta.reason);',
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Meta.ok`, NAMED_ONLY, [`${LIB}:2 write`]],
+    [`${LIB}:Meta.ok`, NAMED_ONLY, [`${LIB}:3 write`]],
+  ]);
+});
+
+// A string that names a member as a key reads no data: a disposition returned into `keyof` and a `Pick` argument each
+// break when the member goes, and each is a key use. A key handed in a literal's property breaks at that property,
+// the literal's write. The
 // counts are bumped by the key the disposition carries, a write, so every member stays named-only.
 test("an error at a string that names the member as a key is a key use, not a read", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
@@ -1119,7 +1141,7 @@ test("an error at a string that names the member as a key is a key use, not a re
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
     [`${LIB}:Counts.done`, NAMED_ONLY, [`${LIB}:2 key`]],
     [`${LIB}:Counts.held`, NAMED_ONLY, [`${LIB}:2 key`]],
-    [`${LIB}:Meta.shown`, NAMED_ONLY, [`${LIB}:12 key`, `${LIB}:13 write`]],
+    [`${LIB}:Meta.shown`, NAMED_ONLY, [`${LIB}:12 write`, `${LIB}:13 write`]],
     [`${LIB}:Meta.kept`, NAMED_ONLY, [`${LIB}:13 write`, `${LIB}:14 key`]],
   ]);
 });

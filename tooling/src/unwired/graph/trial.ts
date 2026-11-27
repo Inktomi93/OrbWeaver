@@ -16,7 +16,8 @@
 //   site with it: a binding. An excess-property error is the object literal that writes the member, and any other error
 //   inside that literal member (a method parameter that lost its contextual type) is part of the same write. An error
 //   at a target the graph's roles judge stored into and not read (`=`, a discarded `+=` or bump, ./roles.ts) is a
-//   write too. An error at a string that names the member as a key (a `keyof` slot, a `Pick` argument) is a key use, as
+//   write too, and so is an error at an object literal's property name or at the name a declaration binds one to, such
+//   as a literal whose union arm lost its discriminant. An error at a string that names the member as a key (a `keyof` slot, a `Pick` argument) is a key use, as
 //   the graph's roles judge it. Bindings, key uses and writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
 //   failed import types its uses without an error.
 // - A read a Drizzle write copies into a column is the column's, as the graph's store rule has it (sites.ts
@@ -333,14 +334,32 @@ const firstLine = (text: string): string => text.split("\n")[0] ?? text;
 // or bump, or a destructuring slot. A logical `??=` or a bump whose value is used also reads.
 const storesOnly = (name: Node): boolean => !referenceRoles(name).some((role) => READS.has(role));
 
-// An error's site that names the member by a string: a literal value or type, or a property whose value is one, held to
-// a key type (`keyof T`, a `Pick` argument). The graph's key use reads no data; where the key reaches an access, the
-// access is the use, and the delete leaves that access compiling.
-const namesKey = (name: Node): boolean =>
-  isStringLiteral(name) || (isPropertyAssignment(name.parent) && sameSpan(name.parent.name, name) && isStringLiteral(name.parent.initializer));
+// An error's site that names the member by a string, a literal value or type held to a key type (`keyof T`, a `Pick`
+// argument): the graph's key use reads no data. Where the key reaches an access, the access is the use, and the delete
+// leaves that access compiling.
+const namesKey = (name: Node): boolean => isStringLiteral(name);
 
-// What an error's site that writes nothing does: names the member as a key, or reads it.
-const unwrittenKind = (named: Node | undefined): SiteKind => (named !== undefined && namesKey(named) ? "key" : "read");
+// An error's site at an object literal's property name, or at the name a declaration binds an object literal to: the
+// literal writes the member, and the error says the write no longer fits its slot, as when a union arm loses its
+// discriminant and the literal matches no arm.
+function writesLiteral(name: Node): boolean {
+  const { parent } = name;
+  if (isVariableDeclaration(parent)) {
+    return sameSpan(parent.name, name) && parent.initializer !== undefined && isObjectLiteralExpression(parent.initializer);
+  }
+  return (isPropertyAssignment(parent) || isShorthandPropertyAssignment(parent)) && sameSpan(parent.name, name) && isObjectLiteralExpression(parent.parent);
+}
+
+// What an error's site that no store reaches does: writes a literal property, names the member as a key, or reads it.
+function unstoredKind(named: Node | undefined): SiteKind {
+  if (named === undefined) {
+    return "read";
+  }
+  if (writesLiteral(named)) {
+    return "write";
+  }
+  return namesKey(named) ? "key" : "read";
+}
 
 // The edits a delete makes, by repository-relative file.
 type Edits = ReadonlyMap<string, readonly Splice[]>;
@@ -835,7 +854,7 @@ class Trials {
     const site = moduleSite(named);
     if (site === undefined) {
       const writes = inWrite || WRITE_CODES.has(diagnostic.code) || (named !== undefined && (storesOnly(named) || this.#columnCopy(named)));
-      return { ...base, at, kind: writes ? "write" : unwrittenKind(named) };
+      return { ...base, at, kind: writes ? "write" : unstoredKind(named) };
     }
     const reader = source === undefined ? undefined : this.#bindingReader(source, site, pos);
     return reader === undefined
