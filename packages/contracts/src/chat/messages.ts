@@ -140,6 +140,12 @@ export const chatReasoningPartSchema = z
   })
   .strip() satisfies z.ZodType<ChatReasoningPart>;
 
+/** Whether any stored reasoning part is a provider-redacted block. The read seam's SQL twin
+ *  (`reasoningRedactedSql` in `packages/server/src/domain/chat/persistence/queries.ts`) spells the same path. */
+export function hasRedactedReasoning(parts: readonly ChatReasoningPart[] | null | undefined): boolean {
+  return parts?.some((part) => part.meta?.anthropic?.redactedData !== undefined) ?? false;
+}
+
 /** THE ONE SPELLING of the `message_variants.metadata` key carrying a generation's REASONING TIME in ms.
  *
  *  The column is closed onto {@link variantMetadataSchema}, so the type binds its writers to its readers and
@@ -633,6 +639,9 @@ export interface MessageView {
   outputCapReached: boolean;
   content: string;
   reasoning: string | null;
+  /** The provider redacted the selected run's reasoning (a redacted thinking block). Derived at the server read
+   *  seam from the stored replay parts, which never cross to the client; withheld wherever `reasoning` is. */
+  reasoningRedacted: boolean;
   model: ModelId | null;
   provider: ProviderId | null;
   /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason` and `terminalReason` are raw words, opaque
@@ -728,6 +737,7 @@ export const messageViewSchema = z.strictObject({
   outputCapReached: z.boolean(),
   content: z.string(),
   reasoning: z.string().nullable(),
+  reasoningRedacted: z.boolean(),
   model: brandedId("ModelId").nullable(),
   provider: providerIdSchema.nullable(),
   finishReason: normalizedFinishReasonSchema.nullable(),

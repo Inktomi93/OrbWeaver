@@ -24,7 +24,7 @@ import type {
   UserMacroDraws,
   VariantMetadata,
 } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND, MESSAGE_TEXT_MAX_CHARS, parseVariantMetadata } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND, hasRedactedReasoning, MESSAGE_TEXT_MAX_CHARS, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
@@ -934,6 +934,7 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     // A freshly-committed variant has never been continued — its D26 snapshot columns are null.
     hasContinuation: false,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
+    reasoningRedacted: hasRedactedReasoning(params.variant.reasoningParts),
     ...economics,
     hasGeneratedVariant: economics.genStartedAt !== null || economics.genFinishedAt !== null,
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the

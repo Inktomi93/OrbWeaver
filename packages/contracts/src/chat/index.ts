@@ -224,6 +224,7 @@ export {
   CONNECTION_ATTRIBUTION_PROVENANCES,
   CUE_ROLES,
   chatReasoningPartSchema,
+  hasRedactedReasoning,
   INLINE_REPLY_ORIGIN,
   isReattributableReply,
   isSeededGreetingRow,

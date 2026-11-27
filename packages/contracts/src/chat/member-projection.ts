@@ -42,15 +42,16 @@ export function memberToolCalls(records: readonly ToolCallRecord[], content: str
   }));
 }
 
-// Withhold the whole REASONING channel from a member of a deception-active game. Nulls `view.reasoning`
-//  (identity when it is already null — the common non-reasoning row allocates nothing). The BODY is left to
+// Withhold the whole REASONING channel from a member of a deception-active game. Nulls `view.reasoning` and the
+//  redacted mark, which would otherwise tell a member the channel exists (identity when both are already clear — the
+//  common non-reasoning row allocates nothing). The BODY is left to
 //  {@link stripHiddenForMember}; a caller applies BOTH when the game is deception-active.
 //
 //  THE REPLAY PARTS NEED NO ARM HERE, and that is by construction rather than by omission: they are
 //  deliberately absent from `MessageView` (see `messages.ts`), read host-side through the engine's own
 //  `loadReasoningParts` op, and therefore never reach a member's wire at all.
 function stripReasoningFromView(view: MessageView): MessageView {
-  return view.reasoning === null ? view : { ...view, reasoning: null };
+  return view.reasoning === null && !view.reasoningRedacted ? view : { ...view, reasoning: null, reasoningRedacted: false };
 }
 
 /** The FULL member projection of one view: the unconditional hidden-span BODY strip, plus — when the

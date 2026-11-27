@@ -6,6 +6,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { Text } from "@orb/ui/text";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
@@ -13,6 +14,7 @@ import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegis
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import { bodyDisplayRow } from "../lib/display-row.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
+import { MESSAGE_REASONING_REDACTED_NOTE } from "../lib/message-action-names.ts";
 import { messageBoxFacts } from "../lib/message-box-facts.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
@@ -59,7 +61,7 @@ export function renderRowToolCalls(args: {
  *  IT IS NOT AN ACCESS GATE: the server already decided what this viewer may read — §3.6's reasoning strip
  *  NULLS the field for a member of a deception-active game at every read path (listMessages, the durable
  *  replay, the live fan-out, the turn returns, the fork copy), so a stripped row arrives with nothing to
- *  render. Null/empty ⇒ no disclosure at all (never an empty affordance advertising a withheld channel).
+ *  render. Null/empty ⇒ no disclosure at all (never an empty affordance advertising a withheld channel); a reply whose provider redacted its reasoning says so instead, since the server clears that mark wherever it withholds the channel.
  *  Suppressed while EDITING, like the tool-call + metadata rows. The author-or-host edit and clear controls
  *  ride the block, so a row with nothing to show offers neither. */
 export function renderRowReasoning(args: {
@@ -73,17 +75,28 @@ export function renderRowReasoning(args: {
   readonly displayDepth: number | undefined;
 }): ReactNode {
   const raw = args.message.reasoning;
-  if (args.editing || raw === null || raw.length === 0) {
+  const hasText = raw !== null && raw.length > 0;
+  const { reasoningRedacted } = args.message;
+  if (args.editing || !(hasText || reasoningRedacted)) {
     return null;
   }
   return (
-    <MessageReasoning
-      message={args.message}
-      renderContext={args.renderContext}
-      displayDepth={args.displayDepth}
-      showIcon={args.showLLMReasoningIcon}
-      canEdit={isAuthorOrHost(args)}
-    />
+    <>
+      {hasText ? (
+        <MessageReasoning
+          message={args.message}
+          renderContext={args.renderContext}
+          displayDepth={args.displayDepth}
+          showIcon={args.showLLMReasoningIcon}
+          canEdit={isAuthorOrHost(args)}
+        />
+      ) : null}
+      {reasoningRedacted ? (
+        <Text voice="gloss" data-slot="message-reasoning-redacted">
+          {MESSAGE_REASONING_REDACTED_NOTE}
+        </Text>
+      ) : null}
+    </>
   );
 }
 

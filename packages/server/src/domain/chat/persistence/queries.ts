@@ -123,6 +123,10 @@ const chatRowSelection = {
 
 // Slot ⋈ selected-variant projection. Field names mirror `MessageView` exactly so the read returns the
 // view directly (no re-mapping).
+// The replay parts are host-side material and never selected whole; the one fact the view needs, whether a block was
+// redacted, is read in the query. `hasRedactedReasoning` in `@orb/contracts/chat` spells the same path.
+const reasoningRedactedSql = sql<number>`exists(select 1 from json_each(${messageVariants.reasoningParts}) where json_extract(value, '$.meta.anthropic.redactedData') is not null)`;
+
 const messageViewSelection = {
   id: messages.id,
   chatId: messages.chatId,
@@ -145,6 +149,7 @@ const messageViewSelection = {
   variantMetadata: messageVariants.metadata,
   content: messageVariants.content,
   reasoning: messageVariants.reasoning,
+  reasoningRedacted: reasoningRedactedSql,
   model: messageVariants.model,
   provider: messageVariants.provider,
   finishReason: messageVariants.finishReason,
@@ -205,9 +210,10 @@ export function normalizeToolOrdinals(records: readonly ToolCallRecord[]): reado
 // parsed at this read seam. Tool calls degrade malformed/absent blobs to `[]`, while provider metadata is
 // reduced to the one member-visible output-cap fact — neither raw blob crosses the boundary.
 function toMessageView(
-  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "hasGeneratedVariant" | "outputCapReached"> & {
+  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "hasGeneratedVariant" | "outputCapReached" | "reasoningRedacted"> & {
     toolCalls: readonly ToolCallRecord[] | null;
     hasContinuation: number;
+    reasoningRedacted: number;
     hasGeneratedVariant: number;
     variantMetadata: VariantMetadata | null;
   },
@@ -218,6 +224,7 @@ function toMessageView(
   return {
     ...view,
     hasContinuation: row.hasContinuation === 1,
+    reasoningRedacted: row.reasoningRedacted === 1,
     hasGeneratedVariant: row.hasGeneratedVariant === 1,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
     toolCalls: activeToolCalls(row.toolCalls, metadata, row.content),
