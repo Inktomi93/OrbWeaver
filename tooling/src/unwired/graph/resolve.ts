@@ -385,7 +385,7 @@ const SYMBOL_MEMBER_PREFIX = "__@";
 export const symbolMemberName = (symbol: NativeSymbol): string => `${SYMBOL_MEMBER_PREFIX}${symbol.name}@${String(symbol.id)}`;
 
 /** Whether a member name is the checker's spelling of a unique symbol key, as {@link symbolMemberName} builds it. */
-export const isSymbolMemberName = (name: string): boolean => name.startsWith(SYMBOL_MEMBER_PREFIX);
+const isSymbolMemberName = (name: string): boolean => name.startsWith(SYMBOL_MEMBER_PREFIX);
 
 /** A type's member by the name the checker reports for it: `getPropertyOfType`, else, for a unique symbol's name, which
  *  that request cannot find, the listed member of that name. */
