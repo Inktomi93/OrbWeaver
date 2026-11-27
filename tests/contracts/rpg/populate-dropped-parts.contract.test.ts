@@ -1,5 +1,5 @@
 // @subject packages/contracts/src/rpg/extraction.ts
-import { RPG_POPULATE_PARTS, salvagePopulate } from "@orb/contracts/rpg";
+import { salvagePopulate } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node";
 
 const GOOD_SHEET = { title: "Artificer", level: 2 };
@@ -17,7 +17,7 @@ test("each part that lost something is named once, in the vocabulary's order, wh
     inventory: [BAD_ITEM, BAD_ITEM, GOOD_ITEM],
     quests: [{ action: "create" }, GOOD_QUEST],
   });
-  expect(salvaged.droppedParts).toEqual(RPG_POPULATE_PARTS.filter((part) => part !== "reply"));
+  expect(salvaged.droppedParts).toEqual(["sheet", "inventory", "quests"]);
   expect(salvaged.sheet).toBeNull();
   expect(salvaged.extraction.inventory).toHaveLength(1);
   expect(salvaged.extraction.quests).toHaveLength(1);

@@ -115,7 +115,6 @@ export {
   parseToolCallArgs,
   projectIssueSentValue,
   RPG_NO_CHANGES_TOOL,
-  RPG_POPULATE_PARTS,
   RPG_TOOL_ROUND_TOOL_NAMES,
   recordToolCalls,
   rpgExtractionSchema,
