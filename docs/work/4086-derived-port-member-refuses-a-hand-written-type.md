@@ -1,13 +1,13 @@
 ---
-kind: work
+kind: tooling
 status: open
 updated: 2026-11-27
 priority: P3
-area: client
+area: tooling
 plan: unwired-code
 ---
 
-# Client mutation vars derive from the procedure input they send
+# derived-port-member refuses a hand-written type bound to a procedure's input or output
 
 ## What
 
