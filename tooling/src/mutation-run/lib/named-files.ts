@@ -3,7 +3,7 @@
 import { existsSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import { looksLikeTestFilename } from "../../floor/testing/test-kinds.ts";
+import { classifyTestFilename, looksLikeTestFilename, runtimeForTestFamily } from "../../floor/testing/test-kinds.ts";
 
 /** `,` too: Stryker's option lists are comma lists, so one inside a name would split it into two patterns. */
 const PATTERN_CHARS = /[*?[\]{}!,]/u;
@@ -11,6 +11,7 @@ const SOURCE_FILE = /\.tsx?$/u;
 const DECLARATION_FILE = /\.d\.ts$/u;
 const PACKAGE_SOURCE = /^packages\/(?<name>[^/]+)\/src(?<dir>\/.*)?$/u;
 const TESTS_FLAG = "--tests";
+const SANDBOX_RUNTIME = "vitest";
 
 const USAGE = [
   "usage: pnpm test:mutation <file...> [--tests <test-file-or-glob...>]",
@@ -43,6 +44,14 @@ function refusalFor(path: string, root: string): string | null {
   return PACKAGE_SOURCE.test(dirname(fromRoot)) ? null : "is not package source; the tooling suites cannot run in a sandbox";
 }
 
+// The sandbox is a copy of the checkout's dependency store, and a Playwright build run inside it writes back through that store.
+// Only Vitest suites run there, so a CT, e2e or type spec named by `--tests` is refused instead of starting a build.
+function sandboxRefusalFor(entry: string): string | null {
+  const classified = classifyTestFilename(entry);
+  const runtime = classified === undefined ? SANDBOX_RUNTIME : runtimeForTestFamily(classified.definition.family);
+  return runtime === SANDBOX_RUNTIME ? null : `${entry} runs under ${runtime}; the mutation sandbox runs Vitest suites only`;
+}
+
 /** The `tests/` directory that mirrors a checkout-relative package source file, whether or not it exists. */
 export function mirrorDir(file: string): string | null {
   const groups = PACKAGE_SOURCE.exec(dirname(file))?.groups;
@@ -71,10 +80,13 @@ export function planMutationRun(args: readonly string[], root: string): Mutation
   if (named.length === 0 || (flag !== -1 && tests.length === 0)) {
     throw new UsageError(USAGE);
   }
-  const refusals = named.flatMap((path) => {
-    const refusal = refusalFor(path, root);
-    return refusal === null ? [] : [`${path} ${refusal}`];
-  });
+  const refusals = [
+    ...named.flatMap((path) => {
+      const refusal = refusalFor(path, root);
+      return refusal === null ? [] : [`${path} ${refusal}`];
+    }),
+    ...tests.flatMap((entry) => sandboxRefusalFor(entry) ?? []),
+  ];
   if (refusals.length > 0) {
     throw new UsageError([...refusals, USAGE].join("\n"));
   }

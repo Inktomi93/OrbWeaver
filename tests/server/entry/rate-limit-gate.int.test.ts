@@ -10,7 +10,8 @@ import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { signedInMember } from "./_auth-roots.ts";
 
-const LOCAL = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } as const;
+// No case reads a seeded library, and each sign-in would seed one.
+const LOCAL = { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny", ["SEED_CONTENT"]: "off" } as const;
 const CSRF = { [CSRF_HEADER]: "1" } as const;
 const PEER = "203.0.113.9";
 const OK = 200;
@@ -53,9 +54,9 @@ function admittedThenRefused(cap: number, admitted: number): number[] {
 }
 
 test("the login route refuses the attempt past the per-IP cap, and only a raised floor admits it", async () => {
-  await using shipped = await localRoot();
-  const cap = shipped.services.settings.getEffectiveConfig().rateLimits.login;
-  expect(await spend(cap + 1, (index) => login(shipped, `ip-axis-${String(index)}`))).toEqual(admittedThenRefused(cap, UNAUTHORIZED));
+  await using lowered = await localRoot({ env: { ["RATE_LIMIT_LOGIN"]: LOWERED_FLOOR } });
+  const cap = lowered.services.settings.getEffectiveConfig().rateLimits.login;
+  expect(await spend(cap + 1, (index) => login(lowered, `ip-axis-${String(index)}`))).toEqual(admittedThenRefused(cap, UNAUTHORIZED));
 
   await using raised = await localRoot({ env: { ["RATE_LIMIT_LOGIN"]: String(cap + 1) } });
   expect(await spend(cap + 1, (index) => login(raised, `ip-axis-${String(index)}`))).toEqual(Array.from({ length: cap + 1 }, () => UNAUTHORIZED));

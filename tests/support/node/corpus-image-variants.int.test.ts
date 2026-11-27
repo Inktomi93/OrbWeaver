@@ -14,7 +14,9 @@ import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 const OWNER_PASSWORD = "synthetic-image-variant-owner-password";
 
-test("native image admission and funded output variants preserve short-edge skips, unknown accounting, multipart edit and owner-only provenance", async () => {
+test("native image admission and funded output variants preserve short-edge skips, unknown accounting, multipart edit and owner-only provenance", {
+  tags: ["slow"],
+}, async () => {
   using wire = await createCorpusImageWire("every-step");
   const fallback = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],

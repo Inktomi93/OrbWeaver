@@ -80,7 +80,7 @@ test("the rule default admits its actual scope and matches native birth defaults
   expect(created.view).not.toHaveProperty("creationRequestId");
 });
 
-test("native automation read suppliers keep rule scope, preset provenance, fire identity and the installer's tool metadata", async () => {
+test("native automation read suppliers keep rule scope, preset provenance, fire identity and the installer's tool metadata", { tags: ["slow"] }, async () => {
   const execution = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -88,7 +88,8 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  await using root = await createServerHarness({ providerFetch: execution.execute, pluginSpawn: spawn });
+  // The case reads no seeded library, and the signed-in owner would seed one.
+  await using root = await createServerHarness({ providerFetch: execution.execute, pluginSpawn: spawn, env: { ["SEED_CONTENT"]: "off" } });
   const principal = await root.principalFor(root.ownerId);
   await seedCorpusConnections(root, principal);
   const room = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });

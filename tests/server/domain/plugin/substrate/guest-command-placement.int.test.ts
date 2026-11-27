@@ -18,8 +18,11 @@ const registrations = [
   { name: "past_the_bound", placements: [...everyTarget, { target: "topbar", label: "Again" }] },
 ];
 
-test("a guest's placements register through the membrane, and an unknown target or a placement past the bound refuses only that command", async () => {
-  await using root = await createServerHarness({ pluginSpawn: spawn });
+test("a guest's placements register through the membrane, and an unknown target or a placement past the bound refuses only that command", {
+  tags: ["slow"],
+}, async () => {
+  // The case reads no seeded library, and the signed-in owner would seed one.
+  await using root = await createServerHarness({ pluginSpawn: spawn, env: { ["SEED_CONTENT"]: "off" } });
   const { owner } = await seedCorpusActors(root);
   const manifest = pluginManifestSchema.parse({
     id: "placement-witness",

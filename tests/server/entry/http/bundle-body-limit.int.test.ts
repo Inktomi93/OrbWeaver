@@ -23,6 +23,10 @@ const CENTRAL_COMMENT_LENGTH_AT = 32;
 
 const U32_RANGE = 2 ** 32;
 
+const SINGLE_USER_ENV = { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" } as const;
+// A case that never exports the library reads nothing the first sign-in would seed.
+const NO_SEED = { ["SEED_CONTENT"]: "off" } as const;
+
 /** The archive with its last central record's CRC changed, so every earlier entry stages before extraction refuses. */
 function lastEntryCorrupted(archive: Uint8Array): Uint8Array {
   const out = archive.slice();
@@ -44,9 +48,9 @@ function lastEntryCorrupted(archive: Uint8Array): Uint8Array {
   return out;
 }
 
-test("a hostile archive refused mid-extraction leaves the uploader's staging folder empty", async () => {
+test("a hostile archive refused mid-extraction leaves the uploader's staging folder empty", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    env: SINGLE_USER_ENV,
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });
@@ -74,7 +78,7 @@ test("a hostile archive refused mid-extraction leaves the uploader's staging fol
 
 test("a second upload by an owner whose first is still staging is refused before its body is read", async () => {
   await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    env: { ...SINGLE_USER_ENV, ...NO_SEED },
     physicalPeer: () => "127.0.0.1",
     startJobs: false,
   });
@@ -119,7 +123,7 @@ test("a second upload by an owner whose first is still staging is refused before
 
 test("a faulting raw upload removes its small pre-dispatch staging prefix", async () => {
   await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    env: { ...SINGLE_USER_ENV, ...NO_SEED },
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -137,7 +141,7 @@ test("a faulting raw upload removes its small pre-dispatch staging prefix", asyn
 
 test("actual exported ZIP bytes stage unchanged for their owning workload and conflict cleans only the refused upload", async () => {
   await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    env: SINGLE_USER_ENV,
     physicalPeer: () => "127.0.0.1",
   });
   const principal = await root.principalFor(root.ownerId);
@@ -166,7 +170,7 @@ test("actual exported ZIP bytes stage unchanged for their owning workload and co
 
 test("an absent raw body fails without creating a staging namespace or workload", async () => {
   await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    env: { ...SINGLE_USER_ENV, ...NO_SEED },
     physicalPeer: () => "127.0.0.1",
   });
   const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: CSRF_HEADERS });

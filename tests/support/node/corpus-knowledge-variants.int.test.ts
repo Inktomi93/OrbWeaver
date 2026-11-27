@@ -12,7 +12,9 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES,
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
-test("default-grid canon produces real arc themes and selected reroll hotspots while valid GIF avatars acquire both geometry lenses and facets", async () => {
+test("default-grid canon produces real arc themes and selected reroll hotspots while valid GIF avatars acquire both geometry lenses and facets", {
+  tags: ["slow"],
+}, async () => {
   using swipes = createKnowledgeSwipeWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
@@ -33,7 +35,8 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
     }
     return await physical.execute(request);
   };
-  await using root = await createServerHarness({ providerFetch });
+  // The producer authors its own character and presets; each sign-in would seed a shipped library it never reads.
+  await using root = await createServerHarness({ providerFetch, env: { ["SEED_CONTENT"]: "off" } });
   const { secondUserId } = await seedCorpusActors(root);
   const result = await seedCorpusKnowledgeVariants(root);
   expect(result.memoryJobs).toMatchObject([{ kind: "memory-backfill", status: "succeeded", ownerId: root.ownerId }]);

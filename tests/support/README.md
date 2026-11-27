@@ -270,6 +270,17 @@ Two helpers in [node/db.ts](node/db.ts) build a database from before a migration
 
 `migrationsHolding` applies `tag` after the later migrations. Use it only while no later migration touches the tables `tag` rewrites; otherwise the suite belongs in `tests/db/schema/` on rows alone.
 
+A suite that boots the root over a chain from `migrationsBefore` is a defect. Its next failure comes from an unrelated migration that adds a table or column the boot reads. A migration suite in `tests/db/schema/` stays on SQL and row builders.
+
+## The persistence tier
+
+A suite under `tests/db/` or a `persistence/` directory reads and writes rows directly through `@orb/testkit/node/rows`. That is the only rule the tier relaxes. Every other rule in this guide holds there.
+
+- Pick the tier by the subject. A case whose subject a production read shows belongs beside its domain, not in the tier.
+- A suite that needs services boots the production root with `createServerHarness` and owns it with `using`. A suite that needs a plugin child installs the guest through `installGuest` from `@orb/testkit/node/composed`, which runs the owner's consent verbs on that root.
+- The root and the child are the cost of the case. Time such a case alone. Tag it `slow` from `tooling/src/floor/testing/test-tags.ts` when the runtime is proven. Never raise its timeout.
+- A helper under `persistence/` serves only its own tier. A state other suites need has one sanctioned home in `node/factories/`.
+
 ## What review must establish
 
 - The selected behavior matters and belongs at this layer.

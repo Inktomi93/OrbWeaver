@@ -3,14 +3,14 @@ import { createSeededIds } from "../iso/ids.ts";
 import { expect, test } from "./fixtures.ts";
 import { exportLibrary, restoreBundle, signedInBox } from "./portability-box.ts";
 
-test("a signed-in box exports its library through the product route, and a second box restores that bundle to success", async () => {
+test("a signed-in box exports its library through the product route, and a second box restores that bundle to success", { tags: ["slow"] }, async () => {
   await using source = await signedInBox({ ids: createSeededIds(2 ** 29) });
   const bundle = await exportLibrary(source, ["character"]);
   expect(bundle.byteLength).toBeGreaterThan(0);
 
   await using target = await signedInBox();
   expect(await restoreBundle(target, bundle)).toEqual({ status: "succeeded", skipped: 0, failed: 0 });
-  expect((await exportLibrary(target)).byteLength).toBeGreaterThan(0);
+  expect((await exportLibrary(target, ["character"])).byteLength).toBeGreaterThan(0);
 });
 
 test("restoring bytes that are no bundle reports a failed workload, never a success", async () => {
