@@ -15,7 +15,7 @@ interface EditorWriteFailure {
 }
 
 /** The fields of a patch a refusal can name, so the line quotes what the person typed. */
-export interface RefusedPatch {
+interface RefusedPatch {
   readonly label?: string | undefined;
   readonly baseUrl?: string | null | undefined;
   readonly model?: string | undefined;

@@ -185,7 +185,7 @@ export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;
 // the `character_books` junction columns (`createdAt` is NOT carried — a re-link is a fresh attach). Books
 // are NEVER cloned/embedded through this channel: export bundles the references, import re-links each id it
 // can access on the importing install and skips the rest (the portability twin of the duplicate carry).
-export const attachedBookRefSchema = z
+const attachedBookRefSchema = z
   .object({
     worldBookId: typeIdSchema(ID_PREFIX.worldBook),
     role: worldBookRoleSchema,
