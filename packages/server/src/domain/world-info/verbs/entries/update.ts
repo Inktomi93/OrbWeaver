@@ -6,13 +6,14 @@
 
 import { narrowEntryMetadata } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
+import { batchLed } from "@orb/db/query";
 import { stripUndefined } from "@orb/kit/objects";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { UpdateEntryParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
-import { listChatIdsForBook, loadOwnedEntry, toEntryView } from "#src/domain/world-info/persistence/queries.ts";
+import { listChatIdsForBook, loadOwnedEntry, stampEntriesChanged, toEntryView } from "#src/domain/world-info/persistence/queries.ts";
 
 const SCOPE_AFFECTING_FIELDS = ["keys", "enabled", "metadata"] as const;
 
@@ -31,21 +32,26 @@ export function createUpdateEntry(ctx: WorldInfoContext): WorldInfoService["upda
       metadata,
     });
 
+    const current = await loadOwnedEntry(ctx.db, ownerId, entryId);
+    if (current === undefined) {
+      throw new WorldInfoNotFoundError("world_entry", entryId);
+    }
     if (Object.keys(edits).length === 0) {
-      const row = await loadOwnedEntry(ctx.db, ownerId, entryId);
-      if (row === undefined) {
-        throw new WorldInfoNotFoundError("world_entry", entryId);
-      }
-      return toEntryView(row);
+      return toEntryView(current);
     }
 
     const ownedBooks = ctx.db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
     const at = ctx.now();
-    const rows = await ctx.db
-      .update(worldEntries)
-      .set({ ...edits, updatedAt: at })
-      .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
-      .returning();
+    const [rows] = await ctx.db.batch(
+      batchLed(
+        ctx.db
+          .update(worldEntries)
+          .set({ ...edits, updatedAt: at })
+          .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
+          .returning(),
+        [stampEntriesChanged(ctx.db, current.worldBookId, at)],
+      ),
+    );
     const updated = rows[0];
     if (updated === undefined) {
       throw new WorldInfoNotFoundError("world_entry", entryId);

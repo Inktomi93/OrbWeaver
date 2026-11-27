@@ -7,20 +7,32 @@
 // fan-out target is known WITHOUT a pre-delete read. Empty fan-out (book attached to zero chats) is correct.
 
 import { worldBooks, worldEntries } from "@orb/db";
+import { batchLed } from "@orb/db/query";
 import { and, eq, inArray } from "drizzle-orm";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { RemoveEntryParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
-import { listChatIdsForBook } from "#src/domain/world-info/persistence/queries.ts";
+import { listChatIdsForBook, loadOwnedEntry, stampEntriesChanged } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createRemoveEntry(ctx: WorldInfoContext): WorldInfoService["removeEntry"] {
   return async ({ principal, entryId }: RemoveEntryParams) => {
     const ownerId = principal.userId;
     const ownedBooks = ctx.db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
-    const deleted = await ctx.db
-      .delete(worldEntries)
-      .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
-      .returning({ id: worldEntries.id, worldBookId: worldEntries.worldBookId });
+    const current = await loadOwnedEntry(ctx.db, ownerId, entryId);
+    if (current === undefined) {
+      throw new WorldInfoNotFoundError("world_entry", entryId);
+    }
+    const at = ctx.now();
+    // The stamp rides the delete's batch: the surviving entries cannot say a removal happened, so the book does.
+    const [deleted] = await ctx.db.batch(
+      batchLed(
+        ctx.db
+          .delete(worldEntries)
+          .where(and(eq(worldEntries.id, entryId), inArray(worldEntries.worldBookId, ownedBooks)))
+          .returning({ id: worldEntries.id, worldBookId: worldEntries.worldBookId }),
+        [stampEntriesChanged(ctx.db, current.worldBookId, at)],
+      ),
+    );
     const removed = deleted[0];
     if (removed === undefined) {
       throw new WorldInfoNotFoundError("world_entry", entryId);

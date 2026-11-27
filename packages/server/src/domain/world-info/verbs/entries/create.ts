@@ -3,11 +3,12 @@
 // is correct when the book has zero chat attachments).
 
 import { worldEntries } from "@orb/db";
+import { batchMany } from "@orb/db/query";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { CreateEntryParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
-import { listChatIdsForBook, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
+import { listChatIdsForBook, loadOwnedBook, stampEntriesChanged } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["createEntry"] {
   return async ({ principal, bookId, input }: CreateEntryParams) => {
@@ -22,16 +23,21 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
     const keys = input.keys ?? null;
     const priority = input.priority ?? 0;
 
-    await ctx.db.insert(worldEntries).values({
-      id: entryId,
-      worldBookId: bookId,
-      title: input.title,
-      content: input.content,
-      keys,
-      priority,
-      createdAt: at,
-      updatedAt: at,
-    });
+    await ctx.db.batch(
+      batchMany([
+        ctx.db.insert(worldEntries).values({
+          id: entryId,
+          worldBookId: bookId,
+          title: input.title,
+          content: input.content,
+          keys,
+          priority,
+          createdAt: at,
+          updatedAt: at,
+        }),
+        stampEntriesChanged(ctx.db, bookId, at),
+      ]),
+    );
 
     await ctx.audit(
       {

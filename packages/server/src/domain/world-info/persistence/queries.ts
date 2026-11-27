@@ -14,6 +14,7 @@ import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, Bo
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
+import type { RowsAffectedStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
@@ -96,14 +97,10 @@ async function countByBook(db: Db, table: SQLiteTable, bookCol: SQLiteColumn, id
   return Object.fromEntries(rows.map((r): [string, number] => [String(r.bookId), r.n]));
 }
 
-/** The newest `updatedAt` among each book's entries, keyed by book id; a book with no entries is absent. Same owned-id scoping as {@link countByBook}. */
-async function newestEntryEditByBook(db: Db, ids: readonly WorldBookId[]): Promise<Record<string, number>> {
-  const rows = await db
-    .select({ bookId: worldEntries.worldBookId, newest: sql<number>`max(${worldEntries.updatedAt})` })
-    .from(worldEntries)
-    .where(inArray(worldEntries.worldBookId, [...ids]))
-    .groupBy(worldEntries.worldBookId);
-  return Object.fromEntries(rows.map((r): [string, number] => [String(r.bookId), r.newest]));
+/** The statement that records an entry write on its book. It rides the same `db.batch` as the write, so the stamp and the
+ *  write land together. The book's own `updatedAt` is untouched: that is the details edit. */
+export function stampEntriesChanged(db: Db, bookId: WorldBookId, at: number): RowsAffectedStmt {
+  return db.update(worldBooks).set({ entriesChangedAt: at }).where(eq(worldBooks.id, bookId));
 }
 
 /** Every owned book plus its entry count and its four-scope attachment rollup (the Configuration
@@ -117,9 +114,8 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
   const ids = owned.map((b) => b.id);
   // Named `*Counts` because the table symbols `characters`/`personas` are imported into this module (the
   // attachment-target join below) — a bare `characters` here would shadow one of them.
-  const [entries, newestEntryEdit, characterCounts, personaCounts, chats, globals] = await Promise.all([
+  const [entries, characterCounts, personaCounts, chats, globals] = await Promise.all([
     countByBook(db, worldEntries, worldEntries.worldBookId, ids),
-    newestEntryEditByBook(db, ids),
     countByBook(db, characterBooks, characterBooks.worldBookId, ids),
     countByBook(db, personaBooks, personaBooks.worldBookId, ids),
     countByBook(db, chatBooks, chatBooks.worldBookId, ids),
@@ -138,8 +134,8 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
       ...toBookView(row),
       entryCount: entries[row.id] ?? 0,
       usage: { ...usage, total: usage.characters + usage.personas + usage.chats + (global ? 1 : 0) },
-      // The row's stamp is the book's last CHANGE: its own edit or any entry's, whichever is newer. `worldBooks.updatedAt` itself moves with the book's details only.
-      updatedAt: Math.max(row.updatedAt, newestEntryEdit[row.id] ?? row.updatedAt),
+      // The row's stamp is the book's last CHANGE: its own edit or its entries', whichever is newer. `updatedAt` itself moves with the book's details only.
+      updatedAt: Math.max(row.updatedAt, row.entriesChangedAt ?? row.updatedAt),
     };
   });
 }
