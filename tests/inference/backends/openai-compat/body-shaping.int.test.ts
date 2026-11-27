@@ -855,6 +855,8 @@ test("on stock vLLM a banned phrase rides bad_words only when vLLM also bans it 
   const tokenized: string[] = [];
   const mixed = await send({ providerId: VLLM }, { params: { bannedStrings: ["her spine", "waving"] }, tokenized });
   expect(mixed.body["bad_words"]).toEqual(["her spine"]);
+  // Stock vLLM is no antislop proxy: the phrases never also ride its top-level field.
+  expect(mixed.body).not.toHaveProperty("banned_strings");
   expect(tokenized).toEqual(expect.arrayContaining(["waving", " waving", "her spine", " her spine"]));
   const [dropped, ...more] = droppedPhraseWarnings(mixed.events);
   expect(dropped).toContain('"waving"');
@@ -881,6 +883,17 @@ test("an antislop connection sends every banned phrase whole at the top level, w
   expect(sent.body).not.toHaveProperty("bad_words");
   expect(tokenized).toEqual([]);
   expect(droppedPhraseWarnings(sent.events)).toEqual([]);
+});
+
+test("an antislop connection with no slop list sends the phrases alone, and no slop field without a list", async () => {
+  const sent = await send(
+    { providerId: VLLM, declaredFeatures: { antislop: true, slopStrength: 2 } },
+    { params: { bannedStrings: ["her spine"] }, speakerNames: ["Nate"] },
+  );
+  expect(sent.body["banned_strings"]).toEqual(["her spine"]);
+  for (const key of ["slop_list", "slop_strength", "slop_allow"]) {
+    expect(sent.body).not.toHaveProperty(key);
+  }
 });
 
 test("a metered row never sends the own-server fields, whatever its connection declares, and the turn says so", async () => {

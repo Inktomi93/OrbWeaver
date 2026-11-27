@@ -97,6 +97,7 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
           connection: conn,
           inputs,
           onObservedResult: opts.onObservedResult,
+          speakerNames: opts.speakerNames,
           signal: opts.signal,
           ...samplerFields(opts),
         });
@@ -108,6 +109,7 @@ export function createRoleClientsFor(args: { readonly ctx: ResolverContext; read
           inputs,
           responseFormat: opts.responseFormat,
           onObservedResult: opts.onObservedResult,
+          speakerNames: opts.speakerNames,
           signal: opts.signal,
           ...samplerFields(opts),
         });

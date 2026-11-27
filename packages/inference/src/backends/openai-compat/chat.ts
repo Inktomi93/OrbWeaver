@@ -693,7 +693,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     sampling: wireSampling(sampling, connection.features, {
       dialect,
       warnings,
-      turn: { thinking: knobs.reasoning.enabled, speakerNames: req.speakerNames ?? [] },
+      turn: { thinking: knobs.reasoning.enabled, speakerNames: req.speakerNames },
     }),
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
     plan: structured,

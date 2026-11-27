@@ -195,6 +195,17 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
   }
 }
 
+// A list setting the model took in part: how many entries did not ride, and that the rest did.
+function partialDropNotice(label: string, dropped: number, sent: number): NotifyNotice {
+  const droppedClause = dropped === 1 ? "1 wasn't" : `${String(dropped)} weren't`;
+  const form = dropped === 1 ? "that one in the form it was" : "those in the form they were";
+  const rest = sent === 1 ? "The other one was sent." : `The other ${String(sent)} were sent.`;
+  return {
+    description: `This model can't take ${form} written. ${rest}`,
+    title: `${label}: ${droppedClause} used for this reply`,
+  };
+}
+
 /** The ten provider-degradation classes, each in the user's own words. The turn STILL RAN — every notice
  *  says what the provider did instead, because "we ignored your setting" without the substitute reads as a
  *  fault rather than a degrade.
@@ -216,10 +227,7 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       const { droppedCount, sentCount } = warning;
       // A partial drop: the rest of the list DID ride, so the notice must not read as the setting having failed.
       if (knob !== undefined && droppedCount !== undefined && sentCount !== undefined) {
-        return {
-          description: `This model can't take those in the form they were written. The other ${String(sentCount)} were sent.`,
-          title: `${KNOB_LABELS[knob]}: ${String(droppedCount)} weren't used for this reply`,
-        };
+        return partialDropNotice(KNOB_LABELS[knob], droppedCount, sentCount);
       }
       return {
         description: samplingDropDescription(knob),

@@ -32,7 +32,8 @@ interface WireSampling {
 /** What the turn adds to the samplers' spelling: whether it thinks, and the names a slop list must leave alone. */
 interface SamplingTurn {
   readonly thinking: boolean;
-  readonly speakerNames: readonly string[];
+  /** Absent on a turn that runs for no room: no names to allow, so no slop list rides at all. */
+  readonly speakerNames: readonly string[] | undefined;
 }
 
 interface Spell {
@@ -106,19 +107,21 @@ function spellEnvelope({ sampling, features, knobs, turn }: Spell): { readonly b
 }
 
 /** An antislop proxy's top-level fields ({@link ANTISLOP_FIELDS}): the whole phrase list, and the slop list with the
- *  room's names in its allow list, so the list never pushes down a name the story uses. */
+ *  room's names in its allow list, so the list never pushes down a name the story uses. A turn without the room's
+ *  names (a digest, a caption) sends no slop list: its stock fantasy names include the characters' own. */
 function spellAntislop({ sampling, features, knobs, turn }: Spell): Record<string, unknown> {
   if (features.antislop !== true) {
     return {};
   }
   const phrases = knobs.has("bannedStrings") ? sampling.bannedStrings : undefined;
+  const names = turn.speakerNames;
   const slop =
-    features.slopList === undefined
+    features.slopList === undefined || names === undefined
       ? {}
       : {
           [ANTISLOP_FIELDS.slopList]: features.slopList,
           ...(features.slopStrength === undefined ? {} : { [ANTISLOP_FIELDS.slopStrength]: features.slopStrength }),
-          ...(turn.speakerNames.length === 0 ? {} : { [ANTISLOP_FIELDS.slopAllow]: turn.speakerNames }),
+          [ANTISLOP_FIELDS.slopAllow]: names,
         };
   return { ...(phrases === undefined ? {} : { [ANTISLOP_FIELDS.bannedStrings]: phrases }), ...slop };
 }

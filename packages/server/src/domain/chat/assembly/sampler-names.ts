@@ -56,8 +56,12 @@ export function resolvedSequenceBreakers(breakers: readonly string[], ctx: Assem
   return [...new Set(literals.filter((literal) => literal !== ""))];
 }
 
+/** Names as a word list's allow list takes them: each whole name and its words, empties dropped, repeats removed. */
+export function namesWithParts(names: readonly string[]): readonly string[] {
+  return [...new Set(names.flatMap((name) => nameWithParts(name.trim())).filter((name) => name !== ""))];
+}
+
 /** The names a word list must leave alone this turn: each present character's and the user's, with their words. */
 export function speakerNamesOf(ctx: AssembleContext): readonly string[] {
-  const names = [...(ctx.characters ?? [ctx.character]).map((character) => character.name), ctx.activePersona?.name ?? DEFAULT_PERSONA_NAME];
-  return [...new Set(names.flatMap((name) => nameWithParts(name.trim())).filter((name) => name !== ""))];
+  return namesWithParts([...(ctx.characters ?? [ctx.character]).map((character) => character.name), ctx.activePersona?.name ?? DEFAULT_PERSONA_NAME]);
 }
