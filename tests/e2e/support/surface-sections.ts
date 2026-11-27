@@ -369,6 +369,7 @@ async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: s
     await expect(confirm).toBeVisible();
     await checkpoint(journey, `${prefix}/disposable/Delete/confirm`, confirm);
     await journey.action(`${prefix}/disposable/${tag.id}/Delete`, {
+      deleted: tag.id,
       action: async () => {
         await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
       },
@@ -1747,6 +1748,7 @@ async function deleteDisposablePreset(run: PresetCommandRun, name: string): Prom
   const confirm = journey.page.getByRole("alertdialog", { name: deleteConfirmTitle(name), exact: true });
   await checkpoint(journey, `presets/commands/${presetId}/Delete/confirm`, confirm);
   await journey.action(`presets/commands/${presetId}/Delete`, {
+    deleted: presetId,
     action: async () => {
       await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
     },

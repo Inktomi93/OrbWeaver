@@ -37,6 +37,7 @@ function indeterminateFinding(selector: string, value: string, message: string):
 type ContrastOutcome =
   | { readonly kind: "dimmed" }
   | { readonly kind: "unresolvedBackdrop" }
+  | { readonly kind: "outerDimOverPixels" }
   | { readonly kind: "unseenInFrame" }
   | { readonly kind: "unreadCover" }
   | { readonly kind: "maskedForeground" }
@@ -123,6 +124,12 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   const backdrop = input.backdrop;
   if (framed !== null || backdrop.kind === "unresolved") {
     return framed ?? { kind: "unresolvedBackdrop" };
+  }
+  // A DIMMED GROUP THAT PAINTS UNDER THE INK HAS NO SOUND COMPOSITE ON A PIXEL RING. The ring is the framebuffer, so it
+  // already carries the group's dim over the paint inside it, and the glyph would take that dim a second time here. How the
+  // group's paint splits the ring is not known on this path, so the verdict is withheld by name rather than guessed.
+  if (input.backdropMethod === "pixel-sample" && input.dimmedGroupHoldsPaint === true) {
+    return { kind: "outerDimOverPixels" };
   }
 
   if (isContrastExempt(input.inactive ?? "none")) {
@@ -402,6 +409,7 @@ function tallyReadingSurface(tallies: ReadingSurfaceTallies, outcome: ContrastOu
   switch (outcome.kind) {
     case "dimmed":
     case "unreadCover":
+    case "outerDimOverPixels":
     case "unresolvedBackdrop": {
       for (const tally of [contrast, overArt, inactive]) {
         count(tally.withheld, outcome.kind);

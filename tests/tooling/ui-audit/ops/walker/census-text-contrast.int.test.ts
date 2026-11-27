@@ -102,3 +102,20 @@ test("a translucent ink that still clears the floor stays clean, and so does the
   expect(mostlyOpaque).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
   expect(mostlyOpaque).not.toMatch(/^P\d\s+contrast\s/mu);
 });
+
+// AN ANCESTOR DIM OVER A PIXEL RING HAS NO SOUND COMPOSITE. The ring is the framebuffer, so it already shows the dim of an
+// ancestor group that also holds the backdrop, and the glyph would take that dim a second time. Which pieces of the
+// backdrop sit inside the group is not known on the pixel path, so the text is withheld by name. A text with no ancestor
+// dim, or only its own dim (which composites the glyph alone over the ring), keeps its verdict.
+test("a pixel-sampled label under an ancestor opacity group is withheld by name", async ({ runSnap, scratch }) => {
+  const stdout = await audit(scratch, runSnap, "label-ancestor-dim", `<div style="opacity:0.5">${themeRow(LIGHT_SWATCH)}</div>`);
+  expect(stdout).toMatch(/POPULATION\s+contrast candidates=1 judged=0 affected=0 .*withheld\(outerDimOverPixels=1\)/u);
+  expect(stdout).toMatch(/POPULATION\s+text-over-art candidates=1 judged=0 affected=0 .*withheld\(outerDimOverPixels=1\)/u);
+});
+
+test("the same pixel-sampled label with no ancestor dim, or only its own dim, is still judged", async ({ runSnap, scratch }) => {
+  const plain = await audit(scratch, runSnap, "label-no-dim", themeRow(LIGHT_SWATCH));
+  expect(plain).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
+  const own = await audit(scratch, runSnap, "label-own-dim", themeRow(LIGHT_SWATCH).replace("min-width:0;", "opacity:0.9;min-width:0;"));
+  expect(own).toMatch(/POPULATION\s+contrast candidates=1 judged=1 affected=0 /u);
+});

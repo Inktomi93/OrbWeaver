@@ -230,12 +230,17 @@ test("quiet-state judges a carrier whose chip a positive z-index ranks above it"
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state still withholds when a negative z-index ranks the chip below the carrier", async ({ runSnap, scratch }) => {
-  // Control for the case above: a layer ranked under the cells is not above them, so it keeps its veto.
+test("quiet-state still withholds when a negative z-index ranks the chip below the carrier inside the group's own stacking context", async ({
+  runSnap,
+  scratch,
+}) => {
+  // Control for the case above. The group is a stacking context, so the chip at z-index -1 stays inside it: above the
+  // section's fill and below the cells. The ground under the cells is then the chip over the fill, which nothing measured.
   const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:-1");
+  const isolated = pickerGroup("", zChip).replace('style="position:relative"', 'style="position:relative;isolation:isolate"');
   await writeFile(
     join(scratch, "z-under-chip.html"),
-    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", zChip)}</section>`),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${isolated}</section>`),
   );
   const res = await runSnap(["--file", join(scratch, "z-under-chip.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain(
@@ -243,6 +248,25 @@ test("quiet-state still withholds when a negative z-index ranks the chip below t
   );
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(2);
+});
+
+test("quiet-state judges a carrier whose chip at z-index -1 falls under the section's own fill, with no stacking context between", async ({
+  runSnap,
+  scratch,
+}) => {
+  // Without a stacking context on the group, a z-index -1 chip joins the root context and paints below the section's
+  // background, so nothing covers the cells and nothing is withheld.
+  const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:-1");
+  await writeFile(
+    join(scratch, "z-under-section.html"),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", zChip)}</section>`),
+  );
+  const res = await runSnap(["--file", join(scratch, "z-under-section.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
 });
 
 /** A painted scrim inside a 60px scroller, laid at 70px so the scroller clips it out; the cells sit over that spot. */

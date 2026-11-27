@@ -261,3 +261,28 @@ test("the landing fraction is measured in DEVICE pixels, so the same CSS offset 
     "top -0.250 / left 0.000 device px off the grid at DPR 3",
   );
 });
+
+/** A screen-reader-only box is rendered but paints nothing a reader sees, so a transform or a promoted layer on it is not
+ *  a candidate to judge. It still reaches the census as a candidate and leaves under a NAMED reason: dropping it before
+ *  the count would shrink the denominator with no trace. The visible twin of each rule stays in the same population. */
+const SR_ONLY_BOXES_FIXTURE = `<style>
+  .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0 }
+  .shifted { transform: translate(0.25px, 0.25px) }
+  .promoted { will-change: transform }
+</style>
+<span class="sr shifted">hidden shifted</span>
+<span class="sr promoted">hidden promoted</span>
+<div class="shifted">visible shifted</div>
+<div class="promoted">visible promoted</div>`;
+
+test("a screen-reader-only transform and promoted layer leave the grid rules under the named srOnly reason", async ({ runSnap, scratch }) => {
+  await writeFile(join(scratch, "sr-only-grid.html"), relationalDocument(SR_ONLY_BOXES_FIXTURE));
+  const res = await runSnap(["--file", join(scratch, "sr-only-grid.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
+  const transform = report.populationAccounting?.["off-grid-transform"];
+  expect(transform, res.stdout).toMatchObject({ candidates: 2, judged: 1, excluded: { srOnly: 1 } });
+  const promoted = report.populationAccounting?.["promoted-layer-offset"];
+  expect(promoted, res.stdout).toMatchObject({ candidates: 2, excluded: { srOnly: 1, [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 } });
+});

@@ -75,6 +75,20 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
     return value;
   }
 ${WALKER_VISIBILITY}
+  // Does an ancestor opacity group hold a painted background under the element? A pixel ring is the framebuffer, so it already
+  // shows that group's dim over the paint inside it, and the glyph would take the dim a second time. The group's own fill and
+  // every fill between it and the element count; paint beside the element inside the group is not read here.
+  function dimmedGroupHoldsPaint(el) {
+    var paintSeen = false;
+    for (var dg = el.parentElement; dg !== null; dg = dg.parentElement) {
+      var dgStyle = getComputedStyle(dg);
+      var dgFill = parseRgb(dgStyle.backgroundColor);
+      if ((dgFill !== null && dgFill.a > 0) || (dgStyle.backgroundImage && dgStyle.backgroundImage !== "none")) paintSeen = true;
+      var dgOpacity = dgStyle.opacity === "" ? 1 : Number(dgStyle.opacity);
+      if (paintSeen && dgOpacity < 1) return true;
+    }
+    return false;
+  }
   // A REST-HIDDEN REVEAL CLUSTER, NOT A GENUINELY HIDDEN ONE (#1077, orb-ui audit F5). ROW_REVEAL
   // (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100) and ListRow's
   // subtitleReveal are the house idiom: display stays IN FLOW, the box has real geometry, only PAINT

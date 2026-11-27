@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-12
+updated: 2026-11-27
 priority: P3
 area: tooling
 plan: surface-walk
@@ -23,4 +23,4 @@ The walker carries the opacity split between groups inside and at or above the b
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Walker paths done: a pixel-sampled text, or a held hover read, under a dimmed ancestor group that paints under the ink is withheld as outerDimOverPixels (`tooling/src/ui-audit/lib/checks-color.ts`, `checks-hover.ts`); fixtures `tests/tooling/ui-audit/ops/walker/census-text-contrast.int.test.ts` and `tests/tooling/ui-audit/ops/hover-outer-dim.int.test.ts`, each with a no-dim and an own-dim control. Open: the snap `--contrast-pixel` path in `tooling/src/snap/ops/arms/contrast.ts` still composites the full accumulated opacity over its ring; `tooling/src/snap/**` belongs to the snap lane.

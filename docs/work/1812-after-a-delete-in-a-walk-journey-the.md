@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-27
 priority: P3
 area: testing
 plan: surface-walk
@@ -23,4 +23,4 @@ The walker fails a journey that leaves focus on the body or reads the deleted id
 
 ## Evidence
 
-Checked tests/e2e/support/surface-walker.ts: its only focus assertion is `toBeFocused` on the door trigger after close.
+`surfaceAction` in `tests/support/browser/surface-action.ts` takes `deleted`; the action fails when focus stays on the body or a tRPC query carries the deleted id after a mutation response (`tests/support/browser/delete-aftermath.ts`). Journey deletes in `tests/e2e/support/surface-character.ts`, `surface-sections.ts` and `surface-chat.ts` declare it. Planted controls in `tests/support/browser/surface-measurement.ct.tsx` fail on a body-focus delete and on a read of the deleted id, and pass a delete that returns focus. The live e2e journeys are not run in this lane; the orchestrator owns that run.

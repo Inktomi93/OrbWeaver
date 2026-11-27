@@ -107,6 +107,7 @@ export const HOVER_FORCE_READ = `
       color: forcedColor === null ? null : { r: forcedColor.r, g: forcedColor.g, b: forcedColor.b },
       backdrop: resolveBackdrop(cand.el),
       opacity: accumulatedOpacity(cand.el),
+      dimmedGroupHoldsPaint: dimmedGroupHoldsPaint(cand.el),
     };
   }
   function groupGlowRead(glowMembers) {

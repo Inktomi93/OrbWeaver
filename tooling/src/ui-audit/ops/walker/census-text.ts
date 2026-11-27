@@ -300,8 +300,13 @@ export const WALKER_CENSUS_TEXT = `
   };
 
   // A LOOPING OPACITY ANIMATION IS JUDGED AT REST. The pixel pass shoots with Playwright's animations:"disabled",
-  // which cancels an infinite animation to its base value and plays it again, so the glyph's opacity is read the
-  // same way: cancel, read, play, and put the phase back. One frame of a pulse never decides the ratio.
+  // which puts an infinite animation at its base value, so the glyph's opacity is read the same way: take the
+  // animation off its timeline, read, and put it back. One frame of a pulse never decides the ratio.
+  //
+  // THE READ LEAVES THE ANIMATION AS IT FOUND IT. A timeline swap keeps the phase and never calls play() or pause(), so
+  // a stylesheet's animation-play-state keeps owning the play-state afterwards (cancel() then play() hands it to script).
+  // Chromium still queues one animationcancel and one animationstart for a CSS animation that leaves its timeline, so
+  // the events this read causes are counted and stopped before any page listener sees them.
   var loopingOpacity = new Map();
   var pageAnimations = typeof document.getAnimations === "function" ? document.getAnimations() : [];
   for (var la = 0; la < pageAnimations.length; la += 1) {
@@ -313,18 +318,42 @@ export const WALKER_CENSUS_TEXT = `
     laTargetAnimations.push(pageAnimations[la]);
     loopingOpacity.set(laEffect.target, laTargetAnimations);
   }
+  var ownedDetachEvents = [];
+  var detachGuardArmed = false;
+  function stopOwnedDetachEvent(event) {
+    var kind = event.type === "animationcancel" ? "cancel" : "start";
+    for (var oe = 0; oe < ownedDetachEvents.length; oe += 1) {
+      var owned = ownedDetachEvents[oe];
+      if (owned.target === event.target && owned.name === event.animationName && owned[kind] > 0) {
+        owned[kind] -= 1;
+        event.stopImmediatePropagation();
+        return;
+      }
+    }
+  }
+  function guardDetachEvents(target, animations) {
+    animations.forEach(function (animation) { ownedDetachEvents.push({ target: target, name: animation.animationName, cancel: 1, start: 1 }); });
+    if (detachGuardArmed) return;
+    detachGuardArmed = true;
+    window.addEventListener("animationcancel", stopOwnedDetachEvent, true);
+    window.addEventListener("animationstart", stopOwnedDetachEvent, true);
+    // The browser dispatches the queued events in the next frame update; two frames cover it, and a later listener sees only its own.
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        window.removeEventListener("animationcancel", stopOwnedDetachEvent, true);
+        window.removeEventListener("animationstart", stopOwnedDetachEvent, true);
+      });
+    });
+  }
   var restingOwnOpacity = new Map();
   function ownOpacityAtRest(n) {
     var known = restingOwnOpacity.get(n);
     if (known !== undefined) return known;
     var animations = loopingOpacity.get(n) || [];
-    var phases = animations.map(function (animation) { return animation.currentTime; });
-    animations.forEach(function (animation) { animation.cancel(); });
+    animations.forEach(function (animation) { animation.timeline = null; });
     var raw = getComputedStyle(n).opacity;
-    animations.forEach(function (animation, ai) {
-      animation.play();
-      animation.currentTime = phases[ai];
-    });
+    animations.forEach(function (animation) { animation.timeline = document.timeline; });
+    if (animations.length > 0) guardDetachEvents(n, animations);
     var own = raw === "" ? 1 : Number(raw);
     if (Number.isNaN(own)) own = 1;
     restingOwnOpacity.set(n, own);
@@ -408,6 +437,7 @@ export const WALKER_CENSUS_TEXT = `
         fontSizePx: fontSizePx,
         fontWeight: fontWeight,
         foregroundOpacity: restingOpacity(el),
+        dimmedGroupHoldsPaint: dimmedGroupHoldsPaint(el),
         foregroundMasked: hasMaskedAncestor(el),
         box: textBox,
         occludedBy: textCover !== null && textCover.whole === true ? textCover.by : null,

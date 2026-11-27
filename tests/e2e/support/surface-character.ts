@@ -1180,6 +1180,7 @@ async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharac
   const single = flow.page.getByRole("alertdialog", { name: CHARACTER_DELETE_TITLE, exact: true });
   await record(flow, "commands-delete-single-confirm", single, [single.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await flow.action("characters-commands-delete-single", {
+    deleted: copy.id,
     action: async (): Promise<void> => {
       await single.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true }).click();
     },
@@ -1196,6 +1197,7 @@ async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharac
   const confirm = bulk.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true });
   await record(flow, "commands-delete-bulk-confirm", bulk, [confirm]);
   await flow.action("characters-commands-delete-bulk", {
+    deleted: parent.id,
     action: async (): Promise<void> => {
       await confirm.click();
     },

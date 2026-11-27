@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-12
+updated: 2026-11-27
 priority: P3
 area: tooling
 plan: surface-walk
@@ -23,4 +23,4 @@ The detach restores play-state and fires no events, or the walker reads the rest
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Done in the walker: the animation read leaves the phase and the stylesheet play-state alone and fires no event (CT in `tests/tooling/design-audit-walker.ct.tsx`); the negative z-index control in `tests/tooling/ui-audit/ops/walker/census-region.int.test.ts` plants a real stacking context, and the walker now judges a z-index -1 layer that falls under the section fill; sr-only transforms and promoted layers leave the grid rules as excluded(srOnly) (`tests/tooling/ui-audit/ops/walker/census-grid.int.test.ts`). Open, in `tooling/src/snap/**`: naming a clipped target as clipped in `--contrast`, and the pixelContrast chip ratio.

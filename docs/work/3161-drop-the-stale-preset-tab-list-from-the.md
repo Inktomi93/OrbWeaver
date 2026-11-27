@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-15
+updated: 2026-11-27
 priority: P3
 area: tooling
 ---
@@ -22,4 +22,4 @@ The fixture reads the product labels, or the strip is deleted if no case reads i
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The strip fixture in `tests/support/browser/surface-design-fixtures.tsx` lists neutral planted labels, so no case reads product tab names; `tests/support/browser/enlarged-text-geometry.ct.tsx` passes.

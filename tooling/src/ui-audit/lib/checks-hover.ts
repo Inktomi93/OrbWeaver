@@ -66,6 +66,10 @@ function hoverDecline(input: HoverContrastInput, minRatio: number): HoverOutcome
   if (input.hoverBackdrop.kind === "unresolved") {
     return { kind: "withheld", reason: "unresolvedHoverBackdrop" };
   }
+  // The held frame's pixels already carry a dimmed group's paint, so the glyph would take the dim twice (checks-color.ts).
+  if (input.hoverBackdropSampled && input.dimmedGroupHoldsPaint) {
+    return { kind: "withheld", reason: "outerDimOverPixels" };
+  }
   if (input.hoverBackdrop.kind !== "flat") {
     return { kind: "excluded", reason: input.hoverBackdrop.kind === "gradient" ? "gradientHoverBackdrop" : "imageHoverBackdrop" };
   }

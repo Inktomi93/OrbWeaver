@@ -86,6 +86,9 @@ export interface ContrastInput {
    *  as snap's `--contrast` does. Optional because this type also describes samples from an older
    *  walker string (a CT pinning a historical sample set); absent reads as 1, the pre-#188 behavior. */
   readonly foregroundOpacity?: number;
+  /** An ancestor opacity group holds a painted background under this text. A pixel ring already shows that group's dim over
+   *  the paint inside it, so a pixel-sampled text carrying this has no sound composite. */
+  readonly dimmedGroupHoldsPaint?: boolean;
   /** Text/ancestor carries `mask-image` (#1078, `.scroll-fade-x/-y`); absent = unmasked. */ readonly foregroundMasked?: boolean;
   /** The walker found this text clipped wholly out by its own scrollers, so its box holds a neighbour's pixels.
    *  Carried only for `unresolved` samples, the ones the pixel pass would otherwise sample there. */

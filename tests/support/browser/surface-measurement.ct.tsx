@@ -12,9 +12,11 @@ import {
   installWebVitals,
   markExpectedSurfaceHttpFailure,
   observeSurfaceSession,
+  REREAD_FINDING,
   readSurfaceCohortRenders,
   readSurfaceDesignAudit,
   readWebVitals,
+  STRANDED_FOCUS_FINDING,
   setPlatformTextSize,
   surfaceAction,
   surfaceCheckpoint,
@@ -857,6 +859,60 @@ test("failed readiness preserves its native action window and original failure",
   const payload = await readFile(attachment.path, "utf8");
   expect(payload).toContain('"phase": "ready"');
   expect(payload).toContain('"status": "same-document"');
+});
+
+const DELETE_CONTROL_PATH = "/surface-delete-control";
+const DELETED_ID = "record-7f3a";
+
+/** A page whose Delete button removes itself (focus falls to the body), tells the server, then optionally restores focus and re-reads the deleted id. */
+function deleteControlDocument({ restoreFocus, rereadDeleted }: { readonly restoreFocus: boolean; readonly rereadDeleted: boolean }): string {
+  return `<!doctype html><html lang="en"><head><title>Delete control</title></head><body><main><h1>Delete control</h1>
+<button id="keeper">Keeper</button><button id="gone">Delete</button></main>
+<script>
+document.getElementById("gone").addEventListener("click", async () => {
+  document.getElementById("gone").remove();
+  await fetch("/api/trpc/record.delete", { method: "POST", body: "{}" });
+  if (${String(restoreFocus)}) document.getElementById("keeper").focus();
+  if (${String(rereadDeleted)}) await fetch("/api/trpc/record.get?input=" + encodeURIComponent(JSON.stringify({ id: ${JSON.stringify(DELETED_ID)} })));
+  document.body.dataset.settled = "true";
+});
+</script></body></html>`;
+}
+
+async function runDeleteControl(
+  page: Page,
+  info: TestInfo,
+  flags: { readonly restoreFocus: boolean; readonly rereadDeleted: boolean },
+): ReturnType<typeof surfaceAction> {
+  await page.route(`**${DELETE_CONTROL_PATH}`, (route) => route.fulfill({ contentType: "text/html", body: deleteControlDocument(flags) }));
+  await page.route("**/api/trpc/**", (route) => route.fulfill({ contentType: "application/json", body: '{"result":{"data":null}}' }));
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await page.goto(DELETE_CONTROL_PATH);
+  return await surfaceAction(info, {
+    name: "planted-delete",
+    page,
+    deleted: DELETED_ID,
+    action: async () => {
+      await page.getByRole("button", { name: "Delete", exact: true }).click();
+    },
+    ready: async () => {
+      await expect(page.locator("body")).toHaveAttribute("data-settled", "true");
+    },
+  });
+}
+
+test("a delete that leaves focus on the body fails its action", async ({ page }, info) => {
+  await expect(runDeleteControl(page, info, { restoreFocus: false, rereadDeleted: false })).rejects.toThrow(STRANDED_FOCUS_FINDING);
+});
+
+test("a read of the deleted id after the delete landed fails its action", async ({ page }, info) => {
+  await expect(runDeleteControl(page, info, { restoreFocus: true, rereadDeleted: true })).rejects.toThrow(REREAD_FINDING);
+});
+
+test("a delete that returns focus and never re-reads the id passes", async ({ page }, info) => {
+  const window = await runDeleteControl(page, info, { restoreFocus: true, rereadDeleted: false });
+  expect(window.duration).toBeGreaterThan(0);
+  await expect(page.getByRole("button", { name: "Keeper", exact: true })).toBeFocused();
 });
 
 test("document CLS uses separate session windows and excludes recent-input shifts", async ({ page, browserName }, info) => {

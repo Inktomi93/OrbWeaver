@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-13
+updated: 2026-11-27
 priority: P3
 area: client
 plan: cross-surface-consistency
@@ -23,4 +23,4 @@ The duplicate-field finding is gone from the character editor evidence case of a
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Character editor design-audit runs on desktop and mobile file no finding; run paths are in item 2993.

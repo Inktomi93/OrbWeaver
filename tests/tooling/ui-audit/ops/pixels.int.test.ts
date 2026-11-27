@@ -28,6 +28,7 @@ const HELD_READ = {
   color: { r: 0, g: 0, b: 0 },
   backdrop: { kind: "unresolved", reason: "no-opaque-base", fallback: { r: 255, g: 255, b: 255 } },
   opacity: 1,
+  dimmedGroupHoldsPaint: false,
   box: { x: 0, y: 0, width: 40, height: 20 },
 } as const;
 

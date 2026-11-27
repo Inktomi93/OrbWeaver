@@ -246,8 +246,13 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   for (var gp = 0; gp < allEls.length; gp += 1) {
     var gpEl = allEls[gp];
     var gpPromotion = gridPromotion(gpEl);
-    if (!gpPromotion.composited || !isVisible(gpEl)) continue;
+    if (!gpPromotion.composited || !isRendered(gpEl)) continue;
     relationalAccounting["promoted-layer-offset"].candidates += 1;
+    // A screen-reader-only box paints nothing a reader sees, so it is excluded by name rather than dropped from the count.
+    if (isVisuallyHidden(gpEl)) {
+      excludeRelational(relationalAccounting["promoted-layer-offset"], "srOnly");
+      continue;
+    }
     var gpKind = gpPromotion.kind;
     if (gpKind === null) {
       excludeRelational(relationalAccounting["promoted-layer-offset"], GRID_COMPOSITED_WITHOUT_RESAMPLE);
@@ -308,7 +313,8 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   }
   for (var gs = 0; gs < allEls.length; gs += 1) {
     var gsEl = allEls[gs];
-    if (!isVisible(gsEl)) continue;
+    if (!isRendered(gsEl)) continue;
+    var gsSrOnly = isVisuallyHidden(gsEl);
     var gsHostStyle = getComputedStyle(gsEl);
     for (var gsp = 0; gsp < GRID_PSEUDOS.length; gsp += 1) {
       var gsPseudo = GRID_PSEUDOS[gsp];
@@ -321,6 +327,10 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       if (!gsPromotion.composited) continue;
       relationalAccounting["promoted-layer-offset"].candidates += 1;
       carryRelational(relationalAccounting["promoted-layer-offset"], "pseudo");
+      if (gsSrOnly) {
+        excludeRelational(relationalAccounting["promoted-layer-offset"], "srOnly");
+        continue;
+      }
       var gsKind = gsPromotion.kind;
       // The landing is derived FIRST: the exclusion was measured on absolute pseudos only, and an in-flow
       // pseudo's backdrop edge does change with the fraction (§10), so an underivable box stays withheld.
@@ -355,8 +365,12 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     var gxTranslate = (gxStyle.translate || "none").trim();
     var gxScale = (gxStyle.scale || "none").trim();
     var gxCarries = gxTransform !== "none" || (gxTranslate !== "none" && gxTranslate !== "") || (gxScale !== "none" && gxScale !== "");
-    if (!gxCarries || !isVisible(gxEl)) continue;
+    if (!gxCarries || !isRendered(gxEl)) continue;
     relationalAccounting["off-grid-transform"].candidates += 1;
+    if (isVisuallyHidden(gxEl)) {
+      excludeRelational(relationalAccounting["off-grid-transform"], "srOnly");
+      continue;
+    }
     if (gridAnimating(gxEl)) {
       withholdRelational(relationalAccounting["off-grid-transform"], "animating", describe(gxEl));
       continue;

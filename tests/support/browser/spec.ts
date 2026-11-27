@@ -11,6 +11,7 @@ export { boxOf } from "./box-of.ts";
 export { expectCacheProse } from "./cache-prose.ts";
 export { frameTextInsetPx, hostLengthPx } from "./card-frame-inset.ts";
 export { computedStyle, fontSizeAgainstStep } from "./computed-style.ts";
+export { REREAD_FINDING, STRANDED_FOCUS_FINDING } from "./delete-aftermath.ts";
 export { formatDensityFindings } from "./density-census.ts";
 export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";

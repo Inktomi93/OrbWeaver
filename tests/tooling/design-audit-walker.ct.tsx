@@ -1218,3 +1218,50 @@ test("the real EmptyState marks an authored null action, and only a reasoned one
     "the bare-title null is the one dead end; the offered state is judged and silent",
   ).toStrictEqual(["[aria-label=Bare]"]);
 });
+
+// The text census judges a looping opacity animation at rest, so it reads the rest value off the live animation. That
+// read must leave the animation as it found it: the same phase, still under the stylesheet's play-state, and no
+// animation event for the page to see.
+test("reading a looping opacity animation at rest leaves its phase and play-state control and fires no animation event", async ({ page }) => {
+  await page.setContent(`<style>
+    @keyframes pulse { from, to { opacity: 0.3 } }
+    #pulse { display: inline-block; animation: pulse 600s linear infinite }
+    #pulse.held { animation-play-state: paused }
+  </style><span id="pulse" style="color:#595959">Responding</span>`);
+  // The animation's own first animationstart is dispatched on the first frame; the listeners go on after it, so every event they record is the walker's.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const events = await page.evaluate(() => {
+    const seen: string[] = [];
+    for (const type of ["animationstart", "animationcancel", "animationend", "animationiteration"]) {
+      const record = (): void => void seen.push(type);
+      document.addEventListener(type, record);
+      globalThis.addEventListener(type, record);
+    }
+    Reflect.set(globalThis, "__seenAnimationEvents", seen);
+    return seen;
+  });
+  expect(events).toStrictEqual([]);
+  const before = await page.evaluate(() => {
+    const animation = document.getAnimations()[0];
+    return { state: animation?.playState, time: Number(animation?.currentTime) };
+  });
+  expect(before.state).toBe("running");
+
+  const samples = await samplesOf(page);
+  const resting = samples.texts.find((text) => text.selector.includes("pulse"));
+  expect(resting, `the pulse text was sampled: ${JSON.stringify(samples.texts.map((text) => text.selector))}`).toBeDefined();
+  expect(resting?.foregroundOpacity, "the pulse is judged at its rest opacity, never a frame of the loop").toBe(1);
+
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const after = await page.evaluate(() => {
+    const animation = document.getAnimations()[0];
+    return { state: animation?.playState, time: Number(animation?.currentTime), seen: Reflect.get(globalThis, "__seenAnimationEvents") as string[] };
+  });
+  expect(after.seen, "the walker's read is invisible to page animation listeners").toStrictEqual([]);
+  expect(after.state).toBe("running");
+  expect(after.time, "the phase carries on from where the read found it").toBeGreaterThanOrEqual(before.time);
+
+  await page.locator("#pulse").evaluate((element) => element.classList.add("held"));
+  const held = await page.evaluate(() => document.getAnimations()[0]?.playState);
+  expect(held, "the stylesheet still owns the play-state afterwards").toBe("paused");
+});
