@@ -3,6 +3,8 @@
 
 import { NO_VALUE } from "@orb/kit/strings";
 import { HintTrigger } from "@orb/ui/hint-trigger";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
@@ -31,6 +33,8 @@ interface MeterRowProps {
   /** An optional leading glyph before the label (aria-hidden decoration — the label text stays the datum;
    *  the tracker-shape glyph is the founding consumer). */
   readonly leading?: ReactNode;
+  /** The tracker's own glyph, drawn after `leading` and before the label (aria-hidden decoration). */
+  readonly glyph?: LucideIcon | undefined;
   /** Danger threshold — the bar swaps to the destructive intent below it (never the sole signal). */
   readonly dangerBelow?: number;
   /** Commit a new numeric value — present ⇒ editable-in-place; absent ⇒ read-only. */
@@ -156,17 +160,20 @@ function ValueCell({
 function MeterLabel({
   label,
   leading,
+  glyph,
   labelHint,
   nameCarried,
 }: {
   readonly label: string;
   readonly leading: ReactNode | undefined;
+  readonly glyph: LucideIcon | undefined;
   readonly labelHint: string | undefined;
   readonly nameCarried: boolean;
 }): ReactElement {
   return (
     <Row gap="field" align="center" minWidth="shrinks">
       {leading}
+      {glyph === undefined ? null : <Icon icon={glyph} size="xs" ink="muted" className="shrink-0" />}
       {/* THE LABEL IS PROGRAMMATICALLY ASSOCIATED, OR IT IS LOOSE TEXT. In the EDITABLE arm both fields carry
           this label verbatim inside their accessible names (`<subject> HP value` / `<subject> HP max`), so the
           visible text is a sighted-reader duplicate — announced again as an unassociated node, a roster would
@@ -227,6 +234,7 @@ export function MeterRow({
   color = 1,
   customColor,
   leading,
+  glyph,
   dangerBelow,
   onEditValue,
   onEditMax,
@@ -249,7 +257,7 @@ export function MeterRow({
           label's text baseline, so baseline alignment GROWS the row ~4px on reveal — center keeps the
           rest→edit swap pixel-stable (the no-layout-shift bar). */}
       <Row justify="between" align="center" gap="block">
-        <MeterLabel label={label} leading={leading} labelHint={labelHint} nameCarried={onEditValue !== undefined} />
+        <MeterLabel label={label} leading={leading} glyph={glyph} labelHint={labelHint} nameCarried={onEditValue !== undefined} />
         {onEditValue === undefined ? (
           <Text as="span" tone={valueWarning === true ? "warning" : undefined} numeric={true} voice="label">
             {meterDatum(value, max)}

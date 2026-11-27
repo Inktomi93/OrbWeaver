@@ -12,11 +12,13 @@
 // (D66 A4 — there are no Save/Discard buttons in this product), so the editor commits on blur and Escape
 // abandons the draft.
 
+import type { RpgJournalType } from "@orb/contracts/rpg";
 import type { RpgJournalId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
+import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
@@ -24,13 +26,16 @@ import { useEffect, useId, useRef, useState } from "react";
 import { DestructiveAction, Tip } from "#components";
 import type { EditSession } from "#lib";
 import { deleteConfirmTitle, resolveCommit } from "#lib";
-import { journalRowLabel } from "../lib/journal-labels.ts";
+import { isJournalType, JOURNAL_TYPE_ITEMS, journalRowLabel } from "../lib/journal-labels.ts";
+import { journalEntryLabelName, journalEntryTypeName } from "../lib/rpg-names.ts";
 import { BeatLine, TrackerValue } from "./tracker-blocks/index.ts";
 
 /** The host's per-beat write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
 export interface BeatEdit {
   readonly onEditTitle: (entryId: RpgJournalId, next: string) => void;
   readonly onEditContent: (entryId: RpgJournalId, next: string) => void;
+  readonly onEditType: (entryId: RpgJournalId, next: RpgJournalType) => void;
+  readonly onEditLabel: (entryId: RpgJournalId, next: string) => void;
   readonly onDelete: (entryId: RpgJournalId) => void;
 }
 
@@ -77,7 +82,28 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
       onCommit={(next): void => edit.onEditContent(beat.key, next)}
       lead={
         <>
-          {typeLabel}
+          {/* The host changes what kind of entry this is. A stored type outside the vocabulary has no option to show, so it stays a read-only word. */}
+          {isJournalType(beat.type) ? (
+            <Select
+              aria-label={journalEntryTypeName(beat.title)}
+              items={JOURNAL_TYPE_ITEMS}
+              value={beat.type}
+              onValueChange={(next): void => edit.onEditType(beat.key, next as RpgJournalType)}
+              floor="third"
+            />
+          ) : (
+            typeLabel
+          )}
+          {beat.type === "custom" ? (
+            <TrackerValue
+              ariaLabel={journalEntryLabelName(beat.title)}
+              display={beat.label}
+              placeholder="kind"
+              wrap={true}
+              width="auto"
+              onEdit={(next): void => edit.onEditLabel(beat.key, next)}
+            />
+          ) : null}
           <TrackerValue
             ariaLabel={`${beat.title} title`}
             display={beat.title}

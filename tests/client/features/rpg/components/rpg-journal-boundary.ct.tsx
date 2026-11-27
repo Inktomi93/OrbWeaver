@@ -25,6 +25,7 @@ const READS = [
   "rpg.getTrackerView",
   "rpg.revealHidden",
   "rpg.listJournal",
+  "rpg.countJournal",
   "rpg.listCheckpoints",
 ] as const;
 const ARCHIVE_ERROR = queryFailedLabel(RPG_CARD_ARCHIVE_READ_LABEL);

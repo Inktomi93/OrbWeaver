@@ -27,6 +27,7 @@ const READS = [
   "rpg.getTrackerView",
   "rpg.revealHidden",
   "rpg.listJournal",
+  "rpg.countJournal",
   "rpg.listCheckpoints",
 ] as const;
 test.use({ hasTouch: false, isMobile: false });

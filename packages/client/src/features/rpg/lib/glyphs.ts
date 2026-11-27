@@ -203,6 +203,11 @@ export function resolveItemIcon(icon: string | undefined, name: string, type: st
   return (icon === undefined ? undefined : ITEM_ICON_CHOICES[icon]) ?? resolveItemGlyph(name, type);
 }
 
+/** A tracker's host-picked glyph from the same catalog, or `undefined` when none is picked or the stored name has left it. */
+export function resolveTrackerIcon(icon: string | null): LucideIcon | undefined {
+  return icon === null ? undefined : ITEM_ICON_CHOICES[icon];
+}
+
 /** Condition glyph: name keywords → the designed `Activity` fallback. */
 export function resolveConditionGlyph(name: string): LucideIcon {
   return matchTokens(CONDITION_GLYPHS, name) ?? Activity;

@@ -14,7 +14,7 @@
 //   · A non-positive amount takes `COIN_DISC_EMPTY` — the same anatomy off the muted foreground instead of a
 //     track step. An empty (or negative) purse rendered in ramp gold was a null state wearing a prize's
 //     clothes; the FIGURE stays, only its mood is honest.
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { TrackColor } from "./track-bar.tsx";
 import { COIN_DISC_EMPTY, COIN_DISC_FILL, COIN_DISC_RING, COIN_DISC_STROKE, ringGaugeVariants } from "./variants.ts";
 
@@ -27,6 +27,8 @@ export interface CoinFigureProps {
   color?: TrackColor;
   /** Show the visible label + amount caption below the disc. @defaultValue false */
   showCaption?: boolean;
+  /** A decorative glyph drawn before the caption label (`showCaption` only); the label and amount stay the datum. */
+  glyph?: ReactNode;
 }
 
 // SVG geometry (viewBox units — mirrors the mock coin; named per biome noMagicNumbers).
@@ -49,7 +51,7 @@ function coinGlyph(amount: number): string {
 }
 
 /** The decorative coin disc + its visually-hidden datum. */
-export function CoinFigure({ amount, label, color = 3, showCaption = false }: CoinFigureProps): ReactElement {
+export function CoinFigure({ amount, label, color = 3, showCaption = false, glyph }: CoinFigureProps): ReactElement {
   // Shares the orb column skin (label/readout/value slots) with RingGauge — one satellite anatomy.
   const slots = ringGaugeVariants();
   // A purse at zero or in the red is NOT a hoard (#99 item 6): it sheds the ramp tint for the neutral trio.
@@ -67,6 +69,7 @@ export function CoinFigure({ amount, label, color = 3, showCaption = false }: Co
       {showCaption ? (
         <>
           <span aria-hidden={true} className={slots.label()} data-slot="coin-figure-label">
+            {glyph}
             {label}
           </span>
           {/* THE CAPTION IS LABEL-ONLY WHENEVER THE DISC ALREADY SAYS IT (#99 item 1, one-home-per-value).

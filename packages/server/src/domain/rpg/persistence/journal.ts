@@ -11,7 +11,8 @@ import type { HistoryFloorSeq, RoomClaim } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
 import type { RpgGameId, RpgJournalId } from "@orb/kit/ids";
-import { and, desc, eq, exists, isNull, lt, notExists, or, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, count, desc, eq, exists, isNull, lt, notExists, or, sql } from "drizzle-orm";
 import type { EditJournalEntryParams } from "../contract/params.ts";
 import type { NewRpgJournal, RpgJournalRow } from "../contract/service.ts";
 
@@ -46,7 +47,27 @@ export async function listActiveJournal(
   gameId: RpgGameId,
   opts: { readonly limit: number; readonly offset?: number; readonly historyFloorSeq: HistoryFloorSeq | null },
 ): Promise<readonly RpgJournalRow[]> {
-  const historyFloorSeq = opts.historyFloorSeq ?? FAIL_CLOSED_FLOOR;
+  return await db
+    .select()
+    .from(rpgJournal)
+    .where(activeJournalFilter(db, gameId, opts.historyFloorSeq))
+    .orderBy(desc(rpgJournal.createdAt), desc(rpgJournal.id))
+    .limit(opts.limit)
+    .offset(opts.offset ?? 0);
+}
+
+/** How many entries {@link listActiveJournal} can page through for this caller: the same projection and the same floor, so a count never claims a row the list withholds. */
+export async function countActiveJournal(db: Db, gameId: RpgGameId, opts: { readonly historyFloorSeq: HistoryFloorSeq | null }): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(rpgJournal)
+    .where(activeJournalFilter(db, gameId, opts.historyFloorSeq));
+  return row?.total ?? 0;
+}
+
+/** The WHERE both reads share: the active lineage plus the caller's D16 floor. */
+function activeJournalFilter(db: Db, gameId: RpgGameId, floor: HistoryFloorSeq | null): SQL | undefined {
+  const historyFloorSeq = floor ?? FAIL_CLOSED_FLOOR;
   // The entry's variant is the selected variant of ITS message: EXISTS a variant row whose id = the entry's
   // variantId AND whose message points its `selectedVariantId` back at that same variant.
   const selectedForVariant = db
@@ -63,20 +84,11 @@ export async function listActiveJournal(
     .select({ one: messages.id })
     .from(messages)
     .where(and(eq(messages.id, rpgJournal.sourceMessageId), lt(messages.seq, historyFloorSeq)));
-  const rows = await db
-    .select()
-    .from(rpgJournal)
-    .where(
-      and(
-        eq(rpgJournal.gameId, gameId),
-        or(isNull(rpgJournal.variantId), exists(selectedForVariant)),
-        ...(historyFloorSeq > NO_FLOOR ? [notExists(anchoredBelowFloor)] : []),
-      ),
-    )
-    .orderBy(desc(rpgJournal.createdAt), desc(rpgJournal.id))
-    .limit(opts.limit)
-    .offset(opts.offset ?? 0);
-  return rows;
+  return and(
+    eq(rpgJournal.gameId, gameId),
+    or(isNull(rpgJournal.variantId), exists(selectedForVariant)),
+    ...(historyFloorSeq > NO_FLOOR ? [notExists(anchoredBelowFloor)] : []),
+  );
 }
 
 /** Patch an entry's mutable text columns (the host edit/recovery path — reaches model entries too). SCOPED to

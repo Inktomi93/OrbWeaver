@@ -20,6 +20,7 @@ const READS = [
   "rpg.getTrackerView",
   "rpg.revealHidden",
   "rpg.listJournal",
+  "rpg.countJournal",
   "rpg.listCheckpoints",
   "rpg.listTurnToolCalls",
   "chat.getChat",

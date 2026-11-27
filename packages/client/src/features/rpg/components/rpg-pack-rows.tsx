@@ -19,7 +19,6 @@
 import type { RpgInventoryItem } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Trash } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Corner, Grid, Row, Stack } from "@orb/ui/layout";
@@ -29,35 +28,14 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { DestructiveAction, Tip } from "#components";
-import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
+import { DestructiveAction } from "#components";
+import { resolveItemIcon } from "../lib/glyphs.ts";
+import { IconPicker } from "./rpg-icon-picker.tsx";
 import type { PackEdit } from "./rpg-pack-fields.tsx";
 import { ItemLockPin, ItemName, ItemProseLine, ItemQuantity } from "./rpg-pack-fields.tsx";
 
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy. */
 const QUEST_TYPE_RE = /quest/i;
-
-/** The icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name.
- *
- *  THE COARSE GAP IS THE TOUCH FLOOR (an owner ruling). A `glyph="lg"` GlyphButton is FLOORLESS — its coarse
- *  hit area rides an OVERFLOWING `::after`, not its own box — so on a wrapped grid the pseudo is clipped by the
- *  gap it shares with the next cell and the effective hit box falls under the floor. `gap-block` makes the
- *  coarse pitch exactly the touch target, and the FINE picker is untouched (still `gap-field`). The cost is
- *  one fewer column and a taller popover at coarse. */
-function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
-  return (
-    <Row gap="field" touchFloor="gap" wrap={true} cap="control">
-      {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
-        <Tip key={name} text={`${itemName}: use the ${name} icon`}>
-          {/* eslint-disable-next-line orb/no-floorless-control-in-wrap -- touchFloor="gap" supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes. */}
-          <GlyphButton aria-label={`${itemName}: use the ${name} icon`} variant="ghost" glyph="lg" onClick={(): void => onPick(name)}>
-            <Icon icon={glyph} size="sm" />
-          </GlyphButton>
-        </Tip>
-      ))}
-    </Row>
-  );
-}
 
 /** The item GLYPH — a plain decoration for a viewer; for the HOST a popover trigger opening the #37c
  *  icon picker (the NAME text stays the datum either way). */
@@ -76,7 +54,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
         }
       />
       <PopoverPopup aria-label={`Pick an icon for ${item.name}`}>
-        <ItemIconPicker itemName={item.name} onPick={onPickIcon} />
+        <IconPicker subject={item.name} onPick={onPickIcon} />
       </PopoverPopup>
     </Popover>
   );

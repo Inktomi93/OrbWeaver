@@ -178,6 +178,8 @@ export interface RpgTrackerOrb {
   readonly value: number;
   readonly max: number | null;
   readonly color: string | null;
+  /** The host-picked glyph name from the tracker def, or null for the shape's own glyph. */
+  readonly icon: string | null;
 }
 
 /** `getTrackerView` (member) — the aggregate the takeover tabs + banner/orbs render in one query. Every
@@ -449,6 +451,7 @@ const rpgTrackerOrbSchema = z.strictObject({
   value: z.number(),
   max: z.number().nullable(),
   color: z.string().nullable(),
+  icon: z.string().nullable(),
 }) satisfies z.ZodType<RpgTrackerOrb>;
 export const rpgTrackerViewSchema = z.strictObject({
   ambient: z

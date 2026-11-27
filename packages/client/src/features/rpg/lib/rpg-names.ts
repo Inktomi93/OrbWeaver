@@ -49,6 +49,21 @@ export const RPG_JOURNAL_SCOPE_LABELS = { all: "All", marks: "Marks", cards: "Ca
 /** The Journal composer's add action. */
 export const RPG_JOURNAL_ADD_ENTRY_NAME = "Add entry";
 
+/** The composer's gloss field for a custom entry, and the row editor's type and label controls, named by the entry they edit. */
+export const RPG_JOURNAL_NEW_ENTRY_LABEL_NAME = "New entry label";
+export function journalEntryTypeName(title: string): string {
+  return `${title} type`;
+}
+export function journalEntryLabelName(title: string): string {
+  return `${title} label`;
+}
+
+/** The chronicle's door to the entries past the newest page, and the line that counts what is shown against what exists. */
+export const RPG_JOURNAL_LOAD_OLDER_NAME = "Load older entries";
+export function journalShownLine(shown: number, total: number): string {
+  return `Showing the newest ${String(shown)} of ${String(total)} entries.`;
+}
+
 /** The empty chronicle's title, and its line on who writes the first page: the host may start it, a member waits for the story. */
 export const RPG_JOURNAL_EMPTY_TITLE = "Nothing chronicled yet";
 export const RPG_JOURNAL_EMPTY_DESCRIPTION = {
@@ -149,6 +164,12 @@ export const RPG_TOOL_CALL_VERDICT_LABELS: Record<RpgToolCallVerdict, string> = 
 /** A Game tab tracker row's controls, one name per state, so a spec names the state it expects. */
 export function trackerLabelFieldName(index: number): string {
   return `Tracker ${index + 1} label`;
+}
+export function trackerIconName(label: string): string {
+  return `Pick an icon for ${label}`;
+}
+export function trackerDefaultIconName(label: string): string {
+  return `Use the default icon for ${label}`;
 }
 export function trackerShowOnBandName(label: string): string {
   return `Show ${label} as a band orb`;

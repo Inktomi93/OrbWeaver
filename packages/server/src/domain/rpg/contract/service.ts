@@ -955,6 +955,8 @@ export interface RpgService {
   readonly getTrackerView: (params: ReadGameParams) => Promise<RpgTrackerView>;
   /** Member. The paged, lineage-projected journal. */
   readonly listJournal: (params: ListJournalParams) => Promise<readonly RpgJournalEntryView[]>;
+  /** Member. How many entries `listJournal` can page through for this caller, under the same floor. */
+  readonly countJournal: (params: ReadGameParams) => Promise<number>;
   /** Member. WHAT THE MODEL DID — the window of recorded folded turns, keyed by producing variant
    *  (TOOLCALLS-INVISIBLE, arm A). Member-gated on purpose: a tool call is the mechanical record of a turn
    *  everyone at the table watched, not a GM secret. */

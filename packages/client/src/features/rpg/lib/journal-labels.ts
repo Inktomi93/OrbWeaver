@@ -4,6 +4,8 @@
 // `useComponentExportOnlyModules`).
 
 import type { RpgCheckpointTrigger, RpgJournalType } from "@orb/contracts/rpg";
+import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
+import type { SelectItems } from "@orb/ui/select";
 
 /** The journal-TYPE vocabulary — an exhaustive Record over the contracts tuple (§5.5: a new member fails tsc
  *  here, never renders as a raw slug). The composer Select derives its items from this; the row label reads
@@ -21,6 +23,14 @@ export const JOURNAL_TYPE_LABELS: Readonly<Record<RpgJournalType, string>> = {
   // when present and this generic word only when the model/host left it blank.
   custom: "Custom",
 };
+
+/** Whether a stored entry type is one of the vocabulary's members, so a legacy slug never reaches the type picker. */
+export function isJournalType(type: string): type is RpgJournalType {
+  return (RPG_JOURNAL_TYPES as readonly string[]).includes(type);
+}
+
+/** The type picker's options, shared by the composer and the row editor so the two offer one list. */
+export const JOURNAL_TYPE_ITEMS: SelectItems = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
 
 /** How a mark came to exist, as its row reads; `null` ⇒ the row says nothing (a hand-made mark is the default,
  *  so naming it on every row is noise). An exhaustive Record, so a new trigger fails `tsc` until it has an answer. */

@@ -16,6 +16,7 @@ import { createPatchSheet } from "./verbs/patch-sheet.ts";
 import { createPromoteActor } from "./verbs/promote-actor.ts";
 import { createDeleteQuest, createEditQuestObjective, createUpsertQuest } from "./verbs/quest/index.ts";
 import {
+  createCountJournal,
   createGetConfigView,
   createGetGame,
   createGetTrackerView,
@@ -51,6 +52,7 @@ export function createRpgService(deps: RpgAssemblyContext): RpgService {
     ...createGetGame(ctx),
     ...createGetTrackerView(ctx),
     ...createListJournal(ctx),
+    ...createCountJournal(ctx),
     ...createListTurnToolCalls(ctx),
     ...createGetConfigView(ctx),
     ...createRevealHidden(ctx),

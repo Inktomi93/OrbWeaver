@@ -35,14 +35,21 @@ test("journal readers retain inclusive member floors, unfiltered host reads and 
 
   const contents = async (principal: typeof host): Promise<string[]> =>
     (await root.services.rpg.listJournal({ principal, chatId })).map((entry) => entry.content).toSorted();
+  const total = (principal: typeof host): Promise<number> => root.services.rpg.countJournal({ principal, chatId });
   const all = ["pre-join", "join boundary", "post-join", "hand entry"].toSorted();
   expect(await contents(host)).toEqual(all);
   expect(await contents(member)).toEqual(all);
+  expect(await total(host)).toBe(all.length);
+  expect(await total(member)).toBe(all.length);
   await root.services.chat.setMemberHistoryVisibility({ principal: host, chatId, userId: member.userId, visibility: "from-join" });
   expect(await contents(member)).toEqual(["join boundary", "post-join", "hand entry"].toSorted());
   expect(await contents(host)).toEqual(all);
+  // The count is read under the same floor as the list, so a floored member is never told of an entry the list withholds.
+  expect(await total(member)).toBe(3);
+  expect(await total(host)).toBe(all.length);
 
   // The stranger cannot see the room through chat's own read, so the journal refusal below is that same verdict.
   await expect(root.services.chat.getChat({ principal: stranger, chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(root.services.rpg.listJournal({ principal: stranger, chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(root.services.rpg.countJournal({ principal: stranger, chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
 });

@@ -91,6 +91,7 @@ const GATES: Readonly<Record<keyof RpgService, Gate>> = {
   getGame: { gate: "member", call: (g, who) => g.rpg.getGame({ principal: who, chatId: g.chatId }) },
   getTrackerView: { gate: "member", call: (g, who) => g.rpg.getTrackerView({ principal: who, chatId: g.chatId }) },
   listJournal: { gate: "member", call: (g, who) => g.rpg.listJournal({ principal: who, chatId: g.chatId }) },
+  countJournal: { gate: "member", call: (g, who) => g.rpg.countJournal({ principal: who, chatId: g.chatId }) },
   listTurnToolCalls: { gate: "member", call: (g, who) => g.rpg.listTurnToolCalls({ principal: who, chatId: g.chatId }) },
   listCheckpoints: { gate: "member", call: (g, who) => g.rpg.listCheckpoints({ principal: who, chatId: g.chatId }) },
   rollDice: { gate: "member", call: (g, who) => g.rpg.rollDice({ principal: who, chatId: g.chatId, notation: "1d20" }) },

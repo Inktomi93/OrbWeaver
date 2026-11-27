@@ -22,7 +22,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { MutedLine, Tip } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import { actorKey } from "../lib/actor-key.ts";
-import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
+import { RELATIONSHIP_GLYPHS, resolveTrackerIcon } from "../lib/glyphs.ts";
 import {
   npcCancelPromoteName,
   npcConfirmDismissName,
@@ -130,6 +130,7 @@ function SceneNpcCard({ actor, edit }: { readonly actor: RpgActorView; readonly 
                 // The def's own color, else the ordinal ramp — the SAME derivation the host-console
                 // definition row and the band orb use (definition and display one system).
                 {...trackColorProps(resolveTrackerColor(m.def.color, i))}
+                glyph={resolveTrackerIcon(m.def.icon)}
                 {...(edit === undefined ? {} : { onEditValue: (next: number): void => edit.onEditTracker(ref, m.def, Math.max(0, next)) })}
               />
             )),

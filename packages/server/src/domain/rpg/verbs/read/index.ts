@@ -1,6 +1,7 @@
 // domain/rpg/verbs/read — the read-view verb group barrel (getGame/getTrackerView/listJournal/getConfigView/
 // revealHidden).
 
+export { createCountJournal } from "./count-journal.ts";
 export { createGetConfigView } from "./get-config-view.ts";
 export { createGetGame } from "./get-game.ts";
 export { createGetTrackerView } from "./get-tracker-view.ts";

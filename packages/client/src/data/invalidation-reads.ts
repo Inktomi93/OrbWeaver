@@ -286,7 +286,7 @@ export const RPG_BUS_FILTERS: RpgBusFilterMap = {
   // A journal entry landed/changed — the paged, lineage-filtered archive refetches (Journal is full-only,
   // but the listJournal read still invalidates for parity + the future lite→full graduation). Path-level (all
   // pages) — the read is paged, so a page-keyed queryFilter would miss the other pages.
-  journalChanged: (_e, trpc) => [trpc.rpg.listJournal.pathFilter()],
+  journalChanged: (e, trpc) => [trpc.rpg.listJournal.pathFilter(), trpc.rpg.countJournal.queryFilter({ chatId: e.chatId })],
   // Lifecycle-only: the rpg-round store consumes these in `use-rpg-bus`; no durable read changed yet.
   stateRoundStarted: () => [],
   stateRoundSettled: () => [],
@@ -304,6 +304,7 @@ export function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly Invalida
     trpc.rpg.getTrackerView.queryFilter({ chatId }),
     trpc.rpg.getConfigView.queryFilter({ chatId }),
     trpc.rpg.listJournal.pathFilter(),
+    trpc.rpg.countJournal.queryFilter({ chatId }),
     trpc.rpg.revealHidden.queryFilter({ chatId }),
     trpc.rpg.listTurnToolCalls.queryFilter({ chatId }),
   ];

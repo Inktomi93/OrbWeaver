@@ -14,9 +14,11 @@
 // free-hex ruling): the orb label joins back to the defining actor's `poolDefs` row for its picked colour.
 
 import type { RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
+import { Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { CoinFigure, RingGauge } from "@orb/ui/meter";
 import type { ReactElement } from "react";
+import { resolveTrackerIcon } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 
 /** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
@@ -28,10 +30,12 @@ const ORB_TAG_LEN = 3;
  *  tracker's own resolved ramp colour, so the definition→orb→bar colour identity survives the shape fork. */
 function Satellite({ orb, ordinal }: { readonly orb: RpgTrackerOrb; readonly ordinal: number }): ReactElement {
   const color = trackColorProps(resolveTrackerColor(orb.color, ordinal));
+  const picked = resolveTrackerIcon(orb.icon);
+  const glyph = picked === undefined ? undefined : <Icon icon={picked} size="xs" ink="muted" className="shrink-0" />;
   if (orb.max === null) {
     // The disc is a QUANTITY figure — it carries no arc, so a host-picked free hex has nothing to paint;
     // the ramp step is the honest colour channel it does have.
-    return <CoinFigure amount={orb.value} label={orb.label} color={color.color} showCaption={true} />;
+    return <CoinFigure amount={orb.value} label={orb.label} color={color.color} showCaption={true} glyph={glyph} />;
   }
   return (
     <RingGauge
@@ -42,6 +46,7 @@ function Satellite({ orb, ordinal }: { readonly orb: RpgTrackerOrb; readonly ord
       label={orb.label}
       showCaption={true}
       captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()}
+      glyph={glyph}
     />
   );
 }

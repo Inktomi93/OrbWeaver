@@ -19,6 +19,7 @@ const GAME_PROCEDURES = [
   "rpg.getTrackerView",
   "rpg.getConfigView",
   "rpg.listJournal",
+  "rpg.countJournal",
   "rpg.revealHidden",
 ] as const;
 // A docked context pane narrow enough that the rail's cells overflow it.

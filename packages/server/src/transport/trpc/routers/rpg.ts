@@ -173,6 +173,10 @@ export const rpgRouter = t.router({
     .output(z.array(rpgJournalEntryViewSchema).readonly())
     .input(rpgListJournalInputSchema)
     .query(({ ctx, input }) => ctx.services.rpg.listJournal({ principal: ctx.auth, ...input })),
+  countJournal: authedProcedure
+    .output(z.int().nonnegative())
+    .input(rpgReadGameInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.countJournal({ principal: ctx.auth, ...input })),
   // WHAT THE MODEL DID (TOOLCALLS-INVISIBLE, arm A) — member-gated inside the verb, like every read above it.
   listTurnToolCalls: authedProcedure
     .output(z.array(rpgTurnToolCallsViewSchema).readonly())

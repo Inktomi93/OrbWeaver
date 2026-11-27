@@ -114,7 +114,14 @@ function trackerOrbs(actors: readonly RpgActorView[], gameEntries: readonly RpgT
     }
     // The EFFECTIVE ceiling (this carrier's override, else the def default) — the orb arc must describe the
     // ceiling that actually applies to the actor it draws, never the party default (the ONE resolver).
-    orbs.push({ key: entry.def.key, label: entry.def.label, value, max: trackerCeiling(entry.def, entry.value ?? undefined), color: entry.def.color });
+    orbs.push({
+      key: entry.def.key,
+      label: entry.def.label,
+      value,
+      max: trackerCeiling(entry.def, entry.value ?? undefined),
+      color: entry.def.color,
+      icon: entry.def.icon,
+    });
   }
   return orbs.slice(0, TRACKER_ORB_MAX);
 }
