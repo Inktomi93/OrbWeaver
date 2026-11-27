@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-22
+status: doing
+updated: 2026-11-27
 priority: P3
 area: import
+lane: wt/agent-adf56b71cc859a547
 plan: unwired-code
 ---
 

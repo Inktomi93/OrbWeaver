@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-27
 priority: P3
 area: ui
-lane: wt/agent-aecb78d3e3ce1089b
+lane: wt/agent-a200462b5de058ccf
 plan: unwired-code
 ---
 

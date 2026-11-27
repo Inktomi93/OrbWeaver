@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-27
 priority: P3
 area: server
-lane: wt/agent-a05e04b95b7ac33b0
+lane: wt/agent-a200462b5de058ccf
 plan: unwired-code
 ---
 
