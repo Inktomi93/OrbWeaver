@@ -14,6 +14,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { bugReportStem } from "@orb/kit/bug-report";
+import type { VersionIdentity } from "@orb/kit/version-identity";
 import { expect, test } from "@orb/testkit/tooling";
 
 interface PlantOpts {
@@ -25,6 +26,8 @@ interface PlantOpts {
   readonly dirty?: boolean;
   readonly truncated?: readonly string[];
   readonly withMarkdown?: boolean;
+  /** The bundle's `version` block; a partial object plants an incomplete one a different writer could leave. */
+  readonly version?: VersionIdentity | Readonly<Record<string, unknown>>;
 }
 
 /** Write one report pair into `<root>/bug-reports/`, in the exact shape the writer emits. */
@@ -38,6 +41,7 @@ async function plantReport(root: string, opts: PlantOpts): Promise<string> {
     build: { sha: opts.sha ?? "abcdef1234567890abcdef1234567890abcdef12", dirty: opts.dirty === true, statusHead: [] },
     window: { requestedFromAt: null, fromAt: null, padMs: 60_000, capturedAt: Date.parse(opts.capturedAt), requestedMinutes: null },
     note: opts.note,
+    ...(opts.version === undefined ? {} : { version: opts.version }),
     client: { route: { pathname: opts.route ?? "/" }, sources: [] },
     server: {
       sources: (opts.truncated ?? []).map((source) => ({
@@ -173,4 +177,45 @@ test("two arguments are misuse (list + show is the whole surface)", async ({ run
   const res = await runCli("bug-reports", ["aaaa", "bbbb"], { cwd: scratch });
   await expect(res).toExitWith(3);
   expect(res.stderr).toContain("usage: pnpm bug:reports");
+});
+
+const MAIN_BUILD: VersionIdentity = {
+  version: "1.2.3",
+  commit: "abcdef1234567890abcdef1234567890abcdef12",
+  short: "abcdef123456",
+  source: "checkout",
+  channel: "main",
+};
+const STABLE_BUILD: VersionIdentity = { ...MAIN_BUILD, source: "container", channel: "stable", builtAt: "2026-09-02T08:00:00.000Z" };
+
+test("the listing prints each report's version in the app's own format: `v<version>` stable, `<version>-dev+<short>` main", async ({ runCli, scratch }) => {
+  await plantReport(scratch, { id: "gggg1111", capturedAt: "2026-09-02T10:00:00.000Z", note: "from a release", version: STABLE_BUILD });
+  await plantReport(scratch, { id: "hhhh2222", capturedAt: "2026-09-02T09:00:00.000Z", note: "from main", version: MAIN_BUILD });
+
+  const res = await runCli("bug-reports", [], { cwd: scratch });
+  await expect(res).toExitWith(0);
+  const lines = res.stdout.split("\n");
+  const stableLine = lines.find((line) => line.includes("gggg1111")) ?? "";
+  const mainLine = lines.find((line) => line.includes("hhhh2222")) ?? "";
+  expect(stableLine).toContain("  v1.2.3  ");
+  expect(mainLine).toContain("  1.2.3-dev+abcdef123456  ");
+  // The listing's own earlier spelling must not come back beside the app's.
+  expect(res.stdout).not.toContain("checkout)");
+  expect(res.stdout).not.toContain("container)");
+});
+
+test("a version block that is not a whole identity prints `no-version`, never a guessed label", async ({ runCli, scratch }) => {
+  await plantReport(scratch, {
+    id: "iiii3333",
+    capturedAt: "2026-09-02T10:00:00.000Z",
+    note: "block missing its channel",
+    version: { version: "1.2.3", short: "abcdef123456", source: "checkout" },
+  });
+  await plantReport(scratch, { id: "jjjj4444", capturedAt: "2026-09-02T09:00:00.000Z", note: "older writer, no block at all" });
+
+  const res = await runCli("bug-reports", [], { cwd: scratch });
+  await expect(res).toExitWith(0);
+  for (const id of ["iiii3333", "jjjj4444"]) {
+    expect(res.stdout.split("\n").find((line) => line.includes(id))).toContain("  no-version  ");
+  }
 });

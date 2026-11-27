@@ -153,7 +153,10 @@ RUN install -d -o node -g node /app/data /app/.cache
 # `--link` puts each copy on its own layer, independent of the layers under it, so a rebuilt app half never
 # re-exports the node_modules layer and a base bump re-uses both (Dockerfile reference, COPY --link). It cannot
 # read the image's /etc/passwd, so the owner is the `node` user by number; a linked copy also gives /app itself
-# that owner.
+# that owner. /app stays the app user's because the process starts in it and the ONNX Runtime binding creates
+# `:memory:.ses` in its working directory on the first model session; a root-owned /app refuses that write
+# (EACCES) and the server boots and answers /healthz regardless. The debug bug-report capture also writes
+# /app/bug-reports, behind DEBUG_TOKEN or an owner session only.
 COPY --link --from=prod-deps /runtime/links /node_modules
 COPY --link --chown=1000:1000 --from=prod-deps /runtime/deps/node_modules /app/node_modules
 COPY --link --chown=1000:1000 --from=build /runtime/app /app

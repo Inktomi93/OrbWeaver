@@ -1,0 +1,8 @@
+# Linted by the `static` job in `.github/workflows/ci.yml`.
+paths:
+  .github/workflows/**/*.{yml,yaml}:
+    ignore:
+      # Verified false positive: GitHub resolves `uses: $/<path>` to the repository the workflow runs from, so a
+      # local action needs no `./` or `owner/repo@ref`, and CI runs it. actionlint 1.7.12 predates the form and
+      # rejects it as a missing ref. This pattern matches that message only.
+      - 'specifying action "\$/\.github/actions/[^"]+" in invalid format because ref is missing'

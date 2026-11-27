@@ -397,6 +397,9 @@ packageExtensions:
 overrides:
   # Drizzle's private SQL members require one module identity across every libsql peer resolution.
   "@libsql/client": "catalog:"
+  # tRPC's server lists `typescript` as a required peer for its type declarations (none import it) and no runtime
+  # file loads it, so pnpm's peer auto-install put a compiler in the production image. `-` drops the peer.
+  "@trpc/server>typescript": "-"
   # Sentry's API range admits 1.10, but its bundled SDK 2.x requires API below 1.10.
   "@sentry/node@10.76.2>@opentelemetry/api": ">=1.9.1 <1.10.0"
   # Pin the native resource-owning driver; retain its public client ABI through the package patch.

@@ -31,6 +31,9 @@ jobs:
         run: pnpm knip
       - name: Check that production exports have production consumers
         run: pnpm knip:prod
+      # actionlint reads .github/actionlint.yaml; the image is pinned by digest (bump with `docker buildx imagetools inspect rhysd/actionlint:<tag>`).
+      - name: Lint the workflows
+        run: docker run --rm --volume "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -no-color
 
   # One type-aware program over the whole tree outgrew one runner's memory, so each part lints on its
   # own runner. The parts are ESLINT_PARTS in `scripts/eslint-parts.ts`, which pre-push runs one after
