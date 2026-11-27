@@ -107,6 +107,23 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
   ),
 );
 
+// A REQUEST THE CLIENT ABANDONED IS NOT A FAULT. The request's own signal is the only evidence: the adapters
+// hand it down when the connection closes, and the composer's context-fit preview cancels its query whenever
+// the person types or navigates. The procedure then rejects with the abort reason, which would land as an
+// unmapped 500 nobody receives, so it logs at debug as `trpc.abandoned` (with its cause). The error text is
+// never read. A provider-side cancellation on a request whose client is still waiting leaves the signal quiet
+// and keeps its `trpc.unhandled` line (error-mapping.ts's header). ONLY A QUERY IS EXCUSED: a mutation's
+// failure is a real fault whether or not anyone reads the reply (its write may have failed after the tab
+// closed), so an abandoned mutation still logs `trpc.unhandled`.
+function logUnmapped(logger: Context["logger"], err: unknown, request: { readonly path: string; readonly type: string; readonly abandoned: boolean }): void {
+  const { path, type, abandoned } = request;
+  if (abandoned && type === "query") {
+    getLog(logger).debug({ err, event: "trpc.abandoned", path, type }, `trpc: client abandoned ${path} before it answered`);
+    return;
+  }
+  getLog(logger).error({ err, event: "trpc.unhandled", path, type }, `trpc: unmapped error on ${path} — surfaced to the caller as a 500`);
+}
+
 // A subscription generator throws after this middleware has returned, so it bypasses this map —
 // subscriptions wrap their source in withSubscriptionErrors instead.
 //
@@ -148,20 +165,7 @@ const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, signal, nex
       throw mapped;
     }
     if (result.error.code === "INTERNAL_SERVER_ERROR") {
-      // A REQUEST THE CLIENT ABANDONED IS NOT A FAULT. The request's own signal is the only evidence: the
-      // adapters hand it down when the connection closes, and the composer's context-fit preview cancels its
-      // query whenever the person types or navigates. The procedure then rejects with the abort reason, which
-      // would land here as an unmapped 500 nobody receives. The error text is never read. A provider-side
-      // cancellation on a request whose client is still waiting leaves the signal quiet and keeps its
-      // `trpc.unhandled` line (error-mapping.ts's header).
-      if (signal?.aborted === true) {
-        getLog(ctx.logger).debug({ event: "trpc.abandoned", path, type }, `trpc: client abandoned ${path} before it answered`);
-        return result;
-      }
-      getLog(ctx.logger).error(
-        { err: result.error.cause ?? result.error, event: "trpc.unhandled", path, type },
-        `trpc: unmapped error on ${path} — surfaced to the caller as a 500`,
-      );
+      logUnmapped(ctx.logger, result.error.cause ?? result.error, { path, type, abandoned: signal?.aborted === true });
     }
   }
   return result;

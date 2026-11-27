@@ -72,10 +72,10 @@
 // trace firing for exactly the failures an operator most needs to see, and costs nothing on the wire: they
 // collapse to the same fixed sentence every other unclassified throw gets.
 //
-// A CLIENT-ABANDONED REQUEST IS A DIFFERENT CASE, told apart by the request's own abort signal and never by
+// A CLIENT-ABANDONED QUERY IS A DIFFERENT CASE, told apart by the request's own abort signal and never by
 // the error or its text: `domainErrorMiddleware` in `trpc.ts` logs it at debug as `trpc.abandoned`, because
 // no caller is left to receive the 500 and nothing on our side failed. A `ProviderError` of kind `aborted`
-// on a request whose signal is still quiet keeps `trpc.unhandled`.
+// on a request whose signal is still quiet keeps `trpc.unhandled`, and so does any abandoned mutation.
 
 import type { ProviderFailureReason } from "@orb/contracts/chat";
 import { PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
