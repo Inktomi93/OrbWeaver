@@ -16,11 +16,16 @@
 //   site with it: a binding. An excess-property error is the object literal that writes the member, and any other error
 //   inside that literal member (a method parameter that lost its contextual type) is part of the same write. An error
 //   at a target the graph's roles judge stored into and not read (`=`, a discarded `+=` or bump, ./roles.ts) is a
-//   write too, and so is an error at an object literal's property name or at the name a declaration binds one to, such
-//   as a literal whose union arm lost its discriminant. An error at a string in a type (a `Pick` argument, an indexed
-//   access) is a key use, as the graph's roles judge it; a string value, or a call's type argument, can reach a read and
-//   stays one. Bindings, key uses and writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
-//   failed import types its uses without an error.
+//   write too, and so is an error at an object literal's property name, at the name a declaration binds one to, or at a
+//   literal that spells the member's key, such as a literal whose union arm lost its discriminant. An error at a string
+//   in a type (a `Pick` argument, an indexed access) is a key use, as the graph's roles judge it; a string value, or a
+//   call's type argument, can reach a read and stays one. Bindings, key uses and writes alone leave a candidate
+//   named-only. An import binding its own file uses is a read, placed at the use: a failed import types its uses without
+//   an error.
+// - A delete that leaves the member's holder and each of its coupled copies with no member leaves a shape its own copy's
+//   slot cannot take (zod types an empty object's output `Record<string, never>`, which no interface fits), so an error
+//   that spells no name of the member is the emptied holder's: `emptied`, no read. Without a coupled copy the slot that
+//   requires the member is another's, and the error stays a read.
 // - A read a Drizzle write copies into a column is the column's, as the graph's store rule has it (sites.ts
 //   handedToColumn): it is no reference that refutes, and an error there is a write.
 // - An unused-code diagnostic (reportsUnnecessary) the delete adds is a declaration only the candidate read, not a
@@ -62,6 +67,7 @@ import {
   isExportAssignment,
   isExportDeclaration,
   isExportSpecifier,
+  isIdentifier,
   isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
@@ -158,8 +164,9 @@ interface BlindRead {
   readonly at: string;
 }
 
-// What a new error's site does to the removed declaration. A key names it by a string the site holds.
-const SITE_KINDS = ["write", "binding", "key", "read"] as const;
+// What a new error's site does to the removed declaration. A key names it by a string the site holds; `emptied` is where
+// a holder the delete left with no member no longer fits.
+const SITE_KINDS = ["write", "binding", "key", "emptied", "read"] as const;
 type SiteKind = (typeof SITE_KINDS)[number];
 
 // One error the removal added: `file:line` in the unedited tree, its TypeScript code, its site kind, whether the site
@@ -380,6 +387,47 @@ function unstoredKind(named: Node | undefined): SiteKind {
   return namesKey(named) ? "key" : "read";
 }
 
+// A candidate's name, and whether its delete empties its holder and every coupled copy's.
+interface DeletedMember {
+  readonly name: string | null;
+  readonly emptied: boolean;
+}
+const NO_MEMBER: DeletedMember = { name: null, emptied: false };
+
+// A member declaration's name, when it is an identifier or a string.
+function memberName(member: Node | undefined): string | null {
+  const name = member === undefined ? undefined : declarationNameOf(member);
+  return name !== undefined && (isIdentifier(name) || isStringLiteral(name)) ? name.text : null;
+}
+
+// Whether a member is its holder's only member, so its delete empties the holder.
+function soleMember(member: Node | undefined): boolean {
+  const holder = member === undefined ? undefined : holderOf(member);
+  return holder !== undefined && membersOf(holder).length === 1;
+}
+
+// An error at an object literal that spells the member's key: the literal writes the member and no longer fits its slot.
+const spelledByLiteral = (named: Node | undefined, name: string | null): boolean =>
+  named !== undefined &&
+  name !== null &&
+  isObjectLiteralExpression(named) &&
+  named.properties.some((property) => {
+    const key = declarationNameOf(property);
+    return key !== undefined && spells(key, name);
+  });
+
+// A holder's own members: an interface's, a class's, an object literal's or a type literal's.
+function membersOf(holder: Node): readonly Node[] {
+  if (isInterfaceDeclaration(holder) || isClassDeclaration(holder) || isClassExpression(holder) || isTypeLiteralNode(holder)) {
+    return holder.members;
+  }
+  return isObjectLiteralExpression(holder) ? holder.properties : [];
+}
+
+// Whether an error's site spells the member's name, as an identifier or a string.
+const spells = (named: Node | undefined, name: string): boolean =>
+  named !== undefined && (isIdentifier(named) || isStringLiteral(named)) && named.text === name;
+
 // The edits a delete makes, by repository-relative file.
 type Edits = ReadonlyMap<string, readonly Splice[]>;
 
@@ -537,6 +585,15 @@ function literalKey(site: Node): { readonly literal: Expression; readonly name: 
 // A declaration a module can export: a statement of its file, or a variable of one.
 const isTopLevel = (node: Node): boolean => isSourceFile(node.parent) || (isVariableDeclarationList(node.parent) && isSourceFile(node.parent.parent.parent));
 
+// Each key's partners, in pair order.
+function grouped(pairs: readonly (readonly [DeclKey, DeclKey])[]): ReadonlyMap<DeclKey, readonly DeclKey[]> {
+  const out = new Map<DeclKey, DeclKey[]>();
+  for (const [from, to] of pairs) {
+    out.set(from, [...(out.get(from) ?? []), to]);
+  }
+  return out;
+}
+
 /** The trial session over one built graph and its world. */
 class Trials {
   readonly #graph: Graph;
@@ -553,6 +610,11 @@ class Trials {
   readonly #twinKeys = new Map<DeclKey, DeclKey[]>();
   // Each member's flow slots that are member findings too: a port or wire copy the member's value fills, unread itself.
   readonly #findingSlots = new Map<DeclKey, DeclKey[]>();
+  // Each member's checked schema keys (build.ts #settleTwins), and each such key's members: a union output's key pairs
+  // with the same-named member of every arm.
+  readonly #checksOf: ReadonlyMap<DeclKey, readonly DeclKey[]>;
+  readonly #checked: ReadonlyMap<DeclKey, readonly DeclKey[]>;
+  readonly #findings: ReadonlySet<DeclKey>;
   readonly #isTable: (node: Node) => boolean;
   readonly #names: LibraryNames;
 
@@ -561,7 +623,10 @@ class Trials {
     for (const [schema, member] of graph.facts.twins) {
       this.#twinKeys.set(member, [...(this.#twinKeys.get(member) ?? []), schema]);
     }
+    this.#checked = grouped(graph.facts.checks);
+    this.#checksOf = grouped(graph.facts.checks.map(([schema, member]) => [member, schema]));
     const findings = new Set(MEMBER_BUCKETS.flatMap((bucket) => analysis[bucket].flatMap(({ key }) => (key !== null && isDeclKey(key) ? [key] : []))));
+    this.#findings = findings;
     for (const [slot, values] of graph.facts.flows) {
       for (const value of findings.has(slot) ? values : []) {
         if (value !== slot && findings.has(value)) {
@@ -658,6 +723,7 @@ class Trials {
       return [...this.group(items.slice(0, half)), ...this.group(items.slice(half))];
     }
     const written = this.#writtenMembers(outcome.added, outcome.owners);
+    const deleted = items.map(({ key }) => ({ name: memberName(this.nodeOf(key)), emptied: this.#empties(key) }));
     const errorsOf = (at: number): readonly TrialError[] =>
       outcome.added.flatMap((error, x) =>
         outcome.owners[x] === at
@@ -665,6 +731,7 @@ class Trials {
               this.#error(
                 error,
                 written.some((member) => member.owner === at && member.holds(error)),
+                deleted[at] ?? NO_MEMBER,
               ),
             ]
           : [],
@@ -862,9 +929,15 @@ class Trials {
     });
   }
 
+  // Whether the member has a coupled copy, and its delete empties its holder and every copy's holder.
+  #empties(key: DeclKey): boolean {
+    const copies = this.coupled(key);
+    return copies.length > 0 && [key, ...copies].every((member) => soleMember(this.nodeOf(member)));
+  }
+
   // A new error, placed at the reader when an import's own file reads the binding it breaks; `inWrite` says it sits in a
-  // literal member that writes the deleted member.
-  #error({ diagnostic, pos }: AddedError, inWrite: boolean): TrialError {
+  // literal member that writes the deleted member; `member` is its name, and whether its delete empties its holder.
+  #error({ diagnostic, pos }: AddedError, inWrite: boolean, member: DeletedMember): TrialError {
     const file = this.#relative(diagnostic);
     const base = { code: diagnostic.code, product: productReader(file), text: firstLine(diagnostic.text) };
     const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
@@ -873,7 +946,8 @@ class Trials {
     const site = moduleSite(named);
     if (site === undefined) {
       const writes = inWrite || WRITE_CODES.has(diagnostic.code) || (named !== undefined && (storesOnly(named) || this.#columnCopy(named)));
-      return { ...base, at, kind: writes ? "write" : unstoredKind(named) };
+      const kind = writes || spelledByLiteral(named, member.name) ? "write" : unstoredKind(named);
+      return { ...base, at, kind: kind === "read" && member.emptied && member.name !== null && !spells(named, member.name) ? "emptied" : kind };
     }
     const reader = source === undefined ? undefined : this.#bindingReader(source, site, pos);
     return reader === undefined
@@ -1108,16 +1182,28 @@ class Trials {
     }
     return new Map([...found].filter(([, reads]) => reads.length > 0));
   }
-  /** The copies a candidate deletes with: its zod twin keys, and every flow slot its value fills, at any depth, that is
-   *  a member finding too. Each copy requires the member, so a delete that leaves one only breaks the copy's type. */
+  /** The copies a candidate deletes with: its zod twin keys, every flow slot its value fills, at any depth, that is a
+   *  member finding too, and each checked schema key whose members are all findings, with those members: a union
+   *  member's key in every arm and the schema's arm keys that check it. Each copy requires the member, so a delete that
+   *  leaves one only breaks the copy's type. */
   coupled(key: DeclKey): readonly DeclKey[] {
     const out = new Set<DeclKey>(this.#twinKeys.get(key) ?? []);
     const pending = [key];
+    const take = (copy: DeclKey): void => {
+      if (copy !== key && !out.has(copy)) {
+        out.add(copy);
+        pending.push(copy);
+      }
+    };
     for (let at = pending.pop(); at !== undefined; at = pending.pop()) {
       for (const slot of this.#findingSlots.get(at) ?? []) {
-        if (slot !== key && !out.has(slot)) {
-          out.add(slot);
-          pending.push(slot);
+        take(slot);
+      }
+      for (const schema of this.#checksOf.get(at) ?? []) {
+        const members = this.#checked.get(schema) ?? [];
+        if (members.every((member) => this.#findings.has(member))) {
+          take(schema);
+          members.forEach(take);
         }
       }
     }

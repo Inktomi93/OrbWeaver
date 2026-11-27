@@ -47,10 +47,8 @@ import type { CallExpression, Expression, NewExpression, Node } from "@typescrip
 import {
   isArrayLiteralExpression,
   isArrowFunction,
-  isBinaryExpression,
   isBindingElement,
   isCallExpression,
-  isConditionalExpression,
   isFunctionExpression,
   isIdentifier,
   isLiteralExpression,
@@ -65,7 +63,6 @@ import {
   isSpreadAssignment,
   isSpreadElement,
   isVariableDeclaration,
-  SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeReference } from "@typescript/native/sync";
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
@@ -79,6 +76,7 @@ import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
 import { allOf, answer, constituentsOf, keyText, propertyNamed } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
+import { branchesOf } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
 import type { TraceRequest } from "./values.ts";
@@ -747,8 +745,62 @@ export class Flows {
   }
 
   // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
-  // element; an array of unknown length stays a whole hand-off.
+  // element; a list spread onto a rest parameter (`rows.push(...more)`) fills the rest list, its elements each the
+  // parameter's element; any other array of unknown length stays a whole hand-off.
   #spreadPairs(
+    handed: readonly HandedWhole[],
+    values: readonly (Type | undefined)[],
+  ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
+    const rest = this.#restSpreads(handed, values);
+    const tuples = this.#tupleSpreads(handed, values);
+    return { pairs: [...tuples.pairs, ...rest.pairs], paired: new Set([...tuples.paired, ...rest.paired]) };
+  }
+
+  // A list spread whose call lands it on the resolved signature's rest parameter: the rest list's instantiated type is
+  // its slot.
+  #restSpreads(
+    handed: readonly HandedWhole[],
+    values: readonly (Type | undefined)[],
+  ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
+    const state = this.#state;
+    const { checker } = state.world;
+    const asks = handed.flatMap((entry, x) => {
+      const value = values[x];
+      return entry.spread && entry.call !== undefined && value !== undefined && !value.isTupleType()
+        ? [{ x, call: entry.call, value, site: entry.node.pos }]
+        : [];
+    });
+    const signatures = state.batch(asks.map(({ call }) => checker.getResolvedSignature.gen(call.node)));
+    const parameters = state.batch(
+      asks.map((_, y) => {
+        const signature = signatures[y];
+        return signature?.hasRestParameter === true ? signature.getParameters.gen() : answer<readonly NativeSymbol[]>([]);
+      }),
+    );
+    const restAt = asks.map(({ call }, y) => {
+      const list = parameters[y] ?? [];
+      return list.length > 0 && call.index >= list.length - 1 ? list.at(-1) : undefined;
+    });
+    const slots = state.batch(
+      restAt.map((parameter) => (parameter === undefined ? answer<Type | undefined>(undefined) : checker.getTypeOfSymbol.gen(parameter))),
+    );
+    // an opaque rest element (`console.log(...values)`) takes the list whole, and it escapes as before
+    const elements = state.batch(slots.map((slot) => (slot?.isTypeReference() === true ? checker.getTypeArguments.gen(slot) : answer<readonly Type[]>([]))));
+    this.#opaqueOf(elements.flatMap((list) => list.slice(0, 1)));
+    const pairs: FlowPair[] = [];
+    const paired = new Set<number>();
+    for (const [y, { x, value, site }] of asks.entries()) {
+      const slot = slots[y];
+      const [element] = elements[y] ?? [];
+      if (slot !== undefined && element !== undefined && this.#opaque.get(element.id) !== true) {
+        pairs.push({ slot, value, site });
+        paired.add(x);
+      }
+    }
+    return { pairs, paired };
+  }
+
+  #tupleSpreads(
     handed: readonly HandedWhole[],
     values: readonly (Type | undefined)[],
   ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
@@ -1068,7 +1120,8 @@ export class Flows {
   }
 
   // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,
-  // so each slot member's type flows from the value's same-named member, which carries the type arguments through.
+  // so each slot member's type flows from the value's same-named member, which carries the type arguments through. An
+  // optional member pairs without its undefined: a present value is what fills it (TanStack's `mutationFn?`).
   *#libraryCounterparts(slot: Type, value: Type): APIRequestGenerator<readonly Step[] | null> {
     const { checker } = this.#state.world;
     if (!(slot.isTypeReference() && value.isTypeReference())) {
@@ -1085,8 +1138,8 @@ export class Flows {
       const counterpart = valueMembers.get(member.escapedName);
       if (counterpart !== undefined) {
         out.push({
-          slot: yield* checker.getTypeOfSymbol.gen(member),
-          value: yield* checker.getTypeOfSymbol.gen(counterpart),
+          slot: yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(member)),
+          value: yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(counterpart)),
           at: { kind: "member", name: member.name },
         });
       }
@@ -1600,22 +1653,6 @@ function* declaredParameterType(state: GraphState, signature: Signature, index: 
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const parameter = (yield* target.getParameters.gen())[index];
   return parameter === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(parameter);
-}
-
-// The operators whose result is one operand or the other, as a conditional's is one branch or the other.
-const EITHER_OPERAND: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
-
-// The values an expression can be, through parentheses: each branch of a conditional, each operand of `??` and `||`,
-// else the expression itself.
-function branchesOf(value: Expression): readonly Expression[] {
-  let at = value;
-  while (isParenthesizedExpression(at)) {
-    at = at.expression;
-  }
-  if (isConditionalExpression(at)) {
-    return [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)];
-  }
-  return isBinaryExpression(at) && EITHER_OPERAND.has(at.operatorToken.kind) ? [...branchesOf(at.left), ...branchesOf(at.right)] : [value];
 }
 
 const calleeName = (call: Node | undefined): Node | undefined => {

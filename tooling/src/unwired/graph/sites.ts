@@ -1943,25 +1943,58 @@ const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
   );
 
 /** Whether a Drizzle write copies the name's read into a column, or a table definition holds it: the reads the walk
- *  gives no role (the header's ruling), found from the name up through its enclosing calls. */
+ *  gives no role (the header's ruling), found from the name up through its enclosing calls. A value the write stores
+ *  whole (`.values(row)`) copies every member into its column, so a name inside it is copied too. */
 export function handedToColumn(name: Node, isTable: (node: Node) => boolean, names: LibraryNames): boolean {
   const inTable = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name);
   for (let at = name.parent; !isSourceFile(at); at = at.parent) {
-    if (copiedBy(storesAt(at, names)).some((read) => sameNode(read, name)) || (inTable && isTable(at))) {
+    const stores = storesAt(at, names);
+    if (copiedBy(stores).some((read) => sameNode(read, name)) || stores.some(({ value }) => storedWhole(value, name)) || (inTable && isTable(at))) {
       return true;
     }
   }
   return false;
 }
 
+// A stored value no literal spells key by key, holding the name.
+const storedWhole = (value: Node, name: Node): boolean => !isObjectLiteralExpression(value) && value.pos <= name.pos && name.end <= value.end;
+
 // A value a `satisfies` holds to a type: a binding or a literal, never a builder call such as a zod schema.
 const isCheckedValue = (value: Node | undefined): boolean =>
   value !== undefined && (isIdentifier(value) || isObjectLiteralExpression(value) || isArrayLiteralExpression(value));
 
+// The operators whose result is one operand or the other, as a conditional's is one branch or the other.
+const EITHER_OPERAND: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
+
+// The values an expression can be, through parentheses: each branch of a conditional, each operand of `??` and `||`,
+// else the expression itself.
+export function branchesOf(value: Expression): readonly Expression[] {
+  let at = value;
+  while (isParenthesizedExpression(at)) {
+    at = at.expression;
+  }
+  if (isConditionalExpression(at)) {
+    return [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)];
+  }
+  return isBinaryExpression(at) && EITHER_OPERAND.has(at.operatorToken.kind) ? [...branchesOf(at.left), ...branchesOf(at.right)] : [value];
+}
+
+// An unannotated binding's value of two or more branches, none of them a literal.
+function bindsBranches(annotation: Node | undefined, value: Expression): boolean {
+  const branches = annotation === undefined ? branchesOf(value) : [];
+  return branches.length > 1 && !branches.some((branch) => isLiteralValue(branch));
+}
+
 // A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
-// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
+// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`). An
+// unannotated binding of a conditional or of `??` or `||` is typed by one branch where the branches are two declared
+// shapes of one structure, which the checker reduces to one: each branch fills the binding, so a read of the other
+// shape reaches it.
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {
+    return { value: node.initializer, slot: "declared", holder: node.name };
+  }
+  if (isVariableDeclaration(node) && node.initializer !== undefined && bindsBranches(node.type, node.initializer)) {
     return { value: node.initializer, slot: "declared", holder: node.name };
   }
   if (isArrowFunction(node) && !isBlock(node.body) && !isLiteralValue(node.body)) {

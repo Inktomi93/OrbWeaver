@@ -5,9 +5,11 @@ import type { ChildProcess } from "node:child_process";
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { deserialize, serialize } from "node:v8";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
+import { COMPILER_STOPPED_FROM_OUTSIDE } from "../../../tooling/src/unwired/graph/compiler-watch.ts";
 import type { MemoryPeaks, NodeHeapProfile } from "../../../tooling/src/unwired/graph/profile.ts";
 import type { Ablation, GraphOptions, GraphScan, WithSession } from "../../../tooling/src/unwired/index.ts";
 import {
@@ -373,64 +375,75 @@ test("a run that throws still saves its heap profile", { timeout: 120_000 }, asy
 });
 
 // The compiler's process dies after the trial's first group: the run's own error is a dead channel, and disposing the
-// world then fails on the same channel. That second failure is logged, never the thrown error.
-test("a compiler that dies mid-run leaves the run's own error thrown and the failed disposal logged", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const root = await plantedTree(
-    graphTree({
-      [FILE]: [
-        "export interface Row { readonly a: string; readonly b: string }",
-        'export const row: Row = { a: "1", b: "2" };',
-        "export const a = (): string => row.a;",
-      ].join("\n"),
-    }),
-  );
-  const lines: string[] = [];
-  // Only the compilers this run started die: the worker shares its other children with earlier suites, such as the
-  // compiler dependency-cruiser keeps for the module's life, whose pipe a kill would close under its next write.
-  const compilers: ChildProcess[] = [];
-  const watch = (message: unknown): void => {
-    const start = compilerStartOf(message);
-    if (start !== undefined) {
-      compilers.push(start.process);
-    }
-  };
-  let killed = false;
-  subscribe(COMPILER_CHANNEL, watch);
-  let failed: unknown;
-  try {
-    failed = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => {
-      lines.push(line);
-      if (!killed && line.startsWith("trial groups ")) {
-        killed = true;
-        for (const compiler of compilers) {
-          compiler.kill("SIGKILL");
-        }
-      }
-    }).then(
-      () => null,
-      (error: unknown) => error,
+// world then fails on the same channel. That second failure is logged, never the thrown error. The compiler traps
+// SIGTERM and exits 0, as it does when an out-of-memory guard stops it, so its end names the outside stop.
+test.for([
+  ["SIGKILL", "ended by signal SIGKILL"],
+  ["SIGTERM", COMPILER_STOPPED_FROM_OUTSIDE],
+] as const)(
+  "a compiler that dies mid-run by %s leaves the run's own error thrown and the failed disposal logged",
+  { timeout: 120_000 },
+  async ([signal, end], { plantedTree }) => {
+    const root = await plantedTree(
+      graphTree({
+        [FILE]: [
+          "export interface Row { readonly a: string; readonly b: string }",
+          'export const row: Row = { a: "1", b: "2" };',
+          "export const a = (): string => row.a;",
+        ].join("\n"),
+      }),
     );
-  } finally {
-    unsubscribe(COMPILER_CHANNEL, watch);
-  }
-  expect(killed).toBe(true);
-  expect(failed).toBeInstanceOf(Error);
-  expect(failed).not.toBeInstanceOf(SuppressedError);
-  expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
-  // The session names how its compiler ended, when the run failed and the step it was in; the compilers its worlds
-  // closed themselves are no news.
-  expect(lines.filter((line) => line.startsWith("the compiler for "))).toEqual([
-    expect.stringMatching(
-      new RegExp(
-        `^the compiler for ${MERGED_CONFIG.replaceAll(".", String.raw`\.`)} \\(pid \\d+, started in open\\) ended by signal SIGKILL; the run failed at \\d{4}-\\S+Z in work$`,
-        "u",
+    const lines: string[] = [];
+    // Only the compilers this run started die: the worker shares its other children with earlier suites, such as the
+    // compiler dependency-cruiser keeps for the module's life, whose pipe a kill would close under its next write.
+    const compilers: ChildProcess[] = [];
+    const watch = (message: unknown): void => {
+      const start = compilerStartOf(message);
+      if (start !== undefined) {
+        compilers.push(start.process);
+      }
+    };
+    let killed = false;
+    subscribe(COMPILER_CHANNEL, watch);
+    let failed: unknown;
+    try {
+      failed = await trialGraph(root, { buckets: ["member-write-only"], limit: null }, (line) => {
+        lines.push(line);
+        if (!killed && line.startsWith("trial groups ")) {
+          killed = true;
+          for (const compiler of compilers) {
+            // By pid, as an outside guard signals it: the handle's own kill marks the compiler closed by the run.
+            if (compiler.pid !== undefined) {
+              process.kill(compiler.pid, signal);
+            }
+          }
+        }
+      }).then(
+        () => null,
+        (error: unknown) => error,
+      );
+    } finally {
+      unsubscribe(COMPILER_CHANNEL, watch);
+    }
+    expect(killed).toBe(true);
+    expect(failed).toBeInstanceOf(Error);
+    expect(failed).not.toBeInstanceOf(SuppressedError);
+    expect(lines.some((line) => line.includes("did not dispose cleanly"))).toBe(true);
+    // The session names how its compiler ended, when the run failed and the step it was in; the compilers its worlds
+    // closed themselves are no news.
+    expect(lines.filter((line) => line.startsWith("the compiler for "))).toEqual([
+      expect.stringMatching(
+        new RegExp(
+          `^the compiler for ${MERGED_CONFIG.replaceAll(".", String.raw`\.`)} \\(pid \\d+, started in open\\) ${RegExp.escape(end)}; the run failed at \\d{4}-\\S+Z in work$`,
+          "u",
+        ),
       ),
-    ),
-  ]);
-  // The run's own error is the dead channel the compiler left, not the disposal's. The next write can hit the broken
-  // pipe before the read sees end of input, so either is the first observation of the death; nothing else is.
-  expect(DEAD_CHANNEL_MESSAGES.some((prefix) => (failed as Error).message.startsWith(prefix))).toBe(true);
-});
+    ]);
+    // The run's own error is the dead channel the compiler left, not the disposal's. The next write can hit the broken
+    // pipe before the read sees end of input, so either is the first observation of the death; nothing else is.
+    expect(DEAD_CHANNEL_MESSAGES.some((prefix) => (failed as Error).message.startsWith(prefix))).toBe(true);
+  },
+);
 
 test("the graph verbs refuse a build's options and a compiler profile on a dump before any world loads", { timeout: 120_000 }, async ({ runCli, scratch }) => {
   const onDump = (flag: string): ReturnType<typeof runCli> => runCli("unwired", ["graph", `--root=${scratch}`, `--from=${join(scratch, "graph.dump")}`, flag]);
