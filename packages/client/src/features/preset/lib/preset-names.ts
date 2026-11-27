@@ -258,6 +258,11 @@ export const PRESET_STOP_SEQUENCE_NOUN = "stop sequence";
 export const PRESET_DRY_BREAKER_NOUN = "DRY sequence breaker";
 export const PRESET_BANNED_PHRASE_NOUN = "banned phrase";
 
+/** The deck's names for the phrase ban and the antislop proxy's slop controls; the sampling catalog reads the same words. */
+export const PRESET_BANNED_PHRASES_LABEL = "Banned phrases";
+export const PRESET_SLOP_LIST_LABEL = "Slop list";
+export const PRESET_SLOP_STRENGTH_LABEL = "Slop strength";
+
 /** A sequence chip's subject: its list's noun, then the text it shows. */
 export function sequenceChipSubject(noun: string, shown: string): string {
   return `${noun} ${shown}`;

@@ -506,6 +506,17 @@ function dropExclusive(sampling: ResolvedSampling, pairs: readonly (readonly [st
   return Object.fromEntries(out);
 }
 
+/** The antislop proxy's slop list and strength, each only where the capability states it. */
+function resolveSlop(
+  params: UserIntent,
+  s: GenerationCapability["sampling"],
+  warnings: ResolvedWarning[],
+): Pick<ResolvedSampling, "slopList" | "slopStrength"> {
+  const slopList = resolveFlag("slopList", params.slopList, s.slopList, warnings);
+  const slopStrength = resolveFlag("slopStrength", params.slopStrength, s.slopStrength, warnings);
+  return { ...(slopList !== undefined ? { slopList } : {}), ...(slopStrength !== undefined ? { slopStrength } : {}) };
+}
+
 function resolveSampling(params: UserIntent, capability: GenerationCapability, reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): ResolvedSampling {
   const s = capability.sampling;
   const quality = knownQuality(params.quality, warnings);
@@ -537,6 +548,7 @@ function resolveSampling(params: UserIntent, capability: GenerationCapability, r
     ...(drySequenceBreakers !== undefined ? { drySequenceBreakers } : {}),
     ...(bannedStrings !== undefined ? { bannedStrings } : {}),
     ...(banEos !== undefined ? { banEos } : {}),
+    ...resolveSlop(params, s, warnings),
     ...(samplerOrder !== undefined ? { samplerOrder } : {}),
   };
   return dropExclusive(gated, s.exclusive, warnings);

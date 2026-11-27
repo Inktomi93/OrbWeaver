@@ -207,6 +207,10 @@ const samplingCapabilitySchema = z
     bannedStrings: z.boolean().optional(),
     banEos: z.boolean().optional(),
     samplerOrder: samplerOrderSchema.optional(),
+    /** The server is an antislop proxy that takes the preset's slop list by name, and how hard it pushes the list's
+     *  words down. A route fact: `markRouteFacts` stamps both from the connection's `antislop` switch. */
+    slopList: z.boolean().optional(),
+    slopStrength: z.boolean().optional(),
     exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
     /** The knobs this server's Mirostat branch does not run: while `mirostatMode` is on, Mirostat replaces them. They
      *  still ride, so the editor and the readout mark them rather than drop them. Absent ⇒ unstated. */

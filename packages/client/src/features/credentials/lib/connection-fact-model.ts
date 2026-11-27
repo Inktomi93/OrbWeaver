@@ -324,8 +324,6 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
       unset: "not set: banned phrases go to the server itself",
     },
   ],
-  slopList: [{ path: "slopList", name: "antislop slop list", edit: { kind: "text" }, unset: "not set: no slop list" }],
-  slopStrength: [{ path: "slopStrength", name: "antislop slop list strength", edit: { kind: "number" }, unset: "not set: the proxy's default" }],
   reasoningBudgetField: [
     {
       path: "reasoningBudgetField",

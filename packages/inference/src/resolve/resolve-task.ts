@@ -494,7 +494,13 @@ function connectionCapability(
   // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
   // clamp, the window a route that sends none runs, and the window a route that sends one lets the preset set.
   // The route facts last: they follow the code path a turn takes, so no tier may state them.
-  const route: RouteFacts = { wire: provider.wire, api, dialect: provider.dialect ?? "openai-compatible", prefill: features.prefill };
+  const route: RouteFacts = {
+    wire: provider.wire,
+    api,
+    dialect: provider.dialect ?? "openai-compatible",
+    prefill: features.prefill,
+    antislop: features.antislop === true,
+  };
   const postured = (synthesizedCapability: Capability, inputStated: boolean, windowDeclared: boolean): Capability =>
     markRouteFacts(
       markSettableWindow(

@@ -370,6 +370,8 @@ export function completeSamplerOrder(wanted: readonly SamplerStage[] | undefined
 const CAPABILITY_KNOBS = [
   ...SAMPLER_KNOBS,
   "samplerOrder",
+  "slopList",
+  "slopStrength",
   "quality",
   "reasoning",
   "effort",
@@ -386,6 +388,8 @@ export type CapabilityKnob = (typeof CAPABILITY_KNOBS)[number];
 
 const STATED_CONTROL: Readonly<Record<Exclude<CapabilityKnob, SamplerKnob>, (capability: GenerationCapability) => boolean>> = {
   samplerOrder: (capability) => capability.sampling.samplerOrder !== undefined,
+  slopList: (capability) => capability.sampling.slopList === true,
+  slopStrength: (capability) => capability.sampling.slopStrength === true,
   // The dial feeds effort and temperature (`QUALITY_EFFORT`, `QUALITY_SAMPLING`), so it acts where either does.
   quality: (capability) => capability.reasoning.mode !== "none" || capability.sampling.temperature !== undefined,
   // The on/off switch: a model that cannot reason, or cannot stop reasoning, has nothing for it to change.

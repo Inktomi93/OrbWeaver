@@ -7,7 +7,7 @@
 import { CONNECTIONS_LIST_ADDRESS } from "@orb/client/lib";
 import type { DeclaredCapability, GenerationCapability, LimitSource } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, LIMIT_SOURCES, outputLimitSource, SETTABLE_WINDOW_FLOOR } from "@orb/contracts/inference";
-import { DEFAULT_MAX_OUTPUT_TOKENS, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { PresetId, UserConnectionId } from "@orb/kit/ids";
 import { groupThousands } from "@orb/kit/strings";
 import { windowInputRoom } from "@orb/kit/tokens";
@@ -20,12 +20,15 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import {
+  PRESET_BANNED_PHRASES_LABEL,
   PRESET_CONTEXT_LIMIT_NAME,
   PRESET_EDITOR_VIEW_LABELS,
   PRESET_MAX_CONTEXT_LABEL,
   PRESET_MAX_OUTPUT_LABEL,
   PRESET_OUTPUT_COVERS_THINKING_NOTE,
   PRESET_OUTPUT_LIMIT_NAME,
+  PRESET_SLOP_LIST_LABEL,
+  PRESET_SLOP_STRENGTH_LABEL,
   PRESET_VERBATIM_TAIL_LABEL,
   presetBlankContextNote,
   presetBlankOutputNote,
@@ -686,4 +689,61 @@ test("a Max context below the floor says nothing on a route that sends no window
   const pastGuess = capability.context.window + 1;
   await typeMaxContext(page, pastGuess);
   await expect(page.getByText(presetPastGuessNote(groupThousands(pastGuess), groupThousands(capability.context.window)), { exact: true })).toBeVisible();
+});
+
+// The antislop proxy's slop list and strength live in the preset, and the deck offers them only where the chat
+// connection declares the proxy (D68): every other connection omits them, beside the banned phrases it still offers.
+const VLLM_ORIGIN = "http://127.0.0.1:8000";
+
+/** A local vLLM connection made the chat role's, an antislop proxy or not, resolved the way the deck reads it. */
+async function vllmConnection(caller: Caller, antislop: boolean): Promise<GenerationCapability> {
+  const connection = await caller.connection.create({
+    providerId: "vllm",
+    credentialId: null,
+    baseUrl: `${VLLM_ORIGIN}/v1`,
+    model: "witness-model",
+    label: "Witness vLLM",
+    declared: { kind: "generation", features: { detectServer: false, ...(antislop ? { antislop: true } : {}) } },
+  });
+  await caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  const resolved = await caller.connection.resolveChatCapability();
+  if (resolved.capability.kind !== "generation") {
+    throw new Error("The chat role resolved a connection that is not a generation model");
+  }
+  return resolved.capability.generation;
+}
+
+test("an antislop connection offers the preset's slop list and strength", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const capability = await vllmConnection(caller, true);
+  expect(capability.sampling.slopList).toBe(true);
+  const preset = await caller.preset.create({ name: "Slop", kind: "generation" });
+  await mountDeck(page, mount, preset.id, caller);
+
+  const list = page.getByRole("textbox", { name: PRESET_SLOP_LIST_LABEL, exact: true });
+  await expect(list).toBeVisible();
+  await expect(page.getByRole("textbox", { name: PRESET_SLOP_STRENGTH_LABEL, exact: true })).toBeVisible();
+  await list.fill("flashnext");
+  await expect(list).toHaveValue("flashnext");
+  await list.fill("");
+  await expect(list).toHaveValue("");
+});
+
+test("a stock vLLM connection omits the slop list and strength a preset stores, since only the antislop proxy takes them", async ({ mount, page }) => {
+  await using root = await freshRoot();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const capability = await vllmConnection(caller, false);
+  expect(capability.sampling.slopList).toBeUndefined();
+  const preset = await caller.preset.create({
+    name: "No slop",
+    kind: "generation",
+    config: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, slopList: "flashnext", slopStrength: 2 } },
+  });
+  await mountDeck(page, mount, preset.id, caller);
+
+  // The positive control: the deck is up and offers this connection's banned phrases, so the missing rows are the route's.
+  await expect(page.getByRole("group", { name: PRESET_BANNED_PHRASES_LABEL, exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: PRESET_SLOP_LIST_LABEL, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: PRESET_SLOP_STRENGTH_LABEL, exact: true })).toHaveCount(0);
 });

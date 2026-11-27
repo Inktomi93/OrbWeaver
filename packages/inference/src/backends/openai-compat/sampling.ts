@@ -116,11 +116,11 @@ function spellAntislop({ sampling, features, knobs, turn }: Spell): Record<strin
   const phrases = knobs.has("bannedStrings") ? sampling.bannedStrings : undefined;
   const names = turn.speakerNames;
   const slop =
-    features.slopList === undefined || names === undefined
+    sampling.slopList === undefined || names === undefined
       ? {}
       : {
-          [ANTISLOP_FIELDS.slopList]: features.slopList,
-          ...(features.slopStrength === undefined ? {} : { [ANTISLOP_FIELDS.slopStrength]: features.slopStrength }),
+          [ANTISLOP_FIELDS.slopList]: sampling.slopList,
+          ...(sampling.slopStrength === undefined ? {} : { [ANTISLOP_FIELDS.slopStrength]: sampling.slopStrength }),
           [ANTISLOP_FIELDS.slopAllow]: names,
         };
   return { ...(phrases === undefined ? {} : { [ANTISLOP_FIELDS.bannedStrings]: phrases }), ...slop };
