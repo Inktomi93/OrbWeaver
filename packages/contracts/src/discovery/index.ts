@@ -517,12 +517,7 @@ export interface ImageFacets {
   readonly genders: FacetCount[];
   readonly coverage: FacetCount[];
   readonly bodyTypes: FacetCount[];
-  readonly chestSizes: FacetCount[];
-  readonly skinTones: FacetCount[];
   readonly outfitTypes: FacetCount[];
-  readonly clothingStates: FacetCount[];
-  readonly nudityLevels: FacetCount[];
-  readonly exposedParts: FacetCount[];
   readonly topTags: FacetCount[];
 }
 
@@ -777,12 +772,7 @@ export const imageFacetsSchema = z.strictObject({
   genders: z.array(facetCountSchema),
   coverage: z.array(facetCountSchema),
   bodyTypes: z.array(facetCountSchema),
-  chestSizes: z.array(facetCountSchema),
-  skinTones: z.array(facetCountSchema),
   outfitTypes: z.array(facetCountSchema),
-  clothingStates: z.array(facetCountSchema),
-  nudityLevels: z.array(facetCountSchema),
-  exposedParts: z.array(facetCountSchema),
   topTags: z.array(facetCountSchema),
 }) satisfies z.ZodType<ImageFacets>;
 

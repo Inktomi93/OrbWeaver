@@ -16,3 +16,11 @@ test("stored image metadata retains future residue through parse and JSON roundt
   expect(imageCaptionMetaSchema.parse({ model: stored.model })).toEqual({ model: stored.model });
   expect(imageCaptionMetaSchema.safeParse({ ...stored, artStyle: "unsupported-style" }).success).toBe(false);
 });
+
+test("a stored row still holding a retired facet parses whatever the retired key's value, and keeps its known facets", () => {
+  const stored = { model: "vision-model", artStyle: "anime", chestSize: "a value no enum names", exposedParts: ["not a body region"], nudityLevel: 3 };
+  const parsed = imageCaptionMetaSchema.parse(stored);
+  expect(parsed.artStyle).toBe("anime");
+  expect(parsed.model).toBe("vision-model");
+  expect(imageCaptionMetaSchema.safeParse({ ...stored, artStyle: "unsupported-style" }).success).toBe(false);
+});
