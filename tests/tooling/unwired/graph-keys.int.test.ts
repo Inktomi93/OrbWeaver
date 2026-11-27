@@ -45,6 +45,43 @@ test("a symbol-typed key reads the member declared under that symbol, never the 
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Built.spare"]);
 });
 
+// A member named by a constant or a unique symbol is written by a literal's computed key of that constant: unread, it
+// is write-only, never untouched, and a member no literal writes stays untouched.
+test("a computed literal key writes the member its constant or unique symbol names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export const KEY = "late";',
+      'export const KEYS = { a: "ka", b: "kb" } as const;',
+      'const SYM: unique symbol = Symbol("s");',
+      "export interface Late { readonly [KEY]: string; readonly [KEYS.a]: string; readonly [SYM]: number; readonly unset?: string; readonly kept: string }",
+      'export const late: Late = { [KEY]: "1", [KEYS.a]: "2", [SYM]: 3, kept: "4" };',
+      "export const keptOf = late.kept;",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE).toSorted()).toEqual(["Late.[KEYS.a]", "Late.[KEY]", "Late.[SYM]"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Late.unset"]);
+});
+
+// A destructuring key computed from a constant or a unique symbol reads the member it names, in a declaration and in an
+// assignment; `spare` sits beside them and nothing reads it.
+test("a computed destructuring key reads the member its constant or unique symbol names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export const KEY = "late";',
+      'export const OTHER = "other";',
+      'const SYM: unique symbol = Symbol("s");',
+      "export interface Late { readonly [KEY]: string; readonly [OTHER]: string; readonly [SYM]: number; readonly spare: string }",
+      'export const late: Late = { [KEY]: "1", [OTHER]: "2", [SYM]: 3, spare: "4" };',
+      "export const { [KEY]: got, [SYM]: count } = late;",
+      'export let other = "";',
+      "({ [OTHER]: other } = late);",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["Late.spare"]);
+});
+
 test("a zod schema's keys are the members of the type it satisfies", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(plantedTree, {
     ...ZOD_MODULE,

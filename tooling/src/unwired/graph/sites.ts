@@ -492,6 +492,25 @@ export interface LiteralProperty {
   readonly schema: boolean;
 }
 
+/** A property whose key is computed from a value (`{ [KEY]: v }`, `{ [Symbol.dispose]() {} }`): the checker names the
+ *  member from the key's type, so slots.ts makes it a {@link LiteralProperty} once the key resolves. */
+export interface ComputedKeyProperty extends Omit<LiteralProperty, "name"> {
+  readonly key: Expression;
+}
+
+// A literal's own property with the value it writes: a shorthand writes its binding, an accessor or a method writes code.
+function writtenProperty(literal: ObjectLiteralExpression, property: Node, schema: boolean): Omit<LiteralProperty, "name"> | undefined {
+  if (isPropertyAssignment(property)) {
+    return { literal, property, at: property.name.pos, value: property.initializer, schema };
+  }
+  if (isShorthandPropertyAssignment(property)) {
+    return { literal, property, at: property.name.pos, value: property.name, schema };
+  }
+  return isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property)
+    ? { literal, property, at: property.name.pos, value: undefined, schema }
+    : undefined;
+}
+
 /** A value handed on whole: a call argument, a spread, or a value published to a global our own declarations name. */
 export interface HandedWhole {
   readonly node: Expression;
@@ -571,6 +590,7 @@ export class FileSites {
   /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
   readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
+  readonly computedKeys: ComputedKeyProperty[] = [];
   /** The Drizzle writes by their syntax: each stored value and the table it lands in; build.ts confirms each by its
    *  declaration. */
   readonly stores: StoreWrite[] = [];
@@ -637,6 +657,8 @@ export class FileSites {
   readonly patterns: ({
     readonly pattern: ObjectBindingPattern | ObjectLiteralExpression;
     readonly names: readonly string[];
+    /** The keys computed from a value (`{ [KEY]: v } = o`), whose names the key's type gives (state.ts computedKeyNames). */
+    readonly computed: readonly Expression[];
     readonly from: GraphKey;
   } & PatternRoute)[] = [];
   readonly classes: ClassFacts[] = [];
@@ -1395,10 +1417,12 @@ class Walker {
   // `({ a: x.n } = o)`, nested (`({ inner: { a: x } } = o)`, `[{ a: x }] = rows`) or a for-of target: the pattern
   // declares nothing and fills no slot; its keys read the members of the source's type at the pattern's path.
   #assignmentPattern(node: ObjectLiteralExpression): void {
-    const names = node.properties.flatMap((property) => (isSpreadAssignment(property) ? [] : (keyText(property.name) ?? [])));
+    const keyed = node.properties.flatMap((property) => (isSpreadAssignment(property) ? [] : [property.name]));
+    const names = keyed.flatMap((name) => keyText(name) ?? []);
+    const computed = keyed.flatMap((name) => computedKey(name) ?? []);
     const route = patternRoute(node);
-    if (route !== null && names.length > 0) {
-      this.#sites.patterns.push({ pattern: node, ...route, names, from: this.#holder });
+    if (route !== null && names.length + computed.length > 0) {
+      this.#sites.patterns.push({ pattern: node, ...route, names, computed, from: this.#holder });
     }
   }
 
@@ -1412,16 +1436,16 @@ class Walker {
     this.#frame.literals.push(literal);
     const schema = isZodShape(node, this.#sink.names) || this.#frame.twinShapes.has(spanOf(node));
     for (const property of node.properties) {
-      const name = isSpreadAssignment(property) ? undefined : keyText(property.name);
-      if (name === undefined) {
+      const written = writtenProperty(node, property, schema);
+      if (written === undefined) {
         continue;
       }
-      if (isPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.initializer, schema });
-      } else if (isShorthandPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.name, schema });
-      } else if (isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property)) {
-        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: undefined, schema });
+      const name = keyText(written.property.name);
+      const key = computedKey(written.property.name);
+      if (name !== undefined) {
+        this.#sites.literalProperties.push({ ...written, name });
+      } else if (key !== undefined) {
+        this.#sites.computedKeys.push({ ...written, key });
       }
     }
     return literal;
@@ -1505,9 +1529,11 @@ class Walker {
       this.#sites.indexedKeys.push({ object: node.objectType, keys: stringKeysIn(node.indexType), index: node.indexType });
     }
     if (isObjectBindingPattern(node)) {
-      const names = node.elements.flatMap((element) => (element.dotDotDotToken === undefined ? bindingKey(element) : []));
-      if (names.length > 0) {
-        this.#sites.patterns.push({ pattern: node, source: node, iterated: false, steps: [], names, from: this.#holder });
+      const keyed = node.elements.filter((element) => element.dotDotDotToken === undefined);
+      const names = keyed.flatMap(bindingKey);
+      const computed = keyed.flatMap((element) => computedKey(element.propertyName) ?? []);
+      if (names.length + computed.length > 0) {
+        this.#sites.patterns.push({ pattern: node, source: node, iterated: false, steps: [], names, computed, from: this.#holder });
       }
     }
     if (
@@ -1988,6 +2014,10 @@ function bindingText(name: Node): string {
 
 // The property a destructuring element reads, when it names one.
 // The member a pattern element names: `{ a }`, `{ a: b }` or a quoted `{ "aria-label": label }`.
+// The value a computed key names its member by, when no literal text does (keyText): `KEY` in `[KEY]`.
+const computedKey = (name: Node | undefined): Expression | undefined =>
+  name !== undefined && isComputedPropertyName(name) && keyText(name) === undefined ? name.expression : undefined;
+
 function bindingKey(element: BindingElement): readonly string[] {
   const named = element.propertyName ?? element.name;
   if (named !== undefined && isIdentifier(named)) {
