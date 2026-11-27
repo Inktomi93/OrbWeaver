@@ -75,16 +75,11 @@ function applyOrder(rows: readonly RegexScriptRow[], orderedIds: readonly RegexS
   return [...moved, ...rows.filter((row) => !named.has(row.id))];
 }
 
-// TVars is spelled from the CONTRACT union, not `inferInput`: the router validates `scope` through
-// `typeIdSchema`, whose transform-backed arms infer as `unknown`-fielded — so the inferred input would
-// erase exactly the branding that makes `scopeReadKey` exhaustive and type-safe. The stricter shape stays
-// assignable to the proc's own input, so nothing is cast.
-interface ApplyRegexScopeOrderVars {
-  readonly scope: RegexAttachScope;
-  readonly orderedScriptIds: RegexScriptId[];
-}
-
-export const useApplyRegexScopeOrder = createEntityMutation<ApplyRegexScopeOrderVars, inferOutput<Trpc["regex"]["applyScopeOrder"]>, RegexScriptRow[]>({
+export const useApplyRegexScopeOrder = createEntityMutation<
+  inferInput<Trpc["regex"]["applyScopeOrder"]>,
+  inferOutput<Trpc["regex"]["applyScopeOrder"]>,
+  RegexScriptRow[]
+>({
   options: (trpc) => trpc.regex.applyScopeOrder.mutationOptions(),
   busDriven: true, // applyScopeOrder emits regexChanged → the invalidation map covers regex.pathFilter().
   optimistic: {

@@ -22,8 +22,6 @@
 //     `databank.listActiveForChat` — the roster-visible plane, and the reason that verb was already the
 //     busDriven one here.
 
-import type { ChatDocumentVisibility } from "@orb/contracts/databank";
-import type { ChatId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -46,10 +44,7 @@ export const useDetachDocumentFromChat = createEntityMutation<inferInput<Trpc["d
 
 /** `chat.setChatDocumentVisibility` vars (D85) — the WHOLE excluded-document set for the room (the verb
  *  REPLACES it; `nextHiddenSet` builds it) + the target chat. Host-gated INSIDE the verb. */
-interface SetChatDocumentVisibilityVars {
-  readonly chatId: ChatId;
-  readonly visibility: ChatDocumentVisibility;
-}
+type SetChatDocumentVisibilityVars = inferInput<Trpc["chat"]["setChatDocumentVisibility"]>;
 
 export const useSetChatDocumentVisibility = createEntityMutation<SetChatDocumentVisibilityVars, unknown, ActiveChatDocuments>({
   options: (trpc) => trpc.chat.setChatDocumentVisibility.mutationOptions(),

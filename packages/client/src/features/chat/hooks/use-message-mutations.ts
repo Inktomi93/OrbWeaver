@@ -1,5 +1,4 @@
 import type { ForkResult, MessageView } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -39,13 +38,8 @@ export const useRevertContinueMutation = createEntityMutation<inferInput<Trpc["c
   errorToast: "Couldn't re-apply the continuation.",
 });
 
-interface DuplicateVars {
-  readonly chatId: ChatId;
-  readonly messageId: MessageId;
-}
-
 // The verb emits `messageCommitted` for the new tail slot, so the transcript refetches off the bus.
-export const useDuplicateMutation = createEntityMutation<DuplicateVars, unknown>({
+export const useDuplicateMutation = createEntityMutation<inferInput<Trpc["chat"]["duplicateMessage"]>, unknown>({
   options: (trpc) => trpc.chat.duplicateMessage.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't duplicate that message.",
@@ -108,14 +102,8 @@ export const useSetSeededGreeting = createEntityMutation<inferInput<Trpc["chat"]
   errorToast: "Couldn't switch to that greeting.",
 });
 
-interface ReattributeVoiceVars {
-  readonly chatId: ChatId;
-  readonly messageIds: MessageId[];
-  readonly characterId: CharacterId;
-}
-
 // The verb emits `messageEdited` for the row, so the transcript follows the bus.
-export const useReattributeVoice = createEntityMutation<ReattributeVoiceVars, unknown>({
+export const useReattributeVoice = createEntityMutation<inferInput<Trpc["chat"]["reattributeMessages"]>, unknown>({
   options: (trpc) => trpc.chat.reattributeMessages.mutationOptions(),
   busDriven: true,
   errorToast: MESSAGE_REATTRIBUTE_VOICE_FAILED,

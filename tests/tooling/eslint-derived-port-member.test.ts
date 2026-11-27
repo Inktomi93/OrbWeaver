@@ -16,6 +16,8 @@ const SERVICE = "packages/server/src/domain/sessions/contract/service.ts";
 const CLOCK = "packages/kit/src/time/index.ts";
 const SITE = "packages/server/src/entry/compose/probe.ts";
 const CROSS = "packages/server/src/domain/admin/contract/probe.ts";
+const DATA = "packages/client/src/data/create-entity-mutation.ts";
+const CLIENT = "packages/client/src/data/probe.ts";
 
 const OWNERS = {
   [SERVICE]: [
@@ -46,7 +48,41 @@ const OWNERS = {
     "export declare const room: RoomSummary;",
   ].join("\n"),
   [CLOCK]: "export type Clock = () => number;\nexport interface Seams { readonly now: Clock; }\nexport declare const seams: Seams;",
+  "packages/contracts/src/chat.ts": [
+    "export interface ReapInput { readonly chatId: string }",
+    "export interface ReapResult { readonly reaped: number }",
+    "export interface DuplicateInput { readonly chatId: string; readonly messageId: string }",
+    "export interface RuleIdInput { readonly ruleId: string }",
+    "export interface SetEnabledInput { readonly ruleId: string; readonly enabled: boolean }",
+    "export interface ForkResult { readonly chatId: string; readonly title: string }",
+    "export interface ChatRef { readonly chatId: string; readonly title: string }",
+    "export interface SectionInput { readonly section: 'theme' | 'chat'; readonly patch: Record<string, unknown> }",
+    "export declare const reaped: ReapResult;",
+  ].join("\n"),
+  [DATA]: [
+    'import type { MutationOptions, Procedure } from "@trpc/tanstack-react-query";',
+    'import type { DuplicateInput, ForkResult, ReapInput, ReapResult, RuleIdInput, SectionInput, SetEnabledInput } from "../../../contracts/src/chat.ts";',
+    "export declare const trpc: { readonly chat: { readonly reapHusks: Procedure<ReapInput, ReapResult>; readonly duplicate: Procedure<DuplicateInput, void>; readonly fork: Procedure<RuleIdInput, ForkResult>; readonly deleteRule: Procedure<RuleIdInput, void>; readonly setEnabled: Procedure<SetEnabledInput, void>; readonly updateSection: Procedure<SectionInput, void> } };",
+    "export declare function createEntityMutation<TVars, TData>(config: { readonly options: () => MutationOptions<TVars, TData> }): void;",
+    "export declare function withProcedureInput<TVars, TInput, TData>(base: MutationOptions<TInput, TData>, input: (vars: TVars) => TInput): MutationOptions<TVars, TData>;",
+  ].join("\n"),
 };
+
+// The tRPC client's TypeHelper protocol, planted as the library it is: a decorated procedure carries `~types`, and its
+// options factory binds the procedure's input and output to the query library's variables and data.
+const TRPC_LIBRARY = {
+  "node_modules/@trpc/tanstack-react-query/package.json": JSON.stringify({ name: "@trpc/tanstack-react-query", types: "./index.d.ts" }),
+  "node_modules/@trpc/tanstack-react-query/index.d.ts": [
+    "export interface MutationOptions<TVars, TData> { readonly mutationFn: (vars: TVars) => Promise<TData> }",
+    'export interface Procedure<TInput, TOutput> { readonly "~types": { readonly input: TInput; readonly output: TOutput }; readonly mutationOptions: () => MutationOptions<TInput, TOutput> }',
+    'type Typed = { readonly "~types": { readonly input: unknown; readonly output: unknown } };',
+    'export type inferInput<P extends Typed> = P["~types"]["input"];',
+    'export type inferOutput<P extends Typed> = P["~types"]["output"];',
+  ].join("\n"),
+};
+
+const TRPC_IMPORTS =
+  'import { createEntityMutation, trpc, withProcedureInput } from "./create-entity-mutation.ts";\nimport type { inferInput, inferOutput, MutationOptions } from "@trpc/tanstack-react-query";\nimport type { ReapResult } from "../../../contracts/src/chat.ts";';
 
 const IMPORTS =
   'import { sessions } from "../../domain/sessions/contract/service.ts";\nimport type { SessionsService } from "../../domain/sessions/contract/service.ts";\nimport { seams } from "../../../../kit/src/time/index.ts";';
@@ -327,8 +363,89 @@ test.for([
       'import { room } from "../../../../contracts/src/rooms.ts";\nimport type { RoomSummary } from "../../../../contracts/src/rooms.ts";\ntype Shown = Pick<RoomSummary, "id" | "title">;\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(room);',
     findings: [],
   },
+  {
+    name: "a one-field local type that is the contract's whole shape",
+    file: SITE,
+    source:
+      'import { reaped } from "../../../../contracts/src/chat.ts";\ninterface Count { readonly reaped: number }\nfunction show(value: Count): number {\n  return value.reaped;\n}\nexport const count = show(reaped);',
+    findings: [{ messageId: "restatedFields", data: { local: "Count", fields: "reaped" } }],
+  },
+  {
+    name: "a hand-written type argument the library binds to a procedure's output",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\nexport const useFork = createEntityMutation<inferInput<typeof trpc.chat.fork>, { readonly chatId: string; readonly title: string }>({ options: () => trpc.chat.fork.mutationOptions() });`,
+    findings: [{ messageId: "restatedProcedure", data: { written: "This inline type", side: "output", procedure: "trpc.chat.fork", fields: "chatId, title" } }],
+  },
+  {
+    name: "a one-field type argument that is a procedure's whole result",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\nexport const useReap = createEntityMutation<inferInput<typeof trpc.chat.reapHusks>, { readonly reaped: number }>({ options: () => trpc.chat.reapHusks.mutationOptions() });`,
+    findings: [{ messageId: "restatedProcedure", data: { written: "This inline type", side: "output", procedure: "trpc.chat.reapHusks", fields: "reaped" } }],
+  },
+  {
+    name: "a vars interface that restates the input of the procedure it is sent to",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ninterface DuplicateVars { readonly chatId: string; readonly messageId: string }\nexport const useDuplicate = createEntityMutation<DuplicateVars, void>({ options: () => trpc.chat.duplicate.mutationOptions() });`,
+    findings: [
+      { messageId: "restatedProcedure", data: { written: "DuplicateVars", side: "input", procedure: "trpc.chat.duplicate", fields: "chatId, messageId" } },
+    ],
+  },
+  {
+    name: "a hand-written composite vars type mapped onto the procedure input",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ninterface RuleActionVars { readonly ruleId: string; readonly chatId: string | null }\nexport const useDelete = createEntityMutation<RuleActionVars, void>({ options: () => withProcedureInput(trpc.chat.deleteRule.mutationOptions(), (vars: RuleActionVars) => ({ ruleId: vars.ruleId })) });`,
+    findings: [{ messageId: "restatedProcedure", data: { written: "RuleActionVars", side: "input", procedure: "trpc.chat.deleteRule", fields: "ruleId" } }],
+  },
+  {
+    name: "a client-only composite vars type that composes the procedure input",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ntype RuleActionVars = inferInput<typeof trpc.chat.deleteRule> & { readonly chatId: string | null };\nexport const useDelete = createEntityMutation<RuleActionVars, void>({ options: () => withProcedureInput(trpc.chat.deleteRule.mutationOptions(), (vars: RuleActionVars) => ({ ruleId: vars.ruleId })) });`,
+    findings: [],
+  },
+  {
+    name: "a composite vars type that narrows a procedure input field",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ntype DuplicateVars = inferInput<typeof trpc.chat.duplicate> & { readonly chatId: "chat_1" };\nexport const useDuplicate = createEntityMutation<DuplicateVars, void>({ options: () => trpc.chat.duplicate.mutationOptions() });`,
+    findings: [],
+  },
+  {
+    name: "type arguments derived from the procedure and from its contracts type",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\nexport const useReap = createEntityMutation<inferInput<typeof trpc.chat.reapHusks>, inferOutput<typeof trpc.chat.reapHusks>>({ options: () => trpc.chat.reapHusks.mutationOptions() });\nexport const useReapAgain = createEntityMutation<inferInput<typeof trpc.chat.reapHusks>, ReapResult>({ options: () => trpc.chat.reapHusks.mutationOptions() });`,
+    findings: [],
+  },
+  {
+    name: "a one-field vars type picked from a wider procedure input",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ninterface Toggle { readonly ruleId: string }\nexport const useEnable = createEntityMutation<Toggle, void>({ options: () => withProcedureInput(trpc.chat.setEnabled.mutationOptions(), (vars: Toggle) => ({ ...vars, enabled: true })) });`,
+    findings: [],
+  },
+  {
+    name: "a contracts type in the shape of a procedure's output",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\nimport type { ChatRef } from "../../../contracts/src/chat.ts";\nexport const useFork = createEntityMutation<inferInput<typeof trpc.chat.fork>, ChatRef>({ options: () => trpc.chat.fork.mutationOptions() });`,
+    findings: [],
+  },
+  {
+    name: "a vars type that types an open-record field and keeps the rest of the input",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ntype SectionVars = Omit<inferInput<typeof trpc.chat.updateSection>, "patch"> & { readonly section: "theme"; readonly patch: { readonly accent?: string } };\nexport const useSection = createEntityMutation<SectionVars, void>({ options: () => trpc.chat.updateSection.mutationOptions() });`,
+    findings: [],
+  },
+  {
+    name: "a vars type that types an open-record field and hand-copies the rest of the input",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ninterface SectionVars { readonly section: "theme"; readonly patch: { readonly accent?: string } }\nexport const useSection = createEntityMutation<SectionVars, void>({ options: () => trpc.chat.updateSection.mutationOptions() });`,
+    findings: [{ messageId: "restatedProcedure", data: { written: "SectionVars", side: "input", procedure: "trpc.chat.updateSection", fields: "section" } }],
+  },
+  {
+    name: "a vars type with no procedure behind it",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ndeclare const local: () => MutationOptions<{ readonly chatId: string; readonly messageId: string }, void>;\nexport const useLocal = createEntityMutation<{ readonly chatId: string; readonly messageId: string }, void>({ options: local });`,
+    findings: [],
+  },
 ] as const)("derived-port-member judges $name", async ({ file, source, findings }, { plantedTree }) => {
-  const root = await plantedTree({ ...OWNERS, [file]: source });
+  const root = await plantedTree({ ...OWNERS, ...TRPC_LIBRARY, [file]: source });
   const found = lint(root, file, source, derivedPortMemberRule).map(({ messageId, message }) => ({ messageId, message }));
   expect(found).toEqual(findings.map(reported));
 });

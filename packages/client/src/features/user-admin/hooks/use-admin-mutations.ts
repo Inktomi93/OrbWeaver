@@ -87,7 +87,7 @@ export const useRefreshCatalog = createEntityMutation<inferInput<Trpc["connectio
 
 /** The inline single-card embed (admin-only; drives the GPU embed engine). Reconciles nothing;
  *  the caller renders the returned ok inline. */
-export const useEmbedCharacterCard = createEntityMutation<inferInput<Trpc["admin"]["embedCharacterCard"]>, { readonly ok: true }>({
+export const useEmbedCharacterCard = createEntityMutation<inferInput<Trpc["admin"]["embedCharacterCard"]>, inferOutput<Trpc["admin"]["embedCharacterCard"]>>({
   options: (trpc) => trpc.admin.embedCharacterCard.mutationOptions(),
   invalidates: () => [],
   errorToast: "Couldn't embed the card. Check the character id.",
