@@ -846,3 +846,27 @@ test("a vLLM side-generation off is the template switch alone: enable_thinking f
   expect(body["chat_template_kwargs"]).toMatchObject({ ["enable_thinking"]: false });
   expect(body).not.toHaveProperty("reasoning_effort");
 });
+
+test("an antislop summarize sends its slop list only with the room's names to allow; a call for no room sends none", async () => {
+  const recorded: RecordedRequest[] = [];
+  using server = openAiServer(recorded, () => ({}), 2);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
+  const executor = root.app.runtime.executor;
+  const connection = await wireConnection(root, {
+    task: "summarize",
+    providerId: "vllm",
+    model: "m",
+    baseUrl: LOCAL_URL,
+    declaredFeatures: { antislop: true, slopList: "rp", slopStrength: 2 },
+  });
+  const names = ["Mary Jane Watson", "Mary", "Jane", "Watson"];
+  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM], speakerNames: names });
+  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM] });
+  const [room, roomless] = recorded.map((request) => request.body);
+  expect(room?.["slop_list"]).toBe("rp");
+  expect(room?.["slop_strength"]).toBe(2);
+  expect(room?.["slop_allow"]).toEqual(names);
+  for (const key of ["slop_list", "slop_strength", "slop_allow"]) {
+    expect(roomless).not.toHaveProperty(key);
+  }
+});

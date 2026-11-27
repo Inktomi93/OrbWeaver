@@ -89,12 +89,18 @@ export type TaskSampling = Readonly<Omit<RolePresetParams, "maxOutputTokens">> &
 export interface SummarizeRequest extends TaskRequestCommon<"summarize">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
   readonly onObservedResult?: GenerationObservationCallback | undefined;
+  /** The room's character and user names, with their words, that a server's slop list must leave alone. Absent on a
+   *  call that runs for no single room, which then sends no slop list. */
+  readonly speakerNames?: readonly string[] | undefined;
 }
 
 /** The one-shot SCHEMA-CONSTRAINED primitive. Same batch shape as summarize; `responseFormat` REQUIRED. */
 export interface StructuredRequest extends TaskRequestCommon<"structured">, TaskSampling {
   readonly inputs: readonly SummarizeRequestItem[];
   readonly onObservedResult?: GenerationObservationCallback | undefined;
+  /** The room's character and user names, with their words, that a server's slop list must leave alone. Absent on a
+   *  call that runs for no single room, which then sends no slop list. */
+  readonly speakerNames?: readonly string[] | undefined;
   readonly responseFormat: ResponseFormat;
 }
 
@@ -125,6 +131,8 @@ export interface ImageGenerateResult {
  *  caller's `AbortSignal`. */
 export interface SummarizeCallOptions extends RolePresetParams {
   readonly onObservedResult?: GenerationObservationCallback | undefined;
+  /** {@link SummarizeRequest.speakerNames}. */
+  readonly speakerNames?: readonly string[] | undefined;
   readonly signal: AbortSignal;
 }
 

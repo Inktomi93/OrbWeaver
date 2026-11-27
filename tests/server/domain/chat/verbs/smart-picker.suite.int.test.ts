@@ -7,6 +7,7 @@ import { DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/pre
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node";
 import { readRoomCanon } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import { muteCara, send, smartRoom, THREE, warnings } from "./smart-picker.fixtures.ts";
 import { B_CHAT_MODEL, B_UTILITY_MODEL, saveSpeakerConnection, speakerInputs } from "./speaker-funding-physical.ts";
 
@@ -99,6 +100,20 @@ test("one native schema-constrained happy pick is honored without warning", asyn
   expect(inputs).toHaveLength(1);
   expect(inputs[0]?.response_format?.json_schema.name).toBe("speaker_pick");
   expect(warnings(room)).toEqual([]);
+});
+
+test("an antislop Utility pick allows the roster's names past its slop list, since its answer is a name", async () => {
+  await using room = await smartRoom({ chat: ["Bryn's committed answer."], picks: [["bryn"]] });
+  await saveSpeakerConnection(room.h, room.peer.baseUrl, "summarize", { features: { antislop: true, slopList: "rp" } });
+  await send(room);
+  const picks = await Promise.all(
+    room.peer.requests
+      .filter((request) => new URL(request.url).pathname === "/v1/chat/completions")
+      .map(async (request) => z.record(z.string(), z.unknown()).parse(await request.clone().json())),
+  );
+  const pick = picks.find((body) => body["model"] === B_UTILITY_MODEL);
+  expect(pick?.["slop_list"]).toBe("rp");
+  expect(pick?.["slop_allow"]).toEqual(["aria", "bryn", DEFAULT_PERSONA_NAME]);
 });
 
 test("native arbiter transcript uses the persisted persona and each actual character label", async () => {

@@ -36,6 +36,7 @@ export function sideGenChatRequest(args: {
   readonly responseFormat?: ResponseFormat | undefined;
   readonly reasoningTags?: ReasoningTagPair | undefined;
   readonly chatId?: ChatId | undefined;
+  readonly speakerNames?: readonly string[] | undefined;
   readonly signal: AbortSignal;
 }): ChatRequest {
   const { connection, item } = args;
@@ -66,6 +67,7 @@ export function sideGenChatRequest(args: {
     ...common,
     api,
     history: [row],
+    ...(args.speakerNames !== undefined ? { speakerNames: args.speakerNames } : {}),
     ...(args.responseFormat === undefined ? { reasoningTags: splittableTagPair(args.reasoningTags) ?? PROSE_REASONING_TAGS } : {}),
   };
 }
@@ -132,6 +134,7 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
           params,
           responseFormat,
           reasoningTags,
+          speakerNames: req.speakerNames,
           signal: req.signal,
         }),
       );

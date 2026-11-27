@@ -193,6 +193,9 @@ type HistoryChatRequest = ChatRequestCommon & {
    *  with `prefill_reasoning_dropped` on a turn that stamps no continue row; routes without a continuation
    *  never carry it. Measured on the `prefix-flag` row: `docs/law/deepseek-api-surface.md`. */
   readonly prefillReasoning?: string | undefined;
+  /** The names of the room's characters and its user, which a server's word list must leave alone
+   *  (`features.slopList` rides them as the proxy's allow list). Absent ⇒ none known. */
+  readonly speakerNames?: readonly string[] | undefined;
 };
 
 /**
@@ -241,6 +244,8 @@ export type ChatTurnInput = ChatRequestCommon & {
   /** The authored chain of thought (see the {@link HistoryChatRequest} field of the same name). The
    *  array-wire arms stamp it on the continue row; every other backend drops it with its own notice. */
   readonly prefillReasoning?: string | undefined;
+  /** The room's character and user names (see the {@link HistoryChatRequest} field of the same name). */
+  readonly speakerNames?: readonly string[] | undefined;
 };
 
 /**

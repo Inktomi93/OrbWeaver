@@ -54,6 +54,9 @@ export interface Resolved<T extends Task = Task> extends ResolvedConnectionView 
    *  them with (a floating alias's target, a `:batch` variant's base). The capability fold read it, so every
    *  wire decision keyed on the vendor (routing, cache placement) reads it too, never the raw `model`. */
   readonly factsModel: ModelId;
+  /** The own-server features this metered row's connection declared and the fold dropped, so each turn can say so.
+   *  Absent ⇒ none. */
+  readonly refusedOwnServerFeatures?: readonly string[] | undefined;
 }
 
 /** The GENERATION half of a chat-shaped resolve. The resolver only hands a chat/summarize/structured task a

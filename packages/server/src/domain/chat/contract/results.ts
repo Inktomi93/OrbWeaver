@@ -155,6 +155,8 @@ export interface TurnRequest {
    *  where a wire with a continue row stamps it onto the prefill. The domain forwards it whenever the preset
    *  states it; the transports own every drop with their own notice (no silent vanish). */
   readonly prefillReasoning?: string | undefined;
+  /** The room's character and user names, with their words, for a server's word list to leave alone. */
+  readonly speakerNames?: readonly string[] | undefined;
   /** The tools this turn offers, BACKEND-NEUTRAL (D177): the executable set
    *  as definitions + the ONE `execute` callback the pipeline binds to `executeToolCalls`, and the TERMINAL (D112
    *  R1) declarations. How they reach the wire — an MCP server the SDK loops over, or a `tools[]` array the

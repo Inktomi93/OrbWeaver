@@ -36,6 +36,7 @@ import {
   PREFILL_MODES,
   REASONING_BUDGET_FIELDS,
   RESPONSES_REASONING_STREAMS,
+  SAMPLER_ENVELOPES,
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
@@ -307,6 +308,24 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   tokenizeApi: [
     { path: "tokenizeApi", name: "tokenize endpoint", edit: { kind: "enum", options: TOKENIZE_APIS }, unset: "not set: logit bias takes token ids only" },
   ],
+  samplerEnvelope: [
+    {
+      path: "samplerEnvelope",
+      name: "extra samplers from the server's own processors",
+      edit: { kind: "enum", options: SAMPLER_ENVELOPES },
+      unset: "not set: only the server's stock samplers",
+    },
+  ],
+  antislop: [
+    {
+      path: "antislop",
+      name: "antislop proxy in front of the server",
+      edit: { kind: "boolean", labels: { yes: "yes: banned phrases and slop lists go to the proxy", no: "no" } },
+      unset: "not set: banned phrases go to the server itself",
+    },
+  ],
+  slopList: [{ path: "slopList", name: "antislop slop list", edit: { kind: "text" }, unset: "not set: no slop list" }],
+  slopStrength: [{ path: "slopStrength", name: "antislop slop list strength", edit: { kind: "number" }, unset: "not set: the proxy's default" }],
   reasoningBudgetField: [
     {
       path: "reasoningBudgetField",

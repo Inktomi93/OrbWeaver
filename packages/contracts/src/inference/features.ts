@@ -59,11 +59,74 @@ export const DEFAULT_SAMPLER_KEYS: Readonly<Record<SamplerKnob, string>> = {
 };
 
 /** How a server takes the phrase ban: `list` = the phrases under the row's `bannedStrings` key (KoboldCpp
- *  `banned_strings`, vLLM `bad_words`); `logit-bias-ban` = each phrase as a `logit_bias` key set to `false`, which
+ *  `banned_strings`); `logit-bias-ban` = each phrase as a `logit_bias` key set to `false`, which
  *  llama.cpp tokenizes and bans token by token for the whole reply, with no sequence context (`server-schema.cpp`
  *  logit_bias handler). On that spelling only a phrase that is one token rides; a longer one would ban each of its
- *  words everywhere, so it is dropped with a warning, and the row needs a `tokenizeApi` to tell them apart. */
-export const BANNED_STRINGS_SPELLINGS = ["list", "logit-bias-ban"] as const;
+ *  words everywhere, so it is dropped with a warning, and the row needs a `tokenizeApi` to tell them apart.
+ *  `vllm-bad-words` = the list under the row's key, where vLLM bans the phrase as a token sequence in its bare form
+ *  and adds the space-led form, the one met mid-sentence, only when that form is non-empty, starts on another token
+ *  and has the bare form's token count (`SamplingParams.update_from_tokenizer`). A phrase that fails that test is
+ *  banned only where no space precedes it, so it is dropped with a warning; the row needs a `tokenizeApi`. */
+export const BANNED_STRINGS_SPELLINGS = ["list", "logit-bias-ban", "vllm-bad-words"] as const;
+
+/** A request envelope that carries the extended samplers for a server's own logits processors. `vllm-xargs` = vLLM's
+ *  `vllm_xargs` object, which reaches `SamplingParams.extra_args` and holds only strings, numbers and flat lists
+ *  (`chat_completion/protocol.py`); stock vLLM reads none of these keys, so only a connection whose server loads
+ *  processors that read them declares it. */
+export const SAMPLER_ENVELOPES = ["vllm-xargs"] as const;
+export type SamplerEnvelope = (typeof SAMPLER_ENVELOPES)[number];
+
+/** What one envelope carries. `knobs` ride inside it under {@link DEFAULT_SAMPLER_KEYS} (llama.cpp's names, which the
+ *  processors read). `logitBias` names the parallel id and value lists the bias rides as, since an envelope value
+ *  cannot be an object. `repetitionWindow`: a set repetition range moves the penalty into the envelope beside the
+ *  window, and without a range the penalty stays native, because the server refuses both at once. `closeThinking`:
+ *  the key that, set `true` on a thinking turn, keeps the model from ending its turn inside its reasoning. */
+export const SAMPLER_ENVELOPE_SPELLINGS: Readonly<
+  Record<
+    SamplerEnvelope,
+    {
+      readonly key: string;
+      readonly knobs: readonly SamplerKnob[];
+      readonly logitBias: { readonly ids: string; readonly values: string };
+      readonly repetitionWindow: boolean;
+      readonly closeThinking: string;
+    }
+  >
+> = {
+  "vllm-xargs": {
+    key: "vllm_xargs",
+    // min-p rides here too: vLLM refuses a native `min_p` under speculative decoding (`_validate_spec_decode`).
+    knobs: [
+      "minP",
+      "topA",
+      "topNSigma",
+      "xtcProbability",
+      "xtcThreshold",
+      "dryMultiplier",
+      "dryBase",
+      "dryAllowedLength",
+      "dryPenaltyLastN",
+      "drySequenceBreakers",
+      "dynatempRange",
+      "dynatempExponent",
+      "smoothingFactor",
+      "smoothingCurve",
+      "adaptiveTarget",
+      "adaptiveDecay",
+    ],
+    logitBias: { ids: "bias_token_ids", values: "bias_logprobs" },
+    repetitionWindow: true,
+    closeThinking: "close_thinking",
+  },
+};
+
+/** The top-level fields an antislop proxy reads ({@link EndpointFeatures.antislop}): the phrase ban, the slop list's
+ *  name and strength, and the words the list must never push down. */
+export const ANTISLOP_FIELDS = { bannedStrings: "banned_strings", slopList: "slop_list", slopStrength: "slop_strength", slopAllow: "slop_allow" } as const;
+
+/** The features that drive a user's own server's samplers. A metered provider row never takes them: they would send
+ *  fields a paid service does not define, so the resolver drops them there with a warning. */
+export const OWN_SERVER_FEATURES = ["samplerEnvelope", "antislop", "slopList", "slopStrength"] as const satisfies readonly (keyof EndpointFeatures)[];
 
 /** The tokenize endpoint a server answers, which turns a word-keyed logit bias into token ids and shows the
  *  editor what a word maps to. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */
@@ -240,6 +303,15 @@ export const endpointFeaturesSchema = z
     samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
     /** How the phrase ban rides ({@link BANNED_STRINGS_SPELLINGS}); absent ⇒ `list`. */
     bannedStrings: z.enum(BANNED_STRINGS_SPELLINGS).optional(),
+    /** The envelope the extended samplers ride in ({@link SAMPLER_ENVELOPE_SPELLINGS}); absent ⇒ they ride the body top level. */
+    samplerEnvelope: z.enum(SAMPLER_ENVELOPES).optional(),
+    /** The server is an antislop proxy: banned phrases ride whole as its top-level list, which it enforces by rewinding,
+     *  and the slop list fields ride beside them ({@link ANTISLOP_FIELDS}). */
+    antislop: z.boolean().optional(),
+    /** The antislop proxy's slop list to apply, by the name the proxy knows it under; read only with `antislop`. */
+    slopList: z.string().min(1).optional(),
+    /** How hard the slop list pushes its words down (each weight raised to this power); read only with a `slopList`. */
+    slopStrength: z.number().positive().optional(),
     /** The tokenize endpoint behind word-keyed logit bias ({@link TOKENIZE_APIS}); absent ⇒ word keys cannot ride. */
     tokenizeApi: z.enum(TOKENIZE_APIS).optional(),
     /** The template-level thinking switch a turn sends, off or on ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */

@@ -39,19 +39,18 @@ function rowMatches(compiled: CompiledRow, query: RowQuery): boolean {
   if (compiled.ids !== null && !compiled.ids.has(query.model)) {
     return false;
   }
-  if (match.provider !== undefined && match.provider !== query.providerId) {
-    return false;
-  }
-  if (match.wire !== undefined && match.wire !== query.wire) {
-    return false;
-  }
-  if (match.api !== undefined && match.api !== (query.api ?? null)) {
-    return false;
-  }
-  if (match.nativeChat !== undefined && match.nativeChat !== query.nativeChat) {
-    return false;
-  }
-  return true;
+  return routeMatches(match, query);
+}
+
+// Each route field a row names must equal the query's; an unnamed field matches any route.
+function routeMatches(match: NonNullable<CapabilityOverride["match"]>, query: RowQuery): boolean {
+  return (
+    (match.provider === undefined || match.provider === query.providerId) &&
+    (match.wire === undefined || match.wire === query.wire) &&
+    (match.api === undefined || match.api === (query.api ?? null)) &&
+    (match.nativeChat === undefined || match.nativeChat === query.nativeChat) &&
+    (match.samplerEnvelope === undefined || match.samplerEnvelope === query.samplerEnvelope)
+  );
 }
 
 /** Every row that matches, in composition order. Empty ⇒ nothing stated for this (model × route). */

@@ -185,6 +185,9 @@ const PLAIN_CHAT_WARNING_CODES = [
   // A `{{setglobalvar}}` write this reply made was refused by a cap (key or value size, a NUL, the per-turn
   // key count or the owner's key total) and not stored; the reply and the other writes committed.
   "global_variable_dropped",
+  // The connection is a metered provider and declared a feature meant for the user's own server (the vLLM sampler
+  // envelope, an antislop proxy): the turn sent the stock body without it. Spelled as the infra code, a MATCH.
+  "own_server_features_ignored",
   HIDDEN_TAG_BROKEN_CODE,
 ] as const;
 export type PlainChatWarningCode = (typeof PLAIN_CHAT_WARNING_CODES)[number];
@@ -307,6 +310,9 @@ export interface ChatSettingsAdjustedWarning {
   knob?: AdjustedKnob | undefined;
   appliedBudget?: number | undefined;
   appliedEffort?: EffortLevel | undefined;
+  /** A list setting that partly rode (`sampling_knob_dropped`): how many entries were dropped, and how many sent. */
+  droppedCount?: number | undefined;
+  sentCount?: number | undefined;
 }
 
 // The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members).
@@ -663,6 +669,10 @@ export type ChatBusEvent =
       appliedBudget?: number | undefined;
       /** The reasoning effort that actually ran (`reasoning_mandatory_clamp`). */
       appliedEffort?: EffortLevel | undefined;
+      /** A list setting that partly rode: the entries dropped and the entries sent. Counts, never the entries: they
+       *  are the host's preset text and this bus is the room's. */
+      droppedCount?: number | undefined;
+      sentCount?: number | undefined;
     }
   // Host-only (see {@link REGEX_SCRIPT_NOT_APPLIED_CODE}): ids and enum literals, no name and no pattern text.
   | { type: "warning"; chatId: ChatId; code: "regex_script_not_applied"; scriptId: RegexScriptId; cause: RegexNotAppliedCause; pass: RegexServerPass }

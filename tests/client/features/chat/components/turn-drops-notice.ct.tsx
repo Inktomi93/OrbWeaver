@@ -42,6 +42,15 @@ const MODEL = "vendor/first";
 const OTHER_MODEL = "vendor/second";
 const TOP_K: ChatWarning = { code: SETTINGS_ADJUSTED_CODE, adjustment: WARNING_CODE.samplingKnobDropped, knob: "topK" };
 const CACHE: ChatWarning = { code: SETTINGS_ADJUSTED_CODE, adjustment: WARNING_CODE.cacheControlAdjusted };
+// Two banned phrases of three left out while one rode, and all of them left out.
+const SOME_PHRASES: ChatWarning = {
+  code: SETTINGS_ADJUSTED_CODE,
+  adjustment: WARNING_CODE.samplingKnobDropped,
+  knob: "bannedStrings",
+  droppedCount: 2,
+  sentCount: 1,
+};
+const ALL_PHRASES: ChatWarning = { code: SETTINGS_ADJUSTED_CODE, adjustment: WARNING_CODE.samplingKnobDropped, knob: "bannedStrings" };
 // A warning with its own notice: once it shows, every frame sent before it was handled.
 const SENTINEL: ChatWarning = { code: "provider_refused" };
 // The reads the preset editor makes once the notice's door has opened it.
@@ -177,6 +186,40 @@ test("the same drops on the same preset and connection stay quiet, and another m
   phase += 1;
   const otherPreset = noticeToast(page, warningNotice(TOP_K));
   await expect(otherPreset).toBeVisible();
+});
+
+test("a partial banned-phrase drop raises its own notice, which says the rest were sent, and a whole drop keeps the plain one", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  // The two cases must read differently, or a ban that partly works reads as one that failed.
+  expect(warningNotice(SOME_PHRASES)).not.toEqual(warningNotice(ALL_PHRASES));
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const room = { root, chatId };
+  const phases: readonly (readonly StreamFrame[])[] = [
+    turnFrames(room, { model: MODEL, warnings: [SOME_PHRASES], from: FIRST_SEQ }),
+    turnFrames(room, { model: OTHER_MODEL, warnings: [ALL_PHRASES], from: FIRST_SEQ + 10 }),
+  ];
+  let phase = 0;
+  await serveRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, {
+    awaitRooms: [{ channel: "chat", chatId }, { channel: "user" }],
+    dropConnectionCount: RECONNECTS_UNTIL_CLOSED,
+    frames: (): Promise<readonly StreamFrame[]> => Promise.resolve(phases[phase] ?? []),
+  });
+  await mount<typeof TurnDropsRoomStory>(STORY, { chatId });
+  await socket.served();
+
+  const some = noticeToast(page, warningNotice(SOME_PHRASES));
+  await expect(some).toBeVisible();
+  await some.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
+  await expect(some).toHaveCount(0);
+  phase += 1;
+
+  await expect(noticeToast(page, warningNotice(ALL_PHRASES))).toBeVisible();
 });
 
 test("a dropped setting's notice opens the host's default preset on Params, and a cache control offers no door", async ({ corpus, mount, page }) => {

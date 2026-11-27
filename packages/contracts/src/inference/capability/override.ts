@@ -14,7 +14,7 @@
 import { z } from "zod";
 import { chatApiSchema } from "../apis.ts";
 import { evidenceTierSchema } from "../evidence.ts";
-import { endpointFeaturesSchema, NATIVE_CHAT_APIS } from "../features.ts";
+import { endpointFeaturesSchema, NATIVE_CHAT_APIS, SAMPLER_ENVELOPES } from "../features.ts";
 import { modelKindSchema } from "../kinds.ts";
 import { providerIdSchema } from "../provider-id.ts";
 import { WIRES } from "../wires.ts";
@@ -29,6 +29,9 @@ const matchRouteFields = {
   /** The chat route the connection's folded `features.nativeChat` selects: a server's native route and its
    *  `/v1` route take different request fields (D310). */
   nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+  /** The envelope the connection's folded `features.samplerEnvelope` names: its server's own processors take samplers
+   *  the stock server does not. */
+  samplerEnvelope: z.enum(SAMPLER_ENVELOPES).optional(),
 };
 
 const capabilityMatchSchema = z.union(

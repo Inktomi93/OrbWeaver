@@ -238,6 +238,39 @@ export const localServerRows = [
       cite: "vllm main entrypoints/openai/chat_completion/protocol.py ChatCompletionRequest (temperature, top_p, top_k, min_p, repetition_penalty, penalties, seed, stop, logit_bias); sampling_params.py _verify_args bounds",
     },
   },
+  {
+    // A vLLM whose own logits processors read the extended samplers from `vllm_xargs`, on any row that declares the
+    // envelope: the stock set plus the llama.cpp samplers those processors take. Spans follow llama.cpp's.
+    match: { model: ANY_MODEL, samplerEnvelope: "vllm-xargs" },
+    generation: {
+      sampling: {
+        ...VLLM_SAMPLING,
+        topA: PROBABILITY,
+        topNSigma: TOP_N_SIGMA,
+        repetitionPenaltyRange: TOKEN_WINDOW,
+        xtcProbability: PROBABILITY,
+        xtcThreshold: PROBABILITY,
+        dryMultiplier: DRY_MULTIPLIER,
+        dryBase: DRY_BASE,
+        dryAllowedLength: DRY_ALLOWED_LENGTH,
+        dryPenaltyLastN: TOKEN_WINDOW,
+        drySequenceBreakers: true,
+        dynatempRange: DYNATEMP_RANGE,
+        dynatempExponent: DYNATEMP_EXPONENT,
+        smoothingFactor: SMOOTHING_FACTOR,
+        smoothingCurve: SMOOTHING_CURVE,
+        adaptiveTarget: PROBABILITY,
+        adaptiveDecay: LLAMA_ADAPTIVE_DECAY,
+        bannedStrings: true,
+        banEos: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-11-26",
+      cite: "vllm v0.33.0 chat_completion/protocol.py vllm_xargs reaches SamplingParams.extra_args, read by a deployment's logits processors; key names and spans follow llama.cpp tools/server/server-schema.cpp",
+    },
+  },
 ] as const satisfies readonly CapabilityOverrideInput[];
 
 /** The set a Custom endpoint is offered when no family row states one for its model: an unknown server gets the

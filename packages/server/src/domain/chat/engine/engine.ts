@@ -2556,6 +2556,8 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
       return { code: "tools_unsupported" };
     case "background_task_degraded":
       return { code: "background_task_degraded" };
+    case "own_server_features_ignored":
+      return { code: "own_server_features_ignored" };
     // Filtered upstream (§5.3a — a connection-row badge, never the turn stream); listed so the tail stays total.
     case "declared_overrides_measured":
       return { code: "background_task_degraded" };
@@ -2579,7 +2581,15 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
       // so a code dropped from that tuple fails `tsc` right here. The three detail fields ride straight through —
       // the resolver is the only layer that knows them, and re-deriving them in the domain would be inventing a
       // fact. `undefined` is the honest absent (optional on both sides; JSON drops it on the durable log).
-      return { adjustment: code, appliedEffort: warning.appliedEffort, appliedBudget: warning.appliedBudget, code: "settings_adjusted", knob: warning.knob };
+      return {
+        adjustment: code,
+        appliedEffort: warning.appliedEffort,
+        appliedBudget: warning.appliedBudget,
+        code: "settings_adjusted",
+        knob: warning.knob,
+        droppedCount: warning.partial?.dropped,
+        sentCount: warning.partial?.sent,
+      };
     // The SDK's own second gate (#A3), setting half: the provider refused a knob AFTER our funnel resolved
     // it. The ONE pair of arms where the two spellings deliberately differ — the infra code records WHO
     // dropped it (the SDK's gate, not our capability fold), while the user sentence is identical to the

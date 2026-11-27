@@ -17,6 +17,7 @@ import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerArbiter, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
+import { allowedNameWords } from "../substrate/assembly-access.ts";
 import { isArbiterEligible } from "../substrate/participant-actor.ts";
 import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
@@ -225,6 +226,8 @@ async function askArbiter(
       const result = await arbiter.structured([{ systemPrompt, userPrompt: correction === undefined ? userPrompt : `${userPrompt}\n\n${correction}` }], {
         ...params.sampling,
         responseFormat,
+        // The answer is names: a server's slop list must not push the roster's own down.
+        speakerNames: allowedNameWords([...params.speakerCandidates.map((c) => c.name), ...params.humanNames]),
         signal: params.signal,
       });
       return result.items[0]?.text ?? "";

@@ -22,6 +22,7 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "tools_unsupported":
     case "guided_placed_as_injection":
     case "custom_parameters_ignored":
+    case "own_server_features_ignored":
       return "turn-grouped";
     case "background_task_degraded":
     case "smart_arbitration_degraded":

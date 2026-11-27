@@ -27,6 +27,7 @@ import {
   renderMacros as renderMacrosImpl,
   resolveNudgeText as resolveNudgeTextImpl,
 } from "../assembly/macros.ts";
+import { namesWithParts, resolvedSequenceBreakers, speakerNamesOf } from "../assembly/sampler-names.ts";
 import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape.ts";
 import {
   shapeContextForSpeaker as shapeContextForSpeakerImpl,
@@ -36,6 +37,21 @@ import {
 import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace.ts";
 import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros.ts";
 import { loadCharacterCardLore as loadCharacterCardLoreImpl, loadInheritedWorldBooks as loadInheritedWorldBooksImpl } from "../assembly/world-info/pool.ts";
+
+/** REQUEST: the DRY sequence breakers as literal strings, rendered against the speaking turn's macro context. */
+export function resolveSequenceBreakers(...args: Parameters<typeof resolvedSequenceBreakers>): ReturnType<typeof resolvedSequenceBreakers> {
+  return resolvedSequenceBreakers(...args);
+}
+
+/** REQUEST: the room's character and user names, with their words, for a server's word list to leave alone. */
+export function turnSpeakerNames(...args: Parameters<typeof speakerNamesOf>): ReturnType<typeof speakerNamesOf> {
+  return speakerNamesOf(...args);
+}
+
+/** REQUEST: names a side turn already holds, with their words, for a server's word list to leave alone. */
+export function allowedNameWords(...args: Parameters<typeof namesWithParts>): ReturnType<typeof namesWithParts> {
+  return namesWithParts(...args);
+}
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {

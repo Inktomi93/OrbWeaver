@@ -2,7 +2,7 @@
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import type { PromptCacheSettings, RoutableTask } from "@orb/contracts/inference";
+import type { EndpointFeatures, PromptCacheSettings, RoutableTask } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
@@ -70,6 +70,8 @@ interface SavedConnectionOptions {
   readonly key?: string;
   readonly structured?: boolean;
   readonly promptCache?: PromptCacheSettings;
+  /** Endpoint features the generation connection declares beside the fixture's own. */
+  readonly features?: EndpointFeatures;
 }
 
 /** The actual loopback response-close event is separate from releasing the finite fixture response. */
@@ -216,7 +218,7 @@ export async function saveSpeakerConnection(
         : {
             kind: "generation",
             generation: { input: ["text"], context: { window: 32_768 }, output: { structured }, tools: null },
-            features: { detectServer: false, structuredMode: "guided-decoding" },
+            features: { detectServer: false, structuredMode: "guided-decoding", ...options.features },
           },
   });
   await h.root.services.connection.setBinding({ principal, task, connectionId: connection.id });

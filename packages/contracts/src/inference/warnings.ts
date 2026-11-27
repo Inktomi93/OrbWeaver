@@ -64,6 +64,9 @@ export const WARNING_CODE = {
   declaredOverridesMeasured: "declared_overrides_measured",
   // A background task (digests/caption/…) had no fundable row: the shared "nothing ran" notice.
   backgroundTaskDegraded: "background_task_degraded",
+  // A metered provider's connection declared a feature meant for the user's own server (`OWN_SERVER_FEATURES`):
+  // the turn sent the stock body without it.
+  ownServerFeaturesIgnored: "own_server_features_ignored",
   // ── the SDK's OWN drops ──────────────────────────────────────────────────────────────────────────────
   // These three carry what the Vercel provider strips AFTER our funnel runs, a SECOND gate the capability
   // fold does not model: the funnel can resolve `temperature` from a measured range and the
@@ -93,16 +96,21 @@ export const resolvedWarningSchema = z.strictObject({
   field: z.string().optional(),
   appliedBudget: z.number().optional(),
   appliedEffort: effortLevelSchema.optional(),
+  /** A list knob some of whose entries rode: how many were dropped and how many were sent. Absent ⇒ the whole knob dropped. */
+  partial: z.strictObject({ dropped: z.int().positive(), sent: z.int().positive() }).optional(),
 });
 type WarningWire = z.infer<typeof resolvedWarningSchema>;
 type WarningDetail = Exclude<keyof WarningWire, "message" | "code">;
 
+const KNOB_ONLY_CODES = [WARNING_CODE.samplingKnobConflict, WARNING_CODE.carryReasoningDowngraded, WARNING_CODE.sdkUnsupportedSetting] as const;
+
 const DETAIL_CODES = {
-  knob: [WARNING_CODE.samplingKnobDropped, WARNING_CODE.samplingKnobConflict, WARNING_CODE.carryReasoningDowngraded, WARNING_CODE.sdkUnsupportedSetting],
+  knob: [WARNING_CODE.samplingKnobDropped, ...KNOB_ONLY_CODES],
   key: [WARNING_CODE.customParametersIgnored],
   field: [WARNING_CODE.declaredOverridesMeasured],
   appliedBudget: [WARNING_CODE.reasoningBudgetClamped],
   appliedEffort: [WARNING_CODE.reasoningMandatoryClamp],
+  partial: [WARNING_CODE.samplingKnobDropped],
 } as const satisfies Record<WarningDetail, readonly WarningCode[]>;
 
 type WarningShape<Code extends WarningCode, Detail extends WarningDetail> = {
@@ -110,19 +118,28 @@ type WarningShape<Code extends WarningCode, Detail extends WarningDetail> = {
   readonly message: string;
 } & Readonly<Pick<WarningWire, Detail>> & { readonly [Other in Exclude<WarningDetail, Detail>]?: never };
 
-type DetailedWarning = { [Field in WarningDetail]: WarningShape<(typeof DETAIL_CODES)[Field][number], Field> }[WarningDetail];
+type DetailedCode = (typeof DETAIL_CODES)[WarningDetail][number];
+type KnobDropped = typeof WARNING_CODE.samplingKnobDropped;
+// One shape per detail field, except the knob drop, the one code that carries two (`knob` and `partial`).
+type DetailedWarning =
+  | { [Field in Exclude<WarningDetail, "partial">]: WarningShape<Exclude<(typeof DETAIL_CODES)[Field][number], KnobDropped>, Field> }[Exclude<
+      WarningDetail,
+      "partial"
+    >]
+  | WarningShape<KnobDropped, "knob" | "partial">;
 
 /** A resolver emits only the structured detail its code describes. Wire readers preserve already-stored fields. */
-export type ResolvedWarning = DetailedWarning | WarningShape<Exclude<WarningCode, DetailedWarning["code"]>, never>;
+export type ResolvedWarning = DetailedWarning | WarningShape<Exclude<WarningCode, DetailedCode>, never>;
 
 const codesWithDetail: ReadonlySet<WarningCode> = new Set(Object.values(DETAIL_CODES).flat());
-const plainCodes = Object.values(WARNING_CODE).filter((code): code is Exclude<WarningCode, DetailedWarning["code"]> => !codesWithDetail.has(code));
-const { message, knob, key, field, appliedBudget, appliedEffort } = resolvedWarningSchema.shape;
+const plainCodes = Object.values(WARNING_CODE).filter((code): code is Exclude<WarningCode, DetailedCode> => !codesWithDetail.has(code));
+const { message, knob, key, field, appliedBudget, appliedEffort, partial } = resolvedWarningSchema.shape;
 
 /** A live resolver output may carry only the detail defined for its warning code. */
 export const emittedWarningSchema = z.discriminatedUnion("code", [
   z.strictObject({ code: z.enum(plainCodes), message }),
-  z.strictObject({ code: z.enum(DETAIL_CODES.knob), message, knob }),
+  z.strictObject({ code: z.literal(WARNING_CODE.samplingKnobDropped), message, knob, partial }),
+  z.strictObject({ code: z.enum(KNOB_ONLY_CODES), message, knob }),
   z.strictObject({ code: z.enum(DETAIL_CODES.key), message, key }),
   z.strictObject({ code: z.enum(DETAIL_CODES.field), message, field }),
   z.strictObject({ code: z.enum(DETAIL_CODES.appliedBudget), message, appliedBudget }),
