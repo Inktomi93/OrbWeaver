@@ -131,7 +131,7 @@ test("the real host populate caller reports a provider refusal without overwriti
   await ownerCaller.rpg.createGame({ chatId: chat.id, mode: "lite" });
   fundingProvider.reply(JSON.stringify({ sheet: { title: "Archivist", level: 2 } }));
   const input = { chatId: chat.id, actorRef: { kind: "character" as const, characterId: character.id } };
-  expect(await ownerCaller.rpg.populateFromCharacter(input)).toEqual({ ok: true, populated: true });
+  expect(await ownerCaller.rpg.populateFromCharacter(input)).toEqual({ ok: true, populated: true, dropped: [] });
   const before = await db.select().from(rpgSheets);
   expect(before).toHaveLength(1);
   fundingProvider.status(401);

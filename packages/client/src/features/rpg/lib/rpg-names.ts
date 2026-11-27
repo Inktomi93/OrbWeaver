@@ -1,7 +1,7 @@
 // The words the game panels print and a spec locates them by. Zero runtime imports, so a spec or another
 // feature reads them without the component graph.
 
-import type { RpgToolCallVerdict } from "@orb/contracts/rpg";
+import type { RpgPopulatePart, RpgToolCallVerdict } from "@orb/contracts/rpg";
 
 /** The game tabs of the context panel, by tab. */
 export const RPG_CONTEXT_TAB_LABELS = {
@@ -203,3 +203,23 @@ export const RPG_CARD_ARCHIVE_READ_LABEL = "the card archive";
 
 /** What failed to load, said by the scene's card read. */
 export const RPG_SCENE_CARDS_READ_LABEL = "this game's cards";
+
+/** The parts of a card fill the model's reply could lose, said as the host knows them. */
+export const RPG_POPULATE_PART_LABELS: Record<RpgPopulatePart, string> = {
+  sheet: "the title and level",
+  inventory: "the gear",
+  quests: "the goals",
+  reply: "the whole reply",
+};
+
+/** The warning after a card fill whose reply was partly unusable: what still landed, then what was left out. */
+export function populateDroppedNotice(
+  name: string,
+  populated: boolean,
+  dropped: readonly RpgPopulatePart[],
+): { readonly title: string; readonly description: string } {
+  return {
+    title: populated ? `Filled ${name} from their card, with parts left out` : `Nothing filled from ${name}'s card`,
+    description: `The model's reply did not come back usable for ${dropped.map((part) => RPG_POPULATE_PART_LABELS[part]).join(", ")}. Fill from card again to retry.`,
+  };
+}

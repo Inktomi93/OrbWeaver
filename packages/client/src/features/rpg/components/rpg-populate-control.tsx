@@ -28,6 +28,7 @@ import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { usePopulateFromCharacter } from "../hooks/use-rpg-mutations.ts";
+import { populateDroppedNotice } from "../lib/rpg-names.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 
 /** Why this character CANNOT be filled from a card, or `""` when the round is available — the two
@@ -62,7 +63,10 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
     // `errorToast: "Couldn't fill this character from their card."`, which toasts the awaited mutation's failure. Ends if that errorToast is dropped.
     try {
       const verdict = await populate.mutateAsync({ chatId, actorRef: actor.actorRef });
-      if (verdict.ok && !verdict.populated) {
+      if (verdict.ok && verdict.dropped.length > 0) {
+        // A partly unusable reply is a degrade, not a clean fill and not an empty card, so it gets its own warning.
+        notify.warn(populateDroppedNotice(actor.name, verdict.populated, verdict.dropped));
+      } else if (verdict.ok && !verdict.populated) {
         notify.info(`Nothing to fill: ${actor.name}'s card added nothing that isn't already set.`);
       }
     } catch (error) {

@@ -49,6 +49,7 @@ import type {
   RpgGameView,
   RpgJournalEntryView,
   RpgParticipantActor,
+  RpgPopulatePart,
   RpgRecordedToolCall,
   RpgRefusedQuestCall,
   RpgRevealView,
@@ -544,7 +545,9 @@ type RpgRunPopulateExtraction = (input: RpgPopulateInput) => Promise<RpgPopulate
 /** What one populate round returns — the born-state fill, or the legible reason it could not run (see above).
  *  Kept beside the op rather than in `contract/results` because it is the op's INTERNAL seam: the verb maps it
  *  onto the caller-facing `PopulateResult`, and no transport ever sees this shape (the resync's precedent). */
-type RpgPopulateRoundResult = { readonly ok: true; readonly delta: RpgPopulateDelta } | { readonly ok: false; readonly reason: string };
+type RpgPopulateRoundResult =
+  | { readonly ok: true; readonly delta: RpgPopulateDelta; readonly dropped: readonly RpgPopulatePart[] }
+  | { readonly ok: false; readonly reason: string };
 
 /** The resolved inputs the populate model call consumes. `hostUserId` is the ROOM host (resolved by ROLE at the
  *  verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied principal (the

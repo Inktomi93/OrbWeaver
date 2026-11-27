@@ -3,6 +3,8 @@
 import type { RpgGameId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import type { RpgPopulatePart } from "./extraction.ts";
+import { RPG_POPULATE_PARTS } from "./extraction.ts";
 
 /** `createGame`'s result — the birth summary: the new game's id. The read-only verdict is the tracker view's. */
 export interface CreateGameResult {
@@ -47,8 +49,13 @@ export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { 
  *    • `{ok:false, reason}`         — the round could NOT run, or the F1 write boundary refused the state half.
  *      `reason` is the sentence the host reads, and it names WHICH — so a provider outage never masquerades as
  *      "this card had nothing to fill". The client toasts it through the `refusal` seam; the `populated:false`
- *      arm is an INFO line (a round that honestly found nothing is not an error). */
-export type PopulateResult = { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
+ *      arm is an INFO line (a round that honestly found nothing is not an error).
+ *
+ *  An `ok` verdict also carries `dropped`: the parts of the reply that did not conform and were left out (empty when
+ *  the whole reply applied), so a partly malformed reply is never reported as a clean fill. */
+export type PopulateResult =
+  | { readonly ok: true; readonly populated: boolean; readonly dropped: readonly RpgPopulatePart[] }
+  | { readonly ok: false; readonly reason: string };
 
 /** THE PROMOTE VERDICT (`promoteActor`) — the HAND-DOOR grammar widened by ONE field: the mint clamps
  *  an over-length model-authored identity `name` to the card wire's `CARD_FACE_LIMITS.nameMax`
@@ -81,7 +88,7 @@ export const resyncResultSchema = z.discriminatedUnion("ok", [
   handDoorRefusalSchema,
 ]) satisfies z.ZodType<ResyncResult>;
 export const populateResultSchema = z.discriminatedUnion("ok", [
-  z.strictObject({ ok: z.literal(true), populated: z.boolean() }),
+  z.strictObject({ ok: z.literal(true), populated: z.boolean(), dropped: z.array(z.enum(RPG_POPULATE_PARTS)).readonly() }),
   handDoorRefusalSchema,
 ]) satisfies z.ZodType<PopulateResult>;
 export const promoteActorResultSchema = z.discriminatedUnion("ok", [

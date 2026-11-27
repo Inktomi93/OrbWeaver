@@ -570,8 +570,9 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
 // stronger than the `malformedToolCalls` mirror — a log here cannot disagree with what applied by construction).
 
 // The plane a salvage drop belongs to — an extraction plane, or `root` when the payload wasn't an object at
-//  all (non-JSON / an array / a scalar), in which case NOTHING was salvageable.
-type RpgExtractionDropPlane = keyof RpgExtraction | "root";
+//  all (non-JSON / an array / a scalar), in which case NOTHING was salvageable. `sheet` is the populate round's
+//  identity half, which no turn vehicle writes.
+type RpgExtractionDropPlane = keyof RpgExtraction | "root" | "sheet";
 
 // ONE thing {@link salvageExtraction} threw away: which plane, which entry (`null` = the whole plane — a
 //  non-array field, a malformed `scene`, or the unusable root), and the zod issues that condemned it.
@@ -729,11 +730,33 @@ export interface RpgPopulateSalvage {
   readonly sheet: RpgPopulateSheet | null;
   readonly extraction: RpgExtraction;
   readonly dropped: readonly RpgExtractionDrop[];
+  /** The parts of the card fill that lost something, in {@link RPG_POPULATE_PARTS} order, each named once. */
+  readonly droppedParts: readonly RpgPopulatePart[];
 }
 
-/** The planes a populate drop can belong to — the two state planes plus the unusable root. Every other plane
- *  is not offered, so a drop can never be reported against one. */
-const POPULATE_DROP_PLANES: ReadonlySet<RpgExtractionDropPlane> = new Set<RpgExtractionDropPlane>(["inventory", "quests", "root"]);
+/** The parts of a card fill the host can be told were lost: the identity sheet, the gear, the goals, or the whole reply
+ *  when it was not a usable object. */
+export const RPG_POPULATE_PARTS = ["sheet", "inventory", "quests", "reply"] as const;
+export type RpgPopulatePart = (typeof RPG_POPULATE_PARTS)[number];
+
+/** The part a drop on each plane is reported against. The live-play planes are discarded by construction and are
+ *  never offered, so a drop can never be reported against one. */
+const POPULATE_DROP_PARTS: Record<RpgExtractionDropPlane, RpgPopulatePart | null> = {
+  sheet: "sheet",
+  inventory: "inventory",
+  quests: "quests",
+  root: "reply",
+  party: null,
+  scene: null,
+  sceneFollowUps: null,
+  trackers: null,
+  journal: null,
+};
+
+function populateParts(dropped: readonly RpgExtractionDrop[]): RpgPopulatePart[] {
+  const named = new Set(dropped.map((drop) => POPULATE_DROP_PARTS[drop.plane]));
+  return RPG_POPULATE_PARTS.filter((part) => named.has(part));
+}
 
 /**
  * Parse a populate payload PER PLANE / PER ENTRY (the equal-drop contract, reused whole): the two state planes ride
@@ -748,16 +771,17 @@ export function salvagePopulate(value: unknown): RpgPopulateSalvage {
   // The live-play planes are DISCARDED here (never merely unread): a non-enforcing wire that volunteered a
   // `scene`/`party`/`trackers`/`journal` write gets nothing, by construction.
   const extraction: RpgExtraction = { party: [], inventory: salvaged.extraction.inventory, trackers: [], quests: salvaged.extraction.quests, journal: [] };
-  const dropped = salvaged.dropped.filter((drop) => POPULATE_DROP_PLANES.has(drop.plane));
+  const dropped = salvaged.dropped.filter((drop) => POPULATE_DROP_PARTS[drop.plane] !== null);
   const rawSheet = value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>)["sheet"] : undefined;
   if (rawSheet === undefined || rawSheet === null) {
-    return { sheet: null, extraction, dropped };
+    return { sheet: null, extraction, dropped, droppedParts: populateParts(dropped) };
   }
   const parsed = rpgPopulateSheetSchema.safeParse(rawSheet);
   if (!parsed.success) {
-    return { sheet: null, extraction, dropped: [...dropped, { plane: "root", index: null, issues: issueLines(parsed.error) }] };
+    const withSheet = [...dropped, { plane: "sheet", index: null, issues: issueLines(parsed.error) } satisfies RpgExtractionDrop];
+    return { sheet: null, extraction, dropped: withSheet, droppedParts: populateParts(withSheet) };
   }
-  return { sheet: parsed.data, extraction, dropped };
+  return { sheet: parsed.data, extraction, dropped, droppedParts: populateParts(dropped) };
 }
 
 /**
