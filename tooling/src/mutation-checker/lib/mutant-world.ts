@@ -98,7 +98,13 @@ export class MutantWorld implements Disposable {
 
   /** Open `config`, a path relative to `root`, in a new API process. */
   static open(root: string, config: string): MutantWorld {
-    return new MutantWorld(new API({ cwd: root }), root, resolve(root, config));
+    // a world that fails to open takes its compiler process down with it; one that opens owns the process
+    using opening = new DisposableStack();
+    // biome-ignore lint/nursery/useDisposables: the stack closes the API on a failed open, and the world on a good one
+    const api = opening.use(new API({ cwd: root }));
+    const world = new MutantWorld(api, root, resolve(root, config));
+    opening.move();
+    return world;
   }
 
   #snapshot(files: Readonly<Record<string, string>>): Snapshot {

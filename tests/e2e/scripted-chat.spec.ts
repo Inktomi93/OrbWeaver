@@ -114,7 +114,7 @@ for (const stopped of [false, true]) {
     const turns = stopped ? [STOP] : [FIRST, SECOND];
     for (const [index, turn] of turns.entries()) {
       const held = await sendHeldTurn(room, turn.userMessage);
-      await expect(messageRow(page, held.userId)).toContainText(turn.userMessage);
+      await expect(messageRow(page, held.userMessageId)).toContainText(turn.userMessage);
       await assertHeldPrefix(page, fixture, index, turn);
       // The greeting and any earlier reply are retained canon; neither may stand in for the held reply.
       await expect(held.awaitReply(WAIT_INSTANT_MS)).rejects.toThrow("no new assistant row");

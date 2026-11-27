@@ -39,8 +39,8 @@ test("pick a character, send a message, and the assistant streams a reply", {
   const chatId = await openCharacterRoom(page, CHARACTER);
   try {
     const message = "Hello there! Please introduce yourself briefly.";
-    const { userId, assistantId } = await sendAndAwaitReply({ page, chatId }, message);
-    await expect(messageRow(page, userId)).toContainText(message, { timeout: WAIT_SETTLE_MS });
+    const { userMessageId, assistantId } = await sendAndAwaitReply({ page, chatId }, message);
+    await expect(messageRow(page, userMessageId)).toContainText(message, { timeout: WAIT_SETTLE_MS });
 
     // With a character in the room there IS a speaker, so the assistant generates and its reply lands as a new
     // canonical row with non-empty content. (The Stop affordance is a ~ttft-length flash, so the landed row is the
@@ -75,7 +75,7 @@ test("a new room's first turn returns the composer to Send and a second message 
     // The room is genuinely usable again: a SECOND message commits its own durable row and its own reply.
     const message = "Great — now name one hobby you enjoy.";
     const second = await sendAndAwaitReply(room, message);
-    await expect(messageRow(page, second.userId)).toContainText(message, { timeout: WAIT_SETTLE_MS });
+    await expect(messageRow(page, second.userMessageId)).toContainText(message, { timeout: WAIT_SETTLE_MS });
     await expect(messageRow(page, second.assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
   } finally {
     await deleteChat(chatId);

@@ -252,13 +252,13 @@ export interface TurnRoom {
 
 /** The canon rows one send created. */
 export interface SentTurn {
-  readonly userId: MessageId;
+  readonly userMessageId: MessageId;
   readonly assistantId: MessageId;
 }
 
 /** A send whose user row has committed and whose reply is still owed. */
 export interface HeldTurn {
-  readonly userId: MessageId;
+  readonly userMessageId: MessageId;
   /** Resolves on a NEW assistant row after the user row; retained history never satisfies it. */
   readonly awaitReply: (timeoutMs?: number) => Promise<SentTurn>;
 }
@@ -291,18 +291,18 @@ export async function witnessTurn(room: TurnRoom, content: string, trigger: () =
     `no new user row with the sent content in ${room.chatId}: ${content}`,
     userRowTimeoutMs,
   );
-  const userId = soleUserRow(before, await listCanon(room.chatId), content);
+  const userMessageId = soleUserRow(before, await listCanon(room.chatId), content);
   return {
-    userId,
+    userMessageId,
     awaitReply: async (timeoutMs = WAIT_LIVE_TURN_MS): Promise<SentTurn> => {
       const assistantId = await pollCanon(
         room.chatId,
-        (canon) => newReplyRow(before, canon, userId),
-        `no new assistant row after ${userId} in ${room.chatId}`,
+        (canon) => newReplyRow(before, canon, userMessageId),
+        `no new assistant row after ${userMessageId} in ${room.chatId}`,
         timeoutMs,
       );
       soleUserRow(before, await listCanon(room.chatId), content);
-      return { userId, assistantId };
+      return { userMessageId, assistantId };
     },
   };
 }

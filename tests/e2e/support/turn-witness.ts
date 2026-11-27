@@ -29,9 +29,9 @@ export function soleUserRow(before: readonly WitnessRow[], after: readonly Witne
   return first;
 }
 
-/** The first new non-blank assistant row after the user row `userId`. A group round's later speakers follow it. */
-export function newReplyRow(before: readonly WitnessRow[], after: readonly WitnessRow[], userId: MessageId): MessageId | undefined {
-  const userSeq = after.find((row) => row.id === userId)?.seq;
+/** The first new non-blank assistant row after the user row `userMessageId`. A group round's later speakers follow it. */
+export function newReplyRow(before: readonly WitnessRow[], after: readonly WitnessRow[], userMessageId: MessageId): MessageId | undefined {
+  const userSeq = after.find((row) => row.id === userMessageId)?.seq;
   if (userSeq === undefined) {
     return undefined;
   }
