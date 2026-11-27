@@ -130,7 +130,14 @@ for (const regime of REGIMES) {
         const rows = set.ids.map((model, index) => ({ ...template, model: modelIdSchema.parse(model), generations: set.ids.length - index }));
         await recordPaintedText(page);
         await routeTrpc(page, {
-          ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "stats.freshness", "stats.wrapped", "stats.latency"]),
+          ...serveCorpusProcedures(caller, [
+            "sessions.me",
+            "settings.getUserSettings",
+            "stats.freshness",
+            "stats.wrapped",
+            "stats.latency",
+            "stats.embeddingCalls",
+          ]),
           "stats.byModel": (input) => rows.slice(0, input?.limit),
         });
         const component = await mount<typeof AccountingCoverageStory>(STORY, {

@@ -49,6 +49,7 @@ export const SECTION_PROCEDURES = [
   "worldInfo.countBooks",
   "stats.freshness",
   "stats.byModel",
+  "stats.embeddingCalls",
   "stats.leaderboard",
   "stats.wrapped",
   "stats.latency",

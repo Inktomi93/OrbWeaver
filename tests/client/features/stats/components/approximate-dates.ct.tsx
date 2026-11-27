@@ -22,6 +22,7 @@ const SERVED = [
   "stats.overview",
   "stats.momentum",
   "stats.byModel",
+  "stats.embeddingCalls",
   "stats.latency",
 ] as const;
 const DAYS_LATER = 3;

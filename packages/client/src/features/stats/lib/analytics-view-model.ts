@@ -13,6 +13,7 @@
 
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
+import type { EmbeddingCallTask, EmbeddingInvocationOutcome } from "@orb/contracts/embeddings";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { NO_VALUE } from "@orb/kit/strings";
@@ -343,4 +344,35 @@ export function formatPeak(peak: { readonly dayOfWeek: number; readonly hour: nu
     return null;
   }
   return `${WEEKDAY_LABELS[peak.dayOfWeek] ?? "?"} ${String(peak.hour).padStart(2, "0")}:00`;
+}
+
+/** What each paid call was for, in a reader's words. A new task is a `tsc` error here. */
+export const EMBEDDING_CALL_TASK_LABELS = {
+  embed: "Text embedding",
+  imageEmbed: "Image embedding",
+  rerank: "Rerank",
+} as const satisfies Record<EmbeddingCallTask, string>;
+
+/** How a paid call ended. A call recorded before outcomes were kept has none. */
+export const EMBEDDING_CALL_OUTCOME_LABELS = {
+  completed: "Completed",
+  failed: "Failed",
+} as const satisfies Record<EmbeddingInvocationOutcome, string>;
+
+/** The note on a call whose connection has since been deleted. */
+export const EMBEDDING_CALL_CONNECTION_GONE = "connection removed";
+
+/** One call's detail line: its task, how many inputs it carried and the connection it ran under. */
+export function embeddingCallSubtitle(call: {
+  readonly task: EmbeddingCallTask;
+  readonly inputCount: number;
+  readonly connectionLabel: string | null;
+}): string {
+  const inputs = `${call.inputCount} ${call.inputCount === 1 ? "input" : "inputs"}`;
+  return `${EMBEDDING_CALL_TASK_LABELS[call.task]} · ${inputs} · ${call.connectionLabel ?? EMBEDDING_CALL_CONNECTION_GONE}`;
+}
+
+/** One call's outcome, or the plain statement that none was kept. */
+export function embeddingCallOutcome(outcome: EmbeddingInvocationOutcome | null): string {
+  return outcome === null ? "Outcome not recorded" : EMBEDDING_CALL_OUTCOME_LABELS[outcome];
 }

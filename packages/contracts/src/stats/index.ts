@@ -4,7 +4,7 @@
 // chat→stats sideways import; the apply IMPL lives in `packages/server/src/domain/stats/persistence/apply-delta.ts`.
 
 import { DomainUnavailableError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatParticipantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, EmbeddingCallId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
 import { z } from "zod";
@@ -12,6 +12,10 @@ import type { GenerationUsageLeg, ProviderId } from "#inference";
 import { modelIdSchema, providerIdSchema } from "#inference";
 import type { TokenProvenance } from "../chat/token-provenance.ts";
 import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
+import type { EmbeddingCallTask, EmbeddingInvocationOutcome } from "../embeddings/accounting.ts";
+import { EMBEDDING_CALL_TASKS, EMBEDDING_INVOCATION_OUTCOMES } from "../embeddings/accounting.ts";
+import type { Modality } from "../inference/modalities.ts";
+import { modalitySchema } from "../inference/modalities.ts";
 
 /** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`), enforced at the transport trust
  *  boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence `rollups.ts` DoS clamp
@@ -617,6 +621,27 @@ export interface ModelStatRow {
   costUsd: number | null;
 }
 
+/** One paid embedding or rerank call from the owner's `embedding_calls` history, with the connection's current label. */
+export interface EmbeddingCallRow {
+  readonly id: EmbeddingCallId;
+  readonly task: EmbeddingCallTask;
+  /** The model the owner asked for. */
+  readonly model: string;
+  /** The model the provider reports having served; `null` when it names none. */
+  readonly servedModel: string | null;
+  readonly provider: ProviderId;
+  /** The connection's label now; `null` once the connection is deleted. */
+  readonly connectionLabel: string | null;
+  readonly inputCount: number;
+  readonly inputModalities: readonly Modality[];
+  readonly totalTokens: number | null;
+  readonly costUsd: number | null;
+  readonly costProvenance: TokenProvenance;
+  /** `null` for a call recorded before outcomes were kept. */
+  readonly outcome: EmbeddingInvocationOutcome | null;
+  readonly at: number;
+}
+
 export type StatsFreshness = { readonly hasData: false; readonly computedAt: null } | { readonly hasData: true; readonly computedAt: number };
 
 export interface PersonaUsageRow {
@@ -739,6 +764,22 @@ export const modelStatRowSchema = z.strictObject({
   costUsd: z.number().nullable(),
 }) satisfies z.ZodType<ModelStatRow>;
 
+export const embeddingCallRowSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.embeddingCall),
+  task: z.enum(EMBEDDING_CALL_TASKS),
+  model: z.string(),
+  servedModel: z.string().nullable(),
+  provider: providerIdSchema,
+  connectionLabel: z.string().nullable(),
+  inputCount: z.int(),
+  inputModalities: z.array(modalitySchema).readonly(),
+  totalTokens: z.int().nullable(),
+  costUsd: z.number().nullable(),
+  costProvenance: tokenProvenanceSchema,
+  outcome: z.enum(EMBEDDING_INVOCATION_OUTCOMES).nullable(),
+  at: z.number(),
+}) satisfies z.ZodType<EmbeddingCallRow>;
+
 export const statsFreshnessSchema = z.discriminatedUnion("hasData", [
   z.strictObject({ hasData: z.literal(false), computedAt: z.null() }),
   z.strictObject({ hasData: z.literal(true), computedAt: z.number() }),
@@ -812,6 +853,9 @@ export const statsLeaderboardInputSchema = z
 export const statsTimeseriesInputSchema = z.strictObject({ from: z.int().optional(), to: z.int().optional() }).optional();
 
 export const statsByModelInputSchema = z.strictObject({ limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional();
+
+/** The newest-first window of embedding calls a read returns; the same positive, capped limit `byModel` takes. */
+export const statsEmbeddingCallsInputSchema = statsByModelInputSchema;
 
 export const statsPersonaUsageInputSchema = z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();
 

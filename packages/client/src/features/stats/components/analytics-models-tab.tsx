@@ -22,9 +22,12 @@ import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ContextTabBody, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, timeLib } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import {
+  ANALYTICS_EMBEDDING_CALLS_HEADING,
+  ANALYTICS_EMBEDDING_CALLS_NAME,
+  ANALYTICS_EMBEDDING_CALLS_READ_LABEL,
   ANALYTICS_GENERATIONS_BY_MODEL_NAME,
   ANALYTICS_GENERATIONS_HEADING,
   ANALYTICS_MODELS_NAME,
@@ -33,6 +36,8 @@ import {
 } from "../lib/analytics-names.ts";
 import {
   byModelBarItems,
+  embeddingCallOutcome,
+  embeddingCallSubtitle,
   formatAccountingLabel,
   formatCompact,
   formatCompactNoun,
@@ -46,6 +51,9 @@ import {
 } from "../lib/analytics-view-model.ts";
 import { AccountingCoverageNotice } from "./accounting-coverage-notice.tsx";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
+
+const EMBEDDING_CALLS_LIMIT = 25;
+const NO_OUTCOME = "none";
 
 export function AnalyticsModelsTab(): ReactElement {
   return (
@@ -114,7 +122,62 @@ function ModelsBody(): ReactElement {
         )}
         <Text voice="gloss">{UNRECORDED_NOTE}</Text>
       </Section>
+
+      <QueryBoundary
+        resetKeys={[]}
+        fallback={<SkeletonRows count={3} shape="datum" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={ANALYTICS_EMBEDDING_CALLS_READ_LABEL} onRetry={retry} />}
+        reserveKey="analytics.embeddingCalls"
+      >
+        <EmbeddingCalls />
+      </QueryBoundary>
     </Stack>
+  );
+}
+
+/** The owner's recent paid embedding and rerank calls, newest first: the model that served each, its inputs, tokens,
+ *  cost with its provenance, outcome and connection. A library with none renders no section. */
+function EmbeddingCalls(): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: calls } = useSuspenseQuery(trpc.stats.embeddingCalls.queryOptions({ limit: EMBEDDING_CALLS_LIMIT }));
+  if (calls.length === 0) {
+    return null;
+  }
+  return (
+    <Section heading={ANALYTICS_EMBEDDING_CALLS_HEADING}>
+      <Stack aria-label={ANALYTICS_EMBEDDING_CALLS_NAME} gap="row" role="list">
+        {calls.map((call, index) => {
+          const served = call.servedModel ?? call.model;
+          const servedName = modelDisplayName(served);
+          return (
+            <Stack
+              aria-posinset={index + 1}
+              aria-setsize={calls.length}
+              data-call-id={call.id}
+              data-outcome={call.outcome ?? NO_OUTCOME}
+              data-task={call.task}
+              gap="field"
+              key={call.id}
+              role="listitem"
+            >
+              <ListRow
+                title={servedName}
+                {...(servedName === served ? {} : { fullTitle: served })}
+                subtitle={embeddingCallSubtitle(call)}
+                actions={
+                  <Text voice="datumMono" whitespace="nowrap">
+                    {shownValue(formatTokens(call.totalTokens, "measured"))} · {shownValue(formatUsd(call.costUsd))}
+                  </Text>
+                }
+              />
+              <Text voice="gloss">
+                {embeddingCallOutcome(call.outcome)} · {formatAccountingLabel("Cost", call.costUsd, call.costProvenance)} · {timeLib.formatRelative(call.at)}
+              </Text>
+            </Stack>
+          );
+        })}
+      </Stack>
+    </Section>
   );
 }
 

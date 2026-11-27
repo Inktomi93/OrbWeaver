@@ -146,6 +146,7 @@ for (const regime of REGIMES) {
             "stats.overview",
             "stats.momentum",
             "stats.byModel",
+            "stats.embeddingCalls",
             "stats.latency",
             "stats.character",
             "character.get",
