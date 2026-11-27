@@ -24,7 +24,7 @@ function run(root: string, ...args: readonly string[]): ReturnType<typeof runNic
   return runNicedSync("pnpm", ["exec", "vitest", "run", "--config", "vitest.config.ts", ...args], { cwd: root });
 }
 
-test("the native runner applies the configured slow timeout and positive tag filter", ({ repoRoot, scratch }) => {
+test("the native runner applies the configured slow timeout and positive tag filter", { tags: ["slow"] }, ({ repoRoot, scratch }) => {
   writeHarness(scratch, repoRoot);
   const result = run(scratch, "--tagsFilter=slow");
   expect(result.status).toBe(0);
@@ -32,7 +32,7 @@ test("the native runner applies the configured slow timeout and positive tag fil
   expect(existsSync(join(scratch, "normal-ran"))).toBe(false);
 });
 
-test("the native runner supports negative tag filtering", ({ repoRoot, scratch }) => {
+test("the native runner supports negative tag filtering", { tags: ["slow"] }, ({ repoRoot, scratch }) => {
   writeHarness(scratch, repoRoot);
   const result = run(scratch, "--tagsFilter=!slow");
   expect(result.status).toBe(0);
@@ -40,7 +40,7 @@ test("the native runner supports negative tag filtering", ({ repoRoot, scratch }
   expect(existsSync(join(scratch, "normal-ran"))).toBe(true);
 });
 
-test("strictTags refuses an unknown runtime tag", ({ repoRoot, scratch }) => {
+test("strictTags refuses an unknown runtime tag", { tags: ["slow"] }, ({ repoRoot, scratch }) => {
   writeHarness(scratch, repoRoot, "slwo");
   const result = run(scratch, "--reporter=default");
   expect(result.status).not.toBe(0);
@@ -55,7 +55,7 @@ test("existing opt-in flags remove only their corresponding default tag exclusio
   expect(testTagFilters(flags(["E2E_LIVE", "1"], ["ORB_LOCAL_LIGHT_E2E", "1"]))).toEqual([]);
 });
 
-test("the native thread runner skips a process.chdir module while executing an ordinary module", ({ repoRoot, scratch }) => {
+test("the native thread runner skips a process.chdir module while executing an ordinary module", { tags: ["slow"] }, ({ repoRoot, scratch }) => {
   const registry = pathToFileURL(join(repoRoot, "tooling/src/floor/testing/test-tags.ts")).href;
   writeFileSync(join(scratch, "package.json"), '{"name":"vitest-module-tag-control","private":true,"type":"module"}\n');
   writeFileSync(

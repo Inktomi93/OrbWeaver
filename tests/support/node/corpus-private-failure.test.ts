@@ -140,7 +140,7 @@ test("nonprivate and repository output roots refuse without writing evidence", a
   expect(await readdir(privateRoot)).toEqual([".git"]);
 });
 
-test("the actual public CLI wrong-input path creates no private artifact or private error output", async ({ privateRoot }) => {
+test("the actual public CLI wrong-input path creates no private artifact or private error output", { tags: ["slow"] }, async ({ privateRoot }) => {
   const result = await spawnNiced("pnpm", ["--config.verify-deps-before-run=false", "exec", "node", "scripts/corpus-fixture.ts", "publish"], {
     env: {
       ["npm_config_verify_deps_before_run"]: "false",
