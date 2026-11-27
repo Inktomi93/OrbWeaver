@@ -20,6 +20,7 @@ import type {
   TurnGlobalVariables,
 } from "@orb/contracts/chat";
 import { speakerKey, stripSendPlaceholders } from "@orb/contracts/chat";
+import type { DatabankPassage } from "@orb/contracts/databank";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -407,6 +408,8 @@ interface BuildAssembleContextInput {
   /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
    *  the slot resolves empty (byte-identical to a non-databank turn). */
   readonly databank?: string | null | undefined;
+  /** The documents and spans seated in {@link BuildAssembleContextInput.databank}, for the host's trace. */
+  readonly databankPassages?: readonly DatabankPassage[] | undefined;
   /** The 8 rpg* data-fed macro values (D58), keyed by the RpgGatherMacros field names — a game
    *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
   readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
@@ -530,6 +533,7 @@ function buildBaseContext(
   setIf(base, "macroTrace", input.macroTrace);
   // Absent (undefined) ⇒ skipped ⇒ byte-identical to a non-databank build (the null-op pin, DB6).
   setIf(base, "databank", input.databank);
+  setIf(base, "databankPassages", input.databankPassages);
   setIf(base, "compactSummary", input.compactSummary);
   setIf(base, "compactedThroughSeq", input.compactedThroughSeq);
   setIf(base, "guidedInstruction", input.guidedInstruction);

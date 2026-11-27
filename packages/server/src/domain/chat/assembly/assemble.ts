@@ -761,6 +761,8 @@ function freshTrace(ctx: AssembleContext): AssembleTrace {
     // Same posture: the registry build's own slice, absent when no home offered a user macro.
     ...(ctx.macroTrace === undefined ? {} : { macros: ctx.macroTrace }),
     databankIncluded: false,
+    // Copied verbatim from the ctx the gather staged it on, like `memoryRecall` above.
+    ...(ctx.databankPassages === undefined ? {} : { databankPassages: ctx.databankPassages }),
     guidedInstructionIncluded: false,
     staticCacheBusters: [],
     chatInjectionsIncluded: 0,

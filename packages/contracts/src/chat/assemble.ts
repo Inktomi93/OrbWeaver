@@ -15,6 +15,8 @@ import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { AuthorsNoteEdge, EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
 import { AUTHORS_NOTE_EDGES, ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
+import type { DatabankPassage } from "#databank";
+import { databankPassageSchema } from "#databank";
 import type { GenerationType, PromptConfig, PromptSectionId, UserIntent } from "#preset";
 import { promptSectionIdSchema, userIntentViewSchema } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
@@ -316,6 +318,9 @@ export interface AssembleTrace {
    *  "documents are attached": a chat with a full bank still reads false when the active preset places no
    *  databank section, which is exactly the invisible failure this refuses. */
   databankIncluded: boolean;
+  /** The documents and chunk spans the databank retrieved this turn and seated in the slot. Absent when the turn
+   *  retrieved none, and on a trace stored before the span was kept. */
+  databankPassages?: readonly DatabankPassage[];
   guidedInstructionIncluded: boolean;
   /** Volatile macros that landed in the STATIC half — each busts prompt cache every turn. */
   staticCacheBusters: string[];
@@ -780,6 +785,9 @@ export interface AssembleContext {
    *  databank GATHER op. ABSENT (never `""`) ⇒ the slot resolves empty, byte-identical to a
    *  non-databank turn. */
   databank?: string | null;
+  /** The passages seated in {@link AssembleContext.databank}, copied verbatim onto {@link AssembleTrace.databankPassages}
+   *  by the BUILD walk: a trace input rides the ctx beside the text it explains. */
+  databankPassages?: readonly DatabankPassage[] | undefined;
   /** Per-chat ChoiceBlock variable values (the `getvar` map) — threaded BY REFERENCE so a within-turn
    *  `setvar` mutates it in place. */
   variableValues?: Record<string, string> | undefined;
@@ -905,6 +913,7 @@ export const assembleTraceSchema = z.strictObject({
   memoryRecall: memoryRecallSliceSchema.nullable(),
   macros: macroSliceSchema.exactOptional(),
   databankIncluded: z.boolean(),
+  databankPassages: z.array(databankPassageSchema).readonly().exactOptional(),
   guidedInstructionIncluded: z.boolean(),
   staticCacheBusters: z.array(z.string()),
   chatInjectionsIncluded: z.number(),

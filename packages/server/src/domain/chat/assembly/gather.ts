@@ -45,6 +45,8 @@ export interface GatherMemoryOps {
 }
 
 type GatherDatabankParams = Parameters<NonNullable<ChatContext["gatherDatabank"]>>[0];
+/** What the databank gather delivered: the slot text and the passages it seated. */
+type DatabankSlot = NonNullable<Awaited<ReturnType<NonNullable<ChatContext["gatherDatabank"]>>>>;
 
 // ── the {{databank}} slot GATHER ──────────────────────────────────────────
 /** The retrieval query = pending + the last N committed turns. LEAN: code constants
@@ -66,7 +68,7 @@ function buildDatabankQuery(pendingUserText: string | undefined, eligibleContent
   return parts.join("\n").slice(0, DATABANK_QUERY_MAX_CHARS);
 }
 
-/** Resolve the `{{databank}}` slot string for the round. `undefined` when the op is absent OR returns null
+/** Resolve the `{{databank}}` slot for the round: its text and the passages seated in it. `undefined` when the op is absent OR returns null
  *  (bankless scope / no hits / budget too small) — the `setIf`-skipped byte-identity pin: an absent op and a
  *  null result produce the SAME empty slot resolution. */
 async function gatherDatabank(
@@ -82,7 +84,7 @@ async function gatherDatabank(
     readonly warningEpisode: TurnRetrievalWarningEpisode;
     readonly signal: AbortSignal;
   },
-): Promise<string | undefined> {
+): Promise<DatabankSlot | undefined> {
   if (ctx.gatherDatabank === undefined) {
     return;
   }
@@ -106,7 +108,7 @@ async function gatherDatabank(
     // unused on this arm — databank's own rerank degrade is not wired, so the binding never calls it.
     { onRerankUnavailable: args.warningEpisode.reportRerankUnavailable, onIndexUnavailable: args.warningEpisode.reportIndexUnavailable },
   );
-  return result === null ? undefined : result.text;
+  return result ?? undefined;
 }
 
 /** A committed canon row, prompt-eligible (the slim shape the gather projects from `MessageView`). */
@@ -325,7 +327,7 @@ async function gatherRetrievalSlots(
     readonly warningEpisode: TurnRetrievalWarningEpisode;
   },
   out: SendRegexSink | undefined,
-): Promise<readonly [Awaited<ReturnType<typeof gatherMemory>>, string | undefined]> {
+): Promise<readonly [Awaited<ReturnType<typeof gatherMemory>>, DatabankSlot | undefined]> {
   if (args.retrieval === "none") {
     return [NO_MEMORY, undefined];
   }
@@ -487,7 +489,7 @@ export async function gatherAssembleContext(
       // when recall never ran (no character to key on).
       ...(memory.trace === null ? {} : { memoryTrace: memory.trace }),
       // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).
-      ...(databank !== undefined ? { databank } : {}),
+      ...(databank !== undefined ? { databank: databank.text, databankPassages: databank.passages } : {}),
       // The parity-plus P6 feed (§12): rpg macro map + `{{expr}}` CEL activation + `{{idle_duration}}`. Each field
       // is omitted when empty/absent ⇒ byte-identical to a non-game / no-idle build (the honest-empty pin).
       ...p6Fields(args.rpgMacros, args.rpgCelBindings, idleDuration),

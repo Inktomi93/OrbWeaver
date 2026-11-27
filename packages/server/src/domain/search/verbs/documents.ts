@@ -29,6 +29,8 @@ interface DocumentCandidate {
   readonly chunkId: DocumentChunkHit["chunkId"];
   readonly chunkIdx: number;
   readonly content: string;
+  readonly charStart: number;
+  readonly charEnd: number;
   readonly contentHash: string;
   readonly distance: number;
   readonly hubScore: number | null;
@@ -58,6 +60,8 @@ function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChun
         documentName: c.documentName,
         chunkId: c.chunkId,
         content: c.content,
+        charStart: c.charStart,
+        charEnd: c.charEnd,
         score: c.score,
       });
     }
@@ -123,6 +127,8 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
             chunkId: r.chunkId,
             chunkIdx: r.chunkIdx,
             content: r.content,
+            charStart: r.charStart,
+            charEnd: r.charEnd,
             contentHash: r.contentHash,
             distance: r.distance,
             hubScore: r.hubScore,
