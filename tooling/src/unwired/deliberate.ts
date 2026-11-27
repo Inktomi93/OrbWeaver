@@ -36,6 +36,7 @@ const FORENSIC_AUDIT =
   "docs/law/Tier-1-DB.md: the audit log is a database-only forensic record; the app writes it and an operator reads it with database tools on a copy of the file";
 const CARD_ROUND_TRIP =
   "docs/law/Spine-Config-and-Serialization.md: a card round-trips import to export unchanged, so the V3 media manifest is parsed and carried on `residualData` for export to re-emit, and no consumer reads it by key";
+const PLUGIN_RAW_METADATA = "owner ruling 2026-11-27: the plugin provider's raw metadata stays";
 const STATED_REASON = "D107: a declared field is wired or cites its reason, and this one is where its registry row states that reason";
 const CONTENT_CLASS_PAIR =
   ".claude/rules/chat.md: the content-class policy table and its dispatch in spanToWirePart are edited together, and `wire` is the table's side of that pair";
@@ -45,6 +46,7 @@ export const DELIBERATE: readonly DeliberateEntry[] = [
   { directory: "packages/plugin-sdk/", reason: PUBLISHED_API },
   { file: "packages/db/src/schema/audit.ts", home: "auditLogs", member: null, reason: FORENSIC_AUDIT },
   { file: "packages/contracts/src/character/index.ts", home: "characterCardDataFields", member: "assets", reason: CARD_ROUND_TRIP },
+  { file: "packages/contracts/src/chat/messages.ts", home: "pluginProviderMetadataSchema", member: "raw", reason: PLUGIN_RAW_METADATA },
   { file: "packages/contracts/src/automation/index.ts", home: "triggerFactPayloadSchema", member: null, reason: PUBLISHED_API },
   { file: "packages/contracts/src/automation/index.ts", home: "ListRulesParams", member: null, reason: `ListRulesOp is ${ROSTER_PRESET_OPS}` },
   { file: "packages/contracts/src/automation/index.ts", home: "DeleteRuleParams", member: null, reason: `DeleteRuleOp is ${ROSTER_PRESET_OPS}` },
