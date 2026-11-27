@@ -56,6 +56,7 @@ const TOKENIZER_PHRASES: ChatWarning = { ...SOME_PHRASES, cause: "tokenizer" };
 const ALL_PHRASES: ChatWarning = { code: SETTINGS_ADJUSTED_CODE, adjustment: WARNING_CODE.samplingKnobDropped, knob: "bannedStrings" };
 // A warning with its own notice: once it shows, every frame sent before it was handled.
 const SENTINEL: ChatWarning = { code: "provider_refused" };
+const DOWNGRADED: ChatWarning = { code: "model_downgraded" };
 // The reads the preset editor makes once the notice's door has opened it.
 const PRESET_PROCEDURES = [
   "settings.getUserSettings",
@@ -189,6 +190,41 @@ test("the same drops on the same preset and connection stay quiet, and another m
   phase += 1;
   const otherPreset = noticeToast(page, warningNotice(TOP_K));
   await expect(otherPreset).toBeVisible();
+});
+
+// A plan limit downgrades every turn until it resets, so a downgrade is said when it starts and not on each repeat.
+test("a model downgrade on every turn of one connection is said once", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const room = { root, chatId };
+  const phases: readonly (readonly StreamFrame[])[] = [
+    turnFrames(room, { model: MODEL, warnings: [DOWNGRADED], from: FIRST_SEQ }),
+    [
+      ...turnFrames(room, { model: MODEL, warnings: [DOWNGRADED], from: FIRST_SEQ + 10 }),
+      { channel: "chat", chatId, seq: FIRST_SEQ + 20, event: { type: "warning", chatId, ...SENTINEL } },
+    ],
+  ];
+  let phase = 0;
+  await serveRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, {
+    awaitRooms: [{ channel: "chat", chatId }, { channel: "user" }],
+    dropConnectionCount: RECONNECTS_UNTIL_CLOSED,
+    frames: (): Promise<readonly StreamFrame[]> => Promise.resolve(phases[phase] ?? []),
+  });
+  await mount<typeof TurnDropsRoomStory>(STORY, { chatId });
+  await socket.served();
+  const toasts = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).locator('[data-slot="toast-root"]');
+
+  const downgraded = noticeToast(page, warningNotice(DOWNGRADED));
+  await expect(downgraded).toBeVisible();
+  await downgraded.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
+  await expect(downgraded).toHaveCount(0);
+  phase += 1;
+
+  // Once the sentinel shows, the second turn was handled, and its repeat of the downgrade raised nothing.
+  await expect(noticeToast(page, warningNotice(SENTINEL))).toBeVisible();
+  await expect(toasts).toHaveCount(1);
 });
 
 test("a partial banned-phrase drop raises its own notice, which says the rest were sent, and a whole drop keeps the plain one", async ({

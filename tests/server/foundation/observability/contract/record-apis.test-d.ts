@@ -1,6 +1,7 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { GenerationUsageLeg } from "@orb/contracts/inference";
 import type { auditLogs } from "@orb/db";
+import type { ChatRunnerEvent } from "@orb/inference";
 import type {
   AuditEntry,
   RequestTrace,
@@ -56,6 +57,9 @@ test("diagnostic inputs preserve opaque metadata, raw strings and explicit optio
   expectTypeOf<WireWarning["code"]>().toEqualTypeOf<string>();
   expectTypeOf<WireOutcome["finishReason"]>().toEqualTypeOf<string | null>();
   expectTypeOf<WireOutcome["reasoningEffort"]>().toEqualTypeOf<string | null>();
+  // The outcome's events are the inference contract's own type; a warning rides `warnings` instead.
+  expectTypeOf<WireOutcome["events"]>().toEqualTypeOf<readonly ChatRunnerEvent[]>();
+  expectTypeOf<Extract<WireOutcome["events"][number], { readonly kind: "warning" }>>().toBeNever();
   expectTypeOf<{ turnId: undefined }>().not.toExtend<Parameters<RpgTraceInspector["recent"]>[0]>();
 });
 

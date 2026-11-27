@@ -335,12 +335,15 @@ const costStateEntrySchema = z
   .object({
     type: z.literal(COST_STATE_ENTRY),
     sessionId: agentSdkSessionIdSchema,
-    modelUsage: z.record(z.string(), z.object({ costUSD: z.number(), webSearchRequests: z.number() }).strip()),
+    modelUsage: z.record(
+      z.string(),
+      z.object({ costUSD: z.number(), webSearchRequests: z.number(), inputTokens: z.number().optional(), outputTokens: z.number().optional() }).strip(),
+    ),
   })
   .strip();
 
 /** No saved spend: a seeded or forked transcript, and every fresh session. */
-export const NO_SAVED_TOTALS: AgentSdkSessionTotals = { costUsd: 0, webSearchRequests: 0 };
+export const NO_SAVED_TOTALS: AgentSdkSessionTotals = { costUsd: 0, webSearchRequests: 0, models: {} };
 
 /** The spend totals the transcript saved for `sessionId`, which the runtime carries into the next result.
  *  Null when a `cost-state` entry for the session is present but unreadable: the turn's own spend is then
@@ -352,14 +355,20 @@ export function savedSessionTotals(entries: readonly SessionStoreEntry[], sessio
       continue;
     }
     const parsed = costStateEntrySchema.safeParse(entry);
-    totals = parsed.success
-      ? Object.values(parsed.data.modelUsage).reduce(
-          (sum, usage) => ({ costUsd: sum.costUsd + usage.costUSD, webSearchRequests: sum.webSearchRequests + usage.webSearchRequests }),
-          NO_SAVED_TOTALS,
-        )
-      : null;
+    totals = parsed.success ? totalsOf(parsed.data.modelUsage) : null;
   }
   return totals;
+}
+
+function totalsOf(modelUsage: z.infer<typeof costStateEntrySchema>["modelUsage"]): AgentSdkSessionTotals {
+  const entries = Object.entries(modelUsage);
+  return {
+    costUsd: entries.reduce((sum, [, usage]) => sum + usage.costUSD, 0),
+    webSearchRequests: entries.reduce((sum, [, usage]) => sum + usage.webSearchRequests, 0),
+    models: Object.fromEntries(
+      entries.map(([model, usage]) => [model, { costUsd: usage.costUSD, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens }]),
+    ),
+  };
 }
 
 export type { SeedTurn } from "#src/contract/agent-sdk-backend.ts";

@@ -58,7 +58,7 @@ import { statementForOwner } from "@orb/db/wiring-owner";
 // arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
 // `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
 // `infra-below-domain` bans.
-import type { Resolved, ResolvedWarning } from "@orb/inference";
+import type { ChatRunnerEvent, Resolved, ResolvedWarning } from "@orb/inference";
 import { GenerationObservationPersistenceError, generationOf, ProviderError, supportsManagedCompaction } from "@orb/inference";
 import { concealsBrokenHiddenTag } from "@orb/kit/content";
 import type { DomainOperationDetail } from "@orb/kit/errors";
@@ -1423,6 +1423,10 @@ function captureTurnOutcome(ctx: EngineContext, prep: TurnPrep, result: Awaited<
     // deliberately does not carry. This ring is where "which knob did the provider refuse, and what
     // did it clamp to" is answered after the fact.
     warnings: result.runnerWarnings.map((warning) => ({ code: warning.code, message: warning.message })),
+    // Every other runner event as the runner reported it, the provider's own strings included: the room's
+    // notices carry codes alone, so this record is where the refusal's category, the fallback and billed model
+    // names, the denied tools and the runner's diagnostics are read.
+    events: result.runnerEvents,
   });
 }
 
@@ -1498,8 +1502,9 @@ function captureTurnFault(ctx: EngineContext, prep: TurnPrep, err: unknown, reas
       modelCalls: null,
       reasoningEffort: prep.intent.effort ?? null,
       toolCalls: [],
-      // A fault threw out of the pipeline, so no warning it may have carried survived to this arm.
+      // A fault threw out of the pipeline, so no warning or runner event it may have carried survived to this arm.
       warnings: [],
+      events: [],
     });
   } catch (recordErr) {
     getLog(ctx.logger).warn({ err: recordErr, chatId: prep.chatId }, "chat: the turn-fault outcome record failed (the original turn error is unaffected)");
@@ -2486,7 +2491,7 @@ async function emitCapabilityDropWarnings(
     readonly toolsUnsupported: boolean;
     readonly guidedPlacedAsInjection: boolean;
     readonly runnerWarnings: readonly ResolvedWarning[];
-    readonly providerRefused: boolean;
+    readonly runnerEvents: readonly ChatRunnerEvent[];
   },
 ): Promise<void> {
   if (result.imageDropped) {
@@ -2503,12 +2508,10 @@ async function emitCapabilityDropWarnings(
   if (result.guidedPlacedAsInjection) {
     await emit({ type: "warning", chatId, code: "guided_placed_as_injection" });
   }
-  // The provider DECLINED (a content-filter finish on the wire). Not a capability drop like the four above —
-  // nothing of ours was dropped — but the same obligation: a refusal that surfaces as a blank or truncated
-  // reply with no reason is exactly the silent degrade D41 exists to forbid.
-  if (result.providerRefused) {
-    await emit({ type: "warning", chatId, code: "provider_refused" });
-  }
+  // The runner's own verdicts: a refusal, a billed-model change, a denied tool. Not capability drops like the four
+  // above — nothing of ours was dropped — but the same obligation: a refusal that surfaces as a blank reply, or a
+  // reply another model wrote, with no word said is exactly the silent degrade D41 exists to forbid.
+  await Promise.all(runnerEventNotices(result.runnerEvents).map((code) => emit({ type: "warning", chatId, code })));
   // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
   // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL:
   // the translation answers for every infra code, so nothing is filtered out here.
@@ -2519,6 +2522,45 @@ async function emitCapabilityDropWarnings(
       .filter((warning) => warning.code !== "declared_overrides_measured")
       .map((warning) => emit({ type: "warning", chatId, ...toChatWarning(warning) })),
   );
+}
+
+/** The room notices a turn's runner events raise, one per code however many depths repeat it. Only the kinds that
+ *  change what the person should do raise one; the runner's diagnostics reach the wire-outcome record alone. The
+ *  provider's own strings (refusal category and explanation, model and tool names) stay on that record: a `warning`
+ *  bus member carries only closed codes. TOTAL by `assertNever`, so a new `ChatEvent` kind fails `tsc` here until it
+ *  is ruled user-facing or diagnostic. */
+function runnerEventNotices(events: readonly ChatRunnerEvent[]): PlainChatWarningCode[] {
+  const codes = new Set<PlainChatWarningCode>();
+  for (const event of events) {
+    switch (event.kind) {
+      case "refusal":
+        codes.add(event.retried ? "provider_refused_fallback" : "provider_refused");
+        break;
+      case "model_downgrade":
+        codes.add("model_downgraded");
+        break;
+      case "permission_leak":
+        codes.add("tool_permission_denied");
+        break;
+      case "compaction":
+      case "api_retry":
+      case "rate_limit":
+      case "status":
+      case "auth_status":
+        break;
+      default:
+        assertNeverRunnerEvent(event);
+    }
+  }
+  // A fallback model is why another model billed, so its notice already says what the downgrade notice would.
+  if (codes.has("provider_refused_fallback")) {
+    codes.delete("model_downgraded");
+  }
+  return [...codes];
+}
+
+function assertNeverRunnerEvent(event: never): never {
+  throw new Error(`runnerEventNotices: unhandled runner event ${JSON.stringify(event)}`);
 }
 
 /** The infra→chat warning translation (D41 no-silent-degrade, the READ end). Chat OWNS its bus vocabulary, so

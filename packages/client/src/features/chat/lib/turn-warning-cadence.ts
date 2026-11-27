@@ -23,6 +23,8 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "guided_placed_as_injection":
     case "custom_parameters_ignored":
     case "own_server_features_ignored":
+    // A plan limit downgrades every turn until it resets, so the room hears it when it starts or changes.
+    case "model_downgraded":
       return "turn-grouped";
     case "background_task_degraded":
     case "smart_arbitration_degraded":
@@ -44,6 +46,8 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "context_tokenizer_unavailable":
     case "context_trimmed_no_summary":
     case "provider_refused":
+    case "provider_refused_fallback":
+    case "tool_permission_denied":
     case "reply_image_failed":
     case "global_variable_dropped":
     case "hidden_tag_broken":

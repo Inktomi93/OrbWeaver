@@ -1,6 +1,7 @@
 import type { ToolCallRecord, TurnAbortReason } from "@orb/contracts/chat";
 import type { WireCapture } from "@orb/contracts/debug";
 import type { GenerationUsageLeg, ProviderId, ResolvedWarning } from "@orb/contracts/inference";
+import type { ChatRunnerEvent } from "@orb/inference";
 import type { LookupText } from "@orb/kit/ids";
 
 /** Provider filters remain raw query strings, including names that match no captured provider. */
@@ -36,4 +37,6 @@ export interface WireOutcome extends Readonly<Pick<GenerationUsageLeg, "tokensOu
   readonly reasoningEffort: string | null;
   readonly toolCalls: readonly WireToolCall[];
   readonly warnings: readonly WireWarning[];
+  /** The runner's other events, raw: refusals, billed-model changes, denied tools and the runner's diagnostics. */
+  readonly events: readonly ChatRunnerEvent[];
 }

@@ -2,7 +2,10 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { CLAUDE_CONFIG_DIR_ENV } from "@orb/contracts/preset";
+import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 import { createSeededIds } from "@orb/testkit/iso";
+import { expect } from "@orb/testkit/node";
 import type { ChatRoot, ChatRootOptions, TranscriptLine } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
@@ -24,9 +27,26 @@ const receiptSchema = z.object({
   held: z.boolean(),
   argv: z.array(z.string()),
   importedSeed: z.object({ sessionId: z.uuid(), rowCount: z.number(), firstText: z.string(), lastText: z.string() }).optional(),
+  // The models the session's saved `cost-state` already held when this turn started.
+  savedModels: z.array(z.string()).optional(),
 });
 const behaviorSchema = z.enum(["reply", "fail", "hold"]);
-const policySchema = z.object({ marker: behaviorSchema, foreground: behaviorSchema, inputTokens: z.number(), inspectHistory: z.literal(true).optional() });
+const policySchema = z.object({
+  marker: behaviorSchema,
+  foreground: behaviorSchema,
+  inputTokens: z.number(),
+  inspectHistory: z.literal(true).optional(),
+  // Raw SDK protocol frames the foreground turn writes before its reply; `slot` names the parent frame identity each takes.
+  frames: z.array(z.object({ slot: z.string(), frame: z.record(z.string(), z.json()) })).optional(),
+  // The foreground result's billed models and permission denials, verbatim SDK protocol records.
+  modelUsage: z.record(z.string(), z.json()).optional(),
+  permissionDenials: z.array(z.json()).optional(),
+  // The executable keeps its session's saved usage as the runtime does, so a resumed turn's `modelUsage` is cumulative.
+  carryUsage: z.literal(true).optional(),
+});
+
+/** The stored credential secret the room's connection carries, so a case can plant it in what the SDK returns. */
+export const ENGINE_SDK_CREDENTIAL = "controlled-engine-native-token";
 const sdkFixtureIds = createSeededIds();
 
 // Alternating owner and primary-character lines; the import attributes each assistant line to the primary seat.
@@ -88,7 +108,8 @@ export async function sdkEngineRoom(
         ids: sdkFixtureIds,
         ...rootOptions.server,
         sdkSpawn: (input) => {
-          const physicalPolicy = policy.inspectHistory === true ? { ...policy, materializedRuntime: input.env[CLAUDE_CONFIG_DIR_ENV] } : policy;
+          const readsTranscript = policy.inspectHistory === true || policy.carryUsage === true;
+          const physicalPolicy = readsTranscript ? { ...policy, materializedRuntime: input.env[CLAUDE_CONFIG_DIR_ENV] } : policy;
           const child = spawn({ ...input, args: [...input.args, `${ENGINE_SDK_POLICY}${JSON.stringify(physicalPolicy)}`] });
           let pending = "";
           child.stderr.on("data", (bytes: Buffer) => {
@@ -111,7 +132,7 @@ export async function sdkEngineRoom(
       },
     }),
   );
-  const credential = await h.root.services.credentials.add({ principal: h.owner, provider: "claude-sub", key: "controlled-engine-native-token" });
+  const credential = await h.root.services.credentials.add({ principal: h.owner, provider: "claude-sub", key: ENGINE_SDK_CREDENTIAL });
   const connection = await h.root.services.connection.create({
     principal: h.owner,
     providerId: "claude-sub",
@@ -148,4 +169,19 @@ export async function sdkEngineRoom(
       (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).flatMap(({ event }) => (event.type === "warning" ? [event] : [])),
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
   };
+}
+
+/** The room's turn outcomes as the authenticated debug door serves them, after its recorder state is checked. */
+export async function readDebugOutcomes(h: ChatRoot, debugToken: string): Promise<JsonValue[]> {
+  const response = await h.root.http.request(`/api/_debug/wire/outcomes?chatId=${h.chatId}`, {
+    headers: { "x-debug-token": debugToken },
+  });
+  expect(response.status).toBe(200);
+  const body = jsonValueSchema.parse(await response.json());
+  if (body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["outcomes"])) {
+    throw new Error("the real debug outcome response has no outcome list");
+  }
+  expect(body["enabled"]).toBe(true);
+  expect(body["count"]).toBe(body["outcomes"].length);
+  return body["outcomes"];
 }

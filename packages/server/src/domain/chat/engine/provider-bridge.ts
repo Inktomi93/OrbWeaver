@@ -1,47 +1,54 @@
-// Preserve streamed text and provider refusal identity while adapting push delivery to chat's pull stream.
+// Preserve streamed text and every runner event while adapting push delivery to chat's pull stream.
 import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, ProviderExecutor } from "@orb/inference";
 import { toChatRequest } from "@orb/inference";
 import type { PromptCacheMinDepthOp } from "../contract/engine-context.ts";
 import type { TurnRequest, TurnStreamChunk } from "../contract/results.ts";
 
 /** The runner's `ChatResult.events` → the domain stream's out-of-band chunks (D41 no-silent-degrade, the READ
- *  end). The bridge CARRIES the infra codes; it does not translate them — chat owns its bus vocabulary, so the
+ *  end). The bridge CARRIES every event; it translates none — chat owns its bus vocabulary, so the
  *  infra→`ChatWarningCode` narrowing lives in the domain (`engine.ts` `toChatWarning`), the mirror of the
  *  IMAGE role's hop where compose hands the domain a narrowed infra code and
- *  `domain/chat/verbs/generate-image.ts` does the re-map. Deduped here because one runner can repeat a code
- *  within a single result; the pipeline dedupes again across recursion depths.
- *  Extracted so the bridge body stays under the cognitive-complexity cap.
+ *  `domain/chat/verbs/generate-image.ts` does the re-map. Extracted so the bridge body stays under the
+ *  cognitive-complexity cap.
  *
- *  TWO event kinds cross, not one. `refusal` rides as its OWN chunk kind because it is not a degrade of our
- *  settings but the model's verdict on the request; it collapses to a single chunk for the same reason the
- *  warnings dedupe (a result can carry more than one), and it crosses PAYLOAD-FREE — the provider's
- *  `category`/`explanation`/`fallbackModel` are raw strings the chat bus may not carry, and they stay on
- *  `ChatResult.events` for the wire-outcome ring.
- *
- *  WHAT DELIBERATELY DOES NOT CROSS: `rate_limit`. It is an OPERATOR signal about the account's remaining
- *  headroom, not a fact about this reply — the turn succeeded — and its payload is raw provider strings. It
- *  has a home already (the `provider.rate_limit` log line beside the emit, and the event on `ChatResult`);
- *  telling every member of a room that the host is at 80% of a rate limit mid-story is noise, not honesty.
- *  Same for `compaction`/`api_retry`/`status`/`auth_status`/`model_downgrade`/`permission_leak`: diagnostics
- *  with no user decision behind them. If one ever earns a room-public surface it needs its own bus member and
- *  its own ruling, not a quiet addition here. */
+ *  A `warning` rides as its own chunk, deduped here because one runner can repeat a code within a single result;
+ *  the pipeline dedupes again across recursion depths. Every other kind rides raw as a `runner_event` chunk, and
+ *  its readers are the engine's: `emitCapabilityDropWarnings` turns a refusal, a billed-model change and a denied
+ *  tool into room notices, and `captureTurnOutcome` puts every runner event on the wire-outcome record. The
+ *  runner's diagnostics (compaction, retries, activity status, rate limits, auth state) reach only that record. */
 function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
   const seen = new Map<string, TurnStreamChunk>();
-  let refused = false;
+  const carried: TurnStreamChunk[] = [];
   for (const event of events) {
-    if (event.kind === "refusal") {
-      refused = true;
-    }
-    if (event.kind === "warning") {
-      const { kind: _kind, at: _at, ...warning } = event;
-      // KEYED ON THE WHOLE WARNING, not on the code alone: with the drop's structured half carried
-      // through, two DIFFERENT dropped knobs share the `sampling_knob_dropped` code and are two distinct
-      // degrades — a code-keyed dedupe would silently pick one and lie about the other. Identical repeats
-      // (the same runner re-raising the same drop) still collapse to one.
-      seen.set(JSON.stringify(warning), { kind: "warning", ...warning });
+    switch (event.kind) {
+      case "warning": {
+        const { kind: _kind, at: _at, ...warning } = event;
+        // KEYED ON THE WHOLE WARNING, not on the code alone: with the drop's structured half carried
+        // through, two DIFFERENT dropped knobs share the `sampling_knob_dropped` code and are two distinct
+        // degrades — a code-keyed dedupe would silently pick one and lie about the other. Identical repeats
+        // (the same runner re-raising the same drop) still collapse to one.
+        seen.set(JSON.stringify(warning), { kind: "warning", ...warning });
+        break;
+      }
+      case "refusal":
+      case "model_downgrade":
+      case "permission_leak":
+      case "compaction":
+      case "api_retry":
+      case "rate_limit":
+      case "status":
+      case "auth_status":
+        carried.push({ kind: "runner_event", event });
+        break;
+      default:
+        assertNeverEvent(event);
     }
   }
-  return refused ? [...seen.values(), { kind: "refusal" }] : [...seen.values()];
+  return [...seen.values(), ...carried];
+}
+
+function assertNeverEvent(event: never): never {
+  throw new Error(`provider bridge: unhandled ChatEvent ${JSON.stringify(event)}`);
 }
 
 const FRESH_RESPONSE_BY_KIND: Readonly<Record<TurnRequest["kind"], boolean>> = {
@@ -241,8 +248,7 @@ export function createRunChatTurnBridge(deps: {
     void deps
       .runChatTurn(chatReq)
       .then((result) => {
-        // BEFORE the terminal `final` (which ends the drain): the turn's honest-degrade warnings. Without this
-        // the runner's `events` died at this seam and D41 held only in the logs, never in the product.
+        // BEFORE the terminal `final` (which ends the drain): the turn's warnings and runner events.
         pump.push(...outOfBandChunks(result.events), finalTurnChunk(req, result));
         pump.close();
       })

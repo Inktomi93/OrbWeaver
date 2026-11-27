@@ -588,6 +588,8 @@ class TurnAccumulator {
   apiErrorStatus: number | null = null;
   numTurns = 0;
   rateLimit: RateLimitSnapshot | null = null;
+  /** The model the init frame says the runtime runs this request as. */
+  runtimeModel: string | null = null;
   reasoningTokens: number | null = null;
   redactedThinkingBlocks = 0;
   /** A model call stopped on the output cap, so the runtime continued the reply (see the file header). */
@@ -818,6 +820,7 @@ function handleSystem(acc: TurnAccumulator, message: Narrow<"system">): void {
   } else if (message.subtype === "init") {
     acc.meta.apiKeySource = message.apiKeySource;
     acc.meta.servedModel = message.model;
+    acc.runtimeModel = message.model;
   }
 }
 
@@ -931,9 +934,12 @@ function handleRateLimitEvent(acc: TurnAccumulator, message: Narrow<"rate_limit_
   });
 }
 
+// The runtime's auth error is its own prose about the credential, and the event is spilled to disk with the turn's
+// outcome, so it is scrubbed of the credential like every other runtime text this runner keeps.
 function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">): void {
-  acc.emit({ kind: "auth_status", at: acc.ctx.now(), isAuthenticating: message.isAuthenticating, error: message.error });
-  acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: message.error }, "agent-sdk: auth status change");
+  const error = message.error === undefined ? undefined : sanitizeApiError(redactSecretsFromText(message.error, acc.ctx.secrets));
+  acc.emit({ kind: "auth_status", at: acc.ctx.now(), isAuthenticating: message.isAuthenticating, error });
+  acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: error }, "agent-sdk: auth status change");
 }
 
 // Tokens come from the result's `usage`, never from `modelUsage`: a resumed session's `modelUsage` continues
@@ -978,16 +984,42 @@ function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void 
   }
 }
 
+// A downgrade is a model THIS turn billed other than the one the runtime ran the request as. `modelUsage` continues a
+// resumed session's saved totals, so a model counts only when its counters grew past them; with the saved totals
+// unreadable the turn's own billing is unknowable and nothing is claimed. The init frame names the id the runtime
+// resolved the request to: the connection's own id stays an alias when the model catalog was cold at resolve time.
 function detectModelDowngrade(acc: TurnAccumulator, message: Narrow<"result">): void {
+  const billed = billedThisTurn(message.modelUsage, acc.ctx.savedTotals);
+  if (billed === null) {
+    return;
+  }
   const canonicalize = (m: string): string => m.replace(ANTHROPIC_PREFIX_RE, "");
-  const billed = Object.keys(message.modelUsage);
-  const requestedCanon = canonicalize(acc.ctx.model);
+  const requestedCanon = canonicalize(acc.runtimeModel ?? acc.ctx.model);
   const unexpected = billed.filter((m) => canonicalize(m) !== requestedCanon);
   if (unexpected.length > 0) {
     acc.meta.servedModel = billed.length === 1 ? (billed[0] ?? null) : null;
     acc.log.drift({ requested: acc.ctx.model, billed });
     acc.emit({ kind: "model_downgrade", at: acc.ctx.now(), requested: acc.ctx.model, billed });
   }
+}
+
+// A saved entry without token counts is compared by cost alone, so an unchanged notional cost reads as not billed:
+// a missed downgrade, never a false one.
+function billedThisTurn(modelUsage: Narrow<"result">["modelUsage"], saved: AgentSdkSessionTotals | null): string[] | null {
+  if (saved === null) {
+    return null;
+  }
+  return Object.entries(modelUsage)
+    .filter(([model, usage]) => {
+      const before = saved.models[model];
+      return (
+        before === undefined ||
+        usage.costUSD > before.costUsd ||
+        (before.inputTokens !== undefined && usage.inputTokens > before.inputTokens) ||
+        (before.outputTokens !== undefined && usage.outputTokens > before.outputTokens)
+      );
+    })
+    .map(([model]) => model);
 }
 
 // Firewall tripwire: with the tool-less config, permission_denials must be empty (a terminal tool's denial is

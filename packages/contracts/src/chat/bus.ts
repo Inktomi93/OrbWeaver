@@ -169,9 +169,19 @@ const PLAIN_CHAT_WARNING_CODES = [
   // without it a refusal reads to the author as an empty or truncated reply with no reason given.
   // CODE-ALONE by necessity, not by preference: the provider's `category`/`explanation`/`fallbackModel` are
   // raw upstream strings, and a `warning` bus member may carry only enum literals and plain scalars (the
-  // bus-payload allowlist + the `index.test-d.ts` anchor pins). That detail stays where it already lives —
-  // the infra `refusal` ChatEvent and the wire-outcome ring — and this is the user's half.
+  // bus-payload allowlist + the `index.test-d.ts` anchor pins). That detail stays on the infra `refusal`
+  // ChatEvent and the wire-outcome record, and this is the user's half.
   "provider_refused",
+  // The model declined and the provider answered with its own fallback model instead, so the reply stands but
+  // another model wrote it. Its own code because the reader's next step differs: nothing was lost, and a swipe asks
+  // the chosen model again. The fallback model's name is a raw upstream string and stays on the outcome record.
+  "provider_refused_fallback",
+  // The provider billed a model other than the one the connection names: a silent downgrade. The billed names
+  // are raw upstream strings and stay on the outcome record.
+  "model_downgraded",
+  // The runtime denied a tool call on a turn that offered the model no such tool, so a tool reached the model past
+  // the tool-less discipline. Never silent; the tool names stay on the outcome record.
+  "tool_permission_denied",
   // The model DID emit a picture inside its reply and we could not keep it: the provider's payload
   // carried neither bytes nor a URL, the URL was refused by the SSRF-safe egress belt, the bytes were not a
   // real image, or they blew the per-image cap. The PROSE still committed (the reply is the product), and no

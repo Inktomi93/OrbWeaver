@@ -5,7 +5,6 @@ import { WARNING_CODE } from "@orb/contracts/inference";
 import { messageVariants } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { JsonValue } from "@orb/kit/json";
-import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createControlledTimers, createFrozenClock, createSeededIds } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
@@ -21,26 +20,14 @@ import {
   refuseWrites,
 } from "@orb/testkit/node/composed";
 import { SETTINGS_ADJUSTED_CODE } from "#contracts/chat/bus.ts";
-import { sdkEngineRoom } from "./engine-physical.ts";
+import { readDebugOutcomes, sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_MODEL } from "./engine-sdk-physical.mjs";
 
 const DEBUG_TOKEN = "controlled-engine-outcome-debug-token";
 const outcomeIds = createSeededIds();
 const outcomeServer = { ids: outcomeIds, wireCapture: true, debugToken: DEBUG_TOKEN } as const;
 
-async function outcomes(h: ChatRoot): Promise<JsonValue[]> {
-  const response = await h.root.http.request(`/api/_debug/wire/outcomes?chatId=${h.chatId}`, {
-    headers: { "x-debug-token": DEBUG_TOKEN },
-  });
-  expect(response.status).toBe(200);
-  const body = jsonValueSchema.parse(await response.json());
-  if (body === null || typeof body !== "object" || Array.isArray(body) || !Array.isArray(body["outcomes"])) {
-    throw new Error("the real debug outcome response has no outcome list");
-  }
-  expect(body["enabled"]).toBe(true);
-  expect(body["count"]).toBe(body["outcomes"].length);
-  return body["outcomes"];
-}
+const outcomes = (h: ChatRoot): Promise<JsonValue[]> => readDebugOutcomes(h, DEBUG_TOKEN);
 
 test("a provider fault records disposition:error with the native provider terminalReason and requested route", async () => {
   await using fixture = await sdkEngineRoom({ history: 2, policy: { foreground: "fail" }, server: outcomeServer });

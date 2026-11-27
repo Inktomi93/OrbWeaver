@@ -48,8 +48,9 @@
 // a row BY CONSTRUCTION: the one comment claiming a "REFUSED turn still leaves the record that explains it"
 // was true for a refusal and false for a FAULT. `disposition` is the discriminator that separates them.
 //
-// METADATA ONLY — finish/stop reason, token counts, tool-call names + args, content/reasoning LENGTHS. Never
-// the reply text: the ring is a debug surface, and the canon row already holds the prose.
+// METADATA ONLY — finish/stop reason, token counts, tool-call names + args, content/reasoning LENGTHS, and the
+// runner's events (a refusal's category and explanation are the provider's words about the request, never the
+// reply). Never the reply text: the ring is a debug surface, and the canon row already holds the prose.
 //
 // ONE GATE FOR BOTH ARMS: compose injects the request sink and the outcome recorder together, on the same
 // decision (`WIRE_CAPTURE` in the record); with capture off the engine holds no recorder at all.

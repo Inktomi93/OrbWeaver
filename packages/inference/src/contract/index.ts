@@ -45,7 +45,7 @@ export {
 export type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest, ModelsDial } from "./diagnostics.ts";
 export type { ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
 export { ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
-export type { ChatEvent, RateLimitSnapshot } from "./events.ts";
+export type { ChatEvent, ChatRunnerEvent, RateLimitSnapshot } from "./events.ts";
 export { compactionTriggerSchema, compactResultSchema, rateLimitStatusSchema, sdkActivityStatusSchema } from "./events.ts";
 export type { GeneratedImage } from "./generation.ts";
 export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";
