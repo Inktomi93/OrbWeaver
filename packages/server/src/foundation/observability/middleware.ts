@@ -9,6 +9,7 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { REQUEST_ID_HEADER } from "@orb/contracts/diagnostics";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
@@ -38,8 +39,6 @@ const JOIN_TOKEN_PREFIX = "/join/";
 function redactSensitivePath(path: string): string {
   return path.startsWith(JOIN_TOKEN_PREFIX) ? `${JOIN_TOKEN_PREFIX}:token` : path;
 }
-
-const REQUEST_ID_HEADER = "X-Request-Id";
 
 /**
  * THE stamp, and it must run AFTER `next()`. The pre-`next()` `c.header()` this replaced reached only
