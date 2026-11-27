@@ -54,6 +54,7 @@ for (const regime of REGIMES) {
           "sessions.me",
           "settings.getUserSettings",
           "settings.getAppSettingsWithOverrides",
+          "settings.listGlobalSettings",
           "settings.updateAppSettings",
           "admin.listUsers",
           "share.status",

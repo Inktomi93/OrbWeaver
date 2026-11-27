@@ -18,6 +18,13 @@ export function adminCreateUserLabel(creating: boolean): string {
 export const ADMIN_APPROVALS_NOTE =
   "Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.";
 
+/** The Global settings section's lead and its empty line. */
+export const ADMIN_GLOBAL_SETTINGS_NOTE =
+  "The server-wide settings rows this deployment has stored, with the value each holds and when it was last written. Read-only.";
+export const ADMIN_GLOBAL_SETTINGS_EMPTY = "No global settings are stored.";
+/** How much of a stored value a global-settings row prints before it ends in an ellipsis. */
+export const ADMIN_GLOBAL_SETTING_VALUE_PREVIEW_CHARS = 160;
+
 /** The user row menu's door to that account's sessions. */
 export const ADMIN_SESSIONS_NAME = "Sessions…";
 

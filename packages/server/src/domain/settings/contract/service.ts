@@ -138,6 +138,8 @@ export interface SettingsService {
 
   /** Read one raw global-KV row; `null` if absent. Admin-gated at the router. */
   readonly getGlobalSetting: (key: string) => Promise<GlobalSettingView | null>;
+  /** Every raw global-KV row, by key: the admin pane's read-only list. Admin-gated at the router. */
+  readonly listGlobalSettings: () => Promise<GlobalSettingView[]>;
   /** Upsert raw global KV; app configuration and registered tenant namespaces refuse as reserved keys. */
   readonly setGlobalSetting: (key: string, value: JsonValue) => Promise<GlobalSettingView>;
 

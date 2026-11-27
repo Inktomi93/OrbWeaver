@@ -227,7 +227,11 @@ export async function readGlobalSetting(db: Db, key: string): Promise<GlobalSett
 
 /** Operator inspection preserves stored JSON without normalizing app overrides or tenant values. */
 export async function readGlobalSettings(handle: DatabaseHandle): Promise<GlobalSettingView[]> {
-  const db = databaseForOwner(handle);
+  return await readGlobalSettingRows(databaseForOwner(handle));
+}
+
+/** Every raw global-KV row, by key. */
+export async function readGlobalSettingRows(db: Db): Promise<GlobalSettingView[]> {
   const rows = await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
   return rows.map(toView);
 }

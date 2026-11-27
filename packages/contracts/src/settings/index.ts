@@ -2,6 +2,7 @@
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
 import type { Theme, ThemeBackground } from "#theme";
 import { themeOverrideSchema } from "#theme";
 import type { VersionedParseFailure } from "#versioned-config";
@@ -1035,6 +1036,12 @@ export interface GlobalSettingView {
   value: JsonValue;
   updatedAt: number;
 }
+
+export const globalSettingViewSchema = z.strictObject({
+  key: z.string(),
+  value: jsonValueSchema,
+  updatedAt: z.number(),
+}) satisfies z.ZodType<GlobalSettingView>;
 
 const resolvedRateLimitsSchema = z.strictObject({
   aiTurn: z.number(),

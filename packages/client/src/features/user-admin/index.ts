@@ -5,6 +5,7 @@
 export { aboutGroup } from "./lib/about-group.tsx";
 export { aboutSection, aboutUpdatesSection } from "./lib/about-section.tsx";
 export { adminApprovalsSection } from "./lib/admin-approvals-section.tsx";
+export { adminGlobalSettingsSection } from "./lib/admin-global-settings-section.tsx";
 export { adminGroup } from "./lib/admin-group.tsx";
 export { adminLinkSsoSection } from "./lib/admin-link-sso-section.tsx";
 export {} from "./lib/admin-model.ts";

@@ -64,6 +64,9 @@ const TEST_IDS = {
   adminApprovalsSection: "admin-approvals-section",
   adminApproveButton: "admin-approve",
   adminApprovalsEmpty: "admin-approvals-empty",
+  // The read-only Global settings section (the stored server-wide rows) and its empty state.
+  adminGlobalSettingsSection: "admin-global-settings-section",
+  adminGlobalSettingsEmpty: "admin-global-settings-empty",
   // B5 — the "Link SSO identity" admin section: lists linkable (unbound, non-owner, human) rows; each row's
   // Link opens a dialog with a stable-subject field. Empty state when nothing is linkable.
   adminLinkSsoSection: "admin-link-sso-section",

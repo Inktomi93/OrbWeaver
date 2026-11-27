@@ -41,6 +41,7 @@ export const SECTION_PROCEDURES = [
   "refinery.listSessions",
   "settings.getUserSettings",
   "settings.getAppSettingsWithOverrides",
+  "settings.listGlobalSettings",
   "settings.listThemes",
   "settings.getTheme",
   "regex.countScripts",
