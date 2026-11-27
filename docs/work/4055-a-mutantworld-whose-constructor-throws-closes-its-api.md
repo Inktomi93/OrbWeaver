@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-27
 priority: P3
 area: tooling
+lane: wt/agent-a6dde151e8a1bbb6d
 ---
 
 # A MutantWorld whose constructor throws closes its API
