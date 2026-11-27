@@ -83,6 +83,9 @@ export const MESSAGE_ACTIONS_MENU_NAME = "More message actions";
  */
 export const MESSAGE_REASONING_NAME = "Reasoning";
 
+/** The note on a reply whose provider redacted the reasoning: why there is none to read, or why only part of it is. */
+export const MESSAGE_REASONING_REDACTED_NOTE = "The provider redacted this reply's reasoning.";
+
 /** The host's reorder arrows in the message edit toolbar (`message-move-arrows.tsx`). */
 export const MESSAGE_MOVE_UP_NAME = "Move up";
 export const MESSAGE_MOVE_DOWN_NAME = "Move down";

@@ -100,6 +100,7 @@ export type {
   ImageDuplicatePair,
   ImageFacetMember,
   ImageFacets,
+  ImageSkip,
   KeywordCount,
   PortraitAlignment,
   PortraitAlignmentReport,

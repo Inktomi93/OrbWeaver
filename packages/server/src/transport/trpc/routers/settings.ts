@@ -10,6 +10,7 @@ import {
   appSettingsViewSchema,
   backgroundLibraryEntrySchema,
   effectiveAppConfigSchema,
+  globalSettingListSchema,
   themeViewSchema,
   USER_SETTINGS_SECTIONS,
   userSettingsViewSchema,
@@ -81,6 +82,9 @@ export const settingsRouter = t.router({
   getAppSettingsWithOverrides: adminProcedure
     .output(appSettingsViewSchema)
     .query(({ ctx }) => ctx.services.settings.getAppSettingsWithOverrides({ principal: ctx.auth })),
+
+  // The raw global-KV rows (key, value, update time) as a read-only list: no set route exists, the owning ports write.
+  listGlobalSettings: adminProcedure.output(globalSettingListSchema).query(({ ctx }) => ctx.services.settings.listGlobalSettings()),
 
   updateAppSettings: adminProcedure
     .output(effectiveAppConfigSchema)

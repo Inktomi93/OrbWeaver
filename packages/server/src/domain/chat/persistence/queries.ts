@@ -41,6 +41,8 @@ import {
   storedMacroSliceSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
+  VARIANT_METADATA_RATE_LIMIT_KEY,
+  VARIANT_METADATA_REASONING_REDACTED_KEY,
   variableDeltaSchema,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
@@ -205,7 +207,7 @@ export function normalizeToolOrdinals(records: readonly ToolCallRecord[]): reado
 // parsed at this read seam. Tool calls degrade malformed/absent blobs to `[]`, while provider metadata is
 // reduced to the one member-visible output-cap fact — neither raw blob crosses the boundary.
 function toMessageView(
-  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "hasGeneratedVariant" | "outputCapReached"> & {
+  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "hasGeneratedVariant" | "outputCapReached" | "reasoningRedacted" | "rateLimit"> & {
     toolCalls: readonly ToolCallRecord[] | null;
     hasContinuation: number;
     hasGeneratedVariant: number;
@@ -218,6 +220,8 @@ function toMessageView(
   return {
     ...view,
     hasContinuation: row.hasContinuation === 1,
+    reasoningRedacted: metadata[VARIANT_METADATA_REASONING_REDACTED_KEY] === true,
+    rateLimit: metadata[VARIANT_METADATA_RATE_LIMIT_KEY] ?? null,
     hasGeneratedVariant: row.hasGeneratedVariant === 1,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
     toolCalls: activeToolCalls(row.toolCalls, metadata, row.content),

@@ -18,6 +18,21 @@ import { pageDirectionShape } from "#rpc";
 import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
 import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 
+/** A passage of a document a chat turn retrieved: the document and the chunk's span in its extracted text, end exclusive. */
+export interface DatabankPassage {
+  readonly documentId: DocumentId;
+  readonly documentName: string;
+  readonly charStart: number;
+  readonly charEnd: number;
+}
+
+export const databankPassageSchema = z.strictObject({
+  documentId: typeIdSchema(ID_PREFIX.document),
+  documentName: z.string(),
+  charStart: z.int().nonnegative(),
+  charEnd: z.int().nonnegative(),
+}) satisfies z.ZodType<DatabankPassage>;
+
 /** The provenance of a databank document. ONE canonical tuple (§7.5): the db
  *  `documents.origin` enum column derives from it, and the tRPC wire builds its `z.enum` from the same
  *  home. `text` = pasted/authored canon (no source bytes); the rest carry re-extractable source bytes or

@@ -18,6 +18,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { MutedLine } from "#components";
 import { CHAT_PREVIEW_DIAGNOSTICS_LABEL } from "../lib/chat-surface-names.ts";
+import { DatabankPassageDetail } from "./databank-passage-detail.tsx";
 import { MacroSliceDetail } from "./macro-slice-detail.tsx";
 import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
 
@@ -63,6 +64,7 @@ export function AssemblyPreviewDiagnostics({
           <TraceSummary trace={trace} />
           <WorldInfoActivated activated={trace.worldInfoActivated} />
           <MemoryRecallDetail recall={trace.memoryRecall} />
+          <DatabankPassageDetail passages={trace.databankPassages} />
           <MacroSliceDetail macros={trace.macros} />
           <ShapeTraceSummary trace={shapeTrace} />
           <WireRows rows={shapeTrace.rows} />

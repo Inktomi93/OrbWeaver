@@ -9,6 +9,8 @@ import { SECRET_BOX_TEST_KEY } from "@orb/testkit/node/helpers";
 import { vi } from "vitest";
 import { physicalSdkScenario } from "./regression-edge.fixtures.ts";
 
+// A synthetic token of the real shape: the controlled daemon must see and redact exactly this value, so it cannot be an env read.
+// ast-grep-ignore: ts-hardcoded-secret
 const TOKEN = "sk-ant-oat01-0123456789abcdef0123456789abcdef";
 const ROTATED = "rotated-synthetic-subscription-token";
 const MODELS = [
@@ -38,7 +40,10 @@ test("native daemon discovery uses the caller's current saved credential and nor
   ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.credentialForeign });
   expect(edge.children).toHaveLength(0);
   const draft = { signal: new AbortController().signal, principal, providerId: "claude-sub", credentialId: key.id };
-  expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({ listed: true, models: [{ id: "sonnet", name: "Sonnet" }] });
+  expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({
+    listed: true,
+    models: [{ id: "sonnet", name: "Sonnet", description: MODELS[0]?.description }],
+  });
   expect(edge.environments.map((env) => env[CLAUDE_OAUTH_TOKEN_ENV])).toEqual([TOKEN]);
   const row = await root.services.connection.create({ principal, providerId: "claude-sub", credentialId: key.id, baseUrl: null, model: "sonnet" });
   const { resolved } = await root.app.runtime.resolve({ signal: new AbortController().signal, principal, task: "chat", connectionId: row.id });

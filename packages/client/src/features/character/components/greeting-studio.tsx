@@ -1,10 +1,12 @@
 // Character greeting generation returns preview text without writing or invalidating cached data.
 // Accept hands persistence to the editor; transform kinds resolve against the caller's preset server-side.
 
+import type { GeneratedGreeting } from "@orb/contracts/character";
 import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/preset";
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
 import { stripStyleElements } from "@orb/kit/content";
 import type { CharacterId } from "@orb/kit/ids";
+import { formatUsd } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -20,7 +22,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, viewerTimeZone } from "#lib";
 import { useGenerateGreetingMutation, useRewriteGreetingMutation } from "../hooks/use-character-mutations.ts";
-import { GREETING_MAKE_NEW_NAME, GREETING_REWRITE_NAME } from "../lib/greeting-copy.ts";
+import { GREETING_MAKE_NEW_NAME, GREETING_REWRITE_NAME, GREETING_SPEND_LABEL, GREETING_SPEND_UNREPORTED } from "../lib/greeting-copy.ts";
 
 export interface GreetingStudioProps {
   readonly characterId: CharacterId;
@@ -64,6 +66,8 @@ export function GreetingStudio({
 }: GreetingStudioProps): ReactElement {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [instruction, setInstruction] = useState("");
+  // What the run behind the preview cost; null once the provider reported none. Replaced by every run's result.
+  const [spendUsd, setSpendUsd] = useState<number | null>(null);
   const rewriteRef = useRef<HTMLButtonElement>(null);
   const generateRef = useRef<HTMLButtonElement>(null);
   const lastGenerator = useRef(rewriteRef);
@@ -92,18 +96,23 @@ export function GreetingStudio({
 
   const canRewrite = baseGreeting.trim().length > 0;
 
+  const finish = (result: GeneratedGreeting): void => {
+    setSpendUsd(result.costUsd);
+    onPreviewChange(result.text);
+  };
+
   const onRewrite = (): void => {
     lastGenerator.current = rewriteRef;
     rewrite.mutate(
       { characterId, greeting: baseGreeting, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
-      { onSuccess: (result): void => onPreviewChange(result.text) },
+      { onSuccess: (result): void => finish(result) },
     );
   };
   const onGenerate = (): void => {
     lastGenerator.current = generateRef;
     generate.mutate(
       { characterId, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
-      { onSuccess: (result): void => onPreviewChange(result.text) },
+      { onSuccess: (result): void => finish(result) },
     );
   };
 
@@ -120,6 +129,9 @@ export function GreetingStudio({
             </Markdown>
           </Stack>
         </MessageBubble>
+        <Text ink="muted" voice="gloss" data-slot="greeting-studio-spend">
+          {spendUsd === null ? GREETING_SPEND_UNREPORTED : `${GREETING_SPEND_LABEL} ${formatUsd(spendUsd)}`}
+        </Text>
         <Row wrap={true} gap="field" align="center" justify="end">
           <Button
             variant="ghost"

@@ -11,6 +11,11 @@ import { embedUsageSchema } from "../providers/index.ts";
 
 export const EMBEDDING_TASKS = ["embed", "imageEmbed"] as const;
 export type EmbeddingTask = (typeof EMBEDDING_TASKS)[number];
+/** The tasks whose paid calls the `embedding_calls` ledger records. A rerank call is paid like an embedding batch but
+ *  writes no vector, so it joins the ledger without joining {@link EMBEDDING_TASKS}, which names the tasks that own
+ *  a vector space and generation. */
+export const EMBEDDING_CALL_TASKS = [...EMBEDDING_TASKS, "rerank"] as const;
+export type EmbeddingCallTask = (typeof EMBEDDING_CALL_TASKS)[number];
 export const EMBEDDING_INVOCATION_OUTCOMES = ["completed", "failed"] as const;
 export type EmbeddingInvocationOutcome = (typeof EMBEDDING_INVOCATION_OUTCOMES)[number];
 
@@ -30,7 +35,7 @@ export interface EmbeddingInvocationContext {
   readonly providerId: ProviderId;
   readonly model: ModelId;
   readonly wire: Wire;
-  readonly task: EmbeddingTask;
+  readonly task: EmbeddingCallTask;
 }
 
 export interface EmbeddingAccounting {

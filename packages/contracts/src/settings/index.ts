@@ -1036,6 +1036,28 @@ export interface GlobalSettingView {
   updatedAt: number;
 }
 
+/** The most rows one global-settings list read returns; `total` says how many exist past it. */
+export const GLOBAL_SETTINGS_LIST_LIMIT = 100;
+/** How many characters of a stored value's JSON text a list row carries; a longer value is cut and marked. */
+export const GLOBAL_SETTING_VALUE_PREVIEW_CHARS = 160;
+
+export interface GlobalSettingListRow {
+  key: string;
+  valuePreview: string;
+  valueTruncated: boolean;
+  updatedAt: number;
+}
+export interface GlobalSettingList {
+  rows: GlobalSettingListRow[];
+  total: number;
+}
+export const globalSettingListSchema = z.strictObject({
+  rows: z.array(
+    z.strictObject({ key: z.string(), valuePreview: z.string(), valueTruncated: z.boolean(), updatedAt: z.number() }) satisfies z.ZodType<GlobalSettingListRow>,
+  ),
+  total: z.int().nonnegative(),
+}) satisfies z.ZodType<GlobalSettingList>;
+
 const resolvedRateLimitsSchema = z.strictObject({
   aiTurn: z.number(),
   publicIp: z.number(),

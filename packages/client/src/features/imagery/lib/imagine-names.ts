@@ -55,3 +55,7 @@ export function imagineCountSpendText(count: number, hostPays: boolean): string 
 /** The image detail dialog's provenance strip: its read in a failure line, and the state of an image with none recorded. */
 export const IMAGE_PROVENANCE_READ_LABEL = "this image's details";
 export const IMAGE_PROVENANCE_EMPTY_TEXT = "No generation details recorded for this image.";
+
+/** The strip's negative prompt line, and what a picture's subject reads when that character is no longer in the library. */
+export const IMAGE_PROVENANCE_NEGATIVE_LABEL = "Negative prompt";
+export const IMAGE_PROVENANCE_SUBJECT_GONE = "A character no longer in your library";

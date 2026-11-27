@@ -12,8 +12,15 @@
 // is the second caller and a domain→domain value import is the wrong shape).
 
 import type { AssetKind } from "@orb/contracts/assets";
-import type { GlobalSettingView, UserSettings, UserSettingsView } from "@orb/contracts/settings";
-import { appSettingsConfig, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
+import type { GlobalSettingList, GlobalSettingView, UserSettings, UserSettingsView } from "@orb/contracts/settings";
+import {
+  appSettingsConfig,
+  GLOBAL_SETTING_VALUE_PREVIEW_CHARS,
+  GLOBAL_SETTINGS_LIST_LIMIT,
+  parseUserSettings,
+  USER_SETTINGS_SCHEMA_VERSION,
+  userSettingsConfig,
+} from "@orb/contracts/settings";
 import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
@@ -26,7 +33,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue, UnreadableJsonText } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
-import { and, eq, exists, inArray, sql } from "drizzle-orm";
+import { and, count, eq, exists, inArray, sql } from "drizzle-orm";
 import { requireIntactStoredConfig, STORED_CONFIG_REFUSALS } from "#primitives/stored-config";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 
@@ -230,6 +237,27 @@ export async function readGlobalSettings(handle: DatabaseHandle): Promise<Global
   const db = databaseForOwner(handle);
   const rows = await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
   return rows.map(toView);
+}
+
+/** The admin list: the first {@link GLOBAL_SETTINGS_LIST_LIMIT} rows by key, each value cut to its preview in SQL so a
+ *  large stored blob (a catalog snapshot) is never read whole, and the count of every row. */
+export async function readGlobalSettingList(db: Db): Promise<GlobalSettingList> {
+  // One character past the cap tells a value of exactly the cap from a longer one.
+  const rows = await db
+    .select({ key: settings.key, preview: sql<string>`substr(${settings.value}, 1, ${GLOBAL_SETTING_VALUE_PREVIEW_CHARS + 1})`, updatedAt: settings.updatedAt })
+    .from(settings)
+    .orderBy(settings.key)
+    .limit(GLOBAL_SETTINGS_LIST_LIMIT);
+  const [counted] = await db.select({ total: count() }).from(settings);
+  return {
+    rows: rows.map(({ key, preview, updatedAt }) => ({
+      key,
+      valuePreview: preview.slice(0, GLOBAL_SETTING_VALUE_PREVIEW_CHARS),
+      valueTruncated: preview.length > GLOBAL_SETTING_VALUE_PREVIEW_CHARS,
+      updatedAt,
+    })),
+    total: counted?.total ?? 0,
+  };
 }
 
 /** Upsert one raw global-KV row and return its view. The reserved-key guard + audit live in the verb. */

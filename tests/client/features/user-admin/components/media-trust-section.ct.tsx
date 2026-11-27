@@ -30,6 +30,7 @@ test("the install's Character trust block holds the default step and the interne
       "sessions.me",
       "settings.getUserSettings",
       "settings.getAppSettingsWithOverrides",
+      "settings.listGlobalSettings",
       "settings.updateAppSettings",
       "admin.listUsers",
       "share.status",

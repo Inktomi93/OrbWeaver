@@ -5,7 +5,7 @@
 // Every vector read keeps only the owner's current generation (`currentGeneration`), so one pass never meets
 // two widths or two models.
 
-import type { ThemeTimelineBucket } from "@orb/contracts/discovery";
+import type { ImageSkip, ThemeTimelineBucket } from "@orb/contracts/discovery";
 import type { ImageCaptionMeta, VectorScope } from "@orb/contracts/embeddings";
 import type { EveryOwnerEstimate, EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
@@ -23,6 +23,7 @@ import {
   embedSpaceState,
   imageAnalyses,
   imageEmbeddings,
+  imageIndexSkips,
   themeClusters,
 } from "@orb/db";
 import { readableJson } from "@orb/db/query";
@@ -856,6 +857,26 @@ async function captionRows(db: Db, ownerId: UserId, extra?: SQL): Promise<Captio
 /** Every non-synthetic owner character's captioned-avatar row (the `imageFacets` tally + visual labels). */
 export async function readOwnedCaptionRows(db: Db, ownerId: UserId): Promise<CaptionRow[]> {
   return await captionRows(db, ownerId);
+}
+
+/** The most image refusals one read returns: a library of stored images is unbounded, and the newest are the ones a person acts on. */
+const IMAGE_SKIPS_LIMIT = 200;
+
+/** The owner's stored images the indexer refused, newest first. Ownership derives from the asset the skip row names. */
+export async function readOwnedImageSkips(db: Db, ownerId: UserId): Promise<ImageSkip[]> {
+  return await db
+    .select({
+      assetId: imageIndexSkips.assetId,
+      reason: imageIndexSkips.reason,
+      width: imageIndexSkips.width,
+      height: imageIndexSkips.height,
+      skippedAt: imageIndexSkips.createdAt,
+    })
+    .from(imageIndexSkips)
+    .innerJoin(assets, eq(assets.id, imageIndexSkips.assetId))
+    .where(eq(assets.ownerId, ownerId))
+    .orderBy(desc(imageIndexSkips.createdAt), asc(imageIndexSkips.assetId))
+    .limit(IMAGE_SKIPS_LIMIT);
 }
 
 /** The owner's captioned avatars whose caption_meta matches one allowlisted facet path. */

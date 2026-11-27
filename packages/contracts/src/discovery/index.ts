@@ -10,11 +10,13 @@
 // `duplicate_chat_pairs` carries the column; `duplicate_character_pairs` has none.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { TokenProvenance } from "../chat/token-provenance.ts";
 import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
+import type { ImageSkipReason } from "../embeddings/index.ts";
+import { IMAGE_SKIP_REASONS } from "../embeddings/index.ts";
 import type { CorpusDigestSource } from "../search/source.ts";
 import { corpusDigestSourceSchema } from "../search/source.ts";
 import type { ThemeRow } from "./artifacts.ts";
@@ -526,6 +528,16 @@ export interface ImageFacets {
   readonly topTags: FacetCount[];
 }
 
+/** An image the indexer refused, as its owner reads it: why, and the measured size that tripped the refusal. */
+export interface ImageSkip {
+  readonly assetId: AssetId;
+  readonly reason: ImageSkipReason;
+  /** Header-parsed pixels; `null` when the header gave none. */
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly skippedAt: number;
+}
+
 /** One character behind a facet chip — the drill from a facet value to its avatars. */
 export interface ImageFacetMember {
   readonly characterId: CharacterId;
@@ -785,6 +797,14 @@ export const imageFacetsSchema = z.strictObject({
   exposedParts: z.array(facetCountSchema),
   topTags: z.array(facetCountSchema),
 }) satisfies z.ZodType<ImageFacets>;
+
+export const imageSkipSchema = z.strictObject({
+  assetId: typeIdSchema(ID_PREFIX.asset),
+  reason: z.enum(IMAGE_SKIP_REASONS),
+  width: z.int().nullable(),
+  height: z.int().nullable(),
+  skippedAt: z.number(),
+}) satisfies z.ZodType<ImageSkip>;
 
 export const imageFacetMemberSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),

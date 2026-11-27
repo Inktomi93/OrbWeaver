@@ -67,6 +67,7 @@ import type {
   ImageDuplicatePair,
   ImageFacetMember,
   ImageFacets,
+  ImageSkip,
   KeywordCount,
   PortraitAlignmentReport,
   SimilarChat,
@@ -281,6 +282,8 @@ export interface DiscoveryService {
   readonly imageFacets: (userId: UserId) => Promise<ImageFacets>;
   /** Drill a caption facet value to the characters whose avatar carries it. */
   readonly charactersByImageFacet: (userId: UserId, facet: ImageFacetKey, value: string) => Promise<ImageFacetMember[]>;
+  /** The owner's stored images the indexer refused, newest first, each with its reason and measured size. */
+  readonly imageSkips: (userId: UserId) => Promise<ImageSkip[]>;
 
   // ── similarity (discovery-native in-RAM analytics; ZERO search — the two-cosine-access-patterns rule) ──
   /** The owner's character similarity graph — all-pairs card cosine over `minSimilarity` → edges. */

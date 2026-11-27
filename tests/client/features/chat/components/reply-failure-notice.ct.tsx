@@ -4,7 +4,13 @@
 // @subject packages/client/src/features/chat/components/composer-reply-failure-line.tsx
 // @subject packages/client/src/features/chat/hooks/use-send-message.ts
 
-import { CONNECTION_FIXABLE_FAILURE_REASONS, EMPTY_GENERATION_CAUSE, EMPTY_GENERATION_OP_CODE, PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
+import {
+  CONNECTION_FIXABLE_FAILURE_REASONS,
+  EMPTY_GENERATION_CAUSE,
+  EMPTY_GENERATION_OP_CODE,
+  PROVIDER_FAILURE_REASON_PREFIX,
+  RATE_LIMIT_RESETS_AT_DETAIL_KEY,
+} from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -48,6 +54,9 @@ import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
 const LINE = '[data-slot="composer-reply-failure"]';
 const TOAST = '[data-slot="toast-root"]';
+const RESET = '[data-slot="composer-reply-failure-reset"]';
+const RATE_LIMITED_REASON = `${PROVIDER_FAILURE_REASON_PREFIX}rate_limit`;
+const RESET_AT_MS = 1_900_000_000_000;
 const DRAFT = "Open the door.";
 
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -155,9 +164,16 @@ async function serverReason(caller: Caller, chatId: ChatId): Promise<string> {
 async function openRoom(
   page: Page,
   root: Harness,
-  room: { readonly viewer: Caller; readonly chatId: ChatId; readonly provider: FailingProvider; readonly bus: boolean },
+  room: {
+    readonly viewer: Caller;
+    readonly chatId: ChatId;
+    readonly provider: FailingProvider;
+    readonly bus: boolean;
+    /** The wire answer a Generate reply gets in place of the server's own, for a failure the harness cannot drive in real time. */
+    readonly generateFailure?: ReturnType<typeof trpcError>;
+  },
 ): Promise<TrpcRecorder> {
-  const { viewer, chatId, provider, bus } = room;
+  const { viewer, chatId, provider, bus, generateFailure } = room;
   await page.setViewportSize({ width: 1440, height: 900 });
   await seedShellState(page, { activeSection: "chats" });
   const rpc = routeTrpc(page, {
@@ -172,6 +188,7 @@ async function openRoom(
       "chat.generate",
       "chat.swipe",
     ]),
+    ...(generateFailure === undefined ? {} : { "chat.generate": () => generateFailure }),
     // The socket below serves this room alone.
     "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId !== chatId ? trpcError({ code: "NOT_FOUND" }) : null),
     "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId !== chatId ? trpcError({ code: "NOT_FOUND" }) : null),
@@ -227,6 +244,41 @@ for (const refusal of CONNECTION_FIXABLE_FAILURE_REASONS) {
     await expect(page.locator(TOAST)).toHaveCount(0);
   });
 }
+
+// The harness runs a provider's retry backoff on controlled timers, so a real 429 cannot settle inside a browser test; the
+// server half of this case is `tests/server/domain/chat/engine/rate-limit-failure.int.test.ts`, which reads the real
+// formatter's detail for a real 429. This case scripts the wire answer that formatter produces.
+test("a Generate reply the provider rate-limited says when the limit resets", async ({ mount, page }) => {
+  const provider = failingProvider(REJECTED_KEY);
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  const { host, chatId } = await failingRoom(root);
+  const resetsAt = RESET_AT_MS;
+  const generateFailure = trpcError({
+    code: "TOO_MANY_REQUESTS",
+    message: "The provider is rate-limiting this connection.",
+    reason: RATE_LIMITED_REASON,
+    detail: { [RATE_LIMIT_RESETS_AT_DETAIL_KEY]: resetsAt },
+  });
+  await openRoom(page, root, { viewer: host, chatId, provider, bus: false, generateFailure });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await generateReply(page);
+
+  const line = page.locator(LINE);
+  await expect(line).toHaveAttribute("data-reason", RATE_LIMITED_REASON);
+  await expect(line.locator(RESET)).toHaveAttribute("data-resets-at", String(resetsAt));
+});
+
+test("a rejected key's failure line states no reset", async ({ mount, page }) => {
+  const provider = failingProvider(REJECTED_KEY);
+  await using root = await createCorpusHarness(undefined, { providerFetch: provider.fetch });
+  const { host, chatId } = await failingRoom(root);
+  await openRoom(page, root, { viewer: host, chatId, provider, bus: true });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  await send(page);
+
+  await expect(page.locator(LINE)).toHaveAttribute("data-reason", REJECTED_KEY);
+  await expect(page.locator(LINE).locator(RESET)).toHaveCount(0);
+});
 
 test("a send whose message the client never saw land keeps the failed-send toast, with the provider's reason under it", async ({ mount, page }) => {
   const provider = failingProvider(REJECTED_KEY);

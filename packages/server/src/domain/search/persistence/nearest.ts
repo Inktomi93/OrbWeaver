@@ -72,6 +72,8 @@ interface NearestDocumentChunk {
   readonly documentName: string;
   readonly chunkIdx: number;
   readonly content: string;
+  readonly charStart: number;
+  readonly charEnd: number;
   readonly contentHash: string;
   readonly distance: number;
   readonly hubScore: number | null;
@@ -110,6 +112,8 @@ export async function nearestDocumentChunks(
       documentName: documents.name,
       chunkIdx: documentChunks.chunkIdx,
       content: documentChunks.content,
+      charStart: documentChunks.charStart,
+      charEnd: documentChunks.charEnd,
       contentHash: documentChunks.contentHash,
       distance,
       hubScore: documentChunks.hubScore,
@@ -143,6 +147,8 @@ export async function nearestDocumentChunks(
     documentName: r.documentName,
     chunkIdx: r.chunkIdx,
     content: r.content,
+    charStart: r.charStart,
+    charEnd: r.charEnd,
     contentHash: r.contentHash,
     distance: r.distance,
     hubScore: r.hubScore,

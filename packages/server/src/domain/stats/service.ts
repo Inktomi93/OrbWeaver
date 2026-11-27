@@ -14,6 +14,7 @@ import { createReconcileInFlight } from "./reconcile-in-flight.ts";
 import { createByModel } from "./verbs/by-model.ts";
 import { createCharacter } from "./verbs/character.ts";
 import { createEconomics } from "./verbs/economics.ts";
+import { createEmbeddingCalls } from "./verbs/embedding-calls.ts";
 import { createFreshness } from "./verbs/freshness.ts";
 import { createLatency } from "./verbs/latency.ts";
 import { createLeaderboard } from "./verbs/leaderboard.ts";
@@ -36,6 +37,7 @@ export function createStatsService(db: DatabaseHandle, now: () => number, idSour
     ...createLeaderboard(ctx),
     ...createTimeseries(ctx),
     ...createByModel(ctx),
+    ...createEmbeddingCalls(ctx),
     ...createFreshness(ctx),
     ...createPersonaUsage(ctx),
     ...createWrapped(ctx),

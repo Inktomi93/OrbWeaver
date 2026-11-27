@@ -73,6 +73,7 @@ for (const code of PROVOKED) {
         "sessions.me",
         "settings.getUserSettings",
         "settings.getAppSettingsWithOverrides",
+        "settings.listGlobalSettings",
         "admin.listUsers",
         "share.status",
         "share.signInMode",

@@ -26,6 +26,7 @@ const SERVED = [
   "settings.getUserSettings",
   "settings.listThemes",
   "settings.getAppSettingsWithOverrides",
+  "settings.listGlobalSettings",
   "settings.updateAppSettings",
   "settings.updateUserSettingsSection",
   "admin.listUsers",

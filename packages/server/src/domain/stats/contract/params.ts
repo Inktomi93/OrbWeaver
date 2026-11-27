@@ -23,6 +23,10 @@ export interface ByModelOpts {
   limit?: number | undefined;
 }
 
+export interface EmbeddingCallsOpts {
+  limit?: number | undefined;
+}
+
 /** Persona usage narrowed to the chats one character takes part in — the CONTEXT panel's drilled state
  *  (the tabs used to render LIBRARY numbers under the drilled character's face). A foreign `characterId`
  *  is not an access decision: the read is owner-scoped by `personas.owner_id` regardless, so an id the

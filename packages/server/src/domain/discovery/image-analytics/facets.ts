@@ -24,7 +24,7 @@ import type { ImageFacetKey } from "../contract/params.ts";
 import { IMAGE_FACET_DRILL_KEY } from "../contract/params.ts";
 import type { FacetCount, ImageFacetMember, ImageFacets, PortraitAlignment, PortraitAlignmentReport } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
-import { readCaptionRowsByFacet, readOwnedCaptionRows, readOwnedPortraitPairs } from "../persistence/embed-store-reads.ts";
+import { readCaptionRowsByFacet, readOwnedCaptionRows, readOwnedImageSkips, readOwnedPortraitPairs } from "../persistence/embed-store-reads.ts";
 
 const TOP_TAGS_LIMIT = 40;
 
@@ -36,11 +36,14 @@ function metaKeyOf(facet: ImageFacetKey): ImageFacetMetaKey | undefined {
   return entries.find(([, drill]) => drill === facet)?.[0];
 }
 
-export function createImageAnalyticsFacets(ctx: DiscoveryContext): Pick<DiscoveryService, "portraitAlignment" | "imageFacets" | "charactersByImageFacet"> {
+export function createImageAnalyticsFacets(
+  ctx: DiscoveryContext,
+): Pick<DiscoveryService, "portraitAlignment" | "imageFacets" | "charactersByImageFacet" | "imageSkips"> {
   return {
     portraitAlignment: (userId) => portraitAlignment(ctx.db, userId),
     imageFacets: (userId) => imageFacets(ctx.db, userId),
     charactersByImageFacet: (userId, facet, value) => charactersByImageFacet(ctx.db, userId, facet, value),
+    imageSkips: (userId) => readOwnedImageSkips(ctx.db, userId),
   };
 }
 

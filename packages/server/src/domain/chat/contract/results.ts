@@ -9,6 +9,7 @@ import type {
   ChatSource,
   CueRole,
   GroupConfig,
+  MessageRateLimit,
   ParticipantData,
   ReactAsCharacterResult,
   RegexServerPass,
@@ -311,6 +312,12 @@ export interface TurnEconomics {
    *  identity for this generation, persisted as a top-level `message_variants.metadata` key. Absent/null where the
    *  wire reported none. Opaque provenance (§5.3c class 4): recorded, never compared. */
   readonly systemFingerprint?: string | null;
+  /** The provider's rate-limit state for this generation, set only when it warned or refused
+   *  (`ChatResult.rateLimit`); persisted as the `rate_limit` variant-metadata key. Absent/null for a plain allowance. */
+  readonly rateLimit?: MessageRateLimit | null;
+  /** The provider redacted this generation's reasoning (`ChatResult.reasoningRedacted`); persisted as the
+   *  `reasoning_redacted` variant-metadata key and read back as `MessageView.reasoningRedacted`. */
+  readonly reasoningRedacted?: boolean;
   /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
    *  closed per-provider union (§5.3c class 3): the ephemeral cache-creation TTL split, the subscription's
    *  warm-spare receipt, OpenRouter's upstream vendor and its pre-fee charge. Persisted under

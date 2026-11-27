@@ -24,6 +24,7 @@ export { BUG_REPORT_NAME } from "./bug-report-name.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export { cacheTokensLabel } from "./cache-tokens-label.ts";
 export { cardBooksNotLinkedNote, cardImportFailedDetail, cardImportPartialLine, cardImportRefusalLine } from "./card-import-copy.ts";
 export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
@@ -398,7 +399,14 @@ export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
+export {
+  rethrowUnlessTrpcFailure,
+  trpcErrorCode,
+  trpcErrorDetailNumber,
+  trpcErrorDetailString,
+  trpcErrorMessage,
+  trpcErrorReason,
+} from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast, turnRoomStateCopy } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { attachmentRefusalSentence, uploadRefusalClause } from "./upload-refusal-copy.ts";

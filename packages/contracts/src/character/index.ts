@@ -843,10 +843,12 @@ export interface CharacterTagGroupCensus {
 }
 
 /** Returned by the greeting-studio verbs (`rewriteGreeting`/`generateGreeting`): the generated
- *  greeting text. The verb NEVER writes — the client previews `text` and appends it to
- *  `characters.greetings` via `character.update` on accept. */
+ *  greeting text and what the run cost. The verb NEVER writes — the client previews `text` and appends it to
+ *  `characters.greetings` via `character.update` on accept. `costUsd` is null when the connection reports no
+ *  cost (a local model, or no pricing on the row). */
 export interface GeneratedGreeting {
   readonly text: string;
+  readonly costUsd: number | null;
 }
 
 /** Returned by `snapshot`. */
@@ -978,7 +980,7 @@ export const listCharacterTagGroupsResultSchema = z.strictObject({
   groups: z.array(characterTagGroupCensusSchema).readonly(),
   uncategorized: z.number(),
 }) satisfies z.ZodType<ListCharacterTagGroupsResult>;
-export const generatedGreetingSchema = z.strictObject({ text: z.string() }) satisfies z.ZodType<GeneratedGreeting>;
+export const generatedGreetingSchema = z.strictObject({ text: z.string(), costUsd: z.number().nullable() }) satisfies z.ZodType<GeneratedGreeting>;
 export const snapshotRefSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.characterSnapshot),
 }) satisfies z.ZodType<SnapshotRef>;

@@ -5,15 +5,18 @@ import { DomainOperationError } from "@orb/kit/errors";
 import { SETTINGS_OP_CODES } from "../contract/errors.ts";
 import { APP_SETTINGS_KEY } from "../contract/keys.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
-import { readGlobalSetting, upsertGlobalSetting } from "../persistence/queries.ts";
+import { readGlobalSetting, readGlobalSettingList, upsertGlobalSetting } from "../persistence/queries.ts";
 
 interface GlobalSettingsVerbs {
   readonly getGlobalSetting: SettingsService["getGlobalSetting"];
+  readonly listGlobalSettings: SettingsService["listGlobalSettings"];
   readonly setGlobalSetting: SettingsService["setGlobalSetting"];
 }
 
 export function createGlobalSettings(ctx: SettingsContext): GlobalSettingsVerbs {
   const getGlobalSetting: SettingsService["getGlobalSetting"] = (key) => readGlobalSetting(ctx.db, key);
+
+  const listGlobalSettings: SettingsService["listGlobalSettings"] = () => readGlobalSettingList(ctx.db);
 
   const setGlobalSetting: SettingsService["setGlobalSetting"] = async (key, value) => {
     if (key === APP_SETTINGS_KEY || SETTINGS_TENANT_PREFIXES.some((prefix) => key.startsWith(prefix))) {
@@ -34,5 +37,5 @@ export function createGlobalSettings(ctx: SettingsContext): GlobalSettingsVerbs 
     return view;
   };
 
-  return { getGlobalSetting, setGlobalSetting };
+  return { getGlobalSetting, listGlobalSettings, setGlobalSetting };
 }

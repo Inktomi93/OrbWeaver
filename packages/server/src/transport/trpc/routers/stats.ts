@@ -5,6 +5,7 @@
 import {
   activityBucketSchema,
   characterStatsViewSchema,
+  embeddingCallRowSchema,
   latencyScopeSchema,
   latencyStatsSchema,
   leaderboardPageSchema,
@@ -14,6 +15,7 @@ import {
   personaUsageRowSchema,
   reconcileStatsResultSchema,
   statsByModelInputSchema,
+  statsEmbeddingCallsInputSchema,
   statsFreshnessSchema,
   statsLeaderboardInputSchema,
   statsPersonaUsageInputSchema,
@@ -48,6 +50,11 @@ export const statsRouter = t.router({
     .output(z.array(modelStatRowSchema))
     .input(statsByModelInputSchema)
     .query(({ ctx, input }) => ctx.services.stats.byModel(ctx.auth.userId, { limit: input?.limit })),
+
+  embeddingCalls: authedProcedure
+    .output(z.array(embeddingCallRowSchema))
+    .input(statsEmbeddingCallsInputSchema)
+    .query(({ ctx, input }) => ctx.services.stats.embeddingCalls(ctx.auth.userId, { limit: input?.limit })),
 
   freshness: authedProcedure.output(statsFreshnessSchema).query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),
 

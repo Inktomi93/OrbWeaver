@@ -240,6 +240,9 @@ export interface DocumentChunkHit {
   readonly documentName: string;
   readonly chunkId: DocumentChunkId;
   readonly content: string;
+  /** The chunk's span in the document's extracted text, end exclusive. */
+  readonly charStart: number;
+  readonly charEnd: number;
   readonly score: number;
 }
 
@@ -366,6 +369,8 @@ const documentChunkHitSchema = z.strictObject({
   documentName: z.string(),
   chunkId: typeIdSchema(ID_PREFIX.documentChunk),
   content: z.string(),
+  charStart: z.int().nonnegative(),
+  charEnd: z.int().nonnegative(),
   score: z.number(),
 }) satisfies z.ZodType<DocumentChunkHit>;
 

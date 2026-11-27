@@ -3,7 +3,7 @@
 // shape owned by `@orb/contracts/databank`; consumers (the workload runner, the ingest subsystem) import it
 // from there directly — one home, no re-export.
 
-import type { IngestOutcome } from "@orb/contracts/databank";
+import type { DatabankPassage, IngestOutcome } from "@orb/contracts/databank";
 import type { WorkloadId } from "@orb/kit/ids";
 
 /** The enqueue's two arms as `substrate/queue-ingest` reports them, plus the audit metadata each producer
@@ -18,6 +18,8 @@ export interface QueuedIngest {
  *  byte-identical to a non-databank deploy). `text` is the reading-order-restored chunks joined per §3. */
 export interface DatabankGatherResult {
   readonly text: string;
+  /** The passages that seated in `text`, in the order they read. */
+  readonly passages: readonly DatabankPassage[];
 }
 
 export type { ListDocumentsResult, UploadResult } from "@orb/contracts/databank";

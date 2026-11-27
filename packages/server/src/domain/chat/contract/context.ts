@@ -40,6 +40,7 @@ import type {
   TurnRetrievalEvents,
   UnregisterPromptTransformOp,
 } from "@orb/contracts/chat";
+import type { DatabankPassage } from "@orb/contracts/databank";
 import type { ResolveCharacterDistillatesOp } from "@orb/contracts/discovery";
 import type { EmbeddingsPruneBlocksOp, MemoryEmbedSpace, ResolveMemoryEmbedSpaceOp } from "@orb/contracts/embeddings";
 import type { Can, Principal, ResolveHandleOp, ResolveUserEnabled } from "@orb/contracts/identity";
@@ -557,8 +558,8 @@ type SearchDigestsOp = (
 /** The databank `{{databank}}`-slot GATHER op. OPTIONAL: absent ⇒ GATHER skips
  *  the branch entirely and the slot resolves empty, byte-identical to a non-databank deploy (the null-op pin).
  *  A `null` result = nothing retrieved (bankless scope / no hits / budget too small — and an
- *  unqueryable vector space, which reports through `events` before resolving null). chat reads ONLY `.text`
- *  (the slot value); databank's provenance/token fields never cross into chat.
+ *  unqueryable vector space, which reports through `events` before resolving null). chat reads `.text` (the slot value)
+ *  and `.passages` (the documents and spans the host's trace names); databank's score/token fields never cross into chat.
  *
  *  It shares {@link TurnRetrievalEvents} with the digest op because one turn losing both slots to ONE
  *  unqueryable space owes the user ONE notice; `onRerankUnavailable` is unused on this arm (databank's rerank
@@ -576,7 +577,7 @@ type GatherDatabankOp = (
     readonly rerank?: boolean | undefined;
   },
   events?: TurnRetrievalEvents | undefined,
-) => Promise<{ readonly text: string } | null>;
+) => Promise<{ readonly text: string; readonly passages: readonly DatabankPassage[] } | null>;
 
 /** The chat's active preset's declared ChoiceBlock variables, resolved under the host's settings. Empty
  *  means no declared variables (or a hostless/stale room). */

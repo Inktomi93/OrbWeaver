@@ -11,6 +11,7 @@ import type {
   CharacterEconomicsOp,
   CharacterModelEconomicsOp,
   CharacterStatsView,
+  EmbeddingCallRow,
   LatencyScope,
   LatencyStats,
   LeaderboardPage,
@@ -26,7 +27,7 @@ import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
-import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
+import type { ByModelOpts, EmbeddingCallsOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
 
 /** The DI bundle every verb closes over: the libSQL handle + the injected clock the rebuild stamps with. */
 export interface StatsContext {
@@ -53,6 +54,9 @@ export interface StatsService {
   /** Per-(model, provider) usage rows from `model_stats`, ordered by generation count (desc), with on-read
    *  latency + distinct-character "reach" merged in. Limit defaults to 50, capped at 200. */
   byModel: (ownerId: UserId, opts?: ByModelOpts) => Promise<ModelStatRow[]>;
+  /** The owner's paid embedding and rerank calls from the `embedding_calls` history, newest first, each with its
+   *  connection's current label. Limit defaults to 50, capped at 200. */
+  embeddingCalls: (ownerId: UserId, opts?: EmbeddingCallsOpts) => Promise<EmbeddingCallRow[]>;
   /** Rollup freshness for the empty-state gate: `computedAt` (epoch-ms) + `hasData`. `stale` is always
    *  false post-Stage-3 (rollups are maintained live, never stale). */
   freshness: (ownerId: UserId) => Promise<StatsFreshness>;

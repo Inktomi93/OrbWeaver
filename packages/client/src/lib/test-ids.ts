@@ -64,6 +64,10 @@ const TEST_IDS = {
   adminApprovalsSection: "admin-approvals-section",
   adminApproveButton: "admin-approve",
   adminApprovalsEmpty: "admin-approvals-empty",
+  // The read-only Global settings section (the stored server-wide rows) and its empty state.
+  adminGlobalSettingsSection: "admin-global-settings-section",
+  adminGlobalSettingsEmpty: "admin-global-settings-empty",
+  adminGlobalSettingsPartial: "admin-global-settings-partial",
   // B5 — the "Link SSO identity" admin section: lists linkable (unbound, non-owner, human) rows; each row's
   // Link opens a dialog with a stable-subject field. Empty state when nothing is linkable.
   adminLinkSsoSection: "admin-link-sso-section",
@@ -172,6 +176,7 @@ const TEST_IDS = {
   corpusAskState: "corpus-ask-state",
   corpusVisualsTab: "corpus-visuals-tab",
   corpusFacetDrill: "corpus-facet-drill",
+  corpusImageSkips: "corpus-image-skips",
   corpusKeywordExplorer: "corpus-keyword-explorer",
   corpusSearchSuggest: "corpus-search-suggest",
   analyticsListSurface: "analytics-list-surface",

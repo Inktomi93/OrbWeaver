@@ -355,11 +355,12 @@ test("a struck scene summarized again carries the changed mark, and the copies l
   await expect(page.locator('[data-memory-changed="true"]')).toHaveCount(1);
 });
 
-/** A room whose struck scene's messages were deleted, so the strike names nothing stored. */
-async function unmatchedRoom(): Promise<ChatRoot & { readonly rebuild: () => Promise<void> }> {
+/** A room whose struck scene's messages were deleted, so the strike names nothing stored. `bucket` picks which copy of
+ *  the scene the host strikes: the group's shared one or a character's own. */
+async function unmatchedRoom(bucket: MemoryItemView["bucket"] = "shared"): Promise<ChatRoot & { readonly rebuild: () => Promise<void> }> {
   await using construction = new AsyncDisposableStack();
-  const h = construction.use(await memoryRoom());
-  await h.caller.chat.strikeMemory({ chatId: h.chatId, item: sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1).key });
+  const h = construction.use(await memoryRoom({ group: bucket === "scoped" }));
+  await h.caller.chat.strikeMemory({ chatId: h.chatId, item: sceneItem(await h.caller.chat.memoryView({ chatId: h.chatId }), 1, bucket).key });
   const lines = (await readRoomCanon(h.root, h.owner, h.chatId)).filter((message) => message.content.startsWith("scene-2."));
   await h.caller.chat.deleteMessages({ chatId: h.chatId, messageIds: lines.map((message) => message.id) });
   await h.rebuild();
@@ -379,6 +380,35 @@ test("the host restores a strike that names nothing stored from the unmatched li
   await expect(unmatched).toHaveCount(0);
   await expect(rowsOf(page).first()).toBeVisible();
   expect((await h.caller.chat.memoryView({ chatId: h.chatId })).unmatchedStrikes).toEqual([]);
+});
+
+test("an unmatched strike of the shared bucket says everyone remembers it and names no character", async ({ mount, page }) => {
+  await using h = await unmatchedRoom("shared");
+  const strike = present((await h.caller.chat.memoryView({ chatId: h.chatId })).unmatchedStrikes[0]);
+  expect(strike.scopedCharacterId).toBeNull();
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
+  const unmatched = page.locator('[data-memory-unmatched="true"] > [role="listitem"]');
+
+  await expect(unmatched).toHaveCount(1);
+  await expect(unmatched).toHaveAttribute("data-memory-bucket", "shared");
+  for (const character of h.characters) {
+    await expect(unmatched).not.toContainText(character.name);
+  }
+});
+
+test("an unmatched strike of a character's own summary names that character and no other", async ({ mount, page }) => {
+  await using h = await unmatchedRoom("scoped");
+  const strike = present((await h.caller.chat.memoryView({ chatId: h.chatId })).unmatchedStrikes[0]);
+  const owner = present(h.characters.find((character) => character.id === strike.scopedCharacterId));
+  await mount<typeof MemoryViewTabStory>(STORY, await serveTab(h, page, { viewer: h.caller }));
+  const unmatched = page.locator('[data-memory-unmatched="true"] > [role="listitem"]');
+
+  await expect(unmatched).toHaveCount(1);
+  await expect(unmatched).toHaveAttribute("data-memory-bucket", "scoped");
+  await expect(unmatched).toContainText(owner.name);
+  for (const other of h.characters.filter((character) => character.id !== owner.id)) {
+    await expect(unmatched).not.toContainText(other.name);
+  }
 });
 
 test("a member sees the unmatched list without a restore", async ({ mount, page }) => {

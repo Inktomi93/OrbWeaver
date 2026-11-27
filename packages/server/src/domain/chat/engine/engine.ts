@@ -37,7 +37,9 @@ import {
   EMPTY_GENERATION_CAUSE,
   HIDDEN_TAG_BROKEN_CODE,
   INLINE_REPLY_ORIGIN,
+  VARIANT_METADATA_RATE_LIMIT_KEY,
   VARIANT_METADATA_REASONING_MS_KEY,
+  VARIANT_METADATA_REASONING_REDACTED_KEY,
   VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY,
 } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
@@ -211,6 +213,12 @@ async function readCommittedView(ctx: EngineContext, messageId: MessageId): Prom
  * literal and a bare string member would be no discriminant at all (`contracts/src/chat/messages.ts`). A turn
  * whose wire reported none writes no key.
  *
+ * THE REDACTION KEY marks a reply whose provider redacted its reasoning (`TurnEconomics.reasoningRedacted`), read back as
+ * `MessageView.reasoningRedacted`.
+ *
+ * THE RATE-LIMIT KEY is the provider's warned-or-refused state for this reply (`TurnEconomics.rateLimit`), read back as
+ * `MessageView.rateLimit`. A turn under no warning writes none.
+ *
  * THE FOURTH KEY is the sources the turn CITED (`TurnEconomics.sources`). Citations have no reader and no
  * query today, so the sidecar is their home — the same home the ST import's parsed provenance blob uses —
  * and a key added here needs no DDL because the column's shape is the closed union both sides import. Spans
@@ -232,6 +240,7 @@ function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>
   const sidecar: VariantMetadata = {
     ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
     ...(systemFingerprint === null ? {} : { [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: systemFingerprint }),
+    ...providerStatementKeys(result.economics),
     ...(result.systemTokens === null ? {} : { systemTokens: result.systemTokens }),
     ...(text.length === 0 && images.length === 0 && tools.length === 0 ? {} : { contentSignatures: { content: result.content, text, images, tools } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
@@ -239,6 +248,15 @@ function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>
     ...(result.economics?.usageLegs === undefined ? {} : { usageLegs: [...result.economics.usageLegs] }),
   };
   return Object.keys(sidecar).length === 0 ? null : sidecar;
+}
+
+/** The sidecar keys for what the provider said about the reply itself: a redacted reasoning channel and a rate-limit
+ *  warning. Each key is absent when the provider said nothing. */
+function providerStatementKeys(economics: TurnEconomics | null | undefined): VariantMetadata {
+  return {
+    ...(economics?.reasoningRedacted === true ? { [VARIANT_METADATA_REASONING_REDACTED_KEY]: true as const } : {}),
+    ...(economics?.rateLimit === undefined || economics.rateLimit === null ? {} : { [VARIANT_METADATA_RATE_LIMIT_KEY]: economics.rateLimit }),
+  };
 }
 
 function observedResult(

@@ -9,6 +9,7 @@
 // `truncate_prompt_tokens` knob turned an over-window pair from a fast 400 into an unbounded hang. A clamp is
 // legitimate on a SCORING pass (nothing persisted) and is LOGGED.
 
+import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { RerankHit, RerankResult } from "@orb/contracts/providers";
 import type { RerankDocument, RerankQuery } from "@orb/contracts/role-clients";
 import { clampToTokenBudget, estimateTokens } from "@orb/kit/tokens";
@@ -20,6 +21,7 @@ import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { authHeaders, fetchJson, onBaseOrigin } from "../http/fetch-json.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
+import { embeddingCostOf } from "../wire/embedding-cost.ts";
 import { toImageUrl } from "../wire/image-normalize.ts";
 
 const RERANK_SCAFFOLD_RESERVE_TOKENS = 128;
@@ -94,6 +96,20 @@ function toResult(response: RerankResponse, documents: readonly RerankDocument[]
   };
 }
 
+/** One reranker call is one batch: the sent documents are its inputs, and the wire states only a total token count. */
+function batchObservationOf(req: RerankRequest, docs: readonly RerankDocument[], response: RerankResponse): EmbeddingBatchObservation {
+  const totalTokens = response.usage?.total_tokens ?? null;
+  const carriesImage = (typeof req.query !== "string" && req.query.image !== undefined) || docs.some((doc) => doc.image !== undefined);
+  return {
+    inputCount: docs.length,
+    inputModalities: carriesImage ? ["image", "text"] : ["text"],
+    servedModel: null,
+    usage: { promptTokens: null, totalTokens },
+    tokenDetails: null,
+    cost: embeddingCostOf(totalTokens, req.connection.features.pricing, null, !carriesImage),
+  };
+}
+
 /** The wire sides: plain strings on a text-only pass, ScoreMultiModalParam arrays once any image rides. */
 async function wireSides(
   req: RerankRequest,
@@ -155,7 +171,9 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
     label,
     signal: req.signal,
   });
-  return toResult(rerankResponseSchema.parse(result.json), docs, req);
+  const response = rerankResponseSchema.parse(result.json);
+  await req.embeddingAccounting?.recordBatch(batchObservationOf(req, docs, response));
+  return toResult(response, docs, req);
 }
 
 export type { RerankDeps } from "#src/contract/openai-backend.ts";

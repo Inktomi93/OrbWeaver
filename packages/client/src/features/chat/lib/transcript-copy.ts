@@ -1,3 +1,5 @@
+import type { MessageRateLimitStatus } from "@orb/contracts/chat";
+
 /** Printed in place of the paging controls when the loaded rows are not the whole room. */
 export const CHAT_PRINT_COVERAGE = "This print covers the messages loaded in the room. Load the rest before printing to include them.";
 
@@ -20,6 +22,21 @@ export const CORPUS_SOURCE_OUTCOME_COPY = {
 
 /** The quiet mark on a reply the reader stopped, kept as it stood. */
 export const MESSAGE_STOPPED_MARK = "Stopped";
+
+/** The provider's rate-limit note on a reply, by what it said, with the formatted reset moment when the provider reported one. */
+export function messageRateLimitLabel(status: MessageRateLimitStatus, resetAt: string | null): string {
+  const note = rateLimitNote(status);
+  return resetAt === null ? note : `${note}; resets ${resetAt}`;
+}
+
+function rateLimitNote(status: MessageRateLimitStatus): string {
+  switch (status) {
+    case "allowed_warning":
+      return "Provider rate limit nearly reached";
+    case "rejected":
+      return "Provider rate limit reached";
+  }
+}
 
 /** The status line's count of the rows paged in so far. */
 export function chatHistoryLoadedLabel(count: number): string {

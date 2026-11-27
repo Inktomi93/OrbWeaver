@@ -24,7 +24,13 @@ import type {
   UserMacroDraws,
   VariantMetadata,
 } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND, MESSAGE_TEXT_MAX_CHARS, parseVariantMetadata } from "@orb/contracts/chat";
+import {
+  DEFAULT_MESSAGE_KIND,
+  MESSAGE_TEXT_MAX_CHARS,
+  parseVariantMetadata,
+  VARIANT_METADATA_RATE_LIMIT_KEY,
+  VARIANT_METADATA_REASONING_REDACTED_KEY,
+} from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
@@ -914,7 +920,8 @@ export function setMessageSeqStatement(db: Db, messageId: MessageId, seq: number
  * selected at idx 0) without a re-read — byte-for-byte what `loadCanonHistory` would return for this slot.
  */
 export function buildCommittedMessageView(params: InsertCanonMessageParams): MessageView {
-  const providerMetadata = parseVariantMetadata(params.variant.metadata).providerMetadata;
+  const metadata = parseVariantMetadata(params.variant.metadata);
+  const providerMetadata = metadata.providerMetadata;
   const economics = variantEconomics(params.variant);
   return {
     id: params.messageId,
@@ -934,6 +941,8 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     // A freshly-committed variant has never been continued — its D26 snapshot columns are null.
     hasContinuation: false,
     outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
+    reasoningRedacted: metadata[VARIANT_METADATA_REASONING_REDACTED_KEY] === true,
+    rateLimit: metadata[VARIANT_METADATA_RATE_LIMIT_KEY] ?? null,
     ...economics,
     hasGeneratedVariant: economics.genStartedAt !== null || economics.genFinishedAt !== null,
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the

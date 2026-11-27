@@ -167,6 +167,30 @@ export const VARIANT_METADATA_TOKEN_COUNT_KEY = "token_count";
  *  not carry. Absent when the wire reports none — never an empty string standing in for one. */
 export const VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY = "system_fingerprint";
 
+/** THE ONE SPELLING of the `message_variants.metadata` key marking that the provider redacted the reply's reasoning
+ *  (`ChatResult.reasoningRedacted`). Present only when true. The replay parts that hold the redacted payload never
+ *  cross to a client, and the subscription wire keeps none, so this flag is the only record the view can read. */
+export const VARIANT_METADATA_REASONING_REDACTED_KEY = "reasoning_redacted";
+
+/** The provider states a generation answered under a rate limit: warned or rejected, never a plain allowance. */
+const MESSAGE_RATE_LIMIT_STATUSES = ["allowed_warning", "rejected"] as const;
+export type MessageRateLimitStatus = (typeof MESSAGE_RATE_LIMIT_STATUSES)[number];
+
+/** What a reader needs of the provider's rate-limit snapshot on one reply: how close or how far over the limit the
+ *  reply ran, and when the window resets (epoch ms; null when the provider reported no reset). */
+export interface MessageRateLimit {
+  status: MessageRateLimitStatus;
+  resetsAt: number | null;
+}
+const messageRateLimitSchema = z
+  .object({ status: z.enum(MESSAGE_RATE_LIMIT_STATUSES), resetsAt: z.number().nullable() })
+  .strip() satisfies z.ZodType<MessageRateLimit>;
+
+/** THE ONE SPELLING of the `message_variants.metadata` key carrying that snapshot. A top-level key, like the vendor
+ *  fingerprint beside it, because every wire that reports a limit spells it the same and no provider arm owns it.
+ *  Written only for a warned or rejected reply; absent otherwise. */
+export const VARIANT_METADATA_RATE_LIMIT_KEY = "rate_limit";
+
 // Strip mode: also reads stored rows and upstream responses.
 /** The FIRST-PARTY arms of the per-provider sidecar: one NAMED shape per provider we ourselves write, keyed
  *  on a `provider` LITERAL so zod dispatches in one lookup and `tsc` narrows a reader to exactly one arm.
@@ -366,6 +390,8 @@ const variantMetadataSchema = z
     [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
     [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
     [VARIANT_METADATA_SYSTEM_FINGERPRINT_KEY]: z.string().optional(),
+    [VARIANT_METADATA_RATE_LIMIT_KEY]: messageRateLimitSchema.optional(),
+    [VARIANT_METADATA_REASONING_REDACTED_KEY]: z.literal(true).optional(),
     /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
      *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
     systemTokens: z.number().optional(),
@@ -633,6 +659,12 @@ export interface MessageView {
   outputCapReached: boolean;
   content: string;
   reasoning: string | null;
+  /** The provider redacted the selected run's reasoning (a redacted thinking block), read from the variant sidecar at
+   *  the server read seam; withheld wherever `reasoning` is. */
+  reasoningRedacted: boolean;
+  /** The provider warned or refused on the selected run's rate limit, with its reset time. Derived from the variant
+   *  sidecar at the server read seam; null when the run drew no warning. */
+  rateLimit: MessageRateLimit | null;
   model: ModelId | null;
   provider: ProviderId | null;
   /** The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`); `stopReason` and `terminalReason` are raw words, opaque
@@ -728,6 +760,8 @@ export const messageViewSchema = z.strictObject({
   outputCapReached: z.boolean(),
   content: z.string(),
   reasoning: z.string().nullable(),
+  reasoningRedacted: z.boolean(),
+  rateLimit: messageRateLimitSchema.strict().nullable(),
   model: brandedId("ModelId").nullable(),
   provider: providerIdSchema.nullable(),
   finishReason: normalizedFinishReasonSchema.nullable(),

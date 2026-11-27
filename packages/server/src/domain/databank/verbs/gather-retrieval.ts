@@ -12,6 +12,7 @@
 // macro-evaluated. A document the turn's host does not own (a member's global document, or any whose row is gone)
 // is rendered through `neutralizeMacros`, the plugin lore path's function, so its text reaches the prompt literally.
 
+import type { DatabankPassage } from "@orb/contracts/databank";
 import type { DocumentChunkHit } from "@orb/contracts/search";
 import type { DocumentId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
@@ -28,8 +29,9 @@ import { filterOwnedDocumentIds } from "../persistence/queries.ts";
  *  after drops (whole chunks only — the lowest-best-score document's tail first, never a mid-chunk cut). The
  *  budget is checked on the growing rendered string, so `estimateTokens(text) <= tokenBudget` holds exactly.
  *  The wrapper prose ("Related information:") belongs to the PRESET section around the slot, not here. */
-function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): string {
+function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): { readonly text: string; readonly seated: number } {
   let text = "";
+  let seated = 0;
   let currentDoc: DocumentId | null = null;
   for (const hit of hits) {
     const isNewDoc = hit.documentId !== currentDoc;
@@ -40,8 +42,9 @@ function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): s
     }
     text = candidate;
     currentDoc = hit.documentId;
+    seated += 1;
   }
-  return text;
+  return { text, seated };
 }
 
 export function createGatherRetrieval(ctx: DatabankContext): DatabankService["gatherRetrieval"] {
@@ -67,10 +70,14 @@ export function createGatherRetrieval(ctx: DatabankContext): DatabankService["ga
     const rendered = hits.map((hit) =>
       hostOwned.has(hit.documentId) ? hit : { ...hit, documentName: neutralizeMacros(hit.documentName), content: neutralizeMacros(hit.content) },
     );
-    const text = fitAndRender(rendered, params.tokenBudget);
+    const { text, seated } = fitAndRender(rendered, params.tokenBudget);
     if (text.length === 0) {
       return null; // the budget could not seat even the best chunk — a no-op, byte-identical to absent.
     }
-    return { text };
+    // The passages name the document as stored: only the prompt text is macro-neutralized.
+    const passages = hits
+      .slice(0, seated)
+      .map(({ documentId, documentName, charStart, charEnd }): DatabankPassage => ({ documentId, documentName, charStart, charEnd }));
+    return { text, passages };
   };
 }

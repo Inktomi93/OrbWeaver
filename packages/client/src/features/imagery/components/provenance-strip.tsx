@@ -4,17 +4,23 @@
 // The three honest arms: pending → skeleton, error → the shared retryable block, null/loaded → the strip.
 // The read suspends under its own boundary so the modal's image paints immediately and the strip fills in.
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { IMAGE_MODE_LABELS } from "#lib";
+import { IMAGE_MODE_LABELS, timeLib } from "#lib";
 // One cost voice for the whole feature (#623) — the imagine modal's read receipt writes a spend the same way.
 import { formatCost } from "../lib/format-cost.ts";
-import { IMAGE_PROVENANCE_EMPTY_TEXT, IMAGE_PROVENANCE_READ_LABEL } from "../lib/imagine-names.ts";
+import {
+  IMAGE_PROVENANCE_EMPTY_TEXT,
+  IMAGE_PROVENANCE_NEGATIVE_LABEL,
+  IMAGE_PROVENANCE_READ_LABEL,
+  IMAGE_PROVENANCE_SUBJECT_GONE,
+} from "../lib/imagine-names.ts";
+import { provenanceUsageLabels } from "../lib/provenance-usage.ts";
 
 export function ProvenanceStrip({ assetId }: { readonly assetId: AssetId }): ReactElement {
   return (
@@ -39,17 +45,64 @@ function LoadedProvenance({ assetId }: { readonly assetId: AssetId }): ReactElem
     );
   }
 
+  const usage = provenanceUsageLabels(data.usage);
   return (
     <Stack gap="field" data-slot="provenance">
       <Text voice="reading" data-slot="provenance-prompt">
         {data.prompt}
       </Text>
+      {data.negativePrompt === null || data.negativePrompt.length === 0 ? null : (
+        <Text voice="gloss" data-slot="provenance-negative">
+          {`${IMAGE_PROVENANCE_NEGATIVE_LABEL}: ${data.negativePrompt}`}
+        </Text>
+      )}
       <Row wrap={true} gap="tight">
         <Badge size="sm">{data.model}</Badge>
         <Badge size="sm">{IMAGE_MODE_LABELS[data.mode]}</Badge>
         {data.edited ? <Badge size="sm">Edited</Badge> : null}
         {data.costUsd === null ? null : <Badge size="sm">{formatCost(data.costUsd)}</Badge>}
+        {data.subjectCharacterId === null ? null : <ProvenanceSubject characterId={data.subjectCharacterId} />}
       </Row>
+      {usage.length === 0 ? null : (
+        <Row wrap={true} gap="tight" data-slot="provenance-usage">
+          {usage.map((label) => (
+            <Badge key={label} size="sm" variant="outline">
+              {label}
+            </Badge>
+          ))}
+        </Row>
+      )}
+      <Text voice="gloss" data-slot="provenance-created">
+        {timeLib.formatRelative(data.createdAt)}
+      </Text>
     </Stack>
+  );
+}
+
+/** The character the picture is of. The name is a separate read under its own boundary, so a slow or failed one
+ *  never holds the rest of the strip: pending shows nothing, a failed read shows the gone badge. */
+function ProvenanceSubject({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  return (
+    <QueryBoundary
+      resetKeys={[characterId]}
+      fallback={null}
+      renderError={(): ReactElement => (
+        <Badge size="sm" data-slot="provenance-subject">
+          {IMAGE_PROVENANCE_SUBJECT_GONE}
+        </Badge>
+      )}
+    >
+      <ProvenanceSubjectName characterId={characterId} />
+    </QueryBoundary>
+  );
+}
+
+function ProvenanceSubjectName({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
+  return (
+    <Badge size="sm" data-slot="provenance-subject">
+      {data.name}
+    </Badge>
   );
 }

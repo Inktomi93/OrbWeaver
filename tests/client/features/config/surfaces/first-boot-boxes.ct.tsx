@@ -48,6 +48,7 @@ const FIRST_BOOT_READS = [
   "settings.getUserSettings",
   "settings.listThemes",
   "settings.getAppSettingsWithOverrides",
+  "settings.listGlobalSettings",
   "connection.list",
   "connection.listBindings",
   "connection.providersAvailable",
