@@ -71,6 +71,36 @@ test("a library options type a procedure's options extend pairs the client's var
   expect(bucketsIn(scan)).toEqual(["member-write-only Out.extra", "member-write-only NominateData.extra", "member-untouched NominateVars.stale"]);
 });
 
+// The client's options slot picks the library's members (`Pick<UseMutationOptions<D, E, V>, "mutationFn">`), as the
+// mutation factory does: a picked library member pairs with the procedure options' member the same way, so a data twin
+// the client restates and reads (`Reaped.reaped`) reads the procedure's output member. `Out.extra` is read by nobody.
+test("a slot that picks a library options type's members pairs the client's restated data with the procedure's output", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export type MutationFunction<TData, TVariables> = (variables: TVariables) => Promise<TData>;",
+      "export interface UseMutationOptions<TData, TError, TVariables> { mutationKey?: readonly unknown[]; mutationFn?: MutationFunction<TData, TVariables> }",
+      "export interface ProcedureOptions<TInput, TOutput> extends UseMutationOptions<TOutput, Error, TInput> { readonly path: string }",
+    ]),
+    ...source([
+      'import type { ProcedureOptions, UseMutationOptions } from "lib";',
+      "export interface Out { readonly reaped: number; readonly extra: string }",
+      'const verb = async (): Promise<Out> => ({ reaped: 1, extra: "x" });',
+      "declare const procedure: (fn: () => Promise<Out>) => ProcedureOptions<void, Out>;",
+      "const router = { reap: { mutationOptions: (): ProcedureOptions<void, Out> => procedure(verb) } };",
+      'type Options<V, D> = Required<Pick<UseMutationOptions<D, Error, V>, "mutationKey">> & Pick<UseMutationOptions<D, Error, V>, "mutationFn">;',
+      "const entity = <V, D>(config: { readonly options: (t: typeof router) => Options<V, D>; readonly settle: (data: D) => boolean }): ((vars: V) => Promise<boolean>) =>",
+      "  async (vars) => {",
+      "    const data = await config.options(router).mutationFn?.(vars);",
+      "    return data !== undefined && config.settle(data);",
+      "  };",
+      "export const useReap = entity<void, { readonly reaped: number }>({ options: (t) => t.reap.mutationOptions(), settle: (data) => data.reaped !== 0 });",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Out.extra"]);
+});
+
 // `set` keeps what it takes, so a map filled through a wider instance fills the map it was set on and the reads of the
 // narrower one read the write. `has` and `echo` compare or hand back what they take, paired straight; `includes`,
 // `has` and `reduce` reached through a generic that holds the collections lend nothing either. So `Stored.label` is
@@ -178,6 +208,28 @@ test("a push of a spread list fills the list's element with each element", { tim
     ]),
   );
   expect(bucketsIn(scan)).toEqual(["member-write-only made.spare", "member-sent-only noted.note"]);
+});
+
+// A slot that is a type parameter or an object arm (`T | Spliced`) takes an object value into the arm it fits, so a read
+// of the arm reads the value: `row.content` and `row.role` are read where the spliced history is, and `row.spare` is
+// read by nobody.
+test("an object value filling a union of a type parameter and an object arm fills the arm", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "interface Spliced { readonly role: string; readonly content: string }",
+      'const row = (content: string): { readonly role: string; readonly content: string; readonly spare: string } => ({ role: "system", content, spare: "s" });',
+      "const splice = <T extends { readonly role: string }>(history: readonly T[]): (T | Spliced)[] => {",
+      "  const result: (T | Spliced)[] = [...history];",
+      '  result.splice(0, 0, row("note"));',
+      "  return result;",
+      "};",
+      "export const prompt = (): string => {",
+      '  return splice([{ role: "user" }]).map((entry) => ("content" in entry ? entry.content + entry.role : "")).join("");',
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only row.spare"]);
 });
 
 test("a push through an optional list member writes the list the caller handed in", { timeout: 120_000 }, async ({ plantedTree }) => {

@@ -4,7 +4,9 @@
 //
 // Owner rulings this module holds:
 // - A value handed to an opaque slot (`unknown`, `any`, `object`, a type parameter, a slot naming none of its members)
-//   escapes: every member it holds, all the way down, is sent (roles.ts states the escape ruling).
+//   escapes: every member it holds, all the way down, is sent (roles.ts states the escape ruling). A slot that is a
+//   union of a type parameter and object arms (`T | Spliced`) takes an object value into its object arms, since no
+//   concrete object is assignable to the type parameter; a value typed by a type parameter still escapes.
 // - A slot member a library declares (an option a framework reads, a fetch init's `headers`) is a receiver naming the
 //   field in its published declaration, so the value's same-named member is read, at any depth of the slot.
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
@@ -561,6 +563,7 @@ export class Flows {
     const taken = new Set(identityAsks.flatMap(({ at }, y) => (identity[y] === true ? [at] : [])));
     const spreads = this.#spreadPairs(handed, values);
     const holders = this.#parameterHolders(handed);
+    const armed = this.#objectArmsOfOpaque(handed.map((_, at) => ({ slot: slots.get(at), value: values[at] })));
     const pairs: FlowPair[] = [];
     const escaping: { readonly at: number; readonly value: Type; readonly door: boolean }[] = [];
     for (const [at, entry] of handed.entries()) {
@@ -569,10 +572,11 @@ export class Flows {
       if (spreads.paired.has(at) || taken.has(at) || value === undefined || isPrimitive(value)) {
         continue;
       }
-      if (entry.spread || entry.door || calls.generic.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
+      const into = entry.spread || entry.door || calls.generic.has(at) ? null : this.#slotsTaking(slot, armed[at] ?? []);
+      if (into === null) {
         escaping.push({ at, value, door: entry.door });
-      } else if (slot !== undefined) {
-        pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos, holder: holders[at] ?? [] });
+      } else {
+        pairs.push(...into.map((taking) => ({ slot: taking, value, site: nodes[at]?.pos ?? entry.node.pos, holder: holders[at] ?? [] })));
       }
     }
     this.#escapeHanded(
@@ -587,6 +591,37 @@ export class Flows {
       }),
     );
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
+  }
+
+  // The slots a value handed on whole fills: the object arms an opaque union of a type parameter takes it into, else the
+  // slot itself; null where an opaque slot takes it whole, so it escapes.
+  #slotsTaking(slot: Type | undefined, arms: readonly Type[]): readonly Type[] | null {
+    if (arms.length > 0) {
+      return arms;
+    }
+    if (slot === undefined) {
+      return [];
+    }
+    return this.#opaque.get(slot.id) === true ? null : [slot];
+  }
+
+  // For an opaque union slot of a type parameter and object arms, and a value no type parameter types, the object arms it
+  // fills; empty for any other slot or value.
+  #objectArmsOfOpaque(asks: readonly { readonly slot: Type | undefined; readonly value: Type | undefined }[]): readonly (readonly Type[])[] {
+    const state = this.#state;
+    const answers = state.batch(
+      asks.map(({ slot, value }) =>
+        slot === undefined || value === undefined || !slot.isUnionType() || this.#opaque.get(slot.id) !== true || opaqueFlag(value)
+          ? answer<readonly Type[]>([])
+          : constituentsOf(slot),
+      ),
+    );
+    return answers.map((arms) => {
+      const objects = arms.filter((arm) => !(opaqueFlag(arm) || isPrimitive(arm)));
+      const parameters = arms.filter((arm) => arm.isTypeParameter());
+      // only a union whose opaque arms are type parameters: an `unknown` or `any` arm takes the value whole
+      return parameters.length > 0 && arms.every((arm) => isPrimitive(arm) || arm.isTypeParameter() || !opaqueFlag(arm)) ? objects : [];
+    });
   }
 
   // The declarations of the parameter each handed argument lands in, empty for a spread or a value no call takes.
@@ -1124,11 +1159,7 @@ export class Flows {
   // optional member pairs without its undefined: a present value is what fills it (TanStack's `mutationFn?`).
   *#libraryCounterparts(slot: Type, value: Type): APIRequestGenerator<readonly Step[] | null> {
     const { checker } = this.#state.world;
-    if (!(slot.isTypeReference() && value.isTypeReference())) {
-      return null;
-    }
-    const targets = [yield* (yield* slot.getTarget.gen()).getSymbol.gen(), yield* (yield* value.getTarget.gen()).getSymbol.gen()];
-    if (targets.some((symbol) => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle)))) {
+    if (!(value.isTypeReference() && (yield* this.#libraryShaped(slot)) && (yield* this.#libraryShaped(value)))) {
       return null;
     }
     // members pair by their escaped name, which a well-known symbol key (`[Symbol.iterator]`) has and a display name lacks
@@ -1145,6 +1176,20 @@ export class Flows {
       }
     }
     return out;
+  }
+
+  // A library generic's instance, or a type that only picks a library's members (`Pick<UseMutationOptions<D, E, V>,
+  // "mutationFn">`, as the client's mutation factory spells its options): no member of it is ours to pair.
+  *#libraryShaped(type: Type): APIRequestGenerator<boolean> {
+    const ours = (symbol: NativeSymbol | undefined): boolean => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle));
+    if (type.isTypeReference()) {
+      return !ours(yield* (yield* type.getTarget.gen()).getSymbol.gen());
+    }
+    if (!(type.isIntersectionType() || hasFlag(type.flags, TypeFlags.Object))) {
+      return false;
+    }
+    const members = yield* this.#state.world.checker.getPropertiesOfType.gen(type);
+    return members.length > 0 && members.every((member) => member.declarations.length > 0 && !ours(member));
   }
 
   *#signatureOperands(slot: Signature, value: Signature): APIRequestGenerator<readonly Step[]> {
