@@ -3,7 +3,7 @@
 // the original error. The executor never selects a connection or follows a changed binding.
 
 import { credentialExecutionEvidenceOf } from "@orb/contracts/credentials";
-import type { BeginEmbeddingAccounting, EmbeddingAccounting, EmbeddingTask } from "@orb/contracts/embeddings";
+import type { BeginEmbeddingAccounting, EmbeddingAccounting, EmbeddingCallTask } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
 import { canFund } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
@@ -62,7 +62,7 @@ export function createProviderExecutor(args: {
   readonly onAuthFailed?: InferenceDeps["onAuthFailed"];
 }): ProviderExecutor {
   const { registry, span, beginEmbeddingAccounting } = args;
-  const begin = (connection: Resolved, task: EmbeddingTask): EmbeddingAccounting =>
+  const begin = (connection: Resolved, task: EmbeddingCallTask): EmbeddingAccounting =>
     beginEmbeddingAccounting({
       ownerId: connection.ownerId,
       connectionId: connection.connectionId,
@@ -141,9 +141,12 @@ export function createProviderExecutor(args: {
         );
       }),
     rerank: (req) =>
-      execute(req.connection, "rerank", req.signal, (connection) =>
-        runTask({ span, registry, task: "rerank", pick: (b) => b.rerank, req: { ...req, connection } }),
-      ),
+      execute(req.connection, "rerank", req.signal, (connection) => {
+        const embeddingAccounting = begin(connection, "rerank");
+        return accounted(embeddingAccounting, () =>
+          runTask({ span, registry, task: "rerank", pick: (b) => b.rerank, req: { ...req, connection, embeddingAccounting } }),
+        );
+      }),
     imageEmbed: (req): Promise<ImageEmbedResult> =>
       execute(req.connection, "imageEmbed", req.signal, (connection) => {
         const embeddingAccounting = begin(connection, "imageEmbed");

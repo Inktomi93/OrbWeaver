@@ -103,3 +103,21 @@ test("durable batch append and settlement failures retain both causes without bu
   expect(fundingProvider.calls).toEqual(["/v1/embeddings"]);
   expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, connection.connectionId))).toEqual([]);
 });
+
+test("the real executor records a rerank call's usage like an embedding batch", async ({ app, harness, db, ownerCaller, fundingProvider }) => {
+  const connection = await fundingConnection({ ownerCaller, harness, task: "rerank" });
+  const result = await app.runtime.executor.rerank({
+    signal: new AbortController().signal,
+    connection,
+    query: "control",
+    documents: [
+      { id: "first", text: "control" },
+      { id: "second", text: "another" },
+    ],
+  });
+  expect(result.hits.length).toBeGreaterThan(0);
+  expect(fundingProvider.calls).toEqual(["/v1/rerank"]);
+  expect(await db.select().from(embeddingCalls).where(eq(embeddingCalls.connectionId, connection.connectionId))).toMatchObject([
+    { ownerId: harness.ownerId, provider: connection.providerId, model: FUNDING_MODEL, task: "rerank", inputCount: 2, totalTokens: 1, outcome: "completed" },
+  ]);
+});

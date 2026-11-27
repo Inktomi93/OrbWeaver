@@ -45,7 +45,14 @@
 
 import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
-import { EMBEDDING_INVOCATION_OUTCOMES, EMBEDDING_TASKS, IMAGE_LENSES, IMAGE_SKIP_REASONS, VECTOR_SCOPES } from "@orb/contracts/embeddings";
+import {
+  EMBEDDING_CALL_TASKS,
+  EMBEDDING_INVOCATION_OUTCOMES,
+  EMBEDDING_TASKS,
+  IMAGE_LENSES,
+  IMAGE_SKIP_REASONS,
+  VECTOR_SCOPES,
+} from "@orb/contracts/embeddings";
 import type { CostDetails, Modality, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
 import type {
   AssetId,
@@ -104,7 +111,7 @@ export const embeddingCalls = sqliteTable(
     model: nulFreeText("model").notNull(),
     servedModel: nulFreeText("served_model"),
     wire: nulFreeText("wire").$type<Wire>().notNull(),
-    task: text("task", { enum: EMBEDDING_TASKS }).notNull(),
+    task: text("task", { enum: EMBEDDING_CALL_TASKS }).notNull(),
     inputCount: integer("input_count").notNull(),
     inputModalities: text("input_modalities", { mode: "json" }).$type<readonly Modality[]>().notNull(),
     promptTokens: integer("prompt_tokens"),
@@ -121,7 +128,7 @@ export const embeddingCalls = sqliteTable(
     index("embedding_calls_owner_idx").on(t.ownerId, t.createdAt),
     index("embedding_calls_connection_idx").on(t.connectionId),
     index("embedding_calls_invocation_idx").on(t.invocationId),
-    check("embedding_calls_task_check", sql.raw(`task in (${checkList(EMBEDDING_TASKS)})`)),
+    check("embedding_calls_task_check", sql.raw(`task in (${checkList(EMBEDDING_CALL_TASKS)})`)),
     check("embedding_calls_outcome_check", sql.raw(`outcome is null or outcome in (${checkList(EMBEDDING_INVOCATION_OUTCOMES)})`)),
     check("embedding_calls_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
   ],

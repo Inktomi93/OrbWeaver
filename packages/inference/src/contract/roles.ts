@@ -62,6 +62,7 @@ export interface EmbedRequest extends TaskRequestCommon<"embed"> {
 export type WireEmbedding = number[] | string;
 
 export interface RerankRequest extends TaskRequestCommon<"rerank"> {
+  readonly embeddingAccounting?: EmbeddingAccounting | undefined;
   readonly query: RerankQuery;
   readonly instruction?: string | undefined;
   readonly documents: readonly RerankDocument[];
