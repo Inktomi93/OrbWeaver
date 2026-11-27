@@ -32,6 +32,7 @@
     "./prose": "./src/prose/index.ts",
     "./providers": "./src/providers/index.ts",
     "./refinery": "./src/refinery/index.ts",
+    "./refusal": "./src/refusal/index.ts",
     "./regex": "./src/regex/index.ts",
     "./role-clients": "./src/role-clients/index.ts",
     "./roster-preset": "./src/roster-preset/index.ts",

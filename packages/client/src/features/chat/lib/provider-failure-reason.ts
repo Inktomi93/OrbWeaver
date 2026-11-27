@@ -2,6 +2,7 @@
 // server's own sentence, and a member reads only that the host's connection failed, never the host's account detail.
 
 import { PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
+import type { RefusalReason } from "@orb/contracts/refusal";
 import { HOST_CONNECTION_FAILED_COPY } from "./send-failure-copy.ts";
 
 /**
@@ -9,8 +10,11 @@ import { HOST_CONNECTION_FAILED_COPY } from "./send-failure-copy.ts";
  * or `null` when the provider was not the cause. A caller that cannot tell the viewer passes `false`, so the
  * host's detail is never shown on a guess.
  */
-export function providerFailureReason(failure: { readonly reason: string; readonly message: string | null }, viewerIsHost: boolean): string | null {
-  if (!failure.reason.startsWith(PROVIDER_FAILURE_REASON_PREFIX)) {
+export function providerFailureReason(
+  failure: { readonly reason: RefusalReason | null; readonly message: string | null },
+  viewerIsHost: boolean,
+): string | null {
+  if (failure.reason === null || !failure.reason.startsWith(PROVIDER_FAILURE_REASON_PREFIX)) {
     return null;
   }
   return viewerIsHost ? failure.message : HOST_CONNECTION_FAILED_COPY;

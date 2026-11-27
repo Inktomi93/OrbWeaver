@@ -28,6 +28,7 @@ export function SavedTextField({
   description,
   value,
   busy,
+  error = null,
   onCommit,
   resetKey = 0,
 }: {
@@ -35,12 +36,14 @@ export function SavedTextField({
   readonly description: string;
   readonly value: string;
   readonly busy: boolean;
+  /** The server's refusal of the last write to this field, in the field's own words. */
+  readonly error?: string | null;
   readonly onCommit: (next: string) => void;
   /** Changed when the server refused a write, so the field drops the refused draft and shows the saved value. */
   readonly resetKey?: number | undefined;
 }): ReactElement {
   return (
-    <Field description={description} label={label}>
+    <Field description={description} error={error} label={label}>
       <Input
         autoComplete="off"
         defaultValue={value}
@@ -69,6 +72,7 @@ export function ModelField({
   listOwner,
   provider,
   busy,
+  error,
   onCommit,
   resetKey,
 }: {
@@ -81,6 +85,8 @@ export function ModelField({
   readonly listOwner: string;
   readonly provider: ProviderDef | undefined;
   readonly busy: boolean;
+  /** The server's refusal of the last model write, in the field's own words. */
+  readonly error: string | null;
   readonly onCommit: (next: ModelId, check: ModelCheck) => void;
   /** Changed when the server refused a write, so a refused model id goes back to the saved one. */
   readonly resetKey: number;
@@ -136,7 +142,7 @@ export function ModelField({
       }}
     >
       <ModelPicker
-        error={null}
+        error={error}
         focusOnList={false}
         listOwner={listOwner}
         onValueChange={(next): void => {

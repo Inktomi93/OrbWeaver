@@ -1,5 +1,5 @@
 // The registry contract is shared by the mutable engine and room hooks without carrying engine state.
-import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
+import type { StreamDataFrame, StreamErrorCode, StreamRoomRef } from "@orb/contracts/stream";
 
 /**
  * A durable room's replay request. A CONSTANT is a fixed request (`0` = from the beginning); a THUNK is
@@ -61,7 +61,7 @@ export interface RoomRegistry {
    *  death into N byte-identical alerts. A socket fault is the socket's own story now (`use-orb-socket.ts`
    *  `reportSocketFault`), told once; the freshness those rooms lose is closed by `onSocketLive`'s
    *  gap-heal on the re-connect edge, which is what closed it before too. */
-  readonly failed: (message: string, ref: StreamRoomRef) => void;
+  readonly failed: (code: StreamErrorCode, message: string, ref: StreamRoomRef) => void;
   /** FORCE every joined room to re-attach, past the dedupe. The session-recovery ladder's resume rung calls
    *  it: a session that died took every room's server-side cell with it (the frozen-principal socket is
    *  refused on reconnect), so the cells this tab believes it holds may not exist. Same instrument

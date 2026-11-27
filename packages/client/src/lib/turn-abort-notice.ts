@@ -74,14 +74,12 @@ export function turnMutationToast(error: unknown, fallback: string): string | nu
 /** The copy for a turn refused because of the room's state (`locked`, `room_closing`, `host_unavailable`), else `null`.
  *  The one home of that mapping: the toast and the composer's failure line both read it. */
 export function turnRoomStateCopy(error: unknown): string | null {
-  switch (trpcErrorReason(error)) {
-    case TURN_LOCKED_OP_CODE:
-      return TURN_LOCKED_COPY;
-    case TURN_ROOM_CLOSING_OP_CODE:
-      return TURN_ROOM_CLOSING_COPY;
-    case TURN_HOST_UNAVAILABLE_OP_CODE:
-      return TURN_HOST_UNAVAILABLE_COPY;
-    default:
-      return null;
+  const reason = trpcErrorReason(error);
+  if (reason === TURN_LOCKED_OP_CODE) {
+    return TURN_LOCKED_COPY;
   }
+  if (reason === TURN_ROOM_CLOSING_OP_CODE) {
+    return TURN_ROOM_CLOSING_COPY;
+  }
+  return reason === TURN_HOST_UNAVAILABLE_OP_CODE ? TURN_HOST_UNAVAILABLE_COPY : null;
 }

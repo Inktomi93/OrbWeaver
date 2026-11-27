@@ -14,7 +14,7 @@ import { RETRY_NAME, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import { useIpCertificateForm } from "../hooks/use-ip-certificate-form.ts";
 import { useDisableIpCertificate, useEnableIpCertificate } from "../hooks/use-share-mutations.ts";
 import type { IpCertificateFormValues } from "../lib/share-model.ts";
-import { IP_CERTIFICATE_FORM_DEFAULTS, ipCertificateRefusal } from "../lib/share-model.ts";
+import { IP_CERTIFICATE_FORM_DEFAULTS, ipCertificateFailureGuidance, ipCertificateRefusal } from "../lib/share-model.ts";
 import { ShareProse, ShareWarningText } from "./share-prose.tsx";
 
 const PORT_MIN = 1;
@@ -76,11 +76,13 @@ function CertificateBody({ certificate }: { readonly certificate: IpCertificateS
   const failed: Extract<IpCertificateStatus, { state: "failed" }> = certificate;
   return (
     <Stack gap="field">
-      <Stack gap="tight" role="note" data-ip-certificate-warning="plain-http">
-        <ShareWarningText role="alert">{`No certificate: ${failed.failure.message}`}</ShareWarningText>
+      <Stack gap="tight" role="note" data-ip-certificate-warning="plain-http" data-ip-certificate-failure={failed.failure.code}>
+        <ShareWarningText role="alert">{`No certificate. ${ipCertificateFailureGuidance(failed.failure.code, failed.setting)}`}</ShareWarningText>
         <ShareWarningText>
-          {`This server answers over plain http only, so a password typed at ${httpAddress(failed.setting.address)} crosses the internet in clear. Check the port forwarding below and try again, or share through the relay instead.`}
+          {`This server answers over plain http only, so a password typed at ${httpAddress(failed.setting.address)} crosses the internet in clear. Until it works, share through the relay instead.`}
         </ShareWarningText>
+        {/* What the server reported, kept for someone who needs the exact words; the line above is what to do. */}
+        <ShareProse>{`Details: ${failed.failure.message}`}</ShareProse>
       </Stack>
       <Offer initial={failed.setting} />
       <TurnOff />

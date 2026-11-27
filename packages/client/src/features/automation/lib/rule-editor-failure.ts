@@ -51,7 +51,8 @@ export function ruleEditorFailure(error: Error | null): RuleEditorFailure | null
   if (error === null) {
     return null;
   }
-  const code = ruleRefusalCodeOf(trpcErrorReason(error));
+  const reason = trpcErrorReason(error);
+  const code = reason === null ? null : ruleRefusalCodeOf(reason);
   const copy = code === null ? null : REFUSAL_COPY[code];
   if (copy !== null) {
     return typeof copy === "function" ? copy(error.message) : copy;

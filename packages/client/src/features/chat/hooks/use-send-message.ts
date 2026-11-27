@@ -14,7 +14,16 @@ import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, isUploadFailure, roomRosterOptions, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { notify, rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorMessage, trpcErrorReason, turnMutationToast, viewerTimeZone } from "#lib";
+import {
+  attachmentRefusalSentence,
+  notify,
+  rethrowUnlessTrpcFailure,
+  trpcErrorCode,
+  trpcErrorMessage,
+  trpcErrorReason,
+  turnMutationToast,
+  viewerTimeZone,
+} from "#lib";
 import { holdRoomForSend, subscribeUserMessageCommitted } from "#state";
 import { providerFailureReason } from "../lib/provider-failure-reason.ts";
 import { clearReplyFailure, recordReplyFailure } from "../lib/reply-failure.ts";
@@ -57,13 +66,34 @@ export interface UseSendMessageOptions {
 export interface UseSendMessageResult {
   readonly send: (content: string, attachments?: readonly File[]) => void;
   readonly isPending: boolean;
+  /** The attachment the server refused on the last send, until the next send: the strip marks its tile. */
+  readonly refusedAttachment: File | null;
 }
 
-async function uploadAttachments(upload: ReturnType<typeof useUploadAsset>, attachments: readonly File[]): Promise<AssetId[]> {
+/** An attachment the server refused, and the refusal: the first one, since that is the rejection the send fails with. */
+interface RefusedAttachment {
+  readonly file: File;
+  readonly error: UploadRefusedError;
+}
+
+async function uploadAttachments(
+  upload: ReturnType<typeof useUploadAsset>,
+  attachments: readonly File[],
+  onRefused: (refused: RefusedAttachment) => void,
+): Promise<AssetId[]> {
   if (attachments.length === 0) {
     return [];
   }
-  const stored = await Promise.all(attachments.map((file) => upload(file, "attachment")));
+  const stored = await Promise.all(
+    attachments.map((file) =>
+      upload(file, "attachment").catch((error: unknown) => {
+        if (error instanceof UploadRefusedError) {
+          onRefused({ file, error });
+        }
+        throw error;
+      }),
+    ),
+  );
   return stored.map((s) => s.assetId);
 }
 
@@ -74,6 +104,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const upload = useUploadAsset();
   const sendMutation = useSendMutation({ trpc, invalidation });
   const [isPending, setIsPending] = useState(false);
+  const [refusedAttachment, setRefusedAttachment] = useState<File | null>(null);
 
   // We subscribe synchronously right before firing the mutation that produces the user's row — JS is
   // single-threaded and bus delivery needs a real network round-trip, so the subscribe always lands
@@ -82,10 +113,18 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const runSend = async (trimmed: string, attachments: readonly File[]): Promise<void> => {
     // Held from the upload until the send settles: leaving a new room mid-send must not reap it under the send.
     using _hold = holdRoomForSend(opts.chatId);
-    // The upload is a raw POST outside the send mutation, so its `errorToast` never sees a refusal: say it
-    // here, with the server's own reason when it gave one, and rethrow so the draft and strip stay put.
-    const attachmentAssetIds = await uploadAttachments(upload, attachments).catch((err: unknown) => {
-      notify.error({ title: SEND_FAILED_TITLE, ...(err instanceof UploadRefusedError ? { description: err.reason } : {}) });
+    // The upload is a raw POST outside the send mutation, so its `errorToast` never sees a refusal: say it here, naming the
+    // file the server refused and marking its tile, and rethrow so the draft and strip stay put.
+    let refused: RefusedAttachment | undefined;
+    const attachmentAssetIds = await uploadAttachments(upload, attachments, (first) => {
+      refused ??= first;
+    }).catch((err: unknown) => {
+      if (refused !== undefined && refused.error === err) {
+        setRefusedAttachment(refused.file);
+        notify.error({ title: SEND_FAILED_TITLE, description: attachmentRefusalSentence(refused.file.name, refused.error) });
+      } else {
+        notify.error(SEND_FAILED_TITLE);
+      }
       throw err;
     });
     // Whether this send's own message landed: after that, a failure is the reply's, and the message is in the room.
@@ -130,6 +169,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       return;
     }
     setIsPending(true);
+    setRefusedAttachment(null);
     // `runSend` has already stated an upload or send failure (the upload's notice, the send's notice or the
     // reply-failure line); any other fault rejects.
     runSend(trimmed, attachments)
@@ -144,5 +184,6 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   return {
     send,
     isPending,
+    refusedAttachment,
   };
 }

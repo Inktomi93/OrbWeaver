@@ -11,6 +11,14 @@ import { ADD_CONNECTION_DEFAULTS, validateAddConnection } from "../lib/add-conne
 export const useAddConnectionForm = createSavedEntityForm<AddConnectionFormValues>({
   defaultValues: ADD_CONNECTION_DEFAULTS,
   options: {
+    // A server refusal belongs to the value it refused, so editing that field takes it off.
+    listeners: {
+      onChange: ({ formApi, fieldApi }): void => {
+        formApi.setFieldMeta(fieldApi.name, (prev) =>
+          prev.errorMap.onServer === undefined ? prev : { ...prev, errorMap: { ...prev.errorMap, onServer: undefined } },
+        );
+      },
+    },
     validators: {
       onDynamic: ({ value }: { value: AddConnectionFormValues }): { fields: Record<string, string> } | undefined => validateAddConnection(value),
     },

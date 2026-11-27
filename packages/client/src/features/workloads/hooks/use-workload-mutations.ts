@@ -45,7 +45,10 @@ const RUN_ACCOUNT_REFUSALS: ReadonlyMap<string, string> = new Map(Object.entries
 export const useUpdateSchedule = createEntityMutation<inferInput<Trpc["workloads"]["updateSchedule"]>, unknown>({
   options: (trpc) => trpc.workloads.updateSchedule.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.listSchedules.pathFilter()],
-  errorToast: (error) => RUN_ACCOUNT_REFUSALS.get(trpcErrorReason(error)) ?? "Couldn't update the schedule.",
+  errorToast: (error) => {
+    const reason = trpcErrorReason(error);
+    return (reason === null ? undefined : RUN_ACCOUNT_REFUSALS.get(reason)) ?? "Couldn't update the schedule.";
+  },
 });
 
 /** Pause/resume a schedule. The server judges no run account here, so it has no coded refusal to name. */

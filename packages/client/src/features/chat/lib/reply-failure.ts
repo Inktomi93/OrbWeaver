@@ -4,6 +4,7 @@
 // another turn in the room. It lives in memory, for this tab: another member's failure is
 // theirs to see, and a reload starts without it.
 
+import type { RefusalReason } from "@orb/contracts/refusal";
 import type { ChatId } from "@orb/kit/ids";
 import { useSyncExternalStore } from "react";
 import { isSilencedTurnAbort, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason, turnRoomStateCopy } from "#lib";
@@ -15,8 +16,8 @@ export const REPLY_FAILURE_LINE = "the composer's reply-failure line";
 export interface ReplyFailure {
   /** The server's sentence for the failure, or `null` when it sent none. */
   readonly message: string | null;
-  /** The failure's `data.reason`, the structured key every decision reads; `""` when the error carried none. */
-  readonly reason: string;
+  /** The failure's `data.reason`, the structured key every decision reads; `null` when the error carried none a contract declares. */
+  readonly reason: RefusalReason | null;
   /** The cause a coded refusal states on `data.detail.cause`; `""` when it states none. */
   readonly cause: string;
   /** What failed, said first on the line. */

@@ -70,7 +70,7 @@ export interface PluginUiGuest {
  *  network error, reaches plugin code as one fixed sentence with no code, so no server text crosses into it. */
 function guestRefusal(callId: number, err: unknown): UiGuestInbound {
   const reason = trpcErrorReason(err);
-  return isPluginUiHostCallCode(reason) && err instanceof Error
+  return reason !== null && isPluginUiHostCallCode(reason) && err instanceof Error
     ? { kind: "hostResult", callId, ok: false, message: err.message, code: reason }
     : { kind: "hostResult", callId, ok: false, message: PLUGIN_UI_HOST_CALL_FAILED };
 }

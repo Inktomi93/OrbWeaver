@@ -18,7 +18,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { trpcErrorReason } from "#lib";
+import { connectionBindingRefusalOf, trpcErrorReason } from "#lib";
 import {
   PLUGIN_GRANT_TASK_LABELS,
   PLUGIN_MODEL_DELETED,
@@ -50,7 +50,7 @@ function readoutOf(view: BindingView | undefined, connections: readonly Connecti
 }
 
 /** The inline sentence for a refused save, keyed on the domain's refusal code. */
-function pluginModelRefusal(error: unknown, attemptedLabel: string | null): string {
+function pluginModelRefusal(error: unknown, attemptedLabel: string | null, taskLabel: string): string {
   const reason = trpcErrorReason(error);
   if (reason === CONNECTION_OP_CODES.actorForeign) {
     return PLUGIN_MODEL_NOT_YOURS;
@@ -58,7 +58,7 @@ function pluginModelRefusal(error: unknown, attemptedLabel: string | null): stri
   if (reason === CONNECTION_OP_CODES.backgroundRefused && attemptedLabel !== null) {
     return pluginModelBackgroundRefused(attemptedLabel);
   }
-  return PLUGIN_MODEL_SAVE_FAILED;
+  return connectionBindingRefusalOf(error, taskLabel) ?? PLUGIN_MODEL_SAVE_FAILED;
 }
 
 interface TaskRowProps {
@@ -103,7 +103,7 @@ function TaskRow({ pluginId, pluginName, task, view, connections }: TaskRowProps
       </Text>
       {setBinding.error === null ? null : (
         <Text tone="destructive" cap="prose" prose={true} role="alert">
-          {pluginModelRefusal(setBinding.error, attempted)}
+          {pluginModelRefusal(setBinding.error, attempted, label)}
         </Text>
       )}
     </Stack>

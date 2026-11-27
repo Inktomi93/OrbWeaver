@@ -6,6 +6,7 @@
 
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
+import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
@@ -18,8 +19,9 @@ import { useEffect, useRef, useState } from "react";
 import { QueryBoundary, useEmbedRefusalToastAfterUnmount, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
-import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, embedRefusalText } from "#lib";
+import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalText } from "#lib";
 import type { ConnectionEditorFact } from "#state";
+import { useEditorWriteFailure } from "../hooks/use-editor-write-failure.ts";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import {
   CONNECTION_EDITOR_FACT_PATHS,
@@ -37,7 +39,6 @@ import {
   purposeNotes,
   servableRoles,
 } from "../lib/connection-editor-model.ts";
-
 import type { FactRow } from "../lib/connection-fact-model.ts";
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
@@ -48,8 +49,8 @@ import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
 import { factNoteOf, focusFact } from "./connection-editor-fact-note.tsx";
 import { CapabilityRail, KindVerdict, PurposeNotes } from "./connection-editor-purpose.tsx";
-import type { EditorEmbedderCheck, EditorEmbedRefusal } from "./connection-editor-refusal.tsx";
-import { TopEmbedderNote } from "./connection-editor-refusal.tsx";
+import type { EditorEmbedderCheck } from "./connection-editor-refusal.tsx";
+import { EditorFailureLine, TopEmbedderNote } from "./connection-editor-refusal.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasBlock } from "./connection-extras-editor.tsx";
 import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
@@ -75,6 +76,7 @@ export interface ConnectionEditorProps {
 }
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
+
 type ProviderDef = inferOutput<Trpc["connection"]["providersAvailable"]>[number]["provider"];
 
 export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
@@ -150,7 +152,8 @@ function AvailableConnectionEditorBody({
   readonly providers: readonly ProviderDef[];
 }): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
-  const update = useUpdateConnection({ trpc, invalidation });
+  // The editor says every failed write itself: under the field that holds the fix, or on the line above the tiers.
+  const update = useUpdateConnection({ trpc, invalidation, failureShownInline: "the editor's refusal line" });
   // The width editor closes as the confirm opens, so focus returns to the vector-width row itself, not the page and
   // not the row's first button (after a save that is Reset, one key press from undoing what was just saved).
   const factNodes = useRef(new Map<string, HTMLElement>());
@@ -171,13 +174,11 @@ function AvailableConnectionEditorBody({
     widthRow?.focus();
     return widthRow === null;
   });
-  // The last write the server refused because the embedder does not make the width it would state, or did not answer,
-  // and the fact row it came from (`null` for a field above Advanced), so the reason is drawn where focus returns.
-  const [embedRefusal, setEmbedRefusal] = useState<EditorEmbedRefusal | null>(null);
+  // The last write the server refused because the embedder does not make the width it would state, or did not answer, and
+  // the fact row it came from (`null` for a field above Advanced), so the reason is drawn where focus returns.
+  const failure = useEditorWriteFailure();
+  const embedRefusal = failure.embedRefusal;
   const [checking, setChecking] = useState<EditorEmbedderCheck | null>(null);
-  // Counts refused writes: an uncontrolled field keyed on the saved value alone would keep the refused draft, because a
-  // refusal leaves that value unchanged.
-  const [refusedWrites, setRefusedWrites] = useState(0);
   const toastRefusalIfClosed = useEmbedRefusalToastAfterUnmount();
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed. The row the
@@ -201,18 +202,9 @@ function AvailableConnectionEditorBody({
       }
       const saved = update.mutateAsync({ connectionId, patch: part });
       toastRefusalIfClosed(saved, (refusal) => embedRefusalText(refusal, connection.label));
-      // an embedder refusal becomes `setEmbedRefusal` alert state (TopEmbedderNote and the fact note); any other failure toasts through `useUpdateConnection`'s errorToast (components/connection-role-mutations.ts, `unlessEmbedRefusal`). Ends if either surface goes.
+      // an embedder refusal becomes `embedRefusal` alert state (TopEmbedderNote and the fact note); any other failure is said under its field or on EditorFailureLine, and the hook declares that line, so its errorToast stays silent while the editor is open. Ends if either surface goes.
       void saved
-        .then(
-          (): void => setEmbedRefusal(null),
-          (error: unknown): void => {
-            const refusal = embedRefusalOf(error);
-            setEmbedRefusal(refusal === null ? null : { refusal, path: factPath });
-            if (refusal !== null) {
-              setRefusedWrites((count) => count + 1);
-            }
-          },
-        )
+        .then(failure.landed, (error: unknown): void => failure.failed(error, part, factPath))
         .finally((): void => {
           setChecking(null);
           if (returnsFocus) {
@@ -239,9 +231,12 @@ function AvailableConnectionEditorBody({
     // THE NAMED CONTAINER (see the header): every reflow below keys off THIS box, not the viewport.
     <Container name="connection-editor">
       <Stack aria-busy={checking !== null} data-slot="connection-editor" gap="block">
+        {/* The field errors are not live regions themselves; this one says a refused field out loud. */}
+        <AriaAnnouncer message={failure.announcement} />
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}
         <TopEmbedderNote checking={checking} refused={embedRefusal} />
+        <EditorFailureLine key={failure.lineKey} line={failure.line} onBack={onDone} />
 
         <EditorTier defaultOpen={true} title={CONNECTION_EDITOR_TIER_TITLES.essential}>
           <Stack gap="row">
@@ -266,9 +261,10 @@ function AvailableConnectionEditorBody({
               <SavedTextField
                 busy={busy}
                 description="Your own server. Nothing is sent anywhere else."
+                error={failure.fieldLine("baseUrl")}
                 label="Server URL"
                 onCommit={(next): void => patch({ baseUrl: next })}
-                resetKey={refusedWrites}
+                resetKey={failure.refusedWrites}
                 value={connection.baseUrl}
               />
             )}
@@ -276,19 +272,22 @@ function AvailableConnectionEditorBody({
             <ModelField
               busy={busy}
               connectionId={connectionId}
+              error={failure.fieldLine("model")}
               kind={inferredKindOf(connection.tasks)}
               listOwner={hostLabel(connection.baseUrl, providerLabel)}
               model={connection.model}
               modelCheck={connection.modelCheck}
               onCommit={(next, check): void => patch({ model: next, modelCheck: check })}
               provider={provider}
-              resetKey={refusedWrites}
+              resetKey={failure.refusedWrites}
             />
             <SavedTextField
               busy={busy}
               description="Auto-named from the provider and the model. Rename it if you keep several on one server."
+              error={failure.fieldLine("label")}
               label={CONNECTION_NAME_FIELD_NAME}
               onCommit={(next): void => patch({ label: next })}
+              resetKey={failure.refusedWrites}
               value={connection.label}
             />
           </Stack>
@@ -354,7 +353,12 @@ function AvailableConnectionEditorBody({
               connectionId={connectionId}
               connectionLabel={connection.label}
               onReset={(): void => patch({ promptCache: null })}
-              save={(next): Promise<unknown> => update.mutateAsync({ connectionId, patch: { promptCache: next } })}
+              save={(next): Promise<unknown> =>
+                update.mutateAsync({ connectionId, patch: { promptCache: next } }).catch((error: unknown) => {
+                  failure.failed(error, {}, null);
+                  throw error;
+                })
+              }
               stored={connection.promptCache}
             />
           </EditorTier>

@@ -339,6 +339,7 @@ function KeyField({
                   {SAVED_KEY_UNAVAILABLE}
                 </Text>
               ) : null}
+              <CredentialRefusal error={touchedFieldError(field.state.meta)} />
               {available.length === 0 && !unavailable ? <MutedLine>No active saved keys for this provider. Paste a new key below.</MutedLine> : null}
             </>
           );
@@ -369,6 +370,15 @@ function KeyField({
         </Text>
       )}
     </>
+  );
+}
+
+/** The server's refusal of the chosen saved key, said under the choice that holds the fix. */
+function CredentialRefusal({ error }: { readonly error: string | null }): ReactElement | null {
+  return error === null ? null : (
+    <Text role="alert" tone="destructive" voice="gloss">
+      {error}
+    </Text>
   );
 }
 

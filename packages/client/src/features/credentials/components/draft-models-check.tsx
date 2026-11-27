@@ -99,7 +99,8 @@ export function DraftModelsCheck({
       .then((result): void => onListing({ forDraft: draft, source: modelListSource(result, retry) }))
       .catch((err: unknown): void => {
         onListing({ forDraft: draft, source: failedCatalogSource(err, retry) });
-        if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
+        const reason = trpcErrorReason(err);
+        if (reason !== null && URL_REFUSAL_CODES.has(reason)) {
           onUrlRefusal(err);
         }
       })

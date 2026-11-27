@@ -360,14 +360,18 @@ function PickedLine({
   readonly errorId: string;
 }): ReactElement {
   const picked = models?.find((entry) => entry.id === value.trim()) ?? null;
-  if (value.trim() === "") {
-    return error === null ? (
-      <Text data-slot="model-picker-picked" cap="prose" prose={true} role="status" voice="gloss">
-        No model picked yet.
-      </Text>
-    ) : (
+  // A refusal of the pick outranks the pick's own status: the server said this id cannot be saved.
+  if (error !== null) {
+    return (
       <Text tone="destructive" data-slot="model-picker-picked" id={errorId} cap="prose" prose={true} role="alert" voice="gloss">
         {error}
+      </Text>
+    );
+  }
+  if (value.trim() === "") {
+    return (
+      <Text data-slot="model-picker-picked" cap="prose" prose={true} role="status" voice="gloss">
+        No model picked yet.
       </Text>
     );
   }

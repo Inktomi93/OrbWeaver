@@ -8,7 +8,7 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement, Ref } from "react";
 import { useState } from "react";
 import { isUploadFailure, UploadRefusedError, useInvalidation, useTRPC, useUploadAsset, useUploadCaps } from "#data";
-import { rethrowUnlessTrpcFailure } from "#lib";
+import { rethrowUnlessTrpcFailure, uploadRefusalClause } from "#lib";
 import { useAddToGallery } from "../hooks/use-character-gallery.ts";
 
 /** The accepted vocabulary — the picker filter and the dropzone's own per-file gate. */
@@ -82,7 +82,7 @@ export function GalleryUploadZone({ characterId, characterName, inputRef }: Gall
       if (!isUploadFailure(error)) {
         throw error;
       }
-      return { step: "notUploaded", reason: error instanceof UploadRefusedError ? error.reason : null };
+      return { step: "notUploaded", reason: error instanceof UploadRefusedError ? uploadRefusalClause(error) : null };
     }
     // A failed add (a tRPC failure) returns `step: "notAdded"`, which `receive` collects into `setShortfall` and
     // `shortfallLine` renders on the dropzone's `error` prop; `useAddToGallery` carries no errorToast by design.

@@ -2,6 +2,7 @@
 
 import type { ProviderAuth, ProviderDef, ProviderId, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
+import type { RefusalReason } from "@orb/contracts/refusal";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ADD_CONNECTION_PATH, ALLOW_BACKGROUND_SETTING } from "#lib";
@@ -215,7 +216,7 @@ export function sameFormValues(a: AddConnectionFormValues, b: AddConnectionFormV
 }
 
 /** The refusals that are about the Server URL itself — they land on that field, where the fix is typed. */
-export const URL_REFUSAL_CODES: ReadonlySet<string> = new Set([CONNECTION_OP_CODES.baseUrlInvalid, CONNECTION_OP_CODES.baseUrlRefused]);
+export const URL_REFUSAL_CODES: ReadonlySet<RefusalReason> = new Set([CONNECTION_OP_CODES.baseUrlInvalid, CONNECTION_OP_CODES.baseUrlRefused]);
 
 /** The saved key as the dialog names it: the label the user gave it, or "unnamed" when they gave none. */
 export function savedKeyName(label: string | null): string {

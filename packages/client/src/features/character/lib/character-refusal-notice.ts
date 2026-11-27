@@ -60,16 +60,14 @@ export function characterMutationToast(error: unknown, fallback: string): string
  * toast and the field line therefore quote ONE string, never two spellings of one refusal.
  */
 export function characterRefusalCopy(error: unknown): string | null {
-  switch (trpcErrorReason(error)) {
-    case CHARACTER_HANDLE_CONFLICT_OP_CODE:
-      return CHARACTER_HANDLE_CONFLICT_COPY;
-    case CHARACTER_HANDLE_RESERVED_OP_CODE:
-      return CHARACTER_HANDLE_RESERVED_COPY;
-    case CHARACTER_STALE_BASIS_OP_CODE:
-      return CHARACTER_STALE_BASIS_COPY;
-    default:
-      return null;
+  const reason = trpcErrorReason(error);
+  if (reason === CHARACTER_HANDLE_CONFLICT_OP_CODE) {
+    return CHARACTER_HANDLE_CONFLICT_COPY;
   }
+  if (reason === CHARACTER_HANDLE_RESERVED_OP_CODE) {
+    return CHARACTER_HANDLE_RESERVED_COPY;
+  }
+  return reason === CHARACTER_STALE_BASIS_OP_CODE ? CHARACTER_STALE_BASIS_COPY : null;
 }
 
 /**

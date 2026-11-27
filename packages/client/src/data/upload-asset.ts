@@ -2,7 +2,7 @@
 // content-addressed asset (avatars/personas/backgrounds all route through this). Raw fetch, not tRPC —
 // the route is a Hono multipart handler, and it refuses a request without the CSRF header on every auth path.
 
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { AssetKind, AssetUploadRefusal, AssetUploadRefusalCode, StoredAsset } from "@orb/contracts/assets";
 import { assetUploadRefusalSchema, storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { UPLOAD_FILE_FIELD } from "@orb/contracts/uploads";
@@ -16,12 +16,15 @@ const UNSUPPORTED_MEDIA_TYPE = 415;
 /** The statuses the route answers a person-fixable refusal with (over the cap, wrong contents). */
 const REFUSAL_STATUSES: ReadonlySet<number> = new Set([PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE]);
 
-/** The server refused the file for a reason the person can act on; `reason` is the server's own sentence. */
+/** The server refused the file for a reason the person can act on. `sentence` is the server's own clause; `reason` is the
+ *  refusal's code (`null` when the server sent none), which a caller keys its words on. */
 export class UploadRefusedError extends Error {
-  public readonly reason: string;
-  constructor(reason: string) {
-    super(`uploadAsset: refused — ${reason}`);
-    this.reason = reason;
+  public readonly sentence: string;
+  public readonly reason: AssetUploadRefusalCode | null;
+  constructor(refusal: AssetUploadRefusal) {
+    super(`uploadAsset: refused — ${refusal.error}`);
+    this.sentence = refusal.error;
+    this.reason = refusal.reason ?? null;
     this.name = this.constructor.name;
   }
 }
@@ -50,7 +53,7 @@ export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAs
     // status-line `throwHttpError` below always throws.
     const refusal = assetUploadRefusalSchema.safeParse(parseJsonText(await response.clone().text()));
     if (refusal.success) {
-      throw new UploadRefusedError(refusal.data.error);
+      throw new UploadRefusedError(refusal.data);
     }
   }
   if (!response.ok) {
