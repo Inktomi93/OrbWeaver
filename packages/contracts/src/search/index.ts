@@ -413,8 +413,9 @@ export interface CorpusParams {
   readonly mode: MemoryQueryOptions["mode"];
   readonly minScore: number;
 }
-/** Optional per-call observations for digest retrieval. The search remains useful when the mixC reranker is
- * unavailable, but its owner must surface that honest degrade on the chat warning bus. */
+/** Optional per-call observations for digest and document retrieval. The search remains useful when the reranker is
+ * unavailable, but its owner must surface that honest degrade on the chat warning bus. A document search without
+ * them stays strict: its rerank failure refuses the call. */
 export interface DigestSearchEvents {
   readonly onRerankUnavailable: () => void;
 }
@@ -502,7 +503,10 @@ export interface SimilarCharactersParams {
 }
 
 /** The `search.documents` lens: scope-gated cosine retrieval over `document_chunks`, reading-order restored. */
-export type SearchDocumentsOp<Signal> = (params: DocumentSearchParams & { readonly signal: Signal }) => Promise<DocumentChunkHit[]>;
+export type SearchDocumentsOp<Signal> = (
+  params: DocumentSearchParams & { readonly signal: Signal },
+  events?: DigestSearchEvents | undefined,
+) => Promise<DocumentChunkHit[]>;
 
 /** `Signal` is the caller's cancel: the seed read resolves the owner's encoder, which can wake a sleeping model. */
 export type SimilarCharactersOp<Signal> = (params: SimilarCharactersParams & { readonly signal: Signal }) => Promise<CharacterCardHit[]>;

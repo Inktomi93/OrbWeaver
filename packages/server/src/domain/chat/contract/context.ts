@@ -561,8 +561,8 @@ type SearchDigestsOp = (
  *  (the slot value); databank's provenance/token fields never cross into chat.
  *
  *  It shares {@link TurnRetrievalEvents} with the digest op because one turn losing both slots to ONE
- *  unqueryable space owes the user ONE notice; `onRerankUnavailable` is unused on this arm (databank's rerank
- *  degrade is not wired) and the binding simply never calls it. */
+ *  unqueryable space owes the user ONE notice. `onRerankUnavailable` fires when the documents' reranker fails
+ *  after retrieval succeeded; the binding wires it to the databank's own warning class. */
 type GatherDatabankOp = (
   args: {
     readonly chatId: ChatId;

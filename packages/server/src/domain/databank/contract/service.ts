@@ -40,7 +40,7 @@ import type {
 } from "@orb/contracts/embeddings";
 import type { ExtractorVersions, ExtractTextOp } from "@orb/contracts/extraction";
 import type { Can, Principal, ResolveUserEnabled } from "@orb/contracts/identity";
-import type { SearchDocumentsOp } from "@orb/contracts/search";
+import type { DigestSearchEvents, SearchDocumentsOp } from "@orb/contracts/search";
 import type { GetDatabankSettingsOp } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { TargetSnapshotOp } from "@orb/contracts/workloads";
@@ -271,7 +271,7 @@ export interface DatabankService {
    *  slot's token budget. `null` = nothing to inject (bankless / no hits / budget too small) ⇒ a
    *  byte-identical non-databank turn. Reached ONLY through the compose-injected op on `ChatContext`, never
    *  the tRPC surface. */
-  readonly gatherRetrieval: (params: DatabankGatherParams) => Promise<DatabankGatherResult | null>;
+  readonly gatherRetrieval: (params: DatabankGatherParams, events?: DigestSearchEvents | undefined) => Promise<DatabankGatherResult | null>;
 }
 
 /** The workload-env-facing ingest product (the chunk→embed→prune orchestration). Reached ONLY through the

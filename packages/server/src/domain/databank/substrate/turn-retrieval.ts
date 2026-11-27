@@ -6,5 +6,5 @@ import type { GatherDatabankForTurn } from "../contract/turn-retrieval.ts";
 
 export function createGatherDatabankForTurn(gather: DatabankService["gatherRetrieval"], degrade: RetrievalDegrade): GatherDatabankForTurn {
   return (args, events): ReturnType<GatherDatabankForTurn> =>
-    degrade(async () => await gather(args), { empty: null, onIndexUnavailable: events?.onIndexUnavailable });
+    degrade(async () => await gather(args, events), { empty: null, onIndexUnavailable: events?.onIndexUnavailable });
 }

@@ -135,6 +135,11 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       return { description: "Your reply is unaffected. Only the long-term memory index missed this turn.", title: "Long-term memory couldn't update" };
     case "memory_rerank_unavailable":
       return { description: "Using vector recall for this turn instead. Your reply will continue.", title: "Memory reranking was unavailable" };
+    case "databank_rerank_unavailable":
+      return {
+        description: "Your documents came back in search order for this turn instead. Your reply will continue.",
+        title: "Document reranking was unavailable",
+      };
     // Names the REPAIR, not the internals: "index" and "vector space" are words no screen shows, and the two
     // causes (mid-move, or no embedder bound) both end at the same place — Connections.
     case "retrieval_index_unavailable":

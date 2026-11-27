@@ -28,7 +28,7 @@ import type { DigestSearchHit } from "../contract/results.ts";
 import type { DigestSearchEvents, SearchContext, SearchService } from "../contract/service.ts";
 import { nearestDigests } from "../persistence/digest-rows.ts";
 import { withActiveQuerySpace } from "../persistence/space.ts";
-import { SCOPED_POOL_K } from "../substrate/constants.ts";
+import { RERANK_ROLE, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
 
@@ -55,7 +55,6 @@ function keywordHit(keywords: readonly string[], terms: ReadonlySet<string>): bo
 /** The two side roles this verb spends, spelled from the provider vocabulary (a typo is a tsc error) — the
  *  ROLE is what a failure here has to name, because it is the one thing the caller cannot infer. */
 const EMBED_ROLE: Task = "embed";
-const RERANK_ROLE: Task = "rerank";
 
 /** OWN the query embed's failure — the catch that holds a side-role generation is the only place that
  *  still knows WHICH role produced it.

@@ -103,6 +103,9 @@ const PLAIN_CHAT_WARNING_CODES = [
   // mixC recall's cross-encoder reranker failed after vector retrieval had already succeeded. The turn keeps
   // the exact mixB/vector order and emits once for the whole turn's round + per-speaker recall episode.
   "memory_rerank_unavailable",
+  // The `{{databank}}` slot's cross-encoder reranker failed after the documents were retrieved. The slot keeps
+  // the vector order, the turn is unaffected, and it emits once per turn.
+  "databank_rerank_unavailable",
   // THE OWNER'S VECTOR SPACE WAS NOT QUERYABLE THIS TURN, so a retrieval-backed prompt slot ran without its
   // content — `{{memory}}` recall, the `{{databank}}` slot, or both. Two causes, one sentence to the user:
   // their embedding index is mid-move (`search_space_reindexing`) or no embed connection is bound

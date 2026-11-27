@@ -1144,7 +1144,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // turns: `search.documents` runs once per turn whether or not the room has documents, so an owner whose
     // vector space was mid-move could not send a message at all. `null` is databank's own ruled empty — the
     // byte-identical no-op an absent op produces — so a degraded gather assembles exactly like a bankless one.
-    gatherDatabank: createGatherDatabankForTurn((args) => databank.gatherRetrieval(args), withRetrievalDegrade),
+    gatherDatabank: createGatherDatabankForTurn(databank.gatherRetrieval, withRetrievalDegrade),
     rpg: rpgOpsDelegate,
     resolveRegexSources: regexCompose.resolveRegexSources,
     // The FOREIGN S2 teaching contributions (D145's registry). tool-use's contribution attaches the turn

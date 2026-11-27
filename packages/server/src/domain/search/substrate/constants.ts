@@ -4,6 +4,10 @@
 // non-numeric member: the lens the joint-space fallback forces, homed here because two verbs read it.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
+import type { Task } from "@orb/contracts/inference";
+
+/** The role a rerank degrade names in its log line. */
+export const RERANK_ROLE: Task = "rerank";
 
 /** Over-fetch multiplier for the initial owner-scoped vector scan. */
 export const OWNER_OVERFETCH = 4;
