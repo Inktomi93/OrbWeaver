@@ -6,9 +6,10 @@
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { LOCAL_ENGINE_BASE_URL, LOCAL_ENGINE_PROVIDER, resolveLocalEngineModel } from "../../floor/http/local-engine.ts";
 import type { OrbApi } from "../../floor/http/stage-trpc.ts";
+import type { ProviderKeyName } from "../../floor/process/operator-keys.ts";
 import { MAIN_ENV_FILE, operatorKey, readMainEnv } from "../../floor/process/operator-keys.ts";
 import type { PrivateText } from "../contract/disk-safe-argv.ts";
-import type { SeededStageConnection, StageConnectionChoice, StageConnectionKeyName, StageConnectionSeed } from "../contract/stage-connection.ts";
+import type { SeededStageConnection, StageConnectionChoice, StageConnectionSeed } from "../contract/stage-connection.ts";
 import { STAGE_CONNECTION_LABEL_PREFIX, STAGE_HOSTED_CONNECTIONS, STAGE_LOCAL_ENGINE } from "../contract/stage-connection.ts";
 import { privateText } from "../lib/private-values.ts";
 
@@ -47,7 +48,7 @@ export async function seedStageConnection(api: OrbApi, seed: StageConnectionSeed
   return { label: draft.label, providerId: draft.providerId, model: draft.model };
 }
 
-async function hostedDraft(api: OrbApi, name: StageConnectionKeyName, key: PrivateText): Promise<ConnectionDraft> {
+async function hostedDraft(api: OrbApi, name: ProviderKeyName, key: PrivateText): Promise<ConnectionDraft> {
   const { providerId, model } = STAGE_HOSTED_CONNECTIONS[name];
   if (!(await api.credentials.storageStatus.query()).enabled) {
     throw new Error("credential storage is off on the stage, so it cannot hold a key");

@@ -16,8 +16,8 @@
 
 import { expect, test } from "@orb/testkit/tooling";
 import { STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
+import type { ProviderKeyName } from "../../../../tooling/src/floor/process/operator-keys.ts";
 import type { EnsureStageOps, StageAllocation, StageBandView, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
-import type { StageConnectionKeyName } from "../../../../tooling/src/snap/contract/stage-connection.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import {
   allocateStageBand,
@@ -261,7 +261,7 @@ test("a seeding run refuses its own warm stage while a foreign holder or a live 
 });
 
 test("a run that seeds a connection gets its own band, never a sibling's warm stage at its commit", () => {
-  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  const seeding: ProviderKeyName = "OPENROUTER_PROBE_KEY";
   const theirs = row(0, { checkout: LANE_CHECKOUT });
   const verdicts: StageAllocation[] = [];
   const ops: EnsureStageOps = {
@@ -292,7 +292,7 @@ test("a run that seeds a connection gets its own band, never a sibling's warm st
 });
 
 test("a stage a connection was seeded into is reused only by the checkout that seeded it", () => {
-  const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
+  const seeding: ProviderKeyName = "OPENROUTER_PROBE_KEY";
   // Each run's ask goes through ensureStage into the real allocator over a planted census; the planted census then
   // refuses as a full table does, so nothing boots. A run handed a free band records the claim row it would write.
   const run = (checkout: string, argv: string[], census: readonly StageBandView[]): { verdict: StageAllocation; claim: StageRow | null } => {

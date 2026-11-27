@@ -7,6 +7,7 @@ import { CREDENTIALS_KEY_ENV, DATABASE_URL_KEY, SESSION_SECRET_ENV } from "@orb/
 import type { EnvKey } from "@orb/server/foundation/env/record";
 import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
+import { withoutProviderKeys } from "../../floor/process/operator-keys.ts";
 import { PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
 
 /** Where the fixture keeps its DB, assets, secrets and run dir, under the repo root. */
@@ -36,12 +37,14 @@ function portOr(raw: string | undefined, fallback: number): number {
 
 /** The fixture's env over the ambient one. The data root is relative to the repo root the way the
  *  server resolves it; the run dir is absolute so every reader agrees on it. `.env` is skipped entirely,
- *  so an operator key (an owner handle, an SSO issuer) cannot reach the fixture by luck. */
-export function fixtureEnv(repoRoot: string, ambient: Readonly<Record<string, string | undefined>>): Readonly<Record<string, string>> {
+ *  so an operator key (an owner handle, an SSO issuer) cannot reach the fixture by luck, and no provider key
+ *  from the caller's shell is kept, so the fixture server seals none under its public credentials key. */
+export function fixtureEnv(repoRoot: string, ambient: Readonly<Record<string, string | undefined>>): Readonly<Record<string, string | undefined>> {
   const server = portOr(ambient[FIXTURE_PORT_ENV], FIXTURE_PORTS.server);
   const vite = portOr(ambient[FIXTURE_VITE_PORT_ENV], FIXTURE_PORTS.vite);
   const dataRel = `./${FIXTURE_DIR_REL.replaceAll("\\", "/")}`;
   return {
+    ...withoutProviderKeys(ambient),
     ...Object.fromEntries([
       [PORT_ENV, String(server)],
       [VITE_PORT_ENV, String(vite)],

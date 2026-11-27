@@ -75,6 +75,7 @@ import { runGit } from "../../floor/git/git.ts";
 import { budget } from "../../floor/host/load-budget.ts";
 import { listeningPids } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
+import { withoutProviderKeys } from "../../floor/process/operator-keys.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { waitSync } from "../../floor/process/sync-sleep.ts";
@@ -101,7 +102,6 @@ import {
   stageLauncherSpawn,
   stagePaths,
   stageRowBaseUrl,
-  withoutProviderKeys,
 } from "../lib/stage-plan.ts";
 import { awaitServerRestart, changesRestartServer, RESTART_DETECT_BASE_MS } from "../lib/stage-restart.ts";
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";

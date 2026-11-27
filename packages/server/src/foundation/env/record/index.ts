@@ -20,7 +20,7 @@ import { RESERVED_CLAUDE_ENV_KEYS } from "@orb/contracts/preset";
 import type { LogLevel } from "@orb/contracts/settings";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
-import { envNameKey } from "@orb/kit/env-file";
+import { envNameKey, secretFileEnvName } from "@orb/kit/env-file";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle } from "@orb/kit/ids";
 import { trimEndWhile } from "@orb/kit/strings";
@@ -794,7 +794,7 @@ function underSchemaNames(source: EnvParseInput["source"], envFileKeys: Readonly
 export function parseEnv({ source, envFileKeys, host, readFile }: EnvParseInput): Env {
   const input = underSchemaNames(source, envFileKeys);
   for (const key of APP_SECRET_ENV_KEYS) {
-    const fileKey = `${key}_FILE`;
+    const fileKey = secretFileEnvName(key);
     const file = input[fileKey];
     const current = input[key];
     if ((current !== undefined && current.length > 0) || file === undefined || file.length === 0) {
@@ -860,7 +860,7 @@ export function childEnvFrom(source: Readonly<Record<string, string | undefined>
 export const APP_SECRET_ENV_KEYS: readonly EnvKey[] = ENV_KEYS.filter(isSecretEnvKey);
 
 // Every name one parse reads: the schema's keys and each secret's `<KEY>_FILE`.
-const PARSED_ENV_NAMES: readonly string[] = [...ENV_KEYS, ...APP_SECRET_ENV_KEYS.map((key) => `${key}_FILE`)];
+const PARSED_ENV_NAMES: readonly string[] = [...ENV_KEYS, ...APP_SECRET_ENV_KEYS.map(secretFileEnvName)];
 
 /** The three stamps the persona auto-create policy reads. */
 type PersonaSeedStamps = Pick<Env, "E2E_HARNESS" | "DEV_SEED" | "E2E_FIRST_RUN_ASK_HANDLES">;
