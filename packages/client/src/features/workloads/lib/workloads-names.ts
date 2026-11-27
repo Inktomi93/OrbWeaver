@@ -100,3 +100,17 @@ export const EXPORT_DOWNLOAD_NAME = "Download my library";
 
 /** The tuning section's duplicate threshold field. */
 export const DUPLICATE_THRESHOLD_NAME = "Duplicate threshold";
+
+/** The documents a finished indexing run could not index: how many rows list, the longest error line one row prints, and the names. */
+export const WORKLOAD_FAILED_DOCUMENTS_SHOWN = 5;
+export const WORKLOAD_FAILED_DOCUMENT_ERROR_MAX = 200;
+export const WORKLOAD_FAILED_DOCUMENT_GONE_NAME = "A document no longer in the library";
+export function workloadFailedDocumentLine(name: string, error: string): string {
+  return `${name}: ${error}`;
+}
+export function workloadFailedDocumentsMore(rest: number): string {
+  return `and ${String(rest)} more`;
+}
+export function openFailedDocumentName(name: string): string {
+  return `Open ${name}`;
+}
