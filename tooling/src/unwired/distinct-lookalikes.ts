@@ -553,6 +553,51 @@ export const DISTINCT_LOOKALIKES = [
     distinctFrom: ["packages/client/src/features/regex/components/regex-test-panel.tsx#RegexTestPanelProps"],
     reason: "Two sibling panels the regex editor feeds from its own values; each member is already typed by its owner.",
   },
+  {
+    shape: "packages/server/src/domain/chat/contract/react-tool.ts#ReactToolHandlerContext",
+    distinctFrom: [
+      "packages/server/src/domain/automation/contract/params.ts#ResolveStreamAuthorityParams",
+      "packages/server/src/domain/regex/contract/params.ts#ListForChatParams",
+      "packages/server/src/domain/rpg/contract/params.ts#DetachDanglingPointerParams",
+      "packages/server/src/domain/rpg/contract/params.ts#ListCheckpointsParams",
+      "packages/server/src/domain/rpg/contract/params.ts#ReadGameParams",
+    ],
+    reason: "A tool handler's execution context, whose owner is the tool-use execution data; each verb's {principal, chatId} input is its own.",
+  },
+  {
+    shape: "packages/server/src/domain/automation/contract/results.ts#GlobalVariableView",
+    distinctFrom: ["packages/kit/src/macro/types.ts#GlobalVarWrite"],
+    reason: "The stored globals read into the CEL environment, and a render's collected write drained at commit: a read and a write share {key, value}.",
+  },
+  {
+    shape: "packages/server/src/domain/databank/contract/params.ts#ListActiveForChatParams",
+    distinctFrom: ["packages/server/src/domain/chat/contract/params.ts#CheckSendAvailabilityParams"],
+    reason: "Two domains' verb inputs over a chat: each verb owns its params, and no flow links them.",
+  },
+  {
+    shape: "packages/server/src/domain/export/contract/st-profile.ts#StZipLimits",
+    distinctFrom: ["packages/server/src/infra/storage/zip.ts#EntryLimits"],
+    reason: "The export writer's caps and the extractor's private read caps, fed from its own options; only the two cap names are shared.",
+  },
+  {
+    shape: "packages/server/src/domain/import/contract/service.ts#AdoptDefaultPersona",
+    distinctFrom: ["packages/server/src/domain/roster-preset/contract/service.ts#verifyPersonaOwned"],
+    reason: "A crown write that answers whether it moved, and an ownership read: one signature, two producers, no flow.",
+  },
+  {
+    shape: "packages/server/src/domain/settings/contract/composed-ops.ts#ReadSeededKeys",
+    distinctFrom: ["packages/contracts/src/settings/index.ts#OwnedBackgroundHashes"],
+    reason: "The seeder's applied keys and the background library's content hashes: one per-user set signature, different producers.",
+  },
+  {
+    shape: "packages/ui/src/charts/stat-figure/stat-figure.tsx#StatFigureProps",
+    distinctFrom: [
+      "packages/client/src/state/config-group-registry.ts#ConfigSettingOption",
+      "packages/contracts/src/plugin/ui.ts#PluginSelectOption",
+      "packages/kit/src/macro/user-macros.ts#UserMacroInputOption",
+    ],
+    reason: "A stat figure's display props and a select's option: one shows a value, the others pick one.",
+  },
 ] as const satisfies readonly DistinctLookalike[];
 
 /** The registry `pnpm unwired ports` judges look-alikes against; a test passes its own. */

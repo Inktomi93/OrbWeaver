@@ -17,10 +17,12 @@
 // - The buckets are the engine scan's, less its `disagreements` list: the graph is the one engine.
 import type {
   Expression,
+  Identifier,
   JsxAttributeLike,
   MethodSignatureDeclaration,
   Node,
   ObjectLiteralElementLike,
+  ObjectLiteralExpression,
   ParameterDeclaration,
   PropertySignatureDeclaration,
 } from "@typescript/native/ast";
@@ -63,6 +65,8 @@ import {
   isTypeAliasDeclaration,
   isTypeLiteralNode,
   isVariableDeclaration,
+  isVariableDeclarationList,
+  NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, NodeHandle } from "@typescript/native/sync";
@@ -134,7 +138,7 @@ const PARAM_LIMITS: readonly string[] = [
   "A call counts only where its name resolves to the callable's own declaration: a call through an interface a class implements is the interface member's, not the class method's.",
   "A value supplied only from a JSON or scenario file is not a supply; a reference in a type position is neither a call nor an escape.",
   "A prop any product construction of its declaration sets is supplied for every callable that takes it, so a callable whose own callers never set a shared prop keeps its default path unreported.",
-  "A construction supplies a prop only when its literal reaches a call argument or is a JSX attribute, and its value does not read the same prop: a literal stored in a local or a constant and later handed to a sibling callee by name is not seen as that sibling's supply.",
+  "A construction supplies a prop only when its literal reaches a call argument or is a JSX attribute, or is a `const` object literal a product call hands by name to a callable whose parameter carries the prop, and its value does not read the same prop. A literal stored in a `let` or reached through any other hop (a returned object, a property of another constant) is not seen as a supply.",
   "Two declarations of one concept are separate homes: a prop supplied only through a restated options type reports on the other; judge it with the shapes scan.",
   "A parameter typed by a single literal is never same-literal: its type, not its callers, fixes the value, as in a structural view of a platform method.",
 ];
@@ -178,6 +182,8 @@ interface Parameter {
 interface ArgumentShape {
   readonly literal: string | null;
   readonly keys: readonly string[] | null;
+  /** The argument when it is a name, whose `const` object literal may set props for every callable of their type. */
+  readonly named: Identifier | null;
 }
 
 /** A call, `new` or JSX element that invokes the callable. `arguments` is null when a spread hides them. */
@@ -366,7 +372,11 @@ function callShape(call: Node): CallShape | null {
     return null;
   }
   const args = call.arguments ?? [];
-  return { arguments: args.some(isSpreadElement) ? null : args.map((argument) => ({ literal: literalText(argument), keys: literalKeys(argument) })) };
+  return {
+    arguments: args.some(isSpreadElement)
+      ? null
+      : args.map((argument) => ({ literal: literalText(argument), keys: literalKeys(argument), named: isIdentifier(argument) ? argument : null })),
+  };
 }
 
 // A JSX element whose tag is the name: its attributes are one props argument, children between the tags included.
@@ -379,14 +389,14 @@ function jsxShape(name: Node): CallShape | null {
   const keys: string[] = [];
   for (const attribute of element.attributes.properties) {
     if (isJsxSpreadAttribute(attribute)) {
-      return { arguments: [{ literal: null, keys: null }] };
+      return { arguments: [{ literal: null, keys: null, named: null }] };
     }
     keys.push(attribute.name.getText());
   }
   if (isJsxOpeningElement(element) && isJsxElement(element.parent) && element.parent.children.length > 0) {
     keys.push("children");
   }
-  return { arguments: [{ literal: null, keys }] };
+  return { arguments: [{ literal: null, keys, named: null }] };
 }
 
 // Whether a product reference that is no call hands the value on, by the graph's value-use reader (roles.ts valueUse):
@@ -478,7 +488,7 @@ function sameLiteral(calls: readonly CallShape[], index: number): string | null 
 // The literal a construction sits in reaches a call or `new` argument, through nested literals, spreads, parentheses,
 // assertions and conditional branches. A literal stored in a local or a module constant supplies nothing by itself:
 // a callee's own default fill (`const filled = { ...options, color: options.color ?? "red" }`) is such a store, and a
-// constant handed on by name already supplies every prop through its identifier argument.
+// constant handed on by name supplies through its call (`handedConstants`).
 function reachesCall(literal: Node): boolean {
   let at = literal;
   for (;;) {
@@ -614,6 +624,65 @@ const unsetProps = (callable: Callable, calls: Calls): readonly Prop[] =>
           : parameter.props.filter((prop) => !calls.production.some((call) => setsProp(call, index, prop.name))),
       );
 
+// The object literal a `const` holds, through parentheses and assertions; null for a `let`, a `var` or any other value.
+function constantLiteral(declaration: Node | undefined): ObjectLiteralExpression | null {
+  if (!(declaration !== undefined && isVariableDeclaration(declaration) && declaration.initializer !== undefined)) {
+    return null;
+  }
+  const list = declaration.parent;
+  if (!(isVariableDeclarationList(list) && hasFlag(list.flags, NodeFlags.Const))) {
+    return null;
+  }
+  let value: Expression = declaration.initializer;
+  while (isParenthesizedExpression(value) || isAsExpression(value) || isSatisfiesExpression(value)) {
+    value = value.expression;
+  }
+  return isObjectLiteralExpression(value) ? value : null;
+}
+
+// A property whose value reads a property of its own name relays what it was given (`{ ...o, tone: o.tone ?? "flat" }`).
+function relaysOwnName(property: ObjectLiteralElementLike, name: string): boolean {
+  if (!isPropertyAssignment(property)) {
+    return false;
+  }
+  let reads = false;
+  const visit = (node: Node): void => {
+    reads ||= isPropertyAccessExpression(node) && node.name.text === name;
+    node.forEachChild(visit);
+  };
+  visit(property.initializer);
+  return reads;
+}
+
+// The props a `const` object literal sets where a product call hands the constant by name to a callable, for every
+// callable whose parameter carries the prop's declaration: `fuzzySearch(items, terms, SEARCH_OPTIONS)` sets `boost` on
+// the options type `useFuzzySearch` shares. find-references does not reach an unannotated literal's keys, so the
+// constant is read at the call.
+function handedConstants(world: NativeWorld, found: readonly Callable[], calls: readonly Calls[]): ReadonlySet<string> {
+  const handed = found.flatMap((callable, at) =>
+    (calls[at]?.production ?? []).flatMap((call) =>
+      (call.arguments ?? []).flatMap((argument, index) => {
+        const props = callable.parameters[index]?.props ?? [];
+        return argument.named === null || props.length === 0 ? [] : [{ name: argument.named, props }];
+      }),
+    ),
+  );
+  const symbols = world.symbolsAt(handed.map(({ name }) => name));
+  const declarations = world.batch(symbols.map((symbol) => (symbol?.declarations[0] === undefined ? noNode() : symbol.declarations[0].resolve.gen())));
+  const supplied = new Set<string>();
+  for (const [at, { props }] of handed.entries()) {
+    const literal = constantLiteral(declarations[at]);
+    const sets = (literal?.properties ?? []).flatMap((property) => {
+      const name = isSpreadAssignment(property) ? undefined : keyText(property.name);
+      return name === undefined || relaysOwnName(property, name) ? [] : [name];
+    });
+    for (const prop of props.filter(({ name }) => sets.includes(name))) {
+      supplied.add(prop.keys.join(","));
+    }
+  }
+  return supplied;
+}
+
 function judge(callable: Callable, calls: Calls, supplied: ReadonlySet<string>): readonly UnwiredParam[] {
   if (calls.escapes > 0 || calls.production.length === 0) {
     return [];
@@ -651,15 +720,18 @@ export function paramsPass(graph: Graph, world: NativeWorld, rows: ParamsLists):
   const resolver = new Resolver(world);
   const found = callables(world, writtenCallables(graph, world));
   const calls = callsOf(world, resolver, found);
-  const supplied = constructed(
-    world,
-    graph,
-    resolver,
-    found.flatMap((callable, at) => {
-      const own = calls[at];
-      return own === undefined ? [] : unsetProps(callable, own);
-    }),
-  );
+  const supplied = new Set([
+    ...constructed(
+      world,
+      graph,
+      resolver,
+      found.flatMap((callable, at) => {
+        const own = calls[at];
+        return own === undefined ? [] : unsetProps(callable, own);
+      }),
+    ),
+    ...handedConstants(world, found, calls),
+  ]);
   const findings = found.flatMap((callable, at) => {
     const own = calls[at];
     return own === undefined ? [] : judge(callable, own, supplied);

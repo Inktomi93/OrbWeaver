@@ -1,6 +1,9 @@
 // A deliberate entry goes stale when its file, home or member leaves the tree, or when no consuming scan applies it;
-// the excused-nothing check judges only reports one root and HEAD wrote.
+// the excused-nothing check judges only reports one root wrote, at HEAD or at a commit only prose separates from it.
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
+import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git-fixture";
 import type { ConsumerReport, DeliberateEntry } from "../../../tooling/src/unwired/deliberate.ts";
 import { deliberateLabel, excusedNothing, staleDeliberate } from "../../../tooling/src/unwired/deliberate.ts";
 
@@ -57,4 +60,32 @@ test("an entry no consumer applied excuses nothing; a missing, unmarked or other
   expect(excusedNothing([applied, idle], missing, current)).toEqual({ stale: [], unjudged: ["reports/unwired/params.json"] });
   const moved = [...reports, { path: "out/shapes.json", run: { root: "/tree", head: "def", applied: [] } }];
   expect(excusedNothing([applied, idle], moved, current)).toEqual({ stale: [], unjudged: ["out/shapes.json"] });
+});
+
+test("a report from a commit only prose separates from HEAD is judged; one a scanned file changed since is not", { timeout: 60_000 }, async ({
+  plantedTree,
+}) => {
+  const applied: DeliberateEntry = { file: KEPT, home: "Kept", member: "here", reason: REASON };
+  const root = await plantedTree({ [KEPT]: "export interface Kept { readonly here: string }\n", "docs/notes.md": "# Notes\n" });
+  const commit = (message: string): string => {
+    execFixtureGit(root, ["add", "-A"]);
+    execFixtureGit(root, ["commit", "-qm", message]);
+    return execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
+  };
+  for (const args of [
+    ["init", "-q", "-b", "main"],
+    ["config", "user.email", FIXTURE_GIT_IDENTITY.email],
+    ["config", "user.name", FIXTURE_GIT_IDENTITY.name],
+  ]) {
+    execFixtureGit(root, args);
+  }
+  const ran = commit("run");
+  const reports: readonly ConsumerReport[] = [{ path: "reports/unwired/graph.json", run: { root, head: ran, applied: [deliberateLabel(applied)] } }];
+  writeFileSync(join(root, "docs/notes.md"), "# Notes\n\nMore.\n");
+  writeFileSync(join(root, "README.md"), "# Readme\n");
+  const prose = commit("docs");
+  expect(excusedNothing([applied], reports, { root, head: prose })).toEqual({ stale: [], unjudged: [] });
+  writeFileSync(join(root, KEPT), "export interface Kept { readonly here: string; readonly there: string }\n");
+  const source = commit("source");
+  expect(excusedNothing([applied], reports, { root, head: source })).toEqual({ stale: [], unjudged: ["reports/unwired/graph.json"] });
 });

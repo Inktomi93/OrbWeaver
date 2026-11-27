@@ -2453,11 +2453,14 @@ export function* valueSlotOrigins(world: NativeWorld, node: Node): APIRequestGen
   return spellings === null ? null : yield* originsOf(world, spellings);
 }
 
-/** The vocabulary of the value a switch at a name or member access reads: what its declaration is annotated with. */
+/** The vocabulary of the value a switch at a name or member access reads: what its declaration is annotated with.
+ *  @remarks Read as links: a type parameter nothing binds reads its constraint, as `code: Code` does in a shape a
+ *  mapped type instantiates per detail field. A label handed on still builds only where production builds it in this
+ *  vocabulary, so reading it wider lets no unbuilt label through. */
 export function* subjectOrigins(world: NativeWorld, node: Node): APIRequestGenerator<Origins> {
   const operand = isPropertyAccessExpression(node.parent) && sameNode(node.parent.name, node) ? node.parent : node;
   const spellings = yield* operandSpellings(world, operand);
-  return spellings === null ? null : yield* originsOf(world, spellings);
+  return spellings === null ? null : yield* originsOf(world, spellings, "links");
 }
 
 /** The property signature a string literal type at `site` annotates, through a union of literals (`kind: "a" | "b"`):

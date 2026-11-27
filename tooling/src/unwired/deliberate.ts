@@ -4,11 +4,12 @@
 //
 // - An entry is stale when its file, home or member is gone from the tree (staleDeliberate, which every consuming scan
 //   reports), or when it excuses no finding in any consuming scan (excusedNothing, which reads every consumer's report
-//   and judges only when all were written from one root and HEAD). Each reason's cites resolve through the comment cite
-//   grammar (tests/tooling/doc/comment-path-citations.repo.int.test.ts).
+//   and judges only when all were written from one root, at HEAD or at a commit only prose separates from it). Each
+//   reason's cites resolve through the comment cite grammar (tests/tooling/doc/comment-path-citations.repo.int.test.ts).
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { runGit } from "../floor/git/git.ts";
 import type { JudgedEntry, JudgedSplit } from "./judged.ts";
 import { sortJudged } from "./judged.ts";
 
@@ -255,14 +256,26 @@ export interface ConsumerReport {
   readonly run: DeliberateRun | null;
 }
 
+// Prose no scan reads: a commit that changes only these leaves every report's findings as they were.
+const PROSE_DIRECTORY = "docs/";
+const PROSE_EXTENSION = ".md";
+
+// Whether every file that differs between two commits is prose; false when either commit is unknown to the root.
+function onlyProseBetween(root: string, from: string, to: string): boolean {
+  const diff = runGit(root, ["diff", "--name-only", "--no-renames", from, to]);
+  return diff.status === 0 && diff.stdout.split("\n").every((file) => file === "" || file.startsWith(PROSE_DIRECTORY) || file.endsWith(PROSE_EXTENSION));
+}
+
 /** The entries no consumer applied, or the reports that keep the check from judging: a missing report, one with no run
- *  block, or one another root or HEAD wrote. */
+ *  block, one another root wrote, or one whose HEAD differs from the current one by more than prose. */
 export function excusedNothing(
   entries: readonly DeliberateEntry[],
   reports: readonly ConsumerReport[],
   current: { readonly root: string; readonly head: string },
 ): { readonly stale: readonly StaleDeliberate[]; readonly unjudged: readonly string[] } {
-  const unjudged = reports.filter(({ run }) => run === null || run.root !== current.root || run.head !== current.head).map(({ path }) => path);
+  const judged = (run: DeliberateRun | null): boolean =>
+    run !== null && run.root === current.root && (run.head === current.head || onlyProseBetween(current.root, run.head, current.head));
+  const unjudged = reports.filter(({ run }) => !judged(run)).map(({ path }) => path);
   if (unjudged.length > 0) {
     return { stale: [], unjudged };
   }

@@ -176,8 +176,6 @@ export interface ProceduresReport {
   readonly judged: JudgedSplit<SurfaceFinding>["judged"];
   /** Judged entries whose row no longer reports or whose item is no longer open. */
   readonly staleJudged: JudgedSplit<SurfaceFinding>["staleJudged"];
-  /** The graph is the one reading of procedures and routes, so nothing can disagree. */
-  readonly disagreements: readonly string[];
   readonly outside: readonly OutsideRow[];
   /** Outside-caller rows that match no registration. */
   readonly stale: readonly OutsideCaller[];
@@ -649,7 +647,6 @@ export function proceduresOf(graph: Graph, world: NativeWorld, options: Procedur
     deliberate,
     judged,
     staleJudged,
-    disagreements: [],
     outside: rows.filter((row) => row.at.length > 0),
     stale: rows.filter((row) => row.at.length === 0).map((row) => row.row),
     unplaced: unplaced

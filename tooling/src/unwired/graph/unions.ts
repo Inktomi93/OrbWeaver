@@ -151,7 +151,7 @@ export interface UnionsReport {
 /** What the unions scan cannot see, printed with every run. */
 const UNION_LIMITS: readonly string[] = [
   "A tuple with any element whose type is not one string literal (a spread, a `string`, a union) is skipped whole, so none of its members is judged. An element read from a constant (`CODE.x`) is the member its type names.",
-  'A member is built by a literal in its slot, or by a module-private unannotated constant the slot reads: the whole constant, its property (`ROOT.carriers`) or a spread of its object (`{ ...ROOT }`). An exported constant read into a slot (`take(CODE.x)`) builds nothing, nor does a literal in an inline `as const` array production maps (`(["main", "ui"] as const).map(...)`).',
+  'A member is built by a literal in its slot, or by a module-private unannotated constant the slot reads: the whole constant, its property (`ROOT.carriers`) or a spread of its object (`{ ...ROOT }`). An exported constant read into a slot (`take(CODE.x)`) builds nothing, unless the tuple\'s own element is that constant: a read of an element constant into a slot of the tuple builds its member. A literal in an inline `as const` array production maps (`(["main", "ui"] as const).map(...)`) builds nothing.',
   "A literal builds a member in a slot spelled from the tuple, or in a literal type linked to it: written by the type the tuple `satisfies`, or annotating a property whose value production feeds into the tuple's slot (an argument, a property, a return or an element-access key). A literal type with no such link (a discriminated union arm, a hand-written union, a conditional type's arm) builds nothing, so a member production builds only there reports unbuilt.",
   "A narrowed value handed on builds the labels that narrow it only in a `switch` on a name or a member access read again in the clause, and only for a label production builds in the switched value's own vocabulary; an `if` narrowing builds nothing.",
   "A read by name (`POSTURES.arbiter`) of an entry of an `as const satisfies Record<Tuple, …>` literal builds the member its key names; a read of a `Record` annotated with a type, or through a computed key, builds nothing.",
@@ -363,6 +363,54 @@ function tuples(world: NativeWorld, resolver: Resolver): readonly UnionTuple[] {
       members: named.map(({ element, text }) => ({ text, element, line: lineOf(element), site: world.siteOf(element) })),
       references: (references.get(resolver.keyOf(name.parent)) ?? []).filter((reference) => !sameNode(reference, name)),
     };
+  });
+}
+
+// The name a read of an element's constant resolves through: the constant itself, or the property `CODE.x` reads.
+function elementName(element: Expression): Identifier | null {
+  if (isIdentifier(element)) {
+    return element;
+  }
+  return isPropertyAccessExpression(element) && isIdentifier(element.name) ? element.name : null;
+}
+
+// A tuple element written as a constant (`BUNDLE_KIND`, `CODE.x`) is built wherever production reads that constant into
+// a slot of the tuple's vocabulary: each product read resolving to the element's declaration, asked for its slot.
+function elementConstructions(world: NativeWorld, resolver: Resolver, local: readonly UnionTuple[]): readonly Construction[] {
+  const elements = local.flatMap((tuple) =>
+    tuple.members.flatMap((member) => {
+      const name = elementName(member.element);
+      return name === null ? [] : [{ name, text: member.text }];
+    }),
+  );
+  if (elements.length === 0) {
+    return [];
+  }
+  const own = new Set(elements.map(({ name }) => nodeKey(name)));
+  const texts = new Map<DeclKey, Set<string>>();
+  const declared = resolver.declarations(world.symbolsAt(elements.map(({ name }) => name)));
+  for (const [at, { text }] of elements.entries()) {
+    for (const key of declared[at] ?? []) {
+      texts.set(key, new Set([...(texts.get(key) ?? []), text]));
+    }
+  }
+  const spellings = new Set(elements.map(({ name }) => name.text));
+  const reads: Identifier[] = [];
+  eachProductionNode(world, (node) => {
+    if (!(isIdentifier(node) && spellings.has(node.text)) || own.has(nodeKey(node))) {
+      return;
+    }
+    const { parent } = node;
+    if ((isPropertyAccessExpression(parent) && sameNode(parent.name, node)) || isValueName(node)) {
+      reads.push(node);
+    }
+  });
+  const resolved = resolver.declarations(world.symbolsAt(reads));
+  const built = reads.flatMap((read, at) => [...new Set((resolved[at] ?? []).flatMap((key) => [...(texts.get(key) ?? [])]))].map((text) => ({ read, text })));
+  const origins = world.batch(built.map(({ read }) => valueSlotOrigins(world, read)));
+  return built.flatMap(({ text }, at) => {
+    const slot = origins[at];
+    return slot === undefined || slot === null ? [] : [{ text, origins: slot }];
   });
 }
 
@@ -676,7 +724,8 @@ interface Reading {
 }
 
 function readTuples(world: NativeWorld, log: GraphLog): Reading {
-  const local = tuples(world, new Resolver(world));
+  const resolver = new Resolver(world);
+  const local = tuples(world, resolver);
   const facts = readFacts(world, local);
   const satisfied = world.batch(local.map((tuple) => satisfiedOrigins(world, tuple.nameNode)));
   const entries = new Map(local.map((tuple, at) => [tuple.key, { tuple, satisfied: satisfied[at] ?? NOTHING_SPELLED }]));
@@ -693,6 +742,7 @@ function readTuples(world: NativeWorld, log: GraphLog): Reading {
   const produced = [
     ...facts.first.literals.filter((site) => site.role === "construct" && site.holds),
     ...facts.constructions,
+    ...elementConstructions(world, resolver, local),
     ...enumeratedSubsets(entries, ownEnumerated, subsets),
   ];
   const producedBuilt = builtInto(produced);

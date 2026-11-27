@@ -1560,3 +1560,36 @@ test("a mapped registry whose row is a conditional over its key credits the tupl
     "TWIN_CLASSES.owner",
   ]);
 });
+
+// A tuple whose elements are constants, as the portable schema kinds and the provider adjustment kinds are: a read of the
+// constant into the tuple's slot builds its member, from another file and through a property. A read into a plain
+// string slot, a comparison and a same-text literal typed by another vocabulary build nothing, so `theme`, `seed` and
+// `dry` keep reporting.
+const CONSTANT_ELEMENT_TREE = {
+  "packages/a/src/kinds.ts": [
+    'export const BUNDLE_KIND = "orb.bundle";',
+    'export const THEME_KIND = "orb.theme";',
+    'export const SEED_KIND = "orb.seed";',
+    "const SCHEMA_KINDS = [BUNDLE_KIND, THEME_KIND, SEED_KIND] as const;",
+    "export type SchemaKind = (typeof SCHEMA_KINDS)[number];",
+    "export const parseError = (kind: SchemaKind, reason: string): string => kind + reason;",
+    'export const CODE = { wet: "wet_code", dry: "dry_code" } as const;',
+    "const ADJUSTMENTS = [CODE.wet, CODE.dry] as const;",
+    "export type Adjustment = (typeof ADJUSTMENTS)[number];",
+    "export interface Notice { readonly adjustment: Adjustment }",
+  ].join("\n"),
+  "packages/a/src/reads.ts": [
+    'import { BUNDLE_KIND, CODE, type Notice, parseError, SEED_KIND, THEME_KIND } from "./kinds.ts";',
+    'export const failed = parseError(BUNDLE_KIND, "bad");',
+    "export const notice: Notice = { adjustment: CODE.wet };",
+    "export const label: string = THEME_KIND;",
+    "export const isSeed = (kind: string): boolean => kind === SEED_KIND;",
+    'export const other: { readonly code: "dry_code" } = { code: "dry_code" };',
+  ].join("\n"),
+};
+
+test("a tuple element written as a constant is built where production reads the constant into the tuple's slot", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  expect(sortedRows(await scanUnions(plantedTree, CONSTANT_ELEMENT_TREE))).toEqual(["ADJUSTMENTS.dry_code", "SCHEMA_KINDS.orb.seed", "SCHEMA_KINDS.orb.theme"]);
+});

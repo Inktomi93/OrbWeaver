@@ -8,20 +8,44 @@
 // - The senders are the receivers in {@link RECEIVER_PATHS}, where a stripped key fails silently: the client, the plugins
 //   and the e2e suites alike. It is no product population, so the product and credit split of D357 has nothing to judge.
 // - The removed keys come from the merge base's and head's blobs, each parsed on its own by the native parser. The merged
-//   program loads the working tree, so `head` must be the checked-out commit and the tracked files clean.
+//   program loads the working tree, so `head` must be the checked-out commit, the tracked files clean, and no untracked
+//   file among those the program loads. An untracked file no world includes (a tool's cache directory) changes no verdict.
+// - A declaration moved whole out of its contract file to a same-named one elsewhere keeps the keys it still declares.
+// - A computed key (`[VLLM_PROVIDER_ID]: …`) counts as the string its constant holds, when the file or a file it imports
+//   relatively declares that constant; a key spelled by any other expression is not counted.
 // - A branch that removes no key builds no session.
 
-import type { CallExpression, Expression, Identifier, NewExpression, Node, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
+import { posix } from "node:path";
+import type {
+  CallExpression,
+  Expression,
+  Identifier,
+  ImportDeclaration,
+  InterfaceDeclaration,
+  NewExpression,
+  Node,
+  PropertyAccessExpression,
+  PropertyAssignment,
+  PropertySignatureDeclaration,
+  ShorthandPropertyAssignment,
+  SourceFile,
+  TypeAliasDeclaration,
+  VariableDeclaration,
+} from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isAsExpression,
   isCallExpression,
+  isComputedPropertyName,
   isConditionalExpression,
   isElementAccessExpression,
   isIdentifier,
+  isImportDeclaration,
   isInterfaceDeclaration,
+  isNamedImports,
   isNewExpression,
   isNonNullExpression,
+  isNoSubstitutionTemplateLiteral,
   isObjectLiteralExpression,
   isParenthesizedExpression,
   isPropertyAccessExpression,
@@ -145,22 +169,121 @@ function homeOf(node: Node): string | null {
 /** How many times a file declares each key, by home name then key. */
 type KeyCounts = ReadonlyMap<string, ReadonlyMap<string, number>>;
 
+/** One file's parse before its computed keys are spelled: the plain keys counted by home, each computed key's home and
+ *  the identifier that names it, the file's string constants, and each relatively imported name with the files it may
+ *  come from. */
+interface FileKeys {
+  readonly counts: Map<string, Map<string, number>>;
+  readonly computed: { readonly home: string; readonly name: string }[];
+  readonly constants: Map<string, string>;
+  readonly imports: Map<string, { readonly from: readonly string[]; readonly name: string }>;
+}
+
+const addKey = (into: Map<string, Map<string, number>>, home: string, key: string): void => {
+  const keys = into.get(home) ?? new Map<string, number>();
+  keys.set(key, (keys.get(key) ?? 0) + 1);
+  into.set(home, keys);
+};
+
+// The string a constant's initializer spells, through `as const` and parentheses.
+function stringOf(value: Node | undefined): string | null {
+  let at = value;
+  while (at !== undefined && (isAsExpression(at) || isSatisfiesExpression(at) || isParenthesizedExpression(at))) {
+    at = at.expression;
+  }
+  return at !== undefined && (isStringLiteral(at) || isNoSubstitutionTemplateLiteral(at)) ? at.text : null;
+}
+
+// The files a relative specifier may name: the spelled file, or the module and index files a bare one resolves to.
+function specifierFiles(file: string, specifier: string): readonly string[] {
+  const target = posix.join(posix.dirname(file), specifier);
+  return PARSED.test(target) ? [target] : [`${target}.ts`, `${target}.tsx`, `${target}/index.ts`];
+}
+
 // How many times a file declares each key in each home: an interface or type member, a schema or literal key, a
-// shorthand. The parser sees a key wherever it sits, a one-line `z.object({ a: … })` included.
-function declaredKeys(source: SourceFile): KeyCounts {
-  const into = new Map<string, Map<string, number>>();
+// shorthand. The parser sees a key wherever it sits, a one-line `z.object({ a: … })` included. Every home the file
+// declares has an entry, one with no key included, so a home that left the file is told from one that lost its keys.
+// A computed key named by an identifier is held until the constant it names is read.
+function fileKeys(root: string, source: SourceFile): FileKeys {
+  const found: FileKeys = { counts: new Map(), computed: [], constants: new Map(), imports: new Map() };
   const visit = (node: Node): void => {
-    const named = isPropertySignatureDeclaration(node) || isPropertyAssignment(node) || isShorthandPropertyAssignment(node) ? node.name : undefined;
-    const home = named === undefined ? null : homeOf(node);
-    if (named !== undefined && home !== null && (isIdentifier(named) || isStringLiteral(named))) {
-      const keys = into.get(home) ?? new Map<string, number>();
-      keys.set(named.text, (keys.get(named.text) ?? 0) + 1);
-      into.set(home, keys);
+    if (isInterfaceDeclaration(node) || isTypeAliasDeclaration(node) || isVariableDeclaration(node)) {
+      readDeclaration(node, found);
+    } else if (isImportDeclaration(node)) {
+      readImport(posix.relative(root, source.fileName), node, found.imports);
+    } else if (isPropertySignatureDeclaration(node) || isPropertyAssignment(node) || isShorthandPropertyAssignment(node)) {
+      readKey(node, found);
     }
     node.forEachChild(visit);
   };
   source.forEachChild(visit);
-  return into;
+  return found;
+}
+
+// A home's entry, and a string constant's text.
+function readDeclaration(node: InterfaceDeclaration | TypeAliasDeclaration | VariableDeclaration, into: FileKeys): void {
+  if (!isIdentifier(node.name)) {
+    return;
+  }
+  if (!into.counts.has(node.name.text)) {
+    into.counts.set(node.name.text, new Map());
+  }
+  const text = isVariableDeclaration(node) ? stringOf(node.initializer) : null;
+  if (text !== null) {
+    into.constants.set(node.name.text, text);
+  }
+}
+
+// Each name a relative import binds, with the files it may come from.
+function readImport(file: string, node: ImportDeclaration, into: FileKeys["imports"]): void {
+  const bindings = node.importClause?.namedBindings;
+  if (!(isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text.startsWith(".") && bindings !== undefined && isNamedImports(bindings))) {
+    return;
+  }
+  const from = specifierFiles(file, node.moduleSpecifier.text);
+  for (const element of bindings.elements) {
+    into.set(element.name.text, { from, name: (element.propertyName ?? element.name).text });
+  }
+}
+
+// A key counted in its home, or a computed key held under the identifier that names it.
+function readKey(node: PropertySignatureDeclaration | PropertyAssignment | ShorthandPropertyAssignment, into: FileKeys): void {
+  const home = homeOf(node);
+  const { name } = node;
+  if (home === null) {
+    return;
+  }
+  if (isIdentifier(name) || isStringLiteral(name)) {
+    addKey(into.counts, home, name.text);
+  } else if (isComputedPropertyName(name) && isIdentifier(name.expression)) {
+    into.computed.push({ home, name: name.expression.text });
+  }
+}
+
+// Each file's key counts at `rev`, a computed key spelled by the constant it names in its own file or in a file it
+// imports relatively. A key named by any other expression is not counted.
+function countsOf(root: string, rev: string, texts: ReadonlyMap<string, string>): ReadonlyMap<string, KeyCounts> {
+  const parsed = NativeWorld.readTexts(root, texts, (source) => fileKeys(root, source));
+  const wanted = [...parsed.values()].flatMap(({ computed, constants, imports }) =>
+    computed.flatMap(({ name }) => (constants.has(name) ? [] : (imports.get(name)?.from ?? []).filter((file) => !parsed.has(file)))),
+  );
+  const imported =
+    wanted.length === 0
+      ? new Map<string, FileKeys>()
+      : NativeWorld.readTexts(root, blobsAt(root, rev, [...new Set(wanted)]), (source) => fileKeys(root, source));
+  const constantIn = (file: string, name: string): string | undefined => (parsed.get(file) ?? imported.get(file))?.constants.get(name);
+  return new Map(
+    [...parsed].map(([file, { counts, computed, constants, imports }]) => {
+      for (const { home, name } of computed) {
+        const via = imports.get(name);
+        const key = constants.get(name) ?? via?.from.map((from) => constantIn(from, via.name)).find((found) => found !== undefined);
+        if (key !== undefined) {
+          addKey(counts, home, key);
+        }
+      }
+      return [file, counts] as const;
+    }),
+  );
 }
 
 // Each file's text at `rev`, one batch read. A file the rev lacks (added or deleted on the branch) declares nothing, and
@@ -181,7 +304,7 @@ function blobsAt(root: string, rev: string, files: readonly string[]): ReadonlyM
 }
 
 function keyCounts(root: string, rev: string, files: readonly string[]): ReadonlyMap<string, KeyCounts> {
-  return NativeWorld.readTexts(root, blobsAt(root, rev, files), declaredKeys);
+  return countsOf(root, rev, blobsAt(root, rev, files));
 }
 
 /** A removed key's home at `head`: the file and the declaration name that dropped it. */
@@ -190,20 +313,54 @@ interface Home {
   readonly name: string;
 }
 
-// The keys some changed contract declaration names fewer times at `head` than at the merge base, by declaration: a key
-// reformatted or moved inside one declaration is still there, and a key moved to another declaration is removed from
-// its old home, since a sender of the old home's procedure now sends a stripped key.
-function removedKeys(root: string, base: string, head: string): ReadonlyMap<string, readonly Home[]> {
-  const files = execGit(root, ["diff", "--name-only", "--no-renames", `${base}...${head}`, "--", ...CONTRACT_PATHS])
+const changedFiles = (root: string, base: string, head: string, paths: readonly string[]): readonly string[] =>
+  execGit(root, ["diff", "--name-only", "--no-renames", `${base}...${head}`, "--", ...paths])
     .split("\n")
     .filter((file) => PARSED.test(file));
+
+// The declarations the branch moved whole: a home that left its contract file and that another changed file declares
+// at `head` under the same name, by name to that file's key counts. A key the moved home still declares is no removal,
+// since a sender typed against it now imports the new home.
+function movedHomes(root: string, head: string, gone: ReadonlySet<string>, others: readonly string[]): ReadonlyMap<string, readonly KeyCounts[]> {
+  const blobs = [...blobsAt(root, head, others)].filter(([, text]) => [...gone].some((name) => text.includes(name)));
+  const moved = new Map<string, KeyCounts[]>();
+  for (const counts of countsOf(root, head, new Map(blobs)).values()) {
+    for (const name of gone) {
+      if (counts.has(name)) {
+        moved.set(name, [...(moved.get(name) ?? []), counts]);
+      }
+    }
+  }
+  return moved;
+}
+
+// The keys some changed contract declaration names fewer times at `head` than at the merge base, by declaration: a key
+// reformatted or moved inside one declaration is still there, and a key moved to another declaration is removed from
+// its old home, since a sender of the old home's procedure now sends a stripped key. A home moved whole to another
+// file keeps the keys it still declares there.
+function removedKeys(root: string, base: string, head: string): ReadonlyMap<string, readonly Home[]> {
+  const files = changedFiles(root, base, head, CONTRACT_PATHS);
   const fork = execGit(root, ["merge-base", base, head]).trim();
+  const before = keyCounts(root, fork, files);
   const after = keyCounts(root, head, files);
+  const gone = new Set([...before].flatMap(([file, homes]) => [...homes.keys()].filter((name) => !(after.get(file)?.has(name) ?? false))));
+  const contracts = new Set(files);
+  const moved =
+    gone.size === 0
+      ? new Map<string, readonly KeyCounts[]>()
+      : movedHomes(
+          root,
+          head,
+          gone,
+          changedFiles(root, base, head, []).filter((file) => !contracts.has(file)),
+        );
+  const movedKeeps = (name: string, key: string, count: number): boolean =>
+    (moved.get(name) ?? []).some((counts) => (counts.get(name)?.get(key) ?? 0) >= count);
   const removed = new Map<string, Home[]>();
-  for (const [file, before] of keyCounts(root, fork, files)) {
-    for (const [name, keys] of before) {
+  for (const [file, homes] of before) {
+    for (const [name, keys] of homes) {
       for (const [key, count] of keys) {
-        if ((after.get(file)?.get(name)?.get(key) ?? 0) < count) {
+        if ((after.get(file)?.get(name)?.get(key) ?? 0) < count && !movedKeeps(name, key, count)) {
           removed.set(key, [...(removed.get(key) ?? []), { file, name }]);
         }
       }
@@ -546,25 +703,30 @@ export interface RemovedKeysPlan {
   readonly base: string;
   readonly head: string;
   readonly scanned: Readonly<Record<Receiver, number>>;
+  /** Untracked, unignored files: the merged program refuses the run only when it loads one of them. */
+  readonly untracked: readonly string[];
   readonly removed: ReadonlyMap<string, readonly Home[]>;
 }
 
+const DIFFERS = "removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first";
+
 /** Check that `head` is the clean checkout, then read the receiver files and the keys the branch removes.
  *  @throws When `head` is not the checked-out commit or the tracked files differ from it: the merged program loads the
- *  working tree. */
+ *  working tree. An untracked file is checked once the program is built, since only a file it loads changes a verdict. */
 export function removedKeysPlan({ root, base, head }: RemovedKeysOptions): RemovedKeysPlan {
   if (execGit(root, ["rev-parse", head]).trim() !== execGit(root, ["rev-parse", "HEAD"]).trim()) {
     throw new Error(`removed-keys resolves senders in the checked-out tree: check out ${head} first`);
   }
-  if (execGit(root, ["status", "--porcelain"]).trim() !== "") {
-    throw new Error("removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first");
+  if (execGit(root, ["status", "--porcelain", "--untracked-files=no"]).trim() !== "") {
+    throw new Error(DIFFERS);
   }
+  const untracked = execGit(root, ["ls-files", "--others", "--exclude-standard"]).split("\n").filter(Boolean);
   const filesAt = (receiver: Receiver): number =>
     execGit(root, ["ls-tree", "-r", "--name-only", head, "--", ...RECEIVER_PATHS[receiver]])
       .split("\n")
       .filter(Boolean).length;
   const scanned: Record<Receiver, number> = { client: filesAt("client"), plugins: filesAt("plugins"), e2e: filesAt("e2e") };
-  return { root, base, head, scanned, removed: removedKeys(root, base, head) };
+  return { root, base, head, scanned, untracked, removed: removedKeys(root, base, head) };
 }
 
 const emptyTallies = (plan: RemovedKeysPlan): ReadonlyMap<string, Tally> =>
@@ -600,10 +762,17 @@ function reportOf(plan: RemovedKeysPlan, tallies: ReadonlyMap<string, Tally>): R
 export const nothingRemoved = (plan: RemovedKeysPlan): RemovedKeysReport => reportOf(plan, emptyTallies(plan));
 
 /** Resolve every receiver site the session's merged program holds that names a removed key, then search the receiver
- *  files it does not hold as text. */
+ *  files it does not hold as text.
+ *  @throws When the merged program loads an untracked file: a verdict on it would hold for no commit. */
 export function removedKeysPass(world: NativeWorld, plan: RemovedKeysPlan): RemovedKeysReport {
+  const loaded = world.files.map((source) => world.fileOfSource(source));
+  const held = new Set(loaded);
+  const stray = plan.untracked.filter((file) => held.has(file));
+  if (stray.length > 0) {
+    throw new Error(`${DIFFERS}; the merged program loads untracked ${stray.join(", ")}`);
+  }
   const tallies = emptyTallies(plan);
-  const files = world.files.map((source) => world.fileOfSource(source)).filter((file) => receiverOf(file) !== null);
+  const files = loaded.filter((file) => receiverOf(file) !== null);
   scanFiles(world, files, plan.removed, tallies);
   outsideProgram(plan, new Set(files), tallies);
   return reportOf(plan, tallies);
