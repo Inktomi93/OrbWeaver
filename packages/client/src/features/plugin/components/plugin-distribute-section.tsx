@@ -28,10 +28,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure } from "#lib";
+import { DIALOG_VERBS, notify, rethrowUnlessTrpcFailure, timeLib } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { PLUGIN_DISTRIBUTE_ACTION_NAME } from "../lib/plugin-copy.ts";
+import { PLUGIN_DISTRIBUTE_ACTION_NAME, pluginPublishedLine } from "../lib/plugin-copy.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
 import { useDistributePlugin, useWithdrawPlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -194,7 +194,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
               <ListRow
                 key={row.slug}
                 title={row.name}
-                subtitle={`${row.slug} · ${row.version}`}
+                subtitle={`${row.slug} · ${row.version} · ${pluginPublishedLine(row.distributedBy, timeLib.formatRelative(row.distributedAt))}`}
                 actions={
                   <DestructiveAction
                     confirm={{

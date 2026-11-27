@@ -136,6 +136,8 @@ export interface DistributedPluginView {
   readonly slug: string;
   readonly name: string;
   readonly version: string;
+  /** The handle of the admin who published (or last re-published) it. A deleted admin's distribution is deleted with them, so it always names a live account. */
+  readonly distributedBy: string;
   readonly distributedAt: number;
   readonly updatedAt: number;
 }
@@ -144,6 +146,7 @@ export const distributedPluginViewSchema = z.strictObject({
   slug: z.string(),
   name: z.string(),
   version: z.string(),
+  distributedBy: z.string(),
   distributedAt: z.number(),
   updatedAt: z.number(),
 }) satisfies z.ZodType<DistributedPluginView>;

@@ -117,6 +117,8 @@ export type ResolvePluginChatAuthority = (caller: Principal, chatId: ChatId) => 
 export type ReadPluginBundleBytes = (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
 export type ReadPublishedPluginBundle = (assetId: AssetId) => Promise<Uint8Array>;
 export type ListPluginRecipients = (caller: Principal) => Promise<readonly Principal[]>;
+/** The handle each account is known by, for the admin surface that names who published a plugin. */
+export type ListPluginUserHandles = (caller: Principal) => Promise<ReadonlyMap<UserId, string>>;
 
 /** Execute a CONFIRMED plugin-origin act through `domain/plugin`'s own bridge — declared here as a TYPE and
  *  wired at `entry/compose` (the cake: automation never imports plugin). The op rebuilds the plugin's bridge

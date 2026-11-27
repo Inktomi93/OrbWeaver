@@ -10,6 +10,14 @@ import { listDistributions, toDistributedPluginView } from "../persistence/distr
 export function createListDistributedPlugins(ctx: PluginContext, deps: PluginDistributionDeps): PluginService["listDistributedPlugins"] {
   return async ({ caller }: ListDistributedPluginsParams) => {
     deps.requireAdmin(caller);
-    return (await listDistributions(ctx.db)).map(toDistributedPluginView);
+    const handles = await deps.listUserHandles(caller);
+    return (await listDistributions(ctx.db)).map((row) => {
+      const handle = handles.get(row.distributedBy);
+      if (handle === undefined) {
+        // `admin_distributed_plugins.distributed_by` cascades from `users`, so a record always names a live account.
+        throw new Error(`distribution ${row.slug} names publisher ${row.distributedBy}, who has no account`);
+      }
+      return toDistributedPluginView(row, handle);
+    });
   };
 }

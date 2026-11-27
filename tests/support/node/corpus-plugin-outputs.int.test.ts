@@ -137,8 +137,9 @@ test("native guest publications preserve callback inputs, private storage, draft
   expect(captured.draft).toEqual({ toasts: [], composerDraft: "Native draft revised" });
   expect(captured.draftState).toEqual({ args: "", values: {}, draft: "Native draft" });
   expect(captured.hostResult).toEqual({ resultJson: JSON.stringify("private ledger value") });
-  expect(captured.display).toEqual({ text: "Native row [ledger]" });
-  expect(captured.skippedDisplay).toEqual({ text: "skip failed transform" });
+  // The plugin is named by its own name ("Output ledger"), not by the transform label ("annotate").
+  expect(captured.display).toEqual({ text: "Native row [ledger]", changedBy: [{ pluginId, name: "Output ledger" }] });
+  expect(captured.skippedDisplay).toEqual({ text: "skip failed transform", changedBy: [] });
   expect(captured.snippet.error).toBeUndefined();
   expect(captured.snippet.logLines).toEqual([expect.stringContaining("Native snippet")]);
   expect(captured.parseFailure).toMatchObject({ errorKind: "parse", error: expect.any(String) });

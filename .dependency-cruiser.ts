@@ -442,6 +442,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/credentials/lib/credentials-names.ts": "SAVED_KEYS_EMPTY_TITLE and SAVED_KEYS_EMPTY_DESCRIPTION: the Saved keys empty state",
   "packages/client/src/features/rpg/lib/rpg-names.ts":
     "RPG_CONTEXT_TAB_LABELS and the Game tab tracker row names: the game tabs e2e opens and the tracker controls the chat suite measures",
+  "packages/client/src/features/rpg/lib/journal-labels.ts":
+    "JOURNAL_TYPE_LABELS: the words a journal entry's kind picker offers, which the kind-edit suite picks by",
+  "packages/client/src/features/chat/lib/plugin-rewrite-copy.ts":
+    "pluginRewriteLine: the note a row carries when a plugin's display transform rewrote its text",
   "packages/client/src/features/rpg/lib/context-layout.ts":
     "SATELLITES_TO_BODY_FONT_SCALE: the font scale at which the satellite row and date line leave the Waystone band",
   "packages/client/src/features/character/lib/greeting-copy.ts":

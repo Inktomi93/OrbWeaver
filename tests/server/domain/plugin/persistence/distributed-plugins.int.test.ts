@@ -40,7 +40,14 @@ test("a re-publish replaces the record and keeps the instant the slug first beca
 
   const published = await harness.services.plugin.listDistributedPlugins({ caller });
   expect(published).toEqual([
-    { slug: SLUG, name: "House Style II", version: "1.1.0", distributedAt: first.distribution.distributedAt, updatedAt: second.distribution.updatedAt },
+    {
+      slug: SLUG,
+      name: "House Style II",
+      version: "1.1.0",
+      distributedBy: caller.handle,
+      distributedAt: first.distribution.distributedAt,
+      updatedAt: second.distribution.updatedAt,
+    },
   ]);
   expect(second.distribution.distributedAt).toBe(first.distribution.distributedAt);
   expect(second.distribution.updatedAt).toBe(first.distribution.updatedAt + 600_000);

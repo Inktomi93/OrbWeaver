@@ -11,7 +11,7 @@ import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { Clock, ScheduleOp, TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
-import { can, createPluginDistributionRecipients } from "#domain/admin";
+import { can, createPluginDistributionRecipients, createPluginUserHandles } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createPluginAssetReads } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
@@ -454,6 +454,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           can(caller, "admin", { kind: "global" });
         },
         listRecipients: createPluginDistributionRecipients(admin, resolveOwnerPrincipal),
+        listUserHandles: createPluginUserHandles(admin),
         readPublishedBundle: assetReads.readPublishedBundle,
       },
       {
