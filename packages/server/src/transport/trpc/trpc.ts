@@ -120,7 +120,7 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
 // GATED ON THE CODE, not on `mapped === null`: an UNAUTHORIZED/FORBIDDEN/NOT_FOUND thrown by the gates above
 // is also un-mappable here (it is already a TRPCError, not a DomainError), and those are expected refusals
 // with their own `securityEvent` line — logging them at error would bury the real faults in 401 noise.
-const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, next }) => {
+const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, signal, next }) => {
   const result = await next();
   if (!result.ok) {
     const mapped = classifyDomainError(result.error);
@@ -148,6 +148,16 @@ const domainErrorMiddleware = t.middleware(async ({ ctx, path, type, next }) => 
       throw mapped;
     }
     if (result.error.code === "INTERNAL_SERVER_ERROR") {
+      // A REQUEST THE CLIENT ABANDONED IS NOT A FAULT. The request's own signal is the only evidence: the
+      // adapters hand it down when the connection closes, and the composer's context-fit preview cancels its
+      // query whenever the person types or navigates. The procedure then rejects with the abort reason, which
+      // would land here as an unmapped 500 nobody receives. The error text is never read. A provider-side
+      // cancellation on a request whose client is still waiting leaves the signal quiet and keeps its
+      // `trpc.unhandled` line (error-mapping.ts's header).
+      if (signal?.aborted === true) {
+        getLog(ctx.logger).debug({ event: "trpc.abandoned", path, type }, `trpc: client abandoned ${path} before it answered`);
+        return result;
+      }
       getLog(ctx.logger).error(
         { err: result.error.cause ?? result.error, event: "trpc.unhandled", path, type },
         `trpc: unmapped error on ${path} — surfaced to the caller as a 500`,
