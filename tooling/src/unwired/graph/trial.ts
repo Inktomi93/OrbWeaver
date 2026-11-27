@@ -17,8 +17,9 @@
 //   inside that literal member (a method parameter that lost its contextual type) is part of the same write. An error
 //   at a target the graph's roles judge stored into and not read (`=`, a discarded `+=` or bump, ./roles.ts) is a
 //   write too, and so is an error at an object literal's property name or at the name a declaration binds one to, such
-//   as a literal whose union arm lost its discriminant. An error at a string that names the member as a key (a `keyof` slot, a `Pick` argument) is a key use, as
-//   the graph's roles judge it. Bindings, key uses and writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
+//   as a literal whose union arm lost its discriminant. An error at a string in a type (a `Pick` argument, an indexed
+//   access) is a key use, as the graph's roles judge it; a string value, or a call's type argument, can reach a read and
+//   stays one. Bindings, key uses and writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
 //   failed import types its uses without an error.
 // - A read a Drizzle write copies into a column is the column's, as the graph's store rule has it (sites.ts
 //   handedToColumn): it is no reference that refutes, and an error there is a write.
@@ -53,6 +54,8 @@ import { relative } from "node:path";
 import type { Declaration, Expression, Node, SourceFile } from "@typescript/native/ast";
 import {
   getCombinedModifierFlags,
+  isArrayTypeNode,
+  isCallExpression,
   isClassDeclaration,
   isClassExpression,
   isEnumDeclaration,
@@ -63,9 +66,11 @@ import {
   isImportSpecifier,
   isInterfaceDeclaration,
   isIntersectionTypeNode,
+  isLiteralTypeNode,
   isMethodDeclaration,
   isNamedExports,
   isNamespaceImport,
+  isNewExpression,
   isObjectLiteralExpression,
   isParenthesizedTypeNode,
   isPrivateIdentifier,
@@ -75,7 +80,10 @@ import {
   isShorthandPropertyAssignment,
   isSourceFile,
   isStringLiteral,
+  isTaggedTemplateExpression,
+  isTupleTypeNode,
   isTypeLiteralNode,
+  isUnionTypeNode,
   isVariableDeclaration,
   isVariableDeclarationList,
   isVariableStatement,
@@ -334,10 +342,21 @@ const firstLine = (text: string): string => text.split("\n")[0] ?? text;
 // or bump, or a destructuring slot. A logical `??=` or a bump whose value is used also reads.
 const storesOnly = (name: Node): boolean => !referenceRoles(name).some((role) => READS.has(role));
 
-// An error's site that names the member by a string, a literal value or type held to a key type (`keyof T`, a `Pick`
-// argument): the graph's key use reads no data. Where the key reaches an access, the access is the use, and the delete
-// leaves that access compiling.
-const namesKey = (name: Node): boolean => isStringLiteral(name);
+// An error's site that names the member by a string in a type, such as a `Pick` argument or an indexed access: a type
+// reads no data. A string value can reach an access that reads (`field(made, "b")`), and so can a call's type argument,
+// so neither is a key use.
+function namesKey(name: Node): boolean {
+  if (!(isStringLiteral(name) && isLiteralTypeNode(name.parent))) {
+    return false;
+  }
+  let at: Node = name.parent;
+  while (isUnionTypeNode(at.parent) || isParenthesizedTypeNode(at.parent) || isTupleTypeNode(at.parent) || isArrayTypeNode(at.parent)) {
+    at = at.parent;
+  }
+  const holder = at.parent;
+  const typed = isCallExpression(holder) || isNewExpression(holder) || isTaggedTemplateExpression(holder) ? (holder.typeArguments ?? []) : [];
+  return !typed.some((argument) => sameSpan(argument, at));
+}
 
 // An error's site at an object literal's property name, or at the name a declaration binds an object literal to: the
 // literal writes the member, and the error says the write no longer fits its slot, as when a union arm loses its

@@ -19,6 +19,7 @@
 // - A Drizzle row member is placed on its column through the table the checker ties its row type to (../drizzle-rows.ts).
 import type {
   CallExpression,
+  Expression,
   ExpressionWithTypeArguments,
   IndexedAccessTypeNode,
   LiteralTypeNode,
@@ -213,15 +214,6 @@ export const unwrapExpression = (node: Node | undefined): Node | undefined => {
   return at;
 };
 
-// The value an assertion wraps: `z.enum(T) satisfies …`.
-const unassert = (node: Node | undefined): Node | undefined => {
-  let at = unwrapExpression(node);
-  while (at !== undefined && (isSatisfiesExpression(at) || isAsExpression(at))) {
-    at = unwrapExpression(at.expression);
-  }
-  return at;
-};
-
 // A declaration's own type annotation: a variable's, a member's, a parameter's, an alias's, a function's return.
 function annotationOf(node: Node): TypeNode | undefined {
   if (
@@ -242,8 +234,23 @@ function annotationOf(node: Node): TypeNode | undefined {
   return undefined;
 }
 
+/** An expression through its parentheses, non-null assertions, `as` and `satisfies`: the value the wrappers hold. */
+export function unwrap(node: Expression): Expression {
+  let at = node;
+  while (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at) || isNonNullExpression(at)) {
+    at = at.expression;
+  }
+  return at;
+}
+
+// A declaration's initializer through its parentheses and assertions: `z.enum(T) satisfies …` is the call.
+function unassertedInitializer(node: Node): Expression | undefined {
+  const initializer = initializerOf(node);
+  return initializer === undefined ? undefined : unwrap(initializer);
+}
+
 // A declaration's initializer: a variable's, a class field's, a parameter's or a binding's default.
-function initializerOf(node: Node): Node | undefined {
+function initializerOf(node: Node): Expression | undefined {
   return isVariableDeclaration(node) || isPropertyDeclaration(node) || isParameterDeclaration(node) || isBindingElement(node) ? node.initializer : undefined;
 }
 
@@ -306,7 +313,7 @@ function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: Wa
 
 // The tuple a `z.enum(T)` initializer hands zod: `schema = z.enum(T)`, through any assertion.
 function enumArgumentOf(declaration: Node, names: LibraryNames): readonly Node[] {
-  const call = unassert(unwrapExpression(initializerOf(declaration)));
+  const call = unassertedInitializer(declaration);
   if (call === undefined || !isCallExpression(call)) {
     return [];
   }
@@ -1088,7 +1095,7 @@ export class Resolver {
     const tuples: SpelledTuple[] = [];
     for (const { owner, declaration } of yield* this.#ownDeclarations(symbol)) {
       const own = annotationOf(declaration);
-      const initial = unassert(initializerOf(declaration));
+      const initial = unassertedInitializer(declaration);
       const spelled = own === undefined ? yield* this.#valueSpelling(owner, initial, seen) : { roots: [{ owner, node: own }], tuples: [] };
       roots.push(...spelled.roots);
       tuples.push(...spelled.tuples, ...(initial !== undefined && isObjectLiteralExpression(initial) ? this.#literalKeys(initial) : []));
@@ -1156,7 +1163,7 @@ export class Resolver {
   *#spreadHome(declarations: readonly { readonly declaration: Node }[], name: string): APIRequestGenerator<OriginWalk> {
     const { checker } = this.#world;
     for (const { declaration } of declarations) {
-      const literal = unassert(initializerOf(declaration));
+      const literal = unassertedInitializer(declaration);
       const spreads = literal !== undefined && isObjectLiteralExpression(literal) ? literal.properties.filter((property) => isSpreadAssignment(property)) : [];
       for (const spread of spreads) {
         const member = yield* checker.getPropertyOfType.gen(yield* checker.getTypeAtLocation.gen(spread.expression), name);

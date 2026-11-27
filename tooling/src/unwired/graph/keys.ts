@@ -7,25 +7,27 @@
 //   members, a loop variable over one). A key that is the enclosing function's parameter names the keys its callers pass
 //   (getSignatureUsage), through callers that hand their own parameter on; a caller that passes a wide value, or a
 //   reference that is not a call, names every literal the parameter's own type allows, or the table whole for a wide
-//   parameter, as any other computed key does.
+//   parameter, as any other computed key does. The key may sit at a member path off the parameter (`args.key`, or
+//   `const { key } = args`); the walk steps that path into each caller's object literal or `const` literal. The memo
+//   keys function, parameter and path, so two hand-offs through one caller keep their own keys.
 // - A `keyof T` list asserted to a mutable string list (`fields as string[]`) needs T's constraint to keep a key, so the
 //   member of a one-member constraint is a key use. A plain keyof use, another target, or a constraint with more
 //   members, names none.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
 // - A MiniSearch field option (library-names.ts MINISEARCH_FIELDS) reads each document member it names: MiniSearch
 //   indexes, stores or keys by it. A literal in the option names a member of the index's document type. A key list our
-//   own generic hands on from a parameter (`fields: args.fields as string[]`) names, at each caller that ends the
-//   hand-off, the literals the caller's value holds at that path, on the type argument the path's `keyof T` binds. A
-//   caller the walk cannot narrow reads nothing. A literal option of a generic index (`idField: "id"` on
-//   `MiniSearch<T>`) names a member of each type the same index's handed key lists resolved to.
+//   own generic hands on from a parameter (`fields: args.fields as string[]`) names, through the same caller walk, the
+//   literals each caller spells at that path, on the type argument the path's `keyof T` binds. A list the source does
+//   not spell, typed `keyof T` and so every key, or a caller the walk cannot narrow, reads nothing. A literal option
+//   of a generic index (`idField: "id"` on `MiniSearch<T>`) names a member of each type the same index's handed key
+//   lists resolved to.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
 //   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
-import type { Expression, Node, TypeNode } from "@typescript/native/ast";
+import type { Node, TypeNode } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
   isArrayTypeNode,
   isArrowFunction,
-  isAsExpression,
   isBindingElement,
   isCallExpression,
   isExpression,
@@ -38,12 +40,10 @@ import {
   isObjectBindingPattern,
   isObjectLiteralExpression,
   isParameterDeclaration,
-  isParenthesizedExpression,
   isParenthesizedTypeNode,
   isPropertyAccessExpression,
   isPropertyAssignment,
   isPropertySignatureDeclaration,
-  isSatisfiesExpression,
   isShorthandPropertyAssignment,
   isStringLiteral,
   isTemplateExpression,
@@ -51,6 +51,8 @@ import {
   isTypeReferenceNode,
   isUnionTypeNode,
   isVariableDeclaration,
+  isVariableDeclarationList,
+  NodeFlags,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
@@ -60,7 +62,7 @@ import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
 import { FORM_NAME, libraryNames, MINISEARCH_FIELDS, MINISEARCH_PACKAGE } from "./library-names.ts";
 import { tracing } from "./options.ts";
-import { answer, constituentsOf, symbolMemberName } from "./resolve.ts";
+import { answer, constituentsOf, symbolMemberName, unwrap } from "./resolve.ts";
 import type { Role } from "./roles.ts";
 import { sameNode } from "./roles.ts";
 import type { FileSites, ScriptGlobalRead } from "./sites.ts";
@@ -68,11 +70,32 @@ import { keyLiterals } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, literalValues } from "./state.ts";
 
+/** One end of a key's hand-off: the literals its value spells, or null where the walk cannot narrow it (a wide value, a
+ *  reference that is not a call, a cycle of callers); the call argument that ends the hand-off, and the member path from
+ *  that argument to the key. Each reader picks its posture for a null end. */
+interface KeyEnd {
+  readonly names: readonly string[] | null;
+  readonly anchor: Node | null;
+  readonly path: readonly string[];
+}
+type CallerKeys = readonly KeyEnd[];
+/** The end of a hand-off the walk cannot narrow. */
+const WIDE: KeyEnd = { names: null, anchor: null, path: [] };
+
+/** Where a key value comes from: the enclosing function's parameter, at a member path off it. */
+interface ParameterPath {
+  readonly fn: Node;
+  readonly index: number;
+  readonly path: readonly string[];
+}
+
 /** A table read through a key that is a function's parameter: resolved at the end of the build through the callers. */
 interface ParameterKeyed {
   readonly table: Type;
   readonly fn: Node;
   readonly index: number;
+  /** The member path off the parameter the key is: empty for the parameter itself. */
+  readonly path: readonly string[];
   readonly file: string;
   /** The position of the keyed read. */
   readonly at: number;
@@ -99,7 +122,7 @@ export class Keys {
   readonly #state: GraphState;
   readonly #parameterKeyed: ParameterKeyed[] = [];
   readonly #scriptReads: (ScriptGlobalRead & { readonly file: string })[] = [];
-  readonly #memo = new Map<string, ReadonlySet<string> | "whole">();
+  readonly #memo = new Map<string, CallerKeys>();
 
   constructor(state: GraphState) {
     this.#state = state;
@@ -263,21 +286,27 @@ export class Keys {
     return found;
   }
 
-  // For each key expression that is the enclosing function's own parameter, that function and the parameter's index.
-  #parameterKeys(arguments_: readonly Node[]): readonly ({ readonly fn: Node; readonly index: number } | undefined)[] {
+  // For each key expression that is the enclosing function's own parameter, or a member path off it (`args.key`, or a
+  // binding destructured from it, `const { key } = args`), that function, the parameter's index and the path.
+  #parameterKeys(arguments_: readonly Node[]): readonly (ParameterPath | undefined)[] {
     const state = this.#state;
-    const identifiers = arguments_.map((argument) => (isIdentifier(argument) ? argument : undefined));
+    const roots = arguments_.map((argument) => accessRoot(unwrapped(argument)));
+    const identifiers = roots.map(({ root }) => (isIdentifier(root) ? root : undefined));
     const symbols = state.world.symbolsAt(identifiers.flatMap((identifier) => (identifier === undefined ? [] : [identifier])));
     let at = 0;
-    const handles = identifiers.map((identifier) =>
-      identifier === undefined ? undefined : symbols[at++]?.declarations.find((handle) => handle.kind === SyntaxKind.Parameter),
-    );
+    const handles = identifiers.map((identifier) => (identifier === undefined ? undefined : symbols[at++]?.declarations[0]));
     const nodes = state.batch(handles.map((handle) => (handle === undefined ? answer(undefined) : handle.resolve.gen())));
-    return nodes.map((node) =>
-      node !== undefined && isParameterDeclaration(node) && isIdentifier(node.name) && isFunctionLike(node.parent)
-        ? { fn: node.parent, index: parameterIndex(node.parent, node) }
-        : undefined,
-    );
+    return nodes.map((node, y) => {
+      const steps = roots[y]?.steps ?? [];
+      const destructured = node === undefined ? undefined : destructuredFrom(node);
+      if (destructured !== undefined) {
+        const [outer] = this.#parameterKeys([destructured.source]);
+        return outer === undefined ? undefined : { ...outer, path: [...outer.path, destructured.key, ...steps] };
+      }
+      return node !== undefined && isParameterDeclaration(node) && isIdentifier(node.name) && isFunctionLike(node.parent)
+        ? { fn: node.parent, index: parameterIndex(node.parent, node), path: steps }
+        : undefined;
+    });
   }
 
   // `Object.entries(x)`, `structuredClone(x)`: the platform reads every member of the value; `Object.keys(x)` and
@@ -329,12 +358,10 @@ export class Keys {
       const index = optionsLiteral.parent;
       const [document] = isNewExpression(index) ? state.batch([this.#typeArgument(state.world.typesAt([index])[0], 0)]) : [];
       const spelled = group.flatMap(({ value, at }) => {
-        const names = value === undefined ? null : optionLiterals(unwrapOption(value));
+        const names = value === undefined ? null : spelledKeys(unwrapped(value));
         return names === null ? [] : [{ names, at }];
       });
-      const handed = group.flatMap(({ value }) =>
-        value === undefined || optionLiterals(unwrapOption(value)) !== null ? [] : this.#handedFieldReads(value, [], new Set()),
-      );
+      const handed = group.flatMap(({ value }) => (value === undefined || spelledKeys(unwrapped(value)) !== null ? [] : this.#handedFieldReads(value)));
       state.roleNamed(handed, "read", sites.file);
       // a generic index's document is each type its handed key lists resolved to at their callers
       const documents = document === undefined || document.isTypeParameter() ? [...new Map(handed.map(({ type }) => [type.id, type])).values()] : [document];
@@ -346,86 +373,31 @@ export class Keys {
     }
   }
 
-  // The members a key list names at the end of its hand-off: a parameter's path steps to each caller's argument, an
-  // object literal on the path to the property it holds, and any other value names the literals its type holds at the
-  // path, on the type argument the path's last member keys. The seen-set of functions ends a cycle of callers.
-  #handedFieldReads(value: Node, path: readonly string[], seen: Set<string>): readonly { readonly type: Type; readonly name: string; readonly at: number }[] {
-    const at = unwrapOption(value);
-    const root = this.#parameterPath(at);
-    if (root !== undefined) {
-      const memo = this.#state.resolver.keyOf(root.fn);
-      if (seen.has(memo)) {
-        return [];
-      }
-      seen.add(memo);
-      return this.#callers(root.fn).flatMap((call) => {
-        const argument = argumentAt(call, root.index);
-        return argument === undefined ? [] : this.#handedFieldReads(argument, [...root.path, ...path], seen);
-      });
-    }
-    const [step, ...rest] = path;
-    const held = isObjectLiteralExpression(at) && step !== undefined ? propertyValue(at, step) : undefined;
-    if (held !== undefined && this.#parameterPath(unwrapOption(held)) !== undefined) {
-      return this.#handedFieldReads(held, rest, seen);
-    }
-    const [found] = isExpression(at) ? this.#state.batch([this.#namedAtPath(at, path)]) : [];
-    return found ?? [];
+  // The members a key list handed on from a parameter names: each caller end's literals, on the type argument its
+  // anchor's contextual type binds to the `keyof T` the path's last member is declared with. A hand-off the walk cannot
+  // narrow reads nothing.
+  #handedFieldReads(value: Node): readonly { readonly type: Type; readonly name: string; readonly at: number }[] {
+    const ends = this.#argumentKeys(value, [], { anchor: value, path: [] }).filter((end) => end.names !== null && end.anchor !== null);
+    const documents = this.#state.batch(ends.map(({ anchor, path }) => (anchor === null ? answer(undefined) : this.#documentAt(anchor, path))));
+    return ends.flatMap(({ names }, y) => {
+      const document = documents[y];
+      return document === undefined ? [] : (names ?? []).map((name) => ({ type: document, name, at: value.pos }));
+    });
   }
 
-  // A function's call sites, or none when one of its references is not a call.
-  #callers(fn: Node): readonly Node[] {
-    const state = this.#state;
-    const declaration = (isArrowFunction(fn) || isFunctionExpression(fn)) && isVariableDeclaration(fn.parent) ? fn.parent : fn;
-    const [usages = []] = state.batch([state.world.signatureUsage(declaration)]);
-    const calls = state.batch(usages.map((usage) => (usage.call === undefined ? answer(undefined) : usage.call.resolve.gen())));
-    return calls.some((call) => call === undefined) ? [] : calls.flatMap((call) => (call === undefined ? [] : [call]));
-  }
-
-  // The enclosing function's parameter a value is, or a member path off it: the parameter itself, `param.a.b`, or a
-  // binding destructured from it (`const { fields } = args`).
-  #parameterPath(value: Node): { readonly fn: Node; readonly index: number; readonly path: readonly string[] } | undefined {
-    const steps: string[] = [];
-    let at = value;
-    while (isPropertyAccessExpression(at)) {
-      steps.unshift(at.name.text);
-      at = unwrapOption(at.expression);
-    }
-    if (!isIdentifier(at)) {
+  // The type argument a key list's slot binds: the anchor's contextual type, down the path to the last member's holder,
+  // whose `keyof T` declaration picks the argument.
+  *#documentAt(anchor: Node, path: readonly string[]): APIRequestGenerator<Type | undefined> {
+    const last = path.at(-1);
+    if (last === undefined || !isExpression(anchor)) {
       return undefined;
     }
-    const [symbol] = this.#state.world.symbolsAt([at]);
-    const [handle] = symbol?.declarations ?? [];
-    const [declaration] = this.#state.batch([handle === undefined ? answer(undefined) : handle.resolve.gen()]);
-    const destructured = declaration === undefined ? undefined : destructuredFrom(declaration);
-    if (destructured !== undefined) {
-      const outer = this.#parameterPath(destructured.source);
-      return outer === undefined ? undefined : { ...outer, path: [...outer.path, destructured.key, ...steps] };
-    }
-    return declaration !== undefined && isParameterDeclaration(declaration) && isIdentifier(declaration.name) && isFunctionLike(declaration.parent)
-      ? { fn: declaration.parent, index: parameterIndex(declaration.parent, declaration), path: steps }
-      : undefined;
-  }
-
-  // The literals a value's type holds at a member path (a list's elements, or a string), each on the type argument
-  // that the path's last member, declared `keyof T`, takes from the value's contextual type.
-  *#namedAtPath(
-    value: Expression,
-    path: readonly string[],
-  ): APIRequestGenerator<readonly { readonly type: Type; readonly name: string; readonly at: number }[]> {
-    const { checker } = this.#state.world;
-    const held = yield* this.#typeAtPath(yield* checker.getTypeAtLocation.gen(value), path);
-    const parent = yield* this.#typeAtPath(yield* checker.getContextualType.gen(value), path.slice(0, -1));
-    const last = path.at(-1);
-    const [member] = parent === undefined || last === undefined ? [] : yield* this.#state.propsOnSlot(parent, last);
+    const parent = yield* this.#typeAtPath(yield* this.#state.world.checker.getContextualType.gen(anchor), path.slice(0, -1));
+    const [member] = parent === undefined ? [] : yield* this.#state.propsOnSlot(parent, last);
     const [handle] = member?.declarations ?? [];
     const declaration = handle === undefined ? undefined : yield* handle.resolve.gen();
     const index = declaration === undefined ? undefined : keyofParameterIndex(declaration);
-    const document = index === undefined ? undefined : yield* this.#typeArgument(parent, index);
-    if (held === undefined || document === undefined) {
-      return [];
-    }
-    const element = (yield* checker.isArrayLikeType.gen(held)) ? ((yield* held.getNumberIndexType.gen()) ?? held) : held;
-    return ((yield* literalValues(element)) ?? []).map((name) => ({ type: document, name, at: value.pos }));
+    return index === undefined ? undefined : yield* this.#typeArgument(parent, index);
   }
 
   // A type's member type at the end of a member path, or undefined where the path leaves its members.
@@ -482,10 +454,11 @@ export class Keys {
   finish(flows: Flows): void {
     const state = this.#state;
     for (const keyed of this.#parameterKeyed) {
-      const keys = this.#keysOf(keyed.fn, keyed.index);
+      const ends = this.#keysOf(keyed.fn, keyed.index, keyed.path);
+      const whole = ends.some((end) => end.names === null);
       // the callers narrow the key; failing that, the key's own literal type does
-      const names = keys === "whole" ? keyed.allowed : [...keys];
-      if (keys === "whole") {
+      const names = whole ? keyed.allowed : [...new Set(ends.flatMap((end) => end.names ?? []))];
+      if (whole) {
         this.#traceUnnarrowed(keyed);
       }
       state.count(names === null ? "parameter-keyed lookups read whole" : "parameter-keyed lookups narrowed");
@@ -521,57 +494,76 @@ export class Keys {
     state.session.log(`trace param-key ${file}:${String(line)} ${name} keyed by parameter ${String(keyed.index)} reads ${reads}`);
   }
 
-  // The keys a function's parameter takes across its callers.
-  // The memo is the walk's seen-set: a function already asked answers what it found, and one still being asked (a cycle
-  // of callers) answers "whole".
-  #keysOf(fn: Node, index: number): ReadonlySet<string> | "whole" {
-    const memo = `${this.#state.resolver.keyOf(fn)}:${String(index)}`;
+  // The keys a function's parameter takes across its callers, at a member path off it.
+  // The memo is the walk's seen-set, keyed by function, parameter and path: one already asked answers what it found, and
+  // one still being asked (a cycle of callers) answers a wide end.
+  #keysOf(fn: Node, index: number, path: readonly string[]): CallerKeys {
+    const memo = `${this.#state.resolver.keyOf(fn)}:${String(index)}:${path.join(".")}`;
     const known = this.#memo.get(memo);
     if (known !== undefined) {
       return known;
     }
-    this.#memo.set(memo, "whole");
-    const keys = this.#callerKeys(fn, index);
+    this.#memo.set(memo, [WIDE]);
+    const keys = this.#callerKeys(fn, index, path);
     this.#memo.set(memo, keys);
     return keys;
   }
 
-  #callerKeys(fn: Node, index: number): ReadonlySet<string> | "whole" {
+  #callerKeys(fn: Node, index: number, path: readonly string[]): CallerKeys {
     const state = this.#state;
     const declaration = (isArrowFunction(fn) || isFunctionExpression(fn)) && isVariableDeclaration(fn.parent) ? fn.parent : fn;
     const [usages = []] = state.batch([state.world.signatureUsage(declaration)]);
     const calls = state.batch(usages.map((usage) => (usage.call === undefined ? answer(undefined) : usage.call.resolve.gen())));
     if (calls.length === 0 || calls.some((call) => call === undefined)) {
-      return "whole";
+      return [WIDE];
     }
-    const keys = new Set<string>();
-    for (const call of calls) {
+    return calls.flatMap((call) => {
       const argument = argumentAt(call, index);
-      const found = argument === undefined ? "whole" : this.#argumentKeys(argument);
-      if (found === "whole") {
-        return "whole";
-      }
-      for (const key of found) {
-        keys.add(key);
-      }
-    }
-    return keys;
+      return argument === undefined ? [WIDE] : this.#argumentKeys(argument, path, { anchor: argument, path });
+    });
   }
 
-  #argumentKeys(argument: Node): ReadonlySet<string> | "whole" {
+  // The keys a value spells at a member path: a parameter's hands the walk to its callers, an object literal or a
+  // `const`'s literal initializer steps down the path, and at the path's end the literals it spells, or for a single key
+  // the literals its type allows. A key list the source does not spell is wide: its declared type names every key.
+  #argumentKeys(argument: Node, path: readonly string[], anchor: { readonly anchor: Node; readonly path: readonly string[] }): CallerKeys {
     const state = this.#state;
-    const literals = keyLiterals(argument);
+    const at = unwrapped(argument);
+    const [parameter] = this.#parameterKeys([at]);
+    if (parameter !== undefined) {
+      return this.#keysOf(parameter.fn, parameter.index, [...parameter.path, ...path]);
+    }
+    const initializer = this.#constInitializer(at);
+    if (initializer !== undefined) {
+      return this.#argumentKeys(initializer, path, anchor);
+    }
+    const [step, ...rest] = path;
+    if (step !== undefined) {
+      const held = propertyValue(at, step);
+      return held === undefined ? [WIDE] : this.#argumentKeys(held, rest, anchor);
+    }
+    const literals = spelledKeys(at);
     if (literals !== null) {
-      return new Set(literals);
+      return [{ ...anchor, names: literals }];
     }
-    if (isIdentifier(argument)) {
-      const [parameter] = this.#parameterKeys([argument]);
-      if (parameter !== undefined) {
-        return this.#keysOf(parameter.fn, parameter.index);
-      }
+    const [typed] = isArrayLiteralExpression(at) ? [] : state.batch([literalValues(state.world.typesAt([at])[0])]);
+    return typed === null || typed === undefined ? [WIDE] : [{ ...anchor, names: typed }];
+  }
+
+  // The literal initializer of a `const` an identifier names, or undefined for any other value.
+  #constInitializer(node: Node): Node | undefined {
+    if (!isIdentifier(node)) {
+      return undefined;
     }
-    const [typed] = state.batch([literalValues(state.world.typesAt([argument])[0])]);
-    return typed === null || typed === undefined ? "whole" : new Set(typed);
+    const [symbol] = this.#state.world.symbolsAt([node]);
+    const [handle] = symbol?.declarations ?? [];
+    const [declaration] = this.#state.batch([handle === undefined ? answer(undefined) : handle.resolve.gen()]);
+    const list = declaration?.parent;
+    const initializer = declaration !== undefined && isVariableDeclaration(declaration) ? declaration.initializer : undefined;
+    const literal = initializer === undefined ? undefined : unwrapped(initializer);
+    return list !== undefined && isVariableDeclarationList(list) && hasFlag(list.flags, NodeFlags.Const) && literal !== undefined && isLiteralKeyValue(literal)
+      ? literal
+      : undefined;
   }
 
   #scriptGlobals(flows: Flows): void {
@@ -641,17 +633,25 @@ export class Keys {
   }
 }
 
-// An option's value through its parentheses and assertions: `fields as string[]` hands on `fields`.
-function unwrapOption(node: Node): Node {
+// A value through its parentheses and assertions (resolve.ts unwrap): `fields as string[]` hands on `fields`.
+const unwrapped = (node: Node): Node => (isExpression(node) ? unwrap(node) : node);
+
+// A member access chain's root and the member names down it: `args.options.fields` gives `args` and its path.
+function accessRoot(node: Node): { readonly root: Node; readonly steps: readonly string[] } {
+  const steps: string[] = [];
   let at = node;
-  while (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at)) {
-    at = at.expression;
+  while (isPropertyAccessExpression(at)) {
+    steps.unshift(at.name.text);
+    at = unwrapped(at.expression);
   }
-  return at;
+  return { root: at, steps };
 }
 
-// The names an option's literal value spells: one string, or a list of them.
-function optionLiterals(value: Node): readonly string[] | null {
+// A value whose keys the source spells: a key literal, a list of them, or an object literal holding them.
+const isLiteralKeyValue = (node: Node): boolean => isObjectLiteralExpression(node) || isArrayLiteralExpression(node) || keyLiterals(node) !== null;
+
+// The names a literal value spells: one string, or a list of them.
+function spelledKeys(value: Node): readonly string[] | null {
   if (!isArrayLiteralExpression(value)) {
     return keyLiterals(value);
   }
@@ -674,7 +674,7 @@ function destructuredFrom(declaration: Node): { readonly source: Node; readonly 
   const holder = declaration.parent.parent;
   const key = declaration.propertyName ?? declaration.name;
   return isVariableDeclaration(holder) && holder.initializer !== undefined && key !== undefined && isIdentifier(key)
-    ? { source: unwrapOption(holder.initializer), key: key.text }
+    ? { source: unwrapped(holder.initializer), key: key.text }
     : undefined;
 }
 

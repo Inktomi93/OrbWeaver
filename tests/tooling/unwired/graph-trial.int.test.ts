@@ -1111,38 +1111,33 @@ test("an error at a literal's property after its arm's discriminant goes is a wr
   ]);
 });
 
-// A string that names a member as a key reads no data: a disposition returned into `keyof` and a `Pick` argument each
-// break when the member goes, and each is a key use. A key handed in a literal's property breaks at that property,
-// the literal's write. The
-// counts are bumped by the key the disposition carries, a write, so every member stays named-only.
-test("an error at a string that names the member as a key is a key use, not a read", { timeout: 120_000 }, async ({ plantedTree }) => {
+// A string names a member as a key, reading no data, only in a type: a `Pick` argument or an indexed access. A string
+// value can reach a read: `field(made, "b")` returns the member through `o[k]`, and `pickKeys` reads each key it is
+// handed, as packages/kit/src/objects/index.ts does, so the error a delete adds there is a read.
+test("a string in a type is a key use, and a string value that reaches a read is a read", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = await plantedTree(
     graphTree({
       [LIB]: [
-        "export interface Counts { readonly done: number; readonly held: number }",
-        'const disposition = (ok: boolean): keyof Counts => (ok ? "done" : "held");',
-        "export const tally = (oks: readonly boolean[]): Counts => {",
-        "  const counts = { done: 0, held: 0 };",
-        "  for (const ok of oks) {",
-        "    counts[disposition(ok)] += 1;",
-        "  }",
-        "  return counts;",
-        "};",
-        "export interface Meta { readonly shown: boolean; readonly kept: boolean }",
-        "const setMeta = (change: { readonly key: keyof Meta }): string => change.key;",
-        'export const show = (): string => setMeta({ key: "shown" });',
-        "export const meta: Meta = { shown: true, kept: true };",
+        "export interface Meta { readonly kept: boolean; readonly typed: boolean }",
+        "export const meta: Meta = { kept: true, typed: true };",
         'export type Seen = Pick<Meta, "kept">;',
-        "export const seen: Seen = { kept: true };",
+        'export type Typed = Meta["typed"];',
+        "export interface Shape { readonly kept: string; readonly b: string; readonly c: string }",
+        "export const field = <T, K extends keyof T>(o: T, k: K): T[K] => o[k];",
+        "export const pickKeys = <T, K extends keyof T>(source: T, keys: readonly K[]): readonly T[K][] => keys.map((key) => source[key]);",
+        'const made: Shape = { kept: "k", b: "v", c: "c" };',
+        'export const shown = (): string => field(made, "b");',
+        'export const picked = (): readonly string[] => pickKeys(made, ["c"]);',
+        "export const keptOf = made.kept;",
       ].join("\n"),
     }),
   );
   const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
-    [`${LIB}:Counts.done`, NAMED_ONLY, [`${LIB}:2 key`]],
-    [`${LIB}:Counts.held`, NAMED_ONLY, [`${LIB}:2 key`]],
-    [`${LIB}:Meta.shown`, NAMED_ONLY, [`${LIB}:12 write`, `${LIB}:13 write`]],
-    [`${LIB}:Meta.kept`, NAMED_ONLY, [`${LIB}:13 write`, `${LIB}:14 key`]],
+    [`${LIB}:Meta.kept`, NAMED_ONLY, [`${LIB}:2 write`, `${LIB}:3 key`]],
+    [`${LIB}:Meta.typed`, NAMED_ONLY, [`${LIB}:2 write`, `${LIB}:4 key`]],
+    [`${LIB}:Shape.b`, REFUTED, [`${LIB}:8 write`, `${LIB}:9 read`]],
+    [`${LIB}:Shape.c`, REFUTED, [`${LIB}:10 read`, `${LIB}:8 write`]],
   ]);
 });
 

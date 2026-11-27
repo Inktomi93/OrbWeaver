@@ -631,6 +631,46 @@ test("a member a MiniSearch field option names is read, directly and through a w
   ]);
 });
 
+// A caller's key list is read from what its source spells, never from its declared `keyof T` type, which names every
+// key: an annotated `const` reads its literal, and a list nothing spells reads nothing. Two hand-offs through one shared
+// caller each keep their own path, so `second` still reaches `haystack`.
+test("a wrapper's key list reads the literals each caller spells, per hand-off path", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...MINISEARCH,
+    [FILE]: [
+      'import MiniSearch from "minisearch";',
+      "interface IndexArgs<T> { readonly items: readonly T[]; readonly fields: readonly (keyof T & string)[] }",
+      "const build = <T,>(args: IndexArgs<T>): void => {",
+      '  const search = new MiniSearch<T>({ idField: "id", fields: args.fields as string[] });',
+      "  search.addAll(args.items);",
+      "};",
+      "interface Options<T> { readonly fields: readonly (keyof T & string)[] }",
+      "const fuzzy = <T,>(items: readonly T[], options: Options<T>): void => build({ items, fields: options.fields });",
+      "export interface Item { readonly id: string; readonly label: string; readonly haystack: string; readonly spare: string }",
+      'const ITEMS: readonly Item[] = [{ id: "i", label: "l", haystack: "h", spare: "s" }];',
+      'const OPTIONS: Options<Item> = { fields: ["label"] };',
+      "export const find = (): void => fuzzy(ITEMS, OPTIONS);",
+      "declare const WIDE: readonly (keyof Item & string)[];",
+      "export const wide = (): void => fuzzy(ITEMS, { fields: WIDE });",
+      "interface Pair<T> { readonly items: readonly T[]; readonly first: readonly (keyof T & string)[]; readonly second: readonly (keyof T & string)[] }",
+      "const viaA = <T,>(pair: Pair<T>): void => build({ items: pair.items, fields: pair.first });",
+      "const viaB = <T,>(pair: Pair<T>): void => build({ items: pair.items, fields: pair.second });",
+      "const both = <T,>(pair: Pair<T>): void => {",
+      "  viaA(pair);",
+      "  viaB(pair);",
+      "};",
+      "export interface Row { readonly id: string; readonly label: string; readonly haystack: string; readonly spare: string }",
+      'const ROWS: readonly Row[] = [{ id: "r", label: "l", haystack: "h", spare: "s" }];',
+      'export const pairs = (): void => both({ items: ROWS, first: ["label"], second: ["haystack"] });',
+    ].join("\n"),
+  });
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual([
+    "member-write-only Item.haystack",
+    "member-write-only Item.spare",
+    "member-write-only Row.spare",
+  ]);
+});
+
 // The package a form instance's field methods are declared by, as TanStack Form's are.
 const FORM_CORE = "@tanstack/form-core";
 
