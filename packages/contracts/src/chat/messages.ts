@@ -761,7 +761,7 @@ export const messageViewSchema = z.strictObject({
   content: z.string(),
   reasoning: z.string().nullable(),
   reasoningRedacted: z.boolean(),
-  rateLimit: messageRateLimitSchema.nullable(),
+  rateLimit: messageRateLimitSchema.strict().nullable(),
   model: brandedId("ModelId").nullable(),
   provider: providerIdSchema.nullable(),
   finishReason: normalizedFinishReasonSchema.nullable(),
