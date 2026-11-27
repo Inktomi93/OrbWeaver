@@ -366,7 +366,7 @@ export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
-export { CREATED_STAMP_LEAD, createdStamp, EDITED_STAMP_LEAD, editedStamp } from "./stamp-copy.ts";
+export { createdStamp, editedStamp } from "./stamp-copy.ts";
 export { isStorageRefusal } from "./storage-refusal.ts";
 export type { UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
 export { PRESET_UNREADABLE_COPY, PRESET_UNREADABLE_ROW_MARKER, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";

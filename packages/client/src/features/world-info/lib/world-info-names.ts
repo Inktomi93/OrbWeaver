@@ -20,6 +20,12 @@ export const WORLD_INFO_EDIT_DETAILS_NAME = "Edit details";
 /** The World Info collection's group label on the Settings map. */
 export const WORLD_INFO_GROUP_LABEL = "World Info";
 
+/** The lead of a book row's edit stamp. It says "details" because the book's stamp moves with its name and description only; an entry has its own stamp. */
+export const WORLD_INFO_BOOK_EDITED_LEAD = "details edited";
+export function worldInfoBookEditedStamp(when: string): string {
+  return `${WORLD_INFO_BOOK_EDITED_LEAD} ${when}`;
+}
+
 /** The entry editor's keyword, priority and fire-mode fields. */
 export const WORLD_INFO_KEYWORD_TRIGGERS_NAME = "Keyword triggers";
 export const WORLD_INFO_PRIORITY_NAME = "Priority";

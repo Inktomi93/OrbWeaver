@@ -2,7 +2,6 @@
 // An outstanding targeted invite names the handle it is for, in its row and in its Revoke control; a share link names none.
 // A handle nobody holds is refused inline, keyed on the refusal code the server sends. Two invites with the same limits
 // are told apart by how long ago each was made.
-import { CREATED_STAMP_LEAD } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_WEEK } from "@orb/kit/time";
 import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, toggleStripLayout, watchToastMounts } from "@orb/testkit/browser/spec";
@@ -20,6 +19,7 @@ import {
   inviteRevokeName,
 } from "#client/features/chat/lib/members-names.ts";
 import { ACCOUNT_HANDLE_FIELD_NAME } from "#client/lib/account-field-names.ts";
+import { CREATED_STAMP_LEAD } from "#client/lib/stamp-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";

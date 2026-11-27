@@ -1,12 +1,12 @@
 // @subject packages/client/src/features/roster-preset/components/roster-collection-rows.tsx
 // A saved-roster row in the library says when the roster was made.
-import { CREATED_STAMP_LEAD } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { ROSTER_GROUP_LABEL } from "#client/features/roster-preset/lib/roster-names.ts";
+import { CREATED_STAMP_LEAD } from "#client/lib/stamp-copy.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const PROCEDURES = [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, "rosterPreset.list"] as const;
