@@ -19,7 +19,13 @@ import { foreignSessionRefusal, sessionBusyRefusal, sessionStageDeadRefusal, ses
 import { armSessionCallBaseMs } from "./arms/registry.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { takeSnapFactBatches, takeSnapResultPairs } from "./run-bundle.ts";
-import { isTerminalSessionCallError, runSessionCallWithinBudget, sessionCallWatchdogBaseMs, sessionTapeBaseMs } from "./session-call-watchdog.ts";
+import {
+  isTerminalSessionCallError,
+  runSessionCallWithinBudget,
+  sessionCallWatchdogBaseMs,
+  sessionSettleBaseMs,
+  sessionTapeBaseMs,
+} from "./session-call-watchdog.ts";
 import type { SessionCallState } from "./session-daemon-call.ts";
 import { runSessionCallInDaemon } from "./session-daemon-call.ts";
 import type { SessionEvidenceState } from "./session-evidence.ts";
@@ -130,7 +136,8 @@ export function pauseSessionTtl(state: SessionDaemonState): void {
  *  call its own tape, the widest enabled arm outranks either, and an export (`null`) the bare call ceiling. */
 export function sessionCallBudget(call: Args | null): number {
   const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);
-  return sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call), call === null ? 0 : sessionTapeBaseMs(call.actions));
+  const countedMs = call === null ? 0 : sessionTapeBaseMs(call.actions) + sessionSettleBaseMs(call);
+  return sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call), countedMs);
 }
 
 /** Run a serialized request (`call`/`export`) under the output sink. An ordinary failure leaves the

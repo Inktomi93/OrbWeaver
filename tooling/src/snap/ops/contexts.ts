@@ -19,6 +19,7 @@ import { diskSafeUrl, routeArtifactSlug } from "../lib/disk-safe-argv.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import { ratePostureResultPairs } from "../lib/rate-posture.ts";
+import { textSizeResultValue } from "../lib/text-size.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import type { RunArms } from "./arms/registry.ts";
 import { armPairLedger, beginRunArms, pageArmExit, pageArmFacts, pageArmFailures, writePageArmEvidence } from "./arms/registry.ts";
@@ -39,7 +40,7 @@ import {
   sessionForEvidence,
 } from "./report.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs } from "./run-bundle.ts";
-import { finishSession, launchSnapSession, loadEmulationFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { finishSession, launchSnapSession, loadEmulationFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount, textSizeFor } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
 
@@ -261,6 +262,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       viewport: opts.viewport,
       device: opts.device,
       colorScheme: opts.colorScheme,
+      textSize: textSizeFor(session),
       reducedMotion: opts.reducedMotion || opts.probe,
       appearance: opts.appearance,
       appearanceApplied: appliedAcrossContexts(
@@ -328,6 +330,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ...ledger.some("shot", "crop"),
       ["motion-evidence", motionResultValue(opts)],
       ["throttle", throttleResultValue(loadEmulationFor(session))],
+      ["text-size", textSizeResultValue(textSizeFor(session))],
       ["file-actions", outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0)],
       ["files-driven", outcomes.reduce((count, outcome) => count + outcome.fileActions.reduce((files, action) => files + action.files, 0), 0)],
       ["nav", navResultVerdict(totals.navigation, totals.navActions)],

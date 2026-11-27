@@ -226,6 +226,50 @@ test("an explicitly sized mobile descriptor is distinguishable from a viewport-o
   }
 });
 
+test("a live re-window is a mismatch until the contract is told, then the device keeps its identity at the new size", async () => {
+  const launched = { width: 430, height: 740 };
+  const rotated = { width: 740, height: 430 };
+  const session = await launchProbeSession({
+    headless: true,
+    viewport: launched,
+    viewportExplicit: true,
+    device: MOBILE_DEVICE,
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+  try {
+    await session.page.setContent('<meta name="viewport" content="width=device-width, initial-scale=1"><main>rotate me</main>');
+    await session.page.setViewportSize(rotated);
+
+    // The control: the page is already rotated, and the launch contract reads that as the viewport and screen drifting.
+    const stale = await readBrowserEnvironment(session.page, session.environmentContract);
+    expect(stale.mismatches).toEqual(
+      expect.arrayContaining([
+        `viewport expected ${String(launched.width)}x${String(launched.height)} but observed ${String(rotated.width)}x${String(rotated.height)}`,
+        `screen expected ${String(launched.width)}x${String(launched.height)} but observed ${String(rotated.width)}x${String(rotated.height)}`,
+      ]),
+    );
+
+    session.rewindowEnvironment(rotated);
+    const rewindowed = await readBrowserEnvironment(session.page, session.environmentContract);
+    expect(rewindowed.mismatches).toEqual([]);
+    expect(rewindowed.actual).toMatchObject({
+      device: { kind: "named", name: MOBILE_DEVICE },
+      viewport: rotated,
+      screen: rotated,
+      hasTouch: true,
+      isMobile: true,
+    });
+    expect(session.environmentContract.applied).toMatchObject({ viewport: rotated, screen: rotated, deviceScaleFactor: 3, hasTouch: true, isMobile: true });
+    expect(session.environmentContract.requested.viewport).toEqual(rotated);
+    // The context the session was built from holds the same contract, so a later call that reads either sees the rotation.
+    expect(session.contexts[0]?.environmentContract).toBe(session.environmentContract);
+  } finally {
+    await closeProbeSession(session);
+  }
+});
+
 test("media evidence proves contrast and CDP-only reduced transparency in both directions", async () => {
   const reduced = await launchProbeSession({
     headless: true,
@@ -650,13 +694,49 @@ test("snap map walks its candidates in order: a lying first selector gives way t
   expect(result.stdout).toContain("map-dom-fallbacks=2");
 });
 
-test("snap map refuses a row when no candidate locator is both unique and usable", () => {
-  // A button inside a disabled fieldset reads as enabled to the page script and as disabled to the locator proof.
+test("snap map reports a button inside a disabled fieldset as disabled by its ancestor, not as a refusal", () => {
+  // The page script and the locator proof must agree: `:disabled` sees the fieldset's effect that `.disabled` does not.
   const page = fixture("map-no-candidate", "<fieldset disabled><button>Frozen</button></fieldset>");
   const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence"]);
 
-  expect(result.status, result.stdout + result.stderr).not.toBe(0);
-  expect(result.stdout).toContain('map could not mint one unique visible locator for button "Frozen"');
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain('button  "Frozen"');
+  expect(result.stdout).toContain("disabled=true disabled-by=ancestor actionability=locator-only");
+  expect(result.stdout).not.toContain("map could not mint one unique");
+});
+
+// The page removes the button the moment the map's read of the DOM returns, so every candidate locator it minted matches nothing by the time it is proven.
+const VANISHING_BUTTON = `<button id="vanishing" aria-label="Vanishing">Vanishing</button>
+<script>
+  const readAll = Element.prototype.querySelectorAll;
+  Element.prototype.querySelectorAll = function (selector) {
+    const found = readAll.call(this, selector);
+    const button = document.getElementById("vanishing");
+    if (button !== null && Array.from(found).includes(button)) {
+      queueMicrotask(() => button.remove());
+    }
+    return found;
+  };
+</script>`;
+
+test("snap map refuses a row whose page changed between the read and the locator proof", () => {
+  const refused = runSnap(["--file", fixture("map-vanishes", VANISHING_BUTTON), "--no-shot", "--map", "--json", "--no-failure-evidence"]);
+
+  expect(refused.status, refused.stdout + refused.stderr).not.toBe(0);
+  expect(refused.stdout).toContain('map could not mint one unique visible locator for button "Vanishing"');
+
+  // The control: the same button on a page that leaves it in place is minted, so the refusal above is the vanished row and nothing else.
+  const minted = runSnap([
+    "--file",
+    fixture("map-stays", '<button aria-label="Vanishing">Vanishing</button>'),
+    "--no-shot",
+    "--map",
+    "--json",
+    "--no-failure-evidence",
+  ]);
+
+  expect(minted.status, minted.stdout + minted.stderr).toBe(0);
+  expect(minted.stdout).toContain('button  "Vanishing"');
 });
 
 test("snap evaluates bare arrows and already-invoked arrow IIFEs exactly once", () => {

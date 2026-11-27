@@ -15,7 +15,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmP
 import type { DiskSafeText } from "../../contract/disk-safe-argv.ts";
 import type { EvalOutcome, SnapEvalValue } from "../../contract/types.ts";
 import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../../lib/eval-text.ts";
-import { scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
+import { playwrightErrorLine, scrubPlaywrightText, scrubPrivateText } from "../../lib/private-values.ts";
 import { pushEval } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
 
@@ -33,8 +33,8 @@ export async function captureEvals(page: Page, exprs: readonly string[]): Promis
       text = scrubPrivateText(capEvalText(scrubPrivateText(value === undefined ? "undefined" : JSON.stringify(value, null, 2))));
     } catch (e) {
       failed = true;
-      const msg = errorMessage(e);
-      text = scrubPlaywrightText(isContextChurn(msg) ? `EVAL ERROR: ${msg}\n${CHURN_LINE}` : `EVAL ERROR: ${msg}`);
+      const line = playwrightErrorLine("EVAL ERROR: ", e);
+      text = isContextChurn(errorMessage(e)) ? scrubPlaywrightText(`${line}\n${CHURN_LINE}`) : line;
     }
     results.push({ expr, text, failed });
   }

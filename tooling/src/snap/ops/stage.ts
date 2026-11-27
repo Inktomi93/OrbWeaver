@@ -68,13 +68,16 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import type { EnvKey } from "@orb/server/foundation/env/record";
+import { readWorkspacePackages, SERVER_HEALTHZ_BASE_MS, serverWatchRoots } from "#dev";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
+import { budget } from "../../floor/host/load-budget.ts";
 import { listeningPids } from "../../floor/host/platform.ts";
 import { stageBandPorts } from "../../floor/host/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
+import { waitSync } from "../../floor/process/sync-sleep.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOps, EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import {
@@ -98,14 +101,16 @@ import {
   stageLauncherSpawn,
   stagePaths,
   stageRowBaseUrl,
+  withoutProviderKeys,
 } from "../lib/stage-plan.ts";
+import { awaitServerRestart, changesRestartServer, RESTART_DETECT_BASE_MS } from "../lib/stage-restart.ts";
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
 import { StageBusyError } from "../lib/stage-wait-plan.ts";
 import { acquireStageBand, claimRow, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef, stageCallerOwner } from "./stage-git.ts";
 import { holdStageUse } from "./stage-holders.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
-import { clearRow, markerRoot, markStageConnectionSeeded, readBands, touchRow, writeRow } from "./stage-marker.ts";
+import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
 import { holderProcessRunning, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import {
@@ -143,7 +148,8 @@ function stageIdentityEnv(root: string, ports: StagePorts, auth: StageAuthMode, 
   return clonedDb ? {} : devInheritedEnv(root);
 }
 
-function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<string, string>): void {
+/** The env a stage's stack boots under: the caller's ambient env plus the stage's own keys, with no provider key. */
+export function stageBootEnv(paths: StagePaths, ports: StagePorts, inherited: Record<string, string>): NodeJS.ProcessEnv {
   const serverKeys = {
     // ONE root for the stage's db, assets, secrets and caches; the server derives every path from it, and
     // `seedStageData` filled it from the same derivation.
@@ -157,18 +163,24 @@ function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<strin
     // export WIRE_CAPTURE=on in their own shell (ambient environment above), same as any other opt-in.
     DEBUG_TOKEN: randomBytes(DEBUG_TOKEN_BYTES).toString("hex"),
   } satisfies Partial<Record<EnvKey, string>>;
-  const env = inheritedProcessEnv({
-    // The band's address, the same env the teardown's `stack down` resolves its ports from. It also skips
-    // the repo-root .env entirely, so the operator's DEBUG_TOKEN/WIRE_CAPTURE/OIDC_* never arm a second
-    // /api/_debug/* surface behind a copy of the dev DB; the keys the copied DB needs are declared below.
-    ...stageBandEnv(ports),
-    ...serverKeys,
-    // The DB-BOUND keys, and ONLY those — see STAGE_INHERITED_ENV_KEYS for the per-key reason. The stage's
-    // DB is a COPY of the dev DB, so a value the copied rows are bound to (the owner row's handle, the
-    // credential ciphertext's key) must come across or the stage boots against data it cannot read. An
-    // absent key falls through to the schema's own default, exactly like an unset key always has.
-    ...inherited,
-  });
+  return withoutProviderKeys(
+    inheritedProcessEnv({
+      // The band's address, the same env the teardown's `stack down` resolves its ports from. It also skips
+      // the repo-root .env entirely, so the operator's DEBUG_TOKEN/WIRE_CAPTURE/OIDC_* never arm a second
+      // /api/_debug/* surface behind a copy of the dev DB; the keys the copied DB needs are declared below.
+      ...stageBandEnv(ports),
+      ...serverKeys,
+      // The DB-BOUND keys, and ONLY those — see STAGE_INHERITED_ENV_KEYS for the per-key reason. The stage's
+      // DB is a COPY of the dev DB, so a value the copied rows are bound to (the owner row's handle, the
+      // credential ciphertext's key) must come across or the stage boots against data it cannot read. An
+      // absent key falls through to the schema's own default, exactly like an unset key always has.
+      ...inherited,
+    }),
+  );
+}
+
+function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<string, string>): void {
+  const env = stageBootEnv(paths, ports, inherited);
   // Resolved, not hardcoded (#447): an older `--ref` stage ships a shell launcher where the current tree
   // ships the stack cli. A ref with neither is refused BY NAME here rather than spawning a path that does
   // not exist and reporting a generic boot failure.
@@ -217,6 +229,34 @@ function dropStage(root: string, home: string, row: StageRow): void {
   clearRow(home, row.band);
 }
 
+/** The process listening on a stage's server port, or null when none is or the socket table cannot be read. */
+function readServerPid(serverPort: number): number | null {
+  const bound = listeningPids();
+  return bound.kind === "read" ? stageBandPortPid(serverPort, bound.value) : null;
+}
+
+/** A re-sync that changed watched source restarts the stage's server under its `node --watch`; navigating before
+ *  the new process listens makes the stage's vite answer every /api read with 502 and the capture is of the
+ *  wrong surface. Wait for the new process, and refuse when it never comes. */
+function awaitDirtyServerRestart(row: StageRow, before: number | null): void {
+  const outcome = awaitServerRestart({
+    before,
+    probe: { serverPid: () => readServerPid(row.serverPort), sleep: waitSync },
+    detectMs: budget(RESTART_DETECT_BASE_MS),
+    bootMs: budget(SERVER_HEALTHZ_BASE_MS),
+  });
+  if (outcome === "timeout") {
+    throw new Error(
+      `stage ${row.dir} restarted its server after the re-sync and nothing listens on :${String(row.serverPort)} again — inspect ${join(row.dir, ".cache", "stack")}/*.log`,
+    );
+  }
+  print(
+    outcome === "restarted"
+      ? `[snap-stage] the re-sync restarted the stage's server — it listens on :${String(row.serverPort)} again`
+      : "[snap-stage] the re-sync changed watched source but its watcher started no restart",
+  );
+}
+
 /** Reuse a healthy warm stage as-is, EXCEPT a dirty one still re-syncs the working tree first (cheap,
  *  idempotent — the point of `--dirty` being refreshable); its own node --watch picks up the diff. The
  *  rsync COUNT rides the row, because it is one half of the ERA rule (lib/stage-bands.ts). */
@@ -224,7 +264,11 @@ function reuseWarmStage(homes: { readonly root: string; readonly home: string },
   const { root, home } = homes;
   if (dirty) {
     print(`[snap-stage] re-syncing working tree → warm dirty stage ${row.dir} (band ${row.band})`);
-    syncDirtyTree(root, row.dir);
+    const before = readServerPid(row.serverPort);
+    const changed = syncDirtyTree(root, row.dir);
+    if (changesRestartServer(root, changed, serverWatchRoots(readWorkspacePackages()))) {
+      awaitDirtyServerRestart(row, before);
+    }
     const resynced: StageRow = { ...row, rsyncs: row.rsyncs + 1, lastUsedAt: nowIso };
     writeRow(home, resynced);
     return resynced;
@@ -306,11 +350,6 @@ function bootOntoBand(input: {
   return built;
 }
 
-function markSeeded(home: string, row: StageRow): StageRow {
-  markStageConnectionSeeded(home, row.band);
-  return { ...row, connectionSeeded: true };
-}
-
 const REAL_ENSURE_STAGE_OPS: EnsureStageOps = { repoRoot, resolveRef, markerRoot, acquireStageBand, armStageKeeper };
 
 /** Boot-or-reuse an isolated stage ON THIS LANE'S OWN BAND and return its row (its base URL is where snap
@@ -324,9 +363,8 @@ export function ensureStage(opts: EnsureStageOpts, ops: EnsureStageOps = REAL_EN
   // ARM (b) (#1163): every path below yields a LIVE row, and every live row gets the band's own idle
   // timer — armed here, at the ONE exit, so no future arm can forget it. Idempotent: a warm reuse whose
   // keeper is still running spawns nothing (ops/stage-keeper.ts).
-  const armed = ops.armStageKeeper(home, resolved.row);
-  // A reused stage of our own is marked here; a booted one carries the mark from its claim.
-  const row = opts.seedsConnection === true && armed.connectionSeeded !== true ? markSeeded(home, armed) : armed;
+  // A seeding run's mark was written inside the allocation lock: by the claim for a booted band, by the acquire for our own.
+  const row = ops.armStageKeeper(home, resolved.row);
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
   registerStageRunBinding({ row, home, booted: resolved.booted, owner: stageCallerOwner(root) });

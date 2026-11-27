@@ -415,6 +415,13 @@ const PROCESS_ADAPTER_HOMES = ["tooling/src/floor/host/platform.ts", "tooling/sr
 // A cast compiles over any brand, so the load-emulation brand keeps its one construction door here: the RESULT line it
 // feeds must not echo an argv the browser never received.
 const LOAD_EMULATION_MINT_HOME = "tooling/src/snap/ops/session.ts";
+// A caught Playwright error's call log quotes a noted value Playwright cut short, which only the Playwright scrub masks;
+// the whole-value scrub keeps the cut prefix. `playwrightErrorLine` is the one door that picks the right scrub.
+const SNAP_ERROR_SCRUB_RESTRICTION = {
+  selector: "CallExpression[callee.name='scrubPrivateText'] CallExpression[callee.name='errorMessage']",
+  message:
+    "Turn a caught error into its scrubbed line with playwrightErrorLine (tooling/src/snap/lib/private-values.ts). scrubPrivateText over errorMessage leaves the prefix of a value Playwright cut short.",
+};
 // The brand is named bare, behind a namespace, or through an `import("...")` type. A local alias and an import rename
 // are refused where they are declared, because a cast through the alias names no brand.
 const LOAD_EMULATION_TYPE =
@@ -2802,7 +2809,12 @@ export default [
     rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, LOAD_EMULATION_CAST_RESTRICTION) },
   },
   { files: homes(...PROCESS_ADAPTER_HOMES), rules: { "no-restricted-syntax": restrictedSyntax(LOAD_EMULATION_CAST_RESTRICTION) } },
-  { files: homes(LOAD_EMULATION_MINT_HOME), rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX) } },
+  { files: homes(LOAD_EMULATION_MINT_HOME), rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, SNAP_ERROR_SCRUB_RESTRICTION) } },
+  {
+    files: ["tooling/src/snap/**/*.{ts,tsx}"],
+    ignores: homes(LOAD_EMULATION_MINT_HOME),
+    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, LOAD_EMULATION_CAST_RESTRICTION, SNAP_ERROR_SCRUB_RESTRICTION) },
+  },
   {
     files: ["tooling/src/ui-audit/ops/walker/**/*.ts"],
     rules: {

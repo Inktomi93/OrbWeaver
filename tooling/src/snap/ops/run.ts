@@ -19,6 +19,7 @@ import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/type
 import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { ratePostureResultPairs } from "../lib/rate-posture.ts";
+import { textSizeResultValue } from "../lib/text-size.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.ts";
 import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
@@ -49,7 +50,7 @@ import {
 } from "./report.ts";
 import { printArmSummaries } from "./report-summary-blocks.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, writeSnapDiagnosticEvidence } from "./run-bundle.ts";
-import { cascadeRuntimeFor, debuggingPortFor, loadEmulationFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { cascadeRuntimeFor, debuggingPortFor, loadEmulationFor, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount, textSizeFor } from "./session.ts";
 import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, hasSnapFailure, outcomeTotals } from "./verdict.ts";
 import { runWatchSeries } from "./watch.ts";
@@ -205,6 +206,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
         viewport: opts.viewport,
         device: opts.device,
         colorScheme: opts.colorScheme,
+        textSize: textSizeFor(session),
         reducedMotion: opts.reducedMotion || opts.probe,
         appearance: opts.appearance,
         appearanceApplied: appliedAcrossContexts(
@@ -294,6 +296,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["device", deviceResultValue(browserEnvironment)] as const,
       ["motion-evidence", motionResultValue(opts)] as const,
       ["throttle", throttleResultValue(loadEmulationFor(session))] as const,
+      ["text-size", textSizeResultValue(textSizeFor(session))] as const,
       ["file-actions", outcomes.reduce((count, outcome) => count + outcome.fileActions.length, 0)] as const,
       ["files-driven", outcomes.reduce((count, outcome) => count + outcome.fileActions.reduce((files, action) => files + action.files, 0), 0)] as const,
       ["nav", navResultVerdict(totals.navigation, totals.navActions)] as const,

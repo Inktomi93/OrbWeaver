@@ -10,9 +10,10 @@ import type { ProcessGroup, ProcessGroupDeps } from "../../floor/process/proc.ts
 import { captureProcessGroup } from "../../floor/process/proc.ts";
 import { SERVER_ENTRY_REL } from "../../floor/process/server-entry.ts";
 import type { DrainOutcome, ProdRecord } from "../contract/types.ts";
+import { classifyDrainTail, DRAIN_WATCH_MS } from "../lib/drain-verdict.ts";
 import { decideDown } from "../lib/identity.ts";
 import { spawnerForPort } from "../lib/spawners.ts";
-import { classifyDrainTail, DRAIN_WATCH_MS, debugPostureText } from "../lib/verdicts.ts";
+import { debugPostureText } from "../lib/verdicts.ts";
 import { classify, LOG_PATH, log, MS_PER_SECOND, PIDFILE, POLL_INTERVAL_MS, readEnvFile, resolvePort, result, TOKEN_PATH } from "./prod-state.ts";
 import { distVerdict, readFrom, removePidfile, safeSize, uptimeText } from "./prod-support.ts";
 

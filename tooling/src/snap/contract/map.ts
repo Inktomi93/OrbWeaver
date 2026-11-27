@@ -34,8 +34,14 @@ export const mapInactiveReasonSchema = z.enum(MAP_INACTIVE_REASONS).nullable();
 /** @public Cross-file Snap map evidence contract. */
 export type MapInactiveReason = z.infer<typeof mapInactiveReasonSchema>;
 
+/** What disabled a control: its own `disabled` attribute, an ancestor (a disabled fieldset, an option's group), or `aria-disabled`. */
+export const MAP_DISABLED_REASONS = ["attribute", "ancestor", "aria-disabled"] as const;
+type MapDisabledReason = (typeof MAP_DISABLED_REASONS)[number];
+
 interface MapEntryState {
   readonly disabled: boolean | null;
+  /** Non-null exactly when `disabled` is true. */
+  readonly disabledBy: MapDisabledReason | null;
   readonly current: string | null;
   readonly checked: boolean | "mixed" | null;
   readonly expanded: boolean | null;

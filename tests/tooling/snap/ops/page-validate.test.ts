@@ -77,7 +77,7 @@ describe("the --map rows", () => {
     selector: "#a",
     fallback: "#a",
     semanticFallback: "#a",
-    state: { disabled: false, current: null, checked: null, expanded: null },
+    state: { disabled: false, disabledBy: null, current: null, checked: null, expanded: null },
     visibility: "visible",
     inactiveReason: null,
     actionability: "actionable",

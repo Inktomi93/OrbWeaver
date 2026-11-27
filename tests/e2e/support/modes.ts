@@ -42,7 +42,7 @@ import {
   loadCorpusFixture,
   PROVIDER_TAPE_RECORD_ENV,
 } from "@orb/testkit/node/helpers";
-import { DEV_PORTS, E2E_PORT_OFFSET_ENV, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
+import { DEV_PORTS, E2E_PORT_OFFSET_ENV, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { COVERAGE_LAYOUT, coverageDirectory } from "@orb/tooling/floor/testing/coverage-collection";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
@@ -157,22 +157,6 @@ const HARNESS_OWNER_HANDLE = "owner";
 /** The SSO fixtures carry these groups under the isolated stacks' explicit admission policy. */
 export const E2E_SSO_GROUPS = { member: "e2e-members", admin: "e2e-admins", owner: "e2e-owners" } as const;
 
-/**
- * THE HARNESS'S LOCAL-ENGINE CONNECTION — the three facts `global-setup.ts`'s `pinChatConnection` mints it
- * from and every spec finds it by (`support/trpc.ts::localEngineConnection`).
- *
- * WHY IT EXISTS AT ALL: a per-task model pick is a `connection_bindings` row pointing at a `user_connections`
- * row (inference program §3.2/§7.1) — there is no `routing` settings section any more, so there is nothing to
- * "pin" without first authoring a connection. The harness authors exactly one: a `vllm` row at the shared
- * generation engine, `chat` + `summarize` bound to it.
- *
- * WHY `ENGINE_PORTS.generate` AND NOT A MODE-OFFSET PORT: the operator's engine is a connection the
- * harness adopts, never something a mode boots (isolation here is of the DB, never of the GPU), so all
- * three mode stacks dial the SAME loopback engine. `openAiPath` appends `/v1` when the base URL lacks it;
- * spelling it here keeps the row identical to what a user would type.
- */
-export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
-
 /** `pnpm e2e:tapes:record` sets this: the tape peer (`support/tape-provider.ts`) forwards to the upstream and writes each tape. */
 export const E2E_TAPE_RECORDING = process.env[PROVIDER_TAPE_RECORD_ENV] === "1";
 /** The recording run's upstream key variable. The server reads no such name, so a recording seeds no credential. */
@@ -182,10 +166,15 @@ export const E2E_TAPE_RECORD_KEY = process.env[E2E_TAPE_UPSTREAM_API_KEY_ENV];
 /** The upstream a recording forwards to when set, so a recording can run against a loopback stub. */
 export const E2E_TAPE_UPSTREAM_URL = process.env["E2E_TAPE_UPSTREAM_URL"];
 
-/** The provider that row is authored under; its model list is read under the same id. */
-export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";
-
-/** The label that row is minted under. `connection.create` collision-suffixes a duplicate label rather than
+/**
+ * THE HARNESS'S LOCAL-ENGINE CONNECTION. The harness authors exactly one `vllm` row at the shared generation
+ * engine and binds `chat` + `summarize` to it: a per-task model pick is a `connection_bindings` row pointing at a
+ * `user_connections` row (inference program §3.2/§7.1), so there is nothing to "pin" without authoring a connection.
+ * Its endpoint and provider are `LOCAL_ENGINE_BASE_URL` and `LOCAL_ENGINE_PROVIDER` (`@orb/tooling/floor/http/local-engine`),
+ * the one home snap's `--stage-connection local` reads too. The engine is a connection the harness adopts, never
+ * something a mode boots, so all three mode stacks dial the same loopback engine.
+ *
+ * The label that row is minted under. `connection.create` collision-suffixes a duplicate label rather than
  *  refusing it (`verbs/connections.ts::mintLabel`), so the seed must LOOK FIRST — this string is the
  *  harness's idempotency key across re-runs against a surviving DB, and the key the specs look it up by. */
 export const E2E_LOCAL_ENGINE_LABEL = "e2e local engine";

@@ -234,6 +234,32 @@ test("a sibling's HEALTHY row at our sha is a shared-reuse before any free band 
   expect(allocateStageBand({ ...ALLOC, seedsConnection: true, views: views([{ row: theirs }]) }).kind).toBe("free");
 });
 
+test("a seeding run refuses its own warm stage while a foreign holder or a live session uses it, and reuses it otherwise", () => {
+  const own = row(2, { checkout: MAIN_CHECKOUT });
+  const foreignHolder = { pid: 4321, checkout: LANE_CHECKOUT, stampedAt: USED_RECENTLY };
+  const seeding = { ...ALLOC, seedsConnection: true };
+
+  const heldByForeign = allocateStageBand({ ...seeding, views: views([{ row: own, over: { liveHolders: [foreignHolder] } }]) });
+  expect(heldByForeign).toMatchObject({ kind: "exhausted", refusal: expect.stringContaining(`${LANE_CHECKOUT} (pid 4321)`) });
+  const heldBySession = allocateStageBand({ ...seeding, views: views([{ row: own, over: { liveSessions: ["lane-session"] } }]) });
+  expect(heldBySession).toMatchObject({ kind: "exhausted", refusal: expect.stringContaining("session lane-session") });
+
+  // The controls: the same held stage is reused by a run that seeds nothing, a run whose own holder is the only one, and a
+  // stage whose seeding was already judged; with nobody attached the seeding run reuses its stage.
+  const reused = { kind: "ours", band: 2, row: own };
+  expect(allocateStageBand({ ...ALLOC, views: views([{ row: own, over: { liveHolders: [foreignHolder] } }]) })).toEqual(reused);
+  expect(allocateStageBand({ ...seeding, views: views([{ row: own, over: { liveHolders: [{ ...foreignHolder, checkout: MAIN_CHECKOUT }] } }]) })).toEqual(
+    reused,
+  );
+  const marked = row(2, { checkout: MAIN_CHECKOUT, connectionSeeded: true });
+  expect(allocateStageBand({ ...seeding, views: views([{ row: marked, over: { liveHolders: [foreignHolder] } }]) })).toEqual({
+    kind: "ours",
+    band: 2,
+    row: marked,
+  });
+  expect(allocateStageBand({ ...seeding, views: views([{ row: own }]) })).toEqual(reused);
+});
+
 test("a run that seeds a connection gets its own band, never a sibling's warm stage at its commit", () => {
   const seeding: StageConnectionKeyName = "OPENROUTER_PROBE_KEY";
   const theirs = row(0, { checkout: LANE_CHECKOUT });

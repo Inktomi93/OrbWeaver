@@ -73,6 +73,15 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
                             menu waits for); needs a touch device like --tap
   --tap-at <x,y>          a touch tap at viewport CSS px x,y, for a target no selector reaches; needs a
                             touch device like --tap
+  --swipe-at <x,y=dx,dy>  a touch drag that starts at viewport CSS px x,y and scrolls dx,dy px (positive =
+                            right and down); needs a touch device like --tap
+  --wheel-at <x,y=dy>     one mouse wheel over viewport CSS px x,y. It moves the pointer there and wheels,
+                            and scrolls nothing into view first, so scroll chaining reads true. --wheel
+                            hovers its selector, which scrolls the target and its scrollers into view
+  --media <print|screen>  switch the live page's CSS media type from here in the tape; it holds until the
+                            next --media. Take a --shot or --text under print to read a print stylesheet
+  --resize <WxH>          resize the live page's viewport from here in the tape, with no reload; swap W and
+                            H to rotate. The RESULT device= token and the environment check read the new size
   --soft-keyboard <px>    open an on-screen keyboard px tall from here in the tape (0 closes it): headless
                             Chromium never shows one, so without it a phone drive never sees the composer
                             under a keyboard. iOS-shaped: visualViewport shrinks and fires resize while the
@@ -115,6 +124,9 @@ Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measu
   --cpu-throttle <n>      Emulation.setCPUThrottlingRate — 1 = off, 4 = the standard load-test throttle
   --network <profile>     Network.emulateNetworkConditions with DevTools' own presets:
                           ${NETWORK_PROFILE_SPELLINGS.join(" | ")}
+  --text-size <n>         the browser's own default text size at n times the engine default (Page.setFontSizes), so
+                          rem and the rem in media queries follow it; 2 = enlarged text. The run's JSON and the
+                          RESULT line's text-size= pair name the size the pages received
   --vision <type>         Emulation.setEmulatedVisionDeficiency, one of:
                           ${VISION_DEFICIENCIES.join(" | ")}
                           Pixels change (shots, pixel contrast); DOM and computed styles do not

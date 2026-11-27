@@ -61,7 +61,7 @@ const packageJsonSchema = z.object({
 });
 const viteManifestSchema = z.object({ bin: z.object({ vite: z.string() }) });
 
-function readWorkspacePackages(): readonly WorkspacePackage[] {
+export function readWorkspacePackages(): readonly WorkspacePackage[] {
   const manifests = readdirSync(PACKAGES_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {

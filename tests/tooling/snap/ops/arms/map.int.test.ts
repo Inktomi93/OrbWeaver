@@ -67,9 +67,40 @@ test("--map's actionability obeys the NATIVE disabled property when aria-disable
 
   await expect(result).toExitWith(EXIT.clean);
   // THE DEFECT: `disabled aria-disabled="false"` used to read `disabled=false actionability=actionable`.
-  expect(result.stdout).toMatch(/"Send anyway".*disabled=true actionability=locator-only/u);
+  expect(result.stdout).toMatch(/"Send anyway".*disabled=true disabled-by=attribute actionability=locator-only/u);
   // The three unambiguous neighbours, so the rule is a rule and not a special case.
-  expect(result.stdout).toMatch(/"Send disabled".*disabled=true actionability=locator-only/u);
-  expect(result.stdout).toMatch(/"Send aria-disabled".*disabled=true actionability=locator-only/u);
+  expect(result.stdout).toMatch(/"Send disabled".*disabled=true disabled-by=attribute actionability=locator-only/u);
+  expect(result.stdout).toMatch(/"Send aria-disabled".*disabled=true disabled-by=aria-disabled actionability=locator-only/u);
   expect(result.stdout).toMatch(/"Send live".*actionability=actionable/u);
+});
+
+// A control disabled by an ancestor fieldset has `el.disabled === false`: the property reflects only the
+// element's own attribute. The map published such a button as `actionable`, Playwright's `isEnabled()` refused
+// it, and the row could not mint a locator, so one disabled fieldset failed the whole surface map. The browser's
+// own `:disabled` is the truth, and the map says which source disabled the control.
+const FIELDSET_HTML = `<!doctype html><html data-app-ready="settled"><body>
+<fieldset disabled>
+  <legend><button id="in-legend">Legend action</button></legend>
+  <button id="in-fieldset">Fieldset child</button>
+  <input id="in-fieldset-input" aria-label="Fieldset field">
+  <button id="own" disabled>Own disabled</button>
+</fieldset>
+<button id="outside">Outside fieldset</button>
+</body></html>`;
+
+test("--map reads a disabled fieldset's controls as disabled with the reason, not as a refused map", { timeout: BROWSER_TIMEOUT_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({ "fieldset.html": FIELDSET_HTML });
+  const result = await runCli("snap", ["--file", `${root}/fieldset.html`, "--text", "--map", "--no-failure-evidence"], { timeoutMs: BROWSER_TIMEOUT_MS });
+
+  await expect(result).toExitWith(EXIT.clean);
+  expect(result.stdout).not.toContain("MAP capture failed");
+  expect(result.stdout).toMatch(/button {2}"Fieldset child".*disabled=true disabled-by=ancestor actionability=locator-only/u);
+  expect(result.stdout).toMatch(/textbox {2}"Fieldset field".*disabled=true disabled-by=ancestor .*actionability=locator-only/u);
+  expect(result.stdout).toMatch(/button {2}"Own disabled".*disabled=true disabled-by=attribute actionability=locator-only/u);
+  // Positive controls: the first legend is exempt from the fieldset's disabling, and a sibling outside is untouched.
+  expect(result.stdout).toMatch(/"Legend action".*disabled=false actionability=actionable/u);
+  expect(result.stdout).toMatch(/"Outside fieldset".*disabled=false actionability=actionable/u);
 });

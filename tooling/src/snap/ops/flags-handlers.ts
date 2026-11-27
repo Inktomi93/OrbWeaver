@@ -17,10 +17,12 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../floor/instrument/panel-flags.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
+import { STEP_MEDIA } from "../contract/actions.ts";
 import { VISION_DEFICIENCIES } from "../contract/load-emulation.ts";
 import type { Args } from "../contract/types.ts";
 import { privateText } from "../lib/private-values.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
+import { NO_TEXT_SIZE } from "../lib/text-size.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { armFlagHandlers } from "./arms/registry.ts";
 import { parseDiagnosticQuery } from "./diagnostics.ts";
@@ -29,6 +31,22 @@ import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
 import { MS_PER_SECOND, pushNav, pushStep } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
+
+/** `x,y` as viewport CSS px, both finite and at least 0; null for any other spelling. */
+function parsePoint(raw: string): { readonly x: number; readonly y: number } | null {
+  const parts = raw.split(",");
+  const [x, y] = parts.map((part) => (part.trim() === "" ? Number.NaN : Number(part)));
+  if (parts.length !== 2 || x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) {
+    return null;
+  }
+  return { x, y };
+}
+
+/** A finite scroll or drag distance in px; null for an empty or non-numeric spelling. */
+function parseDelta(raw: string): number | null {
+  const value = raw.trim() === "" ? Number.NaN : Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
 
 // One handler per flag (Record dispatch, house style). Module-private (matches ops/flags.ts pre-split).
 type FlagHandler = (args: Args, rest: string[], page: number) => void;
@@ -129,13 +147,58 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--tap-at": (a, rest, page) => {
     const raw = rest.shift() ?? "";
-    const parts = raw.split(",");
-    const [x, y] = parts.map((part) => (part.trim() === "" ? Number.NaN : Number(part)));
-    if (parts.length !== 2 || x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) {
+    const point = parsePoint(raw);
+    if (point === null) {
       a.errors.push(`--tap-at expects x,y (viewport CSS px, both at least 0), got ${JSON.stringify(raw)}`);
       return;
     }
-    pushStep(a, { kind: "tap-at", x, y, page });
+    pushStep(a, { kind: "tap-at", ...point, page });
+  },
+  // `--wheel` hovers its selector first, and a hover scrolls the target and its scrollers into view; this one
+  // wheels over a point and scrolls nothing before the wheel.
+  "--wheel-at": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const { head, tail } = splitLastEq(raw);
+    const point = parsePoint(head);
+    const dy = parseDelta(tail);
+    if (point === null || dy === null) {
+      a.errors.push(`--wheel-at expects x,y=dy (viewport CSS px for the point, both at least 0; a finite dy in px), got ${JSON.stringify(raw)}`);
+      return;
+    }
+    pushStep(a, { kind: "wheel-at", ...point, dy, page });
+  },
+  "--swipe-at": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const { head, tail } = splitLastEq(raw);
+    const point = parsePoint(head);
+    const [dxText = "", dyText = "", ...extra] = tail.split(",");
+    const dx = parseDelta(dxText);
+    const dy = parseDelta(dyText);
+    if (point === null || dx === null || dy === null || extra.length > 0) {
+      a.errors.push(
+        `--swipe-at expects x,y=dx,dy (viewport CSS px for the point, both at least 0; finite dx and dy in px, positive scrolls right and down), got ${JSON.stringify(raw)}`,
+      );
+      return;
+    }
+    pushStep(a, { kind: "swipe-at", ...point, dx, dy, page });
+  },
+  "--media": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const media = STEP_MEDIA.find((candidate) => candidate === raw);
+    if (media === undefined) {
+      a.errors.push(`--media expects ${STEP_MEDIA.join(" | ")}, got ${JSON.stringify(raw)}`);
+      return;
+    }
+    pushStep(a, { kind: "media", media, page });
+  },
+  "--resize": (a, rest, page) => {
+    const raw = rest.shift() ?? "";
+    const size = parseViewport(raw);
+    if (size === null) {
+      a.errors.push(`--resize expects positive WxH, got ${JSON.stringify(raw)}`);
+      return;
+    }
+    pushStep(a, { kind: "resize", ...size, page });
   },
   "--soft-keyboard": (a, rest, page) => {
     const raw = rest.shift() ?? "";
@@ -366,6 +429,10 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--network": (a, rest) => {
     a.network = parseNetworkProfile(rest.shift() ?? "");
+  },
+  // A non-number or a size at or below zero is refused by lib/flag-values.ts, so a text size that no-ops is never a receipt.
+  "--text-size": (a, rest) => {
+    a.textSize = Number(rest.shift() ?? NO_TEXT_SIZE);
   },
   "--vision": (a, rest) => {
     const type = rest.shift();

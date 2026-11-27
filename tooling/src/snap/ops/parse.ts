@@ -12,6 +12,7 @@ import { parsedArgWarnings } from "../lib/parse-warnings.ts";
 import { privateText } from "../lib/private-values.ts";
 import { sessionModeValidationPairs, sessionNameErrors } from "../lib/session-plan.ts";
 import { CSS_SHOT_SCALE, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
+import { NO_TEXT_SIZE } from "../lib/text-size.ts";
 import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
 import { armArgDefaults } from "./arms/registry.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
@@ -263,6 +264,7 @@ function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[
     touchOnly("--swipe-x", "swipe-x"),
     touchOnly("--long-press", "long-press"),
     touchOnly("--tap-at", "tap-at"),
+    touchOnly("--swipe-at", "swipe-at"),
     [
       taps > 0 && device === null,
       "--tap needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",
@@ -376,6 +378,7 @@ export function parseSnapArgs(
     viewportExplicit: false,
     cpuThrottle: NO_CPU_THROTTLE,
     vision: null,
+    textSize: NO_TEXT_SIZE,
     network: null,
     localStorage: [],
     probe: false,

@@ -3,12 +3,9 @@
 // body of `credentials.add` or `credentials.replace` and is never printed or returned. The local engine is admitted the way the owner's Admit
 // admits it: on the refusal, its exact host and port join the stage copy's private-endpoint allowlist, because a
 // cloned allowlist names the source box's hosts and a multi-user stage starts with none.
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
-import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { ENGINE_PORTS } from "../../floor/host/ports.ts";
+import { LOCAL_ENGINE_BASE_URL, LOCAL_ENGINE_PROVIDER, resolveLocalEngineModel } from "../../floor/http/local-engine.ts";
 import type { OrbApi } from "../../floor/http/stage-trpc.ts";
-import { stageRefusalReason } from "../../floor/http/stage-trpc.ts";
 import { MAIN_ENV_FILE, operatorKey, readMainEnv } from "../../floor/process/operator-keys.ts";
 import type { PrivateText } from "../contract/disk-safe-argv.ts";
 import type { SeededStageConnection, StageConnectionChoice, StageConnectionKeyName, StageConnectionSeed } from "../contract/stage-connection.ts";
@@ -19,12 +16,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const CHAT_TASK = "chat";
 const LOCAL_ENGINE_LABEL = `${STAGE_CONNECTION_LABEL_PREFIX} local engine`;
-const LOCAL_ENGINE_PROVIDER = "vllm";
-const LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
 
 // A create input that names its label, provider and model, so the result can report them.
 type ConnectionDraft = Parameters<OrbApi["connection"]["create"]["mutate"]>[0] & SeededStageConnection;
-type ModelListing = Awaited<ReturnType<OrbApi["connection"]["draftCatalogModels"]["mutate"]>>;
 
 /** Resolve a choice before the stage boots, so a missing key refuses without a rebuild. The process env wins over the
  *  main checkout's `.env`. */
@@ -68,32 +62,8 @@ async function hostedDraft(api: OrbApi, name: StageConnectionKeyName, key: Priva
   return { label, providerId, credentialId, baseUrl: null, model };
 }
 
+// A refusal other than the private-address one is rethrown to configureStage, which prints it as a STAGE ERROR.
 async function localEngineDraft(api: OrbApi, baseUrl: string): Promise<ConnectionDraft> {
-  const listing = await admittedListing(api, baseUrl);
-  const first = listing.listed ? listing.models[0] : undefined;
-  if (first === undefined) {
-    throw new Error(`the local engine at ${baseUrl} lists no model${listing.listed ? "" : `: ${listing.reason}`}`);
-  }
-  return { label: LOCAL_ENGINE_LABEL, providerId: LOCAL_ENGINE_PROVIDER, credentialId: null, baseUrl, model: first.id, modelCheck: "listed" };
-}
-
-async function admittedListing(api: OrbApi, baseUrl: string): Promise<ModelListing> {
-  const draft = { providerId: LOCAL_ENGINE_PROVIDER, baseUrl };
-  // only the private-address refusal is answered here; every other failure is rethrown to configureStage, which prints it as a STAGE ERROR. Ends if the refusal stops carrying its code.
-  try {
-    return await api.connection.draftCatalogModels.mutate(draft);
-  } catch (error) {
-    if (stageRefusalReason(error) !== CONNECTION_OP_CODES.baseUrlRefused) {
-      throw error;
-    }
-  }
-  const { resolved } = await api.settings.getAppSettingsWithOverrides.query();
-  await api.settings.updateAppSettings.mutate({ partial: { privateEndpointAllowlist: [...resolved.privateEndpointAllowlist, endpointAuthority(baseUrl)] } });
-  return await api.connection.draftCatalogModels.mutate(draft);
-}
-
-// The `host:port` spelling the refusal names and the owner's Admit writes: that port only, not every port on the host.
-function endpointAuthority(baseUrl: string): string {
-  const url = new URL(baseUrl);
-  return `${url.hostname}:${String(effectiveHttpPort(url.protocol, url.port))}`;
+  const { model } = await resolveLocalEngineModel(api, { baseUrl, fallbackModel: null, admit: true });
+  return { label: LOCAL_ENGINE_LABEL, providerId: LOCAL_ENGINE_PROVIDER, credentialId: null, baseUrl, model, modelCheck: "listed" };
 }

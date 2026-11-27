@@ -74,6 +74,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--soft-keyboard [@N] <value>` | px — open an iOS-shaped on-screen keyboard that shrinks visualViewport by px (0 closes); needs --mobile like --tap |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
 | `--swipe [@N] <value>` | selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap |
+| `--swipe-at [@N] <value>` | x,y=dx,dy — a touch drag that starts at viewport pixels x,y and scrolls dx,dy px; needs --mobile like --tap |
 | `--swipe-x [@N] <value>` | selector=dx — a dispatched horizontal touch drag; positive dx drags the finger left; needs --mobile like --tap |
 | `--tap [@N] <value>` | a REAL touch tap without mouseover; use --mobile at session boot or another touch device |
 | `--tap-at [@N] <value>` | x,y — a touch tap at viewport pixels; needs --mobile like --tap |
@@ -81,6 +82,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--wait-for [@N] <value>` | selector or text=phrase — wait for a selector to become visible, or for rendered text |
 | `--watch <value>` | per-tick screenshot and re-run of every --eval over a total window (page 0 only) |
 | `--wheel [@N] <value>` | selector=dy — one ordered wheel input |
+| `--wheel-at [@N] <value>` | x,y=dy — one wheel input over viewport pixels x,y, with no hover and nothing scrolled into view first |
 | `--wheel-burst [@N] <value>` | selector=dy:count — repeated wheel inputs with a 30ms tick |
 
 ## Look
@@ -126,9 +128,12 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--full-motion` | render with the app's own reduce-motion setting OFF |
 | `--light` | emulate the OS colour-scheme media query: light |
 | `--matrix` | rated pairwise appearance-invariant matrix (requires --isolated/--dirty/--ref) |
+| `--media [@N] <value>` | print or screen — switch the live page's CSS media type; it holds until the next --media |
 | `--mobile` | iPhone 14 Pro Max emulation: touch, pointer:coarse, DPR 3 (compose with --viewport for a coarse WxH) |
 | `--network <value>` | DevTools network preset applied before navigation |
 | `--reduced-motion` | emulate the OS prefers-reduced-motion media query (not the app's own setting) |
+| `--resize <value>` | WxH — resize the live page's viewport without a reload; swap W and H to rotate |
+| `--text-size <value>` | n — the browser's default text size at n times the engine default, on every page before it navigates (2 = enlarged text) |
 | `--theme <value>` | render as if that theme were selected; none = no selection |
 | `--viewport <value>` | explicit WxH viewport (default 1280x800); under --mobile it WINDOWS the device, keeping touch/DPR/UA |
 | `--vision <value>` | CDP colour-vision emulation on every page (protanopia, deuteranopia, tritanopia, achromatopsia, blurredVision, reducedContrast) |

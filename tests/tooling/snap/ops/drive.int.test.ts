@@ -418,6 +418,130 @@ test("--tap-at taps a viewport coordinate, and refuses without a touch device", 
   expect(parseSnapArgs(["/", "--tap-at", "100", "--mobile"]).errors.join("\n")).toContain("--tap-at expects x,y");
 });
 
+test("--swipe-at drags from a viewport point with no selector, and refuses without a touch device", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  // (150,40) is inside #strip; the drag moves the finger left by 400 so the strip scrolls right, like --swipe-x.
+  const reading = await driveGestureFixture(["/", "--swipe-at", "150,40=400,0"]);
+  expect(reading.stepFailures).toBe(0);
+  expect(reading.scrollLeft, "a positive dx scrolls the content right").toBeGreaterThan(100);
+  // A drag that starts outside the scroller moves nothing: the point decides what scrolls, not a selector's centre.
+  const missed = await driveGestureFixture(["/", "--swipe-at", "150,500=400,0"]);
+  expect(missed.stepFailures).toBe(0);
+  expect(missed.scrollLeft).toBe(0);
+  expect(parseSnapArgs(["/", "--swipe-at", "150,40=400,0"]).errors.join("\n")).toContain("--swipe-at needs a touch-capable context");
+  expect(parseSnapArgs(["/", "--swipe-at", "150,40=400", "--mobile"]).errors.join("\n")).toContain("--swipe-at expects x,y=dx,dy");
+  expect(parseSnapArgs(["/", "--swipe-at", "150=400,0", "--mobile"]).errors.join("\n")).toContain("--swipe-at expects x,y=dx,dy");
+});
+
+// --wheel hovers its selector, which scrolls that target into view before the wheel turns, so a scroller chained
+// under the pointer cannot be wheeled from where the user's pointer is. --wheel-at turns the wheel at a pixel and
+// scrolls nothing first.
+const WHEEL_AT_DOCUMENT = `<!doctype html><html lang="en" data-app-ready="settled"><body style="margin:0">
+<div id="near" style="height:300px;overflow-y:auto"><div style="height:3000px"></div></div>
+<div style="height:4000px"></div>
+<div id="far" style="height:100px;overflow-y:auto"><div style="height:1000px"></div></div>
+</body></html>`;
+
+interface ScrollReading {
+  readonly stepFailures: number;
+  readonly pageScrollY: number;
+  readonly nearScrollTop: number;
+}
+
+async function driveWheelFixture(argv: readonly string[]): Promise<ScrollReading> {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(WHEEL_AT_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+    await page.goto(base);
+    const args = parseSnapArgs([...argv, "--base", base, "--no-shot", "--no-deadcss", "--no-failure-evidence"]);
+    expect(args.errors, "the fixture argv must parse cleanly or the drive below measures nothing").toEqual([]);
+    const failures = await driveActions({ page, actions: args.actions });
+    return {
+      stepFailures: failures.stepFailures,
+      pageScrollY: Number(await page.evaluate("window.scrollY")),
+      nearScrollTop: Number(await page.evaluate("document.getElementById('near').scrollTop")),
+    };
+  } finally {
+    await browser.close();
+    server.closeAllConnections();
+    server.close();
+  }
+}
+
+test("--wheel-at wheels the scroller under a pixel and scrolls nothing into view first", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const wheeled = await driveWheelFixture(["/", "--wheel-at", "100,100=200"]);
+  expect(wheeled.stepFailures).toBe(0);
+  expect(wheeled.nearScrollTop, "the wheel at (100,100) scrolls the scroller drawn there").toBeGreaterThan(100);
+  expect(wheeled.pageScrollY, "no hover ran, so the page did not scroll to any target").toBe(0);
+
+  // The control: --wheel on a selector below the fold hovers it first, and that hover scrolls the page.
+  const hovered = await driveWheelFixture(["/", "--wheel", "#far=200"]);
+  expect(hovered.pageScrollY, "--wheel scrolls its target into view, which is what --wheel-at exists to avoid").toBeGreaterThan(0);
+
+  expect(parseSnapArgs(["/", "--wheel-at", "100=200"]).errors.join("\n")).toContain("--wheel-at expects x,y=dy");
+  expect(parseSnapArgs(["/", "--wheel-at", "100,100=far"]).errors.join("\n")).toContain("--wheel-at expects x,y=dy");
+});
+
+// A print stylesheet is only readable under the print media type; headless Chromium never switches to it by itself.
+const MEDIA_DOCUMENT = `<!doctype html><html lang="en" data-app-ready="settled"><head>
+<style>#note{display:block}@media print{#note{display:none}}</style></head><body><p id="note">screen only</p></body></html>`;
+
+test("--media switches the live page to print and back, and refuses an unknown type", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(MEDIA_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${String(listeningAddress(server).port)}`;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
+    await page.goto(base);
+    const display = async (): Promise<string> => String(await page.evaluate("getComputedStyle(document.getElementById('note')).display"));
+    expect(await display(), "positive control: the screen stylesheet shows the note").toBe("block");
+    const toPrint = parseSnapArgs(["/", "--media", "print", "--base", base, "--no-shot", "--no-deadcss", "--no-failure-evidence"]);
+    expect(toPrint.errors).toEqual([]);
+    expect((await driveActions({ page, actions: toPrint.actions })).stepFailures).toBe(0);
+    expect(await display(), "under print the @media print rule hides the note").toBe("none");
+    const toScreen = parseSnapArgs(["/", "--media", "screen", "--base", base, "--no-shot", "--no-deadcss", "--no-failure-evidence"]);
+    expect((await driveActions({ page, actions: toScreen.actions })).stepFailures).toBe(0);
+    expect(await display(), "--media screen puts the page back").toBe("block");
+  } finally {
+    await browser.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  expect(parseSnapArgs(["/", "--media", "paper"]).errors.join("\n")).toContain("--media expects print | screen");
+});
+
+test("--resize re-windows the live page without a reload and tells the environment contract", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.setContent(
+      '<!doctype html><html lang="en"><body><script>window.__loads = (window.__loads || 0) + 1; window.__resizes = [];addEventListener("resize", () => window.__resizes.push([innerWidth, innerHeight]));</script></body></html>',
+    );
+    const told: { width: number; height: number }[] = [];
+    const args = parseSnapArgs(["/", "--resize", "844x390", "--no-shot", "--no-deadcss", "--no-failure-evidence"]);
+    expect(args.errors).toEqual([]);
+    const failures = await driveActions({ page, actions: args.actions, rewindowEnvironment: (size) => told.push(size) });
+    expect(failures.stepFailures).toBe(0);
+    expect(told, "the contract is told exactly once, with the size the page took").toEqual([{ width: 844, height: 390 }]);
+    expect(await page.evaluate<number[]>("[innerWidth, innerHeight]")).toEqual([844, 390]);
+    expect(await page.evaluate("window.__loads"), "a resize is not a reload").toBe(1);
+    expect(await page.evaluate<number[][]>("window.__resizes"), "the page's own resize listeners heard the rotation").toContainEqual([844, 390]);
+  } finally {
+    await browser.close();
+  }
+  expect(parseSnapArgs(["/", "--resize", "844"]).errors.join("\n")).toContain("--resize expects positive WxH");
+  expect(parseSnapArgs(["/", "--resize", "0x390"]).errors.join("\n")).toContain("--resize expects positive WxH");
+});
+
 // --soft-keyboard: headless Chromium never raises an on-screen keyboard, so a --mobile drive that focused the
 // composer read visualViewport.height === innerHeight and the app's keyboard inset stayed 0 (measured on a
 // staged chat room). The page below records what visualViewport resize AND scroll listeners see, the two

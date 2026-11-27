@@ -2,6 +2,10 @@
 import type { NavMethod } from "../../floor/instrument/nav.ts";
 import type { DiskSafeText, PrivateText } from "./disk-safe-argv.ts";
 
+/** The CSS media types `--media` switches a page between. */
+export const STEP_MEDIA = ["print", "screen"] as const;
+type StepMedia = (typeof STEP_MEDIA)[number];
+
 // `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
 type StepAction =
@@ -20,6 +24,16 @@ type StepAction =
   | { kind: "swipe-x"; selector: string; dx: number }
   | { kind: "long-press"; selector: string; ms: number }
   | { kind: "tap-at"; x: number; y: number }
+  // A touch drag that starts at viewport pixels `x,y`, moving the finger by `dx,dy` (positive scrolls the content right and down,
+  // like `swipe`/`swipe-x`): the swipe for a scroller no selector names, or one a selector's centre would miss.
+  | { kind: "swipe-at"; x: number; y: number; dx: number; dy: number }
+  // One wheel input over viewport pixels `x,y`. It moves the pointer there and wheels, and never hovers a locator, because
+  // `Locator.hover` scrolls the target and every scroller around it into view and so changes what the wheel scrolls.
+  | { kind: "wheel-at"; x: number; y: number; dy: number }
+  // The page's CSS media type, for a print stylesheet; it holds until a later `media` step or the page closes.
+  | { kind: "media"; media: StepMedia }
+  // Resize the live page's viewport (and its screen: a rotation changes both) without reloading it.
+  | { kind: "resize"; width: number; height: number }
   // An iOS-shaped ON-SCREEN KEYBOARD of `height` CSS px (0 closes it). Headless Chromium never shows one,
   // so without this every phone drive measured the composer with a permanent keyboard inset of 0. It
   // shrinks `visualViewport.height` and fires its `resize` while the layout viewport stays full height,
