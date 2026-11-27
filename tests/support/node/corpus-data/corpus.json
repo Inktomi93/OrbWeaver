@@ -1701,7 +1701,16 @@
     },
     "distribution": {
       "viewerUserId": "00000000000000000000000004",
-      "output": [{ "slug": "corpus-ledger", "name": "Corpus ledger", "version": "1.0.0", "distributedAt": 1750000026000, "updatedAt": 1750000026000 }],
+      "output": [
+        {
+          "slug": "corpus-ledger",
+          "name": "Corpus ledger",
+          "version": "1.0.0",
+          "distributedBy": "owner",
+          "distributedAt": 1750000026000,
+          "updatedAt": 1750000026000
+        }
+      ],
       "installed": {
         "slug": "corpus-ledger",
         "name": "Corpus ledger",
