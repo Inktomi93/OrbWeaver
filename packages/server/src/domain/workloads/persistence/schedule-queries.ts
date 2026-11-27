@@ -7,7 +7,7 @@
 //     so an overdue schedule jumps forward one interval from NOW (no catch-up storm).
 // Determinism: every timestamp write takes the INJECTED `now` (no ambient `Date.now()`).
 
-import type { WorkloadKind } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadScheduleView } from "@orb/contracts/workloads";
 import { workloadScheduleViewSchema } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloadSchedules } from "@orb/db";
@@ -20,7 +20,20 @@ type ScheduleInsert = Pick<WorkloadScheduleRow, "id" | "ownerId" | "kind" | "mod
 
 type ScheduleSelectRow = typeof workloadSchedules.$inferSelect;
 
-const scheduleTextColumns = { ...getTableColumns(workloadSchedules), params: sql<string>`${workloadSchedules.params}` };
+// The wire view's columns: `createdAt` and `updatedAt` order and bump rows but no screen reads them, so a view read never selects them.
+const columns = getTableColumns(workloadSchedules);
+const scheduleViewColumns = {
+  id: columns.id,
+  ownerId: columns.ownerId,
+  kind: columns.kind,
+  mode: columns.mode,
+  params: columns.params,
+  cadence: columns.cadence,
+  nextRunAt: columns.nextRunAt,
+  lastRunAt: columns.lastRunAt,
+  enabled: columns.enabled,
+};
+const scheduleTextColumns = { ...scheduleViewColumns, params: sql<string>`${workloadSchedules.params}` };
 
 /** The persistence-facing list filter — column predicates only (the verb resolves the server-authoritative
  *  `ownerId` scope BEFORE calling in). `ownerId: undefined` = no owner filter (the deployment-wide view). */
@@ -29,9 +42,9 @@ interface ScheduleListFilter {
   readonly kind?: WorkloadKind;
 }
 
-/** Map a raw select row to the read projection. The `kind`/`mode`/`cadence` columns are drizzle `{ enum }`
+/** Map a raw select row to the tick's row. The `kind`/`mode`/`cadence` columns are drizzle `{ enum }`
  *  typed (the db CHECK guarantees a stored value is a real member), so no narrowing/poison seam is needed. */
-function toScheduleView(row: ScheduleSelectRow): WorkloadScheduleRow {
+function toScheduleRow(row: ScheduleSelectRow): WorkloadScheduleRow {
   return {
     id: row.id,
     ownerId: row.ownerId,
@@ -65,7 +78,7 @@ export async function insertSchedule(db: Db, row: ScheduleInsert): Promise<void>
 
 /** Load one schedule by id, or `null` (absent). */
 // the `loadWorkload` F3-AUTHZ twin — every caller (`update-schedule`/`set-schedule-enabled`/ `delete-schedule`) supplies `isVisibleToCaller(isAdmin, caller, ownerId)` as the scalar authorization predicate before params decoding and collapses a foreign id to the same leak-free NOT_FOUND. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if the admin arm goes.
-export async function loadSchedule(db: Db, id: WorkloadScheduleId, authorize: AuthorizeScheduleRead): Promise<WorkloadScheduleRow | null> {
+export async function loadSchedule(db: Db, id: WorkloadScheduleId, authorize: AuthorizeScheduleRead): Promise<WorkloadScheduleView | null> {
   const rows = await db.select(scheduleTextColumns).from(workloadSchedules).where(eq(workloadSchedules.id, id)).limit(1);
   const row = rows[0];
   if (row === undefined || !authorize(row.ownerId)) {
@@ -77,7 +90,7 @@ export async function loadSchedule(db: Db, id: WorkloadScheduleId, authorize: Au
 /** Filtered list (owner/kind), newest-first. `createdAt` is not unique (schedules seeded together tie), so
  *  the `id DESC` tiebreak makes the order TOTAL — otherwise an unchanged cadence list re-shuffles between
  *  reads. TypeIDs are uuidv7-backed, so the tiebreak stays newest-first rather than inventing a second axis. */
-export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Promise<WorkloadScheduleRow[]> {
+export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Promise<WorkloadScheduleView[]> {
   const predicates: SQL[] = [];
   if (filter.ownerId !== undefined) {
     predicates.push(eq(workloadSchedules.ownerId, filter.ownerId));
@@ -86,7 +99,7 @@ export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Pr
     predicates.push(eq(workloadSchedules.kind, filter.kind));
   }
   const rows = await db
-    .select()
+    .select(scheduleViewColumns)
     .from(workloadSchedules)
     .where(predicates.length > 0 ? and(...predicates) : undefined)
     .orderBy(desc(workloadSchedules.createdAt), desc(workloadSchedules.id));
@@ -96,7 +109,7 @@ export async function listSchedulesQuery(db: Db, filter: ScheduleListFilter): Pr
 /** Apply a patch to a schedule, returning the updated row (or `null` if the id vanished between the verb's
  *  load and this write — a benign race). Always bumps `updatedAt`. */
 // `verbs/update-schedule` — the `loadSchedule` F3-AUTHZ twin above: it loads the row and runs `isVisibleToCaller(ctx.isAdmin, caller, existing.ownerId)`, collapsing a foreign id to the leak-free NOT_FOUND, before this write. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
-export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch: SchedulePatch, now: number): Promise<WorkloadScheduleRow | null> {
+export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch: SchedulePatch, now: number): Promise<WorkloadScheduleView | null> {
   const updated = await db
     .update(workloadSchedules)
     .set({
@@ -108,15 +121,15 @@ export async function updateScheduleFields(db: Db, id: WorkloadScheduleId, patch
       updatedAt: now,
     })
     .where(eq(workloadSchedules.id, id))
-    .returning();
+    .returning(scheduleViewColumns);
   const row = updated[0];
   return row === undefined ? null : workloadScheduleViewSchema.parse(row);
 }
 
 /** Flip a schedule's `enabled` flag, returning the updated row (or `null` if it vanished). */
 // `verbs/set-schedule-enabled` — the `loadSchedule` F3-AUTHZ twin above: it loads-and-visibility-checks the row first, so a foreign id never reaches this flip. An ownerId in this WHERE would make the admin arm unrepresentable. Ends if a caller writes a schedule without that check.
-export async function setScheduleEnabledQuery(db: Db, id: WorkloadScheduleId, enabled: boolean, now: number): Promise<WorkloadScheduleRow | null> {
-  const updated = await db.update(workloadSchedules).set({ enabled, updatedAt: now }).where(eq(workloadSchedules.id, id)).returning();
+export async function setScheduleEnabledQuery(db: Db, id: WorkloadScheduleId, enabled: boolean, now: number): Promise<WorkloadScheduleView | null> {
+  const updated = await db.update(workloadSchedules).set({ enabled, updatedAt: now }).where(eq(workloadSchedules.id, id)).returning(scheduleViewColumns);
   const row = updated[0];
   return row === undefined ? null : workloadScheduleViewSchema.parse(row);
 }
@@ -134,7 +147,7 @@ export async function findDueSchedules(db: Db, now: number): Promise<WorkloadSch
     .select()
     .from(workloadSchedules)
     .where(and(eq(workloadSchedules.enabled, true), lte(workloadSchedules.nextRunAt, now)));
-  return rows.map(toScheduleView);
+  return rows.map(toScheduleRow);
 }
 
 /** Advance a schedule after an enqueue attempt: set the next due instant + the last-run stamp. */

@@ -141,7 +141,8 @@ const [recentCursor, nameCursor] = browseCursorSchema.options;
 const browseCursorOutputSchema = z.discriminatedUnion("sort", [recentCursor.strict(), nameCursor.strict()]);
 
 // ── near-duplicate characters ─────────────────────────────────────────────────
-/** One owner-scoped near-duplicate character pair (canonical `A<B`). `similarity` is the raw cosine. */
+/** One owner-scoped near-duplicate character pair (canonical `A<B`). `similarity` is the raw cosine,
+ *  taken in the embedding space `model` names; `computedAt` is when the pass recorded the pair. */
 export interface DuplicateCharacterPair {
   readonly id: DuplicateCharacterPairId;
   readonly characterIdA: CharacterId;
@@ -149,10 +150,13 @@ export interface DuplicateCharacterPair {
   readonly nameA: string;
   readonly nameB: string;
   readonly similarity: number;
+  readonly model: string;
+  readonly computedAt: number;
 }
 
 /** One owner-scoped near-duplicate chat pair (canonical `A<B`). `similarity` is the Jaccard overlap of the
- *  two chats' segment content-hash sets, not centroid cosine. `relation` is `forked` vs `duplicate`. */
+ *  two chats' segment content-hash sets, not centroid cosine. `relation` is `forked` vs `duplicate`.
+ *  `computedAt` is when the pass recorded the pair. */
 export interface DuplicateChatPair {
   readonly id: DuplicateChatPairId;
   readonly chatIdA: ChatId;
@@ -161,6 +165,7 @@ export interface DuplicateChatPair {
   readonly titleB: string | null;
   readonly similarity: number;
   readonly relation: DuplicateRelation;
+  readonly computedAt: number;
 }
 
 /** The `distillCharacters` pass summary. `skipped` = the card was never asked, because it carries no writing
@@ -250,10 +255,13 @@ export interface SimilarChat {
 }
 
 // ── cooccurrence (keyword×keyword tallies; per-character keyword profiles) ──────────────────────────────
-/** One keyword + its count (a `topKeywords` / `characterKeywords` / `cooccurringKeywords` row). */
+/** One keyword + its count (a `topKeywords` / `characterKeywords` / `cooccurringKeywords` row). `computedAt` is when
+ *  the cooccurrence pass recorded the tally; a `topKeywords` row sums several characters' profiles, so it carries
+ *  the latest of their stamps. */
 export interface KeywordCount {
   readonly keyword: string;
   readonly count: number;
+  readonly computedAt: number;
 }
 
 // ── catalog / compare (distill-powered analytics over character_summaries; SQL, no LLM) ─────────────────
@@ -345,11 +353,13 @@ export interface SwipeHotspot {
 }
 
 // ── insights (pure-semantics half: themeDrift + unusedCharacters) ───────────────────────────────────────
-/** One theme's prevalence within a story-time bucket. `themeName` is null below the name-worthiness floor. */
+/** One theme's prevalence within a story-time bucket. `themeName` is null below the name-worthiness floor.
+ *  `computedAt` is the latest stamp of the digest assignments the count tallies. */
 export interface ThemeDriftTheme {
   readonly clusterIdx: number;
   readonly themeName: string | null;
   readonly count: number;
+  readonly computedAt: number;
 }
 
 /** How the owner's themes shift over story time: every theme's prevalence in one UTC calendar bucket
@@ -531,6 +541,8 @@ export const duplicateCharacterPairSchema = z.strictObject({
   nameA: z.string(),
   nameB: z.string(),
   similarity: z.number(),
+  model: z.string(),
+  computedAt: z.number(),
 }) satisfies z.ZodType<DuplicateCharacterPair>;
 
 export const duplicateChatPairSchema = z.strictObject({
@@ -541,6 +553,7 @@ export const duplicateChatPairSchema = z.strictObject({
   titleB: z.string().nullable(),
   similarity: z.number(),
   relation: duplicateRelationSchema,
+  computedAt: z.number(),
 }) satisfies z.ZodType<DuplicateChatPair>;
 
 export const distillStatsSchema = z.strictObject({
@@ -603,7 +616,7 @@ export const similarChatSchema = z.strictObject({
   title: z.string().nullable(),
 }) satisfies z.ZodType<SimilarChat>;
 
-export const keywordCountSchema = z.strictObject({ keyword: z.string(), count: z.number() }) satisfies z.ZodType<KeywordCount>;
+export const keywordCountSchema = z.strictObject({ keyword: z.string(), count: z.number(), computedAt: z.number() }) satisfies z.ZodType<KeywordCount>;
 
 const tagCountSchema = z.strictObject({ tag: z.string(), count: z.number() }) satisfies z.ZodType<TagCount>;
 
@@ -662,6 +675,7 @@ const themeDriftThemeSchema = z.strictObject({
   clusterIdx: z.number(),
   themeName: z.string().nullable(),
   count: z.number(),
+  computedAt: z.number(),
 }) satisfies z.ZodType<ThemeDriftTheme>;
 
 export const themeDriftBucketSchema = z.strictObject({

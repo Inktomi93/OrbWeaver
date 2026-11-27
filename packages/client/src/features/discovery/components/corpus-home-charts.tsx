@@ -35,8 +35,9 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { testId, timeLib } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
-import { CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
+import { CORPUS_PARAM_NAMES, CORPUS_READ_LABELS } from "../lib/corpus-control-names.ts";
 import { localThemeDrift } from "../lib/story-time-folds.ts";
+import { CorpusComputedStamp } from "./corpus-computed-stamp.tsx";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 const NO_KEYWORD = "";
@@ -122,7 +123,8 @@ function KeywordExplorerRead(): ReactElement | null {
             "uses",
           )}`}
         />
-        <ParamSelect items={items} label="Cooccurs with" onValueChange={setKeyword} value={keyword} />
+        <CorpusComputedStamp rows={top} />
+        <ParamSelect items={items} label={CORPUS_PARAM_NAMES.cooccursWith} onValueChange={setKeyword} value={keyword} />
         {keyword === NO_KEYWORD ? null : (
           <>
             <Button
@@ -175,6 +177,7 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
         )}
         label={`Co-occurs with ${keyword}`}
       />
+      <CorpusComputedStamp rows={cooccurring} />
       <Stack gap="row" role="list">
         {cooccurring.map((row) => (
           <Stack key={row.keyword} role="listitem">
@@ -234,6 +237,7 @@ function StoryThemeDriftBody({
     <Section kicker="Story-theme drift" level={2}>
       <Stack gap="block">
         <ParamToggle label="Level" onValueChange={(next): void => onLevelChange(next as ThemeLevel)} options={LEVEL_OPTIONS} value={level} />
+        <CorpusComputedStamp rows={drift.flatMap((bucket) => bucket.themes)} />
         <Stack gap="row">
           {months.map(({ month, themes }) => (
             <Row align="center" wrap={true} gap="field" key={month.key}>

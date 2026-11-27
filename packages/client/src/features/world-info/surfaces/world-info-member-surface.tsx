@@ -24,7 +24,7 @@ import { useRef, useState } from "react";
 import { DetailHeader, EditorPage, returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView, DrillBack } from "#lib";
-import { sectionBackName, useFocusOnMount } from "#lib";
+import { editedStamp, sectionBackName, timeLib, useFocusOnMount } from "#lib";
 import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
@@ -244,6 +244,7 @@ function EntryRow({
       bodyRef={bodyRef}
       clickable={true}
       onClick={(): void => onSelect(entry.id)}
+      meta={editedStamp(timeLib.formatRelativeCompact(entry.updatedAt))}
       subtitle={summary}
       title={entry.title}
     />

@@ -41,6 +41,17 @@ export function scheduleNextRunLine(when: string): string {
   return `Next ${when}`;
 }
 
+/** The lead of a schedule row's last-run line, over the run time as the row prints it. */
+export const SCHEDULE_LAST_RUN_LEAD = "Last run";
+
+/** What a schedule row says in place of a last run while none has fired. */
+export const SCHEDULE_NEVER_RUN_TEXT = "Never run";
+
+/** A schedule row's last-run line; `null` is a schedule whose tick has never started a run. */
+export function scheduleLastRunLine(when: string | null): string {
+  return when === null ? SCHEDULE_NEVER_RUN_TEXT : `${SCHEDULE_LAST_RUN_LEAD} ${when}`;
+}
+
 /** A run row's cancel button, named for the job it stops. */
 export function cancelWorkloadName(kindLabel: string): string {
   return `Cancel: ${kindLabel}`;

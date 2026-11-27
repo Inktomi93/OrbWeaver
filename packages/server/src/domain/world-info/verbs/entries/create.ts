@@ -66,6 +66,7 @@ export function createCreateEntry(ctx: WorldInfoContext): WorldInfoService["crea
       priority,
       ignoreBudget: false,
       metadata: null,
+      updatedAt: at,
     };
   };
 }

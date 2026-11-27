@@ -30,6 +30,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CORPUS_MODE_LABELS, sectionBackName, testId, useFocusOnMount } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
+import { CorpusComputedStamp } from "../components/corpus-computed-stamp.tsx";
 import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
@@ -191,6 +192,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
           deeper. A dossier with keywords shows them; a dossier without them says nothing at all. */}
       {keywords.length === 0 ? null : (
         <Section heading="Keywords">
+          <CorpusComputedStamp rows={keywords} />
           <BarList
             label="Keyword profile"
             items={toBarItems(

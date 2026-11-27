@@ -37,7 +37,7 @@ import { DIALOG_VERBS, testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { OTHERS_CONTROLS_HIDDEN_TEXT } from "../lib/workloads-failure-copy.ts";
 import { UNRESOLVED_OWNER_HANDLE, viewerActsOnRow, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
-import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, scheduleNextRunLine, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
+import { SCHEDULE_DELETE_CONFIRM_NAME, SCHEDULE_NEW_NAME, scheduleLastRunLine, scheduleNextRunLine, WORKLOAD_BULK_BADGE } from "../lib/workloads-names.ts";
 import {
   SCHEDULE_PAUSED_LABEL,
   scheduleDeleteName,
@@ -167,7 +167,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   );
 }
 
-/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run subtitle, a Bulk badge,
+/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run and last-run subtitle, a Bulk badge,
  *  and, when the viewer may act on it, an enable Switch + Edit + Delete. */
 function ScheduleRow({
   schedule,
@@ -196,13 +196,15 @@ function ScheduleRow({
   const refusal = refusalSentence === null || schedule.enabled ? refusalSentence : `${SCHEDULE_PAUSED_LABEL} · ${refusalSentence}`;
   // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read, and a
   // paused one keeps its Paused state in front of it: resuming a refused schedule must not hide that it is paused.
-  // The title already states the cadence and the owner.
+  // The title already states the cadence and the owner. The last run is the absolute stamp too, so the line holds one time vocabulary,
+  // and a schedule that has never fired says so rather than leaving its history blank.
+  const lastRun = scheduleLastRunLine(schedule.lastRunAt === null ? null : timeLib.formatDateTime(schedule.lastRunAt));
   return (
     <ListRow
       title={WORKLOAD_KIND_LABELS[schedule.kind]}
       titleQualifier={scheduleQualifier(identity)}
-      subtitle={refusal ?? nextRun}
-      subtitleWrap={refusal !== null}
+      subtitle={`${refusal ?? nextRun} · ${lastRun}`}
+      subtitleWrap={true}
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">

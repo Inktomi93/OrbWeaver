@@ -3,16 +3,16 @@
 // `null` system caller) keeps the requested filter (undefined = the deployment-wide view).
 // Each row carries the refusal its tick meets, judged as the tick judges it, so a schedule that starts nothing says why.
 
-import type { WorkloadRunAccountRefusalCode } from "@orb/contracts/workloads";
+import type { WorkloadRunAccountRefusalCode, WorkloadScheduleView } from "@orb/contracts/workloads";
 import { WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { ListSchedulesParams, WorkloadScheduleListItem, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { ListSchedulesParams, WorkloadScheduleListItem } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { listSchedulesQuery } from "../persistence/schedule-queries.ts";
 import { resolveListOwnerFilter } from "../substrate/authorize.ts";
 import { runAuthorityRefusal } from "../substrate/params.ts";
 
-async function tickRefusal(ctx: WorkloadServiceContext, schedule: WorkloadScheduleRow): Promise<WorkloadRunAccountRefusalCode | null> {
+async function tickRefusal(ctx: WorkloadServiceContext, schedule: WorkloadScheduleView): Promise<WorkloadRunAccountRefusalCode | null> {
   const contributions = ctx.getContributions();
   const params = contributions[schedule.kind].params.safeParse(schedule.params);
   if (!params.success) {

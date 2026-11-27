@@ -17,6 +17,7 @@ import type { LibraryRowActions } from "#components";
 import { LibraryRow, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
+import { createdStamp, timeLib } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { rosterScent } from "../lib/roster-model.ts";
@@ -53,7 +54,7 @@ function RosterLibraryRow({
       // "members · rules"; `rosterScent` is that string and its one home, and the member-name gloss that
       // used to be the whole subtitle survives as its tail. Both slots ride `aria-describedby`, so the
       // spoken row is one sentence now rather than two.
-      subtitle={rosterScent(roster)}
+      subtitle={rosterScent(roster, createdStamp(timeLib.formatRelative(roster.createdAt)))}
       subtitleStep="label"
       title={roster.name}
     />

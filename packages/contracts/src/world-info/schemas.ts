@@ -162,6 +162,8 @@ export interface BookUsage {
 export interface BookWithUsage extends BookView {
   entryCount: number;
   usage: BookUsage;
+  /** The last time the book was edited. */
+  updatedAt: number;
 }
 
 /** A single entry inside a book — injected into the prompt when the entry's scope fires. `description`
@@ -179,6 +181,8 @@ export interface EntryView {
   /** When true, this entry bypasses the per-turn WI token budget (must-have lore). */
   ignoreBudget: boolean;
   metadata: ParsedEntryMetadata | null;
+  /** The last time the entry was edited. */
+  updatedAt: number;
 }
 
 /** Book-attachment view: the book's metadata + an optional `role` for `character` attachments. */
@@ -214,7 +218,11 @@ const bookUsageSchema = z.strictObject({
   global: z.boolean(),
   total: z.number(),
 }) satisfies z.ZodType<BookUsage>;
-export const bookWithUsageSchema = bookViewSchema.extend({ entryCount: z.number(), usage: bookUsageSchema }) satisfies z.ZodType<BookWithUsage>;
+export const bookWithUsageSchema = bookViewSchema.extend({
+  entryCount: z.number(),
+  usage: bookUsageSchema,
+  updatedAt: z.number(),
+}) satisfies z.ZodType<BookWithUsage>;
 export const entryViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.worldEntry),
   worldBookId: typeIdSchema(ID_PREFIX.worldBook),
@@ -226,6 +234,7 @@ export const entryViewSchema = z.strictObject({
   priority: z.number(),
   ignoreBudget: z.boolean(),
   metadata: entryMetadataSchema.nullable(),
+  updatedAt: z.number(),
 }) satisfies z.ZodType<EntryView>;
 export const bookAttachmentViewSchema = bookViewSchema.extend({ role: worldBookRoleSchema.nullable() }) satisfies z.ZodType<BookAttachmentView>;
 export const chatBookViewSchema = bookAttachmentViewSchema.extend({

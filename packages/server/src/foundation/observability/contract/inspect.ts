@@ -6,7 +6,7 @@ import type { VERSIONED_PARSE_FAILURES } from "@orb/contracts/versioned-config";
 import type { automationFires, characters, chatParticipants, chats, personas, presets, rpgGames, userSettings } from "@orb/db";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 
-/** The characters table has no updated_at column (D28), so this projection uses createdAt for recency. */
+/** The inspect listing is newest-created first, so it carries createdAt and not the table's updatedAt. */
 export type CharacterListRow = Pick<typeof characters.$inferSelect, "id" | "name" | "handle" | "createdAt">;
 
 /** Raw stored config is diagnostic evidence, not a successful application parse. */

@@ -630,6 +630,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/features/notifications/lib/notifications-copy.ts":
     "DEFERRED_TURN_HOST_UNAVAILABLE_COPY: the notice a dropped queued reply raises when its host is unavailable, which the inbox case reads its expected row from",
+  "packages/client/src/lib/stamp-copy.ts": "CREATED_STAMP_LEAD and EDITED_STAMP_LEAD: the words the created and edited stamps on library rows open with",
   "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
   "packages/client/src/routes/route-pending-names.ts":
     "ROUTE_PENDING_NAME: the router's pending mark, which a slow-guard case reads to prove the window is open",
@@ -673,6 +674,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/discovery/lib/corpus-computed-copy.ts":
+    "CORPUS_COMPUTED_LEAD and CORPUS_EMBEDDING_SPACE_LEAD: the words the stamp under each Corpus result list opens with",
   "packages/client/src/features/app-shell/lib/app-shell-names.ts":
     "BUG_REPORT_NAME and its siblings: the bug report door and form, the command chip, the skip link, the You sheet groups and the Background section's names",
   "packages/client/src/features/user-admin/lib/user-admin-names.ts":

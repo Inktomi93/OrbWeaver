@@ -963,6 +963,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
     provenance: characterProvenanceOf(row),
     contentHash: row.contentHash,
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
     avatarHash: avatar?.hash ?? null,
     tags: canonicalTags,
   };

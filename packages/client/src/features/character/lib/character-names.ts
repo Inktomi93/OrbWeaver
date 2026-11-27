@@ -226,6 +226,9 @@ export const CHARACTER_NO_BOOKS_LINKED_TEXT = "No world books linked.";
 /** The Links tab's empty persona list. */
 export const CHARACTER_NO_PERSONAS_CONNECTED_TEXT = "No personas connected.";
 
+/** The overview's row naming when the card was last edited, beside its Added row. */
+export const CHARACTER_EDITED_LABEL = "Edited";
+
 /** The overview's last-spoke reading when no thread exists: a time fact with no answer, not an empty slot. */
 export const CHARACTER_NEVER_SPOKE_TEXT = "Never";
 

@@ -75,6 +75,8 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
       characterIdA: pair.characterIdA,
       characterIdB: pair.characterIdB,
       similarity: pair.similarity,
+      model: pair.model,
+      computedAt: pair.computedAt,
     });
   }
   for (const pair of result.duplicateChats) {
@@ -83,6 +85,7 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
       chatIdB: pair.chatIdB,
       relation: pair.relation,
       similarity: pair.similarity,
+      computedAt: pair.computedAt,
     });
   }
   const settingCounts = Object.entries(Object.groupBy(result.summaries, (row) => row.setting ?? "")).flatMap(([value, rows]) =>
@@ -117,6 +120,17 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
   expect(
     result.reads.themeDrift.some((bucket) => bucket.themes.some((theme) => result.themes.clusters.some((row) => row.clusterIdx === theme.clusterIdx))),
   ).toBe(true);
+  // Each list's stamp is the pass's own: the newest computedAt among the stored rows the read summed or grouped.
+  for (const word of result.reads.topKeywords) {
+    expect(word.computedAt).toBe(
+      Math.max(...result.keywords.profiles.filter((profile) => profile.keyword === word.keyword).map((profile) => profile.computedAt)),
+    );
+  }
+  expect(result.keywords.pairs.map((row) => row.computedAt)).toEqual(expect.arrayContaining(result.reads.cooccurring.flat().map((row) => row.computedAt)));
+  expect(result.keywords.profiles.map((row) => row.computedAt)).toEqual(expect.arrayContaining(result.reads.profiles.flat().map((row) => row.computedAt)));
+  expect(result.themes.assignments.map((row) => row.computedAt)).toEqual(
+    expect.arrayContaining(result.reads.themeDrift.flatMap((bucket) => bucket.themes.map((theme) => theme.computedAt))),
+  );
   for (const detail of result.reads.themeDetails) {
     expect(detail?.sources.some((source) => result.memory.digests.some((row) => row.id === source.source.rowId))).toBe(true);
     expect(detail?.members.some((member) => member.count > 0)).toBe(true);

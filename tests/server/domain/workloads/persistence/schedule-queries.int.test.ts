@@ -55,7 +55,8 @@ test("a schedule patch retunes the cadence and bumps updatedAt using the injecte
   const row = await schedule(root);
   root.clock.advance(1);
   const patched = await root.services.workloads.updateSchedule({ caller: await root.principalFor(root.ownerId), id: row.id, cadence: "weekly" });
-  expect(patched).toMatchObject({ cadence: "weekly", nextRunAt: root.clock.now() + CADENCE_INTERVAL_MS.weekly, updatedAt: root.clock.now() });
+  expect(patched).toMatchObject({ cadence: "weekly", nextRunAt: root.clock.now() + CADENCE_INTERVAL_MS.weekly });
+  expect(await root.db.select().from(workloadSchedules).where(eq(workloadSchedules.id, row.id)).get()).toMatchObject({ updatedAt: root.clock.now() });
 });
 
 test("the schedule enable operation flips the persisted flag", async () => {

@@ -4,9 +4,10 @@
 // re-gated), `mode` re-gates the kind policy, `cadence` re-bases `nextRunAt` to one new interval out. An omitted
 // field is left unchanged.
 
+import type { WorkloadScheduleView } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { SchedulePatch, UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { SchedulePatch, UpdateScheduleParams } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { loadSchedule, updateScheduleFields } from "../persistence/schedule-queries.ts";
 import { assertKindSupportsMode, isVisibleToCaller, mayActOnRow } from "../substrate/authorize.ts";
@@ -18,7 +19,7 @@ type MutablePatch = { -readonly [K in keyof SchedulePatch]: SchedulePatch[K] };
 
 /** Assemble the patch from the optional inputs + re-gate MODE support / bulk authority when the kind or mode
  *  changes. Split out so the verb body stays a flat load → check → write (cognitive-complexity budget). */
-async function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadScheduleRow, params: UpdateScheduleParams): Promise<MutablePatch> {
+async function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: WorkloadScheduleView, params: UpdateScheduleParams): Promise<MutablePatch> {
   const patch: MutablePatch = {};
   let effectiveKind = existing.kind;
   let effectiveMode = existing.mode;
@@ -47,7 +48,7 @@ async function resolveUpdatePatch(ctx: WorkloadServiceContext, existing: Workloa
 }
 
 export function createUpdateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "updateSchedule"> {
-  async function updateSchedule(params: UpdateScheduleParams): Promise<WorkloadScheduleRow> {
+  async function updateSchedule(params: UpdateScheduleParams): Promise<WorkloadScheduleView> {
     const existing = await loadSchedule(ctx.db, params.id, (ownerId) => isVisibleToCaller(ctx.isAdmin, params.caller, ownerId));
     if (existing === null || !(await mayActOnRow(ctx, params.caller, existing))) {
       throw new DomainNotFoundError({ kind: ENTITY, id: params.id });

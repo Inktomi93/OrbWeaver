@@ -10,7 +10,7 @@ import { ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, Route } from "@playwright/test";
-import { CHARACTER_OVERVIEW_TAB_LABEL } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_EDITED_LABEL, CHARACTER_OVERVIEW_TAB_LABEL } from "#client/features/character/lib/character-names.ts";
 import type { AppShellCharacterStory, AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -239,4 +239,18 @@ test("the character Overview tab keeps the CONTEXT column's inset while its read
   const settled = await bodyInset(panel);
   expect(settled, "the settled Overview stands inside the column's inset").toBeGreaterThan(0);
   expect({ pending, failed }).toEqual({ pending: settled, failed: settled });
+});
+
+test("the character Overview tab says when the card was last edited, beside when it was added", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const [character] = (await caller.character.list({})).items;
+  if (character === undefined) {
+    throw new Error("The corpus has no character");
+  }
+  await routeShell(page, corpus, caller, SERVED);
+  await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
+  await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
+  await page.locator(CONTEXT).getByRole("tab", { name: CHARACTER_OVERVIEW_TAB_LABEL, exact: true }).click();
+  await expect(page.locator(CONTEXT).getByRole("group", { name: CHARACTER_EDITED_LABEL, exact: true })).toBeVisible();
 });

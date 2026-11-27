@@ -92,6 +92,7 @@ export {
   type WorkloadRowAnyKind,
   type WorkloadRunnableRow,
   type WorkloadScheduleRef,
+  type WorkloadScheduleView,
   workloadListInputSchema,
   workloadRefSchema,
   workloadResultSchemaOf,

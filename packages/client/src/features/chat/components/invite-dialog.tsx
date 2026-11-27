@@ -34,7 +34,7 @@ import {
   useSuspenseQuery,
   useTRPC,
 } from "#data";
-import { ACCOUNT_HANDLE_FIELD_NAME, DIALOG_VERBS, notify, rethrowUnlessTrpcFailure, testId, timeLib, trpcErrorReason } from "#lib";
+import { ACCOUNT_HANDLE_FIELD_NAME, createdStamp, DIALOG_VERBS, notify, rethrowUnlessTrpcFailure, testId, timeLib, trpcErrorReason } from "#lib";
 import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -405,6 +405,8 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
   const target = inviteTarget(invite);
   const uses = usesLeft(invite);
   const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
+  // Two invites with the same limits differ only by when they were made, so the row says how old each one is.
+  const age = createdStamp(timeLib.formatRelativeAgo(invite.createdAt));
   return (
     // ListRow floors the label's width, and in a narrow dialog Revoke takes its own line, so the limits
     // never run under it and the label never squeezes to nothing. Revoke is one compact control, so the
@@ -420,7 +422,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
         ) : null
       }
       leading={<StatusChip size="sm" status={invite.status} vocabulary={INVITE_STATUS} />}
-      subtitle={`${uses} · ${expiry}`}
+      subtitle={`${uses} · ${expiry} · ${age}`}
       subtitleWrap={true}
       title={`${kind}${target}`}
     />

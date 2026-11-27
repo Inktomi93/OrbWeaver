@@ -13,6 +13,7 @@ import type {
   WorkloadMode,
   WorkloadRunAccountRefusalCode,
   WorkloadScheduleRef,
+  WorkloadScheduleView,
 } from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -25,8 +26,8 @@ import type { Logger } from "#foundation/observability";
  *  table would have left it silently stale. */
 export type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;
 
-/** A listed schedule: its row and the refusal its tick meets (`workloadScheduleListItemSchema`). */
-export type WorkloadScheduleListItem = WorkloadScheduleRow & { readonly refusal?: WorkloadRunAccountRefusalCode };
+/** A listed schedule: its wire view and the refusal its tick meets (`workloadScheduleListItemSchema`). */
+export type WorkloadScheduleListItem = WorkloadScheduleView & { readonly refusal?: WorkloadRunAccountRefusalCode };
 
 /** The first run is one cadence-interval out (a fresh schedule doesn't fire the instant it's made). */
 export interface CreateScheduleParams {
@@ -65,9 +66,9 @@ export interface ListSchedulesParams {
 
 export interface WorkloadScheduleService {
   readonly createSchedule: (params: CreateScheduleParams) => Promise<WorkloadScheduleRef>;
-  readonly updateSchedule: (params: UpdateScheduleParams) => Promise<WorkloadScheduleRow>;
+  readonly updateSchedule: (params: UpdateScheduleParams) => Promise<WorkloadScheduleView>;
   readonly deleteSchedule: (params: DeleteScheduleParams) => Promise<void>;
-  readonly setScheduleEnabled: (params: SetScheduleEnabledParams) => Promise<WorkloadScheduleRow>;
+  readonly setScheduleEnabled: (params: SetScheduleEnabledParams) => Promise<WorkloadScheduleView>;
   readonly listSchedules: (params: ListSchedulesParams) => Promise<readonly WorkloadScheduleListItem[]>;
 }
 

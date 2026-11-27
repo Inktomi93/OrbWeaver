@@ -759,6 +759,8 @@ export interface CharacterDetail extends CharacterCard {
   readonly provenance: CharacterProvenance;
   readonly contentHash: string;
   readonly createdAt: number;
+  /** The last time the card was edited. */
+  readonly updatedAt: number;
   readonly avatarHash: string | null;
   /** The accepted canonical tags (editor chips); pending suggestions read through tag's own surface. */
   readonly tags: readonly TagView[];
@@ -923,6 +925,7 @@ export const characterDetailSchema = characterCardViewSchema.extend({
   provenance: z.enum(CHARACTER_PROVENANCES),
   contentHash: z.string(),
   createdAt: z.number(),
+  updatedAt: z.number(),
   avatarHash: z.string().nullable(),
   tags: z.array(tagViewSchema).readonly(),
 }) satisfies z.ZodType<CharacterDetail>;

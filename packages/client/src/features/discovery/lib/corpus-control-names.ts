@@ -85,6 +85,7 @@ export const CORPUS_PARAM_NAMES = {
   sort: "Sort",
   genre: "Genre",
   setting: "Setting",
+  cooccursWith: "Cooccurs with",
 } as const;
 
 /** The topbar door that opens Insights' character list on a phone, which lands on the dashboard. */

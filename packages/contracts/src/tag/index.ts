@@ -98,6 +98,8 @@ export interface TagUsage {
 export interface TagWithUsage extends TagView {
   usage: TagUsage;
   pendingSuggestions: number;
+  /** When the tag was made. */
+  createdAt: number;
 }
 
 // No TagAttachmentView: a test-only wire shape with no production consumer;
@@ -180,6 +182,7 @@ const tagUsageSchema = z.strictObject({
 export const tagWithUsageSchema = tagViewSchema.extend({
   usage: tagUsageSchema,
   pendingSuggestions: z.number(),
+  createdAt: z.number(),
 }) satisfies z.ZodType<TagWithUsage>;
 
 export const tagSuggestionViewSchema = tagViewSchema.extend({

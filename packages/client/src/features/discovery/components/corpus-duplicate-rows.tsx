@@ -15,6 +15,7 @@ import { corpusRoomPairName } from "../lib/corpus-control-names.ts";
 import type { ArtCliqueMember } from "../lib/corpus-duplicate-groups.ts";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
+import { CorpusComputedStamp } from "./corpus-computed-stamp.tsx";
 
 type DuplicateCharacterPair = inferOutput<Trpc["discovery"]["duplicateCharacters"]>[number];
 type DuplicateChatPair = inferOutput<Trpc["discovery"]["duplicateChats"]>[number];
@@ -47,6 +48,7 @@ export function CorpusDuplicateCharacters({ pairs }: { readonly pairs: readonly 
           reason (`lib/corpus-analysis-state.ts`: it scans one card per content hash, so byte-identical
           cards can never pair), and it belongs beside the list it explains. */}
       <Muted>The near-duplicate pass's pairs. It compares one card per identical copy, so exact duplicates are counted on the readiness rail instead.</Muted>
+      <CorpusComputedStamp rows={pairs} spaces={pairs.map((pair) => pair.model)} />
       {pairs.length === 0 ? (
         <MutedLine>No near-duplicate characters found.</MutedLine>
       ) : (
@@ -108,6 +110,7 @@ export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly Dupli
               it is stated at the section; each row then names its own destination in its accessible name,
               where a screen-reader user meets it. */}
           <Muted>Open a pair to read its relation and visit either room.</Muted>
+          <CorpusComputedStamp rows={pairs} />
           <CapNote noun="pairs" shown={shown.length} total={pairs.length} />
           {shown.map((pair, index) => (
             <ChatPairRow
