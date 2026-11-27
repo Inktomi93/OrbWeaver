@@ -306,17 +306,50 @@ function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
   return { prompt, depth, role: messageRoleFromSt(raw["role"]) ?? "system" };
 }
 
+// A value the card holds (not absent, not JSON null) in a shape its reader cannot read is named and left out.
+function noteUnreadable(value: unknown, readable: boolean, field: string, notes: StScriptNote[]): void {
+  if (value !== undefined && value !== null && !readable) {
+    notes.push({ field, reason: MALFORMED_FIELD });
+  }
+}
+
+const ST_SCRIPTS_KEY = "regex_scripts";
+
 /** The card's ST regex scripts (the LIFT payload — D121-E: there is no `regexScripts` column any more; the
  *  importer hands these to the regex domain), and a note for each script refused or each placement lost, by its
  *  position. The list is V3 `data.extensions.regex_scripts`, else the V2 root `data.regex_scripts`, which no
  *  schema field holds. */
-function parseRegexScripts(extensions: CardData["extensions"], layout: CardLayout): { readonly scripts: RegexScriptCard[]; readonly notes: StScriptNote[] } {
-  const nested = extensions?.["regex_scripts"];
-  const atRoot = layout.data?.["regex_scripts"];
-  const read = Array.isArray(nested)
-    ? readStScriptList(nested, "data.extensions.regex_scripts", "scoped")
-    : readStScriptList(Array.isArray(atRoot) ? atRoot : [], "data.regex_scripts", "scoped");
-  return { scripts: read.scripts, notes: stScriptListNotes(read) };
+function parseRegexScripts(extensions: CardData["extensions"], layout: CardLayout, notes: StScriptNote[]): RegexScriptCard[] {
+  const nested = extensions?.[ST_SCRIPTS_KEY];
+  const nestedField = `${layout.at("extensions").field}.${ST_SCRIPTS_KEY}`;
+  noteUnreadable(nested, Array.isArray(nested), nestedField, notes);
+  if (Array.isArray(nested)) {
+    const read = readStScriptList(nested, nestedField, "scoped");
+    notes.push(...stScriptListNotes(read));
+    return read.scripts;
+  }
+  const atRoot = layout.data?.[ST_SCRIPTS_KEY];
+  const rootField = layout.at(ST_SCRIPTS_KEY).field;
+  noteUnreadable(atRoot, Array.isArray(atRoot), rootField, notes);
+  const read = readStScriptList(Array.isArray(atRoot) ? atRoot : [], rootField, "scoped");
+  notes.push(...stScriptListNotes(read));
+  return read.scripts;
+}
+
+// The extension keys a card's typed columns own: the Character's Note, the favourite flag and the scripts. Each one the
+// card holds in a shape its reader cannot read is named and left out.
+function extensionPlanes(
+  extensions: CardData["extensions"],
+  layout: CardLayout,
+  notes: StScriptNote[],
+): Pick<CharacterCard, "depthPrompt" | "starred" | "regexScripts"> {
+  const at = layout.at("extensions").field;
+  const depthPrompt = extensions?.["depth_prompt"];
+  noteUnreadable(depthPrompt, isPlainObject(depthPrompt) && ["string", "undefined"].includes(typeof depthPrompt["prompt"]), `${at}.depth_prompt`, notes);
+  const fav = extensions?.["fav"];
+  noteUnreadable(fav, typeof fav === "boolean", `${at}.fav`, notes);
+  // ST's favorite flag → `characters.starred` (strict `true` only — ST writes booleans).
+  return { depthPrompt: parseDepthPrompt(depthPrompt), starred: fav === true, regexScripts: parseRegexScripts(extensions, layout, notes) };
 }
 
 /** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —
@@ -496,22 +529,17 @@ export function readCardJson(raw: JsonValue, fallbackName: string): CardRead {
   const data: CardData = { ...read, ...(tags === undefined ? {} : { tags }) };
   const book = readCardBook(layout, notes);
   const residue = cardDataJson(raw, layout);
-  const scripts = parseRegexScripts(data.extensions, layout);
   const spec = detectSpec(layout);
 
   const card: CharacterCard = {
     name: firstNonEmpty(data.name ?? "") ?? firstNonEmpty(rootFallback(layout, CARD_DATA.name, "name", notes) ?? "") ?? fallbackName,
     ...cardText(data),
     greetings: cardGreetings(data),
-    depthPrompt: parseDepthPrompt(data.extensions?.["depth_prompt"]),
     // `source` is a NULLABLE list (absent ⇒ null, distinct from `[]`), so a V2 card omits it cleanly on re-export.
     source: data.source ?? null,
     creationDate: data["creation_date"] ?? null,
     modificationDate: data["modification_date"] ?? null,
-    // ST's favorite flag → `characters.starred` (strict `true` only — ST writes booleans; a foreign
-    // truthy string is not a star). Promoted out of the residue like `depth_prompt`/`regex_scripts`.
-    starred: data.extensions?.["fav"] === true,
-    regexScripts: scripts.scripts,
+    ...extensionPlanes(data.extensions, layout, notes),
     extensions: residualExtensions(residue),
     residualData: residualData(residue),
     avatarAssetId: null,
@@ -520,7 +548,7 @@ export function readCardJson(raw: JsonValue, fallbackName: string): CardRead {
     // it satisfies `exactOptionalPropertyTypes` and export defaults to V3.
     ...(spec !== null ? { spec } : {}),
   };
-  return { card, data, book, notes: [...notes, ...scripts.notes] };
+  return { card, data, book, notes };
 }
 
 // cardContentHash — the one home; character imports it from here, no private copy.
@@ -745,12 +773,25 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
   };
 }
 
+// A stored entry's metadata is its whole source entry, so a field the entry schema types can sit there as the source
+// spelled it. The export writes such a field only when its own schema reads it (the import named the drop), so a
+// malformed source value never refuses the export.
+function carriedEntryFields(meta: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const fields = Object.entries(characterBookEntryFields.shape);
+  return Object.fromEntries(
+    Object.entries(meta).filter(([key, value]) => {
+      const schema = fields.find(([field]) => field === key)?.[1];
+      return schema === undefined || readsAs(schema, value);
+    }),
+  );
+}
+
 /** One lore entry on the `character_book` entry wire, the shape a standalone SillyTavern world file adapts. */
 export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta: Readonly<Record<string, unknown>> = entry.metadata ?? {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
-  const { [ST_SLOT_METADATA_KEY]: _kept, ...carried } = meta;
+  const { [ST_SLOT_METADATA_KEY]: _kept, ...carried } = carriedEntryFields(meta);
   const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};
   const position = stWorldPosition(meta, inject !== null);
   const stored = storedBucket(meta);
@@ -869,6 +910,12 @@ function readCardBook(layout: CardLayout, notes: StScriptNote[]): CardBookRead |
   const inData = layout.at("character_book");
   const atRoot: CardField = { value: layout.root["character_book"], field: "character_book" };
   const candidates = layout.data === null || layout.data === layout.root ? [inData] : [inData, atRoot];
+  for (const { value, field } of candidates) {
+    noteUnreadable(value, isPlainObject(value), field, notes);
+    if (isPlainObject(value)) {
+      noteUnreadable(value["entries"], Array.isArray(value["entries"]) || isPlainObject(value["entries"]), `${field}.entries`, notes);
+    }
+  }
   const picked = selectBestCharacterBook(...candidates.map(({ value }) => value));
   const chosen = candidates.find(({ value }) => value === picked);
   if (chosen === undefined || !isPlainObject(picked)) {

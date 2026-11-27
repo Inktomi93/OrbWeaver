@@ -168,6 +168,19 @@ describe("readCardJson reads each wire spec into the canonical card", () => {
     expect([...v1.notes, ...pygmalion.notes]).toEqual([]);
   });
 
+  test.each([
+    { label: "a book that is a string", data: '{"character_book":"junk"}', field: "data.character_book" },
+    { label: "a book that is a number", data: '{"character_book":5}', field: "data.character_book" },
+    { label: "a book whose entries are a number", data: '{"character_book":{"entries":5}}', field: "data.character_book.entries" },
+    { label: "a depth prompt that is a string", data: '{"extensions":{"depth_prompt":"x"}}', field: "data.extensions.depth_prompt" },
+    { label: "a favourite flag that is a string", data: '{"extensions":{"fav":"yes"}}', field: "data.extensions.fav" },
+    { label: "a script list that is an object", data: '{"extensions":{"regex_scripts":{"a":1}}}', field: "data.extensions.regex_scripts" },
+  ])("$label drops and is named", ({ data, field }) => {
+    const read = readCardJson(present(parseJsonText(JSON.stringify(wireCard(`{"name":"Aria",${data.slice(1)}`)))), FALLBACK);
+    expect(read.notes.map((note) => note.field)).toEqual([field]);
+    expect(read.card.name).toBe("Aria");
+  });
+
   test("a card with no name takes the fallback, and the placeholder note is dropped", () => {
     expect(importCard(json('{"data":{"description":"x"}}'), FALLBACK).name).toBe(FALLBACK);
     expect(importCard(json('{"data":{"name":"X","creator_notes":"Creator\'s notes go here."}}'), FALLBACK).creatorNotes).toBeNull();
