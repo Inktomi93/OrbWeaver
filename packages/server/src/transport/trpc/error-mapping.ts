@@ -78,7 +78,7 @@
 // on a request whose signal is still quiet keeps `trpc.unhandled`, and so does any abandoned mutation.
 
 import type { ProviderFailureReason } from "@orb/contracts/chat";
-import { PROVIDER_FAILURE_REASON_PREFIX } from "@orb/contracts/chat";
+import { PROVIDER_FAILURE_REASON_PREFIX, RATE_LIMIT_RESETS_AT_DETAIL_KEY } from "@orb/contracts/chat";
 import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { DomainOperationDetail } from "@orb/kit/errors";
@@ -261,8 +261,12 @@ export function domainReason(error: { cause?: unknown }): string | undefined {
 }
 
 /** The facts a coded refusal states beside its `reason` (`DomainOperationError.detail`), for a client that says them in
- *  its own words. `undefined` for every other error, so nothing else reaches the wire. */
+ *  its own words, and the reset moment of a rate-limited provider failure when the provider stated one. `undefined` for
+ *  every other error, so nothing else reaches the wire. */
 export function domainDetail(error: { cause?: unknown }): DomainOperationDetail | undefined {
+  if (error.cause instanceof ProviderError && error.cause.kind === "rate_limit" && error.cause.resetsAt !== undefined) {
+    return { [RATE_LIMIT_RESETS_AT_DETAIL_KEY]: error.cause.resetsAt };
+  }
   return error.cause instanceof DomainOperationError ? error.cause.detail : undefined;
 }
 

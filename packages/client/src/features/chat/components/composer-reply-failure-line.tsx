@@ -11,12 +11,13 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { roomRosterOptions, seedPresetId, useTRPC } from "#data";
+import { timeLib } from "#lib";
 import { openConfigTo } from "#state";
 import { Track } from "../lib/chat-track.tsx";
 import { openPresetParams } from "../lib/open-params.ts";
 import { providerFailureReason } from "../lib/provider-failure-reason.ts";
 import type { ReplyFailure } from "../lib/reply-failure.ts";
-import { OPEN_CONNECTIONS_NAME, RETRY_REPLY_NAME } from "../lib/send-failure-copy.ts";
+import { OPEN_CONNECTIONS_NAME, providerResetsLabel, RETRY_REPLY_NAME } from "../lib/send-failure-copy.ts";
 import { OPEN_PARAMS_NAME } from "../lib/warning-notice.ts";
 
 const CONNECTION_FIXABLE: ReadonlySet<string> = new Set(CONNECTION_FIXABLE_FAILURE_REASONS);
@@ -40,6 +41,8 @@ export function ComposerReplyFailureLine({ chatId, failure, onRetry, id }: Compo
   // An unknown viewer reads as a member: the host's connection detail is never shown on a guess.
   const viewerIsHost = chat.data?.viewerIsHost === true;
   const reason = failure.roomState ?? providerFailureReason(failure, viewerIsHost) ?? failure.message;
+  // The reset belongs to the host's connection, so a member reads no more of it than of the rest of its detail.
+  const offersReset = viewerIsHost && failure.reason === "provider_rate_limit" && failure.resetsAt !== null;
   const offersConnections = viewerIsHost && failure.reason !== null && CONNECTION_FIXABLE.has(failure.reason);
   // The preset the host's turns run is the host's own default, so only the host is sent to its Params, and only for the
   // failure its output limit causes.
@@ -63,6 +66,14 @@ export function ComposerReplyFailureLine({ chatId, failure, onRetry, id }: Compo
         id={id}
       >
         {reason === null ? failure.lead : `${failure.lead} ${reason}`}
+        {offersReset && failure.resetsAt !== null ? (
+          <>
+            {" "}
+            <span data-slot="composer-reply-failure-reset" data-resets-at={failure.resetsAt}>
+              {providerResetsLabel(timeLib.formatDateTime(failure.resetsAt))}
+            </span>
+          </>
+        ) : null}
         {failure.retryable ? (
           <>
             {" "}

@@ -4,10 +4,11 @@
 // another turn in the room. It lives in memory, for this tab: another member's failure is
 // theirs to see, and a reload starts without it.
 
+import { RATE_LIMIT_RESETS_AT_DETAIL_KEY } from "@orb/contracts/chat";
 import type { RefusalReason } from "@orb/contracts/refusal";
 import type { ChatId } from "@orb/kit/ids";
 import { useSyncExternalStore } from "react";
-import { isSilencedTurnAbort, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason, turnRoomStateCopy } from "#lib";
+import { isSilencedTurnAbort, trpcErrorDetailNumber, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason, turnRoomStateCopy } from "#lib";
 import { REPLY_FAILED_LEAD } from "./send-failure-copy.ts";
 
 /** The surface that states a failed turn, which every turn action names so its toast stands down for it. */
@@ -20,6 +21,8 @@ export interface ReplyFailure {
   readonly reason: RefusalReason | null;
   /** The cause a coded refusal states on `data.detail.cause`; `""` when it states none. */
   readonly cause: string;
+  /** When a rate-limited provider says its limit lifts (epoch ms, from `data.detail`); `null` when it stated none. */
+  readonly resetsAt: number | null;
   /** What failed, said first on the line. */
   readonly lead: string;
   /** The copy for a turn refused for the room's state, which states itself in place of the server's sentence. */
@@ -59,6 +62,7 @@ export function recordReplyFailure(chatId: ChatId, error: unknown, options: Reco
     message: trpcErrorMessage(error),
     reason: trpcErrorReason(error),
     cause: trpcErrorDetailString(error, "cause") ?? "",
+    resetsAt: trpcErrorDetailNumber(error, RATE_LIMIT_RESETS_AT_DETAIL_KEY),
     lead: options.lead ?? REPLY_FAILED_LEAD,
     roomState: turnRoomStateCopy(error),
     retryable: options.retryable ?? true,

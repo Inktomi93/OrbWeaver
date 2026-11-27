@@ -25,3 +25,8 @@ export const RETRY_REPLY_NAME = "Retry the reply";
 
 /** The line's door to the connection settings, for a failure the connection's owner fixes there. */
 export const OPEN_CONNECTIONS_NAME = "Open Connections";
+
+/** The reset clause after a rate-limited provider's sentence, given the reset moment already formatted. */
+export function providerResetsLabel(resetAt: string): string {
+  return `The limit resets ${resetAt}.`;
+}

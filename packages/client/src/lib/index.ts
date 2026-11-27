@@ -397,7 +397,14 @@ export { THEME_RADIUS_LABELS } from "./theme-radius-labels.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { rethrowUnlessTrpcFailure, trpcErrorCode, trpcErrorDetailString, trpcErrorMessage, trpcErrorReason } from "./trpc-error-reason.ts";
+export {
+  rethrowUnlessTrpcFailure,
+  trpcErrorCode,
+  trpcErrorDetailNumber,
+  trpcErrorDetailString,
+  trpcErrorMessage,
+  trpcErrorReason,
+} from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast, turnRoomStateCopy } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { attachmentRefusalSentence, uploadRefusalClause } from "./upload-refusal-copy.ts";

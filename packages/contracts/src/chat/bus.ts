@@ -391,6 +391,10 @@ export const PROVIDER_FAILURE_REASON_PREFIX = "provider_";
  *  import (it sits below inference). */
 export type ProviderFailureReason = `${typeof PROVIDER_FAILURE_REASON_PREFIX}${string}`;
 
+/** The `data.detail` key a `provider_rate_limit` failure states its reset moment under, in epoch milliseconds. Present
+ *  only when the provider reported when the limit lifts. */
+export const RATE_LIMIT_RESETS_AT_DETAIL_KEY = "resetsAt";
+
 /** The provider failures the connection's owner fixes under Connections: a rejected key, the account's balance, or a
  *  model the provider does not serve. A failed reply offers that door for these alone. Each member must name one of
  *  those failure kinds. */
