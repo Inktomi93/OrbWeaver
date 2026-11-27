@@ -8,7 +8,9 @@
 // - The senders are the receivers in {@link RECEIVER_PATHS}, where a stripped key fails silently: the client, the plugins
 //   and the e2e suites alike. It is no product population, so the product and credit split of D357 has nothing to judge.
 // - The removed keys come from the merge base's and head's blobs, each parsed on its own by the native parser. The merged
-//   program loads the working tree, so `head` must be the checked-out commit and the tracked files clean.
+//   program loads the working tree, so `head` must be the checked-out commit, the tracked files clean, and no untracked
+//   file among those the program loads. An untracked file no world includes (a tool's cache directory) changes no verdict.
+// - A declaration moved whole out of its contract file to a same-named one elsewhere keeps the keys it still declares.
 // - A branch that removes no key builds no session.
 
 import type { CallExpression, Expression, Identifier, NewExpression, Node, PropertyAccessExpression, SourceFile } from "@typescript/native/ast";
@@ -146,10 +148,14 @@ function homeOf(node: Node): string | null {
 type KeyCounts = ReadonlyMap<string, ReadonlyMap<string, number>>;
 
 // How many times a file declares each key in each home: an interface or type member, a schema or literal key, a
-// shorthand. The parser sees a key wherever it sits, a one-line `z.object({ a: … })` included.
+// shorthand. The parser sees a key wherever it sits, a one-line `z.object({ a: … })` included. Every home the file
+// declares has an entry, one with no key included, so a home that left the file is told from one that lost its keys.
 function declaredKeys(source: SourceFile): KeyCounts {
   const into = new Map<string, Map<string, number>>();
   const visit = (node: Node): void => {
+    if ((isInterfaceDeclaration(node) || isTypeAliasDeclaration(node) || isVariableDeclaration(node)) && isIdentifier(node.name) && !into.has(node.name.text)) {
+      into.set(node.name.text, new Map());
+    }
     const named = isPropertySignatureDeclaration(node) || isPropertyAssignment(node) || isShorthandPropertyAssignment(node) ? node.name : undefined;
     const home = named === undefined ? null : homeOf(node);
     if (named !== undefined && home !== null && (isIdentifier(named) || isStringLiteral(named))) {
@@ -190,20 +196,54 @@ interface Home {
   readonly name: string;
 }
 
-// The keys some changed contract declaration names fewer times at `head` than at the merge base, by declaration: a key
-// reformatted or moved inside one declaration is still there, and a key moved to another declaration is removed from
-// its old home, since a sender of the old home's procedure now sends a stripped key.
-function removedKeys(root: string, base: string, head: string): ReadonlyMap<string, readonly Home[]> {
-  const files = execGit(root, ["diff", "--name-only", "--no-renames", `${base}...${head}`, "--", ...CONTRACT_PATHS])
+const changedFiles = (root: string, base: string, head: string, paths: readonly string[]): readonly string[] =>
+  execGit(root, ["diff", "--name-only", "--no-renames", `${base}...${head}`, "--", ...paths])
     .split("\n")
     .filter((file) => PARSED.test(file));
+
+// The declarations the branch moved whole: a home that left its contract file and that another changed file declares
+// at `head` under the same name, by name to that file's key counts. A key the moved home still declares is no removal,
+// since a sender typed against it now imports the new home.
+function movedHomes(root: string, head: string, gone: ReadonlySet<string>, others: readonly string[]): ReadonlyMap<string, readonly KeyCounts[]> {
+  const blobs = [...blobsAt(root, head, others)].filter(([, text]) => [...gone].some((name) => text.includes(name)));
+  const moved = new Map<string, KeyCounts[]>();
+  for (const counts of NativeWorld.readTexts(root, new Map(blobs), declaredKeys).values()) {
+    for (const name of gone) {
+      if (counts.has(name)) {
+        moved.set(name, [...(moved.get(name) ?? []), counts]);
+      }
+    }
+  }
+  return moved;
+}
+
+// The keys some changed contract declaration names fewer times at `head` than at the merge base, by declaration: a key
+// reformatted or moved inside one declaration is still there, and a key moved to another declaration is removed from
+// its old home, since a sender of the old home's procedure now sends a stripped key. A home moved whole to another
+// file keeps the keys it still declares there.
+function removedKeys(root: string, base: string, head: string): ReadonlyMap<string, readonly Home[]> {
+  const files = changedFiles(root, base, head, CONTRACT_PATHS);
   const fork = execGit(root, ["merge-base", base, head]).trim();
+  const before = keyCounts(root, fork, files);
   const after = keyCounts(root, head, files);
+  const gone = new Set([...before].flatMap(([file, homes]) => [...homes.keys()].filter((name) => !(after.get(file)?.has(name) ?? false))));
+  const contracts = new Set(files);
+  const moved =
+    gone.size === 0
+      ? new Map<string, readonly KeyCounts[]>()
+      : movedHomes(
+          root,
+          head,
+          gone,
+          changedFiles(root, base, head, []).filter((file) => !contracts.has(file)),
+        );
+  const movedKeeps = (name: string, key: string, count: number): boolean =>
+    (moved.get(name) ?? []).some((counts) => (counts.get(name)?.get(key) ?? 0) >= count);
   const removed = new Map<string, Home[]>();
-  for (const [file, before] of keyCounts(root, fork, files)) {
-    for (const [name, keys] of before) {
+  for (const [file, homes] of before) {
+    for (const [name, keys] of homes) {
       for (const [key, count] of keys) {
-        if ((after.get(file)?.get(name)?.get(key) ?? 0) < count) {
+        if ((after.get(file)?.get(name)?.get(key) ?? 0) < count && !movedKeeps(name, key, count)) {
           removed.set(key, [...(removed.get(key) ?? []), { file, name }]);
         }
       }
@@ -546,25 +586,30 @@ export interface RemovedKeysPlan {
   readonly base: string;
   readonly head: string;
   readonly scanned: Readonly<Record<Receiver, number>>;
+  /** Untracked, unignored files: the merged program refuses the run only when it loads one of them. */
+  readonly untracked: readonly string[];
   readonly removed: ReadonlyMap<string, readonly Home[]>;
 }
 
+const DIFFERS = "removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first";
+
 /** Check that `head` is the clean checkout, then read the receiver files and the keys the branch removes.
  *  @throws When `head` is not the checked-out commit or the tracked files differ from it: the merged program loads the
- *  working tree. */
+ *  working tree. An untracked file is checked once the program is built, since only a file it loads changes a verdict. */
 export function removedKeysPlan({ root, base, head }: RemovedKeysOptions): RemovedKeysPlan {
   if (execGit(root, ["rev-parse", head]).trim() !== execGit(root, ["rev-parse", "HEAD"]).trim()) {
     throw new Error(`removed-keys resolves senders in the checked-out tree: check out ${head} first`);
   }
-  if (execGit(root, ["status", "--porcelain"]).trim() !== "") {
-    throw new Error("removed-keys resolves senders in the working tree, which differs from HEAD: commit or set aside the changes first");
+  if (execGit(root, ["status", "--porcelain", "--untracked-files=no"]).trim() !== "") {
+    throw new Error(DIFFERS);
   }
+  const untracked = execGit(root, ["ls-files", "--others", "--exclude-standard"]).split("\n").filter(Boolean);
   const filesAt = (receiver: Receiver): number =>
     execGit(root, ["ls-tree", "-r", "--name-only", head, "--", ...RECEIVER_PATHS[receiver]])
       .split("\n")
       .filter(Boolean).length;
   const scanned: Record<Receiver, number> = { client: filesAt("client"), plugins: filesAt("plugins"), e2e: filesAt("e2e") };
-  return { root, base, head, scanned, removed: removedKeys(root, base, head) };
+  return { root, base, head, scanned, untracked, removed: removedKeys(root, base, head) };
 }
 
 const emptyTallies = (plan: RemovedKeysPlan): ReadonlyMap<string, Tally> =>
@@ -600,10 +645,17 @@ function reportOf(plan: RemovedKeysPlan, tallies: ReadonlyMap<string, Tally>): R
 export const nothingRemoved = (plan: RemovedKeysPlan): RemovedKeysReport => reportOf(plan, emptyTallies(plan));
 
 /** Resolve every receiver site the session's merged program holds that names a removed key, then search the receiver
- *  files it does not hold as text. */
+ *  files it does not hold as text.
+ *  @throws When the merged program loads an untracked file: a verdict on it would hold for no commit. */
 export function removedKeysPass(world: NativeWorld, plan: RemovedKeysPlan): RemovedKeysReport {
+  const loaded = world.files.map((source) => world.fileOfSource(source));
+  const held = new Set(loaded);
+  const stray = plan.untracked.filter((file) => held.has(file));
+  if (stray.length > 0) {
+    throw new Error(`${DIFFERS}; the merged program loads untracked ${stray.join(", ")}`);
+  }
   const tallies = emptyTallies(plan);
-  const files = world.files.map((source) => world.fileOfSource(source)).filter((file) => receiverOf(file) !== null);
+  const files = loaded.filter((file) => receiverOf(file) !== null);
   scanFiles(world, files, plan.removed, tallies);
   outsideProgram(plan, new Set(files), tallies);
   return reportOf(plan, tallies);

@@ -308,7 +308,7 @@ function runDeliberateStale(args: Args): number {
   }
   log(
     unjudged.length > 0
-      ? `stale-deliberate=${String(structural)} excuses-nothing unjudged: ${String(unjudged.length)} of ${String(reports.length)} consumer reports are missing, carry no run block, or came from another root or HEAD`
+      ? `stale-deliberate=${String(structural)} excuses-nothing unjudged: ${String(unjudged.length)} of ${String(reports.length)} consumer reports are missing, carry no run block, or came from another root or from a commit more than prose away from HEAD`
       : `stale-deliberate=${String(structural + stale.length)} over ${String(reports.length)} consumer reports`,
   );
   return EXIT.clean;

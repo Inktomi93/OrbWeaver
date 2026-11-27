@@ -3,8 +3,8 @@
 // shape is someone else's, and a body sent outside the repo is listed as unresolved, never failed on. A destination is
 // the resolved callee: a tRPC verb the tRPC packages declare, a TanStack mutation built from a procedure, or a `fetch`
 // whose URL, through a route constant, is a path on our own origin.
-import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git-fixture";
 import { NO_DESTINATION, NO_KEY_POSITION, OUTSIDE_PROGRAM } from "../../../tooling/src/unwired/graph/removed-keys.ts";
@@ -71,6 +71,7 @@ const TRPC = [
 
 const commit = (repo: string, files: Readonly<Record<string, string>>, message: string): void => {
   for (const [file, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(repo, file)), { recursive: true });
     writeFileSync(join(repo, file), text);
     execFixtureGit(repo, ["add", file]);
   }
@@ -179,6 +180,17 @@ test("a key moved to another declaration fails a sender of its old home only", {
   const guidedPick = entry(await check(repo), "guidedPick");
   expect(guidedPick?.senders.map(({ at }) => at)).toEqual(["packages/client/src/send.ts:4"]);
   expect(guidedPick?.other).toBe(1);
+});
+
+test("a declaration moved out of the contracts with its keys removes none of them; a deletion beside it still reports", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const moved = "packages/server/src/domain/chat/contract/edit.ts";
+  const repo = await deletionBranch(plantedTree, {
+    [CONTRACT]: AFTER.replace("export interface EditInput {\n  readonly guidedPick?: string;\n}\n", ""),
+    [moved]: "export interface EditInput {\n  readonly guidedPick?: string;\n}\n",
+  });
+  expect(entry(await check(repo), "guidedPick")?.homes).toEqual([`${CONTRACT}:SendInput`]);
 });
 
 test("a body sent to an outside API is unresolved and passes", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -389,6 +401,15 @@ test("the check refuses a head other than the checked-out commit, and a working 
   expect((await check(repo)).failed).toBe(false);
   writeFileSync(join(repo, "packages/client/src/send.ts"), "export const send = { guidedPick: 'g' };\n");
   await expect(check(repo)).rejects.toThrow("differs from HEAD");
+});
+
+test("an untracked file no world loads lets the check run, and one the merged program loads refuses it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {});
+  mkdirSync(join(repo, ".deja"));
+  writeFileSync(join(repo, ".deja/index.json"), '{ "guidedPick": "g" }\n');
+  expect(entry(await check(repo), "guidedPick")?.homes).toEqual([`${CONTRACT}:SendInput`]);
+  writeFileSync(join(repo, "packages/client/src/extra.ts"), "export const extra = { guidedPick: 'g' };\n");
+  await expect(check(repo)).rejects.toThrow("packages/client/src/extra.ts");
 });
 
 test("a receiver file the merged program does not load is searched as text and listed unresolved, never passed", { timeout: 120_000 }, async ({
