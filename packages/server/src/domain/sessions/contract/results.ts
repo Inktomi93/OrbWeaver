@@ -121,7 +121,7 @@ export type ProvisionDecision =
  *  OIDC callback offers a pending join on it and on nothing else, so an access-gate or subject-mismatch deny
  *  never reaches the invite path. Every other refusal carries no reason. */
 const PROVISION_DENY_REASONS = ["account-exists", "jit-closed"] as const;
-type ProvisionDenyReason = (typeof PROVISION_DENY_REASONS)[number];
+export type ProvisionDenyReason = (typeof PROVISION_DENY_REASONS)[number];
 
 /** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's live login state)
  *  or `denied` (the login gate refused the identity — no row is created/updated). Distinct from

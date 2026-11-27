@@ -57,7 +57,6 @@ const FRESH_RESPONSE_BY_KIND: Readonly<Record<TurnRequest["kind"], boolean>> = {
   continue: true,
   generate: true,
   impersonate: true,
-  opening: true,
   auto: true,
   force: true,
 };

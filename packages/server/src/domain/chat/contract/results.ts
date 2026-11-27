@@ -83,8 +83,8 @@ export interface TurnSpeakerShape {
   readonly speakerRef: SpeakerRef;
 }
 
-/** Maps the domain's turn-kind axis to the public bus {@link TurnIntent}. `opening`/`auto`/`force` surface as
- *  their nearest public lifecycle intent. One home — the engine's `turnStarted`/`turnCompleted`/`turnAborted`
+/** Maps the domain's turn-kind axis to the public bus {@link TurnIntent}. `auto`/`force` surface as their
+ *  nearest public lifecycle intent. One home — the engine's `turnStarted`/`turnCompleted`/`turnAborted`
  *  emits AND the verb's pre-arbitration `turnAccepted` emit both key on it (never a re-spelled map). */
 export const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   send: "send",
@@ -92,7 +92,6 @@ export const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   continue: "continue",
   generate: "generate",
   impersonate: "impersonate",
-  opening: "generate",
   auto: "generate",
   force: "generate",
 };
@@ -480,8 +479,7 @@ export interface TurnPrep {
    *  every lifecycle event of the turn carries the id. Only the engine
    *  knows whether `turnStarted` fired, so it owns closing that slot on a PRE-START refusal (lock contention /
    *  consent / budget / a missing persist target): those paths emit `turnAborted` instead of throwing silently,
-   *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot (the founding `opening`
-   *  turn — every other turn-starting verb accepts) ⇒ pre-start refusals stay bus-SILENT exactly as before. */
+   *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot ⇒ pre-start refusals stay bus-SILENT exactly as before. */
   readonly acceptedTurnId?: ChatTurnId | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
    *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION: a post-start throw with
