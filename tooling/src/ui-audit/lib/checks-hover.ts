@@ -20,6 +20,7 @@ import { compositeForeground, FOREGROUND_OPACITY_EPS, isContrastExempt, isLargeT
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { Backdrop } from "../contract/samples.ts";
 import type { HoverContrastInput, HoverScanInput } from "../contract/samples-hover.ts";
+import { paintedInk } from "./checks-color.ts";
 import { assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
 
 /** How ONE candidate was disposed of. `checkHoverContrast` is a thin projection of this and
@@ -31,7 +32,7 @@ type HoverOutcome =
   | { readonly kind: "judged"; readonly finding: Finding | null };
 
 function sameRgb(a: Rgb, b: Rgb): boolean {
-  return a.r === b.r && a.g === b.g && a.b === b.b;
+  return a.r === b.r && a.g === b.g && a.b === b.b && (a.a ?? 1) === (b.a ?? 1);
 }
 
 function sameBackdrop(a: Backdrop, b: Backdrop): boolean {
@@ -45,7 +46,7 @@ function sameBackdrop(a: Backdrop, b: Backdrop): boolean {
  *  Only a FLAT rest backdrop can answer — anything else is the over-art family's question and leaves the
  *  hover state fair game. */
 function restAlreadyFails(input: HoverContrastInput, minRatio: number): boolean {
-  return input.restBackdrop.kind === "flat" && wcagContrastRatio(input.restColor, input.restBackdrop.color) < minRatio;
+  return input.restBackdrop.kind === "flat" && wcagContrastRatio(paintedInk(input.restColor, input.restBackdrop.color), input.restBackdrop.color) < minRatio;
 }
 
 /** Every reason this candidate is not a hover-contrast question at all, in one place, so the judging half
@@ -128,12 +129,14 @@ function hoverOutcome(input: HoverContrastInput): HoverOutcome {
   }
   const over = declined.over;
   const dimmed = input.foregroundOpacity < FOREGROUND_OPACITY_EPS;
-  const seen = dimmed ? compositeForeground(input.hoverColor, over, input.foregroundOpacity) : input.hoverColor;
+  const painted = paintedInk(input.hoverColor, over);
+  const seen = dimmed ? compositeForeground(painted, over, input.foregroundOpacity) : painted;
   const ratio = wcagContrastRatio(seen, over);
   if (ratio >= minRatio) {
     return { kind: "judged", finding: null };
   }
-  const restRatio = input.restBackdrop.kind === "flat" ? wcagContrastRatio(input.restColor, input.restBackdrop.color) : null;
+  const restRatio =
+    input.restBackdrop.kind === "flat" ? wcagContrastRatio(paintedInk(input.restColor, input.restBackdrop.color), input.restBackdrop.color) : null;
   const restNote = restRatio === null ? "" : ` (rest ${restRatio.toFixed(2)}:1)`;
   const dimNote = dimmed ? ` · dimmed α${input.foregroundOpacity.toFixed(2)}` : "";
   const wording = stateWordingOf(input);

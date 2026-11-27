@@ -2,7 +2,7 @@ import type { Page, Request } from "@playwright/test";
 import { errors } from "@playwright/test";
 
 /** The product restores focus a frame or two after a confirmation closes; a body that still holds focus after this is stranded. */
-export const FOCUS_RESTORE_MS = 1500;
+const FOCUS_RESTORE_MS = 1500;
 
 export const STRANDED_FOCUS_FINDING = "focus was left on the page body after deleting";
 export const REREAD_FINDING = "the deleted id was read again after the delete landed";

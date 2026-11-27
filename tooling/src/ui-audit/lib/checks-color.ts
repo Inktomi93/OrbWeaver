@@ -78,7 +78,7 @@ function ratioOver(input: ContrastInput, over: Rgb, opacity: number): number {
 }
 
 /** A translucent ink paints its blend with what lies behind it, not its authored channels: the reader sees the blend. */
-function paintedInk(color: Rgb, ring: Rgb): Rgb {
+export function paintedInk(color: Rgb, ring: Rgb): Rgb {
   const alpha = color.a ?? 1;
   return alpha >= FOREGROUND_OPACITY_EPS ? color : compositeForeground(color, ring, alpha);
 }
