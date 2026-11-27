@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-22
+status: doing
+updated: 2026-11-27
 priority: P3
 area: client
+lane: wt/agent-a7af6003da75d8e56
 plan: unwired-code
 ---
 

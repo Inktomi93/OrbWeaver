@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-25
+status: doing
+updated: 2026-11-27
 priority: P3
 area: tooling
+lane: wt/agent-a0a89273c8ff2ec22
 ---
 
 # An unwired API whose NativeWorld constructor throws is closed
