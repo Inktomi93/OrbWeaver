@@ -221,7 +221,7 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     ]),
     section("Characters skipped (skip-listed)", report.skippedCharacters),
     section(
-      "Characters imported under a different handle (another card already had the handle their file name gives)",
+      "Characters whose file name gives a handle another card already had (a chat folder of that name goes to the other card)",
       report.collidedCards.map((c) => `\`${c.file}\` — handle \`${c.handle}\``),
     ),
     section(

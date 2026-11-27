@@ -97,9 +97,9 @@ export function importPreviewPresetLeftOutLine(preset: string, fields: readonly 
   return `${preset}, left out: ${fields.map(({ field, reason }) => `${field} (${reason})`).join("; ")}`;
 }
 
-/** A card's names-panel line for the handle it takes because another card of its profile already held the one its file name gives. */
+/** A card's names-panel line for a file name that gives a handle an earlier card of its profile already holds. */
 export function importPreviewCollidedHandleLine(card: string, handle: string): string {
-  return `${card}, imports under the handle ${handle}: another card already holds the handle its file name gives`;
+  return `${card}, its file name gives the handle ${handle}, which another card already holds, so a chat folder of that name goes to the other card`;
 }
 
 /** A card's names-panel line for the chat folders that join it by the name match, no folder carrying the card's exact name. */

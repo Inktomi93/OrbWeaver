@@ -357,7 +357,7 @@ export interface ImportReport {
   readonly skippedChatRows: readonly ImportSkippedCard[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];
-  /** A card imported under a different handle because an earlier card of the profile already held its file-name handle. */
+  /** A card whose file name gives a handle an earlier card of the profile already held, and that shared handle. */
   readonly collidedCards: readonly { readonly file: string; readonly handle: CharacterHandle }[];
   /** A chat folder that joined a card by the fuzzy name match, and the handle of the card it joined. */
   readonly fuzzyPairedDirs: readonly { readonly chatDir: string; readonly handle: CharacterHandle }[];

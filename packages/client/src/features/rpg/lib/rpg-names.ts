@@ -205,7 +205,7 @@ export const RPG_CARD_ARCHIVE_READ_LABEL = "the card archive";
 export const RPG_SCENE_CARDS_READ_LABEL = "this game's cards";
 
 /** The parts of a card fill the model's reply could lose, said as the host knows them. */
-export const RPG_POPULATE_PART_LABELS: Record<RpgPopulatePart, string> = {
+const RPG_POPULATE_PART_LABELS: Record<RpgPopulatePart, string> = {
   sheet: "the title and level",
   inventory: "the gear",
   quests: "the goals",

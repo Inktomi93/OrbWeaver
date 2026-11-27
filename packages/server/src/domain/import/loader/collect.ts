@@ -267,7 +267,7 @@ function disambiguate(state: CollectState, file: string, base: string): Characte
     n += 1;
   }
   if (handle !== parsed) {
-    state.collidedCards.push({ file, handle });
+    state.collidedCards.push({ file, handle: parsed });
   }
   return handle;
 }
