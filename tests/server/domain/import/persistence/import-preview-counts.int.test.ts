@@ -83,9 +83,11 @@ async function twinBookExports(root: ServerTestHarness): Promise<{ readonly earl
   const { worldInfo } = root.services;
   const book = await worldInfo.createBook({ principal, input: createBookSchema.parse({ name: TWIN_BOOK }) });
   const exported = async (): Promise<Uint8Array> => present(await worldInfo.exportBook({ principal, bookId: book.id })).bytes;
-  await worldInfo.createEntry({ principal, bookId: book.id, input: createEntrySchema.parse({ title: "North", content: "The north shore.", keys: ["north"] }) });
+  const north = await worldInfo.createEntry({ principal, bookId: book.id, input: createEntrySchema.parse({ title: "North", content: "The north shore." }) });
+  await worldInfo.updateEntry({ principal, entryId: north.id, input: { keys: ["north"] } });
   const earlier = await exported();
-  await worldInfo.createEntry({ principal, bookId: book.id, input: createEntrySchema.parse({ title: "South", content: "The south shore.", keys: ["south"] }) });
+  const south = await worldInfo.createEntry({ principal, bookId: book.id, input: createEntrySchema.parse({ title: "South", content: "The south shore." }) });
+  await worldInfo.updateEntry({ principal, entryId: south.id, input: { keys: ["south"] } });
   return { earlier, later: await exported() };
 }
 

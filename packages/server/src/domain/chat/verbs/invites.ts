@@ -43,7 +43,6 @@ import {
   revokeInviteById,
 } from "../persistence/invites.ts";
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
-import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
@@ -203,7 +202,6 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
     }
     const invite: InviteView = {
       id: inviteId,
-      chatId,
       status: "pending",
       maxUses,
       remainingUses: maxUses, // uses = 0 at creation
@@ -291,7 +289,6 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
-        viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
         anchor: await resolveAnchor(ctx, participants, chat.anchorPersonaId),
       }),
       participant,
@@ -353,7 +350,6 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
-        viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
         anchor: await resolveAnchor(ctx, participants, chat.anchorPersonaId),
       }),
       participant,
@@ -378,7 +374,6 @@ function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
     );
     return rows.map((row) => ({
       id: row.id,
-      chatId: row.chatId,
       status: row.status,
       maxUses: row.maxUses,
       remainingUses: row.maxUses === null ? null : Math.max(0, row.maxUses - row.uses),

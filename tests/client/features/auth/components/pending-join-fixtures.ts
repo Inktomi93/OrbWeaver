@@ -28,8 +28,9 @@ export const PENDING_AUTH_CONFIG = authConfigSchema.parse({
   share: { state: "off", url: null },
 });
 
+export const PENDING_CHAT_ID = mintTypeId(ID_PREFIX.chat, createSeededIds(FIXTURE_ID_CURSOR).next);
+
 export const PENDING_ROOM = signedOutInvitePreviewSchema.parse({
-  chatId: mintTypeId(ID_PREFIX.chat, createSeededIds(FIXTURE_ID_CURSOR).next),
   roomName: "The quiet observatory",
   hostHandle: "guide",
   memberCount: 2,
@@ -37,7 +38,7 @@ export const PENDING_ROOM = signedOutInvitePreviewSchema.parse({
 });
 
 export const JOIN_PERSONA = joinerPersonaSchema.parse({ name: "Mira", description: "Watching the stars." });
-export const JOINED_RESPONSE = pendingJoinConfirmResultSchema.parse({ signedIn: true, chatId: PENDING_ROOM.chatId });
-export const APPROVAL_RESPONSE = pendingJoinConfirmResultSchema.parse({ signedIn: false, chatId: PENDING_ROOM.chatId });
+export const JOINED_RESPONSE = pendingJoinConfirmResultSchema.parse({ signedIn: true, chatId: PENDING_CHAT_ID });
+export const APPROVAL_RESPONSE = pendingJoinConfirmResultSchema.parse({ signedIn: false, chatId: PENDING_CHAT_ID });
 export const UNAVAILABLE_RESPONSE = authErrorResponseSchema.parse({ error: JOIN_UNAVAILABLE_CODE });
 export const REFUSED_RESPONSE = authErrorResponseSchema.parse({ error: ACCOUNT_EXISTS_CODE });

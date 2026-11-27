@@ -63,7 +63,6 @@ export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsV
     reasoningRate: reasoningRate(row.reasoningGenerations, row.assistantTurns + row.swipes),
     firstChatAt: row.firstChatAt,
     lastActivityAt: row.lastActivityAt,
-    computedAt: row.computedAt,
     ...deriveExtra({ ...row, totalGenTimeMs: row.genTimeMs }),
   };
 }
@@ -102,7 +101,6 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
     reasoningRate: reasoningRate(c.reasoningGenerations, c.assistantTurns + c.swipes),
     firstChatAt: c.firstChatAt,
     lastActivityAt: c.lastActivityAt,
-    computedAt: c.computedAt,
     // character_stats carries no cache columns (owner+model grain only) → 0.
     ...deriveExtra({
       reasoningMs: c.reasoningMs,

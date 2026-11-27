@@ -111,8 +111,8 @@ test("native surface suppliers preserve app override provenance, global settings
   if (firstGallery === undefined || secondGallery === undefined) {
     throw new Error("native surface capture omitted a curated gallery item");
   }
-  expect(firstGallery).toMatchObject({ assetId: settings.background.assetId, hash: settings.background.assetHash, subjectCharacterId: first.id });
-  expect(secondGallery).toMatchObject({ assetId: assets.stored.assetId, hash: assets.stored.hash, subjectCharacterId: first.id });
+  expect(firstGallery).toMatchObject({ hash: settings.background.assetHash });
+  expect(secondGallery).toMatchObject({ hash: assets.stored.hash });
   expect(assets.repeated).toEqual(firstGallery);
   expect(assets.oldest).toEqual([firstGallery]);
   expect(assets.newest).toEqual([secondGallery]);

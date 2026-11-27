@@ -286,8 +286,8 @@ export {
   SMART_UTILITY_SWITCH_LABEL,
   storedGroupConfigSchema,
 } from "./metadata.ts";
-export type { NextTurnConnectionView, RoomSendAvailability, RoomUnavailableCause } from "./next-turn-connection.ts";
-export { nextTurnConnectionViewSchema, roomSendAvailabilitySchema } from "./next-turn-connection.ts";
+export type { RoomSendAvailability, RoomUnavailableCause } from "./next-turn-connection.ts";
+export { roomSendAvailabilitySchema } from "./next-turn-connection.ts";
 export type {
   CallerInChatOp,
   ChatLivePublish,
@@ -479,7 +479,6 @@ export type {
   ClaimChatOp,
   ForkGameArgs,
   ForkGameOp,
-  ForkGameResult,
   GameBirthCommittedOp,
   GatherTurnContextArgs,
   GatherTurnContextOp,

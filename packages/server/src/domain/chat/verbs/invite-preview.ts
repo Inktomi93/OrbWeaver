@@ -43,7 +43,6 @@ export function createInvitePreview(ctx: Pick<ChatContext, "db">, deps: { readon
       throw new Error(`previewInvite: chat ${chatId} has no host participant`);
     }
     return {
-      chatId,
       roomName: chat.title ?? "",
       hostHandle: host.handle,
       memberCount: await countPresentMembers(ctx.db, chatId),

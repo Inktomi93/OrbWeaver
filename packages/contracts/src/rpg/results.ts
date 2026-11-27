@@ -50,21 +50,16 @@ export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { 
  *      arm is an INFO line (a round that honestly found nothing is not an error). */
 export type PopulateResult = { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
 
-/** THE PROMOTE VERDICT (`promoteActor`) — the HAND-DOOR grammar widened by ONE field: the mint clamps
- *  an over-length model-authored identity `name` to the card wire's `CARD_FACE_LIMITS.nameMax`
- *  (`clampActorCardName`, `contracts/rpg/actor.ts`) rather than refusing the promotion, and `issues` is how the
- *  host learns it happened — a `HandDoorResult`-style `{ok:true}` with a silently shortened name would read as
- *  a clean promotion of a name the story never wrote. Empty `issues` is the clean mint (the ordinary case). */
-export type PromoteActorResult = { readonly ok: true; readonly issues: readonly string[] } | { readonly ok: false; readonly reason: string };
+/** THE PROMOTE VERDICT (`promoteActor`) — the hand-door grammar: the mint clamps an over-length model-authored
+ *  identity `name` to the card wire's `CARD_FACE_LIMITS.nameMax` (`clampActorCardName`, `contracts/rpg/actor.ts`)
+ *  rather than refusing the promotion. */
+export type PromoteActorResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
-/** `rollDice`'s baked outcome — rolled ONCE server-side (CSPRNG), the total + the per-die faces + the
- *  composer stamp text the client inserts (`[dice: …]`). Zero state; seed-replay is rejected upstream. */
+/** `rollDice`'s baked outcome — rolled ONCE server-side (CSPRNG), the per-die faces + the composer stamp text
+ *  (notation, modifier and total) the client inserts (`[dice: …]`). Zero state; seed-replay is rejected upstream. */
 
 export interface RollDiceResult {
-  readonly notation: string;
   readonly rolls: readonly number[];
-  readonly modifier: number;
-  readonly total: number;
   readonly stamp: string;
 }
 
@@ -85,13 +80,10 @@ export const populateResultSchema = z.discriminatedUnion("ok", [
   handDoorRefusalSchema,
 ]) satisfies z.ZodType<PopulateResult>;
 export const promoteActorResultSchema = z.discriminatedUnion("ok", [
-  z.strictObject({ ok: z.literal(true), issues: z.array(z.string()).readonly() }),
+  z.strictObject({ ok: z.literal(true) }),
   handDoorRefusalSchema,
 ]) satisfies z.ZodType<PromoteActorResult>;
 export const rollDiceResultSchema = z.strictObject({
-  notation: z.string(),
   rolls: z.array(z.number()).readonly(),
-  modifier: z.number(),
-  total: z.number(),
   stamp: z.string(),
 }) satisfies z.ZodType<RollDiceResult>;

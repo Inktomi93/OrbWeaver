@@ -225,12 +225,8 @@ export interface WriteHubScoresParams {
   readonly updates: readonly HubScoreUpdate[];
 }
 
-export interface WriteHubScoresResult {
-  readonly rowsUpdated: number;
-}
-
 /** The discovery → embeddings seam: takes pre-computed scores. */
-export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
+export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<void>;
 
 // ── The `index` workload's terminal result: a workload's result shape is domain↔domain wire, authored by
 //    the OWNING domain — embeddings owns the ONE vector write path. ──

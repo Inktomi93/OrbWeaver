@@ -47,14 +47,13 @@ test("source windows distinguish unavailable endpoints from a resolved empty pag
     anchorMessageId: null,
     anchorSeq: null,
     endSeq: null,
-    endMessageId: null,
     messages: [],
     identities: [],
     hasBefore: false,
     hasAfter: false,
   };
   expect(messageWindowSchema.parse(empty)).toEqual(empty);
-  const resolved = { ...empty, outcome: "resolved", anchorMessageId: id, anchorSeq: 1, endSeq: 1, endMessageId: id };
+  const resolved = { ...empty, outcome: "resolved", anchorMessageId: id, anchorSeq: 1, endSeq: 1 };
   expect(messageWindowSchema.parse(resolved)).toEqual(resolved);
   expect(messageWindowSchema.safeParse({ ...empty, outcome: "resolved" }).success).toBe(false);
   expect(messageWindowSchema.safeParse({ ...resolved, outcome: "unavailable" }).success).toBe(false);

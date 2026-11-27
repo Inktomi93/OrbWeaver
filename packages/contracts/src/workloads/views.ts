@@ -306,11 +306,6 @@ export type WorkloadScheduleView = z.output<typeof workloadScheduleViewSchema>;
  *  Absent when the run may start; a schedule whose params no longer parse is judged by the tick, not here. */
 export const workloadScheduleListItemSchema = workloadScheduleViewSchema.extend({ refusal: z.enum(WORKLOAD_RUN_ACCOUNT_REFUSAL_CODES).optional() });
 
-/** `workloads.list`: the caller's run history. The limit is the ceiling at the trust boundary, never an unbounded fetch. */
-export const workloadListInputSchema = z
-  .strictObject({
-    kind: workloadKindSchema.optional(),
-    limit: z.int().min(1).max(WORKLOAD_LIST_MAX_LIMIT).optional(),
-  })
-  .optional();
+/** `workloads.list`: the caller's run history, capped at {@link WORKLOAD_LIST_MAX_LIMIT} by the read. */
+export const workloadListInputSchema = z.strictObject({ kind: workloadKindSchema.optional() }).optional();
 export const workloadScheduleListInputSchema = z.strictObject({ kind: workloadKindSchema.optional() }).optional();

@@ -21,7 +21,6 @@ interface EmptyStatePropsBase {
   /** Trailing action slot — typically an `@orb/ui/button` `<Button>`, which wraps its label here at enlarged text. Required so no empty state strands the user
    *  by omission (D62 rule 1); `null` states that this surface genuinely has no next step, with the reason beside it. */
   action: ReactNode;
-  className?: string;
 }
 
 export type EmptyStateProps = EmptyStatePropsBase &
@@ -41,17 +40,7 @@ export type EmptyStateProps = EmptyStatePropsBase &
 /** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's.
  *  The VOICE scales itself to the surface it lands in (a container query on the root — see variants.ts):
  *  CONTENT-tier by default, one type step down inside a narrow LIST pane. No prop, nothing to remember. */
-export function EmptyState({
-  decoration,
-  icon,
-  title,
-  titleAs = "p",
-  measure = "default",
-  description,
-  action,
-  className,
-  push,
-}: EmptyStateProps): ReactElement {
+export function EmptyState({ decoration, icon, title, titleAs = "p", measure = "default", description, action, push }: EmptyStateProps): ReactElement {
   const slots = emptyStateVariants({ measure, push });
   let head: ReactElement | null = null;
   if (decoration !== undefined) {
@@ -69,7 +58,7 @@ export function EmptyState({
   }
   return (
     // The design audit reads `data-empty-action="none"` as the authored "no next step here" answer, apart from a slot that renders dead.
-    <div className={slots.root({ className })} data-empty-action={action === null ? "none" : undefined} data-slot="empty-state-root">
+    <div className={slots.root()} data-empty-action={action === null ? "none" : undefined} data-slot="empty-state-root">
       {head}
       {/* Two spellings of ONE title, never a dynamic tag: the element is a11y STRUCTURE (see `titleAs`), and
           a computed `as` would let a caller mint any tag it liked. */}

@@ -139,8 +139,8 @@ test("P3 deception: a planted lie is host-revealed (eye + standing-lie inventory
     const truthField = lieSpan?.fields.find((f) => f.key === "truth");
     expect(truthField?.value).toBe("he is the smuggler the guards seek");
     // The standing-lie inventory groups it under the lying character.
-    const thornwickLies = reveal.standingLies.find((g) => g.character === "Thornwick");
-    expect(thornwickLies?.lies.some((l) => l.truth === "he is the smuggler the guards seek")).toBe(true);
+    const thornwickLies = reveal.standingLies.flatMap((g) => g.lies).filter((l) => l.character === "Thornwick");
+    expect(thornwickLies.some((l) => l.truth === "he is the smuggler the guards seek")).toBe(true);
 
     // ── FE: the Status tab's Veiled ledger (rpg-veiled-section, wired to rpg.revealHidden, host-only) renders
     // the same server-truth — the host CAN see the deception on the panel. The truth string is the comparand. ──

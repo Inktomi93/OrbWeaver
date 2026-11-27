@@ -137,7 +137,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
     const ctx: ExtractCtx = {
       conn,
       chatId,
-      systemPrompt: `${resolveProseText("rpg.populate.systemHeader", prose)}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs, prose })}`,
+      systemPrompt: `${resolveProseText("rpg.populate.systemHeader", prose)}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), prose })}`,
       userPrompt: populateUserPrompt(corpus, targetRef, prose),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
       signal,

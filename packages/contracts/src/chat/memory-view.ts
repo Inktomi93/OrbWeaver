@@ -75,7 +75,6 @@ export interface MemoryItemView {
  *  It suppresses nothing and stays listed until the host restores it; `strikeId` is null as on an item. */
 export interface UnmatchedStrikeView {
   readonly strikeId: ChatMemoryStrikeId | null;
-  readonly tier: number;
   readonly scopedCharacterId: CharacterId | null;
   readonly topicAnchor: string | null;
 }
@@ -122,7 +121,6 @@ export const memoryViewSchema = z.strictObject({
     .array(
       z.strictObject({
         strikeId: strikeIdSchema.nullable(),
-        tier: z.int().min(0),
         scopedCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
         topicAnchor: z.string().nullable(),
       }),

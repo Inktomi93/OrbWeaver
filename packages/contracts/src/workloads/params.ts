@@ -25,10 +25,7 @@ import { indexSourceSchema, OPERATOR_TREE_WORKLOAD_KIND, ROUTE_STARTED_WORKLOAD_
 
 const noParams = z.object({}).strip();
 
-/** The `workloads.list` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
- *  precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded run-history fetch. The same 500 the
- *  persistence hard cap (`persistence/queries.ts` `Math.min`, the internal-caller backstop) references, homed
- *  HERE so the wire ceiling and the backstop never drift. */
+/** The `workloads.list` row cap: the read never returns an unbounded run history. */
 export const WORKLOAD_LIST_MAX_LIMIT = 500;
 
 // The params of a kind with no tunables (`{}`) — the shared type for every tunable-less kind.

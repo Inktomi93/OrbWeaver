@@ -12,13 +12,11 @@ export function createCreateBook(ctx: WorldInfoContext): WorldInfoService["creat
     const ownerId = principal.userId;
     const at = ctx.now();
     const bookId = ctx.newBookId();
-    const description = input.description ?? null;
 
     await ctx.db.insert(worldBooks).values({
       id: bookId,
       ownerId,
       name: input.name,
-      description,
       createdAt: at,
       updatedAt: at,
     });
@@ -35,6 +33,6 @@ export function createCreateBook(ctx: WorldInfoContext): WorldInfoService["creat
     );
 
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
-    return { id: bookId, name: input.name, description };
+    return { id: bookId, name: input.name, description: null };
   };
 }

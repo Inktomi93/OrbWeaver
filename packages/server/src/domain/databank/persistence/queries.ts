@@ -187,7 +187,6 @@ const assertNeverPhase = (value: never): never => {
 function ownedDocumentScope(ownerId: UserId, filter: DocumentListFilter): SQL | undefined {
   return and(
     eq(documents.ownerId, ownerId),
-    filter.origin === undefined ? undefined : eq(documents.origin, filter.origin),
     filter.search === undefined ? undefined : searchPredicate(filter.search),
     filter.phase === undefined ? undefined : phasePredicate(filter.phase),
   );

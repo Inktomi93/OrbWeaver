@@ -8,7 +8,7 @@ import {
   pluginSurfaceStateSchema,
   pluginSurfaceViewSchema,
 } from "@orb/contracts/plugin";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import { PLUGIN_FANOUT_SKIP_REASONS } from "#contracts/plugin/view.ts";
@@ -31,7 +31,7 @@ test("public plugin registration parsers retain native metadata refinements and 
   expect(pluginSurfaceStateSchema.safeParse([state]).success).toBe(false);
 });
 
-test("public log and distribution outputs preserve their closed vocabularies without admitting private install state", ({ ids, clock }) => {
+test("public log and distribution outputs preserve their closed vocabularies without admitting private install state", ({ clock }) => {
   for (const level of PLUGIN_LOG_LEVELS) {
     const line = { level, message: "Native ledger", at: clock.now() };
     expect(pluginLogViewSchema.parse(line)).toEqual(line);
@@ -40,14 +40,13 @@ test("public log and distribution outputs preserve their closed vocabularies wit
   const published = { slug: "ledger", name: "Ledger", version: "1.0.0", distributedAt: clock.now(), updatedAt: clock.now() };
   expect(distributedPluginViewSchema.parse(published)).toEqual(published);
   expect(distributedPluginViewSchema.safeParse({ ...published, grantedCapabilities: [] }).success).toBe(false);
-  const userId = brandedId("UserId").parse(ids.uuid());
   for (const reason of PLUGIN_FANOUT_SKIP_REASONS) {
     const result = {
       slug: published.slug,
       name: published.name,
       version: published.version,
       applied: 0,
-      skipped: [{ userId, userHandle: "recipient", reason }],
+      skipped: [{ userHandle: "recipient", reason }],
     };
     expect(pluginFanoutResultSchema.parse(JSON.parse(JSON.stringify(result)))).toEqual(result);
     expect(pluginFanoutResultSchema.safeParse({ ...result, skipped: [{ ...result.skipped[0], reason: "force-enabled" }] }).success).toBe(false);

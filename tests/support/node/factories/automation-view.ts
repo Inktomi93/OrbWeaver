@@ -36,7 +36,6 @@ export function makeRuleView(overrides: Partial<RuleViewWire> = {}): RuleViewWir
       lastError: null,
       lastFiredAt: null,
       createdAt: FROZEN_AT_MS,
-      updatedAt: FROZEN_AT_MS,
     }),
     ...overrides,
   };

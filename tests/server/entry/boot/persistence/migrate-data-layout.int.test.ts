@@ -27,6 +27,9 @@ import {
 
 type DataLayoutMigrationReport = Awaited<ReturnType<typeof migrateDataLayout>>;
 type DataLayout = Parameters<typeof migrateDataLayout>[0]["layout"];
+
+const dbDirOf = (layout: DataLayout): string => join(layout.root, DATA_LAYOUT_DIRS.db);
+const cacheDirOf = (layout: DataLayout): string => join(layout.root, DATA_LAYOUT_DIRS.cache);
 type EnvInput = Parameters<typeof createTestEnv>[0];
 
 // What the child migration wrote: the fields this file reads, parsed at the process boundary. A warning keeps only
@@ -167,7 +170,7 @@ const rootListing = (root: string): readonly string[] => readdirSync(root).sort(
 test("a fresh install gets the container dirs and no move", async ({ importStagingDir }) => {
   const layout = layoutFor(freshRoot(importStagingDir));
   expect(await migrate(layout)).toEqual({ moved: [], leftInPlace: [], resumed: false });
-  for (const dir of [layout.dbDir, layout.backups, layout.secrets, layout.cache, layout.reports]) {
+  for (const dir of [dbDirOf(layout), layout.backups, layout.secrets, cacheDirOf(layout), layout.reports]) {
     expect(statSync(dir).isDirectory(), dir).toBe(true);
   }
 });
@@ -196,8 +199,8 @@ test("a legacy tree moves every named entry byte for byte, snapshots the db firs
     expect(readFileSync(join(root, targetOf(name), MARKER), "utf8"), name).toBe(`legacy ${name}`);
   }
   // The db moved as one file, carrying the row that existed only in the WAL; nothing is left beside it.
-  expect(readdirSync(layout.dbDir)).toEqual([DB_FILE_NAME]);
-  expect(await probeValues(join(layout.dbDir, DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+  expect(readdirSync(dbDirOf(layout))).toEqual([DB_FILE_NAME]);
+  expect(await probeValues(join(dbDirOf(layout), DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
   // The legacy backups and pin moved, and the pre-move snapshot joined them as a complete copy.
   const backups = listBackupFiles(layout.backups, DB_FILE_NAME);
   for (const name of LEGACY_BACKUPS) {
@@ -210,7 +213,7 @@ test("a legacy tree moves every named entry byte for byte, snapshots the db firs
   expect(readFileSync(join(layout.assets, MARKER), "utf8")).toBe("assets stay");
   // Nothing but the owned tree and the operator's file remains, so no journal is left either.
   expect(rootListing(root)).toEqual(
-    [layout.dbDir, layout.backups, layout.assets, layout.users, layout.secrets, layout.reports, layout.cache]
+    [dbDirOf(layout), layout.backups, layout.assets, layout.users, layout.secrets, layout.reports, cacheDirOf(layout)]
       .map((path) => path.slice(root.length + 1))
       .concat(OPERATOR_FILE)
       .filter((name) => existsSync(join(root, name)))
@@ -257,30 +260,30 @@ test("a legacy path whose target holds data refuses before any move, and moves o
   const root = freshRoot(importStagingDir);
   await plantLegacyTree(root, importStagingDir);
   const layout = layoutFor(root);
-  mkdirSync(layout.dbDir);
-  writeFileSync(join(layout.dbDir, DB_FILE_NAME), "a newer db");
+  mkdirSync(dbDirOf(layout));
+  writeFileSync(join(dbDirOf(layout), DB_FILE_NAME), "a newer db");
   const before = rootListing(root);
 
   await expectRefusal(migrate(layout), "target-holds-data");
 
   expect(rootListing(root)).toEqual(before);
-  expect(readFileSync(join(layout.dbDir, DB_FILE_NAME), "utf8")).toBe("a newer db");
+  expect(readFileSync(join(dbDirOf(layout), DB_FILE_NAME), "utf8")).toBe("a newer db");
   expect(existsSync(layout.secrets)).toBe(false);
 
   // Control: the same tree with the target emptied moves, so the refusal was the target's data.
-  writeFileSync(join(layout.dbDir, DB_FILE_NAME), "");
+  writeFileSync(join(dbDirOf(layout), DB_FILE_NAME), "");
   expect(movedFrom(await migrate(layout))).toContain(DB_FILE_NAME);
 });
 
 test("a zero-byte legacy db at the root is not data: it is ignored, never deleted and never a conflict", async ({ importStagingDir }) => {
   const root = freshRoot(importStagingDir);
   const layout = layoutFor(root);
-  mkdirSync(layout.dbDir, { recursive: true });
-  writeFileSync(join(layout.dbDir, DB_FILE_NAME), "the real db");
+  mkdirSync(dbDirOf(layout), { recursive: true });
+  writeFileSync(join(dbDirOf(layout), DB_FILE_NAME), "the real db");
   writeFileSync(join(root, DB_FILE_NAME), "");
 
   expect((await migrate(layout)).moved).toEqual([]);
-  expect(readFileSync(join(layout.dbDir, DB_FILE_NAME), "utf8")).toBe("the real db");
+  expect(readFileSync(join(dbDirOf(layout), DB_FILE_NAME), "utf8")).toBe("the real db");
   expect(statSync(join(root, DB_FILE_NAME)).size).toBe(0);
 });
 
@@ -307,7 +310,7 @@ test("a target container linked onto another filesystem refuses before any write
   const layout = layoutFor(root);
   const elsewhere = mkdtempSync(join(importStagingDir, "elsewhere-"));
   const elsewhereReal = realpathSync(elsewhere);
-  symlinkSync(elsewhere, layout.cache);
+  symlinkSync(elsewhere, cacheDirOf(layout));
 
   await expectRefusal(migrate(layout, { deviceOf: (path) => (path.startsWith(elsewhereReal) ? 2 : 1) }), "cross-filesystem");
 
@@ -387,7 +390,7 @@ test("a boot that crashed mid-move resumes on the next: applied entries are acce
   expect(report.resumed).toBe(true);
   expect(movedFrom(report)).toEqual([...ENTRY_NAMES, ...LEGACY_BACKUPS].sort());
   expect(readFileSync(join(root, targetOf(FAILING), MARKER), "utf8")).toBe(`legacy ${FAILING}`);
-  expect(await probeValues(join(layout.dbDir, DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+  expect(await probeValues(join(dbDirOf(layout), DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
   expect((await migrate(layout)).resumed).toBe(false);
 });
 
@@ -418,15 +421,15 @@ test("a journal recorded under this process's own pid resumes with the default l
 test("a resume refuses when a pending entry's source and target both hold data, keeping the journal for the operator", async ({ importStagingDir }) => {
   const root = freshRoot(importStagingDir);
   const layout = await crashedBoot(root, importStagingDir, { pid: CRASHED_PID });
-  mkdirSync(layout.dbDir, { recursive: true });
-  writeFileSync(join(layout.dbDir, DB_FILE_NAME), "a different db");
+  mkdirSync(dbDirOf(layout), { recursive: true });
+  writeFileSync(join(dbDirOf(layout), DB_FILE_NAME), "a different db");
 
   await expectRefusal(migrate(layout, { isPidAlive: () => false }), "journal-state");
   expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
-  expect(readFileSync(join(layout.dbDir, DB_FILE_NAME), "utf8")).toBe("a different db");
+  expect(readFileSync(join(dbDirOf(layout), DB_FILE_NAME), "utf8")).toBe("a different db");
 
   // The journal survived the refusal: once the target is cleared the same boot resumes.
-  writeFileSync(join(layout.dbDir, DB_FILE_NAME), "");
+  writeFileSync(join(dbDirOf(layout), DB_FILE_NAME), "");
   expect((await migrate(layout, { isPidAlive: () => false })).resumed).toBe(true);
 });
 
@@ -470,7 +473,7 @@ forEachNonEmpty(
       expect(movedFrom(report)).toContain(DB_FILE_NAME);
       expect(report.leftInPlace).toEqual([name, OPERATOR_FILE].sort());
       expect(readFileSync(join(root, name, MARKER), "utf8")).toBe(`legacy ${name}`);
-      expect(await probeValues(join(remedied.dbDir, DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+      expect(await probeValues(join(dbDirOf(remedied), DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
       // The remedy kept, a further boot is a no-op.
       expect((await migrate(remedied, { rename })).moved).toEqual([]);
     });
@@ -511,7 +514,7 @@ test(
     const released = await run("released");
     expect(released.error).toBeUndefined();
     expect(released.report?.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
-    expect(await probeValues(join(layout.dbDir, DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+    expect(await probeValues(join(dbDirOf(layout), DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
   },
   HOLDER_TEST_TIMEOUT_MS,
 );

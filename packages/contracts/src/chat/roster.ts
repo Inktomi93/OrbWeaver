@@ -411,7 +411,6 @@ export interface ParticipantView {
   activePersonaId: PersonaId | null;
   talkativeness: number;
   disabled: boolean;
-  joinedAt: number;
   // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single
   // authority — the server returns seats already ordered by it, so a client read would be a second clamp
   // authority.
@@ -471,7 +470,6 @@ export const participantViewSchema = z.strictObject({
   activePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   talkativeness: z.number(),
   disabled: z.boolean(),
-  joinedAt: z.number(),
   joinSeq: z.number(),
   leftSeq: z.number().nullable(),
   joinHistoryVisibility: joinHistoryVisibilitySchema,
@@ -615,9 +613,8 @@ export interface MemberCardView {
   visibility: MemberCardVisibility;
   // ── name-avatar floor (always present) ───────────────────────────────────
   name: string;
-  avatarAssetId: AssetId | null;
-  /** The CAS hash of `avatarAssetId` — see {@link ParticipantView.avatarHash}. Same always-present floor
-   *  as `avatarAssetId` (never clamped by `visibility`). */
+  /** The CAS hash of the card's avatar — see {@link ParticipantView.avatarHash}. Same always-present floor
+   *  as `name` (never clamped by `visibility`). */
   avatarHash: string | null;
   // ── sheet (>= `sheet`) ───────────────────────────────────────────────────
   description: string | null;
@@ -794,7 +791,6 @@ export const acceptInviteSchema = z.strictObject({
  *  STRICT, and the `invites.previewInvite` output parser: the caller is not a member yet, so any extra key
  *  (a roster, an id list) fails the call instead of reaching them. */
 export const invitePreviewSchema = z.strictObject({
-  chatId: typeIdSchema(ID_PREFIX.chat),
   roomName: z.string(),
   hostHandle: brandedId("Handle"),
   memberCount: z.int().nonnegative(),
@@ -861,7 +857,6 @@ export type PendingJoinErrorCode = (typeof PENDING_JOIN_ERROR_CODES)[number];
  *  peppered `tokenHash` fails the call. */
 export const inviteViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.chatInvite),
-  chatId: typeIdSchema(ID_PREFIX.chat),
   status: inviteStatusSchema,
   maxUses: z.number().nullable(),
   remainingUses: z.number().nullable(),
@@ -891,7 +886,6 @@ export const memberCardViewSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   visibility: memberCardVisibilitySchema,
   name: z.string(),
-  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   avatarHash: z.string().nullable(),
   description: z.string().nullable(),
   personality: z.string().nullable(),

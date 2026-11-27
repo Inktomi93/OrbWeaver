@@ -13,7 +13,7 @@ import { ImageEditUnsupportedError, ImageryNotConfiguredError } from "../contrac
 import type { EditImageParams, EditImageSource } from "../contract/params.ts";
 import type { GeneratedPicture } from "../contract/results.ts";
 import type { ImageryContext, ImageryService, ResolvedGenerateImage } from "../contract/service.ts";
-import { runGeneration, sumCost } from "../persistence/generate-core.ts";
+import { runGeneration } from "../persistence/generate-core.ts";
 import { SIZE_PRESETS } from "../substrate/size.ts";
 
 /** Default fan-out when the caller omits `n` (the wire clamps to 1..4). */
@@ -77,11 +77,6 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
     );
     return {
       images: outcome.images,
-      prompt: p.instruction,
-      promptSource: "user",
-      mode: "free",
-      model: outcome.model,
-      costUsd: sumCost(0, outcome.costUsd),
       reused: false,
       // Any runner edit-strip belt warning that flowed up despite the domain gate (e.g. a dropped mask on a
       // wire with no inpaint channel — doc 03 §2.3).

@@ -145,10 +145,10 @@ test("real distribution leaves each owner disabled and ungranted until their own
   expect(enabled.kv.map((row) => [row.ownerId, row.key, row.value])).toEqual([[other.id, STORAGE_KEY, STORAGE_VALUE]]);
   const repeated = await seedDistributedPluginRows(root, { caller, bundle: bytes });
   expect(repeated.outcome.applied).toBe(0);
-  expect(repeated.outcome.skipped.map((row) => [row.userId, row.reason]).toSorted(([left], [right]) => String(left).localeCompare(String(right)))).toEqual(
+  expect(repeated.outcome.skipped.map((row) => [row.userHandle, row.reason]).toSorted(([left], [right]) => String(left).localeCompare(String(right)))).toEqual(
     [
-      [caller.userId, "already-installed"],
-      [other.id, "already-installed"],
+      [caller.handle, "already-installed"],
+      [other.handle, "already-installed"],
     ].toSorted(([left], [right]) => String(left).localeCompare(String(right))),
   );
   expect(repeated.installs.find(({ plugin }) => plugin.ownerId === other.id)?.plugin.status).toBe("enabled");

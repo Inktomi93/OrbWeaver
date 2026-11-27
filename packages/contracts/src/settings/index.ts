@@ -656,8 +656,6 @@ const onboardingSchema = z
 
 const profileSchema = z
   .object({
-    // A stale or deleted avatar degrades at consumption; a malformed pointer heals to null here.
-    avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional().catch(null),
     // Plugins whose chat panels this user hid, in every room. Element-wise: one stale element costs itself only.
     hiddenChatPluginIds: tolerantArray(typeIdSchema(ID_PREFIX.plugin), []).default([]),
     sidecarChatPluginSurfaces: tolerantArray(z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema }).strip(), []).default([]),
@@ -736,7 +734,6 @@ export const USER_SETTINGS_POINTER_WRITES: Readonly<Partial<Record<UserSettingsS
     summarizePreset: rolePresetChoiceSchema.nullable().optional(),
   }),
   theme: z.looseObject({ selectedThemeId: typeIdSchema(ID_PREFIX.theme).nullable().optional() }),
-  profile: z.looseObject({ avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional() }),
   appearance: z.looseObject({ backgroundAssetId: z.union([typeIdSchema(ID_PREFIX.asset), z.literal("")]).optional() }),
 };
 

@@ -73,7 +73,8 @@ async function lampEntries(room: Room, count: number, content: string): Promise<
   const caller = await room.root.internalCallerFor(room.host.userId);
   const book = await caller.worldInfo.createBook({ input: createBookSchema.parse({ name: "Lamps" }) });
   for (let k = 0; k < count; k += 1) {
-    await caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title: `Lamp ${String(k)}`, content, keys: [LAMP_KEY] }) });
+    const lamp = await caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title: `Lamp ${String(k)}`, content }) });
+    await caller.worldInfo.updateEntry({ entryId: lamp.id, input: { keys: [LAMP_KEY] } });
   }
   await caller.worldInfo.attachToChat({ chatId: room.chatId, bookId: book.id });
 }

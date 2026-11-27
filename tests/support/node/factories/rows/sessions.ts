@@ -36,7 +36,11 @@ export async function seedBffSessionRows(root: ServerProducerRoot, params: Param
   const db = root.db;
   const create = root.app.sessions.create;
   const created = await create(params);
-  const row = await db.select().from(sessions).where(eq(sessions.id, created.sessionId)).get();
+  const validated = await root.app.sessions.validate(created.token);
+  if (validated === null) {
+    throw new Error("production session mint left no session its token validates");
+  }
+  const row = await db.select().from(sessions).where(eq(sessions.id, validated.sessionId)).get();
   if (row === undefined) {
     throw new Error("production session mint left no canonical BFF row");
   }

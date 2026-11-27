@@ -493,10 +493,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     ...characterProjections,
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
-    resolveUserPublics: createResolveUserPublics(
-      { db },
-      { loadUserHandle: (userId) => selectHandleById(db, userId), loadUserSettings: (userId) => input.settings.loadUserSettings(userId) },
-    ),
+    resolveUserPublics: createResolveUserPublics({ db }, { loadUserHandle: (userId) => selectHandleById(db, userId) }),
     loadUserHandles: (userIds) => selectHandlesByIds(db, userIds),
     resolveImageUrl: createResolveMediaRef({
       db,
@@ -592,7 +589,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     delay: (ms) => waitForTimer(ms, timers.timeout, input.backgroundSignal),
     resolveConnection: inferenceOps.resolveConnection,
     checkSendAvailability: inferenceOps.checkSendAvailability,
-    getNextTurnConnection: inferenceOps.getNextTurnConnection,
     resolveForeignInputs: roomInputs.resolveForeignInputs,
     holder: input.holder,
     lockTtlMs: CHAT_LOCK_TTL_MS,

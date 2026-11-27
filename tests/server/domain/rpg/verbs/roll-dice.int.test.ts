@@ -71,12 +71,12 @@ test("a roll at the modifier bound stays finite and draws once per die on the se
     const before = table.draws();
     const direct = await table.root.services.rpg.rollDice({ principal: table.owner, chatId: table.chatId, notation });
     const routed = await table.caller.rpg.rollDice({ chatId: table.chatId, notation });
+    const modifier = notation.endsWith("+1000") ? 1000 : -1000;
     for (const result of [direct, routed]) {
-      expect(Number.isFinite(result.total)).toBe(true);
-      expect(result.total).toBe(result.rolls.reduce((sum, roll) => sum + roll, 0) + result.modifier);
-      expect(result.stamp).toBe(`[dice: ${notation} → ${result.total}]`);
+      const total = result.rolls.reduce((sum, roll) => sum + roll, 0) + modifier;
+      expect(Number.isFinite(total)).toBe(true);
+      expect(result.stamp).toBe(`[dice: ${notation} → ${total}]`);
     }
-    expect(direct.modifier).toBe(notation.endsWith("+1000") ? 1000 : -1000);
     expect(table.draws() - before).toBe(direct.rolls.length + routed.rolls.length);
   }
 });
@@ -102,7 +102,7 @@ test("an ability check still rolls a bare d20 with the sheet's modifier and refu
   });
   const rolled = await table.root.services.rpg.rollDice({ ...params, notation: "d20" });
   const modifier = rpgAttributeModifier(config.statProfile, score);
-  expect(rolled).toMatchObject({ notation: "d20", modifier, total: (rolled.rolls[0] ?? Number.NaN) + modifier });
   expect(rolled.rolls).toHaveLength(1);
-  expect(rolled.stamp).toBe(`[dice: ${ability.label} d20${modifier >= 0 ? "+" : ""}${modifier} → ${rolled.total}]`);
+  const total = (rolled.rolls[0] ?? Number.NaN) + modifier;
+  expect(rolled.stamp).toBe(`[dice: ${ability.label} d20${modifier >= 0 ? "+" : ""}${modifier} → ${total}]`);
 });

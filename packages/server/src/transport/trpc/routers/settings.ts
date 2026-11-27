@@ -110,14 +110,8 @@ export const settingsRouter = t.router({
 
   duplicateTheme: authedProcedure
     .output(strictTwin(themeViewSchema))
-    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme), name: z.string().trim().min(1).optional() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.settings.duplicateTheme({
-        principal: ctx.auth,
-        id: input.id,
-        ...(input.name === undefined ? {} : { name: input.name }),
-      }),
-    ),
+    .input(z.strictObject({ id: typeIdSchema(ID_PREFIX.theme) }))
+    .mutation(({ ctx, input }) => ctx.services.settings.duplicateTheme({ principal: ctx.auth, id: input.id })),
 
   updateTheme: authedProcedure
     .output(strictTwin(themeViewSchema))

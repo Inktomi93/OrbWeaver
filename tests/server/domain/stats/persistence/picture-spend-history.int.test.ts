@@ -71,7 +71,6 @@ test("a captioned picture and a preview keep their spend and image averages thro
     subjectCharacterId: room.character.id,
     gallery: { subjectCharacterId: room.character.id },
   });
-  expect(picture.promptSource).toBe("captioned");
 
   const live = await shown(root, room.host);
   expect(live.overview?.costUsd).toBeCloseTo(2 * PROMPT_CALL_USD, 12);

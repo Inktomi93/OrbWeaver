@@ -563,7 +563,6 @@ export interface OwnerStatsView extends ExtraStats {
   reasoningRate: number;
   firstChatAt: number | null;
   lastActivityAt: number | null;
-  computedAt: number;
 }
 
 export interface CharacterStatsView extends OwnerStatsView {
@@ -694,7 +693,6 @@ export const ownerStatsViewSchema = extraStatsSchema.extend({
   reasoningRate: z.number(),
   firstChatAt: z.number().nullable(),
   lastActivityAt: z.number().nullable(),
-  computedAt: z.number(),
 }) satisfies z.ZodType<OwnerStatsView>;
 
 export const characterStatsViewSchema = ownerStatsViewSchema.extend({

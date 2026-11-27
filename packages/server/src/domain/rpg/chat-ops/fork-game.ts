@@ -78,7 +78,7 @@
 // showed the same human.
 // A `readsHidden` forker (the source host) copies verbatim — they already read every secret.
 
-import type { ForkGameArgs, ForkGameResult } from "@orb/contracts/chat";
+import type { ForkGameArgs } from "@orb/contracts/chat";
 import type { RpgGameConfig, RpgGameFeatures } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -404,14 +404,14 @@ function forkCheckpointValues(cc: CloneCtx, c: RpgCheckpointRow, newSnapshotId: 
   );
 }
 
-/** Clone the source chat's game onto the fork (§3.2). No-op (`cloned:false`) for a non-game source: the fork
+/** Clone the source chat's game onto the fork (§3.2). No-op for a non-game source: the fork
  *  stays a valid plain chat, no pointer (the stopgap already dropped the copied pointer). Otherwise: one atomic
  *  `db.batch` re-keys every rpg row through the fork's id maps, THEN the pointer write (LAST). */
-export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<ForkGameResult> {
+export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<void> {
   const { sourceChatId, newChatId, slotIdMap, variantIdMap, forker } = args;
   const source = await findGameByChat(ctx.db, sourceChatId);
   if (source === undefined) {
-    return { cloned: false }; // a non-game source — the fork stays plain (the correct steady state).
+    return; // a non-game source — the fork stays plain (the correct steady state).
   }
 
   const newGameId = ctx.ids.game();
@@ -480,7 +480,6 @@ export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<For
   // DISENGAGED game is born disengaged (panel hidden, turn assembly clean) — the fork inherits the source's
   // front-door state, never silently re-engaging a game the source turned off.
   await ctx.setPointer(newChatId, { gameId: newGameId, engaged: config.engaged });
-  return { cloned: true };
 }
 
 /** The gmPresetId carry gate (§3.2 security core). A null source preset carries null. A non-null preset carries

@@ -234,31 +234,23 @@ export async function seedDemoContent(deps: SeedDemoDeps): Promise<SeedDemoResul
     log(`group chat created: ${GROUP_CHAT_TITLE} (+${SECOND_HUMAN_HANDLE} joined)`);
 
     // A world book with entries, attached to the group chat.
-    const book = await services.worldInfo.createBook({ principal: owner, input: { name: WORLD_BOOK_NAME, description: "Lore for the demo group chat." } });
+    const created = await services.worldInfo.createBook({ principal: owner, input: { name: WORLD_BOOK_NAME } });
+    const book = await services.worldInfo.updateBook({ principal: owner, bookId: created.id, input: { description: "Lore for the demo group chat." } });
     worldBook = book;
+    const loom = await services.worldInfo.createEntry({
+      principal: owner,
+      bookId: book.id,
+      input: { title: "The Loom", content: "The great orbital engine binding the habitats into one turning wheel." },
+    });
     seededWorldEntries.push(
-      await services.worldInfo.createEntry({
-        principal: owner,
-        bookId: book.id,
-        input: {
-          title: "The Loom",
-          content: "The great orbital engine binding the habitats into one turning wheel.",
-          keys: ["loom", "wheel"],
-          priority: LOOM_ENTRY_PRIORITY,
-        },
-      }),
+      await services.worldInfo.updateEntry({ principal: owner, entryId: loom.id, input: { keys: ["loom", "wheel"], priority: LOOM_ENTRY_PRIORITY } }),
     );
-    seededWorldEntries.push(
-      await services.worldInfo.createEntry({
-        principal: owner,
-        bookId: book.id,
-        input: {
-          title: "The Weavers",
-          content: "Keepers who re-splice frayed threads by hand, singing the counting songs.",
-          keys: ["weaver", "weavers", "splice"],
-        },
-      }),
-    );
+    const weavers = await services.worldInfo.createEntry({
+      principal: owner,
+      bookId: book.id,
+      input: { title: "The Weavers", content: "Keepers who re-splice frayed threads by hand, singing the counting songs." },
+    });
+    seededWorldEntries.push(await services.worldInfo.updateEntry({ principal: owner, entryId: weavers.id, input: { keys: ["weaver", "weavers", "splice"] } }));
     await services.worldInfo.attachToChat({ principal: owner, chatId: group.chat.id, bookId: book.id });
     log(`world book created + attached: ${WORLD_BOOK_NAME}`);
 

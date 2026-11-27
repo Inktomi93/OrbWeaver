@@ -2,7 +2,7 @@
 import { expect, test } from "../fixtures.ts";
 import { makeGenerationProvenance } from "./imagery-view.ts";
 
-test("provenance snapshots keep unknown usage distinct from recorded zero without changing linked image identities", () => {
+test("provenance snapshots keep unknown usage distinct from recorded zero", () => {
   const unknown = makeGenerationProvenance();
   const zero = makeGenerationProvenance({
     ...unknown,
@@ -10,8 +10,6 @@ test("provenance snapshots keep unknown usage distinct from recorded zero withou
     usage: { ...unknown.usage, tokensIn: 0, tokensOut: 0, cacheReadTokens: 0, costProvenance: "measured" },
     edited: true,
   });
-  expect(zero.assetId).toBe(unknown.assetId);
-  expect(zero.generationId).toBe(unknown.generationId);
   expect(zero.costUsd).toBe(0);
   expect(zero.usage.tokensIn).toBe(0);
   expect(zero.usage.cacheReadTokens).toBe(0);

@@ -186,7 +186,6 @@ export interface AssetListItem {
   /** Every kind the asset is used as, in the order of `ASSET_KINDS`. */
   readonly kinds: readonly AssetKind[];
   readonly mime: string;
-  readonly size: number;
   readonly uploadedAt: number;
   readonly animated: boolean;
 }
@@ -196,7 +195,6 @@ export const assetListItemSchema = z.strictObject({
   hash: z.string(),
   kinds: z.array(assetKindSchema).readonly(),
   mime: z.string(),
-  size: z.number(),
   uploadedAt: z.number(),
   animated: z.boolean(),
 }) satisfies z.ZodType<AssetListItem>;
@@ -260,19 +258,15 @@ export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
  */
 export interface GalleryItemView {
   readonly galleryItemId: GalleryItemId;
-  readonly assetId: AssetId;
   readonly hash: string;
   readonly animated: boolean;
-  readonly subjectCharacterId: CharacterId | null;
   readonly createdAt: number;
 }
 
 export const galleryItemViewSchema = z.strictObject({
   galleryItemId: galleryItemIdSchema,
-  assetId: assetIdSchema,
   hash: z.string(),
   animated: z.boolean(),
-  subjectCharacterId: characterIdSchema.nullable(),
   createdAt: z.number(),
 }) satisfies z.ZodType<GalleryItemView>;
 
@@ -315,14 +309,23 @@ export const resolveChatBlobRefsParamsSchema = z.strictObject({
 
 // ── The `assets-fsck` workload's terminal result: a workload's result shape is authored by the OWNING domain. ──
 
-/** The read-only integrity walk's three fault counts — the REPORT is the product of the run. */
+/** The read-only integrity walk's three fault counts and what it covered — the REPORT is the product of the run.
+ *  A run stored before the scanned counts existed carries neither. */
 export interface FsckReport {
+  readonly scannedRows?: number;
+  readonly scannedBlobs?: number;
   readonly danglingRows: number;
   readonly corruptBlobs: number;
   readonly orphanBlobs: number;
 }
 
-export const fsckReportSchema = z.strictObject({ danglingRows: z.number(), corruptBlobs: z.number(), orphanBlobs: z.number() }) satisfies z.ZodType<FsckReport>;
+export const fsckReportSchema = z.strictObject({
+  scannedRows: z.number().exactOptional(),
+  scannedBlobs: z.number().exactOptional(),
+  danglingRows: z.number(),
+  corruptBlobs: z.number(),
+  orphanBlobs: z.number(),
+}) satisfies z.ZodType<FsckReport>;
 
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 

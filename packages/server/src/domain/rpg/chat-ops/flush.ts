@@ -256,7 +256,7 @@ async function writeFlush(
     { game, admission: turn.admission },
     {
       flush,
-      turn: { kind: turn.turnConnection.kind, messageId: turn.messageId, variantId: turn.variantId, tailSeqAtBase: turn.tailSeqAtBase },
+      turn: { kind: turn.turnConnection.kind, messageId: turn.messageId, tailSeqAtBase: turn.tailSeqAtBase },
       target: { id: ctx.ids.snapshot(), gameId: game.id, messageId: turn.messageId, variantId: turn.variantId, now: ctx.now() },
       journal,
     },

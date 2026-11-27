@@ -398,8 +398,8 @@ test("a detached native SDK marker settles before the accepted copy and authorit
     expect(await fixture.marker()).toMatchObject({ compactSummary: null });
     fixture.release();
     await accepted;
-    expect((await fixture.marker()).compactSummary).toBe(ENGINE_SDK_MARKER);
-    expect((await fixture.marker()).compactedAtSeq).toBe(await fixture.seqOfRow(coveredRows));
+    expect((await fixture.marker(recipient)).compactSummary).toBe(ENGINE_SDK_MARKER);
+    expect((await fixture.marker(recipient)).compactedAtSeq).toBe(await fixture.seqOfRow(coveredRows));
     expect(await hostSeats(h, recipient)).toMatchObject([{ userId: recipient.userId }]);
     expect(fixture.held.size).toBe(0);
   } finally {

@@ -269,13 +269,15 @@ export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library
   const first = await seedWorldEntryRows(root, {
     principal,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Outer archive", content: "The outer archive preserves the first witness.", keys: ["archive"] }),
+    input: createEntrySchema.parse({ title: "Outer archive", content: "The outer archive preserves the first witness." }),
   });
+  await root.services.worldInfo.updateEntry({ principal, entryId: first.id, input: { keys: ["archive"] } });
   const second = await seedWorldEntryRows(root, {
     principal,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Inner archive", content: "The inner archive preserves the second witness.", keys: ["witness"] }),
+    input: createEntrySchema.parse({ title: "Inner archive", content: "The inner archive preserves the second witness." }),
   });
+  await root.services.worldInfo.updateEntry({ principal, entryId: second.id, input: { keys: ["witness"] } });
   await seedCharacterBookRows(root, { principal, characterId: character.id, bookId: book.id, role: "primary" });
   const ordered = await read<"worldInfo.applyEntryOrder">(
     { bookId: book.id, orderedEntryIds: [second.id, first.id, second.id] },

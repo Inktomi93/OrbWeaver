@@ -36,7 +36,6 @@ export type WorldInfoScope = z.infer<typeof worldInfoScopeSchema>;
 
 export const createBookSchema = z.strictObject({
   name: z.string().min(1).max(WORLD_INFO_NAME_MAX),
-  description: z.string().max(DESCRIPTION_MAX).optional(),
 });
 export type CreateBookInput = z.infer<typeof createBookSchema>;
 
@@ -117,10 +116,6 @@ export const narrowedEntryMetadataSchema = entryMetadataWriteSchema.nullable().t
 export const createEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
   content: z.string().max(CONTENT_MAX),
-  /** Keyword triggers — fires the entry when scope=`keyword`. Each key is matched case-insensitively
-   *  whole-word against the scan-depth window of recent messages. */
-  keys: z.array(z.string().max(KEY_MAX)).max(KEYS_MAX).optional(),
-  priority: z.int().min(PRIORITY_MIN).max(PRIORITY_MAX).optional(),
 });
 export type CreateEntryInput = z.infer<typeof createEntrySchema>;
 

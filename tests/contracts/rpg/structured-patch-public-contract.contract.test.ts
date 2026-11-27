@@ -293,7 +293,6 @@ test.for([
     for (const limitsFrom of WIRE_SCHEMA_MODES) {
       const checked = checkWireSchema([patch], mode, { ...effectiveStructuredLimits(limitsFrom, undefined), ...zero });
       expect(checked.violations, `${mode} under ${limitsFrom}`).toEqual([]);
-      expect(checked.fits).toBe(true);
     }
   }
 });
@@ -307,7 +306,7 @@ test("zero property budgets distinguish an all-required scalar from an optional 
   expect(countWireSchemas([scalar], { mode, limits: zero, strictTools: 0 })).toEqual([]);
   expect(countWireSchemas([optional], { mode, limits: zero, strictTools: 0 })).toEqual([{ kind: "optional-props", mode, count: 1, limit: 0 }]);
   expect(countWireSchemas([union], { mode, limits: zero, strictTools: 0 })).toEqual([{ kind: "union-props", mode, count: 1, limit: 0 }]);
-  expect(checkWireSchema([scalar], mode, zero).fits).toBe(true);
+  expect(checkWireSchema([scalar], mode, zero).violations).toEqual([]);
   expect(checkWireSchema([optional], mode, zero).violations).toEqual([{ kind: "union-props", mode, count: 1, limit: 0 }]);
   expect(checkWireSchema([union], mode, zero).violations).toEqual([{ kind: "union-props", mode, count: 1, limit: 0 }]);
 });

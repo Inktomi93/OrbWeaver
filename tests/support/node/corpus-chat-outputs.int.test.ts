@@ -28,19 +28,15 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
     [result.room.chat.id, root.ownerId],
   ]);
   expect(result.room.opening).toBeNull();
-  expect(result.unbound.getNextTurnConnection).toEqual({ state: "unset" });
   expect(result.unbound.checkSendAvailability.available).toBe(false);
   expect(result.unbound.previewContextFit).toEqual({ unbound: true });
   expect(reads.checkSendAvailability).toEqual({ available: true });
-  expect(reads.getNextTurnConnection).toMatchObject({ state: "configured", connectionLabel: CHAT_OUTPUT_CONNECTION_LABEL });
-  expect(member.getNextTurnConnection).toMatchObject({ state: "configured", connectionLabel: null });
   expect(reads.getChat.viewerIsHost).toBe(true);
   expect(member.getChat.viewerIsHost).toBe(false);
   expect(member.getChat.viewerUserId).toBe(invitation.joined.participant.userId);
   expect(invitation.joined.chat.id).toBe(result.room.chat.id);
   expect(invitation.joined.chat.participants).toContainEqual(invitation.joined.participant);
   expect(invitation.created.invite.remainingUses).toBe(2);
-  expect(invitation.preview.chatId).toBe(result.room.chat.id);
   expect(invitation.preview.hostHandle).toBe(result.room.chat.participants.find((seat) => seat.role === "host")?.handle);
   expect(invitation.preview).not.toHaveProperty("participants");
   expect(invitation.preview).not.toHaveProperty("messages");
@@ -107,12 +103,10 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
   expect(reads.getVariablePicks).toEqual({ variables: [], values: {} });
   expect(reads.getRuntimeVariables).toEqual({});
   expect(reads.listReactions).toMatchObject({ reactionsEnabled: true, groups: [] });
-  expect(reads.previewActionTemplates.identity.char).toBe(reads.getMemberCard.name);
   expect(reads.previewActionTemplates.templates.length).toBeGreaterThan(0);
   expect(JSON.stringify(reads.previewAssembly.prompt)).toContain(updates.setRoomOverrides.scenario);
   expect(reads.previewAssembly.budget.totalTokens).toBeGreaterThan(0);
   expect(reads.getShapeTrace.rows.length).toBeGreaterThan(0);
-  expect(reads.getVariantWire.variantId).toBe(assistant.selectedVariantId);
   expect(reads.getVariantWire.prompt).not.toBeNull();
   expect(reads.previewContextFit).not.toHaveProperty("unbound");
   expect(result.reaped).toEqual({ reaped: 0 });

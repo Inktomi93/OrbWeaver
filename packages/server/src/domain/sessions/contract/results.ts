@@ -7,12 +7,10 @@ import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 
-/** `create` output: the raw token (returned ONCE — never stored; the route sets it as the cookie), the
- *  row id, and the 30-day expiry. `token` is the branded `SessionToken` (the opaque cookie VALUE), never
- *  the `SessionId` row id — the brand is what keeps those two from being swapped at the cookie write. */
+/** `create` output: the raw token (returned ONCE — never stored; the route sets it as the cookie) and the
+ *  30-day expiry. `token` is the branded `SessionToken` (the opaque cookie VALUE), never the `SessionId` row id. */
 export interface CreateSessionResult {
   token: SessionToken;
-  sessionId: SessionId;
   expiresAt: number;
 }
 

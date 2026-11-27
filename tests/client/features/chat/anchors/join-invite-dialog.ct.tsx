@@ -16,8 +16,8 @@ import type { JoinInviteDialogStory } from "./_join-invite-stories.tsx";
 const TOKEN = "controlled-invite-token";
 // A token the server never issued.
 const DEAD_TOKEN = "unissued-invite-token";
+const PREVIEW_CHAT_ID = makeChatId();
 const PREVIEW = invitePreviewSchema.parse({
-  chatId: makeChatId(),
   roomName: "Lantern Quay",
   hostHandle: "preview-host",
   memberCount: 3,
@@ -105,7 +105,7 @@ test("Not now dismisses the ready component without redeeming the invite", async
 
 test("a refused redemption replaces the previous preview with the same flat invalid state", async ({ corpus, corpusViewer, mount, page }) => {
   const viewer = createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"])(undefined);
-  const chat = makeChatDetail({ id: PREVIEW.chatId, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
+  const chat = makeChatDetail({ id: PREVIEW_CHAT_ID, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
   // The invite is spent by someone else after the preview settled; the redemption for the same token is then refused.
   let spent = false;
   const wire = await routeTrpc(page, {
@@ -130,7 +130,7 @@ test("a refused redemption replaces the previous preview with the same flat inva
 
 test("successful redemption completes through the caller callback", async ({ corpus, corpusViewer, mount, page }) => {
   const viewer = createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"])(undefined);
-  const chat = makeChatDetail({ id: PREVIEW.chatId, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
+  const chat = makeChatDetail({ id: PREVIEW_CHAT_ID, title: PREVIEW.roomName, viewerIsHost: false, viewerUserId: viewer.userId });
   const wire = await routeTrpc(page, {
     ...providerReads(corpus, corpusViewer.userId),
     "invites.previewInvite": previewFor,

@@ -71,8 +71,6 @@ export interface PromoteThemeParams extends ThemeActorParams {
 
 export interface DuplicateThemeParams extends ThemeActorParams {
   readonly id: ThemeId;
-  /** Optional caller-supplied name; defaults to "<source> copy" (de-duped by numeric suffix). */
-  readonly name?: string;
 }
 
 /** The single-theme IMPORT door. The FILE is the unit — the same bytes the bundle descriptor handles.

@@ -27,5 +27,4 @@ test("first-message seeds the primary greeting verbatim; the caller is host and 
   const events = await harness.services.chat.replayChatEvents({ principal, chatId: chat.id });
   expect(events.map(({ event }) => event.type)).toEqual(["chatCreated", "messageCommitted"]);
   expect(await readRoomCanon(harness, principal, chat.id)).toHaveLength(1);
-  expect(chat.opening).toBeNull();
 });

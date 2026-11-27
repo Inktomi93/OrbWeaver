@@ -47,7 +47,7 @@ export function createUninstallForAllUsers(
         continue;
       }
       if (row.version !== record.version) {
-        skipped.push({ userId: recipient.userId, userHandle: recipient.handle, reason: "version-diverged" });
+        skipped.push({ userHandle: recipient.handle, reason: "version-diverged" });
         continue;
       }
       // The REAL uninstall, as its OWNER — never an admin any-row path.

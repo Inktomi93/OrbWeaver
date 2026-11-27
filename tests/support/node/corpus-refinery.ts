@@ -46,13 +46,14 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
       personality: "Curious and careful.",
     }),
   });
-  const session = await seedRefinerySessionRows(root, { principal, characterId: character.id, name: "Orbital ledger refinement" });
+  const session = await seedRefinerySessionRows(root, { principal, characterId: character.id });
   const preflight = await caller.refinery.preflight({ sessionId: session.id });
   const score = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: session.id, stage: "score" });
   const rewrite = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: session.id, stage: "rewrite" });
   const analyze = await seedRefineryRunRows(root, { signal: new AbortController().signal, principal, sessionId: session.id, stage: "analyze" });
   const review = await caller.refinery.decideRewrite({ sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
-  const iteration = await caller.refinery.iterate({ sessionId: session.id, guidance: "Keep the keeper curious." });
+  await caller.refinery.updateSession({ sessionId: session.id, patch: { guidance: "Keep the keeper curious." } });
+  const iteration = await caller.refinery.iterate({ sessionId: session.id });
   const manual = await seedManualRefineryRunRows(root, {
     principal,
     sessionId: session.id,
@@ -64,7 +65,6 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
     sessionId: session.id,
     rewriteRunId: rewrite.id,
     accepts: [{ field: "description" }],
-    name: "Branch ledger keeper",
   });
   if (copy.character === null) {
     throw new Error("actual refinery copy refused the corpus's required branch");
@@ -86,7 +86,7 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
     // The forge draft is typed as an open record on the wire; the stored column takes JSON values.
     schema: jsonObjectSchema.parse(forged.schema),
   });
-  const customSession = await seedRefinerySessionRows(root, { principal, characterId: copy.character.id, name: "Custom keeper rubric" });
+  const customSession = await seedRefinerySessionRows(root, { principal, characterId: copy.character.id });
   await caller.refinery.updateSession({
     sessionId: customSession.id,
     patch: { stageConfig: { ...customSession.stageConfig, score: { kind: "custom", schemaId: schema.id } } },

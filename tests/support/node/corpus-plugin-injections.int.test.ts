@@ -111,7 +111,7 @@ test("native plugin values render once in authored injections without re-expandi
       content: "Consume authored native injections.",
       timeZone: UTC_TIME_ZONE,
       intent: { maxOutputTokens: 64 },
-      guided: { action: "response", input: "Prepared steer {{incvar::steerEscape}}", placement: { kind: "inject", role: "user" } },
+      guided: { action: "response", input: "Prepared steer {{incvar::steerEscape}}" },
     });
   const owned = await appendedBy(bodies, () => send(actors.owner, library.persona.id));
   expect(owned.outcome.aborted).toBe(false);

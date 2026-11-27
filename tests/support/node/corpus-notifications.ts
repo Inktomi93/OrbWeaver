@@ -9,7 +9,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginTo
 import { streamConnectInputSchema } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
@@ -103,7 +103,7 @@ interface ProducerCapture {
   readonly foreignRun: Error;
 }
 interface DroppedCapture {
-  readonly room: Invite["invite"]["chatId"];
+  readonly room: ChatId;
   readonly invite: Invite;
   readonly submitted: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
   readonly queued: Awaited<ReturnType<typeof captureChatReplayRows>>;
@@ -406,12 +406,7 @@ async function admitReader(root: ServerTestHarness, actors: NotificationActors, 
   return { cookie, token, identity: await captureCorpusCookieIdentity(root, expected, cookie), seededPending, answeredPending };
 }
 
-async function producersFor(
-  root: ServerTestHarness,
-  actors: NotificationActors,
-  chatId: Invite["invite"]["chatId"],
-  stream: NotificationStream,
-): Promise<ProducerCapture> {
+async function producersFor(root: ServerTestHarness, actors: NotificationActors, chatId: ChatId, stream: NotificationStream): Promise<ProducerCapture> {
   const automation = root.services.automation;
   const principal = actors.reader;
   const author = { principal, chatId, trigger: { bus: "chat", type: "turnCompleted" }, timeZone: UTC_TIME_ZONE } as const;

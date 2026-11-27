@@ -84,8 +84,8 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
 
     // ── ASSERTION 2 (HOST REVEAL): the host sees the truth via the reveal eye + reads the raw body verbatim.
     const reveal = await host.trpc.rpg.revealHidden.query({ chatId });
-    const thornwickLies = reveal.standingLies.find((g) => g.character === "Thornwick");
-    expect(thornwickLies?.lies.some((l) => l.truth === LIE_TRUTH)).toBe(true);
+    const thornwickLies = reveal.standingLies.flatMap((g) => g.lies).filter((l) => l.character === "Thornwick");
+    expect(thornwickLies.some((l) => l.truth === LIE_TRUTH)).toBe(true);
 
     const hostPage = await host.trpc.chat.listMessages.query({ chatId });
     expect(hostPage.messages.find((m) => m.id === greetingId)?.content).toContain(LIE_TRUTH);

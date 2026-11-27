@@ -1,13 +1,11 @@
 // Strip mode: these schemas also read plugin guest data, model output and stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-import type { AssetId, CharacterId, ChatId, ConsentingHostId, ImageryGenerationId, ModelId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ConsentingHostId, ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { z } from "zod";
 import type { Principal } from "#identity";
 import type { BindingActor } from "#inference";
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
-import type { MessageContentBlock } from "../chat/content-blocks.ts";
-import { messageContentBlockViewSchema } from "../chat/content-blocks.ts";
 import type { GenerationUsageDetails } from "../inference/usage.ts";
 import { generationUsageDetailsSchema } from "../inference/usage.ts";
 import type { PromptTemplateMode } from "./modes.ts";
@@ -278,12 +276,9 @@ export const generateImageActionArgsSchema = z.discriminatedUnion("mode", [
 ]);
 export type GenerateImageActionArgs = z.infer<typeof generateImageActionArgsSchema>;
 
-/** block is a render-ready convenience for direct consumers; the chat caller persists a message string
- *  with asset: refs instead and never stores this block. */
+/** One stored image of a generated picture; its provenance row is read by asset (`readProvenance`). */
 export interface GeneratedPictureImage {
   readonly assetId: AssetId;
-  readonly generationId: ImageryGenerationId;
-  readonly block: MessageContentBlock;
 }
 
 const IMAGERY_WARNING_CODES = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"] as const;
@@ -300,13 +295,10 @@ export interface ImageryWarning {
 const PROMPT_SOURCES = ["extracted", "captioned", "user"] as const;
 export type PromptSource = (typeof PROMPT_SOURCES)[number];
 
+/** What a generation hands its caller: the stored images, whether a prior generation was reused, and the
+ *  drop warnings. The prompt, model and cost live on each image's provenance row. */
 export interface GeneratedPicture {
   readonly images: readonly GeneratedPictureImage[];
-  readonly prompt: string;
-  readonly promptSource: PromptSource;
-  readonly mode: PromptTemplateMode;
-  readonly model: ModelId;
-  readonly costUsd: number | null;
   readonly reused: boolean;
   readonly warnings: readonly ImageryWarning[];
 }
@@ -315,8 +307,6 @@ export interface GeneratedPicture {
  *  prompt/model/cost detail + the regenerate affordance's source prompt. Ownership is proven by the join
  *  through `assets.ownerId` (the row carries no ownerId; D20). */
 export interface GenerationProvenance {
-  readonly generationId: ImageryGenerationId;
-  readonly assetId: AssetId;
   readonly mode: PromptTemplateMode;
   readonly prompt: string;
   readonly negativePrompt: string | null;
@@ -332,15 +322,12 @@ export interface GenerationProvenance {
  *  caller reviews it, then calls `generatePicture` with it as `prompt` (which bypasses re-extraction). */
 export interface ExtractedPrompt {
   readonly prompt: string;
-  readonly mode: PromptTemplateMode;
   readonly source: "extracted" | "captioned";
   readonly costUsd: number | null;
 }
 
 const generatedPictureImageSchema = z.strictObject({
   assetId: typeIdSchema(ID_PREFIX.asset),
-  generationId: typeIdSchema(ID_PREFIX.imageryGeneration),
-  block: messageContentBlockViewSchema,
 }) satisfies z.ZodType<GeneratedPictureImage>;
 
 const imageryWarningSchema = z.strictObject({
@@ -350,18 +337,11 @@ const imageryWarningSchema = z.strictObject({
 
 export const generatedPictureSchema = z.strictObject({
   images: z.array(generatedPictureImageSchema).readonly(),
-  prompt: z.string(),
-  promptSource: z.literal(PROMPT_SOURCES),
-  mode: promptTemplateModeSchema,
-  model: brandedId("ModelId"),
-  costUsd: z.number().nullable(),
   reused: z.boolean(),
   warnings: z.array(imageryWarningSchema).readonly(),
 }) satisfies z.ZodType<GeneratedPicture>;
 
 export const generationProvenanceSchema = z.strictObject({
-  generationId: typeIdSchema(ID_PREFIX.imageryGeneration),
-  assetId: typeIdSchema(ID_PREFIX.asset),
   mode: promptTemplateModeSchema,
   prompt: z.string(),
   negativePrompt: z.string().nullable(),
@@ -375,7 +355,6 @@ export const generationProvenanceSchema = z.strictObject({
 
 export const extractedPromptSchema = z.strictObject({
   prompt: z.string(),
-  mode: promptTemplateModeSchema,
   source: z.literal(["extracted", "captioned"]),
   costUsd: z.number().nullable(),
 }) satisfies z.ZodType<ExtractedPrompt>;

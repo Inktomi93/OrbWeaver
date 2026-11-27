@@ -180,7 +180,6 @@ export interface TurnWriteInput {
   readonly turn: {
     readonly kind: TurnKind;
     readonly messageId: MessageId;
-    readonly variantId: MessageVariantId;
     /** The newest visible assistant slot's `seq` when the round read its base (`undefined` when there was none):
      *  a later slot already there was the story before this turn began. */
     readonly tailSeqAtBase: number | undefined;

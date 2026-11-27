@@ -12,7 +12,6 @@ interface RenderStat {
   updates: number;
   totalMs: number;
   maxMs: number;
-  lastMs: number;
 }
 const renderStats = new Map<string, RenderStat>();
 
@@ -24,7 +23,6 @@ export function recordRender(id: string, phase: string, actualDuration: number):
     updates: 0,
     totalMs: 0,
     maxMs: 0,
-    lastMs: 0,
   };
   stat.count += 1;
   if (phase === "mount") {
@@ -34,7 +32,6 @@ export function recordRender(id: string, phase: string, actualDuration: number):
   }
   stat.totalMs += actualDuration;
   stat.maxMs = Math.max(stat.maxMs, actualDuration);
-  stat.lastMs = actualDuration;
   renderStats.set(id, stat);
 }
 

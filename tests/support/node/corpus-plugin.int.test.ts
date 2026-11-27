@@ -32,7 +32,7 @@ test("native withdrawal removes matching copies but retains a recipient's upgrad
     name: CORPUS_PLUGIN_PROVIDER_MANIFEST.name,
     version: "1.0.0",
     applied: 1,
-    skipped: [{ userId: recipient.id, userHandle: recipient.handle, reason: "version-diverged" }],
+    skipped: [{ userHandle: recipient.handle, reason: "version-diverged" }],
   });
   expect(pluginFanoutResultSchema.parse(captured.withdrawn)).toEqual(captured.withdrawn);
   expect(captured.after).toEqual(captured.before);
@@ -73,7 +73,10 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
     ]),
   ).toEqual((CORPUS_PLUGIN_PROVIDER_MANIFEST.providers ?? []).map((provider) => [root.ownerId, captured.installed.outcome.id, provider.id, provider.id, true]));
   expect(captured.providers).toHaveLength(1);
-  expect(captured.distribution.outcome).toMatchObject({ applied: 1, skipped: [{ userId: root.ownerId, reason: "already-installed" }] });
+  expect(captured.distribution.outcome).toMatchObject({
+    applied: 1,
+    skipped: [{ userHandle: (await root.principalFor(root.ownerId)).handle, reason: "already-installed" }],
+  });
   expect(captured.distribution.distribution.distributedBy).toBe(root.ownerId);
   expect(captured.publication).toEqual([
     {
@@ -137,11 +140,13 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
   }
   expect(captured.repeated.outcome.applied).toBe(0);
   expect(
-    captured.repeated.outcome.skipped.map(({ userId, reason }) => [userId, reason]).toSorted(([left], [right]) => String(left).localeCompare(String(right))),
+    captured.repeated.outcome.skipped
+      .map(({ userHandle, reason }) => [userHandle, reason])
+      .toSorted(([left], [right]) => String(left).localeCompare(String(right))),
   ).toEqual(
     [
-      [root.ownerId, "already-installed"],
-      [other.id, "already-installed"],
+      [(await root.principalFor(root.ownerId)).handle, "already-installed"],
+      [other.handle, "already-installed"],
     ].toSorted(([left], [right]) => String(left).localeCompare(String(right))),
   );
   expect(captured.repeated.installs.find(({ plugin }) => plugin.ownerId === other.id)?.plugin.status).toBe("enabled");

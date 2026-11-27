@@ -1,4 +1,3 @@
-import type { LoadUserSettings } from "@orb/contracts/settings";
 import type { Handle, UserId } from "@orb/kit/ids";
 
 // domain/persona/contract/ops — the PRINCIPAL-LESS injected ops this domain hands OUT (the standalone
@@ -25,9 +24,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 // else on its own. It is read live through `chatId`, never copied, and clears when the owner deletes the
 // persona. The op takes the room, never a pin id, so no caller can name a persona past the consent gate.
 
-/** What the user-publics read needs from the domains that own the other two facts: the account handle
- *  (sessions owns the `users` read) and the user's settings (the profile avatar fallback). */
+/** What the user-publics read needs from the domain that owns the account handle (sessions owns the `users` read). */
 export interface UserPublicsDeps {
   readonly loadUserHandle: (userId: UserId) => Promise<Handle | null>;
-  readonly loadUserSettings: LoadUserSettings;
 }

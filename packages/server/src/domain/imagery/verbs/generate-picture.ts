@@ -13,10 +13,10 @@ import { ImageryNotConfiguredError } from "../contract/errors.ts";
 import type { GeneratePictureParams } from "../contract/params.ts";
 import type { GeneratedPicture, ImageryWarning, ReuseRow } from "../contract/results.ts";
 import type { ImageGenerateRequest, ImageryContext, ImageryService, ResolvedGenerateImage, ResolvePrompt } from "../contract/service.ts";
-import { buildBlock, runGeneration, sumCost } from "../persistence/generate-core.ts";
+import { runGeneration } from "../persistence/generate-core.ts";
 import { findReusableGeneration } from "../persistence/queries.ts";
 import { identityHashFor } from "../substrate/identity-hash.ts";
-import { isMultimodalMode, isPortraitMode } from "../substrate/mode.ts";
+import { isPortraitMode } from "../substrate/mode.ts";
 import { defaultSizeFor, SIZE_PRESETS } from "../substrate/size.ts";
 import { composeNegative, ensurePrefix } from "../substrate/templates.ts";
 
@@ -95,17 +95,17 @@ async function orchestratorPrompt(
   p: GeneratePictureParams,
   runAs: Principal,
   signal: AbortSignal,
-): Promise<{ readonly prompt: string; readonly source: PromptSource; readonly costUsd: number | null }> {
+): Promise<{ readonly prompt: string; readonly source: PromptSource }> {
   const userPrompt = p.prompt?.trim() ?? "";
   if (p.mode === "free") {
     if (userPrompt.length === 0) {
       throw new ImageryNotConfiguredError('imagery: "free" mode requires a prompt');
     }
-    return { prompt: userPrompt, source: "user", costUsd: 0 };
+    return { prompt: userPrompt, source: "user" };
   }
   if (userPrompt.length > 0) {
     // A prompt override on a template mode — specific intent, used verbatim (no extraction, doc 02 §1 step 3).
-    return { prompt: userPrompt, source: "user", costUsd: 0 };
+    return { prompt: userPrompt, source: "user" };
   }
   // THE CHAT REQUIREMENT LIVES A FRAME DOWN (C5), never as an early guard here, which would refuse
   // EVERY template mode without a chat — including the CAPTION modes, which read the subject's avatar and
@@ -124,20 +124,9 @@ async function orchestratorPrompt(
 }
 
 /** The B2 hit path (doc 03 §4.4): rebuild the picture from a prior generation's stored rows — zero provider
- *  calls, `costUsd: null`, `reused: true`. `promptSource` derives from the mode (the gate only fires with no
- *  prompt override, so a portrait generation was captioned (multimodal) or extracted). */
-function reusedResult(mode: GeneratePictureParams["mode"], hits: readonly ReuseRow[], first: ReuseRow): GeneratedPicture {
-  const images = hits.map((h) => ({ assetId: h.assetId, generationId: h.generationId, block: buildBlock(h.assetId, h.prompt) }));
-  return {
-    images,
-    prompt: first.prompt,
-    promptSource: isMultimodalMode(mode) ? "captioned" : "extracted",
-    mode,
-    model: first.model,
-    costUsd: null,
-    reused: true,
-    warnings: [],
-  };
+ *  calls, `reused: true`. */
+function reusedResult(hits: readonly ReuseRow[]): GeneratedPicture {
+  return { images: hits.map((h) => ({ assetId: h.assetId })), reused: true, warnings: [] };
 }
 
 function customizesPicture(p: GeneratePictureParams): boolean {
@@ -168,8 +157,7 @@ async function reuseGate(
   // reaches this lookup: chat's picture op carries no subject. A room path that adds one must scope this
   // lookup to its chat, or a member could pull the host's picture from another room into this one.
   const hits = await findReusableGeneration(ctx.db, { ownerId: runAs.userId, subjectCharacterId, mode: p.mode, identityHash });
-  const first = hits[0];
-  return { identityHash, hit: first !== undefined ? reusedResult(p.mode, hits, first) : null };
+  return { identityHash, hit: hits.length > 0 ? reusedResult(hits) : null };
 }
 
 /** Step 1 — the gallery the pictures join: the requested character when the picture's owner (the run-as
@@ -255,13 +243,6 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     );
     return await curate(ctx, runAs, target, {
       images: outcome.images,
-      prompt,
-      promptSource: resolved.source,
-      mode: p.mode,
-      model: outcome.model,
-      // The returned total sums the extraction/caption spend (recorded in the spend ledger when that call returned)
-      // with the generation spend (recorded in stats by runGeneration).
-      costUsd: sumCost(resolved.costUsd, outcome.costUsd),
       reused: false,
       // B3's drop warning + any runner edit-strip belt warning that flowed up (doc 03 §2).
       // Every request carries a size, so a dropped size matters only when the caller chose it.

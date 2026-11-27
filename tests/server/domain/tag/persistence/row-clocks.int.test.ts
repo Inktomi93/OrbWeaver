@@ -78,7 +78,7 @@ test("all five native junction arms stamp single and bulk births without rewriti
   });
   const chat = await harness.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
   const persona = await harness.services.persona.create({ principal, input: createPersonaSchema.parse({ name: "Clock", description: "" }) });
-  const book = await harness.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Clock", description: "" }) });
+  const book = await harness.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Clock" }) });
   const caller = await harness.internalCallerFor(principal.userId);
   const preset = await caller.preset.create({ name: "Clock", kind: "custom" });
   const single = await harness.services.tag.createTag({ principal, input: { name: "Single" } });

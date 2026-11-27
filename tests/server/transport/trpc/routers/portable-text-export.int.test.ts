@@ -48,7 +48,8 @@ test("regex download wrapper round-trips the script's actual native format witho
 });
 
 test("world-info download wrapper round-trips the owned book while a foreign direct read stays NOT_FOUND", async ({ ownerCaller, otherCaller }) => {
-  const book = await ownerCaller.worldInfo.createBook({ input: { name: "Owned lore", description: "Native book prose." } });
+  const created = await ownerCaller.worldInfo.createBook({ input: { name: "Owned lore" } });
+  const book = await ownerCaller.worldInfo.updateBook({ bookId: created.id, input: { description: "Native book prose." } });
   await expect(otherCaller.worldInfo.exportBook({ bookId: book.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   const file = portableTextFileSchema.parse(await ownerCaller.worldInfo.exportBook({ bookId: book.id }));
   expect(Object.keys(file).sort()).toEqual(["fileText", "filename"]);

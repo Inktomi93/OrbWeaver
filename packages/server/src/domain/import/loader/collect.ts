@@ -314,7 +314,6 @@ async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state
     const worldRaw = parsed.card.extensions?.["world"];
     const worldName = typeof worldRaw === "string" && worldRaw.trim().length > 0 ? worldRaw : null;
     group(state, handle).card = {
-      handle,
       cardBytes: bytes,
       contentHash: parsedCardImportHash(parsed),
       textHash: parsedCardTextHash(parsed),

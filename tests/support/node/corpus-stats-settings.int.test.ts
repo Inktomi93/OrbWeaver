@@ -58,7 +58,7 @@ test("native stats preserve nonzero retained history and user preferences surviv
   expect(result.absent.freshness.output).toEqual({ computedAt: null, hasData: false });
   expect(result.computedEmpty.output).toMatchObject({ owners: 1, characters: 0 });
   expect(result.emptyAfter.overview.output).toMatchObject({ characters: 0, chats: 0, userTurns: 0, assistantTurns: 0, tokensOut: null });
-  expect(result.emptyAfter.freshness.output).toEqual({ computedAt: result.emptyAfter.overview.output?.computedAt, hasData: true });
+  expect(result.emptyAfter.freshness.output).toEqual({ computedAt: expect.any(Number), hasData: true });
   expect(result.emptyAfter.timeseries.output).toEqual([]);
   expect(result.emptyAfter.byModel.output).toEqual([]);
   expect(result.emptyAfter.momentum.output).toEqual([]);
@@ -86,7 +86,7 @@ test("native stats preserve nonzero retained history and user preferences surviv
   });
   expect(result.rows.models.find((model) => model.model === CORPUS_TEXT_MODEL)).toMatchObject({ tokensIn: 120, tokensOut: 45 });
   expect(stats.modelCapped.output).toHaveLength(1);
-  expect(stats.freshness.output).toEqual({ computedAt: stats.overview.output?.computedAt, hasData: true });
+  expect(stats.freshness.output).toEqual({ computedAt: expect.any(Number), hasData: true });
   expect(stats.personas.output.find((persona) => persona.personaId === libraries.persona.id)).toMatchObject({
     chatCount: 2,
     messageCount: 4,

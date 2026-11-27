@@ -130,17 +130,14 @@ export function resolveDataLayout(input: DataLayoutInput): DataLayout {
   const root = isSet(input.DATA_DIR) ? input.DATA_DIR : DEFAULT_DATA_DIR;
   const explicit = new Set<DataLayoutKeeperKey>([...DATA_LAYOUT_SLOT_KEYS, ...SECRET_ENV_KEYS].filter((key) => isSet(input[key])));
   const skip = parseSkip(root, input[DATA_LAYOUT_SKIP_KEY]);
-  const dbDir = under(root, DATA_LAYOUT_DIRS.db);
   return {
     root,
-    databaseUrl: isSet(input.DATABASE_URL) ? input.DATABASE_URL : fileDatabaseUrl(under(dbDir, DB_FILE_NAME)),
-    dbDir,
+    databaseUrl: isSet(input.DATABASE_URL) ? input.DATABASE_URL : fileDatabaseUrl(under(under(root, DATA_LAYOUT_DIRS.db), DB_FILE_NAME)),
     backups: under(root, DATA_LAYOUT_DIRS.backups),
     assets: isSet(input.ASSETS_DIR) ? input.ASSETS_DIR : under(root, DATA_LAYOUT_DIRS.assets),
     users: isSet(input.USER_RUNTIME_DIR) ? input.USER_RUNTIME_DIR : under(root, DATA_LAYOUT_DIRS.users),
     secrets: under(root, DATA_LAYOUT_DIRS.secrets),
     reports: under(root, DATA_LAYOUT_DIRS.reports),
-    cache: under(root, DATA_LAYOUT_DIRS.cache),
     models: isSet(input.LOCAL_LIGHT_CACHE_DIR) ? input.LOCAL_LIGHT_CACHE_DIR : under(root, DATA_LAYOUT_DIRS.models),
     variants: under(root, DATA_LAYOUT_DIRS.variants),
     importStaging: isSet(input.IMPORT_STAGING_DIR) ? input.IMPORT_STAGING_DIR : under(root, DATA_LAYOUT_DIRS.importStaging),

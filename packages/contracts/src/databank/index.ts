@@ -482,7 +482,6 @@ export const HOME_RECENT_DOCUMENTS_LIMIT = 4;
 export const getDocumentInputSchema = z.strictObject({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() });
 
 export const listDocumentsInputSchema = z.strictObject({
-  origin: docOriginSchema.optional(),
   // Bounded like every other free-text lens: a needle longer than the longest storable name can only
   // match nothing, and an unbounded `like` argument is a request-size hole.
   search: z.string().max(DATABANK_NAME_MAX).optional(),

@@ -5,7 +5,7 @@
 // preview and the inherited rack, each through the production door.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { createPersonaSchema } from "@orb/contracts/persona";
-import type { CreateEntryInput } from "@orb/contracts/world-info";
+import type { CreateEntryInput, UpdateEntryInput } from "@orb/contracts/world-info";
 import { createBookSchema, createEntrySchema, updateEntrySchema } from "@orb/contracts/world-info";
 import type { PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -36,14 +36,18 @@ async function pinLore(
   h: ChatRoot,
   principal: Principal,
   personaId: PersonaId,
-  entryFields: Pick<CreateEntryInput, "content" | "keys" | "priority">,
+  entryFields: Pick<CreateEntryInput, "content"> & Pick<UpdateEntryInput, "keys" | "priority">,
 ): Promise<{ readonly bookId: WorldBookId; readonly entryId: WorldEntryId }> {
   const book = await h.root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Pin book" }) });
+  const { keys, priority, ...created } = entryFields;
   const entry = await h.root.services.worldInfo.createEntry({
     principal,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: PIN_TITLE, ...entryFields }),
+    input: createEntrySchema.parse({ title: PIN_TITLE, ...created }),
   });
+  if (keys !== undefined || priority !== undefined) {
+    await h.root.services.worldInfo.updateEntry({ principal, entryId: entry.id, input: updateEntrySchema.parse({ keys, priority }) });
+  }
   await h.root.services.worldInfo.attachToPersona({ principal, personaId, bookId: book.id });
   return { bookId: book.id, entryId: entry.id };
 }
@@ -393,8 +397,9 @@ test("a pin book joins the ordinary budget walk: a lower entry drops and the tra
   const dropped = await h.root.services.worldInfo.createEntry({
     principal: h.owner,
     bookId: lower.id,
-    input: createEntrySchema.parse({ title: "Chat entry", content: "LOWER-CHAT-ENTRY ".repeat(20), priority: 1 }),
+    input: createEntrySchema.parse({ title: "Chat entry", content: "LOWER-CHAT-ENTRY ".repeat(20) }),
   });
+  await h.root.services.worldInfo.updateEntry({ principal: h.owner, entryId: dropped.id, input: { priority: 1 } });
   await h.root.services.worldInfo.attachToChat({ principal: h.owner, chatId: h.chatId, bookId: lower.id });
   await h.root.services.settings.updateUserSettingsSection({ principal: h.owner, input: { section: "worldInfo", patch: { tokenBudget: 150 } } });
   const pinned = await seatPersona(h, h.owner, "Ledgerkeeper", "The pinned persona.");

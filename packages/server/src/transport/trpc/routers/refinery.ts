@@ -21,8 +21,6 @@ import {
   refinerySchemaStageSchema,
   refinerySchemaSummarySchema,
   refinerySelectionPatchSchema,
-  refinerySessionNameSchema,
-  refinerySessionStatusSchema,
   refinerySessionSummarySchema,
   refinerySessionViewSchema,
   refineryStageConfigSchema,
@@ -54,14 +52,8 @@ const rawSchemaSchema = boundedJsonObjectSchema;
 export const refineryRouter = t.router({
   startSession: authedProcedure
     .output(refinerySessionViewSchema)
-    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), name: refinerySessionNameSchema.nullable().optional() }))
-    .mutation(({ ctx, input }) =>
-      ctx.services.refinery.startSession({
-        principal: ctx.auth,
-        characterId: input.characterId,
-        ...(input.name !== undefined ? { name: input.name } : {}),
-      }),
-    ),
+    .input(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .mutation(({ ctx, input }) => ctx.services.refinery.startSession({ principal: ctx.auth, characterId: input.characterId })),
 
   getSession: authedProcedure
     .output(refinerySessionViewSchema)
@@ -82,13 +74,11 @@ export const refineryRouter = t.router({
         z.strictObject({
           sessionId: typeIdSchema(ID_PREFIX.refinerySession),
           patch: z.strictObject({
-            name: refinerySessionNameSchema.nullable().optional(),
             guidance: refineryGuidanceSchema.nullable().optional(),
             // A DELTA, not the value shape — `selection` has a second writer (`applyFields`' greeting remap),
             // so the wire carries only what the caller is addressing (three-state greetings; see the schema).
             selection: refinerySelectionPatchSchema.optional(),
             stageConfig: refineryStageConfigSchema.optional(),
-            status: refinerySessionStatusSchema.optional(),
           }),
         }),
       ),
@@ -121,15 +111,8 @@ export const refineryRouter = t.router({
 
   iterate: authedProcedure
     .output(iterateResultSchema)
-    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession), guidance: refineryGuidanceSchema.optional() }))
-    .mutation(({ ctx, input, signal }) =>
-      ctx.services.refinery.iterate({
-        principal: ctx.auth,
-        signal: procedureSignal(signal),
-        sessionId: input.sessionId,
-        ...(input.guidance !== undefined ? { guidance: input.guidance } : {}),
-      }),
-    ),
+    .input(z.strictObject({ sessionId: typeIdSchema(ID_PREFIX.refinerySession) }))
+    .mutation(({ ctx, input, signal }) => ctx.services.refinery.iterate({ principal: ctx.auth, signal: procedureSignal(signal), sessionId: input.sessionId })),
 
   applyFields: authedProcedure
     .output(strictTwin(applyFieldsResultSchema))
@@ -156,7 +139,6 @@ export const refineryRouter = t.router({
       z.strictObject({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
         accepts: z.array(acceptedFieldSchema).min(1),
-        name: refinerySessionNameSchema.optional(),
         rewriteRunId: typeIdSchema(ID_PREFIX.refineryRun).optional(),
       }),
     )
@@ -166,7 +148,6 @@ export const refineryRouter = t.router({
         signal: procedureSignal(signal),
         sessionId: input.sessionId,
         accepts: input.accepts,
-        name: input.name,
         rewriteRunId: input.rewriteRunId,
       }),
     ),
@@ -212,7 +193,6 @@ export const refineryRouter = t.router({
         patch: z.strictObject({
           name: z.string().optional(),
           description: z.string().optional(),
-          stage: refinerySchemaStageSchema.optional(),
           schema: rawSchemaSchema.optional(),
         }),
       }),

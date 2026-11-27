@@ -154,9 +154,10 @@ test("the public manual lever at unchanged durable coverage generates nothing an
   expect(first.compactedAtSeq).toBe(await fixture.seqOfRow(8));
   const calls = fixture.receipts.length;
   expect(await fixture.h.root.services.chat.compact({ signal: new AbortController().signal, principal: fixture.h.owner, chatId: fixture.h.chatId })).toEqual({
-    ...first,
+    compactedAtSeq: first.compactedAtSeq,
     updated: false,
   });
+  expect(await fixture.marker()).toMatchObject({ compactSummary: ENGINE_SDK_MARKER });
   expect(fixture.receipts).toHaveLength(calls);
 });
 

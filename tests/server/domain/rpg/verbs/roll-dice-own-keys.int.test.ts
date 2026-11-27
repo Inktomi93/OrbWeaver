@@ -33,6 +33,6 @@ test("an ability keyed by an inherited member name refuses while unset and rolls
   await root.services.rpg.patchSheet({ ...sheet, patch: { attributes: { [INHERITED_KEY]: score } } });
   const rolled = await root.services.rpg.rollDice(params);
   const modifier = rpgAttributeModifier(statProfile, score);
-  expect(rolled).toMatchObject({ modifier, total: (rolled.rolls[0] ?? Number.NaN) + modifier });
-  expect(rolled.stamp).toBe(`[dice: Constructor d20${modifier >= 0 ? "+" : ""}${modifier} → ${rolled.total}]`);
+  const total = (rolled.rolls[0] ?? Number.NaN) + modifier;
+  expect(rolled.stamp).toBe(`[dice: Constructor d20${modifier >= 0 ? "+" : ""}${modifier} → ${total}]`);
 });

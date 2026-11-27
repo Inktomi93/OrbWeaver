@@ -1021,7 +1021,6 @@ export async function loadMessageVariantSummaries(
 export async function loadVariantWire(db: Db, chatId: ChatId, variantId: MessageVariantId): Promise<VariantWireView | undefined> {
   const rows = await db
     .select({
-      variantId: messageVariants.id,
       promptSnapshot: messageVariants.promptSnapshot,
       params: messageVariants.params,
       macroDraws: messageVariants.macroDraws,
@@ -1042,7 +1041,6 @@ export async function loadVariantWire(db: Db, chatId: ChatId, variantId: Message
   // inspector honestly reports "nothing captured" rather than throwing.
   const freezes = macroFreezeRecordSchema.safeParse(row.macroFreezes);
   return {
-    variantId: row.variantId,
     prompt: sentPromptSchema.safeParse(row.promptSnapshot).data ?? null,
     params: userIntentSchema.safeParse(row.params).data ?? null,
     macroDraws: draws.success ? draws.data : null,
@@ -1218,12 +1216,12 @@ export function toStandaloneFoldRow(batch: StandaloneVariableDelta): VariableDel
  *  guard's depth counter. Chat-scoped: a `messageId` from another chat matches nothing (`null`). */
 export async function loadTurnOrigin(db: Db, chatId: ChatId, messageId: MessageId): Promise<TurnOrigin | null> {
   const rows = await db
-    .select({ initiator: messages.initiator, automationDepth: messages.automationDepth })
+    .select({ automationDepth: messages.automationDepth })
     .from(messages)
     .where(and(eq(messages.chatId, chatId), eq(messages.id, messageId)))
     .limit(LIMIT_ONE);
   const row = rows.at(0);
-  return row === undefined ? null : { initiator: row.initiator, automationDepth: row.automationDepth };
+  return row === undefined ? null : { automationDepth: row.automationDepth };
 }
 
 /** One variant's parsed `variable_delta` (the `selectVariant` re-fold). A malformed/absent blob degrades

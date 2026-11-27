@@ -34,7 +34,6 @@ import {
   messageVariantSummarySchema,
   messageViewSchema,
   messageWindowSchema,
-  nextTurnConnectionViewSchema,
   REACTION_SPEAKER_NAME_MAX,
   REATTRIBUTE_MESSAGES_MAX,
   reactionEmojiSchema,
@@ -623,10 +622,6 @@ export const chatRouter = t.router({
     .output(roomSendAvailabilitySchema)
     .input(chatIdInputSchema)
     .query(({ ctx, input, signal }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId, signal: procedureSignal(signal) })),
-  getNextTurnConnection: authedProcedure
-    .output(nextTurnConnectionViewSchema)
-    .input(chatIdInputSchema)
-    .query(({ ctx, input }) => ctx.services.chat.getNextTurnConnection({ principal: ctx.auth, chatId: input.chatId })),
   // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
   // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
   getMemberCard: authedProcedure

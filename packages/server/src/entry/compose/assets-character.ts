@@ -126,7 +126,6 @@ export interface AssetsCharacterComposeDeps {
 /** The assets/character compose product. `materializeBackgroundOp` is the constructed op the keystone rebinds
  *  onto its late-bound holder now that `assets` is live. */
 export interface AssetsCharacterComposeResult {
-  readonly assetsCtx: AssetsAssemblyContext;
   readonly assets: AssetsService;
   readonly character: CharacterService;
   readonly galleryCtx: AssetsAssemblyContext;
@@ -285,5 +284,5 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),
   });
 
-  return { assetsCtx, assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, materializeBackgroundOp, characterOwned };
+  return { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, materializeBackgroundOp, characterOwned };
 }

@@ -105,7 +105,6 @@ export function describeWireSchemaViolation(violation: WireSchemaViolation): str
 }
 
 export interface WireSchemaCheck {
-  readonly fits: boolean;
   readonly violations: readonly WireSchemaViolation[];
   /** Each schema as the mode puts it on the wire, in input order. */
   readonly wire: readonly Record<string, unknown>[];
@@ -285,5 +284,5 @@ export function checkWireSchema(schemas: readonly Record<string, unknown>[], mod
       { mode, limits, strictTools: 0 },
     ),
   ];
-  return { fits: violations.length === 0, violations, wire: scrubs.map((scrub) => scrub.schema) };
+  return { violations, wire: scrubs.map((scrub) => scrub.schema) };
 }

@@ -1,5 +1,5 @@
-import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { AssetId, Handle, PluginId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { handleSchema } from "../identity/index.ts";
 import type { ProviderId } from "../inference/provider-id.ts";
@@ -158,10 +158,8 @@ export const distributedPluginViewSchema = z.strictObject({
 export const PLUGIN_FANOUT_SKIP_REASONS = ["already-installed", "version-diverged"] as const;
 type PluginFanoutSkipReason = (typeof PLUGIN_FANOUT_SKIP_REASONS)[number];
 
-/** One passed-over recipient. `userHandle` rather than a bare id because the only reader is a human admin
- *  deciding whether to chase it up; the id is carried too so a surface can key rows without a second read. */
+/** One passed-over recipient, named by handle because the only reader is a human admin deciding whether to chase it up. */
 export interface PluginFanoutSkip {
-  readonly userId: UserId;
   readonly userHandle: Handle;
   readonly reason: PluginFanoutSkipReason;
 }
@@ -182,7 +180,7 @@ export const pluginFanoutResultSchema = z.strictObject({
   name: z.string(),
   version: z.string(),
   applied: z.int().nonnegative(),
-  skipped: z.array(z.strictObject({ userId: brandedId("UserId"), userHandle: handleSchema, reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
+  skipped: z.array(z.strictObject({ userHandle: handleSchema, reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
 }) satisfies z.ZodType<PluginFanoutResult>;
 
 /** One line of a plugin's host.log ring — the rate-limited, ring-buffered log surface the owner reads

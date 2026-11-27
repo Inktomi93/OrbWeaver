@@ -145,12 +145,8 @@ export interface ForkGameArgs {
   readonly forker: { readonly userId: UserId; readonly readsHidden: boolean };
 }
 
-/** The clone outcome. `cloned: false` is a non-game source (or rpg unwired): the fork ships plain, with no pointer. */
-export interface ForkGameResult {
-  readonly cloned: boolean;
-}
-
-export type ForkGameOp = (args: ForkGameArgs) => Promise<ForkGameResult>;
+/** Clone the source's game onto the fork. A non-game source (or rpg unwired) is a no-op: the fork ships plain, with no pointer. */
+export type ForkGameOp = (args: ForkGameArgs) => Promise<void>;
 
 /** RPG's unexecuted contribution to a chat-owned atomic birth batch. `Statement` is the consumer's database
  *  statement handle, which contracts cannot name. */

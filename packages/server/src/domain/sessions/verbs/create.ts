@@ -45,7 +45,7 @@ export function createCreate(ctx: SessionsContext): Pick<SessionsService, "creat
       },
       now,
     );
-    return { token, sessionId, expiresAt };
+    return { token, expiresAt };
   }
   return { create };
 }

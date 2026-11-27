@@ -46,36 +46,19 @@ test("native image admission and funded output variants preserve short-edge skip
     expect(forced).toEqual(first);
     expect(asset.ownerId).toBe(root.ownerId);
   }
-  expect(result.previews.extracted.output).toMatchObject({ source: "extracted", mode: "scenario" });
-  expect(result.previews.captioned.output).toMatchObject({ source: "captioned", mode: "character_multimodal", prompt: CORPUS_VARIANT_PROMPT });
+  expect(result.previews.extracted.output).toMatchObject({ source: "extracted" });
+  expect(result.previews.captioned.output).toMatchObject({ source: "captioned", prompt: CORPUS_VARIANT_PROMPT });
   expect(result.previews.captioned.output.costUsd).toBeGreaterThan(0);
-  expect(result.free.picture).toMatchObject({
-    prompt: CORPUS_VARIANT_FREE_PROMPT,
-    promptSource: "user",
-    mode: "free",
-    costUsd: null,
-    reused: false,
-    warnings: [],
-  });
-  expect(result.captioned.picture).toMatchObject({ promptSource: "captioned", mode: "character_multimodal", costUsd: null, reused: false, warnings: [] });
-  expect(result.warning.picture).toMatchObject({
-    prompt: CORPUS_VARIANT_OVERRIDE,
-    promptSource: "user",
-    mode: "character",
-    warnings: [{ code: WARNING_CODE.imageEditDropped }],
-  });
+  expect(result.free.picture).toMatchObject({ reused: false, warnings: [] });
+  expect(result.captioned.picture).toMatchObject({ reused: false, warnings: [] });
+  expect(result.warning.picture).toMatchObject({ reused: false, warnings: [{ code: WARNING_CODE.imageEditDropped }] });
   expect(result.warning.picture.warnings[0]?.detail).toContain(CORPUS_VARIANT_IMAGE_MODEL);
-  expect(result.edited.picture).toMatchObject({
-    prompt: CORPUS_VARIANT_EDIT_INSTRUCTION,
-    promptSource: "user",
-    mode: "free",
-    model: CORPUS_VARIANT_EDIT_MODEL,
-    costUsd: null,
-    reused: false,
-    warnings: [],
-  });
+  expect(result.edited.picture).toMatchObject({ reused: false, warnings: [] });
   expect(result.free.generations).toMatchObject([
     {
+      prompt: CORPUS_VARIANT_FREE_PROMPT,
+      mode: "free",
+      costUsd: null,
       tokensIn: null,
       tokensOut: null,
       cacheReadTokens: null,
@@ -91,6 +74,8 @@ test("native image admission and funded output variants preserve short-edge skip
   ]);
   expect(result.captioned.generations).toMatchObject([
     {
+      mode: "character_multimodal",
+      costUsd: null,
       tokensIn: 19,
       tokensOut: 7,
       cacheReadTokens: null,
@@ -110,6 +95,8 @@ test("native image admission and funded output variants preserve short-edge skip
   expect(present(result.captioned.generations[0]).identityHash).not.toBeNull();
   expect(result.warning.generations).toMatchObject([
     {
+      prompt: CORPUS_VARIANT_OVERRIDE,
+      mode: "character",
       tokensIn: 0,
       tokensOut: 0,
       cacheReadTokens: 0,
@@ -127,6 +114,10 @@ test("native image admission and funded output variants preserve short-edge skip
   ]);
   expect(result.edited.generations).toMatchObject([
     {
+      prompt: CORPUS_VARIANT_EDIT_INSTRUCTION,
+      mode: "free",
+      model: CORPUS_VARIANT_EDIT_MODEL,
+      costUsd: null,
       tokensIn: 23,
       tokensOut: 11,
       cacheReadTokens: 2,
@@ -161,8 +152,6 @@ test("native image admission and funded output variants preserve short-edge skip
   for (const [index, cohort] of cohorts.entries()) {
     const row = cohort.generations[0];
     expect(result.provenance[index]?.output).toMatchObject({
-      generationId: row?.id,
-      assetId: row?.assetId,
       prompt: row?.prompt,
       mode: row?.mode,
       model: row?.model,

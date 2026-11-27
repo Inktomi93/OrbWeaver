@@ -80,7 +80,7 @@ async function assertNativeRestore(
   const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
   await expect(preflight).toBeVisible();
   // A full capped page cannot prove the complete native workload-set difference.
-  const before = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
+  const before = await host.trpc.workloads.list.query({ kind: "import-bundle" });
   expect(before.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
   const beforeIds = new Set(before.map((row) => row.id));
   const route = folder ? PORTABILITY_ROUTES.importTree : BUNDLE_IMPORT_ROUTE;
@@ -101,7 +101,7 @@ async function assertNativeRestore(
     await expect(page.getByRole("button", { name: IMPORT_ANOTHER_NAME, exact: true })).toBeVisible({ timeout: restore.settleMs });
     expect(nonEmpty(statuses).every((status) => status === 202)).toBe(true);
     // The UI owns response parsing; native rows supply identities without rereading an evicted response body.
-    const after = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
+    const after = await host.trpc.workloads.list.query({ kind: "import-bundle" });
     expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
     const created = after.filter((row) => !beforeIds.has(row.id));
     expect(created).toHaveLength(statuses.length);

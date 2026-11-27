@@ -948,8 +948,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
     emitUserEvent: liveBuses.user.publishUserEvent,
-    idSource,
-    logger: deps.logger,
     db,
     now,
     newUserId,

@@ -27,7 +27,6 @@ export type MessageWindow =
       readonly anchorMessageId: MessageId;
       readonly anchorSeq: number;
       readonly endSeq: number;
-      readonly endMessageId: MessageId;
       readonly hasBefore: boolean;
       readonly hasAfter: boolean;
     })
@@ -36,7 +35,6 @@ export type MessageWindow =
       readonly anchorMessageId: null;
       readonly anchorSeq: null;
       readonly endSeq: null;
-      readonly endMessageId: null;
       readonly messages: readonly never[];
       readonly identities: readonly never[];
       readonly hasBefore: false;
@@ -53,7 +51,6 @@ export const messageWindowSchema = z.discriminatedUnion("outcome", [
     anchorMessageId: typeIdSchema(ID_PREFIX.message),
     anchorSeq: z.number(),
     endSeq: z.number(),
-    endMessageId: typeIdSchema(ID_PREFIX.message),
     hasBefore: z.boolean(),
     hasAfter: z.boolean(),
   }),
@@ -62,7 +59,6 @@ export const messageWindowSchema = z.discriminatedUnion("outcome", [
     anchorMessageId: z.null(),
     anchorSeq: z.null(),
     endSeq: z.null(),
-    endMessageId: z.null(),
     messages: z.tuple([]).readonly(),
     identities: z.tuple([]).readonly(),
     hasBefore: z.literal(false),

@@ -5,6 +5,7 @@
 // SillyTavern pairs chats with their cards by folder, so it offers no kind picks.
 
 import type { PortableKind } from "@orb/contracts/portability";
+import { PORTABLE_EXPORT_REPORT_FILE } from "@orb/contracts/portability";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
@@ -104,7 +105,8 @@ export function ExportLibrarySection(): ReactElement {
   return (
     <Stack cap="reading" gap="block">
       <Text cap="prose" ink="muted">
-        Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it.
+        Download a zip of your library to back it up or move it to another Orbweaver. Media (avatars, gallery, generated images) always travels with it. When a
+        row can't be carried as stored, the zip's {PORTABLE_EXPORT_REPORT_FILE} says which.
       </Text>
       <Fieldset>
         <FieldsetLegend>{EXPORT_INCLUDE_LEGEND}</FieldsetLegend>
