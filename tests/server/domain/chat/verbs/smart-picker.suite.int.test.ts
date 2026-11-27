@@ -104,7 +104,13 @@ test("one native schema-constrained happy pick is honored without warning", asyn
 
 test("an antislop Utility pick allows the roster's names past its slop list, since its answer is a name", async () => {
   await using room = await smartRoom({ chat: ["Bryn's committed answer."], picks: [["bryn"]] });
-  await saveSpeakerConnection(room.h, room.peer.baseUrl, "summarize", { features: { antislop: true, slopList: "rp" } });
+  await saveSpeakerConnection(room.h, room.peer.baseUrl, "summarize", { features: { antislop: true } });
+  const preset = await room.h.caller.preset.create({
+    name: "Slop Utility",
+    kind: "custom",
+    config: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, slopList: "rp" } },
+  });
+  await room.h.caller.settings.updateUserSettingsSection({ section: "seeds", patch: { summarizePreset: { kind: "preset", presetId: preset.id } } });
   await send(room);
   const picks = await Promise.all(
     room.peer.requests

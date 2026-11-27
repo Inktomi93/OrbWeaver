@@ -65,6 +65,8 @@ const HIDDEN: Readonly<Record<CapabilityKnob, UserIntent>> = {
   bannedStrings: { bannedStrings: ["BANX"] },
   banEos: { banEos: true },
   samplerOrder: { samplerOrder: ["topK", "temperature"] },
+  slopList: { slopList: "HIDDEN-SLOP-LIST" },
+  slopStrength: { slopStrength: 2 },
   quality: { quality: "deep" },
   reasoning: { effort: "none" },
   effort: { effort: "high" },

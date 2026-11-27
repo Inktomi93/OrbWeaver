@@ -869,12 +869,19 @@ test("on stock vLLM a banned phrase rides bad_words only when vLLM also bans it 
   expect(droppedPhraseCounts(none.events)).toEqual([null]);
 });
 
-test("an antislop connection sends every banned phrase whole at the top level, with the slop list and the room's names beside it", async () => {
+const SLOP_FIELDS = ["slop_list", "slop_strength", "slop_allow"] as const;
+
+/** The knobs a turn reported it did not apply. */
+function droppedKnobs(events: readonly ChatEvent[]): unknown[] {
+  return events.flatMap((event) => (event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped ? [event.knob] : []));
+}
+
+test("an antislop connection sends every banned phrase whole at the top level, with the preset's slop list and the room's names beside it", async () => {
   const tokenized: string[] = [];
   const names = ["Mary Jane Watson", "Mary", "Jane", "Watson", "Nate"];
   const sent = await send(
-    { providerId: VLLM, declaredFeatures: { antislop: true, slopList: "flashnext", slopStrength: 2 } },
-    { params: { bannedStrings: ["her spine", "waving"] }, speakerNames: names, tokenized },
+    { providerId: VLLM, declaredFeatures: { antislop: true } },
+    { params: { bannedStrings: ["her spine", "waving"], slopList: "flashnext", slopStrength: 2 }, speakerNames: names, tokenized },
   );
   expect(sent.body["banned_strings"]).toEqual(["her spine", "waving"]);
   expect(sent.body["slop_list"]).toBe("flashnext");
@@ -883,22 +890,31 @@ test("an antislop connection sends every banned phrase whole at the top level, w
   expect(sent.body).not.toHaveProperty("bad_words");
   expect(tokenized).toEqual([]);
   expect(droppedPhraseWarnings(sent.events)).toEqual([]);
+  expect(droppedKnobs(sent.events)).toEqual([]);
 });
 
-test("an antislop connection with no slop list sends the phrases alone, and no slop field without a list", async () => {
+test("a connection that is no antislop proxy sends none of the preset's slop fields, and the turn names both knobs as not applied", async () => {
+  const stock = await send({ providerId: VLLM }, { params: { slopList: "flashnext", slopStrength: 2 }, speakerNames: ["Nate"] });
+  for (const key of SLOP_FIELDS) {
+    expect(stock.body).not.toHaveProperty(key);
+  }
+  expect(droppedKnobs(stock.events)).toEqual(["slopList", "slopStrength"]);
+});
+
+test("an antislop connection whose preset sets no slop list sends the phrases alone, and no slop field without a list", async () => {
   const sent = await send(
-    { providerId: VLLM, declaredFeatures: { antislop: true, slopStrength: 2 } },
-    { params: { bannedStrings: ["her spine"] }, speakerNames: ["Nate"] },
+    { providerId: VLLM, declaredFeatures: { antislop: true } },
+    { params: { bannedStrings: ["her spine"], slopStrength: 2 }, speakerNames: ["Nate"] },
   );
   expect(sent.body["banned_strings"]).toEqual(["her spine"]);
-  for (const key of ["slop_list", "slop_strength", "slop_allow"]) {
+  for (const key of SLOP_FIELDS) {
     expect(sent.body).not.toHaveProperty(key);
   }
 });
 
 test("a metered row never sends the own-server fields, whatever its connection declares, and the turn says so", async () => {
-  const declaredFeatures = { ...ENVELOPE, antislop: true, slopList: "rp" } satisfies EndpointFeatures;
-  const params = { bannedStrings: ["waving"] } satisfies UserIntent;
+  const declaredFeatures = { ...ENVELOPE, antislop: true } satisfies EndpointFeatures;
+  const params = { bannedStrings: ["waving"], slopList: "rp" } satisfies UserIntent;
   const control = await send({ providerId: VLLM, declaredFeatures }, { params, speakerNames: ["Nate"] });
   expect(control.body["slop_list"]).toBe("rp");
 

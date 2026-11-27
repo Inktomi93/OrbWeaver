@@ -381,6 +381,8 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
     case "stop":
     case "drySequenceBreakers":
     case "samplerOrder":
+    case "slopList":
+    case "slopStrength":
     // An unnamed drop reads the same way: the model didn't take the setting. It is the TITLE that must not
     // invent a name, and it doesn't.
     case undefined:
@@ -426,6 +428,8 @@ const KNOB_LABELS: Record<AdjustedKnob, string> = {
   replyMedia: "Reply pictures",
   samplerOrder: "Sampler order",
   seed: "Seed",
+  slopList: "Slop list",
+  slopStrength: "Slop strength",
   smoothingCurve: "Smoothing curve",
   smoothingFactor: "Smoothing factor",
   stop: "Stop sequences",

@@ -121,12 +121,12 @@ export const SAMPLER_ENVELOPE_SPELLINGS: Readonly<
 };
 
 /** The top-level fields an antislop proxy reads ({@link EndpointFeatures.antislop}): the phrase ban, the slop list's
- *  name and strength, and the words the list must never push down. */
+ *  name and strength (the preset's `slopList` and `slopStrength`), and the words the list must never push down. */
 export const ANTISLOP_FIELDS = { bannedStrings: "banned_strings", slopList: "slop_list", slopStrength: "slop_strength", slopAllow: "slop_allow" } as const;
 
 /** The features that drive a user's own server's samplers. A metered provider row never takes them: they would send
  *  fields a paid service does not define, so the resolver drops them there with a warning. */
-export const OWN_SERVER_FEATURES = ["samplerEnvelope", "antislop", "slopList", "slopStrength"] as const satisfies readonly (keyof EndpointFeatures)[];
+export const OWN_SERVER_FEATURES = ["samplerEnvelope", "antislop"] as const satisfies readonly (keyof EndpointFeatures)[];
 
 /** The tokenize endpoint a server answers, which turns a word-keyed logit bias into token ids and shows the
  *  editor what a word maps to. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */
@@ -306,12 +306,8 @@ export const endpointFeaturesSchema = z
     /** The envelope the extended samplers ride in ({@link SAMPLER_ENVELOPE_SPELLINGS}); absent ⇒ they ride the body top level. */
     samplerEnvelope: z.enum(SAMPLER_ENVELOPES).optional(),
     /** The server is an antislop proxy: banned phrases ride whole as its top-level list, which it enforces by rewinding,
-     *  and the slop list fields ride beside them ({@link ANTISLOP_FIELDS}). */
+     *  and the preset's slop list and strength ride beside them ({@link ANTISLOP_FIELDS}). */
     antislop: z.boolean().optional(),
-    /** The antislop proxy's slop list to apply, by the name the proxy knows it under; read only with `antislop`. */
-    slopList: z.string().min(1).optional(),
-    /** How hard the slop list pushes its words down (each weight raised to this power); read only with a `slopList`. */
-    slopStrength: z.number().positive().optional(),
     /** The tokenize endpoint behind word-keyed logit bias ({@link TOKENIZE_APIS}); absent ⇒ word keys cannot ride. */
     tokenizeApi: z.enum(TOKENIZE_APIS).optional(),
     /** The template-level thinking switch a turn sends, off or on ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */

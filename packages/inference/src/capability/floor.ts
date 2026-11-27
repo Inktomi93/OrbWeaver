@@ -85,6 +85,8 @@ export interface RouteFacts {
   readonly api: ChatApi | null;
   readonly dialect: Dialect;
   readonly prefill: EndpointFeatures["prefill"];
+  /** The connection's folded `antislop` switch; a metered row's was already dropped. */
+  readonly antislop: boolean;
 }
 
 /** The controls a route alone decides, stamped over whatever a row stated, because they follow from the code path a
@@ -93,6 +95,8 @@ export interface RouteFacts {
  *    (`backends/openai-compat/chat.ts`).
  *  • `reasoning.seedable`: only a `prefix-flag` continue row on the chat-completions route carries the authored chain
  *    of thought (`backends/openai-compat/body.ts` rule 5a), and only where the model takes a prefill.
+ *  • `sampling.slopList` and `sampling.slopStrength`: only an openai-compatible connection that declares the antislop
+ *    proxy sends them (`backends/openai-compat/sampling.ts`).
  *  • `tools.parallelControl: false` on the agent-sdk wire: the bundled runtime exposes no parallel tool control. */
 export function markRouteFacts(capability: Capability, route: RouteFacts): Capability {
   if (capability.kind !== "generation") {
@@ -101,6 +105,8 @@ export function markRouteFacts(capability: Capability, route: RouteFacts): Capab
   const generation = capability.generation;
   const chatCompletions = route.wire === "openai-compat" && route.api === "chat-completions";
   const { contextCompression: _replacedCompression, ...rest } = generation;
+  const { slopList: _replacedSlopList, slopStrength: _replacedSlopStrength, ...sampling } = generation.sampling;
+  const antislop = route.wire === "openai-compat" && route.antislop;
   const { seedable: _replacedSeed, ...reasoning } = generation.reasoning;
   const seedable = chatCompletions && route.prefill === "prefix-flag" && acceptsAssistantPrefill(generation);
   const tools = route.wire === "agent-sdk" && generation.tools !== undefined ? { ...generation.tools, parallelControl: false } : generation.tools;
@@ -108,6 +114,7 @@ export function markRouteFacts(capability: Capability, route: RouteFacts): Capab
     kind: "generation",
     generation: {
       ...rest,
+      sampling: antislop ? { ...sampling, slopList: true, slopStrength: true } : sampling,
       reasoning: seedable ? { ...reasoning, seedable: true } : reasoning,
       ...(chatCompletions && route.dialect === "openrouter" ? { contextCompression: true } : {}),
       ...(tools === undefined ? {} : { tools }),

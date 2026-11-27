@@ -54,6 +54,7 @@ import { windowInputRoom } from "@orb/kit/tokens";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
 import { InlineAction } from "@orb/ui/inline-action";
+import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -258,7 +259,59 @@ function OutputCluster({
           rows, so each declares its own block instead of taking the group's label track. */}
       {statesKnob(capability, "stop") ? <StopSequences form={form} /> : null}
       {statesKnob(capability, "bannedStrings") ? <BannedPhrases form={form} /> : null}
+      <SlopRows capability={capability} form={form} />
     </Section>
+  );
+}
+
+const SLOP_LIST_HINT =
+  "The name of a slop list the antislop proxy holds. It pushes that list's words down as the model writes; the room's character and user names are never pushed down.";
+const SLOP_STRENGTH_HINT = "How hard the slop list pushes its words down. Higher is stronger; blank uses the proxy's own default.";
+const SLOP_STRENGTH_STEP = 0.1;
+
+/** The antislop proxy's slop list and strength: only on a connection that declares the proxy, so every other
+ *  connection omits them (D68). Blank clears the field, since the preset refuses an empty list name. */
+function SlopRows({ form, capability }: { readonly form: AppForm; readonly capability: GenerationCapability }): ReactElement | null {
+  const list = statesKnob(capability, "slopList");
+  const strength = statesKnob(capability, "slopStrength");
+  if (!(list || strength)) {
+    return null;
+  }
+  return (
+    <SettingRowGroup>
+      {list ? (
+        <SettingTrackRow>
+          <form.AppField name="params.slopList">
+            {(field): ReactElement => (
+              <Field hint={SLOP_LIST_HINT} label={SAMPLING_FLAG_LABELS.slopList} name={field.name}>
+                <Input
+                  grow={true}
+                  onBlur={field.handleBlur}
+                  onChange={(event): void => field.handleChange(event.target.value === "" ? undefined : event.target.value)}
+                  placeholder="none"
+                  value={field.state.value ?? ""}
+                />
+              </Field>
+            )}
+          </form.AppField>
+        </SettingTrackRow>
+      ) : null}
+      {strength ? (
+        <SettingTrackRow>
+          <form.AppField name="params.slopStrength">
+            {(field): ReactElement => (
+              <field.NumberField
+                hint={SLOP_STRENGTH_HINT}
+                label={SAMPLING_FLAG_LABELS.slopStrength}
+                min={SLOP_STRENGTH_STEP}
+                placeholder="proxy default"
+                step={SLOP_STRENGTH_STEP}
+              />
+            )}
+          </form.AppField>
+        </SettingTrackRow>
+      ) : null}
+    </SettingRowGroup>
   );
 }
 

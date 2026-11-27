@@ -857,11 +857,12 @@ test("an antislop summarize sends its slop list only with the room's names to al
     providerId: "vllm",
     model: "m",
     baseUrl: LOCAL_URL,
-    declaredFeatures: { antislop: true, slopList: "rp", slopStrength: 2 },
+    declaredFeatures: { antislop: true },
   });
   const names = ["Mary Jane Watson", "Mary", "Jane", "Watson"];
-  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM], speakerNames: names });
-  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM] });
+  const preset = { slopList: "rp", slopStrength: 2 } as const;
+  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM], speakerNames: names, ...preset });
+  await executor.summarize({ signal: new AbortController().signal, connection, inputs: [ITEM], ...preset });
   const [room, roomless] = recorded.map((request) => request.body);
   expect(room?.["slop_list"]).toBe("rp");
   expect(room?.["slop_strength"]).toBe(2);

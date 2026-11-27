@@ -545,6 +545,10 @@ export const userIntentSchema = z.strictObject({
   banEos: z.boolean().optional(),
   // The stage order to run; a stage it leaves out runs after it, in the server's own order (D295).
   samplerOrder: samplerOrderSchema.optional(),
+  // The antislop proxy's slop list, by the name the proxy holds it under, and how hard it pushes the list's words
+  // down (each weight raised to this power). Both ride only where the connection declares the proxy.
+  slopList: z.string().min(1).optional(),
+  slopStrength: z.number().positive().optional(),
   seed: generationKnobSchemas.seed,
   logitBias: z.record(z.string(), z.number()).optional(),
   stop: z.array(z.string()).optional(),
@@ -640,6 +644,8 @@ const INTENT_CONTROL: { readonly [K in Exclude<keyof UserIntent, "effort" | "adv
   bannedStrings: "bannedStrings",
   banEos: "banEos",
   samplerOrder: "samplerOrder",
+  slopList: "slopList",
+  slopStrength: "slopStrength",
   seed: "seed",
   logitBias: "logitBias",
   stop: "stop",
@@ -712,6 +718,8 @@ const ROLE_SAMPLER_KNOBS = SAMPLER_KNOBS.filter((knob): knob is RoleSamplerKnob 
 const ROLE_PRESET_FIELDS = [
   ...ROLE_SAMPLER_KNOBS,
   "samplerOrder",
+  "slopList",
+  "slopStrength",
   "maxOutputTokens",
   "maxContextTokens",
   "effort",

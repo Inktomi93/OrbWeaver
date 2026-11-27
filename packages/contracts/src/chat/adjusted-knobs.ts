@@ -9,6 +9,9 @@ export const ADJUSTED_KNOBS = [
   // Every sampler, from its one home, and the stage order a server may run them in.
   ...SAMPLER_KNOBS,
   "samplerOrder",
+  // The antislop proxy's slop list and its strength: stated only where the connection declares the proxy.
+  "slopList",
+  "slopStrength",
   // The quality DIAL (not a sampling knob): dropped when the stored value is not a known quality level.
   "quality",
   // The reasoning token budget, dropped on an effort-mode model that has no budget field.

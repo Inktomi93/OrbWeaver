@@ -64,6 +64,9 @@ export type ResolvedSampling = { readonly [K in SamplingRangeKnob]?: number | un
   readonly bannedStrings?: readonly string[] | undefined;
   readonly banEos?: boolean | undefined;
   readonly samplerOrder?: readonly SamplerStage[] | undefined;
+  /** The antislop proxy's slop list and strength, set only where the capability states them. */
+  readonly slopList?: string | undefined;
+  readonly slopStrength?: number | undefined;
 };
 
 export interface ResolvedChatKnobs {

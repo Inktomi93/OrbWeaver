@@ -2,6 +2,7 @@
 // in the editor's order, plus the deck's names for the non-numeric sampling controls. `capability-panel-model.ts` pairs each with a capability's range.
 
 import type { GenerationCapability, Range } from "@orb/contracts/inference";
+import { PRESET_BANNED_PHRASES_LABEL, PRESET_SLOP_LIST_LABEL, PRESET_SLOP_STRENGTH_LABEL } from "./preset-names.ts";
 
 type Sampling = GenerationCapability["sampling"];
 type NumericSamplingKey = {
@@ -233,9 +234,11 @@ export const SAMPLING_FLAG_LABELS: Readonly<Record<FlagSamplingKey, string>> = {
   logitBias: "Word bias",
   stop: "Stop sequences",
   drySequenceBreakers: "DRY sequence breakers",
-  bannedStrings: "Banned phrases",
+  bannedStrings: PRESET_BANNED_PHRASES_LABEL,
   banEos: "Ban end of reply",
   samplerOrder: "Sampler order",
+  slopList: PRESET_SLOP_LIST_LABEL,
+  slopStrength: PRESET_SLOP_STRENGTH_LABEL,
 };
 
 /** Shared sampling metadata for controls and effective readouts. */
