@@ -25,7 +25,7 @@ Production first exports a home for every value tests need. The testkit then gai
 | 2 | The missing testkit helpers | 1505 |
 | 3 | Rules that need only syntax: CSS vars and media queries, bare refusals, unseeded ids and vanishing tables, vacuous assertions and spread captures | 1506, 1507, 1508, 1510 |
 | 4 | Rules that need the production index: copied labels, codes, routes and env keys; restated rosters | 1509, 1497 |
-| 5 | Structure: the surface-walk split and the README hazards | [1511](../../work/1511-split-the-surface-walk-machinery-out-of-the.md), [1512](../../work/1512-name-the-migration-chain-cut-hazard-and-the.md) |
+| 5 | Structure: the surface-walk split and the README hazards | [1511](../../work/1511-split-the-surface-walk-machinery-out-of-the.md) |
 
 Each rule lands with its existing findings fixed, so it reports zero the day it turns on. The derivation cleanup items run beside this plan and consume its helpers as they land.
 
