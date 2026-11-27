@@ -14,11 +14,12 @@ import { redactSecretsFromText } from "./openai-body.ts";
 
 const NO_MODELS_LISTED = "the provider listed no models";
 
-/** A catalog row from a list that carries only an id (plus, on some wires, a display name, a window, or the
+/** A catalog row from a list that carries only an id (plus, on some wires, a display name, a description, a window, or the
  *  kind a server's native model info states): pricing, modalities and reasoning are unknown, never guessed. */
 export function bareCatalogEntry(
   args: Pick<ModelCatalogEntry, "id"> & {
     readonly name?: ModelCatalogEntry["name"] | undefined;
+    readonly description?: ModelCatalogEntry["description"];
     readonly contextLength?: ModelCatalogEntry["contextLength"];
     readonly kind?: ModelCatalogEntry["kind"];
   },
@@ -26,6 +27,7 @@ export function bareCatalogEntry(
   return {
     id: args.id,
     name: args.name ?? args.id,
+    ...(args.description === undefined ? {} : { description: args.description }),
     ...(args.kind === undefined ? {} : { kind: args.kind }),
     contextLength: args.contextLength ?? null,
     promptPrice: null,

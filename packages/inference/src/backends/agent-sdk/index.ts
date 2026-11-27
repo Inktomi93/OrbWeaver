@@ -40,9 +40,10 @@ function isSessionStore(value: unknown): value is AgentSdkDeps["sessionStore"] {
   return value !== null && typeof value === "object" && "append" in value && "load" in value;
 }
 
-/** A daemon catalog row as a catalog entry: the pane lists aliases, and nothing else about them is known. */
+/** A daemon catalog row as a catalog entry: the alias, its display name and the daemon's own description of it. Nothing
+ *  else about the model is known here. */
 export function agentSdkCatalogEntry(row: AgentSdkModel): ModelCatalogEntry {
-  return bareCatalogEntry({ id: row.alias, name: row.displayName });
+  return bareCatalogEntry({ id: row.alias, name: row.displayName, ...(row.description.length === 0 ? {} : { description: row.description }) });
 }
 
 export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBackend {
