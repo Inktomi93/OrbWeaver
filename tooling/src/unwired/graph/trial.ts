@@ -2,6 +2,10 @@
 // specifier and re-export that names it, and every error the removal adds to the files that can break is a reader the
 // graph missed, named by file and line.
 //
+// - A member deletes with its coupled copies: its zod twin keys (a schema key whose `satisfies` check pairs it with that
+//   one member), its own wire copy, and each flow slot its value fills that is a member finding too, a port copy no one
+//   reads. A removal that leaves a copy judges the copy's type, not a reader. A slot someone reads is no finding, so the
+//   error at the fill stays a read.
 // - The files that can break are the edited files and every file the import graph says an edit of them reaches
 //   (Trials #checkedFor). Only a file that sees an edited file's declarations can gain an error, and it sees them only
 //   through an import chain, an augmentation, a global or a script file: the graph's reach covers each. A file that
@@ -12,8 +16,18 @@
 //   site with it: a binding. An excess-property error is the object literal that writes the member, and any other error
 //   inside that literal member (a method parameter that lost its contextual type) is part of the same write. An error
 //   at a target the graph's roles judge stored into and not read (`=`, a discarded `+=` or bump, ./roles.ts) is a
-//   write too. Bindings and writes alone leave a candidate named-only. An import binding its own file uses is a read, placed at the use: a
-//   failed import types its uses without an error.
+//   write too, and so is an error at an object literal's property name, at the name a declaration binds one to, or at a
+//   literal that spells the member's key, such as a literal whose union arm lost its discriminant. An error at a string
+//   in a type (a `Pick` argument, an indexed access) is a key use, as the graph's roles judge it; a string value, or a
+//   call's type argument, can reach a read and stays one. Bindings, key uses and writes alone leave a candidate
+//   named-only. An import binding its own file uses is a read, placed at the use: a failed import types its uses without
+//   an error.
+// - A delete that leaves the member's holder and each of its coupled copies with no member leaves a shape its own copy's
+//   slot cannot take (zod types an empty object's output `Record<string, never>`, which no interface fits), so an error
+//   that spells no name of the member is the emptied holder's: `emptied`, no read. Without a coupled copy the slot that
+//   requires the member is another's, and the error stays a read.
+// - A read a Drizzle write copies into a column is the column's, as the graph's store rule has it (sites.ts
+//   handedToColumn): it is no reference that refutes, and an error there is a write.
 // - An unused-code diagnostic (reportsUnnecessary) the delete adds is a declaration only the candidate read, not a
 //   reader of the candidate, so it refutes nothing and is dropped.
 // - Reads only outside the product (a test, a type test, tooling) make the verdict refuted-test-only: a test read
@@ -45,19 +59,24 @@ import { relative } from "node:path";
 import type { Declaration, Expression, Node, SourceFile } from "@typescript/native/ast";
 import {
   getCombinedModifierFlags,
+  isArrayTypeNode,
+  isCallExpression,
   isClassDeclaration,
   isClassExpression,
   isEnumDeclaration,
   isExportAssignment,
   isExportDeclaration,
   isExportSpecifier,
+  isIdentifier,
   isImportDeclaration,
   isImportSpecifier,
   isInterfaceDeclaration,
   isIntersectionTypeNode,
+  isLiteralTypeNode,
   isMethodDeclaration,
   isNamedExports,
   isNamespaceImport,
+  isNewExpression,
   isObjectLiteralExpression,
   isParenthesizedTypeNode,
   isPrivateIdentifier,
@@ -66,7 +85,11 @@ import {
   isPropertySignatureDeclaration,
   isShorthandPropertyAssignment,
   isSourceFile,
+  isStringLiteral,
+  isTaggedTemplateExpression,
+  isTupleTypeNode,
   isTypeLiteralNode,
+  isUnionTypeNode,
   isVariableDeclaration,
   isVariableDeclarationList,
   isVariableStatement,
@@ -77,6 +100,7 @@ import type { Diagnostic, NodeHandle, ProjectId } from "@typescript/native/sync"
 import { editorLineOf, readEditorText } from "../../floor/typescript/editor-lines.ts";
 import type { AddedError, Splice } from "../../floor/typescript/import-graph.ts";
 import { addedErrors, ImportGraph, spliced } from "../../floor/typescript/import-graph.ts";
+import { tableCalls } from "../drizzle-rows.ts";
 import type { Verdict } from "../field-sort.ts";
 import type { LiteralEvidence, LiteralSearch } from "../literal-hits.ts";
 import { isLiteralName, ownSiteKey, rowsEvidence, searchedWord, searchLiterals } from "../literal-hits.ts";
@@ -87,11 +111,13 @@ import { BUCKETS, MEMBER_BUCKETS } from "./analyse.ts";
 import type { Graph } from "./build.ts";
 import { nodeAt } from "./declared.ts";
 import { judgeMembers, NO_RULINGS, verdictsByDecl } from "./judge.ts";
+import type { LibraryNames } from "./library-names.ts";
+import { libraryNames } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { declKeyParts, keyText, Resolver } from "./resolve.ts";
 import { READS, referenceRoles } from "./roles.ts";
 import type { GraphKey } from "./sites.ts";
-import { declarationNameOf, isDeclKey } from "./sites.ts";
+import { declarationNameOf, handedToColumn, isDeclKey } from "./sites.ts";
 import { productReader } from "./state.ts";
 import type { FindingReferences } from "./verify.ts";
 import { evenSample, referencesOf } from "./verify.ts";
@@ -138,8 +164,9 @@ interface BlindRead {
   readonly at: string;
 }
 
-// What a new error's site does to the removed declaration.
-const SITE_KINDS = ["write", "binding", "read"] as const;
+// What a new error's site does to the removed declaration. A key names it by a string the site holds; `emptied` is where
+// a holder the delete left with no member no longer fits.
+const SITE_KINDS = ["write", "binding", "key", "emptied", "read"] as const;
 type SiteKind = (typeof SITE_KINDS)[number];
 
 // One error the removal added: `file:line` in the unedited tree, its TypeScript code, its site kind, whether the site
@@ -322,6 +349,85 @@ const firstLine = (text: string): string => text.split("\n")[0] ?? text;
 // or bump, or a destructuring slot. A logical `??=` or a bump whose value is used also reads.
 const storesOnly = (name: Node): boolean => !referenceRoles(name).some((role) => READS.has(role));
 
+// An error's site that names the member by a string in a type, such as a `Pick` argument or an indexed access: a type
+// reads no data. A string value can reach an access that reads (`field(made, "b")`), and so can a call's type argument,
+// so neither is a key use.
+function namesKey(name: Node): boolean {
+  if (!(isStringLiteral(name) && isLiteralTypeNode(name.parent))) {
+    return false;
+  }
+  let at: Node = name.parent;
+  while (isUnionTypeNode(at.parent) || isParenthesizedTypeNode(at.parent) || isTupleTypeNode(at.parent) || isArrayTypeNode(at.parent)) {
+    at = at.parent;
+  }
+  const holder = at.parent;
+  const typed = isCallExpression(holder) || isNewExpression(holder) || isTaggedTemplateExpression(holder) ? (holder.typeArguments ?? []) : [];
+  return !typed.some((argument) => sameSpan(argument, at));
+}
+
+// An error's site at an object literal's property name, or at the name a declaration binds an object literal to: the
+// literal writes the member, and the error says the write no longer fits its slot, as when a union arm loses its
+// discriminant and the literal matches no arm.
+function writesLiteral(name: Node): boolean {
+  const { parent } = name;
+  if (isVariableDeclaration(parent)) {
+    return sameSpan(parent.name, name) && parent.initializer !== undefined && isObjectLiteralExpression(parent.initializer);
+  }
+  return (isPropertyAssignment(parent) || isShorthandPropertyAssignment(parent)) && sameSpan(parent.name, name) && isObjectLiteralExpression(parent.parent);
+}
+
+// What an error's site that no store reaches does: writes a literal property, names the member as a key, or reads it.
+function unstoredKind(named: Node | undefined): SiteKind {
+  if (named === undefined) {
+    return "read";
+  }
+  if (writesLiteral(named)) {
+    return "write";
+  }
+  return namesKey(named) ? "key" : "read";
+}
+
+// A candidate's name, and whether its delete empties its holder and every coupled copy's.
+interface DeletedMember {
+  readonly name: string | null;
+  readonly emptied: boolean;
+}
+const NO_MEMBER: DeletedMember = { name: null, emptied: false };
+
+// A member declaration's name, when it is an identifier or a string.
+function memberName(member: Node | undefined): string | null {
+  const name = member === undefined ? undefined : declarationNameOf(member);
+  return name !== undefined && (isIdentifier(name) || isStringLiteral(name)) ? name.text : null;
+}
+
+// Whether a member is its holder's only member, so its delete empties the holder.
+function soleMember(member: Node | undefined): boolean {
+  const holder = member === undefined ? undefined : holderOf(member);
+  return holder !== undefined && membersOf(holder).length === 1;
+}
+
+// An error at an object literal that spells the member's key: the literal writes the member and no longer fits its slot.
+const spelledByLiteral = (named: Node | undefined, name: string | null): boolean =>
+  named !== undefined &&
+  name !== null &&
+  isObjectLiteralExpression(named) &&
+  named.properties.some((property) => {
+    const key = declarationNameOf(property);
+    return key !== undefined && spells(key, name);
+  });
+
+// A holder's own members: an interface's, a class's, an object literal's or a type literal's.
+function membersOf(holder: Node): readonly Node[] {
+  if (isInterfaceDeclaration(holder) || isClassDeclaration(holder) || isClassExpression(holder) || isTypeLiteralNode(holder)) {
+    return holder.members;
+  }
+  return isObjectLiteralExpression(holder) ? holder.properties : [];
+}
+
+// Whether an error's site spells the member's name, as an identifier or a string.
+const spells = (named: Node | undefined, name: string): boolean =>
+  named !== undefined && (isIdentifier(named) || isStringLiteral(named)) && named.text === name;
+
 // The edits a delete makes, by repository-relative file.
 type Edits = ReadonlyMap<string, readonly Splice[]>;
 
@@ -479,6 +585,15 @@ function literalKey(site: Node): { readonly literal: Expression; readonly name: 
 // A declaration a module can export: a statement of its file, or a variable of one.
 const isTopLevel = (node: Node): boolean => isSourceFile(node.parent) || (isVariableDeclarationList(node.parent) && isSourceFile(node.parent.parent.parent));
 
+// Each key's partners, in pair order.
+function grouped(pairs: readonly (readonly [DeclKey, DeclKey])[]): ReadonlyMap<DeclKey, readonly DeclKey[]> {
+  const out = new Map<DeclKey, DeclKey[]>();
+  for (const [from, to] of pairs) {
+    out.set(from, [...(out.get(from) ?? []), to]);
+  }
+  return out;
+}
+
 /** The trial session over one built graph and its world. */
 class Trials {
   readonly #graph: Graph;
@@ -491,13 +606,45 @@ class Trials {
   readonly #phases: Phases;
   #seen: { readonly checked: number; readonly projects: readonly ProjectId[] }[] = [];
   #resolver: Resolver | null = null;
+  // Each type member's zod twin keys (build.ts #settleTwins): the schema that writes the member's own wire copy.
+  readonly #twinKeys = new Map<DeclKey, DeclKey[]>();
+  // Each member's flow slots that are member findings too: a port or wire copy the member's value fills, unread itself.
+  readonly #findingSlots = new Map<DeclKey, DeclKey[]>();
+  // Each member's checked schema keys (build.ts #settleTwins), and each such key's members: a union output's key pairs
+  // with the same-named member of every arm.
+  readonly #checksOf: ReadonlyMap<DeclKey, readonly DeclKey[]>;
+  readonly #checked: ReadonlyMap<DeclKey, readonly DeclKey[]>;
+  readonly #findings: ReadonlySet<DeclKey>;
+  readonly #isTable: (node: Node) => boolean;
+  readonly #names: LibraryNames;
 
-  constructor(graph: Graph, world: NativeWorld, root: string, phases: Phases) {
+  constructor(graph: Graph, world: NativeWorld, { root, analysis }: { readonly root: string; readonly analysis: Analysis }, phases: Phases) {
     this.#graph = graph;
+    for (const [schema, member] of graph.facts.twins) {
+      this.#twinKeys.set(member, [...(this.#twinKeys.get(member) ?? []), schema]);
+    }
+    this.#checked = grouped(graph.facts.checks);
+    this.#checksOf = grouped(graph.facts.checks.map(([schema, member]) => [member, schema]));
+    const findings = new Set(MEMBER_BUCKETS.flatMap((bucket) => analysis[bucket].flatMap(({ key }) => (key !== null && isDeclKey(key) ? [key] : []))));
+    this.#findings = findings;
+    for (const [slot, values] of graph.facts.flows) {
+      for (const value of findings.has(slot) ? values : []) {
+        if (value !== slot && findings.has(value)) {
+          this.#findingSlots.set(value, [...(this.#findingSlots.get(value) ?? []), slot]);
+        }
+      }
+    }
     this.#world = world;
     this.#root = root;
     this.#phases = phases;
     this.#imports = ImportGraph.build(world.program, (requests) => world.batch(requests), world.files);
+    this.#isTable = tableCalls(world);
+    this.#names = libraryNames(world);
+  }
+
+  // A read a Drizzle write copies into a column, or a table definition holds: the column judges it, as the graph does.
+  #columnCopy(name: Node): boolean {
+    return handedToColumn(name, this.#isTable, this.#names);
   }
 
   #absolute(file: string): string {
@@ -576,6 +723,7 @@ class Trials {
       return [...this.group(items.slice(0, half)), ...this.group(items.slice(half))];
     }
     const written = this.#writtenMembers(outcome.added, outcome.owners);
+    const deleted = items.map(({ key }) => ({ name: memberName(this.nodeOf(key)), emptied: this.#empties(key) }));
     const errorsOf = (at: number): readonly TrialError[] =>
       outcome.added.flatMap((error, x) =>
         outcome.owners[x] === at
@@ -583,6 +731,7 @@ class Trials {
               this.#error(
                 error,
                 written.some((member) => member.owner === at && member.holds(error)),
+                deleted[at] ?? NO_MEMBER,
               ),
             ]
           : [],
@@ -732,7 +881,7 @@ class Trials {
     });
   }
 
-  /** The candidate's own span and each export site that names it. */
+  /** The candidate's own span, its coupled copies' ({@link Trials.coupled}) and each export site that names it. */
   edits(key: DeclKey, node: Node, exportSites: readonly Node[]): Edits {
     const edits = new Map<string, Splice[]>();
     const add = (at: string, splice: Splice): void => {
@@ -744,6 +893,12 @@ class Trials {
     };
     const { file } = declKeyParts(key);
     add(file, deletion(node.getSourceFile(), node));
+    for (const copy of this.coupled(key)) {
+      const copyNode = this.nodeOf(copy);
+      if (copyNode !== undefined) {
+        add(declKeyParts(copy).file, deletion(copyNode.getSourceFile(), copyNode));
+      }
+    }
     for (const site of exportSites) {
       const source = site.getSourceFile();
       add(this.#world.fileOfSource(source), isExportAssignment(site) ? wholeOf(site) : deletion(source, site));
@@ -774,9 +929,15 @@ class Trials {
     });
   }
 
+  // Whether the member has a coupled copy, and its delete empties its holder and every copy's holder.
+  #empties(key: DeclKey): boolean {
+    const copies = this.coupled(key);
+    return copies.length > 0 && [key, ...copies].every((member) => soleMember(this.nodeOf(member)));
+  }
+
   // A new error, placed at the reader when an import's own file reads the binding it breaks; `inWrite` says it sits in a
-  // literal member that writes the deleted member.
-  #error({ diagnostic, pos }: AddedError, inWrite: boolean): TrialError {
+  // literal member that writes the deleted member; `member` is its name, and whether its delete empties its holder.
+  #error({ diagnostic, pos }: AddedError, inWrite: boolean, member: DeletedMember): TrialError {
     const file = this.#relative(diagnostic);
     const base = { code: diagnostic.code, product: productReader(file), text: firstLine(diagnostic.text) };
     const at = `${file}:${String(this.#line(file, pos, diagnostic))}`;
@@ -784,7 +945,9 @@ class Trials {
     const named = source === undefined ? undefined : touching(source, pos);
     const site = moduleSite(named);
     if (site === undefined) {
-      return { ...base, at, kind: inWrite || WRITE_CODES.has(diagnostic.code) || (named !== undefined && storesOnly(named)) ? "write" : "read" };
+      const writes = inWrite || WRITE_CODES.has(diagnostic.code) || (named !== undefined && (storesOnly(named) || this.#columnCopy(named)));
+      const kind = writes || spelledByLiteral(named, member.name) ? "write" : unstoredKind(named);
+      return { ...base, at, kind: kind === "read" && member.emptied && member.name !== null && !spells(named, member.name) ? "emptied" : kind };
     }
     const reader = source === undefined ? undefined : this.#bindingReader(source, site, pos);
     return reader === undefined
@@ -890,7 +1053,7 @@ class Trials {
       return { trial: unresolvedTrial({ bucket, finding, tsUnused }, "no declaration at the finding's span") };
     }
     // An import or export that names the candidate binds it; the delete removes or rewrites that site, so only a use reads.
-    const used = reads.filter((read) => moduleSite(read) === undefined);
+    const used = reads.filter((read) => moduleSite(read) === undefined && !this.#columnCopy(read));
     if (used.length > 0) {
       return {
         trial: {
@@ -1019,6 +1182,34 @@ class Trials {
     }
     return new Map([...found].filter(([, reads]) => reads.length > 0));
   }
+  /** The copies a candidate deletes with: its zod twin keys, every flow slot its value fills, at any depth, that is a
+   *  member finding too, and each checked schema key whose members are all findings, with those members: a union
+   *  member's key in every arm and the schema's arm keys that check it. Each copy requires the member, so a delete that
+   *  leaves one only breaks the copy's type. */
+  coupled(key: DeclKey): readonly DeclKey[] {
+    const out = new Set<DeclKey>(this.#twinKeys.get(key) ?? []);
+    const pending = [key];
+    const take = (copy: DeclKey): void => {
+      if (copy !== key && !out.has(copy)) {
+        out.add(copy);
+        pending.push(copy);
+      }
+    };
+    for (let at = pending.pop(); at !== undefined; at = pending.pop()) {
+      for (const slot of this.#findingSlots.get(at) ?? []) {
+        take(slot);
+      }
+      for (const schema of this.#checksOf.get(at) ?? []) {
+        const members = this.#checked.get(schema) ?? [];
+        if (members.every((member) => this.#findings.has(member))) {
+          take(schema);
+          members.forEach(take);
+        }
+      }
+    }
+    return [...out];
+  }
+
   /** The declaration a key names, in the world's parse. */
   nodeOf(key: DeclKey): Node | undefined {
     const parts = declKeyParts(key);
@@ -1214,7 +1405,7 @@ export function runTrials(
   log: (line: string) => void,
 ): TrialReport {
   const phases = new Phases(world);
-  const trials = new Trials(graph, world, run.root, phases);
+  const trials = new Trials(graph, world, run, phases);
   const verdicts = run.verdicts ?? [];
   const sorted = verdicts.length === 0 ? null : verdictsByDecl(graph, judgeMembers({ root: run.root, graph, analysis: run.analysis, world }, NO_RULINGS));
   const wanted = ({ key }: Finding): boolean => {

@@ -41,6 +41,66 @@ test("a callback written as a method takes its argument into the generic", { tim
   expect(bucketsIn(scan)).toEqual(["member-untouched NominateVars.stale"]);
 });
 
+// The same join where the options are a library's: the procedure's options type extends the library's base, whose
+// `mutationFn` takes the variables. The client's vars and data twins pair through that member; `Out.extra` is read by
+// nobody and `NominateVars.stale` is written by nobody.
+test("a library options type a procedure's options extend pairs the client's vars and data with the procedure's", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export type MutationFunction<TData, TVariables> = (variables: TVariables) => Promise<TData>;",
+      "export interface MutationOptions<TData, TVariables> { mutationFn?: MutationFunction<TData, TVariables> }",
+      "export interface ProcedureOptions<TInput, TOutput> extends MutationOptions<TOutput, TInput> { readonly path: string }",
+    ]),
+    ...source([
+      'import type { MutationOptions, ProcedureOptions } from "lib";',
+      "export interface Input { readonly chatId: string; readonly offer?: string }",
+      "export interface Out { readonly done: boolean; readonly extra: string }",
+      'const verb = async (input: Input): Promise<Out> => ({ done: input.chatId + (input.offer ?? "") !== "", extra: "x" });',
+      "declare const procedure: (fn: (input: Input) => Promise<Out>) => ProcedureOptions<Input, Out>;",
+      "const router = { nominate: { mutationOptions: (): ProcedureOptions<Input, Out> => procedure(verb) } };",
+      "export interface NominateVars { readonly chatId: string; readonly offer?: string; readonly stale?: string }",
+      "export interface NominateData { readonly done: boolean; readonly extra: string }",
+      "const entity = <V, D>(config: { readonly options: (t: typeof router) => MutationOptions<D, V> }): ((vars: V) => Promise<D | undefined>) => (vars) =>",
+      "  config.options(router).mutationFn?.(vars) ?? Promise.resolve(undefined);",
+      "export const useNominate = entity<NominateVars, NominateData>({ options: (t) => t.nominate.mutationOptions() });",
+      'export const fire = async (): Promise<boolean> => (await useNominate({ chatId: "c", offer: "o" }))?.done ?? false;',
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Out.extra", "member-write-only NominateData.extra", "member-untouched NominateVars.stale"]);
+});
+
+// The client's options slot picks the library's members (`Pick<UseMutationOptions<D, E, V>, "mutationFn">`), as the
+// mutation factory does: a picked library member pairs with the procedure options' member the same way, so a data twin
+// the client restates and reads (`Reaped.reaped`) reads the procedure's output member. `Out.extra` is read by nobody.
+test("a slot that picks a library options type's members pairs the client's restated data with the procedure's output", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const scan = await graphScan(plantedTree, {
+    ...libraryModule([
+      "export type MutationFunction<TData, TVariables> = (variables: TVariables) => Promise<TData>;",
+      "export interface UseMutationOptions<TData, TError, TVariables> { mutationKey?: readonly unknown[]; mutationFn?: MutationFunction<TData, TVariables> }",
+      "export interface ProcedureOptions<TInput, TOutput> extends UseMutationOptions<TOutput, Error, TInput> { readonly path: string }",
+    ]),
+    ...source([
+      'import type { ProcedureOptions, UseMutationOptions } from "lib";',
+      "export interface Out { readonly reaped: number; readonly extra: string }",
+      'const verb = async (): Promise<Out> => ({ reaped: 1, extra: "x" });',
+      "declare const procedure: (fn: () => Promise<Out>) => ProcedureOptions<void, Out>;",
+      "const router = { reap: { mutationOptions: (): ProcedureOptions<void, Out> => procedure(verb) } };",
+      'type Options<V, D> = Required<Pick<UseMutationOptions<D, Error, V>, "mutationKey">> & Pick<UseMutationOptions<D, Error, V>, "mutationFn">;',
+      "const entity = <V, D>(config: { readonly options: (t: typeof router) => Options<V, D>; readonly settle: (data: D) => boolean }): ((vars: V) => Promise<boolean>) =>",
+      "  async (vars) => {",
+      "    const data = await config.options(router).mutationFn?.(vars);",
+      "    return data !== undefined && config.settle(data);",
+      "  };",
+      "export const useReap = entity<void, { readonly reaped: number }>({ options: (t) => t.reap.mutationOptions(), settle: (data) => data.reaped !== 0 });",
+    ]),
+  });
+  expect(bucketsIn(scan)).toEqual(["member-write-only Out.extra"]);
+});
+
 // `set` keeps what it takes, so a map filled through a wider instance fills the map it was set on and the reads of the
 // narrower one read the write. `has` and `echo` compare or hand back what they take, paired straight; `includes`,
 // `has` and `reduce` reached through a generic that holds the collections lend nothing either. So `Stored.label` is
@@ -129,6 +189,49 @@ test("a push writes only the list its own binding holds", { timeout: 120_000 }, 
 
 // An optional list member pushed into through `?.` is the same list the caller handed in: `Staged`'s reads read the
 // push into `Write`. `Staged.spare` is written and read by nothing, so it stays a finding.
+// A push of a spread list writes each of its elements into the list: the element `made` returns fills the list's element
+// type, whose reads read it, as a push of one element does. `made.spare` is read by nobody. A spread onto an opaque
+// rest parameter still hands the list on whole, so `noted.note` is sent.
+test("a push of a spread list fills the list's element with each element", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'const made = (): { readonly hash: string; readonly spare: string } => ({ hash: "h", spare: "s" });',
+      "export const run = (count: number): string => {",
+      "  const pictures: { readonly hash: string }[] = [];",
+      "  pictures.push(...Array.from({ length: count }, () => made()));",
+      '  return pictures.map(({ hash }) => hash).join("");',
+      "};",
+      "declare const log: (...values: unknown[]) => void;",
+      'const noted = (): { readonly note: string } => ({ note: "n" });',
+      "export const logAll = (count: number): void => log(...Array.from({ length: count }, () => noted()));",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only made.spare", "member-sent-only noted.note"]);
+});
+
+// A slot that is a type parameter or an object arm (`T | Spliced`) takes an object value into the arm it fits, so a read
+// of the arm reads the value: `row.content` and `row.role` are read where the spliced history is, and `row.spare` is
+// read by nobody.
+test("an object value filling a union of a type parameter and an object arm fills the arm", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "interface Spliced { readonly role: string; readonly content: string }",
+      'const row = (content: string): { readonly role: string; readonly content: string; readonly spare: string } => ({ role: "system", content, spare: "s" });',
+      "const splice = <T extends { readonly role: string }>(history: readonly T[]): (T | Spliced)[] => {",
+      "  const result: (T | Spliced)[] = [...history];",
+      '  result.splice(0, 0, row("note"));',
+      "  return result;",
+      "};",
+      "export const prompt = (): string => {",
+      '  return splice([{ role: "user" }]).map((entry) => ("content" in entry ? entry.content + entry.role : "")).join("");',
+      "};",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only row.spare"]);
+});
+
 test("a push through an optional list member writes the list the caller handed in", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,
@@ -583,6 +686,38 @@ for (const { shape, held, call, sent } of VALIDATED_SHAPES) {
 // `extra`. No type on the path names `extra`, so only the cost row's own trace carries it: `turn` is the reduce's
 // element, `turns` takes `costs(wires)`, whose return maps each row to its cost. `Lost.cost.extra` is written and never
 // read, as nothing on its own trace reads it. `sink` reads only the list's length.
+// A conditional whose branches are two declared shapes of one structure takes one of them as its type, so a read of the
+// variable or of a destructuring pattern it binds lands on one shape: each branch fills the binding, so the read reaches
+// both. `Pair.spare` stays unread, and a branch of a binding the walk reads nothing from credits nothing.
+test("a branch of an unannotated conditional binding fills the binding's type", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "export interface Pair { readonly seg: string; readonly target: string; readonly spare: string }",
+      'const NONE: { readonly seg: string; readonly target: string } = { seg: "", target: "none" };',
+      'const made = (): { readonly seg: string; readonly target: string } => ({ seg: "s", target: "t" });',
+      "export const pick = (on: boolean): string => {",
+      "  const { seg, target } = on ? made() : NONE;",
+      "  return seg + target;",
+      "};",
+      "const squash = (rows: readonly { inj: string; depth: number }[]): { inj: string; depth: number }[] => [...rows];",
+      'const placed = (): { readonly inj: string; readonly depth: number }[] => [{ inj: "i", depth: 1 }];',
+      "export const splice = (on: boolean): number => {",
+      "  const sorted = placed();",
+      "  const list = on ? squash(sorted) : sorted;",
+      "  let sum = 0;",
+      "  for (const { inj, depth } of list) {",
+      "    sum += inj.length + depth;",
+      "  }",
+      "  return sum;",
+      "};",
+      'export const pair: Pair = { seg: "s", target: "t", spare: "x" };',
+      "export const segOf = (): string => pair.seg + pair.target;",
+    ]),
+  );
+  expect(bucketsIn(scan)).toEqual(["member-write-only Pair.spare"]);
+});
+
 test("a member a narrower slot type drops reaches only the slot its own value reaches", { timeout: 120_000 }, async ({ plantedTree }) => {
   const scan = await graphScan(
     plantedTree,

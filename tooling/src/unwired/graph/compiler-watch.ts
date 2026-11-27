@@ -18,10 +18,17 @@ interface StartedCompiler {
   readonly step: string;
 }
 
+/** The end of a compiler nothing in the run closed that exited 0: the compiler traps SIGTERM and SIGINT and exits clean,
+ *  so a signal from outside the run stopped it, such as an out-of-memory guard's (earlyoom sends SIGTERM). */
+export const COMPILER_STOPPED_FROM_OUTSIDE = "exited with code 0, stopped by a SIGTERM or SIGINT from outside the run, such as an out-of-memory guard's";
+
 // How a compiler process ended, or null while it runs.
 const endOf = (child: ChildProcess): string | null => {
   if (child.signalCode !== null) {
     return `ended by signal ${child.signalCode}`;
+  }
+  if (child.exitCode === 0 && !child.killed) {
+    return COMPILER_STOPPED_FROM_OUTSIDE;
   }
   return child.exitCode === null ? null : `exited with code ${String(child.exitCode)}`;
 };

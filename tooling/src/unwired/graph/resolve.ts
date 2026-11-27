@@ -19,6 +19,7 @@
 // - A Drizzle row member is placed on its column through the table the checker ties its row type to (../drizzle-rows.ts).
 import type {
   CallExpression,
+  Expression,
   ExpressionWithTypeArguments,
   IndexedAccessTypeNode,
   LiteralTypeNode,
@@ -75,7 +76,7 @@ import {
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
-import type { APIRequestGenerator, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
+import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, NodeHandle, Type } from "@typescript/native/sync";
 import { all, ObjectFlags, SymbolFlags } from "@typescript/native/sync";
 import type { RowTable } from "../drizzle-rows.ts";
 import { rowTables, rowTablesOf } from "../drizzle-rows.ts";
@@ -213,15 +214,6 @@ export const unwrapExpression = (node: Node | undefined): Node | undefined => {
   return at;
 };
 
-// The value an assertion wraps: `z.enum(T) satisfies …`.
-const unassert = (node: Node | undefined): Node | undefined => {
-  let at = unwrapExpression(node);
-  while (at !== undefined && (isSatisfiesExpression(at) || isAsExpression(at))) {
-    at = unwrapExpression(at.expression);
-  }
-  return at;
-};
-
 // A declaration's own type annotation: a variable's, a member's, a parameter's, an alias's, a function's return.
 function annotationOf(node: Node): TypeNode | undefined {
   if (
@@ -242,8 +234,23 @@ function annotationOf(node: Node): TypeNode | undefined {
   return undefined;
 }
 
+/** An expression through its parentheses, non-null assertions, `as` and `satisfies`: the value the wrappers hold. */
+export function unwrap(node: Expression): Expression {
+  let at = node;
+  while (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at) || isNonNullExpression(at)) {
+    at = at.expression;
+  }
+  return at;
+}
+
+// A declaration's initializer through its parentheses and assertions: `z.enum(T) satisfies …` is the call.
+function unassertedInitializer(node: Node): Expression | undefined {
+  const initializer = initializerOf(node);
+  return initializer === undefined ? undefined : unwrap(initializer);
+}
+
 // A declaration's initializer: a variable's, a class field's, a parameter's or a binding's default.
-function initializerOf(node: Node): Node | undefined {
+function initializerOf(node: Node): Expression | undefined {
   return isVariableDeclaration(node) || isPropertyDeclaration(node) || isParameterDeclaration(node) || isBindingElement(node) ? node.initializer : undefined;
 }
 
@@ -306,7 +313,7 @@ function settleNames(live: LiveNames, homes: LevelHomes, depth: number, walk: Wa
 
 // The tuple a `z.enum(T)` initializer hands zod: `schema = z.enum(T)`, through any assertion.
 function enumArgumentOf(declaration: Node, names: LibraryNames): readonly Node[] {
-  const call = unassert(unwrapExpression(initializerOf(declaration)));
+  const call = unassertedInitializer(declaration);
   if (call === undefined || !isCallExpression(call)) {
     return [];
   }
@@ -368,6 +375,25 @@ function containerTypeParameters(member: Node): readonly string[] {
     at = at.parent;
   }
   return isTypeAliasDeclaration(at) ? typeParametersOf(at) : [];
+}
+
+const SYMBOL_MEMBER_PREFIX = "__@";
+
+/** The checker's name for a member declared under a unique symbol: `__@` and the symbol's name and id. The API reports
+ *  that name but `getPropertyOfType` finds no member by it, so a lookup lists the members and matches the name
+ *  ({@link isSymbolMemberName}). */
+export const symbolMemberName = (symbol: NativeSymbol): string => `${SYMBOL_MEMBER_PREFIX}${symbol.name}@${String(symbol.id)}`;
+
+/** Whether a member name is the checker's spelling of a unique symbol key, as {@link symbolMemberName} builds it. */
+export const isSymbolMemberName = (name: string): boolean => name.startsWith(SYMBOL_MEMBER_PREFIX);
+
+/** A type's member by the name the checker reports for it: `getPropertyOfType`, else, for a unique symbol's name, which
+ *  that request cannot find, the listed member of that name. */
+export function* propertyNamed(checker: Checker, type: Type, name: string): APIRequestGenerator<NativeSymbol | undefined> {
+  if (!isSymbolMemberName(name)) {
+    return yield* checker.getPropertyOfType.gen(type, name);
+  }
+  return (yield* checker.getPropertiesOfType.gen(type)).find((member) => member.name === name);
 }
 
 /** A literal key's text: an identifier, a string or numeric literal, or a computed key holding a string. */
@@ -816,7 +842,7 @@ export class Resolver {
   *#levelHomes(level: readonly Type[], live: LiveNames, ownCount: boolean): APIRequestGenerator<LevelHomes> {
     const { checker } = this.#world;
     const asks = level.flatMap((type, at) => [...live].flatMap(([name, on]) => (on.has(type.id) ? [{ type, at, name }] : [])));
-    const props = yield* allOf(asks.map((ask) => checker.getPropertyOfType.gen(ask.type, ask.name)));
+    const props = yield* allOf(asks.map((ask) => propertyNamed(checker, ask.type, ask.name)));
     const homes: LevelHomes = { carries: level.map(() => new Set<string>()), found: new Map(), ended: new Map(), stops: new Map(), spelled: [] };
     for (const [x, ask] of asks.entries()) {
       const declared = (props[x]?.declarations ?? []).filter((declaration) => declaration.kind !== SyntaxKind.MappedType);
@@ -1069,7 +1095,7 @@ export class Resolver {
     const tuples: SpelledTuple[] = [];
     for (const { owner, declaration } of yield* this.#ownDeclarations(symbol)) {
       const own = annotationOf(declaration);
-      const initial = unassert(initializerOf(declaration));
+      const initial = unassertedInitializer(declaration);
       const spelled = own === undefined ? yield* this.#valueSpelling(owner, initial, seen) : { roots: [{ owner, node: own }], tuples: [] };
       roots.push(...spelled.roots);
       tuples.push(...spelled.tuples, ...(initial !== undefined && isObjectLiteralExpression(initial) ? this.#literalKeys(initial) : []));
@@ -1137,7 +1163,7 @@ export class Resolver {
   *#spreadHome(declarations: readonly { readonly declaration: Node }[], name: string): APIRequestGenerator<OriginWalk> {
     const { checker } = this.#world;
     for (const { declaration } of declarations) {
-      const literal = unassert(initializerOf(declaration));
+      const literal = unassertedInitializer(declaration);
       const spreads = literal !== undefined && isObjectLiteralExpression(literal) ? literal.properties.filter((property) => isSpreadAssignment(property)) : [];
       for (const spread of spreads) {
         const member = yield* checker.getPropertyOfType.gen(yield* checker.getTypeAtLocation.gen(spread.expression), name);

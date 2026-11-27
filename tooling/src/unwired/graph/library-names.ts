@@ -50,6 +50,7 @@ export const PLAYWRIGHT = "playwright";
 export const VARIANTS_PACKAGE = "tailwind-variants";
 export const PINO_PACKAGE = "pino";
 export const REACT_TYPES = "@types/react";
+export const MINISEARCH_PACKAGE = "minisearch";
 
 const LIBRARIES = [
   ZOD_PACKAGE,
@@ -62,6 +63,7 @@ const LIBRARIES = [
   QUERY_CORE,
   REACT_QUERY,
   PLAYWRIGHT_CORE,
+  MINISEARCH_PACKAGE,
 ] as const;
 /** Who declares a name: a package by its manifest name, or the platform. */
 export type Library = (typeof LIBRARIES)[number];
@@ -204,6 +206,8 @@ export const FORM_WRITES: ReadonlySet<string> = new Set([
 export const NAVIGATION_MEMBER = "to";
 /** tailwind-variants' table builder. */
 export const TV = "tv";
+/** MiniSearch's options that name document members: the ones it indexes, the ones it stores, and its id. */
+export const MINISEARCH_FIELDS: ReadonlySet<string> = new Set(["fields", "storeFields", "idField"]);
 /** Playwright's page and locator methods that run their first argument in the page. */
 export const IN_PAGE: ReadonlySet<string> = new Set(["evaluate", "evaluateAll", "evaluateHandle", "$eval", "$$eval", "waitForFunction", "addInitScript"]);
 
@@ -251,6 +255,7 @@ const LIBRARY_NAMES: Readonly<Record<Library, ReadonlySet<string>>> = {
   [QUERY_CORE]: MUTATE_CALLS,
   [REACT_QUERY]: MUTATE_CALLS,
   [PLAYWRIGHT_CORE]: IN_PAGE,
+  [MINISEARCH_PACKAGE]: MINISEARCH_FIELDS,
 };
 const ALL_NAMES: ReadonlySet<string> = new Set(Object.values(LIBRARY_NAMES).flatMap((names) => [...names]));
 

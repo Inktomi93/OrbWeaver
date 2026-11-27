@@ -338,6 +338,8 @@ export const ZOD_MODULE = {
   "node_modules/zod/v4/classic/package.json": JSON.stringify({ type: "module" }),
   "node_modules/zod/v4/classic/index.d.ts": [
     "type Shape<S> = { [K in keyof S]: S[K] extends Schema<infer V> ? V : never };",
+    // zod types an object schema with no key as an empty record, which no interface fits
+    "type Keyed<S> = keyof S extends never ? Record<string, never> : Shape<S>;",
     "export interface Params { readonly error?: string }",
     // `I` is the input parse takes, which a transform keeps while it changes the output
     "export interface Schema<T = unknown, I = T> {",
@@ -363,11 +365,12 @@ export const ZOD_MODULE = {
     "}",
     "export declare const z: {",
     "  object<S>(shape: S, params?: Params): Schema<Shape<S>> & { readonly shape: S };",
-    "  strictObject<S>(shape: S, params?: Params): Schema<Shape<S>> & { readonly shape: S };",
+    "  strictObject<S>(shape: S, params?: Params): Schema<Keyed<S>> & { readonly shape: S };",
     "  union<A extends readonly Schema[]>(arms: A): Schema<A[number]['_output']>;",
     "  discriminatedUnion<A extends readonly Schema[]>(key: string, arms: A): Schema<A[number]['_output']>;",
     "  lazy<T>(make: () => Schema<T>): Schema<T>;",
     "  enum<const T extends readonly string[]>(values: T): Schema<T[number]> & { readonly enum: { readonly [K in T[number]]: K } };",
+    "  literal<const T extends string>(value: T): Schema<T>;",
     "  string(): Schema<string>;",
     "  number(): Schema<number>;",
     "  array<S extends Schema>(item: S): Schema<S['_output'][]>;",
@@ -384,6 +387,24 @@ export const libraryModule = (lines: readonly string[], name = "lib"): Record<st
   [`node_modules/${name}/index.d.ts`]: lines.join("\n"),
 });
 
+/** drizzle-orm's write builders in miniature: `values` takes a slot of the library's own mapped type. */
+export const STORE_PACKAGE = "drizzle-orm";
+export const STORES = libraryModule(
+  [
+    "export interface Column { readonly name: string }",
+    "export declare const text: () => Column;",
+    // a not-null column without a default is one an insert must hold
+    "export declare const integer: () => Column & { readonly notNull: true };",
+    "export interface TableConfig<C> { readonly columns: C }",
+    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"]]: string } }',
+    "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
+    "type Needed<C> = { [K in keyof C as C[K] extends { readonly notNull: true } ? K & string : never]: unknown };",
+    "type Optional<C> = { [K in keyof C as C[K] extends { readonly notNull: true } ? never : K & string]?: unknown };",
+    'export type Insert<T> = T extends Table<infer Config> ? Optional<Config["columns"]> & Needed<Config["columns"]> : never;',
+    "export declare const db: { insert<T>(table: T): { values(value: Insert<T>): Promise<void> } };",
+  ],
+  STORE_PACKAGE,
+);
 /** Hono's request context with Node's types: `json` answers the platform `Response`, as the real member does, and `set`
  *  answers nothing. A planted source declares `c: Context` to send through it. */
 export const HONO_CONTEXT = {

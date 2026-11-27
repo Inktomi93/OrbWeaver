@@ -4,7 +4,9 @@
 //
 // Owner rulings this module holds:
 // - A value handed to an opaque slot (`unknown`, `any`, `object`, a type parameter, a slot naming none of its members)
-//   escapes: every member it holds, all the way down, is sent (roles.ts states the escape ruling).
+//   escapes: every member it holds, all the way down, is sent (roles.ts states the escape ruling). A slot that is a
+//   union of a type parameter and object arms (`T | Spliced`) takes an object value into its object arms, since no
+//   concrete object is assignable to the type parameter; a value typed by a type parameter still escapes.
 // - A slot member a library declares (an option a framework reads, a fetch init's `headers`) is a receiver naming the
 //   field in its published declaration, so the value's same-named member is read, at any depth of the slot.
 // - A union value fills its slot arm by arm, and a union slot is filled by whichever object arms the value lands in.
@@ -47,10 +49,8 @@ import type { CallExpression, Expression, NewExpression, Node } from "@typescrip
 import {
   isArrayLiteralExpression,
   isArrowFunction,
-  isBinaryExpression,
   isBindingElement,
   isCallExpression,
-  isConditionalExpression,
   isFunctionExpression,
   isIdentifier,
   isLiteralExpression,
@@ -65,7 +65,6 @@ import {
   isSpreadAssignment,
   isSpreadElement,
   isVariableDeclaration,
-  SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Signature, Type, TypeReference } from "@typescript/native/sync";
 import { IndexKind, TypeFlags } from "@typescript/native/sync";
@@ -77,8 +76,9 @@ import { isProduction } from "../worlds.ts";
 import { LIST_WRITES, libraryNames, PLATFORM, ZOD_PACKAGE } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import type { DeclKey } from "./resolve.ts";
-import { allOf, answer, constituentsOf, keyText } from "./resolve.ts";
+import { allOf, answer, constituentsOf, keyText, propertyNamed } from "./resolve.ts";
 import type { FileSites, HandedWhole } from "./sites.ts";
+import { branchesOf } from "./sites.ts";
 import type { GraphState } from "./state.ts";
 import { isPrimitive, UNCLASSIFIED } from "./state.ts";
 import type { TraceRequest } from "./values.ts";
@@ -563,6 +563,7 @@ export class Flows {
     const taken = new Set(identityAsks.flatMap(({ at }, y) => (identity[y] === true ? [at] : [])));
     const spreads = this.#spreadPairs(handed, values);
     const holders = this.#parameterHolders(handed);
+    const armed = this.#objectArmsOfOpaque(handed.map((_, at) => ({ slot: slots.get(at), value: values[at] })));
     const pairs: FlowPair[] = [];
     const escaping: { readonly at: number; readonly value: Type; readonly door: boolean }[] = [];
     for (const [at, entry] of handed.entries()) {
@@ -571,10 +572,11 @@ export class Flows {
       if (spreads.paired.has(at) || taken.has(at) || value === undefined || isPrimitive(value)) {
         continue;
       }
-      if (entry.spread || entry.door || calls.generic.has(at) || (slot !== undefined && this.#opaque.get(slot.id) === true)) {
+      const into = entry.spread || entry.door || calls.generic.has(at) ? null : this.#slotsTaking(slot, armed[at] ?? []);
+      if (into === null) {
         escaping.push({ at, value, door: entry.door });
-      } else if (slot !== undefined) {
-        pairs.push({ slot, value, site: nodes[at]?.pos ?? entry.node.pos, holder: holders[at] ?? [] });
+      } else {
+        pairs.push(...into.map((taking) => ({ slot: taking, value, site: nodes[at]?.pos ?? entry.node.pos, holder: holders[at] ?? [] })));
       }
     }
     this.#escapeHanded(
@@ -589,6 +591,37 @@ export class Flows {
       }),
     );
     return { pairs: [...spreads.pairs, ...pairs], taken: [...taken].flatMap((at) => (nodes[at] === undefined ? [] : [nodes[at]])) };
+  }
+
+  // The slots a value handed on whole fills: the object arms an opaque union of a type parameter takes it into, else the
+  // slot itself; null where an opaque slot takes it whole, so it escapes.
+  #slotsTaking(slot: Type | undefined, arms: readonly Type[]): readonly Type[] | null {
+    if (arms.length > 0) {
+      return arms;
+    }
+    if (slot === undefined) {
+      return [];
+    }
+    return this.#opaque.get(slot.id) === true ? null : [slot];
+  }
+
+  // For an opaque union slot of a type parameter and object arms, and a value no type parameter types, the object arms it
+  // fills; empty for any other slot or value.
+  #objectArmsOfOpaque(asks: readonly { readonly slot: Type | undefined; readonly value: Type | undefined }[]): readonly (readonly Type[])[] {
+    const state = this.#state;
+    const answers = state.batch(
+      asks.map(({ slot, value }) =>
+        slot === undefined || value === undefined || !slot.isUnionType() || this.#opaque.get(slot.id) !== true || opaqueFlag(value)
+          ? answer<readonly Type[]>([])
+          : constituentsOf(slot),
+      ),
+    );
+    return answers.map((arms) => {
+      const objects = arms.filter((arm) => !(opaqueFlag(arm) || isPrimitive(arm)));
+      const parameters = arms.filter((arm) => arm.isTypeParameter());
+      // only a union whose opaque arms are type parameters: an `unknown` or `any` arm takes the value whole
+      return parameters.length > 0 && arms.every((arm) => isPrimitive(arm) || arm.isTypeParameter() || !opaqueFlag(arm)) ? objects : [];
+    });
   }
 
   // The declarations of the parameter each handed argument lands in, empty for a spread or a value no call takes.
@@ -747,8 +780,62 @@ export class Flows {
   }
 
   // A tuple spread into a call's arguments (`(...args) => f(...args)`) fills the parameters it lands on, element by
-  // element; an array of unknown length stays a whole hand-off.
+  // element; a list spread onto a rest parameter (`rows.push(...more)`) fills the rest list, its elements each the
+  // parameter's element; any other array of unknown length stays a whole hand-off.
   #spreadPairs(
+    handed: readonly HandedWhole[],
+    values: readonly (Type | undefined)[],
+  ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
+    const rest = this.#restSpreads(handed, values);
+    const tuples = this.#tupleSpreads(handed, values);
+    return { pairs: [...tuples.pairs, ...rest.pairs], paired: new Set([...tuples.paired, ...rest.paired]) };
+  }
+
+  // A list spread whose call lands it on the resolved signature's rest parameter: the rest list's instantiated type is
+  // its slot.
+  #restSpreads(
+    handed: readonly HandedWhole[],
+    values: readonly (Type | undefined)[],
+  ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
+    const state = this.#state;
+    const { checker } = state.world;
+    const asks = handed.flatMap((entry, x) => {
+      const value = values[x];
+      return entry.spread && entry.call !== undefined && value !== undefined && !value.isTupleType()
+        ? [{ x, call: entry.call, value, site: entry.node.pos }]
+        : [];
+    });
+    const signatures = state.batch(asks.map(({ call }) => checker.getResolvedSignature.gen(call.node)));
+    const parameters = state.batch(
+      asks.map((_, y) => {
+        const signature = signatures[y];
+        return signature?.hasRestParameter === true ? signature.getParameters.gen() : answer<readonly NativeSymbol[]>([]);
+      }),
+    );
+    const restAt = asks.map(({ call }, y) => {
+      const list = parameters[y] ?? [];
+      return list.length > 0 && call.index >= list.length - 1 ? list.at(-1) : undefined;
+    });
+    const slots = state.batch(
+      restAt.map((parameter) => (parameter === undefined ? answer<Type | undefined>(undefined) : checker.getTypeOfSymbol.gen(parameter))),
+    );
+    // an opaque rest element (`console.log(...values)`) takes the list whole, and it escapes as before
+    const elements = state.batch(slots.map((slot) => (slot?.isTypeReference() === true ? checker.getTypeArguments.gen(slot) : answer<readonly Type[]>([]))));
+    this.#opaqueOf(elements.flatMap((list) => list.slice(0, 1)));
+    const pairs: FlowPair[] = [];
+    const paired = new Set<number>();
+    for (const [y, { x, value, site }] of asks.entries()) {
+      const slot = slots[y];
+      const [element] = elements[y] ?? [];
+      if (slot !== undefined && element !== undefined && this.#opaque.get(element.id) !== true) {
+        pairs.push({ slot, value, site });
+        paired.add(x);
+      }
+    }
+    return { pairs, paired };
+  }
+
+  #tupleSpreads(
     handed: readonly HandedWhole[],
     values: readonly (Type | undefined)[],
   ): { readonly pairs: readonly FlowPair[]; readonly paired: ReadonlySet<number> } {
@@ -1068,14 +1155,11 @@ export class Flows {
   }
 
   // Two library generics of different targets (a `Map` into a `ReadonlyMap` slot): no member of either is ours to pair,
-  // so each slot member's type flows from the value's same-named member, which carries the type arguments through.
+  // so each slot member's type flows from the value's same-named member, which carries the type arguments through. An
+  // optional member pairs without its undefined: a present value is what fills it (TanStack's `mutationFn?`).
   *#libraryCounterparts(slot: Type, value: Type): APIRequestGenerator<readonly Step[] | null> {
     const { checker } = this.#state.world;
-    if (!(slot.isTypeReference() && value.isTypeReference())) {
-      return null;
-    }
-    const targets = [yield* (yield* slot.getTarget.gen()).getSymbol.gen(), yield* (yield* value.getTarget.gen()).getSymbol.gen()];
-    if (targets.some((symbol) => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle)))) {
+    if (!(value.isTypeReference() && (yield* this.#libraryShaped(slot)) && (yield* this.#libraryShaped(value)))) {
       return null;
     }
     // members pair by their escaped name, which a well-known symbol key (`[Symbol.iterator]`) has and a display name lacks
@@ -1085,13 +1169,27 @@ export class Flows {
       const counterpart = valueMembers.get(member.escapedName);
       if (counterpart !== undefined) {
         out.push({
-          slot: yield* checker.getTypeOfSymbol.gen(member),
-          value: yield* checker.getTypeOfSymbol.gen(counterpart),
+          slot: yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(member)),
+          value: yield* checker.getNonNullableType.gen(yield* checker.getTypeOfSymbol.gen(counterpart)),
           at: { kind: "member", name: member.name },
         });
       }
     }
     return out;
+  }
+
+  // A library generic's instance, or a type that only picks a library's members (`Pick<UseMutationOptions<D, E, V>,
+  // "mutationFn">`, as the client's mutation factory spells its options): no member of it is ours to pair.
+  *#libraryShaped(type: Type): APIRequestGenerator<boolean> {
+    const ours = (symbol: NativeSymbol | undefined): boolean => symbol === undefined || symbol.declarations.some((handle) => this.#state.resolver.ours(handle));
+    if (type.isTypeReference()) {
+      return !ours(yield* (yield* type.getTarget.gen()).getSymbol.gen());
+    }
+    if (!(type.isIntersectionType() || hasFlag(type.flags, TypeFlags.Object))) {
+      return false;
+    }
+    const members = yield* this.#state.world.checker.getPropertiesOfType.gen(type);
+    return members.length > 0 && members.every((member) => member.declarations.length > 0 && !ours(member));
   }
 
   *#signatureOperands(slot: Signature, value: Signature): APIRequestGenerator<readonly Step[]> {
@@ -1412,7 +1510,7 @@ export class Flows {
       const shadowed = pair.whole === true ? shadowedBySpread(this.#siteNodes.get(pair.site)) : NO_NAMES;
       return (slotMembers[x] ?? []).filter((member) => !shadowed.has(member.name)).map((member) => ({ pair, member, x }));
     });
-    const valueMembers = state.batch(asks.map(({ pair, member }) => checker.getPropertyOfType.gen(pair.value, member.name)));
+    const valueMembers = state.batch(asks.map(({ pair, member }) => propertyNamed(checker, pair.value, member.name)));
     this.#recordTraces(
       asks.filter((_, y) => valueMembers[y] === undefined),
       file,
@@ -1600,22 +1698,6 @@ function* declaredParameterType(state: GraphState, signature: Signature, index: 
   const target = (yield* signature.getTarget.gen()) ?? signature;
   const parameter = (yield* target.getParameters.gen())[index];
   return parameter === undefined ? undefined : yield* state.world.checker.getTypeOfSymbol.gen(parameter);
-}
-
-// The operators whose result is one operand or the other, as a conditional's is one branch or the other.
-const EITHER_OPERAND: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
-
-// The values an expression can be, through parentheses: each branch of a conditional, each operand of `??` and `||`,
-// else the expression itself.
-function branchesOf(value: Expression): readonly Expression[] {
-  let at = value;
-  while (isParenthesizedExpression(at)) {
-    at = at.expression;
-  }
-  if (isConditionalExpression(at)) {
-    return [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)];
-  }
-  return isBinaryExpression(at) && EITHER_OPERAND.has(at.operatorToken.kind) ? [...branchesOf(at.left), ...branchesOf(at.right)] : [value];
 }
 
 const calleeName = (call: Node | undefined): Node | undefined => {

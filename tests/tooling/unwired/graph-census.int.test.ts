@@ -9,7 +9,7 @@ import type { TestOptions } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, CensusReport, SiteClass } from "../../../tooling/src/unwired/index.ts";
 import { censusGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, libraryModule, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, STORE_PACKAGE, STORES, ZOD_MODULE } from "./_planted.ts";
 
 // Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
 const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
@@ -276,20 +276,6 @@ test("graph-census refuses --from before any build, since its role sites come fr
   expect(refused.stderr).toContain("graph-census reads the role sites of its own build");
 });
 
-// drizzle-orm's write builders in miniature: `values` takes a slot of the library's own mapped type.
-const STORE_PACKAGE = "drizzle-orm";
-const STORES = libraryModule(
-  [
-    "export interface Column { readonly name: string }",
-    "export declare const text: () => Column;",
-    "export interface TableConfig<C> { readonly columns: C }",
-    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"]]: string } }',
-    "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
-    'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
-    "export declare const db: { insert<T>(table: T): { values(value: Insert<T>): Promise<void> } };",
-  ],
-  STORE_PACKAGE,
-);
 const SCHEMA = "packages/db/src/schema/tables.ts";
 
 // A member copied into a Drizzle column is read only where the column is read back (design.md, the unwired-code
@@ -317,6 +303,25 @@ test("a member a Drizzle store copies into a column is carried by the column, no
   expect(report.sites).toEqual(counted({ column: 3, placed: 2 }));
 });
 
+// A conditional's branches each copy into the key's column, and its condition is a read of its own.
+test("each branch of a conditional a Drizzle store copies is carried by the column, and its condition is placed", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...STORES,
+      [SCHEMA]: [`import { sqliteTable, text } from "${STORE_PACKAGE}";`, 'export const notes = sqliteTable("notes", { title: text() });'].join("\n"),
+      [FILE]: [
+        `import { db } from "${STORE_PACKAGE}";`,
+        'import { notes } from "../../db/src/schema/tables.ts";',
+        "export interface Src { readonly kept: boolean; readonly title: string; readonly alt: string }",
+        "export const store = (src: Src): Promise<void> => db.insert(notes).values({ title: src.kept ? src.title : src.alt });",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  expect(report.gaps).toEqual([]);
+  expect(report.sites).toEqual(counted({ column: 2, placed: 1 }));
+});
+
 // A `typeof a.x` query names the member `x` by key: it takes the key role a `T["x"]` does. `B.x` shares the name and
 // nothing queries it.
 test("a member a typeof query names is a key use, and a same-named member of another type is not", TIMEOUT, async ({ plantedTree }) => {
@@ -336,6 +341,28 @@ test("a member a typeof query names is a key use, and a same-named member of ano
   const queried = "Identifier < QualifiedName.right < TypeQuery.exprName < TypeAliasDeclaration.type";
   expect(report.gaps).toEqual([]);
   expect(handledAt(report, queried)).toEqual({ shape: queried, sites: 1, classes: counted({ placed: 1 }), roles: ["key"] });
+});
+
+// A query nested in a type argument or a parameter's type, and each member of a dotted path (`deep` and `inner`), name
+// their members as the plain query does.
+test("a typeof query nested in a type argument keys every member of its dotted path", TIMEOUT, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [FILE]: [
+        "export interface Box { make(a: number): string; readonly deep: { readonly inner: () => number } }",
+        "export declare const box: Box;",
+        "export type Made = ReturnType<typeof box.make>;",
+        "export type Inner = ReturnType<typeof box.deep.inner>;",
+        "export const first = (a: Parameters<typeof box.make>[0]): number => a;",
+      ].join("\n"),
+    }),
+  );
+  const report = await censusGraph(root, { sample: null }, () => undefined);
+  const inArgument = "Identifier < QualifiedName.right < TypeQuery.exprName < TypeReference.typeArguments[0]";
+  const pathHead = "Identifier < QualifiedName.right < QualifiedName.left < TypeQuery.exprName";
+  expect(report.gaps).toEqual([]);
+  expect(handledAt(report, inArgument)).toEqual({ shape: inArgument, sites: 3, classes: counted({ placed: 3 }), roles: ["key"] });
+  expect(handledAt(report, pathHead)).toEqual({ shape: pathHead, sites: 1, classes: counted({ placed: 1 }), roles: ["key"] });
 });
 
 // A getter in an object literal typed as `I` fills `I.seen`: the literal's key is a site the graph gives the write a

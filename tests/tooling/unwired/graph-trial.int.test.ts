@@ -18,7 +18,7 @@ import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { BLIND_SHAPES, TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
+import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB as LIBS, STORE_PACKAGE, STORES, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED, BLIND] = TRIAL_VERDICTS;
 const [OPTIONAL_SLOT, REDECLARED_MEMBER] = BLIND_SHAPES;
@@ -355,8 +355,10 @@ test.for([
         'use(keptOf({ kept: "k", b: "v" }));',
       ].join("\n"),
     },
-    // The main file writes `b` in a literal, so that write is an error too; the augmentation's read refutes.
-    errors: [`${AUGMENT}:3 read`, `${MAIN}:4 write`],
+    // The main file writes `b` in a literal, so that write is an error too; the augmentation's `Shape["b"]` is a key
+    // use, which reads no data, so the two leave the member named-only.
+    verdict: NAMED_ONLY,
+    errors: [`${AUGMENT}:3 key`, `${MAIN}:4 write`],
   },
 ])("a delete that breaks $site is judged there", { timeout: 120_000 }, async ({ files, verdict: judged = REFUTED, errors: expected }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
@@ -1062,6 +1064,213 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
   const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:2 write`]],
+  ]);
+});
+
+// A port copy nobody reads, in its own file as a port's contract is, is a finding of its own, and the value the port takes fills it: the delete takes the copy
+// with the member, so the fill's assignability error is no reader, and the member's literal write leaves it
+// named-only. The copy alone deletes clean. `id` is read through the copy and is no finding.
+test("a member deletes with the unread port copy its value fills", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [OTHER]: "export interface RpgPosted { readonly id: string; readonly variant: string }",
+      [LIB]: [
+        'import type { RpgPosted } from "./other.ts";',
+        "export interface Posted { readonly id: string; readonly variant: string }",
+        'const post = (): Posted => ({ id: "i", variant: "v" });',
+        "export const rpgPost = (): RpgPosted => post();",
+        "export const idOf = (posted: RpgPosted): string => posted.id;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(outcomes(report)).toEqual([
+    [`${OTHER}:RpgPosted.variant`, CONFIRMED, `${OTHER}: readonly variant: string`],
+    [`${LIB}:Posted.variant`, NAMED_ONLY, `${LIB}: readonly variant: string`, `${OTHER}: readonly variant: string`],
+  ]);
+});
+
+// A union arm that loses its discriminant leaves the literal that writes it matching no arm: the error sits at the
+// literal's property, at the declaration it is bound to, or at a literal argument that spells the member, a write each
+// way, so each arm's discriminant nothing narrows on stays named-only.
+test("an error at a literal's property after its arm's discriminant goes is a write", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "export type Meta = { readonly ok: true; readonly at: number } | { readonly ok: false; readonly reason: string };",
+        "export const good: Meta = { ok: true, at: 1 };",
+        'export const bad: Meta = { ok: false, reason: "r" };',
+        'export const shown = (meta: Meta): string => ("at" in meta ? String(meta.at) : meta.reason);',
+        'export type Event = { readonly phase: "mount"; readonly at: number } | { readonly phase: "flush"; readonly path: string };',
+        "const trace = (event: Event): Event => event;",
+        'export const flushed = (): Event => trace({ phase: "flush", path: "p" });',
+        'export const mounted = (): Event => trace({ phase: "mount", at: 1 });',
+        "export const pathOf = (event: Event): string => ('path' in event ? event.path : String(event.at));",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Meta.ok`, NAMED_ONLY, [`${LIB}:2 write`]],
+    [`${LIB}:Meta.ok`, NAMED_ONLY, [`${LIB}:3 write`]],
+    [`${LIB}:Event.phase`, NAMED_ONLY, [`${LIB}:8 write`]],
+    [`${LIB}:Event.phase`, NAMED_ONLY, [`${LIB}:7 write`]],
+  ]);
+});
+
+// A string names a member as a key, reading no data, only in a type: a `Pick` argument or an indexed access. A string
+// value can reach a read: `field(made, "b")` returns the member through `o[k]`, and `pickKeys` reads each key it is
+// handed, as packages/kit/src/objects/index.ts does, so the error a delete adds there is a read.
+test("a string in a type is a key use, and a string value that reaches a read is a read", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "export interface Meta { readonly kept: boolean; readonly typed: boolean }",
+        "export const meta: Meta = { kept: true, typed: true };",
+        'export type Seen = Pick<Meta, "kept">;',
+        'export type Typed = Meta["typed"];',
+        "export interface Shape { readonly kept: string; readonly b: string; readonly c: string }",
+        "export const field = <T, K extends keyof T>(o: T, k: K): T[K] => o[k];",
+        "export const pickKeys = <T, K extends keyof T>(source: T, keys: readonly K[]): readonly T[K][] => keys.map((key) => source[key]);",
+        'const made: Shape = { kept: "k", b: "v", c: "c" };',
+        'export const shown = (): string => field(made, "b");',
+        'export const picked = (): readonly string[] => pickKeys(made, ["c"]);',
+        "export const keptOf = made.kept;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Meta.kept`, NAMED_ONLY, [`${LIB}:2 write`, `${LIB}:3 key`]],
+    [`${LIB}:Meta.typed`, NAMED_ONLY, [`${LIB}:2 write`, `${LIB}:4 key`]],
+    [`${LIB}:Shape.b`, REFUTED, [`${LIB}:8 write`, `${LIB}:9 read`]],
+    [`${LIB}:Shape.c`, REFUTED, [`${LIB}:10 read`, `${LIB}:8 write`]],
+  ]);
+});
+
+// A member copied into a Drizzle column is read only where the column is read back, so neither the copy's reference nor
+// the error the delete adds there reads it: with its literal write it stays named-only. `read` is read off the value.
+test("a member a Drizzle store copies into a column refutes nothing at the copy", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const schema = "packages/db/src/schema/tables.ts";
+  const root = await plantedTree(
+    graphTree({
+      ...STORES,
+      [schema]: [`import { sqliteTable, text } from "${STORE_PACKAGE}";`, 'export const links = sqliteTable("links", { fetchedAt: text() });'].join("\n"),
+      [LIB]: [
+        `import { db } from "${STORE_PACKAGE}";`,
+        'import { links } from "../../db/src/schema/tables.ts";',
+        "export interface Link { readonly at: number; readonly read: string }",
+        "const store = (link: Link): Promise<void> => db.insert(links).values({ fetchedAt: link.at });",
+        'export const run = (): Promise<void> => store({ at: 1, read: "r" });',
+        "export const readOf = (link: Link): string => link.read;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Link.at`, NAMED_ONLY, [`${LIB}:4 write`, `${LIB}:5 write`]],
+  ]);
+});
+
+// A row handed whole to a Drizzle insert is copied into its columns, so the error a delete adds where a not-null column
+// loses its value is the copy's write, as a literal key's copy is. `key` is read off the row.
+test("a member a row handed whole to a Drizzle insert copies refutes nothing at the insert", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const schema = "packages/db/src/schema/tables.ts";
+  const root = await plantedTree(
+    graphTree({
+      ...STORES,
+      [schema]: [
+        `import { integer, sqliteTable, text } from "${STORE_PACKAGE}";`,
+        'export const vars = sqliteTable("vars", { key: text(), updatedAt: integer() });',
+      ].join("\n"),
+      [LIB]: [
+        `import { db } from "${STORE_PACKAGE}";`,
+        'import { vars } from "../../db/src/schema/tables.ts";',
+        "export interface VarWrite { readonly key: string; readonly updatedAt: number }",
+        "const store = (row: VarWrite): Promise<void> => db.insert(vars).values(row);",
+        'export const run = (): Promise<void> => store({ key: "k", updatedAt: 1 });',
+        "export const keyOf = (row: VarWrite): string => row.key;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:VarWrite.updatedAt`, NAMED_ONLY, [`${LIB}:4 write`, `${LIB}:5 write`]],
+  ]);
+});
+
+// A zod twin key is the member's own wire copy: the delete takes both, so a value typed by the schema's output still
+// takes the member's holder, and the write the member keeps leaves it named-only. Deleting the member alone is refuted
+// by that output, an assignability error and no reader.
+test("a member with a zod twin deletes with its twin key, so the schema's own output is no reader", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [LIB]: [
+        'import { z } from "zod";',
+        "export interface Result { readonly detached: string; readonly read: string }",
+        "export const resultSchema = z.object({ detached: z.string(), read: z.string() }) satisfies z.ZodType<Result>;",
+        'const make = (): Result => ({ detached: "d", read: "r" });',
+        "export const answer = (): z.infer<typeof resultSchema> => make();",
+        "export const readOf = (value: Result): string => value.read;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(outcomes(report)).toEqual([[`${LIB}:Result.detached`, NAMED_ONLY, `${LIB}: readonly detached: string;`, `${LIB}: detached: z.string(),`]]);
+});
+
+// A member that is its holder's only member leaves an empty holder, and with its twin key an empty schema, whose output
+// no interface fits: the error where the value is handed to that output is the emptied holder's, no read. A read that
+// spells the member still reads it, here in a test.
+test("a delete that empties the member's holder errs where the empty shape is handed on, which reads nothing", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree(
+    graphTree({
+      ...WITH_TESTS,
+      ...ZOD_MODULE,
+      [LIB]: [
+        'import { z } from "zod";',
+        "export interface Count { readonly reordered: number }",
+        "export const countSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<Count>;",
+        "export const make = async (): Promise<Count> => ({ reordered: 1 });",
+        "export const answer = (): Promise<z.infer<typeof countSchema>> => make();",
+      ].join("\n"),
+      [TEST_FILE]: ['import type { Count } from "../../packages/a/src/lib.ts";', "export const read = (count: Count): number => count.reordered;"].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Count.reordered`, REFUTED_TEST_ONLY, [`${LIB}:5 emptied`, `${TEST_FILE}:2 read`]],
+  ]);
+});
+
+// A union's member is one key in each arm, and the checked schema's arm keys each pair with every arm's member, so none
+// is one member's twin: the delete takes each schema key whose every partner it deletes, and the schema's own output is
+// no reader. `Health.reason` is read and keeps its schema key, so it is no finding.
+test("a union member deletes with the schema arm keys that pair only with it", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [LIB]: [
+        'import { z } from "zod";',
+        'export type Health = { readonly status: "ok"; readonly at: number } | { readonly status: "bad"; readonly at: number; readonly reason: string };',
+        'export const healthSchema = z.discriminatedUnion("status", [',
+        '  z.strictObject({ status: z.literal("ok"), at: z.number() }),',
+        '  z.strictObject({ status: z.literal("bad"), at: z.number(), reason: z.string() }),',
+        "]) satisfies z.ZodType<Health>;",
+        'const probe = (ok: boolean): Health => (ok ? { status: "ok", at: 1 } : { status: "bad", at: 2, reason: "r" });',
+        "export const answer = (ok: boolean): z.infer<typeof healthSchema> => probe(ok);",
+        'export const reasonOf = (ok: boolean): string => { const health = probe(ok); return health.status === "bad" ? health.reason : ""; };',
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  const deleted = [`${LIB}: readonly at: number`, `${LIB}: , at: z.number()`, `${LIB}: readonly at: number;`, `${LIB}: at: z.number(),`];
+  expect(outcomes(report).map(([label, verdict, ...removed]) => [label, verdict, removed.toSorted()])).toEqual([
+    [`${LIB}:Health.at`, NAMED_ONLY, deleted.toSorted()],
+    [`${LIB}:Health.at`, NAMED_ONLY, deleted.toSorted()],
   ]);
 });
 

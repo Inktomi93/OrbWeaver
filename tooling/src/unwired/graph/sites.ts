@@ -231,7 +231,8 @@ export const isDeclKey = (key: GraphKey): key is DeclKey => !key.startsWith(MODU
 
 // Why a member is judged by nothing: `x?: never` closes a union arm against a sibling's field, a member of a type
 // literal that only types a `satisfies` clause checks a value's shape, and a member keyed by a `declare const` unique
-// symbol brands a type with a key no value has at run time. None holds data.
+// symbol, or a private member of a `declare class`, brands a type with a member no value has at run time. None holds
+// data.
 const SHAPE_ONLY = ["exclusion-marker", "satisfies-check", "brand-marker"] as const;
 type ShapeOnly = (typeof SHAPE_ONLY)[number];
 
@@ -379,6 +380,9 @@ function typesOnlyASatisfies(member: Node): boolean {
 const signatureType = (node: PropertySignatureDeclaration): TypeNode | undefined => node.type;
 
 function shapeOnlyOf(node: Node): ShapeOnly | null {
+  if (isAmbientPrivateMember(node)) {
+    return "brand-marker";
+  }
   if (!isPropertySignatureDeclaration(node)) {
     return null;
   }
@@ -390,6 +394,14 @@ function shapeOnlyOf(node: Node): ShapeOnly | null {
   }
   return typesOnlyASatisfies(node) ? "satisfies-check" : null;
 }
+
+// `declare class Mint { private mint(): void }`: a private member makes a type nominal, and an ambient class has no
+// body that could run or read it.
+const isAmbientPrivateMember = (node: Node): boolean =>
+  (isMethodDeclaration(node) || isPropertyDeclaration(node)) &&
+  hasFlag(getCombinedModifierFlags(node), ModifierFlags.Private) &&
+  isClassDeclaration(node.parent) &&
+  hasFlag(getCombinedModifierFlags(node.parent), ModifierFlags.Ambient);
 
 // `readonly [brand]: B` beside `declare const brand: unique symbol` in the same file: the key exists only in the type.
 function isPhantomKey(node: PropertySignatureDeclaration): boolean {
@@ -492,6 +504,25 @@ export interface LiteralProperty {
   readonly schema: boolean;
 }
 
+/** A property whose key is computed from a value (`{ [KEY]: v }`, `{ [Symbol.dispose]() {} }`): the checker names the
+ *  member from the key's type, so slots.ts makes it a {@link LiteralProperty} once the key resolves. */
+export interface ComputedKeyProperty extends Omit<LiteralProperty, "name"> {
+  readonly key: Expression;
+}
+
+// A literal's own property with the value it writes: a shorthand writes its binding, an accessor or a method writes code.
+function writtenProperty(literal: ObjectLiteralExpression, property: Node, schema: boolean): Omit<LiteralProperty, "name"> | undefined {
+  if (isPropertyAssignment(property)) {
+    return { literal, property, at: property.name.pos, value: property.initializer, schema };
+  }
+  if (isShorthandPropertyAssignment(property)) {
+    return { literal, property, at: property.name.pos, value: property.name, schema };
+  }
+  return isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property)
+    ? { literal, property, at: property.name.pos, value: undefined, schema }
+    : undefined;
+}
+
 /** A value handed on whole: a call argument, a spread, or a value published to a global our own declarations name. */
 export interface HandedWhole {
   readonly node: Expression;
@@ -571,6 +602,7 @@ export class FileSites {
   /** The local names the file's own export specifiers forward (`export { a, b as c }`). */
   readonly exportedLocals = new Set<string>();
   readonly literalProperties: LiteralProperty[] = [];
+  readonly computedKeys: ComputedKeyProperty[] = [];
   /** The Drizzle writes by their syntax: each stored value and the table it lands in; build.ts confirms each by its
    *  declaration. */
   readonly stores: StoreWrite[] = [];
@@ -637,6 +669,8 @@ export class FileSites {
   readonly patterns: ({
     readonly pattern: ObjectBindingPattern | ObjectLiteralExpression;
     readonly names: readonly string[];
+    /** The keys computed from a value (`{ [KEY]: v } = o`), whose names the key's type gives (state.ts computedKeyNames). */
+    readonly computed: readonly Expression[];
     readonly from: GraphKey;
   } & PatternRoute)[] = [];
   readonly classes: ClassFacts[] = [];
@@ -1395,10 +1429,12 @@ class Walker {
   // `({ a: x.n } = o)`, nested (`({ inner: { a: x } } = o)`, `[{ a: x }] = rows`) or a for-of target: the pattern
   // declares nothing and fills no slot; its keys read the members of the source's type at the pattern's path.
   #assignmentPattern(node: ObjectLiteralExpression): void {
-    const names = node.properties.flatMap((property) => (isSpreadAssignment(property) ? [] : (keyText(property.name) ?? [])));
+    const keyed = node.properties.flatMap((property) => (isSpreadAssignment(property) ? [] : [property.name]));
+    const names = keyed.flatMap((name) => keyText(name) ?? []);
+    const computed = keyed.flatMap((name) => computedKey(name) ?? []);
     const route = patternRoute(node);
-    if (route !== null && names.length > 0) {
-      this.#sites.patterns.push({ pattern: node, ...route, names, from: this.#holder });
+    if (route !== null && names.length + computed.length > 0) {
+      this.#sites.patterns.push({ pattern: node, ...route, names, computed, from: this.#holder });
     }
   }
 
@@ -1412,16 +1448,16 @@ class Walker {
     this.#frame.literals.push(literal);
     const schema = isZodShape(node, this.#sink.names) || this.#frame.twinShapes.has(spanOf(node));
     for (const property of node.properties) {
-      const name = isSpreadAssignment(property) ? undefined : keyText(property.name);
-      if (name === undefined) {
+      const written = writtenProperty(node, property, schema);
+      if (written === undefined) {
         continue;
       }
-      if (isPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.initializer, schema });
-      } else if (isShorthandPropertyAssignment(property)) {
-        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: property.name, schema });
-      } else if (isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property)) {
-        this.#sites.literalProperties.push({ literal: node, property, name, at: property.name.pos, value: undefined, schema });
+      const name = keyText(written.property.name);
+      const key = computedKey(written.property.name);
+      if (name !== undefined) {
+        this.#sites.literalProperties.push({ ...written, name });
+      } else if (key !== undefined) {
+        this.#sites.computedKeys.push({ ...written, key });
       }
     }
     return literal;
@@ -1505,9 +1541,11 @@ class Walker {
       this.#sites.indexedKeys.push({ object: node.objectType, keys: stringKeysIn(node.indexType), index: node.indexType });
     }
     if (isObjectBindingPattern(node)) {
-      const names = node.elements.flatMap((element) => (element.dotDotDotToken === undefined ? bindingKey(element) : []));
-      if (names.length > 0) {
-        this.#sites.patterns.push({ pattern: node, source: node, iterated: false, steps: [], names, from: this.#holder });
+      const keyed = node.elements.filter((element) => element.dotDotDotToken === undefined);
+      const names = keyed.flatMap(bindingKey);
+      const computed = keyed.flatMap((element) => computedKey(element.propertyName) ?? []);
+      if (names.length + computed.length > 0) {
+        this.#sites.patterns.push({ pattern: node, source: node, iterated: false, steps: [], names, computed, from: this.#holder });
       }
     }
     if (
@@ -1905,25 +1943,58 @@ const copiedBy = (stores: readonly StoreWrite[]): readonly Node[] =>
   );
 
 /** Whether a Drizzle write copies the name's read into a column, or a table definition holds it: the reads the walk
- *  gives no role (the header's ruling), found from the name up through its enclosing calls. */
+ *  gives no role (the header's ruling), found from the name up through its enclosing calls. A value the write stores
+ *  whole (`.values(row)`) copies every member into its column, so a name inside it is copied too. */
 export function handedToColumn(name: Node, isTable: (node: Node) => boolean, names: LibraryNames): boolean {
   const inTable = isPropertyAccessExpression(name.parent) && sameNode(name.parent.name, name);
   for (let at = name.parent; !isSourceFile(at); at = at.parent) {
-    if (copiedBy(storesAt(at, names)).some((read) => sameNode(read, name)) || (inTable && isTable(at))) {
+    const stores = storesAt(at, names);
+    if (copiedBy(stores).some((read) => sameNode(read, name)) || stores.some(({ value }) => storedWhole(value, name)) || (inTable && isTable(at))) {
       return true;
     }
   }
   return false;
 }
 
+// A stored value no literal spells key by key, holding the name.
+const storedWhole = (value: Node, name: Node): boolean => !isObjectLiteralExpression(value) && value.pos <= name.pos && name.end <= value.end;
+
 // A value a `satisfies` holds to a type: a binding or a literal, never a builder call such as a zod schema.
 const isCheckedValue = (value: Node | undefined): boolean =>
   value !== undefined && (isIdentifier(value) || isObjectLiteralExpression(value) || isArrayLiteralExpression(value));
 
+// The operators whose result is one operand or the other, as a conditional's is one branch or the other.
+const EITHER_OPERAND: ReadonlySet<SyntaxKind> = new Set([SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken]);
+
+// The values an expression can be, through parentheses: each branch of a conditional, each operand of `??` and `||`,
+// else the expression itself.
+export function branchesOf(value: Expression): readonly Expression[] {
+  let at = value;
+  while (isParenthesizedExpression(at)) {
+    at = at.expression;
+  }
+  if (isConditionalExpression(at)) {
+    return [...branchesOf(at.whenTrue), ...branchesOf(at.whenFalse)];
+  }
+  return isBinaryExpression(at) && EITHER_OPERAND.has(at.operatorToken.kind) ? [...branchesOf(at.left), ...branchesOf(at.right)] : [value];
+}
+
+// An unannotated binding's value of two or more branches, none of them a literal.
+function bindsBranches(annotation: Node | undefined, value: Expression): boolean {
+  const branches = annotation === undefined ? branchesOf(value) : [];
+  return branches.length > 1 && !branches.some((branch) => isLiteralValue(branch));
+}
+
 // A value written into a slot its position types: a declaration's annotation, a concise arrow body or a return (its
-// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`).
+// function's return), a literal property's value, or an array literal's element (`const all: Opts[] = [preset]`). An
+// unannotated binding of a conditional or of `??` or `||` is typed by one branch where the branches are two declared
+// shapes of one structure, which the checker reduces to one: each branch fills the binding, so a read of the other
+// shape reaches it.
 function valueFlowSite(node: Node): FlowSite | undefined {
   if (isVariableDeclaration(node) && node.type !== undefined && node.initializer !== undefined && !isLiteralValue(node.initializer)) {
+    return { value: node.initializer, slot: "declared", holder: node.name };
+  }
+  if (isVariableDeclaration(node) && node.initializer !== undefined && bindsBranches(node.type, node.initializer)) {
     return { value: node.initializer, slot: "declared", holder: node.name };
   }
   if (isArrowFunction(node) && !isBlock(node.body) && !isLiteralValue(node.body)) {
@@ -1988,6 +2059,10 @@ function bindingText(name: Node): string {
 
 // The property a destructuring element reads, when it names one.
 // The member a pattern element names: `{ a }`, `{ a: b }` or a quoted `{ "aria-label": label }`.
+// The value a computed key names its member by, when no literal text does (keyText): `KEY` in `[KEY]`.
+const computedKey = (name: Node | undefined): Expression | undefined =>
+  name !== undefined && isComputedPropertyName(name) && keyText(name) === undefined ? name.expression : undefined;
+
 function bindingKey(element: BindingElement): readonly string[] {
   const named = element.propertyName ?? element.name;
   if (named !== undefined && isIdentifier(named)) {

@@ -66,7 +66,7 @@ import { collectSites, moduleKey } from "./sites.ts";
 import { fileSlotWrites } from "./slots.ts";
 import { fileSpellings } from "./spellings.ts";
 import type { BuildSession, ComputedLoad, GraphFacts, LostCause, LostSlot } from "./state.ts";
-import { GraphState, isPrimitive } from "./state.ts";
+import { computedKeyNames, GraphState, isPrimitive } from "./state.ts";
 import type { VariantAxis } from "./variants.ts";
 import { Variants } from "./variants.ts";
 import type { WhyEntry } from "./why.ts";
@@ -940,13 +940,17 @@ class Builder {
     );
   }
 
-  // Destructuring reads each named property of the source's type.
+  // Destructuring reads each named property of the source's type, a computed key's by the names its type gives.
   #patterns(sites: FileSites): void {
     const state = this.#state;
     const types = state.batch(sites.patterns.map((site) => patternSourceType(state.world.checker, site)));
+    const keyTypes = state.world.typesAt(sites.patterns.flatMap(({ computed }) => computed));
+    const keyNames = state.batch(keyTypes.map((type) => computedKeyNames(type)));
+    let keyAt = 0;
     const asks = sites.patterns.flatMap((site, x) => {
       const type = types[x];
-      return type === undefined ? [] : site.names.map((name) => ({ site, type, name }));
+      const computed = site.computed.flatMap(() => keyNames[keyAt++] ?? []);
+      return type === undefined ? [] : [...site.names, ...computed].map((name) => ({ site, type, name }));
     });
     const hits = state.batch(asks.map(({ type, name }) => state.propsOnSlot(type, name)));
     const decls = hits.map((symbols) => state.declarations(symbols).flat());

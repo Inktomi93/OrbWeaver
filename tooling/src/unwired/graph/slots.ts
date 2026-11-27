@@ -13,6 +13,8 @@
 //   handed to a wire shape writes the wire's `at`, not the row's. Only a key the slot declares no member for (a generic
 //   call infers the slot from the literal itself, `run<R>({ req: { ...req, accounting } })`) fills the spread source's.
 // - A literal no slot types writes its own keys, so a flow from the slot it is handed into carries the writes.
+// - A computed key (`{ [KEY]: v }`) writes the member its key's type names, as a literal key of that text would: the
+//   syntactic walk cannot name it, and find-references never links it, so the census cannot see a miss here.
 // - A literal a zod schema validates (`schema.parse({ … })`) is typed by the schema's input: parse takes the values its
 //   keys hold, so each key writes the schema key of its name, and a key the literal lacks stays unwritten. A literal
 //   nested as a key's value or a list element fills that key's input the same way, and a value spread into one writes
@@ -49,10 +51,10 @@ import { libraryNames, ZOD_PACKAGE } from "./library-names.ts";
 import type { DeclKey } from "./resolve.ts";
 import { answer, declKeyParts, keyText, unwrapExpression } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
-import type { FileSites } from "./sites.ts";
+import type { ComputedKeyProperty, FileSites, LiteralProperty } from "./sites.ts";
 import { declarationNameOf, isZodShapeKey, PAGE_CURSOR } from "./sites.ts";
 import type { GraphState } from "./state.ts";
-import { literalValues } from "./state.ts";
+import { computedKeyNames, literalValues } from "./state.ts";
 import type { AxisValue, Variants } from "./variants.ts";
 import { variantsDeclarations, writtenLiterals } from "./variants.ts";
 
@@ -66,6 +68,12 @@ interface SlotWrite {
 }
 
 const spanKey = (node: Node): string => `${String(node.pos)}:${String(node.end)}`;
+
+// A file's object literal keys, a computed key's resolved to the member it names.
+interface LiteralKeys {
+  readonly file: string;
+  readonly properties: readonly LiteralProperty[];
+}
 
 // zod's validators, each taking the schema's input, and the member that declares that input's type.
 const ZOD_VALIDATORS: ReadonlySet<string> = new Set(["parse", "safeParse", "parseAsync", "safeParseAsync"]);
@@ -84,7 +92,8 @@ const isLiteralWrite = (value: Node | undefined): boolean => writtenLiterals(val
 
 /** The slot writes of one file: its object literals' keys and its JSX attributes, each through its contextual type. */
 export function fileSlotWrites(state: GraphState, variants: Variants, sites: FileSites): void {
-  const literals = [...new Map(sites.literalProperties.map(({ literal }) => [spanKey(literal), literal])).values()];
+  const properties = [...sites.literalProperties, ...computedKeyProperties(state, sites.computedKeys)];
+  const literals = [...new Map(properties.map(({ literal }) => [spanKey(literal), literal])).values()];
   const contextual = state.contextualTypes(literals);
   const slots = new Map(literals.map((literal, at) => [spanKey(literal), contextual[at]]));
   const validated = validatedSlots(state, literals);
@@ -96,19 +105,19 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
   if (!state.session.options.ablate.has("literal-keys")) {
     state.copyKeys(
       sites.file,
-      sites.literalProperties.filter(({ literal }) => literal.properties.some(isSpreadAssignment)).map(({ at }) => at),
+      properties.filter(({ literal }) => literal.properties.some(isSpreadAssignment)).map(({ at }) => at),
     );
-    const writes = sites.literalProperties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
+    const writes = properties.flatMap(({ literal, name, at, value, schema }): SlotWrite[] => {
       const type = schema ? undefined : slots.get(spanKey(literal));
       return type === undefined ? [] : [{ type, name, value, at, jsx: false }];
     });
     slotWrites(state, variants, sites, [
       ...writes,
-      ...spreadWrites(state, sites, slots),
+      ...spreadWrites(state, { file: sites.file, properties }, slots),
       ...validatedSpreadWrites(state, validated),
       ...pagedWrites(state, sites),
     ]);
-    ownKeyWrites(state, sites, slots);
+    ownKeyWrites(state, { file: sites.file, properties }, slots);
   }
   bagSelections(state, variants, sites);
   const lists = [...new Map(sites.jsxAttributes.map(({ attributes }) => [spanKey(attributes), attributes])).values()];
@@ -129,11 +138,7 @@ export function fileSlotWrites(state: GraphState, variants: Variants, sites: Fil
 // call's slot is its parameter's constraint, `{ readonly signal: string }`) fills the member each spread source's type
 // declares, since the literal is that source's value with the key overridden. A key the slot declares is the slot's. A
 // zod shape key is schema input, never a write, here as through the slot.
-function spreadWrites(
-  state: GraphState,
-  { file, literalProperties: properties }: Pick<FileSites, "file" | "literalProperties">,
-  slots: ReadonlyMap<string, Type | undefined>,
-): readonly SlotWrite[] {
+function spreadWrites(state: GraphState, { file, properties }: LiteralKeys, slots: ReadonlyMap<string, Type | undefined>): readonly SlotWrite[] {
   const candidates = properties.flatMap(({ literal, name, at, value, schema }) => {
     const type = schema ? undefined : slots.get(spanKey(literal));
     const spreads = literal.properties.filter(isSpreadAssignment);
@@ -172,13 +177,21 @@ function pagedWrites(state: GraphState, sites: FileSites): readonly SlotWrite[] 
 // A literal no slot types, such as a local `as const` table handed on later, writes its own keys; the flow from the slot
 // it lands in (./flows.ts) carries each write to the slot's member, at any depth. A method key is called, not written,
 // and so is a getter or setter: an accessor is code, not stored data.
-function ownKeyWrites(state: GraphState, sites: FileSites, slots: ReadonlyMap<string, Type | undefined>): void {
-  for (const { literal, property, at, schema } of sites.literalProperties) {
+function ownKeyWrites(state: GraphState, { file, properties }: LiteralKeys, slots: ReadonlyMap<string, Type | undefined>): void {
+  for (const { literal, property, at, schema } of properties) {
     const code = isMethodDeclaration(property) || isGetAccessorDeclaration(property) || isSetAccessorDeclaration(property);
     if (!(schema || code) && slots.get(spanKey(literal)) === undefined) {
-      state.role(state.resolver.keyOf(property), "write", sites.file, at);
+      state.role(state.resolver.keyOf(property), "write", file, at);
     }
   }
+}
+
+// A computed key names the member its key's type names: each literal the type can be (`[KEY]` over `"a" | "b"` fills
+// both), or the member a unique symbol declares. A wide key names no one member, so it writes none.
+function computedKeyProperties(state: GraphState, computed: readonly ComputedKeyProperty[]): readonly LiteralProperty[] {
+  const keyTypes = state.world.typesAt(computed.map(({ key }) => key));
+  const names = state.batch(keyTypes.map((type) => computedKeyNames(type)));
+  return computed.flatMap(({ literal, property, at, value, schema }, x) => (names[x] ?? []).map((name) => ({ literal, property, at, value, schema, name })));
 }
 
 // `recipe(bag)`: a recipe handed a whole value selects, on each axis the value's type names, every literal that member's

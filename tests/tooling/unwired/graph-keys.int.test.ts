@@ -6,7 +6,7 @@ import { mkdirSync, realpathSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
-import { scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
+import { MEMBER_BUCKETS, scanGraph, trialGraph } from "../../../tooling/src/unwired/index.ts";
 import { GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, labelsIn, libraryModule, ZOD_MODULE } from "./_planted.ts";
 
 const [CONFIRMED] = TRIAL_VERDICTS;
@@ -43,6 +43,58 @@ test("a symbol-typed key reads the member declared under that symbol, never the 
     ]),
   );
   expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Built.spare"]);
+});
+
+// A member named by a constant or a unique symbol is written by a literal's computed key of that constant: unread, it
+// is write-only, never untouched, and a member no literal writes stays untouched.
+test("a computed literal key writes the member its constant or unique symbol names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export const KEY = "late";',
+      'export const KEYS = { a: "ka", b: "kb" } as const;',
+      'const SYM: unique symbol = Symbol("s");',
+      "export interface Late { readonly [KEY]: string; readonly [KEYS.a]: string; readonly [SYM]: number; readonly unset?: string; readonly kept: string }",
+      'export const late: Late = { [KEY]: "1", [KEYS.a]: "2", [SYM]: 3, kept: "4" };',
+      "export const keptOf = late.kept;",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE).toSorted()).toEqual(["Late.[KEYS.a]", "Late.[KEY]", "Late.[SYM]"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Late.unset"]);
+});
+
+// `Object.freeze` takes a bare type parameter, so a frozen literal's keys reach the annotated slot only along the flow
+// from the frozen value: a member under a unique symbol pairs there as a string-keyed one does. `spare` nothing writes.
+test("a literal frozen into an annotated slot writes the slot's symbol-keyed member", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'const HANDLE = Symbol("handle");',
+      "export interface Handle { readonly [HANDLE]: true; readonly named: true; readonly spare?: true }",
+      "export const handle: Handle = Object.freeze({ [HANDLE]: true as const, named: true as const });",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE).toSorted()).toEqual(["Handle.[HANDLE]", "Handle.named"]);
+  expect(labelsIn(scan, "member-untouched", FILE)).toEqual(["Handle.spare"]);
+});
+
+// A destructuring key computed from a constant or a unique symbol reads the member it names, in a declaration and in an
+// assignment; `spare` sits beside them and nothing reads it.
+test("a computed destructuring key reads the member its constant or unique symbol names", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      'export const KEY = "late";',
+      'export const OTHER = "other";',
+      'const SYM: unique symbol = Symbol("s");',
+      "export interface Late { readonly [KEY]: string; readonly [OTHER]: string; readonly [SYM]: number; readonly spare: string }",
+      'export const late: Late = { [KEY]: "1", [OTHER]: "2", [SYM]: 3, spare: "4" };',
+      "export const { [KEY]: got, [SYM]: count } = late;",
+      'export let other = "";',
+      "({ [OTHER]: other } = late);",
+    ]),
+  );
+  expect(labelsIn(scan, "member-write-only", FILE)).toEqual(["Late.spare"]);
 });
 
 test("a zod schema's keys are the members of the type it satisfies", { timeout: 120_000 }, async ({ plantedTree }) => {
@@ -518,6 +570,105 @@ test("a JSX attribute's value fills the prop it is handed to", { timeout: 120_00
   );
   // Entry.value fills Option.value, which requires it: the one row is the prop's, and the two delete together
   expect(labelsIn(scan, "member-untouched", JSX_FILE)).toEqual(["Option.value", "Entry.note"]);
+});
+
+// A private member of a `declare class` makes a type nominal, as `PrincipalMint` does: no body runs it and no value
+// carries it, so it is judged by nothing. The same unread private method on a class with a body keeps its row.
+test("a private member of an ambient class brands a type and holds no data", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(
+    plantedTree,
+    source([
+      "declare class Mint { private mint(): void }",
+      "export type Minted = Mint & { readonly id: string };",
+      "export const idOf = (minted: Minted): string => minted.id;",
+      "class Real { private spare(): void {} }",
+      "export const real = new Real();",
+    ]),
+  );
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual(["member-untouched Real.spare"]);
+});
+
+// MiniSearch's options name the document members it indexes, stores and keys by (library-names.ts MINISEARCH_FIELDS).
+const MINISEARCH = libraryModule(
+  [
+    "export interface Options<T = unknown> { readonly fields: string[]; readonly idField?: string; readonly storeFields?: string[] }",
+    "export default class MiniSearch<T = unknown> { constructor(options: Options<T>); addAll(documents: readonly T[]): void }",
+  ],
+  "minisearch",
+);
+
+// A document member a MiniSearch field option names is read by the library that indexes it: a literal in the option
+// itself, and a key list our own generic wrapper hands on from its caller's options. `note` is written into each document
+// and named by no option, so it stays write-only.
+test("a member a MiniSearch field option names is read, directly and through a wrapper's key list", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...MINISEARCH,
+    [FILE]: [
+      'import MiniSearch from "minisearch";',
+      "export interface Doc { readonly name: string; readonly body: string; readonly note: string }",
+      "export const index = (docs: readonly Doc[]): void => {",
+      '  const search = new MiniSearch<Doc>({ idField: "name", fields: ["body"] });',
+      "  search.addAll(docs);",
+      "};",
+      'export const docs: readonly Doc[] = [{ name: "n", body: "b", note: "x" }];',
+      "interface SearchOptions<T> { readonly fields: readonly (keyof T & string)[] }",
+      "interface IndexArgs<T> { readonly items: readonly T[]; readonly fields: readonly (keyof T & string)[] }",
+      "const build = <T,>(args: IndexArgs<T>): void => {",
+      "  const { items, fields } = args;",
+      '  const search = new MiniSearch<T>({ idField: "id", fields: fields as string[] });',
+      "  search.addAll(items);",
+      "};",
+      "const fuzzy = <T,>(items: readonly T[], options: SearchOptions<T>): void => build({ items, fields: options.fields });",
+      "export interface Item { readonly id: string; readonly label: string; readonly haystack: string; readonly spare: string }",
+      'const OPTIONS = { fields: ["label", "haystack"] } as const;',
+      'const ITEMS: readonly Item[] = [{ id: "i", label: "l", haystack: "h", spare: "s" }];',
+      "export const find = (): void => fuzzy(ITEMS, OPTIONS);",
+    ].join("\n"),
+  });
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual([
+    "member-write-only Doc.note",
+    "member-write-only Item.spare",
+  ]);
+});
+
+// A caller's key list is read from what its source spells, never from its declared `keyof T` type, which names every
+// key: an annotated `const` reads its literal, and a list nothing spells reads nothing. Two hand-offs through one shared
+// caller each keep their own path, so `second` still reaches `haystack`.
+test("a wrapper's key list reads the literals each caller spells, per hand-off path", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...MINISEARCH,
+    [FILE]: [
+      'import MiniSearch from "minisearch";',
+      "interface IndexArgs<T> { readonly items: readonly T[]; readonly fields: readonly (keyof T & string)[] }",
+      "const build = <T,>(args: IndexArgs<T>): void => {",
+      '  const search = new MiniSearch<T>({ idField: "id", fields: args.fields as string[] });',
+      "  search.addAll(args.items);",
+      "};",
+      "interface Options<T> { readonly fields: readonly (keyof T & string)[] }",
+      "const fuzzy = <T,>(items: readonly T[], options: Options<T>): void => build({ items, fields: options.fields });",
+      "export interface Item { readonly id: string; readonly label: string; readonly haystack: string; readonly spare: string }",
+      'const ITEMS: readonly Item[] = [{ id: "i", label: "l", haystack: "h", spare: "s" }];',
+      'const OPTIONS: Options<Item> = { fields: ["label"] };',
+      "export const find = (): void => fuzzy(ITEMS, OPTIONS);",
+      "declare const WIDE: readonly (keyof Item & string)[];",
+      "export const wide = (): void => fuzzy(ITEMS, { fields: WIDE });",
+      "interface Pair<T> { readonly items: readonly T[]; readonly first: readonly (keyof T & string)[]; readonly second: readonly (keyof T & string)[] }",
+      "const viaA = <T,>(pair: Pair<T>): void => build({ items: pair.items, fields: pair.first });",
+      "const viaB = <T,>(pair: Pair<T>): void => build({ items: pair.items, fields: pair.second });",
+      "const both = <T,>(pair: Pair<T>): void => {",
+      "  viaA(pair);",
+      "  viaB(pair);",
+      "};",
+      "export interface Row { readonly id: string; readonly label: string; readonly haystack: string; readonly spare: string }",
+      'const ROWS: readonly Row[] = [{ id: "r", label: "l", haystack: "h", spare: "s" }];',
+      'export const pairs = (): void => both({ items: ROWS, first: ["label"], second: ["haystack"] });',
+    ].join("\n"),
+  });
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual([
+    "member-write-only Item.haystack",
+    "member-write-only Item.spare",
+    "member-write-only Row.spare",
+  ]);
 });
 
 // The package a form instance's field methods are declared by, as TanStack Form's are.

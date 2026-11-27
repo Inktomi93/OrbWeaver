@@ -68,6 +68,7 @@ import { declarationHome, declarationKeys, hasFlag, isFunctionLike, isPlatform, 
 import { isProduction } from "../worlds.ts";
 import type { URL_MEMBERS } from "./library-names.ts";
 import { HONO_PACKAGE, NAVIGATION_MEMBER, REACT_ROUTER, ROUTER_CORE, TRPC_CLIENT, TRPC_LINK_URL, URL_CONSTRUCTOR } from "./library-names.ts";
+import { unwrap } from "./resolve.ts";
 import { sameNode } from "./roles.ts";
 
 const ROUTE_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "ALL"] as const;
@@ -132,14 +133,6 @@ function cross(lists: readonly (readonly Pattern[])[]): readonly Pattern[] {
     out = distinct(out.flatMap((head) => list.map((tail) => [...head, ...tail])));
   }
   return out;
-}
-
-export function unwrap(node: Expression): Expression {
-  let at = node;
-  while (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at) || isNonNullExpression(at)) {
-    at = at.expression;
-  }
-  return at;
 }
 
 // The name a callee or a value reads: an identifier, or a property access's member.
