@@ -5,7 +5,7 @@
 export const CORPUS_COMPUTED_LEAD = "Computed";
 
 /** The lead of the embedding space a pair list was compared in. */
-export const CORPUS_EMBEDDING_SPACE_LEAD = "Embedding space";
+export const CORPUS_EMBEDDING_SPACE_LEAD = "Embedding model";
 
 /** A list's stamp line: when it was computed and, for a list compared in an embedding space, the space's name. */
 export function corpusComputedLine(when: string, spaces: readonly string[]): string {

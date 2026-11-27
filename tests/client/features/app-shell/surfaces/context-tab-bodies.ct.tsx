@@ -5,12 +5,13 @@
 // on the inline axis in none, and holds no box past its inline edge, so no body nests a second scroller or pushes a row out of the pane.
 
 import { contextToggleLabel, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
+import { MS_PER_HOUR } from "@orb/kit/time";
 import { seedShellState, setPlatformTextSize, sidewaysReach } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page, Route } from "@playwright/test";
-import { CHARACTER_EDITED_LABEL, CHARACTER_OVERVIEW_TAB_LABEL } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_ADDED_LABEL, CHARACTER_EDITED_LABEL, CHARACTER_OVERVIEW_TAB_LABEL } from "#client/features/character/lib/character-names.ts";
 import type { AppShellCharacterStory, AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -241,16 +242,28 @@ test("the character Overview tab keeps the CONTEXT column's inset while its read
   expect({ pending, failed }).toEqual({ pending: settled, failed: settled });
 });
 
-test("the character Overview tab says when the card was last edited, beside when it was added", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness();
-  const caller = await root.internalCallerFor(root.ownerId);
-  const [character] = (await caller.character.list({})).items;
-  if (character === undefined) {
-    throw new Error("The corpus has no character");
-  }
-  await routeShell(page, corpus, caller, SERVED);
-  await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
-  await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
-  await page.locator(CONTEXT).getByRole("tab", { name: CHARACTER_OVERVIEW_TAB_LABEL, exact: true }).click();
-  await expect(page.locator(CONTEXT).getByRole("group", { name: CHARACTER_EDITED_LABEL, exact: true })).toBeVisible();
-});
+for (const edited of [false, true]) {
+  test(`the character Overview tab says when the card was added, and ${edited ? "also" : "never"} says when it was edited for a card ${edited ? "" : "not "}edited after it was added`, async ({
+    corpus,
+    mount,
+    page,
+  }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const [character] = (await caller.character.list({})).items;
+    if (character === undefined) {
+      throw new Error("The corpus has no character");
+    }
+    if (edited) {
+      root.clock.advance(MS_PER_HOUR);
+      await caller.character.update({ characterId: character.id, input: { description: "An edited card." } });
+    }
+    await routeShell(page, corpus, caller, SERVED);
+    await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "collapsed", context: "docked" } } });
+    await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
+    const context = page.locator(CONTEXT);
+    await context.getByRole("tab", { name: CHARACTER_OVERVIEW_TAB_LABEL, exact: true }).click();
+    await expect(context.getByRole("group", { name: CHARACTER_ADDED_LABEL, exact: true })).toBeVisible();
+    await expect(context.getByRole("group", { name: CHARACTER_EDITED_LABEL, exact: true })).toHaveCount(edited ? 1 : 0);
+  });
+}

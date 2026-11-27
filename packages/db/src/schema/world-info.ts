@@ -70,6 +70,10 @@ export const worldBooks = sqliteTable(
     // sorts/discriminates gets `updated_at`, maintained by write verbs"). Restamped by every update verb
     // from the injected clock (never a DB trigger).
     updatedAt: stampColumn("updated_at"),
+    // The last time an entry of this book was written, created or removed: stamped by the entry verbs in the same batch as the
+    // entry write, so a removal leaves a trace the surviving entries cannot. `updatedAt` stays the book's own details edit.
+    // NULL = no entry has changed since the row was made; the library row then reads `updatedAt`.
+    entriesChangedAt: integer("entries_changed_at"),
   },
   (t) => [
     // Owner-scoped list (`fetchOwned`).

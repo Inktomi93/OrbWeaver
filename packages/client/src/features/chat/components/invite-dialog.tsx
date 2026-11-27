@@ -406,7 +406,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
   const uses = usesLeft(invite);
   const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
   // Two invites with the same limits differ only by when they were made, so the row says how old each one is.
-  const age = createdStamp(timeLib.formatRelativeAgo(invite.createdAt));
+  const age = createdStamp(timeLib, invite.createdAt);
   return (
     // ListRow floors the label's width, and in a narrow dialog Revoke takes its own line, so the limits
     // never run under it and the label never squeezes to nothing. Revoke is one compact control, so the

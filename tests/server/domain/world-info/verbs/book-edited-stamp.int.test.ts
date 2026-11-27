@@ -1,7 +1,10 @@
-// A book's updatedAt is the stamp of the book row itself: a rename moves it, and creating, editing or removing an entry
-// does not. The library row labels it as the book's own details edit, so this is the behaviour that label rests on.
+// The library row's updatedAt is the book's last change: the newer of the book row's own stamp (a rename moves it) and its
+// entries_changed_at, which every entry write and removal stamps in the same batch as the write.
 // @subject packages/server/src/domain/world-info/verbs/books/update.ts
 // @subject packages/server/src/domain/world-info/verbs/entries/update.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/remove.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/reorder.ts
+// @subject packages/server/src/domain/world-info/verbs/entries/upsert-entries.ts
 
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { WorldBookId } from "@orb/kit/ids";
@@ -19,7 +22,7 @@ async function bookStamp(root: ServerTestHarness, bookId: WorldBookId): Promise<
   return book.updatedAt;
 }
 
-test("an entry written, edited and removed leaves the book's edit stamp where the book's own edit put it", async () => {
+test("an entry written or edited moves the book row's stamp to that entry's, and a rename still moves it", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
@@ -31,17 +34,93 @@ test("an entry written, edited and removed leaves the book's edit stamp where th
     bookId: book.id,
     input: createEntrySchema.parse({ title: "Harbor", content: "A harbor.", keys: ["harbor"] }),
   });
+  expect(entry.updatedAt).toBeGreaterThan(created);
+  expect(await bookStamp(root, book.id)).toBe(entry.updatedAt);
+
   root.clock.advance(MS_PER_HOUR);
   const edited = await root.services.worldInfo.updateEntry({ principal, entryId: entry.id, input: { content: "A loud harbor." } });
-  root.clock.advance(MS_PER_HOUR);
-  await root.services.worldInfo.removeEntry({ principal, entryId: entry.id });
-
-  // The entry's own stamp moved with each write, so the book stamp holding still is the verbs' contract, not a clock that stood still.
   expect(edited.updatedAt).toBeGreaterThan(entry.updatedAt);
-  expect(await bookStamp(root, book.id)).toBe(created);
+  expect(await bookStamp(root, book.id)).toBe(edited.updatedAt);
 
-  // Positive control: the book's own edit moves it.
+  // Positive control: the book's own edit, newer than every entry, moves it.
   root.clock.advance(MS_PER_HOUR);
   await root.services.worldInfo.updateBook({ principal, bookId: book.id, input: { name: "Ledger of harbors" } });
-  expect(await bookStamp(root, book.id)).toBeGreaterThan(created);
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(edited.updatedAt);
+});
+
+test("removing the newest entry moves the book row's stamp forward, never back to an older entry's", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
+  const older = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Dock", content: "A dock." }),
+  });
+  root.clock.advance(MS_PER_HOUR);
+  const newest = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Harbor", content: "A harbor." }),
+  });
+  const beforeRemoval = await bookStamp(root, book.id);
+  expect(beforeRemoval).toBe(newest.updatedAt);
+  expect(beforeRemoval).toBeGreaterThan(older.updatedAt);
+
+  root.clock.advance(MS_PER_HOUR);
+  await root.services.worldInfo.removeEntry({ principal, entryId: newest.id });
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(beforeRemoval);
+});
+
+test("a rename moves the book row's stamp past every entry's", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
+  const entry = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Dock", content: "A dock." }),
+  });
+  root.clock.advance(MS_PER_HOUR);
+  await root.services.worldInfo.updateBook({ principal, bookId: book.id, input: { name: "Ledger of docks" } });
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(entry.updatedAt);
+});
+
+test("reordering a book's entries moves the book row's stamp", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
+  const first = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Dock", content: "A dock." }),
+  });
+  const second = await root.services.worldInfo.createEntry({
+    principal,
+    bookId: book.id,
+    input: createEntrySchema.parse({ title: "Harbor", content: "A harbor." }),
+  });
+  const before = await bookStamp(root, book.id);
+
+  root.clock.advance(MS_PER_HOUR);
+  await root.services.worldInfo.applyEntryOrder({ principal, bookId: book.id, orderedEntryIds: [second.id, first.id] });
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(before);
+});
+
+test("a machine upsert, whether it inserts an entry or rewrites one, moves the book row's stamp", async () => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const book = await root.services.worldInfo.createBook({ principal, input: createBookSchema.parse({ name: "Ledger" }) });
+  const upsert = (content: string): Promise<void> =>
+    root.services.worldInfo.upsertEntries({ principal, bookId: book.id, entries: [{ title: "auto/ledger", keys: ["ledger"], content }] });
+  const created = await bookStamp(root, book.id);
+
+  root.clock.advance(MS_PER_HOUR);
+  await upsert("First.");
+  const inserted = await bookStamp(root, book.id);
+  expect(inserted).toBeGreaterThan(created);
+
+  root.clock.advance(MS_PER_HOUR);
+  await upsert("Second.");
+  expect(await bookStamp(root, book.id)).toBeGreaterThan(inserted);
 });

@@ -126,11 +126,22 @@ export function tagTargetTitle(targetType: TagTargetType): string {
   return USAGE_KIND_TITLES[TARGET_USAGE_KEYS[targetType]];
 }
 
+function suggestedPhrase(pendingSuggestions: number): string {
+  return `Suggested for ${String(pendingSuggestions)} character${pendingSuggestions === 1 ? "" : "s"}`;
+}
+
 /** Suggestions never read as adopted uses or unattached prune candidates. */
 export function tagUsageLabel(tag: Pick<TagWithUsage, "usage" | "pendingSuggestions">): string {
   if (tag.pendingSuggestions === 0) {
     return usageTotalLabel(tag.usage.total);
   }
-  const suggested = `Suggested for ${String(tag.pendingSuggestions)} character${tag.pendingSuggestions === 1 ? "" : "s"}`;
+  const suggested = suggestedPhrase(tag.pendingSuggestions);
   return tag.usage.total === 0 ? suggested : `${usageTotalLabel(tag.usage.total)} · ${suggested}`;
+}
+
+/** A tag row's subtitle: the usage, then the stamp, then any suggestion clause, so the clause is the part a narrow list clips. */
+export function tagRowScent(tag: Pick<TagWithUsage, "usage" | "pendingSuggestions">, stamp: string): string {
+  const usage = tag.pendingSuggestions === 0 || tag.usage.total > 0 ? [usageTotalLabel(tag.usage.total)] : [];
+  const suggested = tag.pendingSuggestions === 0 ? [] : [suggestedPhrase(tag.pendingSuggestions)];
+  return [...usage, stamp, ...suggested].join(" · ");
 }

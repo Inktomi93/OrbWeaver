@@ -15,6 +15,7 @@
 import type { EntryView, LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
 import { entryMetadataSchema, narrowEntryMetadata } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
+import { batchMany } from "@orb/db/query";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
 import type { EntryPosition } from "@orb/kit/world-info";
@@ -24,7 +25,7 @@ import { sha256Hex } from "#primitives/content-hash";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { UpsertEntriesParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
-import { listBookEntries, listChatIdsForBook, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
+import { listBookEntries, listChatIdsForBook, loadOwnedBook, stampEntriesChanged } from "#src/domain/world-info/persistence/queries.ts";
 
 type EntryRow = Awaited<ReturnType<typeof listBookEntries>>[number];
 
@@ -94,7 +95,12 @@ async function upsertOne(
     }
     const { provenance, seat } = stampAndSeat(input, prior);
     const metadata = narrowEntryMetadata({ ...priorMetadata, provenance, ...seat });
-    await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id));
+    await ctx.db.batch(
+      batchMany([
+        ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id)),
+        stampEntriesChanged(ctx.db, bookId, at),
+      ]),
+    );
     const row = { ...prior, content: input.content, keys, enabled: true, metadata, updatedAt: at };
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null), row };
   }
@@ -115,7 +121,7 @@ async function upsertOne(
     createdAt: at,
     updatedAt: at,
   };
-  await ctx.db.insert(worldEntries).values(row);
+  await ctx.db.batch(batchMany([ctx.db.insert(worldEntries).values(row), stampEntriesChanged(ctx.db, bookId, at)]));
   return { outcome: "insert", entryId: row.id, scope: resolveEntryScope(metadata, keys !== null), row };
 }
 

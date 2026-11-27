@@ -7,7 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCollectionCount, useTRPC } from "#data";
 import type { CollectionCount, CollectionInsight, CollectionMemberId } from "#lib";
-import { timeLib } from "#lib";
+import { stampWhen, timeLib } from "#lib";
 import { openModal, selectCollectionMember } from "#state";
 import { ROSTER_COLLECTION_ID } from "../lib/roster-model.ts";
 
@@ -53,7 +53,7 @@ export function useRosterInsights(): readonly CollectionInsight[] | undefined {
           {
             id: "last-saved",
             label: "Last saved",
-            value: timeLib.formatRelative(newest.updatedAt),
+            value: stampWhen(timeLib, newest.updatedAt),
             open: { label: `Open ${newest.name}`, memberId: newest.id, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, newest.id) },
           },
         ]),

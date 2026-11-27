@@ -1,9 +1,6 @@
 // The accessible names and texts the shell prints on its chrome. A zero-import leaf, so a spec's node side reads them
 // without loading the shell graph.
 
-/** The topbar bug door, its sheet row, its tooltip and its popover. */
-export const BUG_REPORT_NAME = "Report a bug";
-
 /** The bug report form's note field, which names itself over its visible label. */
 export const BUG_REPORT_NOTE_NAME = "What happened?";
 

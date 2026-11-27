@@ -34,7 +34,7 @@ export const ROSTER_COLLECTION_ID = "rosterPreset";
  *  Zero rules contributes NOTHING rather than "0 rules": the absence is the common case and a zero would
  *  be a fact the reader has to discard on every row. Zero members cannot happen through the UI, but it is
  *  spelled honestly rather than guarded away. */
-export function rosterScent(roster: RosterPresetSummary, created: string): string {
+export function rosterScent(roster: RosterPresetSummary, saved: string): string {
   const parts = [characterCountPhrase(roster.characterCount)];
   if (roster.rules.length > 0) {
     parts.push(`${String(roster.rules.length)} rule${roster.rules.length === 1 ? "" : "s"}`);
@@ -42,11 +42,11 @@ export function rosterScent(roster: RosterPresetSummary, created: string): strin
   if (roster.game !== null) {
     parts.push("game");
   }
-  // Before the member names, which truncate: the stamp is short and the names are the tail that can lose its end.
-  parts.push(created);
   const names = roster.members.map((member) => member.name).join(", ");
   if (names !== "") {
     parts.push(names);
   }
+  // After the names: a date between the census and the names splits the facts from the list they count. A long list can clip it.
+  parts.push(saved);
   return parts.join(" · ");
 }

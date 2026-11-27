@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { ApplyEntryOrderParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
-import { listBookEntries, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
+import { listBookEntries, loadOwnedBook, stampEntriesChanged } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEntryOrder"] {
   return async ({ principal, bookId, orderedEntryIds }: ApplyEntryOrderParams) => {
@@ -44,7 +44,7 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
         .set({ priority: total - i, updatedAt: at })
         .where(eq(worldEntries.id, id)),
     );
-    await ctx.db.batch(batchMany(stmts));
+    await ctx.db.batch(batchMany([...stmts, stampEntriesChanged(ctx.db, bookId, at)]));
 
     await ctx.audit(
       {

@@ -2,6 +2,7 @@
 // measured to fail: a row claims only what it shows and keeps its trigger on screen; a surface opened from the More menu
 // returns focus to the trigger; arrival focus skips an action that moved into the menu; a pane whose first read cannot proceed
 // offline paints its own copy; hidden entries leave no box and no gap.
+import { BUG_REPORT_NAME } from "@orb/client/lib";
 import { enlargeUntilVisible, READ_RETRIES_MS, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -10,7 +11,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
-import { BUG_REPORT_NAME, BUG_REPORT_NOTE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
+import { BUG_REPORT_NOTE_NAME } from "#client/features/app-shell/lib/app-shell-names.ts";
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
 import { NOTIFICATIONS_BELL_NAME } from "#client/features/notifications/lib/notifications-copy.ts";

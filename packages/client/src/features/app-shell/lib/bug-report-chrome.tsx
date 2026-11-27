@@ -4,9 +4,9 @@
 
 import { Bug } from "@orb/ui/icons";
 import type { OverflowMenuForm } from "#lib";
+import { BUG_REPORT_NAME } from "#lib";
 import type { ChromeEntry } from "#state";
 import { ReportBugChromeButton } from "../components/bug-report-button.tsx";
-import { BUG_REPORT_NAME } from "./app-shell-names.ts";
 import { bugReportRequests } from "./bug-report-requests.ts";
 
 const MENU_FORMS: readonly OverflowMenuForm[] = [{ id: "bug-report", label: BUG_REPORT_NAME, icon: Bug, onSelect: (): void => bugReportRequests.request() }];

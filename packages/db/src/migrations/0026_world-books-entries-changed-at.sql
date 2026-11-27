@@ -1,0 +1,2 @@
+ALTER TABLE `world_books` ADD `entries_changed_at` integer;--> statement-breakpoint
+UPDATE `world_books` SET `entries_changed_at` = (SELECT max(e.`updated_at`) FROM `world_entries` e WHERE e.`world_book_id` = `world_books`.`id`);

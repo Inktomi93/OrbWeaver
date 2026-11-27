@@ -14,9 +14,10 @@ import type { BookAttachmentTargets, BookAttachmentView, BookUsage, BookView, Bo
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
+import type { RowsAffectedStmt } from "@orb/db/query";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 const LIMIT_ONE = 1;
@@ -96,6 +97,19 @@ async function countByBook(db: Db, table: SQLiteTable, bookCol: SQLiteColumn, id
   return Object.fromEntries(rows.map((r): [string, number] => [String(r.bookId), r.n]));
 }
 
+/** The statement that records an entry write on its book. It rides the same `db.batch` as the write, so the stamp and the
+ *  write land together. The book's own `updatedAt` is untouched: that is the details edit.
+ *
+ *  `entryId` makes the stamp land only while that entry still exists when the statement runs. A verb that read the entry
+ *  before its batch passes it, so a delete that slipped into the gap leaves no stamp behind a refused write. */
+export function stampEntriesChanged(db: Db, bookId: WorldBookId, at: number, entryId?: WorldEntryId): RowsAffectedStmt {
+  const stillThere = entryId === undefined ? undefined : exists(db.select({ one: sql`1` }).from(worldEntries).where(eq(worldEntries.id, entryId)));
+  return db
+    .update(worldBooks)
+    .set({ entriesChangedAt: at })
+    .where(and(eq(worldBooks.id, bookId), stillThere));
+}
+
 /** Every owned book plus its entry count and its four-scope attachment rollup (the Configuration
  *  workspace's roster read). Owner-scoped through `listOwnedBooks`; the junction counts are then keyed to
  *  those ids only, so a foreign book can never contribute a count. */
@@ -127,7 +141,8 @@ export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<
       ...toBookView(row),
       entryCount: entries[row.id] ?? 0,
       usage: { ...usage, total: usage.characters + usage.personas + usage.chats + (global ? 1 : 0) },
-      updatedAt: row.updatedAt,
+      // The row's stamp is the book's last CHANGE: its own edit or its entries', whichever is newer. `updatedAt` itself moves with the book's details only.
+      updatedAt: Math.max(row.updatedAt, row.entriesChangedAt ?? row.updatedAt),
     };
   });
 }

@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { WorldInfoNotFoundError } from "#src/domain/world-info/contract/errors.ts";
 import type { BackfillTitlesParams } from "#src/domain/world-info/contract/params.ts";
 import type { WorldInfoContext, WorldInfoService } from "#src/domain/world-info/contract/service.ts";
-import { listBookEntries, loadOwnedBook } from "#src/domain/world-info/persistence/queries.ts";
+import { listBookEntries, loadOwnedBook, stampEntriesChanged } from "#src/domain/world-info/persistence/queries.ts";
 
 export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["backfillTitles"] {
   return async ({ principal, bookId }: BackfillTitlesParams) => {
@@ -33,7 +33,7 @@ export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["b
 
     const at = ctx.now();
     const stmts = updates.map((u) => ctx.db.update(worldEntries).set({ title: u.title, updatedAt: at }).where(eq(worldEntries.id, u.id)));
-    await ctx.db.batch(batchMany(stmts));
+    await ctx.db.batch(batchMany([...stmts, stampEntriesChanged(ctx.db, bookId, at)]));
 
     await ctx.audit(
       {

@@ -38,12 +38,11 @@ import type { RowDeleteFocus } from "#components";
 import { LibraryRow, MutedLine, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { downloadTextFile, ESTIMATED_ROW_PX, notify, ROW_EXPORT_NAME, timeLib } from "#lib";
+import { downloadTextFile, ESTIMATED_ROW_PX, editedStamp, notify, ROW_EXPORT_NAME, timeLib } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
 import { WORLD_BOOKS_LIST_NAME } from "../lib/world-books-list-name.ts";
 import { bookScent } from "../lib/world-info-model.ts";
-import { worldInfoBookEditedStamp } from "../lib/world-info-names.ts";
 
 export function WorldInfoCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
   const trpc = useTRPC();
@@ -181,7 +180,7 @@ function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicat
       }}
       onSelect={onSelect}
       selected={selected}
-      subtitle={bookScent(book, worldInfoBookEditedStamp(timeLib.formatRelative(book.updatedAt)))}
+      subtitle={bookScent(book, editedStamp(timeLib, book.updatedAt))}
       title={book.name}
       {...(book.usage.global ? { markers: <GlobalMarker /> } : {})}
     />
