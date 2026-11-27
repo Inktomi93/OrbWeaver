@@ -193,6 +193,22 @@ test("a declaration moved out of the contracts with its keys removes none of the
   expect(entry(await check(repo), "guidedPick")?.homes).toEqual([`${CONTRACT}:SendInput`]);
 });
 
+test("a key respelled as a computed constant, local or imported, is still declared; a deletion beside it still reports", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const respelled = AFTER.replace("  readonly guidedPick?: string;\n}\nexport const", "  readonly [GUIDED_PICK]?: string;\n}\nexport const")
+    .replace("z.object({ limit: z.string() })", "z.object({ [LIMIT]: z.string() })")
+    .replace('import { z } from "../z.ts";', 'import { z } from "../z.ts";\nimport { GUIDED_PICK } from "./keys.ts";\nconst LIMIT = "limit";');
+  const repo = await deletionBranch(plantedTree, {
+    [CONTRACT]: respelled,
+    "packages/contracts/src/chat/keys.ts": 'export const GUIDED_PICK = "guidedPick";\n',
+  });
+  const report = await check(repo);
+  expect(entry(report, "guidedPick")?.homes).toEqual([`${CONTRACT}:SendInput`]);
+  expect(entry(report, "limit")).toBeUndefined();
+  expect(entry(report, "pageLimit")?.homes).toEqual([`${CONTRACT}:listInputSchema`]);
+});
+
 test("a body sent to an outside API is unresolved and passes", { timeout: 120_000 }, async ({ plantedTree }) => {
   const repo = await deletionBranch(plantedTree, {
     "packages/showcase-plugins/src/main.ts": [
