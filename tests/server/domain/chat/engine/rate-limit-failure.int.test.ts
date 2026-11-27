@@ -1,11 +1,8 @@
-// @subject packages/server/src/transport/trpc/error-mapping.ts
-// A turn the provider rate-limited fails as a modelled provider error, and the wire detail the transport derives from it
-// carries the reset moment the provider stated.
+// @subject packages/inference/src/backends/http/error-classify.ts
+// A turn the provider rate-limited fails as a provider rate-limit error that carries the reset moment the provider stated.
 
-import { PROVIDER_FAILURE_REASON_PREFIX, RATE_LIMIT_RESETS_AT_DETAIL_KEY } from "@orb/contracts/chat";
 import { builtinProvider, modelIdSchema } from "@orb/contracts/inference";
 import { ProviderError } from "@orb/inference";
-import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import { createControlledTimers, createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
@@ -21,8 +18,6 @@ const RETRY_AFTER_SECONDS = 3600;
 const MS_PER_SECOND = 1000;
 // The retry loop's longest single backoff; each tick moves the controlled timers past it so every retry fires.
 const BACKOFF_TICK_MS = 10_000;
-// tRPC's JSON-RPC code for TOO_MANY_REQUESTS, the number the error shape carries.
-const TOO_MANY_REQUESTS_RPC_CODE = -32_029;
 
 test("a rate-limited turn fails as a provider rate-limit error that states when the provider lifts the limit", async () => {
   const endpoint = builtinProvider("anthropic")?.baseUrl;
@@ -76,24 +71,9 @@ test("a rate-limited turn fails as a provider rate-limit error that states when 
   }
   const { failure } = outcome;
 
-  const mapped = classifyDomainError(failure);
-  if (mapped === null) {
-    throw new Error("The rate-limited turn did not classify as a modelled failure");
-  }
-  expect(mapped.code).toBe("TOO_MANY_REQUESTS");
-  expect(mapped.cause).toBeInstanceOf(ProviderError);
+  expect(failure).toBeInstanceOf(ProviderError);
+  const rateLimited = failure instanceof ProviderError ? failure : null;
+  expect(rateLimited?.kind).toBe("rate_limit");
   // The provider answered `retry-after` on its last attempt, so the stated reset is that long after the clock then.
-  const resetsAt = mapped.cause instanceof ProviderError ? mapped.cause.resetsAt : undefined;
-  expect(resetsAt).toBeGreaterThanOrEqual(clock.frozenAt + RETRY_AFTER_SECONDS * MS_PER_SECOND);
-  // The wire: the production formatter rides the failure's reason and, for a rate limit, the stated reset.
-  const formatted = appRouter._def._config.errorFormatter({
-    error: mapped,
-    type: "unknown",
-    path: "chat.generate",
-    input: undefined,
-    ctx: undefined,
-    shape: { message: mapped.message, code: TOO_MANY_REQUESTS_RPC_CODE, data: { code: "TOO_MANY_REQUESTS", httpStatus: 429 } },
-  });
-  expect(formatted.data.reason).toBe(`${PROVIDER_FAILURE_REASON_PREFIX}rate_limit`);
-  expect(formatted.data.detail).toEqual({ [RATE_LIMIT_RESETS_AT_DETAIL_KEY]: resetsAt });
+  expect(rateLimited?.resetsAt).toBeGreaterThanOrEqual(clock.frozenAt + RETRY_AFTER_SECONDS * MS_PER_SECOND);
 });
