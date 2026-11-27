@@ -57,7 +57,7 @@ test("a list past the row limit returns the first rows by key and counts all of 
   const { rows, total } = await admin.settings.listGlobalSettings();
   expect(rows).toHaveLength(GLOBAL_SETTINGS_LIST_LIMIT);
   const returned = rows.map(({ key }) => key);
-  expect(returned).toEqual([...returned].sort());
+  expect(returned).toEqual(returned.toSorted());
   expect(total).toBeGreaterThanOrEqual(keys.length);
   // The keys past the limit are the ones the list leaves out, and the count still includes them.
   expect(returned).not.toContain(keys.at(-1));

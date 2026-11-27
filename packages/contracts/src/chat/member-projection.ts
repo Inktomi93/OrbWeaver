@@ -62,9 +62,9 @@ function stripRateLimitFromView(view: MessageView): MessageView {
 
 /** The FULL member projection of one view: the unconditional hidden-span BODY strip and the host-only rate-limit
  *  stamp withheld, plus — when the game is DECEPTION-ACTIVE — the whole reasoning channel withheld.
- *  `reasoningHostOnly` is the per-chat verdict the caller resolved once (`resolveReasoningHostOnly && viewer !==
- *  host`); `false` keeps reasoning visible for a non-deception game. The ONE composed member-view projection every
- *  commit / list / replay / bus surface routes through, so the strips never drift apart. */
+ *  `reasoningHostOnly` is the per-chat verdict the caller resolved once for a non-host viewer; `false` keeps
+ *  reasoning visible for a non-deception game. The ONE composed member-view projection every commit, list, replay
+ *  and bus surface routes through, so the strips never drift apart. */
 export function projectViewForMember(view: MessageView, reasoningHostOnly: boolean): MessageView {
   const stripped = stripRateLimitFromView(stripHiddenForMember(view));
   return reasoningHostOnly ? stripReasoningFromView(stripped) : stripped;
