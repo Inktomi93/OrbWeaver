@@ -588,6 +588,49 @@ test("a private member of an ambient class brands a type and holds no data", { t
   expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual(["member-untouched Real.spare"]);
 });
 
+// MiniSearch's options name the document members it indexes, stores and keys by (library-names.ts MINISEARCH_FIELDS).
+const MINISEARCH = libraryModule(
+  [
+    "export interface Options<T = unknown> { readonly fields: string[]; readonly idField?: string; readonly storeFields?: string[] }",
+    "export default class MiniSearch<T = unknown> { constructor(options: Options<T>); addAll(documents: readonly T[]): void }",
+  ],
+  "minisearch",
+);
+
+// A document member a MiniSearch field option names is read by the library that indexes it: a literal in the option
+// itself, and a key list our own generic wrapper hands on from its caller's options. `note` is written into each document
+// and named by no option, so it stays write-only.
+test("a member a MiniSearch field option names is read, directly and through a wrapper's key list", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const scan = await graphScan(plantedTree, {
+    ...MINISEARCH,
+    [FILE]: [
+      'import MiniSearch from "minisearch";',
+      "export interface Doc { readonly name: string; readonly body: string; readonly note: string }",
+      "export const index = (docs: readonly Doc[]): void => {",
+      '  const search = new MiniSearch<Doc>({ idField: "name", fields: ["body"] });',
+      "  search.addAll(docs);",
+      "};",
+      'export const docs: readonly Doc[] = [{ name: "n", body: "b", note: "x" }];',
+      "interface SearchOptions<T> { readonly fields: readonly (keyof T & string)[] }",
+      "interface IndexArgs<T> { readonly items: readonly T[]; readonly fields: readonly (keyof T & string)[] }",
+      "const build = <T,>(args: IndexArgs<T>): void => {",
+      "  const { items, fields } = args;",
+      '  const search = new MiniSearch<T>({ idField: "id", fields: fields as string[] });',
+      "  search.addAll(items);",
+      "};",
+      "const fuzzy = <T,>(items: readonly T[], options: SearchOptions<T>): void => build({ items, fields: options.fields });",
+      "export interface Item { readonly id: string; readonly label: string; readonly haystack: string; readonly spare: string }",
+      'const OPTIONS = { fields: ["label", "haystack"] } as const;',
+      'const ITEMS: readonly Item[] = [{ id: "i", label: "l", haystack: "h", spare: "s" }];',
+      "export const find = (): void => fuzzy(ITEMS, OPTIONS);",
+    ].join("\n"),
+  });
+  expect(MEMBER_BUCKETS.flatMap((bucket) => labelsIn(scan, bucket, FILE).map((label) => `${bucket} ${label}`))).toEqual([
+    "member-write-only Doc.note",
+    "member-write-only Item.spare",
+  ]);
+});
+
 // The package a form instance's field methods are declared by, as TanStack Form's are.
 const FORM_CORE = "@tanstack/form-core";
 

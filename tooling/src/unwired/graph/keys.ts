@@ -12,20 +12,44 @@
 //   member of a one-member constraint is a key use. A plain keyof use, another target, or a constraint with more
 //   members, names none.
 // - `T[K]`, `Pick`, `Omit`, `Extract` and `Exclude` name a member as a key, never as a data read.
+// - A MiniSearch field option (library-names.ts MINISEARCH_FIELDS) reads each document member it names: MiniSearch
+//   indexes, stores or keys by it. A literal in the option names a member of the index's document type. A key list our
+//   own generic hands on from a parameter (`fields: args.fields as string[]`) names, at each caller that ends the
+//   hand-off, the literals the caller's value holds at that path, on the type argument the path's `keyof T` binds. A
+//   caller the walk cannot narrow reads nothing. A literal option of a generic index (`idField: "id"` on
+//   `MiniSearch<T>`) names a member of each type the same index's handed key lists resolved to.
 // - Script text (`page.evaluate(\`window.__orb.nav.go()\`)`) reads each member on the chain in the string's world;
 //   a computed key after the chain reads the last type whole. Each such read is a dev-bridge door read (analyse.ts).
-import type { Node, TypeNode } from "@typescript/native/ast";
+import type { Expression, Node, TypeNode } from "@typescript/native/ast";
 import {
+  isArrayLiteralExpression,
   isArrayTypeNode,
   isArrowFunction,
+  isAsExpression,
+  isBindingElement,
   isCallExpression,
+  isExpression,
   isFunctionExpression,
   isIdentifier,
+  isInterfaceDeclaration,
+  isIntersectionTypeNode,
   isNewExpression,
   isNoSubstitutionTemplateLiteral,
+  isObjectBindingPattern,
+  isObjectLiteralExpression,
   isParameterDeclaration,
+  isParenthesizedExpression,
+  isParenthesizedTypeNode,
+  isPropertyAccessExpression,
+  isPropertyAssignment,
+  isPropertySignatureDeclaration,
+  isSatisfiesExpression,
+  isShorthandPropertyAssignment,
   isStringLiteral,
   isTemplateExpression,
+  isTypeOperatorNode,
+  isTypeReferenceNode,
+  isUnionTypeNode,
   isVariableDeclaration,
   SyntaxKind,
 } from "@typescript/native/ast";
@@ -34,7 +58,7 @@ import { SymbolFlags, TypeFlags } from "@typescript/native/sync";
 import { formPath } from "../key-resolver.ts";
 import { hasFlag, isFunctionLike } from "../native.ts";
 import type { Flows } from "./flows.ts";
-import { FORM_NAME } from "./library-names.ts";
+import { FORM_NAME, libraryNames, MINISEARCH_FIELDS, MINISEARCH_PACKAGE } from "./library-names.ts";
 import { tracing } from "./options.ts";
 import { answer, constituentsOf, symbolMemberName } from "./resolve.ts";
 import type { Role } from "./roles.ts";
@@ -89,6 +113,7 @@ export class Keys {
     this.#typeKeys(sites);
     this.#reflectiveReads(sites);
     this.#keyofAssertions(sites);
+    this.#fieldOptions(sites);
     for (const { key, at } of sites.armSelectorMembers) {
       this.#state.role(key, "key", sites.file, at);
     }
@@ -292,6 +317,132 @@ export class Keys {
     }
   }
 
+  // `new MiniSearch<Doc>({ fields: ["body"], idField: "name" })` reads Doc's members the option names; a key list handed
+  // on from a parameter reads what each caller that ends the hand-off names (the header's ruling).
+  #fieldOptions(sites: FileSites): void {
+    const state = this.#state;
+    const library = libraryNames(state.world);
+    const options = sites.literalProperties.filter(
+      ({ name, property, value }) => value !== undefined && MINISEARCH_FIELDS.has(name) && library.declaredBy(property.name, MINISEARCH_PACKAGE),
+    );
+    for (const [optionsLiteral, group] of Map.groupBy(options, (option) => option.literal)) {
+      const index = optionsLiteral.parent;
+      const [document] = isNewExpression(index) ? state.batch([this.#typeArgument(state.world.typesAt([index])[0], 0)]) : [];
+      const spelled = group.flatMap(({ value, at }) => {
+        const names = value === undefined ? null : optionLiterals(unwrapOption(value));
+        return names === null ? [] : [{ names, at }];
+      });
+      const handed = group.flatMap(({ value }) =>
+        value === undefined || optionLiterals(unwrapOption(value)) !== null ? [] : this.#handedFieldReads(value, [], new Set()),
+      );
+      state.roleNamed(handed, "read", sites.file);
+      // a generic index's document is each type its handed key lists resolved to at their callers
+      const documents = document === undefined || document.isTypeParameter() ? [...new Map(handed.map(({ type }) => [type.id, type])).values()] : [document];
+      state.roleNamed(
+        spelled.flatMap(({ names, at }) => documents.flatMap((type) => names.map((name) => ({ type, name, at })))),
+        "read",
+        sites.file,
+      );
+    }
+  }
+
+  // The members a key list names at the end of its hand-off: a parameter's path steps to each caller's argument, an
+  // object literal on the path to the property it holds, and any other value names the literals its type holds at the
+  // path, on the type argument the path's last member keys. The seen-set of functions ends a cycle of callers.
+  #handedFieldReads(value: Node, path: readonly string[], seen: Set<string>): readonly { readonly type: Type; readonly name: string; readonly at: number }[] {
+    const at = unwrapOption(value);
+    const root = this.#parameterPath(at);
+    if (root !== undefined) {
+      const memo = this.#state.resolver.keyOf(root.fn);
+      if (seen.has(memo)) {
+        return [];
+      }
+      seen.add(memo);
+      return this.#callers(root.fn).flatMap((call) => {
+        const argument = argumentAt(call, root.index);
+        return argument === undefined ? [] : this.#handedFieldReads(argument, [...root.path, ...path], seen);
+      });
+    }
+    const [step, ...rest] = path;
+    const held = isObjectLiteralExpression(at) && step !== undefined ? propertyValue(at, step) : undefined;
+    if (held !== undefined && this.#parameterPath(unwrapOption(held)) !== undefined) {
+      return this.#handedFieldReads(held, rest, seen);
+    }
+    const [found] = isExpression(at) ? this.#state.batch([this.#namedAtPath(at, path)]) : [];
+    return found ?? [];
+  }
+
+  // A function's call sites, or none when one of its references is not a call.
+  #callers(fn: Node): readonly Node[] {
+    const state = this.#state;
+    const declaration = (isArrowFunction(fn) || isFunctionExpression(fn)) && isVariableDeclaration(fn.parent) ? fn.parent : fn;
+    const [usages = []] = state.batch([state.world.signatureUsage(declaration)]);
+    const calls = state.batch(usages.map((usage) => (usage.call === undefined ? answer(undefined) : usage.call.resolve.gen())));
+    return calls.some((call) => call === undefined) ? [] : calls.flatMap((call) => (call === undefined ? [] : [call]));
+  }
+
+  // The enclosing function's parameter a value is, or a member path off it: the parameter itself, `param.a.b`, or a
+  // binding destructured from it (`const { fields } = args`).
+  #parameterPath(value: Node): { readonly fn: Node; readonly index: number; readonly path: readonly string[] } | undefined {
+    const steps: string[] = [];
+    let at = value;
+    while (isPropertyAccessExpression(at)) {
+      steps.unshift(at.name.text);
+      at = unwrapOption(at.expression);
+    }
+    if (!isIdentifier(at)) {
+      return undefined;
+    }
+    const [symbol] = this.#state.world.symbolsAt([at]);
+    const [handle] = symbol?.declarations ?? [];
+    const [declaration] = this.#state.batch([handle === undefined ? answer(undefined) : handle.resolve.gen()]);
+    const destructured = declaration === undefined ? undefined : destructuredFrom(declaration);
+    if (destructured !== undefined) {
+      const outer = this.#parameterPath(destructured.source);
+      return outer === undefined ? undefined : { ...outer, path: [...outer.path, destructured.key, ...steps] };
+    }
+    return declaration !== undefined && isParameterDeclaration(declaration) && isIdentifier(declaration.name) && isFunctionLike(declaration.parent)
+      ? { fn: declaration.parent, index: parameterIndex(declaration.parent, declaration), path: steps }
+      : undefined;
+  }
+
+  // The literals a value's type holds at a member path (a list's elements, or a string), each on the type argument
+  // that the path's last member, declared `keyof T`, takes from the value's contextual type.
+  *#namedAtPath(
+    value: Expression,
+    path: readonly string[],
+  ): APIRequestGenerator<readonly { readonly type: Type; readonly name: string; readonly at: number }[]> {
+    const { checker } = this.#state.world;
+    const held = yield* this.#typeAtPath(yield* checker.getTypeAtLocation.gen(value), path);
+    const parent = yield* this.#typeAtPath(yield* checker.getContextualType.gen(value), path.slice(0, -1));
+    const last = path.at(-1);
+    const [member] = parent === undefined || last === undefined ? [] : yield* this.#state.propsOnSlot(parent, last);
+    const [handle] = member?.declarations ?? [];
+    const declaration = handle === undefined ? undefined : yield* handle.resolve.gen();
+    const index = declaration === undefined ? undefined : keyofParameterIndex(declaration);
+    const document = index === undefined ? undefined : yield* this.#typeArgument(parent, index);
+    if (held === undefined || document === undefined) {
+      return [];
+    }
+    const element = (yield* checker.isArrayLikeType.gen(held)) ? ((yield* held.getNumberIndexType.gen()) ?? held) : held;
+    return ((yield* literalValues(element)) ?? []).map((name) => ({ type: document, name, at: value.pos }));
+  }
+
+  // A type's member type at the end of a member path, or undefined where the path leaves its members.
+  *#typeAtPath(start: Type | undefined, path: readonly string[]): APIRequestGenerator<Type | undefined> {
+    let at = start;
+    for (const step of path) {
+      const [member] = at === undefined ? [] : yield* this.#state.propsOnSlot(at, step);
+      at = member === undefined ? undefined : yield* this.#state.world.checker.getTypeOfSymbol.gen(member);
+    }
+    return at;
+  }
+
+  // A generic type reference's type argument at an index.
+  *#typeArgument(type: Type | undefined, index: number): APIRequestGenerator<Type | undefined> {
+    return type?.isTypeReference() === true ? (yield* this.#state.world.checker.getTypeArguments.gen(type))[index] : undefined;
+  }
+
   // The lone constraint member of each type parameter T a `keyof T` in the type (or its list's element) spells.
   *#loneKeyofMembers(type: Type): APIRequestGenerator<readonly NativeSymbol[]> {
     const { checker } = this.#state.world;
@@ -488,6 +639,87 @@ export class Keys {
     ]);
     return resolved === undefined ? undefined : state.slotTypes([resolved])[0];
   }
+}
+
+// An option's value through its parentheses and assertions: `fields as string[]` hands on `fields`.
+function unwrapOption(node: Node): Node {
+  let at = node;
+  while (isParenthesizedExpression(at) || isAsExpression(at) || isSatisfiesExpression(at)) {
+    at = at.expression;
+  }
+  return at;
+}
+
+// The names an option's literal value spells: one string, or a list of them.
+function optionLiterals(value: Node): readonly string[] | null {
+  if (!isArrayLiteralExpression(value)) {
+    return keyLiterals(value);
+  }
+  const out: string[] = [];
+  for (const element of value.elements) {
+    const literals = keyLiterals(element);
+    if (literals === null) {
+      return null;
+    }
+    out.push(...literals);
+  }
+  return out;
+}
+
+// The value a binding destructures a named key from: `const { fields } = args` gives `args` and `fields`.
+function destructuredFrom(declaration: Node): { readonly source: Node; readonly key: string } | undefined {
+  if (!(isBindingElement(declaration) && isObjectBindingPattern(declaration.parent))) {
+    return undefined;
+  }
+  const holder = declaration.parent.parent;
+  const key = declaration.propertyName ?? declaration.name;
+  return isVariableDeclaration(holder) && holder.initializer !== undefined && key !== undefined && isIdentifier(key)
+    ? { source: unwrapOption(holder.initializer), key: key.text }
+    : undefined;
+}
+
+// The value an object literal holds under a name.
+function propertyValue(literal: Node, name: string): Node | undefined {
+  if (!isObjectLiteralExpression(literal)) {
+    return undefined;
+  }
+  for (const property of literal.properties) {
+    if (isPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === name) {
+      return property.initializer;
+    }
+    if (isShorthandPropertyAssignment(property) && isIdentifier(property.name) && property.name.text === name) {
+      return property.name;
+    }
+  }
+  return undefined;
+}
+
+// The index, among its interface's type parameters, of the T a member declared as a list of `keyof T` keys.
+function keyofParameterIndex(declaration: Node): number | undefined {
+  if (!(isPropertySignatureDeclaration(declaration) && isInterfaceDeclaration(declaration.parent))) {
+    return undefined;
+  }
+  const operand = keyofOperand(declaration.type);
+  const name = operand !== undefined && isTypeReferenceNode(operand) && isIdentifier(operand.typeName) ? operand.typeName.text : undefined;
+  const index = (declaration.parent.typeParameters ?? []).findIndex((parameter) => parameter.name.text === name);
+  return index < 0 ? undefined : index;
+}
+
+// The operand of the `keyof` a key type spells, through a list, `readonly`, parentheses and an intersection or union.
+function keyofOperand(type: TypeNode): TypeNode | undefined {
+  if (isTypeOperatorNode(type)) {
+    return type.operator === SyntaxKind.KeyOfKeyword ? type.type : keyofOperand(type.type);
+  }
+  if (isArrayTypeNode(type)) {
+    return keyofOperand(type.elementType);
+  }
+  if (isParenthesizedTypeNode(type)) {
+    return keyofOperand(type.type);
+  }
+  if (isIntersectionTypeNode(type) || isUnionTypeNode(type)) {
+    return type.types.map(keyofOperand).find((operand) => operand !== undefined);
+  }
+  return undefined;
 }
 
 // `string[]`: the mutable string list an assertion of a readonly key list must compare with.
