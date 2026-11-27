@@ -167,29 +167,6 @@ const CASES = [
   ["orb/config-group-definition-home", "a group declared in state", "export const g: ConfigGroupDefinition = { id: 'x' };", STATE, 1],
   ["orb/config-group-definition-home", "a group in the feature lib", "const g: ConfigGroupDefinition = { id: 'x' };", FEATURE_LIB, 0],
   ["orb/config-group-definition-home", "a modal is another vocabulary", "const m: ModalDefinition = { id: 'x' };", STATE, 0],
-  // mutation-vars-derived
-  [
-    "orb/mutation-vars-derived",
-    "a literal variables type",
-    "export const useRename = createEntityMutation<{ readonly chatId: string; readonly title: string }, unknown>({ options });",
-    FEATURE,
-    1,
-  ],
-  [
-    "orb/mutation-vars-derived",
-    "variables derived from the procedure",
-    "export const useStar = createEntityMutation<StarVars, unknown>({ options });",
-    FEATURE,
-    0,
-  ],
-  [
-    "orb/mutation-vars-derived",
-    "a literal response type beside derived variables",
-    "export const useStar = createEntityMutation<StarVars, { readonly ok: boolean }>({ options });",
-    FEATURE,
-    0,
-  ],
-  ["orb/mutation-vars-derived", "a literal type on another generic", "export const x = wrap<{ readonly a: string }, unknown>({ options });", FEATURE, 0],
   // trpc-error-code-via-helper
   [
     "orb/trpc-error-code-via-helper",

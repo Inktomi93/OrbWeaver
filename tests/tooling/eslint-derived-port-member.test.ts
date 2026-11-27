@@ -383,6 +383,22 @@ test.for([
     findings: [{ messageId: "restatedProcedure", data: { written: "This inline type", side: "output", procedure: "trpc.chat.reapHusks", fields: "reaped" } }],
   },
   {
+    name: "an inline variables type that restates the procedure input",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\nexport const useDuplicate = createEntityMutation<{ readonly chatId: string; readonly messageId: string }, void>({ options: () => trpc.chat.duplicate.mutationOptions() });`,
+    findings: [
+      { messageId: "restatedProcedure", data: { written: "This inline type", side: "input", procedure: "trpc.chat.duplicate", fields: "chatId, messageId" } },
+    ],
+  },
+  {
+    name: "a hand-written type argument on another generic that binds the procedure",
+    file: CLIENT,
+    source: `${TRPC_IMPORTS}\ndeclare function wrap<TVars, TData>(base: MutationOptions<TVars, TData>): MutationOptions<TVars, TData>;\nexport const options = wrap<{ readonly chatId: string; readonly messageId: string }, void>(trpc.chat.duplicate.mutationOptions());`,
+    findings: [
+      { messageId: "restatedProcedure", data: { written: "This inline type", side: "input", procedure: "trpc.chat.duplicate", fields: "chatId, messageId" } },
+    ],
+  },
+  {
     name: "a vars interface that restates the input of the procedure it is sent to",
     file: CLIENT,
     source: `${TRPC_IMPORTS}\ninterface DuplicateVars { readonly chatId: string; readonly messageId: string }\nexport const useDuplicate = createEntityMutation<DuplicateVars, void>({ options: () => trpc.chat.duplicate.mutationOptions() });`,
