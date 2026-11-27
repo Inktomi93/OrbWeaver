@@ -384,6 +384,20 @@ export const libraryModule = (lines: readonly string[], name = "lib"): Record<st
   [`node_modules/${name}/index.d.ts`]: lines.join("\n"),
 });
 
+/** drizzle-orm's write builders in miniature: `values` takes a slot of the library's own mapped type. */
+export const STORE_PACKAGE = "drizzle-orm";
+export const STORES = libraryModule(
+  [
+    "export interface Column { readonly name: string }",
+    "export declare const text: () => Column;",
+    "export interface TableConfig<C> { readonly columns: C }",
+    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"]]: string } }',
+    "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
+    'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
+    "export declare const db: { insert<T>(table: T): { values(value: Insert<T>): Promise<void> } };",
+  ],
+  STORE_PACKAGE,
+);
 /** Hono's request context with Node's types: `json` answers the platform `Response`, as the real member does, and `set`
  *  answers nothing. A planted source declares `c: Context` to send through it. */
 export const HONO_CONTEXT = {

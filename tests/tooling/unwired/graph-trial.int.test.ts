@@ -18,7 +18,7 @@ import { SNAP_SOURCE } from "../../../tooling/src/unwired/graph/state.ts";
 import { BLIND_SHAPES, TRIAL_BUCKETS, TRIAL_VERDICTS } from "../../../tooling/src/unwired/graph/trial.ts";
 import type { TrialReport } from "../../../tooling/src/unwired/index.ts";
 import { BUCKETS, trialGraph } from "../../../tooling/src/unwired/index.ts";
-import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB as LIBS, WORLD } from "./_planted.ts";
+import { DEAD_CHANNEL_MESSAGES, GRAPH_SOURCE, graphScan, graphTree, JSX_NAMESPACE, LIB as LIBS, STORE_PACKAGE, STORES, WORLD, ZOD_MODULE } from "./_planted.ts";
 
 const [CONFIRMED, CONFIRMED_LITERAL, NAMED_ONLY, REFUTED_REFERENCES, REFUTED, REFUTED_TEST_ONLY, UNRESOLVED, BLIND] = TRIAL_VERDICTS;
 const [OPTIONAL_SLOT, REDECLARED_MEMBER] = BLIND_SHAPES;
@@ -355,8 +355,10 @@ test.for([
         'use(keptOf({ kept: "k", b: "v" }));',
       ].join("\n"),
     },
-    // The main file writes `b` in a literal, so that write is an error too; the augmentation's read refutes.
-    errors: [`${AUGMENT}:3 read`, `${MAIN}:4 write`],
+    // The main file writes `b` in a literal, so that write is an error too; the augmentation's `Shape["b"]` is a key
+    // use, which reads no data, so the two leave the member named-only.
+    verdict: NAMED_ONLY,
+    errors: [`${AUGMENT}:3 key`, `${MAIN}:4 write`],
   },
 ])("a delete that breaks $site is judged there", { timeout: 120_000 }, async ({ files, verdict: judged = REFUTED, errors: expected }, { plantedTree }) => {
   const root = await plantedTree(graphTree(files, { entries: [MAIN] }));
@@ -1063,6 +1065,108 @@ test("a write-only member's own literal write leaves it named-only, not refuted"
   expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`)])).toEqual([
     [`${LIB}:A.a`, NAMED_ONLY, [`${LIB}:2 write`]],
   ]);
+});
+
+// A port copy nobody reads, in its own file as a port's contract is, is a finding of its own, and the value the port takes fills it: the delete takes the copy
+// with the member, so the fill's assignability error is no reader, and the member's literal write leaves it
+// named-only. The copy alone deletes clean. `id` is read through the copy and is no finding.
+test("a member deletes with the unread port copy its value fills", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [OTHER]: "export interface RpgPosted { readonly id: string; readonly variant: string }",
+      [LIB]: [
+        'import type { RpgPosted } from "./other.ts";',
+        "export interface Posted { readonly id: string; readonly variant: string }",
+        'const post = (): Posted => ({ id: "i", variant: "v" });',
+        "export const rpgPost = (): RpgPosted => post();",
+        "export const idOf = (posted: RpgPosted): string => posted.id;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(outcomes(report)).toEqual([
+    [`${OTHER}:RpgPosted.variant`, CONFIRMED, `${OTHER}: readonly variant: string`],
+    [`${LIB}:Posted.variant`, NAMED_ONLY, `${LIB}: readonly variant: string`, `${OTHER}: readonly variant: string`],
+  ]);
+});
+
+// A string that names a member as a key reads no data: a disposition returned into `keyof`, a key handed to a
+// `keyof` slot, and a `Pick` argument each break when the member goes, and each is a key use. The
+// counts are bumped by the key the disposition carries, a write, so every member stays named-only.
+test("an error at a string that names the member as a key is a key use, not a read", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      [LIB]: [
+        "export interface Counts { readonly done: number; readonly held: number }",
+        'const disposition = (ok: boolean): keyof Counts => (ok ? "done" : "held");',
+        "export const tally = (oks: readonly boolean[]): Counts => {",
+        "  const counts = { done: 0, held: 0 };",
+        "  for (const ok of oks) {",
+        "    counts[disposition(ok)] += 1;",
+        "  }",
+        "  return counts;",
+        "};",
+        "export interface Meta { readonly shown: boolean; readonly kept: boolean }",
+        "const setMeta = (change: { readonly key: keyof Meta }): string => change.key;",
+        'export const show = (): string => setMeta({ key: "shown" });',
+        "export const meta: Meta = { shown: true, kept: true };",
+        'export type Seen = Pick<Meta, "kept">;',
+        "export const seen: Seen = { kept: true };",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY, MEMBER_UNTOUCHED], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Counts.done`, NAMED_ONLY, [`${LIB}:2 key`]],
+    [`${LIB}:Counts.held`, NAMED_ONLY, [`${LIB}:2 key`]],
+    [`${LIB}:Meta.shown`, NAMED_ONLY, [`${LIB}:12 key`, `${LIB}:13 write`]],
+    [`${LIB}:Meta.kept`, NAMED_ONLY, [`${LIB}:13 write`, `${LIB}:14 key`]],
+  ]);
+});
+
+// A member copied into a Drizzle column is read only where the column is read back, so neither the copy's reference nor
+// the error the delete adds there reads it: with its literal write it stays named-only. `read` is read off the value.
+test("a member a Drizzle store copies into a column refutes nothing at the copy", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const schema = "packages/db/src/schema/tables.ts";
+  const root = await plantedTree(
+    graphTree({
+      ...STORES,
+      [schema]: [`import { sqliteTable, text } from "${STORE_PACKAGE}";`, 'export const links = sqliteTable("links", { fetchedAt: text() });'].join("\n"),
+      [LIB]: [
+        `import { db } from "${STORE_PACKAGE}";`,
+        'import { links } from "../../db/src/schema/tables.ts";',
+        "export interface Link { readonly at: number; readonly read: string }",
+        "const store = (link: Link): Promise<void> => db.insert(links).values({ fetchedAt: link.at });",
+        'export const run = (): Promise<void> => store({ at: 1, read: "r" });',
+        "export const readOf = (link: Link): string => link.read;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(report.trials.map(({ label, verdict, errors }) => [label, verdict, errors.map(({ at, kind }) => `${at} ${kind}`).toSorted()])).toEqual([
+    [`${LIB}:Link.at`, NAMED_ONLY, [`${LIB}:4 write`, `${LIB}:5 write`]],
+  ]);
+});
+
+// A zod twin key is the member's own wire copy: the delete takes both, so a value typed by the schema's output still
+// takes the member's holder, and the write the member keeps leaves it named-only. Deleting the member alone is refuted
+// by that output, an assignability error and no reader.
+test("a member with a zod twin deletes with its twin key, so the schema's own output is no reader", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const root = await plantedTree(
+    graphTree({
+      ...ZOD_MODULE,
+      [LIB]: [
+        'import { z } from "zod";',
+        "export interface Result { readonly detached: string; readonly read: string }",
+        "export const resultSchema = z.object({ detached: z.string(), read: z.string() }) satisfies z.ZodType<Result>;",
+        'const make = (): Result => ({ detached: "d", read: "r" });',
+        "export const answer = (): z.infer<typeof resultSchema> => make();",
+        "export const readOf = (value: Result): string => value.read;",
+      ].join("\n"),
+    }),
+  );
+  const report = await trialGraph(root, { buckets: [MEMBER_WRITE_ONLY], limit: null }, () => undefined);
+  expect(outcomes(report)).toEqual([[`${LIB}:Result.detached`, NAMED_ONLY, `${LIB}: readonly detached: string;`, `${LIB}: detached: z.string(),`]]);
 });
 
 // The delete's error on the left of `=` or a discarded `+=` stores into the member: a write, as the graph's roles judge it.

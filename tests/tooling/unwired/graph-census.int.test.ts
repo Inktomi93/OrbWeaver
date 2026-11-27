@@ -9,7 +9,7 @@ import type { TestOptions } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
 import type { Ablation, CensusReport, SiteClass } from "../../../tooling/src/unwired/index.ts";
 import { censusGraph, FRESH_BUILD } from "../../../tooling/src/unwired/index.ts";
-import { GRAPH_SOURCE, graphTree, libraryModule, ZOD_MODULE } from "./_planted.ts";
+import { GRAPH_SOURCE, graphTree, STORE_PACKAGE, STORES, ZOD_MODULE } from "./_planted.ts";
 
 // Each case spawns the CLI, which loads the tool's module graph: past the 5 s default under load.
 const SPAWNS_CLI: TestOptions = { tags: ["slow"] };
@@ -276,20 +276,6 @@ test("graph-census refuses --from before any build, since its role sites come fr
   expect(refused.stderr).toContain("graph-census reads the role sites of its own build");
 });
 
-// drizzle-orm's write builders in miniature: `values` takes a slot of the library's own mapped type.
-const STORE_PACKAGE = "drizzle-orm";
-const STORES = libraryModule(
-  [
-    "export interface Column { readonly name: string }",
-    "export declare const text: () => Column;",
-    "export interface TableConfig<C> { readonly columns: C }",
-    'export interface Table<T extends TableConfig<unknown>> { readonly _: T; readonly $inferSelect: { [K in keyof T["columns"]]: string } }',
-    "export declare function sqliteTable<C>(name: string, columns: C, extra?: (table: C) => readonly unknown[]): Table<TableConfig<C>> & C;",
-    'export type Insert<T> = T extends Table<infer Config> ? { [K in keyof Config["columns"] as K & string]?: unknown } : never;',
-    "export declare const db: { insert<T>(table: T): { values(value: Insert<T>): Promise<void> } };",
-  ],
-  STORE_PACKAGE,
-);
 const SCHEMA = "packages/db/src/schema/tables.ts";
 
 // A member copied into a Drizzle column is read only where the column is read back (design.md, the unwired-code
