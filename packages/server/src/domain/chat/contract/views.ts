@@ -12,12 +12,13 @@ import type {
   ChatSummary as WireChatSummary,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
+import type { CorpusSourceOutcome } from "@orb/contracts/search";
 import type { ChatTurnId } from "@orb/kit/ids";
 
 export type MessageWindowAnchor = Pick<MessageView, "id" | "seq">;
 export type MessageWindowResolution =
-  | { readonly outcome: "deleted" | "unavailable"; readonly anchor: null; readonly end: null }
-  | { readonly outcome: "resolved" | "moved"; readonly anchor: MessageWindowAnchor; readonly end: MessageWindowAnchor };
+  | { readonly outcome: Extract<CorpusSourceOutcome, "deleted" | "unavailable">; readonly anchor: null; readonly end: null }
+  | { readonly outcome: Extract<CorpusSourceOutcome, "resolved" | "moved">; readonly anchor: MessageWindowAnchor; readonly end: MessageWindowAnchor };
 
 /** A durable chat-bus log row (replayChatEvents) — one room-public `ChatBusEvent` with its per-chat replay
  *  cursor (the `chat_events` row projected). The chat room's SSE resume replays these; the live
