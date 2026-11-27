@@ -1,10 +1,10 @@
 // domain/automation/persistence/validate — the create/update write-edge validation. One async pass:
-// trigger liveness, CEL parse, action-arm shapes + caps + reserved-arm refusal, the
+// CEL parse, action-arm shapes + caps + reserved-arm refusal, the
 // post_notification cooldown floor, the C5 owner-global SCOPE matrix (which arms and which CEL roots a
 // chat-less rule may carry), world-info book consent (the arm's book AND a `run_analysis` lore route's —
 // attachment for a room's rule, OWNERSHIP for a global one), the S5 analysis admission rows (≥1 route · ≤1
 // confirm-class route · the active-game fence), and `run_tool` tool reachability. Throws a
-// TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
+// TYPED refusal (RuleValidationError) — a rule with any violation is never
 // stored. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first. The pass reads book consent and game state, so it is not substrate; the read-free name and budget bounds
 // stay in `substrate/validate.ts`.
@@ -18,20 +18,14 @@
 // opposite things by a `false`: here it means "you never had this", there it means "it went away".
 
 import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
-import {
-  AUTOMATION_ARM_SCOPE,
-  AUTOMATION_RULE_MAX_FIRES_PER_HOUR,
-  automationActionsSchema,
-  LIVE_TRIGGERS,
-  noticeCooldownTooShort,
-} from "@orb/contracts/automation";
+import { AUTOMATION_ARM_SCOPE, AUTOMATION_RULE_MAX_FIRES_PER_HOUR, automationActionsSchema, noticeCooldownTooShort } from "@orb/contracts/automation";
 import { MULTIMODAL_MODES } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
-import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors.ts";
+import { RuleValidationError } from "../contract/errors.ts";
 import type { AutomationOps } from "../contract/ops.ts";
 import { hasActiveGame, isBookAttachedToChat, isBookOwnedBy } from "./canon-reads.ts";
 
@@ -323,9 +317,6 @@ function assertToolsDrivable(deps: ValidateDeps, authorUserId: UserId, actions: 
  *  The owner-global rows (`assertArmsScopeAdmissible`, `assertPredicateScopeAdmissible`) are NO-OPS for a
  *  chat-scoped rule, so a room's rule is validated byte-identically to before C5. */
 export async function validateRuleInput(deps: ValidateDeps, scope: RuleScope, input: ValidateInput): Promise<ValidatedRule> {
-  if (!LIVE_TRIGGERS[input.trigger.type]) {
-    throw new AutomationReservedTriggerError(input.trigger.type);
-  }
   if (input.maxFiresPerHour < 0 || input.maxFiresPerHour > AUTOMATION_RULE_MAX_FIRES_PER_HOUR) {
     throw new RuleValidationError("fires_cap", `maxFiresPerHour must be in 0..${AUTOMATION_RULE_MAX_FIRES_PER_HOUR}`);
   }

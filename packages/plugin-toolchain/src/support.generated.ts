@@ -343,26 +343,6 @@ export const PLUGIN_AUTHOR_SUPPORT = {
           name: "reactionsChanged",
           world: "main",
         },
-        {
-          name: "messageHidden",
-          world: "main",
-        },
-        {
-          name: "messagesDeleted",
-          world: "main",
-        },
-        {
-          name: "chatUpdated",
-          world: "main",
-        },
-        {
-          name: "wiEntryAttached",
-          world: "main",
-        },
-        {
-          name: "wiEntryDetached",
-          world: "main",
-        },
       ],
       domain: [
         {

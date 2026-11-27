@@ -256,12 +256,7 @@ type ChatTriggerType =
   | "worldInfoActivated"
   | "personaSwitched"
   | "chatCreated"
-  | "reactionsChanged"
-  | "messageHidden"
-  | "messagesDeleted"
-  | "chatUpdated"
-  | "wiEntryAttached"
-  | "wiEntryDetached";
+  | "reactionsChanged";
 
 type DomainTriggerType = "character.updated" | "asset.created" | "persona.updated" | "world-info.updated";
 
