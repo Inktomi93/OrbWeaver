@@ -855,7 +855,7 @@ export const statsTimeseriesInputSchema = z.strictObject({ from: z.int().optiona
 export const statsByModelInputSchema = z.strictObject({ limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional();
 
 /** The newest-first window of embedding calls a read returns; the same positive, capped limit `byModel` takes. */
-export const statsEmbeddingCallsInputSchema = statsByModelInputSchema;
+export const statsEmbeddingCallsInputSchema = z.strictObject({ limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional();
 
 export const statsPersonaUsageInputSchema = z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();
 
