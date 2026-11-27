@@ -10,6 +10,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
 import { jsonMemberSchema, jsonObjectSchema, narrowJsonObject } from "@orb/kit/json";
+import type { EntryPosition } from "@orb/kit/world-info";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES, ST_SLOT_METADATA_KEY, stSlotSchema } from "@orb/kit/world-info";
 import { z } from "zod";
 
@@ -50,9 +51,12 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 //  `upsertEntries` re-run that finds the CURRENT content no longer hashing to this value knows a human
 //  curated the entry and SKIPS it (the host's hand always wins). Generic on purpose — the shared
 //  `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee.
+//  `position` is the seat the writer last stamped, the same belt for the seat: an entry whose stored
+//  `metadata.position` differs from it was moved by the host, and a re-write leaves that seat.
 const loreEntryProvenanceSchema = z
   .object({
     contentHash: z.string(),
+    position: z.enum(ENTRY_POSITIONS).exactOptional(),
   })
   .strip();
 export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
@@ -298,11 +302,14 @@ export type BulkImportLorebookResult = BulkImportLorebookResultBase &
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One entry a machine writer upserts. `title` is the upsert key within the book; `keys` drive the keyword
- *  match (a lore entry is keyed, not constant). */
+ *  match (a lore entry is keyed, not constant). `position` is the seat the writer chose: an insert stores it, an
+ *  update replaces the stored seat with it, and an absent one leaves the seat as it was (a new entry lands at
+ *  the default seat). */
 export interface UpsertLoreEntryInput {
   readonly title: string;
   readonly keys: readonly string[];
   readonly content: string;
+  readonly position?: EntryPosition;
 }
 
 /** The shared machine-writer op: upsert `entries` into `bookId` as the book owner `authorUserId`. */

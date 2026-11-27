@@ -88,7 +88,6 @@ export interface CorpusReads {
   readonly "character.list": readonly CorpusRead<"character.list">[];
   readonly "character.count": readonly CorpusRead<"character.count">[];
   readonly "persona.list": readonly CorpusRead<"persona.list">[];
-  readonly "persona.get": readonly CorpusRead<"persona.get">[];
   readonly "chat.listChats": readonly CorpusRead<"chat.listChats">[];
   readonly "chat.countChats": readonly CorpusRead<"chat.countChats">[];
   readonly "chat.getChat": readonly CorpusRead<"chat.getChat">[];

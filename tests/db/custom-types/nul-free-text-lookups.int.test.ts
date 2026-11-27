@@ -28,7 +28,7 @@ test("a second tag whose name differs only by a NUL is refused as the duplicate 
   expect(first.name).toBe(NAME.join(""));
 
   await expect(harness.services.tag.createTag({ principal: owner, input: { name: NAME.join("") } })).rejects.toBeInstanceOf(DomainConflictError);
-  expect((await harness.services.tag.listTags({ principal: owner })).map(({ name }) => name)).toEqual([NAME.join("")]);
+  expect((await harness.services.tag.listTagsWithUsage({ principal: owner })).map(({ name }) => name)).toEqual([NAME.join("")]);
 });
 
 test.for([

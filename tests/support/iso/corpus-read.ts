@@ -51,7 +51,6 @@ export interface CorpusProcedures {
   readonly "character.list": Capture<z.input<typeof character.characterListInputSchema>, z.output<typeof character.listCharactersResultSchema>>;
   readonly "character.count": Capture<z.input<typeof character.characterCensusInputSchema> | undefined, number>;
   readonly "persona.list": InputlessCapture<readonly z.output<typeof persona.personaDetailSchema>[]>;
-  readonly "persona.get": Capture<z.input<typeof persona.personaIdInputSchema>, z.output<typeof persona.personaDetailSchema>>;
   readonly "persona.listConnectedToCharacter": Capture<
     z.input<typeof persona.personaCharacterInputSchema>,
     readonly z.output<typeof persona.personaDetailSchema>[]
@@ -70,7 +69,6 @@ export interface CorpusProcedures {
   readonly "databank.bankHealth": InputlessCapture<z.output<typeof databank.bankHealthViewSchema>>;
   readonly "notifications.list": Capture<z.input<typeof notifications.listInboxInputSchema>, z.output<typeof notifications.listInboxResultSchema>>;
   readonly "tag.listPendingSuggestions": Capture<z.input<typeof tag.pendingTagSuggestionsInputSchema>, readonly z.output<typeof tag.tagSuggestionViewSchema>[]>;
-  readonly "tag.listTags": InputlessCapture<readonly z.output<typeof tag.tagViewSchema>[]>;
   readonly "tag.listTagsWithUsage": InputlessCapture<readonly z.output<typeof tag.tagWithUsageSchema>[]>;
   readonly "tag.listTagFilterVocabulary": InputlessCapture<readonly z.output<typeof tag.tagFilterVocabularyEntrySchema>[]>;
   readonly "tag.listAttachedEntities": Capture<z.input<typeof tag.tagReachInputSchema>, z.output<typeof tag.tagReachViewSchema>>;
@@ -79,7 +77,6 @@ export interface CorpusProcedures {
   readonly "worldInfo.listBooksWithUsage": InputlessCapture<readonly z.output<typeof world.bookWithUsageSchema>[]>;
   readonly "worldInfo.listEntries": Capture<z.input<typeof world.worldBookIdInputSchema>, readonly z.output<typeof world.entryViewSchema>[]>;
   readonly "worldInfo.getBook": Capture<z.input<typeof world.worldBookIdInputSchema>, z.output<typeof world.bookViewSchema>>;
-  readonly "worldInfo.getEntry": Capture<z.input<typeof world.worldEntryIdInputSchema>, z.output<typeof world.entryViewSchema>>;
   readonly "worldInfo.listAttachmentsForBook": Capture<z.input<typeof world.worldBookIdInputSchema>, z.output<typeof world.bookAttachmentTargetsSchema>>;
   readonly "worldInfo.listForCharacter": Capture<
     z.input<typeof world.worldInfoCharacterInputSchema>,

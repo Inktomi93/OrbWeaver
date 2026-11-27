@@ -81,7 +81,11 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
     [views.second.id, views.book.id, 2],
     [views.first.id, views.book.id, 1],
   ]);
-  expect(views.entry.output).toMatchObject({ id: views.first.id, worldBookId: views.book.id, content: views.first.content, keys: ["archive"] });
+  expect(views.orderedEntries.output.find((entry) => entry.id === views.first.id)).toMatchObject({
+    worldBookId: views.book.id,
+    content: views.first.content,
+    keys: ["archive"],
+  });
   expect(views.demoted.output.find((book) => book.id === views.book.id)?.role).toBe("auxiliary");
   expect(views.demoted.output.find((book) => book.id === views.replacement.id)?.role).toBe("primary");
   expect(views.characterBooks.output).toMatchObject([{ id: library.world.book.id, role: "primary" }]);
@@ -109,8 +113,11 @@ test("world library outputs preserve attachment roles, entry ordering, portable 
   expect(await caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).toEqual({ detached: true });
   expect((await caller.worldInfo.listGlobal()).map((book) => book.id)).not.toContain(library.world.book.id);
   expect(await caller.worldInfo.detachGlobal({ bookId: library.world.book.id })).toEqual({ detached: false });
+  expect((await caller.worldInfo.listEntries({ bookId: views.book.id })).map((entry) => entry.id)).toContain(views.first.id);
   await caller.worldInfo.removeEntry({ entryId: views.first.id });
-  await expect(caller.worldInfo.getEntry({ entryId: views.first.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  const remaining = (await caller.worldInfo.listEntries({ bookId: views.book.id })).map((entry) => entry.id);
+  expect(remaining).toContain(views.second.id);
+  expect(remaining).not.toContain(views.first.id);
 });
 
 test("regex output captures preserve execution order, host opt-in, portable reuse and scoped bulk outcomes", async () => {

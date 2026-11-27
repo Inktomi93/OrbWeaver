@@ -75,10 +75,9 @@ test("shared library producers preserve every real relation and pending acceptan
     soloChatId: library.room.chat.id,
     groupChatId: library.room.chat.id,
     documentId: library.document.id,
-    personaIds: [library.persona.id],
   });
-  const persona = createCorpusReadResponder("persona.get", root.ownerId, reads["persona.get"]);
-  expect(persona({ personaId: library.persona.id })).toEqual(library.persona);
+  const personas = createCorpusReadResponder("persona.list", root.ownerId, reads["persona.list"]);
+  expect(personas(undefined)).toContainEqual(library.persona);
   expect(reads["tag.listPendingSuggestions"].flatMap((capture) => capture.output.map((tag) => tag.id))).toContain(library.tag.id);
   const accepted = await seedCharacterTagRows(root, { principal, characterId: library.character.id, tagId: library.tag.id });
   expect(accepted.status).toBe("accepted");

@@ -209,12 +209,12 @@ test("a planted 500 carries production's unclassified-fault message whatever tex
   await page.goto(ORIGIN);
   await routeTrpc(page, {
     health: () => trpcError(),
-    "tag.listTags": () => trpcError({ message: planted }),
+    "tag.listTagsWithUsage": () => trpcError({ message: planted }),
     "preset.list": () => trpcError({ code: "CONFLICT", message: refusal, reason: "duplicate_name" }),
   });
   const wire = (path: string): Promise<unknown> => page.evaluate(async (url) => (await fetch(url)).json(), `/api/trpc/${path}`);
   expect(await wire("health")).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
-  expect(await wire("tag.listTags")).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
+  expect(await wire("tag.listTagsWithUsage")).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
   // The control: the substitution is the 500's alone.
   expect(await wire("preset.list")).toMatchObject({ error: { message: refusal, data: { code: "CONFLICT", reason: "duplicate_name" } } });
 });

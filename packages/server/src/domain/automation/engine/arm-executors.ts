@@ -229,7 +229,7 @@ async function runInsertWorldInfo(
     chatId: frame.chatId,
     ruleId: frame.origin.ruleId,
     bookId: action.bookId,
-    entries: [{ entryKey: action.entryKey, keys: action.keys, content: rendered.text }],
+    entries: [{ entryKey: action.entryKey, keys: action.keys, content: rendered.text, position: action.position }],
   });
   return written.ok ? OK : armError(written.refused);
 }

@@ -5,15 +5,19 @@
 // title is INSERTED. The hand-edit belt: an existing entry whose CURRENT content no longer hashes to the
 // `metadata.provenance.contentHash` the writer last stamped was curated by a human — it is SKIPPED (the host's hand
 // always wins). Caller policy (caps, merge-mode, span-stamped titles, mark advance) stays with the caller; the
-// SKIP semantic lives here so every consumer inherits it. Keyed entries fire through the normal keyword match.
+// SKIP semantic lives here so every consumer inherits it. The SEAT is guarded the same way: the writer stamps the
+// seat it last wrote into `provenance.position`, an insert takes the writer's seat, and an update takes it only while the
+// stored `metadata.position` still equals that stamp. A seat the host moved is the host's: the re-write replaces the
+// content it owns and leaves the seat. Keyed entries fire through the normal keyword match.
 // WITHIN ONE REQUEST the title key holds too: the by-title map is folded forward after every write, so a
 // repeated title updates the row the earlier input left rather than inserting a second row under one key.
 
-import type { LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
+import type { EntryView, LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
 import { entryMetadataSchema, narrowEntryMetadata } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { UnreadableJsonText } from "@orb/kit/json";
+import type { EntryPosition } from "@orb/kit/world-info";
 import { resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
 import { sha256Hex } from "#primitives/content-hash";
@@ -36,14 +40,41 @@ interface UpsertOutcome {
   readonly row: EntryRow;
 }
 
-function provenanceOf(input: UpsertLoreEntryInput): LoreEntryProvenance {
-  return { contentHash: sha256Hex(input.content) };
+/** The writer's seat as an optional field: an absent choice adds no key, so a stored seat or stamp stays as it is. */
+function seatField(position: EntryPosition | undefined): { readonly position?: EntryPosition } {
+  return position === undefined ? {} : { position };
+}
+
+function storedMetadata(prior: EntryRow): EntryView["metadata"] {
+  return entryMetadataSchema.nullable().catch(null).parse(prior.metadata);
 }
 
 /** True when a prior entry was hand-edited since the writer last stamped it (stored hash ≠ current content). */
 function handEdited(prior: EntryRow): boolean {
-  const storedHash = entryMetadataSchema.nullable().catch(null).parse(prior.metadata)?.provenance?.contentHash;
+  const storedHash = storedMetadata(prior)?.provenance?.contentHash;
   return storedHash !== undefined && sha256Hex(prior.content) !== storedHash;
+}
+
+/** True when the host moved a prior entry's seat since the writer last stamped it (stored seat ≠ stamped seat).
+ *  An entry written before the stamp carried a seat has none, and a seat on it can only be the host's. */
+function seatMoved(prior: EntryRow): boolean {
+  const stored = storedMetadata(prior);
+  return stored?.position !== stored?.provenance?.position;
+}
+
+/** The stamp and the seat a write leaves: the writer's seat on an insert and on an update the host has not moved,
+ *  otherwise whatever is stored. The stamp always names the seat the writer last wrote, never the host's. */
+function stampAndSeat(
+  input: UpsertLoreEntryInput,
+  prior: EntryRow | undefined,
+): { readonly provenance: LoreEntryProvenance; readonly seat: { readonly position?: EntryPosition } } {
+  const contentHash = sha256Hex(input.content);
+  const stamped = prior === undefined ? undefined : storedMetadata(prior)?.provenance?.position;
+  if (prior !== undefined && seatMoved(prior)) {
+    return { provenance: { contentHash, ...seatField(stamped) }, seat: {} };
+  }
+  const position = input.position ?? stamped;
+  return { provenance: { contentHash, ...seatField(position) }, seat: seatField(input.position) };
 }
 
 /** Upsert ONE entry, hand-edit-safe. Returns the outcome + (for emits) the entry id & derived scope. */
@@ -53,7 +84,6 @@ async function upsertOne(
 ): Promise<UpsertOutcome> {
   const { bookId, input, prior, at } = args;
   const keys = input.keys.length > 0 ? [...input.keys] : null;
-  const provenance = provenanceOf(input);
 
   if (prior !== undefined) {
     // Stored metadata that is not JSON hides whether a human curated the entry, and merging the stamp into it would
@@ -62,13 +92,15 @@ async function upsertOne(
     if (priorMetadata instanceof UnreadableJsonText || handEdited(prior)) {
       return { outcome: "skip", entryId: prior.id, scope: "keyword", row: prior };
     }
-    const metadata = narrowEntryMetadata({ ...priorMetadata, provenance });
+    const { provenance, seat } = stampAndSeat(input, prior);
+    const metadata = narrowEntryMetadata({ ...priorMetadata, provenance, ...seat });
     await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id));
     const row = { ...prior, content: input.content, keys, enabled: true, metadata, updatedAt: at };
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null), row };
   }
 
-  const metadata = narrowEntryMetadata({ provenance });
+  const { provenance, seat } = stampAndSeat(input, undefined);
+  const metadata = narrowEntryMetadata({ provenance, ...seat });
   const row: EntryRow = {
     id: ctx.newEntryId(),
     worldBookId: bookId,

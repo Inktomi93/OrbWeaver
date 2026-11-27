@@ -30,7 +30,7 @@ const JOURNAL = "The span gave way under the caravan.";
 /** Everything a restored room carries that the test seeded, read through the product's own verbs. */
 async function planesOf(root: ServerTestHarness, chatId: ChatId): Promise<unknown> {
   const caller = await root.internalCallerFor(root.ownerId);
-  const tags = await caller.tag.listTags();
+  const tags = await caller.tag.listTagsWithUsage();
   const chatTags = await Promise.all(
     tags.map(async (tag) => ({ name: tag.name, chats: await caller.tag.listAttachedEntities({ tagId: tag.id, targetType: "chat" }) })),
   );

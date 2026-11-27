@@ -1,6 +1,6 @@
 // transport/trpc/routers/settings — the user + app settings surface (docs/law/Tier-4-Transport.md). UserSettings
-// verbs are authed (owner-scoped by `principal.userId`); AppSettings + the raw global-KV verbs are
-// admin-gated AT THE ROUTER (the verbs themselves take the bare KV pair). Thin:
+// verbs are authed (owner-scoped by `principal.userId`); the AppSettings verbs are
+// admin-gated AT THE ROUTER. Thin:
 // validate → `ctx.services.settings.<verb>` → map errors. Schemas derive from `@orb/contracts/settings` +
 // `@orb/kit/json`.
 
@@ -10,7 +10,6 @@ import {
   appSettingsViewSchema,
   backgroundLibraryEntrySchema,
   effectiveAppConfigSchema,
-  globalSettingViewSchema,
   themeViewSchema,
   USER_SETTINGS_SECTIONS,
   userSettingsViewSchema,
@@ -18,7 +17,6 @@ import {
 import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
 import { IMPORT_FILE_TEXT_MAX_CHARS } from "@orb/contracts/uploads";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { jsonValueSchema } from "@orb/kit/json";
 import { updateCheckSchema, versionIdentitySchema } from "@orb/kit/version-identity";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { TRPCError } from "@trpc/server";
@@ -79,8 +77,6 @@ export const settingsRouter = t.router({
     ),
 
   // AppSettings (admin-runtime) — admin-gated at the router; the verb re-checks via the injected guard.
-  getAppSettings: adminProcedure.output(effectiveAppConfigSchema).query(({ ctx }) => ctx.services.settings.getAppSettings({ principal: ctx.auth })),
-
   // The admin surface's honest read: resolved config + raw stored overrides (floor-vs-override + clear).
   getAppSettingsWithOverrides: adminProcedure
     .output(appSettingsViewSchema)
@@ -90,19 +86,6 @@ export const settingsRouter = t.router({
     .output(effectiveAppConfigSchema)
     .input(strictTwin(z.strictObject({ partial: appSettingsSchema })))
     .mutation(({ ctx, input }) => ctx.services.settings.updateAppSettings({ principal: ctx.auth, partial: input.partial })),
-
-  // Raw global-KV — admin-gated at the router (the verbs take the bare key/value, no principal).
-  // @server-only: break-glass admin KV — no client panel exists by design; ops-only escape hatch.
-  getGlobalSetting: adminProcedure
-    .output(globalSettingViewSchema.nullable())
-    .input(z.strictObject({ key: z.string().min(1) }))
-    .query(({ ctx, input }) => ctx.services.settings.getGlobalSetting(input.key)),
-
-  // @server-only: break-glass admin KV — no client panel exists by design; ops-only escape hatch.
-  setGlobalSetting: adminProcedure
-    .output(globalSettingViewSchema)
-    .input(z.strictObject({ key: z.string().min(1), value: jsonValueSchema }))
-    .mutation(({ ctx, input }) => ctx.services.settings.setGlobalSetting(input.key, input.value)),
 
   // Themes library — owner-scoped by `principal.userId`; reads resolve owned ∪
   // seeds, writes go through `fetchOwned` (seeds are un-mutable by construction).

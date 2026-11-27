@@ -77,9 +77,8 @@ async function underLiveness<T>(liveness: PluginInvocationLiveness, run: (signal
  *  The global-vars ops close over `installerUserId`;
  *  worldInfo + imagery close over the installer for the ownership attribution the shared writers gate on.
  *  worldInfo maps the guest `PluginWorldEntryUpsert` onto the shared `UpsertLoreEntryInput` writer
- *  (`entryKey`→`title`, `contentTemplate`→`content`; the guest's `position` hint has no target in the shared
- *  writer and is dropped); imagery forwards the action args + admitted chat to the front door and hands the guest
- *  ONLY `{assetId}` (cost never crosses the realm boundary). */
+ *  (`entryKey`→`title`, `contentTemplate`→`content`, `position` carried as is); imagery forwards the action args +
+ *  admitted chat to the front door and hands the guest ONLY `{assetId}` (cost never crosses the realm boundary). */
 export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, plugin: PluginIdentity | null, belts: PluginBelts): PluginBridge {
   // The plugin-scoped ops (storage / notify / quick_reply / llm.quiet / net.fetch / search.query) are keyed
   // by a PERSISTENT pluginId — a transient snippet has none (`null`). Its fixed grant profile omits every one
@@ -215,6 +214,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
                 // book is attached to. The house primitive (the same one the automation model→lore route and
                 // `user-macros` use) makes the braces inert while the text still reads identically to a human.
                 content: neutralizeMacros(entry.contentTemplate),
+                ...(entry.position === undefined ? {} : { position: entry.position }),
               },
             ],
           });

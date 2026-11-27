@@ -67,11 +67,10 @@ export const useRevokeUserSessions = createEntityMutation<inferInput<Trpc["admin
 
 /** Write an AppSettings-override PATCH from an admin settings SECTION (Phase B ③: memory tuning, summarizer,
  *  rate limits). Same admin-gated `updateAppSettings` path; a field value = an override, `null` = clear it
- *  to the floor. Invalidates BOTH admin reads — `getAppSettings` (the engine-launch surface) AND
- *  `getAppSettingsWithOverrides` (these sections' floor-vs-override read). */
+ *  to the floor. Invalidates `getAppSettingsWithOverrides` (these sections' floor-vs-override read). */
 export const useUpdateAppOverrides = createEntityMutation<inferInput<Trpc["settings"]["updateAppSettings"]>, EffectiveAppConfig>({
   options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.getAppSettings.queryFilter(), trpc.settings.getAppSettingsWithOverrides.queryFilter()],
+  invalidates: (trpc) => [trpc.settings.getAppSettingsWithOverrides.queryFilter()],
   errorToast: "Couldn't save the setting.",
 });
 

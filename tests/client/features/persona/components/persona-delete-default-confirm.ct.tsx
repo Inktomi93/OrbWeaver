@@ -12,7 +12,6 @@ const PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",
   "persona.list",
-  "persona.get",
   "persona.remove",
   "worldInfo.listBooks",
   "worldInfo.listForPersona",

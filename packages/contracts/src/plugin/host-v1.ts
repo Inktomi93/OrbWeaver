@@ -66,8 +66,8 @@ export interface PluginCharacterView {
 }
 
 /** Mirror of the `insert_world_info_entry` action's entry fields — attached-book-only, entryKey-
- *  updatable, host-side idempotent. `position` is optional and unread: the shared lore writer the bridge maps onto
- *  has no seat field (`substrate/bridge.ts`), so the entry lands at its default seat. */
+ *  updatable, host-side idempotent. `position` is optional: the entry is stored at that seat, and an absent one
+ *  lands a new entry at its default seat and leaves an updated entry where it is. */
 export interface PluginWorldEntryUpsert {
   readonly bookId: SandboxWireId<WorldBookId>;
   readonly entryKey: string;

@@ -48,7 +48,6 @@ for (const regime of REGIMES) {
           "sessions.me",
           "settings.getUserSettings",
           "persona.list",
-          "persona.get",
           "worldInfo.listBooks",
           "worldInfo.listForPersona",
           "persona.listConnectedCharacters",
@@ -128,7 +127,6 @@ test.describe("macro popup composition", () => {
         "sessions.me",
         "settings.getUserSettings",
         "persona.list",
-        "persona.get",
         "persona.update",
         "worldInfo.listBooks",
         "worldInfo.listForPersona",
@@ -182,7 +180,7 @@ test.describe("macro popup composition", () => {
     await expect(textarea).toBeFocused();
     await expect(textarea).toHaveValue("Greetings {{user}}");
     await textarea.press("Tab");
-    await expect.poll(async () => (await caller.persona.get({ personaId: persona.id })).description).toBe("Greetings {{user}}");
+    await expect.poll(async () => (await caller.persona.list()).find((row) => row.id === persona.id)?.description).toBe("Greetings {{user}}");
     const counterText = macroTokenCountLine(estimateTokens("Greetings {{user}}"));
     await expect(editor.getByText(counterText, { exact: true })).toBeVisible();
     await expect(textarea).toHaveAccessibleName(PERSONA_DESCRIPTION_FIELD_NAME);

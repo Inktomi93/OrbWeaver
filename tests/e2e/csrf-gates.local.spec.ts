@@ -41,7 +41,7 @@ async function member(origin: string): Promise<ActorClient> {
 }
 
 async function tagNames(actor: ActorClient): Promise<string[]> {
-  return (await actor.trpc.tag.listTags.query()).map((tag) => tag.name);
+  return (await actor.trpc.tag.listTagsWithUsage.query()).map((tag) => tag.name);
 }
 
 /** Status of an empty multipart POST: past the guard, every handler refuses the empty form itself. */
@@ -70,7 +70,7 @@ test.describe("CSRF gate (cookie-authed mutations, and every request outside POS
 
   test("a cookie query over GET WITHOUT the custom header → FORBIDDEN, and WITH it passes", async ({ baseURL }) => {
     const alice = await member(baseURL ?? "");
-    const call = { procedure: "tag.listTags", input: undefined, kind: "query" } as const;
+    const call = { procedure: "tag.listTagsWithUsage", input: undefined, kind: "query" } as const;
     const refused = await rawTrpcCall(baseURL ?? "", call, ambientHeaders(alice));
     const admitted = await rawTrpcCall(baseURL ?? "", call, alice.headers);
     expect({ refused: refused.status, admitted: admitted.status }).toEqual({ refused: 403, admitted: 200 });
@@ -156,7 +156,7 @@ test.describe("batches over a cookie principal", () => {
       const alice = await member(origin);
       const unused = marker("batch-survivor");
       await alice.trpc.tag.createTag.mutate({ input: { name: unused } });
-      const path = method === "GET" ? "tag.listTags" : "tag.pruneUnusedTags";
+      const path = method === "GET" ? "tag.listTagsWithUsage" : "tag.pruneUnusedTags";
       const batch = (count: number): Promise<Response> =>
         fetch(`${origin}/api/trpc/${Array.from({ length: count }, () => path).join(",")}?batch=1`, {
           method,

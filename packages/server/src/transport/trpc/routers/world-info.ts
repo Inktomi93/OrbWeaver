@@ -120,11 +120,6 @@ export const worldInfoRouter = t.router({
     .input(worldBookIdInputSchema)
     .query(({ ctx, input }) => ctx.services.worldInfo.listEntries({ principal: ctx.auth, bookId: input.bookId })),
 
-  getEntry: authedProcedure
-    .output(strictTwin(entryViewSchema))
-    .input(worldEntryIdInputSchema)
-    .query(({ ctx, input }) => ctx.services.worldInfo.getEntry({ principal: ctx.auth, entryId: input.entryId })),
-
   createEntry: authedProcedure
     .output(strictTwin(entryViewSchema))
     .input(z.strictObject({ bookId: typeIdSchema(ID_PREFIX.worldBook), input: createEntrySchema }))

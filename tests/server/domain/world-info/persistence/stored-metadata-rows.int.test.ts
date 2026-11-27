@@ -33,7 +33,7 @@ test("a stored lore entry's metadata reads back as stored, undeclared keys and a
       .update(worldEntries)
       .set({ metadata: sql`${stored}` })
       .where(eq(worldEntries.id, entry.id));
-    return JSON.stringify((await caller.worldInfo.getEntry({ entryId: entry.id })).metadata);
+    return JSON.stringify((await caller.worldInfo.listEntries({ bookId: book.id })).find((row) => row.id === entry.id)?.metadata);
   };
 
   const undeclared = `{"scopeMode":"always","selectiveLogic":0,"vendor":{"note":"kept","deep":${DEEP}}}`;
@@ -91,7 +91,7 @@ test("lore entry metadata holding text that is not JSON is carried without it an
       .from(worldEntries)
       .where(eq(worldEntries.id, entry.id));
 
-  expect((await caller.worldInfo.getEntry({ entryId: entry.id })).metadata).toBeNull();
+  expect((await caller.worldInfo.listEntries({ bookId: book.id })).find((row) => row.id === entry.id)?.metadata).toBeNull();
   await box.services.worldInfo.upsertEntries({ principal, bookId: book.id, entries: [{ title: ENTRY, keys: ["harbor"], content: "It never floods." }] });
   expect(await stored()).toEqual([{ text: notJson, content: "It floods at dusk." }]);
 

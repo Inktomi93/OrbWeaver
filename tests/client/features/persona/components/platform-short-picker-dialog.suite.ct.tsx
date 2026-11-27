@@ -13,7 +13,6 @@ const READS = [
   "sessions.me",
   "settings.getUserSettings",
   "persona.list",
-  "persona.get",
   "worldInfo.listBooks",
   "worldInfo.listForPersona",
   "persona.listConnectedCharacters",

@@ -131,7 +131,7 @@ for (const regime of REGIMES) {
         const adopted = await caller.tag.listAttachedEntities({ tagId: tag.id, targetType: "character" });
         const adoptedTargets = { apply: [first.id], reject: [] };
         expect(adopted.entities.map((entry) => entry.targetId)).toEqual(adoptedTargets[decision]);
-        expect((await caller.tag.listTags()).some((entry) => entry.id === tag.id)).toBe(true);
+        expect((await caller.tag.listTagsWithUsage()).some((entry) => entry.id === tag.id)).toBe(true);
         expect(calls.count(REVIEW_WRITES[decision].chosen)).toBe(1);
         expect(calls.count(REVIEW_WRITES[decision].other)).toBe(0);
         await mounted.unmount();

@@ -12,6 +12,9 @@ import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type SettingsOutput<K extends keyof Caller["settings"]> = Awaited<ReturnType<Caller["settings"][K]>>;
+type SettingsService = ServerTestHarness["services"]["settings"];
+type GlobalSettingRead = Awaited<ReturnType<SettingsService["getGlobalSetting"]>>;
+type GlobalSettingWrite = Awaited<ReturnType<SettingsService["setGlobalSetting"]>>;
 type CharacterOutput<K extends keyof Caller["character"]> = Awaited<ReturnType<Caller["character"][K]>>;
 type AssetOutput<K extends keyof Caller["assets"]> = Awaited<ReturnType<Caller["assets"][K]>>;
 interface SurfaceOutputs {
@@ -24,10 +27,10 @@ interface SurfaceOutputs {
     readonly pinned: SettingsOutput<"getAppSettingsWithOverrides">;
     readonly cleared: SettingsOutput<"updateAppSettings">;
     readonly after: SettingsOutput<"getAppSettingsWithOverrides">;
-    readonly missing: SettingsOutput<"getGlobalSetting">;
-    readonly written: SettingsOutput<"setGlobalSetting">;
-    readonly replaced: SettingsOutput<"setGlobalSetting">;
-    readonly readback: SettingsOutput<"getGlobalSetting">;
+    readonly missing: GlobalSettingRead;
+    readonly written: GlobalSettingWrite;
+    readonly replaced: GlobalSettingWrite;
+    readonly readback: GlobalSettingRead;
     readonly background: SettingsOutput<"addExternalBackground">;
   };
   readonly characters: {
@@ -88,11 +91,11 @@ export async function seedCorpusSurfaceOutputs(root: ServerTestHarness, wire: Re
   const pinned = await caller.settings.getAppSettingsWithOverrides();
   const cleared = await caller.settings.updateAppSettings({ partial: { forbidExternalMedia: null } });
   const after = await caller.settings.getAppSettingsWithOverrides();
-  const missing = await caller.settings.getGlobalSetting({ key: SURFACE_GLOBAL_KEY });
-  const written = await caller.settings.setGlobalSetting({ key: SURFACE_GLOBAL_KEY, value: { enabled: true, labels: ["native surface"] } });
+  const missing = await root.services.settings.getGlobalSetting(SURFACE_GLOBAL_KEY);
+  const written = await root.services.settings.setGlobalSetting(SURFACE_GLOBAL_KEY, { enabled: true, labels: ["native surface"] });
   root.clock.advance(1);
-  const replaced = await caller.settings.setGlobalSetting({ key: SURFACE_GLOBAL_KEY, value: "replaced native surface" });
-  const readback = await caller.settings.getGlobalSetting({ key: SURFACE_GLOBAL_KEY });
+  const replaced = await root.services.settings.setGlobalSetting(SURFACE_GLOBAL_KEY, "replaced native surface");
+  const readback = await root.services.settings.getGlobalSetting(SURFACE_GLOBAL_KEY);
   const background = await caller.settings.addExternalBackground({ url: SURFACE_BACKGROUND_URL });
 
   const first = await caller.character.create({

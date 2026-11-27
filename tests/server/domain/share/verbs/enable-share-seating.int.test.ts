@@ -12,7 +12,7 @@ test("share seating writes as the canonical owner and restores stored false vers
   services,
   ownerCaller,
 }) => {
-  await ownerCaller.settings.getAppSettings();
+  await ownerCaller.settings.getAppSettingsWithOverrides();
   const resolvePrincipal = harness.principalFor;
   const owner = await resolvePrincipal(harness.ownerId);
   await services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: null, discreetLogin: false } });
@@ -42,7 +42,7 @@ test("restoration leaves already-on settings alone and an actual stored-write fa
   services,
   ownerCaller,
 }) => {
-  await ownerCaller.settings.getAppSettings();
+  await ownerCaller.settings.getAppSettingsWithOverrides();
   const resolvePrincipal = harness.principalFor;
   const owner = await resolvePrincipal(harness.ownerId);
   await services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true, discreetLogin: false } });

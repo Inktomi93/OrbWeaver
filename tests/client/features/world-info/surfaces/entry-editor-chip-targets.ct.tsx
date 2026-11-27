@@ -1,5 +1,4 @@
 // The entry editor's keyword chips: the remove mark holds a hit area that stays inside its own chip, and a tap on the next chip or the draft input never removes a keyword at either pointer.
-import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -73,8 +72,8 @@ async function mountKeywordRow(
   }
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
   const component = await mount<typeof WorldInfoMemberStory>(STORY, {
-    bookId: world.reads.entry.output.worldBookId,
-    entryId: worldEntryIdInputSchema.parse(world.reads.entry.input).entryId,
+    bookId: world.ids.orderedBookId,
+    entryId: world.ids.entryId,
     context: false,
   });
   const input = component.getByRole("combobox", { name: WORLD_INFO_KEYWORD_TRIGGERS_NAME, exact: true });

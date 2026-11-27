@@ -8,29 +8,29 @@ import { refusalOr } from "#lib";
 // self-invalidates would double-refetch). star/rename ride persona.update (a partial patch), not
 // separate verbs.
 
-type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
+type PersonaDetail = inferOutput<Trpc["persona"]["list"]>[number];
 
 export const useCreatePersona = createEntityMutation<inferInput<Trpc["persona"]["create"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.create.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't create the persona.",
 });
 
 export const useUpdatePersona = createEntityMutation<inferInput<Trpc["persona"]["update"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.update.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't save the persona.",
 });
 
 export const useRemovePersona = createEntityMutation<inferInput<Trpc["persona"]["remove"]>, inferOutput<Trpc["persona"]["remove"]>>({
   options: (trpc) => trpc.persona.remove.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't delete the persona.",
 });
 
 export const useDuplicatePersona = createEntityMutation<inferInput<Trpc["persona"]["duplicate"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.duplicate.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't duplicate the persona.",
 });
 
@@ -40,7 +40,7 @@ export const useDuplicatePersona = createEntityMutation<inferInput<Trpc["persona
 // conflates the two call sites; each caller owns its toast copy, the server owns the mint.
 export const usePersonaFromCharacter = createEntityMutation<inferInput<Trpc["persona"]["createFromCharacter"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.createFromCharacter.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't create the persona from that character.",
 });
 
@@ -48,13 +48,13 @@ export const usePersonaFromCharacter = createEntityMutation<inferInput<Trpc["per
 // character editor's relations tab drives the same junction from the other end).
 export const useConnectCharacter = createEntityMutation<inferInput<Trpc["persona"]["connectToCharacter"]>, unknown>({
   options: (trpc) => trpc.persona.connectToCharacter.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't connect the character.",
 });
 
 export const useDisconnectCharacter = createEntityMutation<inferInput<Trpc["persona"]["disconnectFromCharacter"]>, unknown>({
   options: (trpc) => trpc.persona.disconnectFromCharacter.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   errorToast: "Couldn't disconnect the character.",
 });
 
@@ -64,7 +64,7 @@ export const useDisconnectCharacter = createEntityMutation<inferInput<Trpc["pers
 // bytes the bundle carries).
 export const useImportPersonaFile = createEntityMutation<inferInput<Trpc["persona"]["import"]>, PersonaDetail>({
   options: (trpc) => trpc.persona.import.mutationOptions(),
-  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (the list).
   // The server's REFUSAL REASON is rendered by the caller (it needs the words); this is the last-resort copy.
   errorToast: refusalOr("Couldn't restore the persona."),
 });

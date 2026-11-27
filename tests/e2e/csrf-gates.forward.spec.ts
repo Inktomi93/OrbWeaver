@@ -24,7 +24,7 @@ test("a header-authed JSON tRPC mutation runs without the CSRF header", async ({
   const name = marker("header-json");
   const admitted = await rawTrpcCall(baseURL ?? "", { procedure: "tag.createTag", input: { input: { name } }, kind: "mutation" }, sso.headers);
   expect(admitted.status).toBe(200);
-  expect((await sso.trpc.tag.listTags.query()).map((tag) => tag.name)).toContain(name);
+  expect((await sso.trpc.tag.listTagsWithUsage.query()).map((tag) => tag.name)).toContain(name);
 });
 
 for (const path of INGEST_ROUTES) {

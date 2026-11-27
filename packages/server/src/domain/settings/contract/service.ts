@@ -5,7 +5,6 @@ import type { RequireAdmin, RequireOwner } from "@orb/contracts/admin";
 import type {
   BackgroundLibraryEntry,
   EffectiveAppConfig,
-  GetAppSettingsParams,
   GetAppSettingsWithOverridesOp,
   GetUserSettingsOp,
   GlobalSettingView,
@@ -142,8 +141,6 @@ export interface SettingsService {
   /** Upsert raw global KV; app configuration and registered tenant namespaces refuse as reserved keys. */
   readonly setGlobalSetting: (key: string, value: JsonValue) => Promise<GlobalSettingView>;
 
-  /** Admin-only. The resolved runtime config (env floor ⊕ stored override). */
-  readonly getAppSettings: (params: GetAppSettingsParams) => Promise<EffectiveAppConfig>;
   /** Admin-only. The resolved config PLUS the raw stored overrides — the admin surface's honest
    *  floor-vs-override read (`overrides.<field>` null/absent = floor governs, a value = active override). */
   readonly getAppSettingsWithOverrides: GetAppSettingsWithOverridesOp;

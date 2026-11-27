@@ -9,7 +9,7 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { vi } from "vitest";
 
-const TAG_READ = "tag.listTags";
+const TAG_READ = "tag.listTagsWithUsage";
 
 function CaptureInvalidation({ facades }: { readonly facades: Invalidation[] }): null {
   facades.push(useInvalidation(), useInvalidation());
@@ -47,7 +47,7 @@ test("a burst of user-bus frames across hook facades refetches an open read once
       );
     }),
   );
-  const options = runtime.trpcProxy.tag.listTags.queryOptions();
+  const options = runtime.trpcProxy.tag.listTagsWithUsage.queryOptions();
   const unsubscribe = new QueryObserver(runtime.queryClient, options).subscribe(() => undefined);
   try {
     await runtime.queryClient.query(options);

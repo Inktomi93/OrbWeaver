@@ -566,7 +566,7 @@ test("an owner clone generates only through its disposable scripted connection a
   const source = await sourceDataset(parent, true);
   let originalConnection: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["get"]>>;
   let originalBindings: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["listBindings"]>>;
-  let originalAllowlist: Awaited<ReturnType<ServerTestHarness["services"]["settings"]["getAppSettings"]>>["privateEndpointAllowlist"];
+  let originalAllowlist: Awaited<ReturnType<ServerTestHarness["services"]["settings"]["getAppSettingsWithOverrides"]>>["resolved"]["privateEndpointAllowlist"];
   {
     await using held = ownFileDb(await createDb(source.layout.databaseUrl));
     const sourceDb = held.db;
@@ -582,7 +582,7 @@ test("an owner clone generates only through its disposable scripted connection a
     assert(candidate !== undefined);
     originalConnection = await root.services.connection.update({ principal, connectionId: candidate.id, patch: { baseUrl: `${originalPeer.origin}/v1` } });
     originalBindings = await root.services.connection.listBindings({ signal: new AbortController().signal, principal });
-    originalAllowlist = (await root.services.settings.getAppSettings({ principal })).privateEndpointAllowlist;
+    originalAllowlist = (await root.services.settings.getAppSettingsWithOverrides({ principal })).resolved.privateEndpointAllowlist;
   }
   const database = localPath(source.layout.databaseUrl);
   assert(database !== undefined);

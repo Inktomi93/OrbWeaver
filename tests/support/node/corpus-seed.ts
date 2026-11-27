@@ -5,7 +5,7 @@ import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { createTagSchema } from "@orb/contracts/tag";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { ChatId, DocumentId, PersonaId } from "@orb/kit/ids";
+import type { ChatId, DocumentId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
@@ -367,7 +367,6 @@ interface CorpusReadIdentities {
   readonly soloChatId: ChatId;
   readonly groupChatId: ChatId;
   readonly documentId: DocumentId;
-  readonly personaIds?: readonly PersonaId[];
 }
 
 /** Capture the current completed graph state using genuine operation-returned identities. */
@@ -385,12 +384,6 @@ export async function captureCorpusReads(root: ServerHarness, identities: Corpus
     "character.list": [await captureCorpusRead(root, root.ownerId, "character.list", absentInput)],
     "character.count": [await captureCorpusRead(root, root.ownerId, "character.count", absentInput)],
     "persona.list": [await captureCorpusRead(root, root.ownerId, "persona.list", absentInput)],
-    "persona.get": await Promise.all(
-      (identities.personaIds ?? []).map(async (personaId) => {
-        const input = corpusReadInput.persona({ id: personaId });
-        return await captureCorpusRead(root, root.ownerId, "persona.get", input);
-      }),
-    ),
     "chat.listChats": [await captureCorpusRead(root, root.ownerId, "chat.listChats", absentInput)],
     "chat.countChats": [await captureCorpusRead(root, root.ownerId, "chat.countChats", absentInput)],
     "chat.getChat": [

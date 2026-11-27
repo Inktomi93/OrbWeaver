@@ -31,7 +31,7 @@ describe("cross-user isolation — NOT_FOUND, never FORBIDDEN", () => {
     const created = await ownerCaller.persona.create({
       input: { name: "Secret", description: "the owner's private persona" },
     });
-    await expect(otherCaller.persona.get({ personaId: created.id })).toThrowTRPCError("NOT_FOUND");
+    await expect(otherCaller.persona.export({ personaId: created.id })).toThrowTRPCError("NOT_FOUND");
   });
 });
 
@@ -60,9 +60,8 @@ describe("the owner happy path", () => {
     const created = await ownerCaller.persona.create({
       input: { name: "Nyx", description: "d" },
     });
-    const got = await ownerCaller.persona.get({ personaId: created.id });
-    expect(got.id).toBe(created.id);
-    expect(got.name).toBe("Nyx");
+    const got = (await ownerCaller.persona.list()).find(({ id }) => id === created.id);
+    expect(got?.name).toBe("Nyx");
   });
 });
 

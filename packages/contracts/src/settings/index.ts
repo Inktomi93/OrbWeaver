@@ -2,7 +2,6 @@
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
-import { jsonValueSchema } from "@orb/kit/json";
 import type { Theme, ThemeBackground } from "#theme";
 import { themeOverrideSchema } from "#theme";
 import type { VersionedParseFailure } from "#versioned-config";
@@ -1000,8 +999,7 @@ export interface EffectiveAppConfig {
 /** The admin-surface read for AppSettings: the RESOLVED config (floor ⊕ override, every field present) PLUS
  *  the raw STORED overrides (every field `null`/absent = the floor governs, a value = an active override).
  *  The pane needs BOTH to render honestly — which fields are actively overridden vs on the floor, and to
- *  offer a real "clear override" (write the `null` sentinel). `getAppSettings` returns only `resolved`; this
- *  richer read (`getAppSettingsWithOverrides`) adds `overrides` without changing that existing surface. */
+ *  offer a real "clear override" (write the `null` sentinel). */
 export interface AppSettingsView {
   readonly resolved: EffectiveAppConfig;
   readonly overrides: AppSettings;
@@ -1099,11 +1097,6 @@ export const userSettingsViewSchema = z.strictObject({
   config: userSettingsOutputSchema,
   configUnreadable: z.enum(VERSIONED_PARSE_FAILURES).nullable(),
 }) satisfies z.ZodType<UserSettingsView>;
-export const globalSettingViewSchema = z.strictObject({
-  key: z.string(),
-  value: jsonValueSchema,
-  updatedAt: z.number(),
-}) satisfies z.ZodType<GlobalSettingView>;
 export const themeViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.theme),
   name: z.string(),

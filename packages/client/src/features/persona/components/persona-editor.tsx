@@ -43,7 +43,7 @@ import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../
 import { PersonaConnectedCharacters } from "./persona-connected-characters.tsx";
 import { PersonaLoreBookField } from "./persona-world-books-section.tsx";
 
-type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
+type PersonaDetail = inferOutput<Trpc["persona"]["list"]>[number];
 
 /** The 3 description placements → a labelled Select (inline to avoid a snake_case-keyed Record). */
 function positionLabel(position: PersonaDescriptionPosition): string {

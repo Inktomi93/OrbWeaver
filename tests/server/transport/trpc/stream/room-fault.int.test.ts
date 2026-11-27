@@ -29,12 +29,12 @@ function levelsFor(room: Room, detail: string): readonly string[] {
 
 /** The sentence a procedure's 500 carries, read from the same fault thrown at a procedure. */
 async function procedureSentence(room: Room): Promise<string> {
-  const listTags = vi.spyOn(room.root.services.tag, "listTags").mockRejectedValue(new TripwireError(FAULT_DETAIL));
+  const listTagsWithUsage = vi.spyOn(room.root.services.tag, "listTagsWithUsage").mockRejectedValue(new TripwireError(FAULT_DETAIL));
   try {
-    const response = await room.root.http.request("/api/trpc/tag.listTags", { headers: { cookie: room.hostSeat.cookie } });
+    const response = await room.root.http.request("/api/trpc/tag.listTagsWithUsage", { headers: { cookie: room.hostSeat.cookie } });
     return procedureFaultSchema.parse(JSON.parse(await response.text())).error.message;
   } finally {
-    listTags.mockRestore();
+    listTagsWithUsage.mockRestore();
   }
 }
 

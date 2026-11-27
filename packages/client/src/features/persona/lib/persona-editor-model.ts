@@ -14,7 +14,7 @@ import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
-type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
+type PersonaDetail = inferOutput<Trpc["persona"]["list"]>[number];
 /** The metadata a persona read carried over the wire. */
 export type PersonaWireMetadata = PersonaDetail["metadata"];
 

@@ -131,7 +131,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     const memberPresets = async (): Promise<readonly { readonly name: string }[]> =>
       (await root.services.preset.list({ userId: member.id })).filter(({ isSystemDefault }) => !isSystemDefault);
     expect((await memberPresets()).filter(({ name }) => name === "Shared Preset")).toHaveLength(1);
-    expect((await root.services.tag.listTags({ principal: memberPrincipal })).filter(({ name }) => name === "shared-tag")).toHaveLength(1);
+    expect((await root.services.tag.listTagsWithUsage({ principal: memberPrincipal })).filter(({ name }) => name === "shared-tag")).toHaveLength(1);
     expect((await root.services.settings.listThemes({ principal: memberPrincipal })).filter(({ name }) => name === "Shared Theme")).toHaveLength(1);
     expect(await runImport()).toMatchObject({ failed: 0 });
     expect(await memberPresets()).toHaveLength(1);

@@ -1,4 +1,4 @@
-// Wire-output builders for the tag reads (`tag.listTags`, `tag.updateTag`, `tag.listTagsWithUsage`). Defaults
+// Wire-output builders for the tag reads (`tag.updateTag`, `tag.listTagsWithUsage`). Defaults
 // parse through the contract schema; an override is spread after the parse.
 
 import { tagViewSchema } from "@orb/contracts/tag";
@@ -8,7 +8,7 @@ import type { TrpcWireOutput } from "../route-trpc.ts";
 
 const ids = createSeededIds();
 
-type TagViewWire = TrpcWireOutput<"tag.listTags">[number];
+type TagViewWire = TrpcWireOutput<"tag.updateTag">;
 
 /** A manual, unfiled tag shown on the card. */
 export function makeTagView(overrides: Partial<TagViewWire> = {}): TagViewWire {

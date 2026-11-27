@@ -21,7 +21,7 @@ function CaptureInvalidation({ facades }: { readonly facades: Invalidation[] }):
 
 class InitialRead implements Disposable {
   readonly runtime = createClientRuntime("http://initial-read.test/api/trpc");
-  readonly options = this.runtime.trpcProxy.tag.listTags.queryOptions();
+  readonly options = this.runtime.trpcProxy.tag.listTagsWithUsage.queryOptions();
   readonly initial = Promise.withResolvers<Response>();
   readonly unrelated = Promise.withResolvers<Response>();
   readonly unrelatedStarted = Promise.withResolvers<void>();
@@ -53,7 +53,7 @@ class InitialRead implements Disposable {
           this.unrelatedStarted.resolve();
           return this.unrelated.promise;
         }
-        if (new URL(url).pathname !== "/api/trpc/tag.listTags") {
+        if (new URL(url).pathname !== "/api/trpc/tag.listTagsWithUsage") {
           return Promise.reject(new Error(`Unscripted initial-read request: ${url}`));
         }
         this.readCount += 1;
