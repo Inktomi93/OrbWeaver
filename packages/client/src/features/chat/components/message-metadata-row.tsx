@@ -8,9 +8,9 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
-import { timeLib } from "#lib";
+import { cacheTokensLabel, timeLib } from "#lib";
 import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
-import { cacheTokensLabel, canRevealGenerationCost, messageNumberLabel, readerStoppedReply } from "../lib/message-readout.ts";
+import { canRevealGenerationCost, messageNumberLabel, readerStoppedReply } from "../lib/message-readout.ts";
 import { MESSAGE_STOPPED_MARK } from "../lib/transcript-copy.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 

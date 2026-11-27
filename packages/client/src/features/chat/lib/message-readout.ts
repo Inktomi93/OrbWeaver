@@ -1,7 +1,5 @@
-// The metadata row's per-turn cache economics readout (#1032, the viewgap WIRE batch). `MessageView` has
-// carried `cacheReadTokens`/`cacheWriteTokens` since the variant economics landed and no client file
-// spelled them, so cache economics — the single biggest lever on what a turn costs — were invisible beside
-// the token count they explain.
+// The metadata row's per-message readouts: who stopped a reply and the server-counted number, plus the gate for the
+// on-demand settled-cost readout.
 //
 // PURE + PROP-DRIVEN, the `gen-duration.ts` precedent: these unit-test without a render, and the row stays
 // a formatter over data it is handed.
@@ -26,20 +24,6 @@ export function readerStoppedReply(message: MessageView): boolean {
 /** The server-counted #n of a row; null until a read numbers it, as with the rows `startChat` seeds into the cache. */
 export function messageNumberLabel(message: MessageView): string | null {
   return message.position === undefined ? null : `#${message.position}`;
-}
-
-/** The per-turn CACHE economics beside the token count — `null` when the backend reported none (both
- *  columns absent, or both zero: a turn that neither read nor wrote cache has no economics to show).
- */
-export function cacheTokensLabel(readTokens: number | null, writeTokens: number | null): string | null {
-  const parts: string[] = [];
-  if (readTokens !== null && readTokens > 0) {
-    parts.push(`${readTokens} read`);
-  }
-  if (writeTokens !== null && writeTokens > 0) {
-    parts.push(`${writeTokens} written`);
-  }
-  return parts.length === 0 ? null : `cache ${parts.join(" / ")}`;
 }
 
 /** Whether a swipe can be settled against an upstream cost at all — the ONE home for the per-message
