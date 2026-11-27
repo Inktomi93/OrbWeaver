@@ -43,12 +43,29 @@ function procedureOf(checker: ts.TypeChecker, call: ts.CallExpression): Procedur
   return input === undefined || output === undefined ? null : { path: receiver.getText(), sides: { input, output } };
 }
 
+// The initializer of the `const` an identifier names: an options factory hoisted out of the call still binds it.
+// A `let` can be reassigned, so its initializer is not the value the call sees.
+function constInitializer(checker: ts.TypeChecker, node: ts.Identifier): ts.Expression | undefined {
+  const declaration = checker.getSymbolAtLocation(node)?.valueDeclaration;
+  if (declaration === undefined || !ts.isVariableDeclaration(declaration) || !ts.isVariableDeclarationList(declaration.parent)) {
+    return undefined;
+  }
+  // biome-ignore lint/suspicious/noBitwiseOperators: NodeFlags is a compiler-owned bitfield.
+  return (declaration.parent.flags & ts.NodeFlags.Const) === 0 ? undefined : declaration.initializer;
+}
+
 function proceduresIn(checker: ts.TypeChecker, call: ts.CallExpression): readonly Procedure[] {
   const found: Procedure[] = [];
+  const followed = new Set<ts.Expression>();
   const visit = (node: ts.Node): void => {
     const procedure = ts.isCallExpression(node) ? procedureOf(checker, node) : null;
     if (procedure !== null) {
       found.push(procedure);
+    }
+    const hoisted = ts.isIdentifier(node) ? constInitializer(checker, node) : undefined;
+    if (hoisted !== undefined && !followed.has(hoisted)) {
+      followed.add(hoisted);
+      visit(hoisted);
     }
     ts.forEachChild(node, visit);
   };
@@ -90,9 +107,13 @@ interface Judging {
   readonly handWritten: HandWritten;
 }
 
-// The procedure's fields `written` declares by hand, when it carries every shaped field of that side; else none. A
-// type that leaves a field out is a subset the client picks, never the side's second home. A primitive side's
-// apparent members (`valueOf`) are the standard library's, which is never hand-written.
+// biome-ignore lint/suspicious/noBitwiseOperators: SymbolFlags is a compiler-owned bitfield.
+const isOptional = (field: ts.Symbol): boolean => (field.flags & ts.SymbolFlags.Optional) !== 0;
+
+// The procedure's fields `written` declares by hand, when it carries every required shaped field of that side; else
+// none. A type that leaves a required field out is a subset the client picks, never the side's second home; leaving
+// out an optional one still restates the rest. A side with no required field needs every field, or any one field a
+// client picks would count. A primitive side's apparent members (`valueOf`) are the standard library's.
 function handDeclared({ checker, at, handWritten }: Judging, written: ts.Type, side: ts.Type): readonly string[] {
   const shape = elementOrSelf(checker, side);
   const own = elementOrSelf(checker, written);
@@ -100,10 +121,11 @@ function handDeclared({ checker, at, handWritten }: Judging, written: ts.Type, s
     .getPropertiesOfType(shape)
     .filter((field) => carriesShape(checker, field, at))
     .map((field) => ({ field, written: checker.getPropertyOfType(own, field.name) }));
-  const covered = fields.flatMap(({ field, written: found }) => (found === undefined ? [] : [{ field, found }]));
-  if (fields.length === 0 || covered.length < fields.length) {
+  const required = fields.some(({ field }) => !isOptional(field)) ? fields.filter(({ field }) => !isOptional(field)) : fields;
+  if (fields.length === 0 || required.some(({ written: found }) => found === undefined)) {
     return [];
   }
+  const covered = fields.flatMap(({ field, written: found }) => (found === undefined ? [] : [{ field, found }]));
   return covered.filter(({ field, found }) => !derives(found, field) && (found.declarations ?? []).every(handWritten)).map(({ field }) => field.name);
 }
 
