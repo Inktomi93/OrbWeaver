@@ -24,3 +24,7 @@ export const GREETING_MAKE_NEW_NAME = "Make new";
 
 /** The studio's rewrite verb. */
 export const GREETING_REWRITE_NAME = "Rewrite";
+
+/** The studio's spend line under a preview: what the run cost, or that the provider reported nothing. */
+export const GREETING_SPEND_LABEL = "Spent";
+export const GREETING_SPEND_UNREPORTED = "The provider reported no cost for this run.";

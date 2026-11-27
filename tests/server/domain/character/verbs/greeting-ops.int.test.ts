@@ -35,7 +35,12 @@ const test = base.extend<{ requests: Request[]; providerFetch: typeof fetch }>({
 });
 
 /** The caller's own Utility connection, bound to the summarize task the greeting completion runs on. */
-async function bindUtility(services: ServerTestHarness["services"], actor: Principal, model: string): Promise<UserConnectionId> {
+async function bindUtility(
+  services: ServerTestHarness["services"],
+  actor: Principal,
+  model: string,
+  pricing?: { readonly inputPerMTok: number; readonly outputPerMTok: number },
+): Promise<UserConnectionId> {
   const { id: connectionId } = await services.connection.create({
     principal: actor,
     label: "Owned Utility",
@@ -43,7 +48,11 @@ async function bindUtility(services: ServerTestHarness["services"], actor: Princ
     credentialId: null,
     baseUrl: TEST_BASE_URL,
     model: modelIdSchema.parse(model),
-    declared: { kind: "generation", generation: makeGenerationCapability({ sampling: { temperature: { min: 0, max: 2 } } }) },
+    declared: {
+      kind: "generation",
+      generation: makeGenerationCapability({ sampling: { temperature: { min: 0, max: 2 } } }),
+      ...(pricing === undefined ? {} : { features: { detectServer: false, pricing } }),
+    },
     allowBackground: true,
   });
   await services.connection.setBinding({ principal: actor, task: "summarize", connectionId });
@@ -84,6 +93,7 @@ test("the real greeting gate precedes template/funding reads; each completion re
   expect(requests).toHaveLength(0);
   expect(await services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "first" })).toEqual({
     text: "Owned greeting.",
+    costUsd: null,
   });
   expect(await requests[0]?.json()).toMatchObject({
     model: "owned-first",
@@ -95,6 +105,24 @@ test("the real greeting gate precedes template/funding reads; each completion re
   await services.character.generateGreeting({ signal: new AbortController().signal, principal: actor, characterId: card.id, steer: "second" });
   expect(await requests[1]?.json()).toMatchObject({ model: "owned-second", temperature: 0.83 });
   expect(await services.character.getCard({ principal: actor, characterId: card.id })).toMatchObject({ greetings: card.greetings });
+});
+
+test("a greeting run returns what the Utility connection's pricing says it cost, for generate and rewrite alike", async ({ harness, services }) => {
+  const owner = await harness.actor();
+  const actor = await principal(harness, owner.id);
+  const { view: card } = await seedCharacter(harness, {
+    principal: actor,
+    input: createCharacterSchema.parse({ handle: "greeter", name: "Greeter", description: "" }),
+  });
+  await bindUtility(services, actor, "owned-priced", { inputPerMTok: 1, outputPerMTok: 2 });
+  const signal = new AbortController().signal;
+  // The provider reported 8 prompt and 4 completion tokens: (8 * $1 + 4 * $2) per million.
+  const Spend = 0.000_016;
+  expect((await services.character.generateGreeting({ signal, principal: actor, characterId: card.id, steer: "a" })).costUsd).toBeCloseTo(Spend, 9);
+  expect((await services.character.rewriteGreeting({ signal, principal: actor, characterId: card.id, greeting: "Hello.", steer: "b" })).costUsd).toBeCloseTo(
+    Spend,
+    9,
+  );
 });
 
 test("a foreign preset degrades to the shipped template, but a real preset database failure refuses before completion", async ({
