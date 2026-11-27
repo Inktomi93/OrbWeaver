@@ -23,8 +23,10 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Eye, EyeOff, Icon, Lock, LockOpen, Plus, RotateCcw, Trash } from "@orb/ui/icons";
+import { InlineAction } from "@orb/ui/inline-action";
 import { Row, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
@@ -34,13 +36,16 @@ import { notify, rethrowUnlessTrpcFailure } from "#lib";
 import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
+import { resolveTrackerIcon, TRACKER_SHAPE_GLYPHS } from "../lib/glyphs.ts";
 import { TRACKER_SHAPE_LABEL } from "../lib/host-console-labels.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
 import {
   RPG_NEW_TRACKER_NAME,
   RPG_SET_SCORES_NAME,
+  trackerDefaultIconName,
   trackerDefaultMaxName,
   trackerHintName,
+  trackerIconName,
   trackerLabelFieldName,
   trackerLockName,
   trackerRemoveFromBandName,
@@ -53,6 +58,7 @@ import { RpgGameMacros } from "./rpg-game-macros.tsx";
 import { RpgGmVoice } from "./rpg-gm-voice.tsx";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
 import { HostConsoleScalars } from "./rpg-host-scalars.tsx";
+import { IconPicker } from "./rpg-icon-picker.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgRulesetControl } from "./rpg-ruleset-control.tsx";
 import { DefRow, RpgStatProfileEditor } from "./rpg-stat-profile-editor.tsx";
@@ -98,7 +104,7 @@ function TrackerRow({
   readonly index: number;
   readonly onCommit: (next: RpgTrackerDef) => void;
 }): ReactElement {
-  const patch = (fields: Partial<Pick<RpgTrackerDef, "label" | "max" | "pinned" | "locked" | "write" | "appliesTo" | "hint">>): void =>
+  const patch = (fields: Partial<Pick<RpgTrackerDef, "label" | "max" | "pinned" | "locked" | "write" | "appliesTo" | "hint" | "icon">>): void =>
     onCommit({ ...def, ...fields });
   const writeGlossId = useId();
   // ONE string, two jobs: the accessible NAME an icon-only button has no visible text to supply, and the
@@ -122,6 +128,26 @@ function TrackerRow({
               width="swatch"
             />
           ) : null}
+          {/* The glyph the panel and the band draw beside this tracker: the host's pick, else the shape's own. */}
+          <Popover>
+            <PopoverTrigger
+              render={
+                <InlineAction variant="ghost" step="label" aria-label={trackerIconName(def.label)}>
+                  <Icon icon={resolveTrackerIcon(def.icon) ?? TRACKER_SHAPE_GLYPHS[def.shape]} size="sm" ink="muted" />
+                </InlineAction>
+              }
+            />
+            <PopoverPopup aria-label={trackerIconName(def.label)}>
+              <Stack gap="field">
+                <IconPicker subject={def.label} onPick={(icon): void => patch({ icon })} />
+                {def.icon === null ? null : (
+                  <Button variant="ghost" size="sm" onClick={(): void => patch({ icon: null })}>
+                    {trackerDefaultIconName(def.label)}
+                  </Button>
+                )}
+              </Stack>
+            </PopoverPopup>
+          </Popover>
           <TrackerValue
             ariaLabel={trackerLabelFieldName(index)}
             display={def.label}

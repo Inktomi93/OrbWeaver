@@ -756,6 +756,11 @@ export const PLUGIN_INSTALL_NAME = "Install";
 /** The distribute section's publish press. */
 export const PLUGIN_DISTRIBUTE_ACTION_NAME = "Distribute to everyone";
 
+/** A published plugin's list line: which admin gave it out and when it first went out to everyone. */
+export function pluginPublishedLine(handle: string, when: string): string {
+  return `published by ${handle} ${when}`;
+}
+
 /** Every failed URL preview reads this one fixed line, so the reason never becomes an SSRF oracle. */
 export const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL. It may be unreachable, refused, or not a plugin bundle.";
 

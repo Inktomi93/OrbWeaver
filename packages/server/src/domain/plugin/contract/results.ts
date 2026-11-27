@@ -52,12 +52,23 @@ export interface PluginUiHostCallResult {
 
 export const pluginUiHostCallResultSchema = z.strictObject({ resultJson: z.string() }) satisfies z.ZodType<PluginUiHostCallResult>;
 
-/** `transformForDisplay`'s reply: the row text after every display transform ran (or was skipped). */
-export interface PluginDisplayTransformResult {
-  readonly text: string;
+/** A plugin that changed the row's text, named by its own plugin name (never a transform's label). */
+export interface PluginDisplayChange {
+  readonly pluginId: PluginId;
+  readonly name: string;
 }
 
-export const pluginDisplayTransformResultSchema = z.strictObject({ text: z.string() }) satisfies z.ZodType<PluginDisplayTransformResult>;
+/** `transformForDisplay`'s reply: the row text after every display transform ran (or was skipped), and each plugin whose
+ *  transform changed it, once, in the order they ran. A transform that returned the text it was handed changed nothing. */
+export interface PluginDisplayTransformResult {
+  readonly text: string;
+  readonly changedBy: readonly PluginDisplayChange[];
+}
+
+export const pluginDisplayTransformResultSchema = z.strictObject({
+  text: z.string(),
+  changedBy: z.array(z.strictObject({ pluginId: pluginIdSchema, name: z.string() })).readonly(),
+}) satisfies z.ZodType<PluginDisplayTransformResult>;
 
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten

@@ -112,6 +112,7 @@ export type {
   ChatAuthority,
   ExecutePluginSuggestion,
   ListPluginRecipients,
+  ListPluginUserHandles,
   PluginAssetReadOps,
   PluginChatReads,
   PluginDocumentReads,

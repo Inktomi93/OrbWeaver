@@ -65,6 +65,7 @@ const ROOM_PANEL_PROCEDURES = [
   "rpg.getTrackerView",
   "rpg.getConfigView",
   "rpg.listJournal",
+  "rpg.countJournal",
   "rpg.revealHidden",
 ] as const;
 // A height a reader can scan: the phone's 200% header leaves a little under half of its transcript, and that reads.

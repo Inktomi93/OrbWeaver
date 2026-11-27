@@ -120,7 +120,7 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
     }
     // EITHER plane landing IS a fill. Both empty ⇒ the round ran and filled nothing — the honest
     // "this card had nothing to add", never conflated with a round that never ran.
-    return { ok: true, populated: sheetFilled || state.wrote };
+    return { ok: true, populated: sheetFilled || state.wrote, dropped: round.dropped };
   }
   return { populateFromCharacter };
 }

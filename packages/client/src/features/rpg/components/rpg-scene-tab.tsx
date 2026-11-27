@@ -13,7 +13,6 @@
 
 import type { RpgActorOp, RpgActorRef, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
 import { clockTimeOfDay, RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
-import { Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
@@ -22,7 +21,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useDismissActor, useEditSnapshot, usePatchActor, usePromoteActor, useResyncFromStory } from "../hooks/use-rpg-mutations.ts";
-import { TRACKER_SHAPE_GLYPHS } from "../lib/glyphs.ts";
+import { resolveTrackerIcon, TRACKER_SHAPE_GLYPHS } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgChoiceEcho } from "./rpg-choice-echo.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
@@ -339,9 +338,9 @@ function SceneGameTrackers({
           // Unset stays unset (side-eye 08-01) — the em-dash arm, never a synthesized `0/0`.
           value={trackerNumber(entry.value ?? undefined)}
           max={trackerCeiling(entry.def, entry.value ?? undefined)}
-          // The tracker SHAPE glyph leads the row (the closed-vocab Record — aria-hidden decoration;
-          // the label stays the datum).
-          leading={<Icon icon={TRACKER_SHAPE_GLYPHS[entry.def.shape]} size="xs" ink="muted" className="shrink-0" />}
+          // The host's picked glyph, else the tracker SHAPE glyph (the closed-vocab Record) — aria-hidden decoration;
+          // the label stays the datum.
+          glyph={resolveTrackerIcon(entry.def.icon) ?? TRACKER_SHAPE_GLYPHS[entry.def.shape]}
           // The def's host-picked color, warded by the strict hex/OKLCH grammar; else the ordinal ramp.
           {...trackColorProps(resolveTrackerColor(entry.def.color, i))}
           {...(entry.def.hint === "" ? {} : { note: entry.def.hint })}

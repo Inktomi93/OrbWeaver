@@ -1,7 +1,7 @@
 // domain/import/contract/results — the verb result shapes.
 
 import type { CardLorebookRestoreResult, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import type { StKeptSlot } from "@orb/kit/world-info";
 import type { CollectedChat } from "./collection.ts";
 
@@ -30,6 +30,9 @@ export interface ImportCharacterResult {
   /** The library row's name: the held character's current name, else the written character's. Not clipped. */
   readonly name: string;
   readonly importHash: string;
+  /** The carried book references that linked no book: an id that names none this owner holds. Zero for a card carrying
+   *  no references and for an unwired link op. */
+  readonly attachedBooksSkipped: number;
   /** The card's regex-script lift (D121-E): fresh library rows minted from
    *  the by-value payload / candidates attached to existing rows instead of cloned. Both 0 for a script-less
    *  card and for an unwired lift op; on a dedup match they report the reconcile's lift, which content-dedups
@@ -354,6 +357,10 @@ export interface ImportReport {
   readonly skippedChatRows: readonly ImportSkippedCard[];
   readonly orphanChatDirs: readonly string[];
   readonly skippedCharacters: readonly string[];
+  /** A card whose file name gives a handle an earlier card of the profile already held, and that shared handle. */
+  readonly collidedCards: readonly { readonly file: string; readonly handle: CharacterHandle }[];
+  /** A chat folder that joined a card by the fuzzy name match, and the handle of the card it joined. */
+  readonly fuzzyPairedDirs: readonly { readonly chatDir: string; readonly handle: CharacterHandle }[];
   /** Top-level ST profile entries the importer does not process (assets/backgrounds/presets/themes/…). */
   readonly unhandled: readonly string[];
   /** settings.json sections the importer does not process (only personas are read). */

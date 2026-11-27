@@ -97,6 +97,7 @@ export type {
   ExtractionRefs,
   RpgExtraction,
   RpgMergeLosses,
+  RpgPopulatePart,
   RpgRecordedToolCall,
   RpgRefusedQuestCall,
   RpgToolCall,

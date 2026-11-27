@@ -80,6 +80,7 @@ test("the corpus keeps real consent, per-owner provider claims and distribution 
       slug: captured.distribution.outcome.slug,
       name: captured.distribution.outcome.name,
       version: captured.distribution.outcome.version,
+      distributedBy: (await root.principalFor(root.ownerId)).handle,
       distributedAt: captured.distribution.distribution.distributedAt,
       updatedAt: captured.distribution.distribution.updatedAt,
     },

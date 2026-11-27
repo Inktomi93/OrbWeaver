@@ -223,7 +223,7 @@ test("the plan never sends a secrets.json at any depth, and reports foreign plan
   const plan = await planTreeImport(files, SPLIT_CAPS);
   expect(plan.skipped).toHaveLength(4);
   expect(pathsOf(plan.batches.flat())).toEqual([ST_SETTINGS_FILE, `${CHARACTERS}/Aria.png`]);
-  // A skip carries no path, so each candidate is planned alone to pin its own reason to it.
+  // Each candidate is planned alone so its own reason and path are the only skip.
   for (const [path, reason] of [
     [ST_SECRETS_FILE, secrets.reason],
     [nestedSecrets, secrets.reason],
@@ -231,7 +231,12 @@ test("the plan never sends a secrets.json at any depth, and reports foreign plan
     [`${FOREIGN_PLANE}/index.bin`, foreign.reason],
   ] as const) {
     const alone = await planTreeImport([profileFile(ST_SETTINGS_FILE, "{}"), profileFile(`${CHARACTERS}/Aria.png`), profileFile(path, "{}")], SPLIT_CAPS);
-    expect(skippedByReason(alone.skipped)).toEqual([{ reason, files: 1 }]);
+    // The plan names the file by its path inside the profile, so the picked path ends with it.
+    const [skip, ...rest] = skippedByReason(alone.skipped);
+    expect(rest).toEqual([]);
+    expect(skip?.reason).toBe(reason);
+    expect(skip?.paths).toHaveLength(1);
+    expect(present(skip?.paths[0]).endsWith(path)).toBe(true);
     expect(pathsOf(alone.batches.flat())).not.toContain(path);
   }
 });
@@ -315,7 +320,8 @@ test("a file no framed upload can carry is skipped with its reason instead of se
   expect(plan.batches).toEqual([[small]]);
   const [skip, ...rest] = skippedByReason(plan.skipped);
   expect(rest).toEqual([]);
-  expect(skip?.files).toBe(1);
+  expect(skip?.paths).toHaveLength(1);
+  expect(relativePathOf(whole).endsWith(present(skip?.paths[0]))).toBe(true);
   // The per-file cap is a different refusal: the same file under a smaller per-file cap names its own reason.
   const overFileCap = await planServedTreeImport([small, whole], { ...served, fileBytes: UNIT }, []);
   const [fileCapSkip] = skippedByReason(overFileCap.skipped);

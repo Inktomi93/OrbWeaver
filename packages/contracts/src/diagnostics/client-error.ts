@@ -2,6 +2,9 @@
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
+/** The response header that carries a request's correlation id; the server stamps it and a client error report reads it back. */
+export const REQUEST_ID_HEADER = "X-Request-Id";
+
 const CLIENT_ERROR_TEXT_MAX = 20_000;
 const CLIENT_ERROR_URL_MAX = 4000;
 const CLIENT_ERROR_REQUEST_ID_MAX = 200;

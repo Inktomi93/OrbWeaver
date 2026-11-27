@@ -1,7 +1,7 @@
 // The words the game panels print and a spec locates them by. Zero runtime imports, so a spec or another
 // feature reads them without the component graph.
 
-import type { RpgToolCallVerdict } from "@orb/contracts/rpg";
+import type { RpgPopulatePart, RpgToolCallVerdict } from "@orb/contracts/rpg";
 
 /** The game tabs of the context panel, by tab. */
 export const RPG_CONTEXT_TAB_LABELS = {
@@ -48,6 +48,21 @@ export const RPG_JOURNAL_SCOPE_LABELS = { all: "All", marks: "Marks", cards: "Ca
 
 /** The Journal composer's add action. */
 export const RPG_JOURNAL_ADD_ENTRY_NAME = "Add entry";
+
+/** The composer's gloss field for a custom entry, and the row editor's type and label controls, named by the entry they edit. */
+export const RPG_JOURNAL_NEW_ENTRY_LABEL_NAME = "New entry label";
+export function journalEntryTypeName(title: string): string {
+  return `${title} type`;
+}
+export function journalEntryLabelName(title: string): string {
+  return `${title} label`;
+}
+
+/** The chronicle's door to the entries past the newest page, and the line that counts what is shown against what exists. */
+export const RPG_JOURNAL_LOAD_OLDER_NAME = "Load older entries";
+export function journalShownLine(shown: number, total: number): string {
+  return `Showing the newest ${String(shown)} of ${String(total)} entries.`;
+}
 
 /** The empty chronicle's title, and its line on who writes the first page: the host may start it, a member waits for the story. */
 export const RPG_JOURNAL_EMPTY_TITLE = "Nothing chronicled yet";
@@ -150,6 +165,12 @@ export const RPG_TOOL_CALL_VERDICT_LABELS: Record<RpgToolCallVerdict, string> = 
 export function trackerLabelFieldName(index: number): string {
   return `Tracker ${index + 1} label`;
 }
+export function trackerIconName(label: string): string {
+  return `Pick an icon for ${label}`;
+}
+export function trackerDefaultIconName(label: string): string {
+  return `Use the default icon for ${label}`;
+}
 export function trackerShowOnBandName(label: string): string {
   return `Show ${label} as a band orb`;
 }
@@ -182,3 +203,23 @@ export const RPG_CARD_ARCHIVE_READ_LABEL = "the card archive";
 
 /** What failed to load, said by the scene's card read. */
 export const RPG_SCENE_CARDS_READ_LABEL = "this game's cards";
+
+/** The parts of a card fill the model's reply could lose, said as the host knows them. */
+const RPG_POPULATE_PART_LABELS: Record<RpgPopulatePart, string> = {
+  sheet: "the title and level",
+  inventory: "the gear",
+  quests: "the goals",
+  reply: "the whole reply",
+};
+
+/** The warning after a card fill whose reply was partly unusable: what still landed, then what was left out. */
+export function populateDroppedNotice(
+  name: string,
+  populated: boolean,
+  dropped: readonly RpgPopulatePart[],
+): { readonly title: string; readonly description: string } {
+  return {
+    title: populated ? `Filled ${name} from their card, with parts left out` : `Nothing filled from ${name}'s card`,
+    description: `The model's reply did not come back usable for ${dropped.map((part) => RPG_POPULATE_PART_LABELS[part]).join(", ")}. Fill from card again to retry.`,
+  };
+}

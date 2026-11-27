@@ -24,7 +24,7 @@ export { BUG_REPORT_NAME } from "./bug-report-name.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
-export { cardImportFailedDetail, cardImportPartialLine, cardImportRefusalLine } from "./card-import-copy.ts";
+export { cardBooksNotLinkedNote, cardImportFailedDetail, cardImportPartialLine, cardImportRefusalLine } from "./card-import-copy.ts";
 export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
 export {

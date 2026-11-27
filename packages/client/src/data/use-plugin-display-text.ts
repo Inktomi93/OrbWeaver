@@ -38,9 +38,17 @@ import { useGatedQuery } from "./use-gated-query.ts";
 
 export type PluginDisplayRow = Pick<inferInput<Trpc["plugin"]["transformForDisplay"]>, "chatId" | "messageId">;
 
+/** The row's text after the viewer's plugins, and the names of the plugins that changed it. */
+export interface PluginDisplayText {
+  readonly text: string;
+  readonly changedBy: readonly string[];
+}
+
+const NO_PLUGINS: readonly string[] = [];
+
 /** Annotate one already-rendered row through the viewer's own plugins' display transforms. Returns `text`
- *  unchanged when there is no row, no registered transform, or the round-trip has not landed (or failed). */
-export function usePluginDisplayText(text: string, row: PluginDisplayRow | undefined): string {
+ *  unchanged, changed by nobody, when there is no row, no registered transform, or the round-trip has not landed (or failed). */
+export function usePluginDisplayText(text: string, row: PluginDisplayRow | undefined): PluginDisplayText {
   const trpc = useTRPC();
   // The GATE. One room-level read, shared by every row through the query cache; its empty answer is what keeps
   // a plugin-less transcript byte-identical.
@@ -58,5 +66,5 @@ export function usePluginDisplayText(text: string, row: PluginDisplayRow | undef
     ...trpc.plugin.transformForDisplay.queryOptions({ chatId: gated.chatId, messageId: gated.messageId, text }),
     retry: false,
   }));
-  return data?.text ?? text;
+  return data === undefined ? { text, changedBy: NO_PLUGINS } : { text: data.text, changedBy: data.changedBy.map((change) => change.name) };
 }

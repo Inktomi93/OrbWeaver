@@ -50,7 +50,7 @@ export function createRestoreCharacterBook(ctx: ImportContext): Pick<ImportServi
       return { ok: false, error: "No character of yours was imported from this card, so there is no book to restore onto" };
     }
     const result = await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: parsed.book });
-    return { ok: true, characterId, worldBookId: result.worldBookId, entryCount: result.entryCount, replaced: result.replaced };
+    return { ok: true, worldBookId: result.worldBookId, entryCount: result.entryCount, replaced: result.replaced };
   }
   return { restoreCharacterBook };
 }

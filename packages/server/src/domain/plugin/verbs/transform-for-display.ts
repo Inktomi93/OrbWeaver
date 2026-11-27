@@ -29,10 +29,12 @@
 import { DEADLINE_ABORT_REASON } from "@orb/contracts/chat";
 import type { PluginDisplayTransformRegistration, PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
+import type { PluginId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import { addSpanEvent } from "#foundation/observability";
 
 import type { TransformForDisplayParams } from "../contract/params.ts";
+import type { PluginDisplayChange, PluginDisplayTransformResult } from "../contract/results.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
 import { pluginFailureLine } from "../substrate/failure-log.ts";
@@ -90,6 +92,8 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
     // FLATTEN FIRST, fold second. Registration order within a plugin; plugin order is the caller's own install
     // order (`listOwned`). Both are the only orderings that exist here and both are the installer's own doing.
     const steps: {
+      readonly pluginId: PluginId;
+      readonly pluginName: string;
       readonly slug: string;
       readonly instance: PluginInstance;
       readonly transform: PluginDisplayTransformRegistration;
@@ -106,6 +110,8 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
         // transform reads the text it was handed and nothing else — admitting a room would hand it a `chat.read`
         // window this seam has no reason to open.
         steps.push({
+          pluginId: row.id,
+          pluginName: row.name,
           slug: row.slug,
           instance: resident.instance,
           transform,
@@ -114,14 +120,14 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
       }
     }
     if (steps.length === 0) {
-      return { text };
+      return { text, changedBy: [] };
     }
     // The ordered fold as an async chain (not a for-await loop) — each step sees the prior's output and the
     // inherently-sequential await needs no suppression; depth = the caller's own transform count.
-    const foldFrom = async (index: number, current: string): Promise<string> => {
+    const foldFrom = async (index: number, current: string, changedBy: readonly PluginDisplayChange[]): Promise<PluginDisplayTransformResult> => {
       const step = steps[index];
       if (step === undefined) {
-        return current;
+        return { text: current, changedBy };
       }
       const argsJson = JSON.stringify({ text: current, env: { chatId, messageId } });
       const next = await applyBounded(step.invoke, step.transform, argsJson, ctx.scheduleTimeout);
@@ -130,10 +136,12 @@ export function createTransformForDisplay(ctx: PluginContext, registry: PluginRe
           step.instance,
           pluginFailureLine(step.slug, "display-deadline", `display transform '${step.transform.name}' exceeded ${PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS}ms`),
         );
-        return foldFrom(index + 1, current);
+        return foldFrom(index + 1, current, changedBy);
       }
-      return foldFrom(index + 1, "text" in next ? next.text : current);
+      const after = "text" in next ? next.text : current;
+      const named = after === current || changedBy.some((change) => change.pluginId === step.pluginId);
+      return foldFrom(index + 1, after, named ? changedBy : [...changedBy, { pluginId: step.pluginId, name: step.pluginName }]);
     };
-    return { text: await foldFrom(0, text) };
+    return await foldFrom(0, text, []);
   };
 }

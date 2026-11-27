@@ -39,7 +39,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { Tip } from "#components";
-import { resolveConditionGlyph } from "../lib/glyphs.ts";
+import { resolveConditionGlyph, resolveTrackerIcon } from "../lib/glyphs.ts";
 import { RPG_CONDITION_PLACEHOLDER, RPG_STATUS_LINE_LABEL, RPG_STATUS_PLACEHOLDER } from "../lib/rpg-names.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { trackerValueName } from "../lib/tracker-names.ts";
@@ -129,6 +129,7 @@ function ActorTrackerMeter({
       valueWarning={reading !== null && max !== null && reading > max}
       {...(def.hint === "" ? {} : { labelHint: def.hint })}
       {...trackColorProps(resolveTrackerColor(def.color, ordinal))}
+      glyph={resolveTrackerIcon(def.icon)}
       {...(subject === undefined ? {} : { subject })}
       {...(release === undefined ? {} : { leading: <RpgFieldLock field={trackerFieldName(def.label, subject)} onRelease={release} /> })}
       {...(edit === undefined

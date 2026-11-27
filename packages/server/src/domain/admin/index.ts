@@ -7,6 +7,6 @@ export type { AdminContext, AdminService, ServerRestartPort } from "./contract/s
 export { can, isAdmin, isOwner, requireAdmin, requireOwner } from "./guard.ts";
 export { createAdminService } from "./service.ts";
 export { createAdminCardEmbed } from "./verbs/card-embed.ts";
-export { createPluginDistributionRecipients } from "./verbs/plugin-recipients.ts";
+export { createPluginDistributionRecipients, createPluginUserHandles } from "./verbs/plugin-recipients.ts";
 export { createAdminSessionPort } from "./verbs/session-policy.ts";
 export { createSignupMinterCheck } from "./verbs/signup-minter-check.ts";

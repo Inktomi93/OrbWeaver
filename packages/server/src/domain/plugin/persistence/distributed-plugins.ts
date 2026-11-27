@@ -20,14 +20,15 @@ import { asc, eq } from "drizzle-orm";
 type DistributedPluginRow = typeof adminDistributedPlugins.$inferSelect;
 
 /** Project a record to the admin-facing view — the ONE projection, so a column added here can never be
- *  missing from a freshly-published record's view. `bundleAssetId`/`distributedBy` are deliberately NOT
- *  projected: an asset id is an internal handle, and the publisher's user id is not a fact the distribute
- *  surface acts on (it renders WHAT is published, not who to blame). */
-export function toDistributedPluginView(row: DistributedPluginRow): DistributedPluginView {
+ *  missing from a freshly-published record's view. `bundleAssetId` is deliberately NOT projected: an asset id is
+ *  an internal handle. The publisher is shown by handle, never by user id; `publisherHandle` is that handle, read
+ *  through the injected account directory because this domain reads no `users` row. */
+export function toDistributedPluginView(row: DistributedPluginRow, publisherHandle: string): DistributedPluginView {
   return {
     slug: row.slug,
     name: row.name,
     version: row.version,
+    distributedBy: publisherHandle,
     distributedAt: row.distributedAt,
     updatedAt: row.updatedAt,
   };

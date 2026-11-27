@@ -30,6 +30,7 @@ import type { CardOrigin } from "./card-block.tsx";
 import { CardBlock } from "./card-block.tsx";
 import { MessageChoicesBlock } from "./message-choices-block.tsx";
 import { MessageMediaBlock } from "./message-media-block.tsx";
+import { PluginRewriteNote } from "./plugin-rewrite-note.tsx";
 import { ReplyFrame } from "./reply-frame.tsx";
 import { HoldsRowDraw } from "./row-handover.tsx";
 
@@ -237,7 +238,8 @@ function rowHeldCardsNotice(texts: readonly string[], render: RowRenderPolicy, p
 }
 
 // What a row says under its body about content it holds back: the trust notice, for a game room whose card wrap is off
-// the held-cards notice, and for a styled reply too heavy to frame, why it is plain whole. Null when it says nothing.
+// the held-cards notice, and for a styled reply too heavy to frame, why it is plain whole. It also names the plugins that
+// changed the text it shows. Null when it says nothing.
 function rowNotices(
   drawn: Omit<DrawnMessage, "observeBody">,
   layout: ReplyLayout | undefined,
@@ -248,11 +250,13 @@ function rowNotices(
   const trust = rowTrustNotice(texts, render, drawn, frames);
   const held = rowHeldCardsNotice(texts, render, drawn.pending);
   const heavy = layout?.kind === "plain" ? <PlainReplyNotice key="plain-reply-notice" reason={layout.reason} /> : null;
-  return trust === null && held === null && heavy === null ? null : (
+  const rewrite = drawn.rewrittenBy.length === 0 ? null : <PluginRewriteNote key="plugin-rewrite-note" pluginNames={drawn.rewrittenBy} />;
+  return trust === null && held === null && heavy === null && rewrite === null ? null : (
     <>
       {trust}
       {held}
       {heavy}
+      {rewrite}
     </>
   );
 }

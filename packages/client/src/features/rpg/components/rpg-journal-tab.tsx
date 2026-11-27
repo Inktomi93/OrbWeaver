@@ -27,18 +27,17 @@
 // these verbs to address.
 
 import type { RpgJournalType } from "@orb/contracts/rpg";
-import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type { ChatId, RpgJournalId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon, Pin } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, MutedLine, QueryBoundary } from "#components";
@@ -58,12 +57,15 @@ import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../lib/archived-cards.ts";
 import { collectArchivedCards } from "../lib/archived-cards.ts";
-import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
+import { CHECKPOINT_TRIGGER_LABELS, JOURNAL_TYPE_ITEMS } from "../lib/journal-labels.ts";
 import {
+  journalShownLine,
   RPG_CARD_ARCHIVE_READ_LABEL,
   RPG_JOURNAL_ADD_ENTRY_NAME,
   RPG_JOURNAL_EMPTY_DESCRIPTION,
   RPG_JOURNAL_EMPTY_TITLE,
+  RPG_JOURNAL_LOAD_OLDER_NAME,
+  RPG_JOURNAL_NEW_ENTRY_LABEL_NAME,
   RPG_JOURNAL_NO_CARDS_LINE,
   RPG_JOURNAL_SCOPE_LABELS,
 } from "../lib/rpg-names.ts";
@@ -74,7 +76,7 @@ import { Kicker } from "./rpg-kicker.tsx";
 import { RpgCardLightbox } from "./rpg-scene-cards.tsx";
 import { AddRow } from "./tracker-blocks/index.ts";
 
-/** The chronicle page size — one fetch (the archive tab is a reading surface, not an infinite feed). */
+/** The chronicle page size: the newest page loads with the tab, and each older page loads when the host asks for it. */
 const JOURNAL_PAGE = 100;
 
 /** Placeholder rows while the transcript the card projection reads lands. */
@@ -88,7 +90,6 @@ function isJournalScope(value: string | undefined): value is JournalScope {
   return (JOURNAL_SCOPES as readonly (string | undefined)[]).includes(value);
 }
 
-const JOURNAL_TYPE_ITEMS: SelectItems = RPG_JOURNAL_TYPES.map((value) => ({ value, label: JOURNAL_TYPE_LABELS[value] }));
 const DEFAULT_JOURNAL_TYPE: RpgJournalType = "note";
 
 /** One chronicle ROW — a plain beat (bullet line) or an archived immersive card (artifact chrome), merged
@@ -103,24 +104,42 @@ type ChronicleRow =
  *  which is the same authoring gesture every other datum here uses AND keeps this composer in the tab's
  *  one-draft-field grammar (the New-mark / New-quest siblings). A CREATION draft, so plain controls, exempt
  *  from display-at-rest. Tier-2 refusal: a blank title never sends (the wire requires min(1)). */
-function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJournalType; title: string }) => void }): ReactElement {
+function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJournalType; label?: string; title: string }) => void }): ReactElement {
   const [type, setType] = useState<RpgJournalType>(DEFAULT_JOURNAL_TYPE);
+  const [label, setLabel] = useState("");
+  const custom = type === "custom";
   return (
     <AddRow
       ariaLabel="New entry title"
       placeholder="Title this beat…"
       leading={
-        <Select
-          aria-label="Entry type"
-          items={JOURNAL_TYPE_ITEMS}
-          value={type}
-          onValueChange={(next): void => setType(next as RpgJournalType)}
-          // No height here: Select's default `layout="field"` arm already IS `h-(--size-control-sm)` (#169 — the
-          // duplicate was invisible to `ui-size-via-variant` while its value class rejected hyphens).
-          floor="third"
-        />
+        <>
+          <Select
+            aria-label="Entry type"
+            items={JOURNAL_TYPE_ITEMS}
+            value={type}
+            onValueChange={(next): void => setType(next as RpgJournalType)}
+            // No height here: Select's default `layout="field"` arm already IS `h-(--size-control-sm)` (#169 — the
+            // duplicate was invisible to `ui-size-via-variant` while its value class rejected hyphens).
+            floor="third"
+          />
+          {/* A custom entry names its own kind; every other type reads as its own word, so the field is omitted. */}
+          {custom ? (
+            <Input aria-label={RPG_JOURNAL_NEW_ENTRY_LABEL_NAME} value={label} placeholder="Kind…" onValueChange={setLabel} className="min-inline-0" />
+          ) : null}
+        </>
       }
-      actions={[{ key: "entry", label: RPG_JOURNAL_ADD_ENTRY_NAME, onAdd: (title: string): void => onCreate({ type, title }) }]}
+      actions={[
+        {
+          key: "entry",
+          label: RPG_JOURNAL_ADD_ENTRY_NAME,
+          onAdd: (title: string): void => {
+            const kind = label.trim();
+            onCreate({ type, title, ...(custom && kind !== "" ? { label: kind } : {}) });
+            setLabel("");
+          },
+        },
+      ]}
     />
   );
 }
@@ -130,7 +149,18 @@ function NewJournalEntry({ onCreate }: { readonly onCreate: (entry: { type: RpgJ
 function JournalEntries({ state, cards }: { readonly state: RpgPanelState; readonly cards: readonly ArchivedCard[] }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: entries } = useSuspenseQuery(trpc.rpg.listJournal.queryOptions({ chatId: state.chatId, limit: JOURNAL_PAGE }));
+  const { data: newest } = useSuspenseQuery(trpc.rpg.listJournal.queryOptions({ chatId: state.chatId, limit: JOURNAL_PAGE }));
+  const { data: total } = useSuspenseQuery(trpc.rpg.countJournal.queryOptions({ chatId: state.chatId }));
+  const [olderPages, setOlderPages] = useState(0);
+  // Older pages ride plain queries, so asking for one never drops the page on screen back to a skeleton.
+  const older = useQueries({
+    queries: Array.from({ length: olderPages }, (_, page) =>
+      trpc.rpg.listJournal.queryOptions({ chatId: state.chatId, limit: JOURNAL_PAGE, offset: JOURNAL_PAGE * (page + 1) }),
+    ),
+  });
+  // An entry written while the host reads shifts every later page by one, so a row can arrive on two pages.
+  const entries = [...new Map([...newest, ...older.flatMap((page) => page.data ?? [])].map((entry) => [entry.id, entry])).values()];
+  const loadingOlder = older.some((page) => page.isPending);
   const addEntry = useAddJournalEntry({ trpc, invalidation });
   const editEntry = useEditJournalEntry({ trpc, invalidation });
   const deleteEntry = useDeleteJournalEntry({ trpc, invalidation });
@@ -148,6 +178,12 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
         },
         onEditContent: (entryId, next): void => {
           editEntry.mutate({ chatId: state.chatId, entryId, patch: { content: next.trim() } });
+        },
+        onEditType: (entryId, type): void => {
+          editEntry.mutate({ chatId: state.chatId, entryId, patch: { type } });
+        },
+        onEditLabel: (entryId, next): void => {
+          editEntry.mutate({ chatId: state.chatId, entryId, patch: { label: next.trim() } });
         },
         onDelete: (entryId): void => {
           deleteEntry.mutate({ chatId: state.chatId, entryId });
@@ -199,6 +235,14 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
           )}
         </Stack>
       ))}
+      {entries.length < total ? (
+        <Stack gap="field" align="start">
+          <MutedLine>{journalShownLine(entries.length, total)}</MutedLine>
+          <Button variant="outline" size="sm" disabled={loadingOlder} onClick={(): void => setOlderPages(olderPages + 1)}>
+            {RPG_JOURNAL_LOAD_OLDER_NAME}
+          </Button>
+        </Stack>
+      ) : null}
       <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} chatId={state.chatId} />
     </Stack>
   );

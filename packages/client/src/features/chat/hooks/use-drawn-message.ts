@@ -64,6 +64,8 @@ export interface DrawnMessage {
   readonly pending: boolean;
   /** A viewer's plugin changed what the scripts drew. */
   readonly rewritten: boolean;
+  /** The plugins whose display transforms changed the text, by name, in the order they ran. */
+  readonly rewrittenBy: readonly string[];
   /** Attach to the body element so the display queue knows the row is on screen. */
   readonly observeBody: RefCallback<HTMLElement> | undefined;
 }
@@ -73,7 +75,7 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
   const { text: displayed, styled, pending, observeBody } = useDisplayText(content, renderContext, { ...display, order: displayOrder });
   // The LAST step before markup (§5.5/§5.29): the viewer's own plugins annotate what the house pipeline
   // produced. Inert without a row or without a registered transform — same string in, same string out.
-  const resolvedContent = usePluginDisplayText(displayed, pluginDisplayRow);
+  const { text: resolvedContent, changedBy } = usePluginDisplayText(displayed, pluginDisplayRow);
   const characterNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CHARACTER_NAMES;
   const panels = readPanels(resolvedContent, props.render);
   return {
@@ -83,6 +85,7 @@ export function useDrawnMessage(content: string, props: MessageDrawProps): Drawn
     modelPanel: panels.modelPanel,
     pending,
     rewritten: resolvedContent !== displayed,
+    rewrittenBy: changedBy,
     observeBody,
   };
 }

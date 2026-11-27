@@ -36,7 +36,8 @@ test("native model population, structured and required-tool resync, and changed 
   await using root = await createServerHarness({ providerFetch: physical.execute });
   const { connections } = await seedCorpusActors(root);
   const result = await seedCorpusRpgProvider(root, connections.text.id);
-  expect(result.populate).toEqual({ ok: true, populated: true });
+  // The scripted reply carries one malformed inventory entry beside valid parts, so the verdict names the gear as partly dropped.
+  expect(result.populate).toEqual({ ok: true, populated: true, dropped: ["inventory"] });
   const actor = result.populated.actors.find((row) => row.name === CORPUS_RPG_CARD_NAME);
   const item = actor?.volatile?.inventory[0];
   expect(actor).toMatchObject({ actorRef: { kind: "character", characterId: result.character.id }, sheet: { className: "Artificer", level: 2 } });
@@ -47,7 +48,7 @@ test("native model population, structured and required-tool resync, and changed 
   expect(result.populated.quests).toMatchObject([{ name: "Repair the orbital loom", objectives: [{ text: "Find the thread", completed: false }] }]);
   expect(result.populatedRows.snapshots).toMatchObject([{ gameId: result.game.id, messageId: null, variantId: null, asOfMessageId: null, committed: 1 }]);
   expect(result.populatedRows.journal).toEqual([]);
-  expect(result.absorbed).toEqual({ ok: true, populated: false });
+  expect(result.absorbed).toEqual({ ok: true, populated: false, dropped: [] });
   expect(result.absorbedRows.snapshots).toEqual(result.populatedRows.snapshots);
   expect(result.absorbedRows.sheets).toMatchObject([{ characterId: result.character.id, sheet: { className: "Host-tuned artificer", level: 4 } }]);
   expect(result.firstResync).toEqual({ ok: true, rebuilt: true });

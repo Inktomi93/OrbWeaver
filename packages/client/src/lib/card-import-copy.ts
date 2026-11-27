@@ -54,6 +54,13 @@ const REFUSAL_COPY: Record<FailedCardReason, RefusalCopy> = {
   },
 };
 
+/** The line for the world books a landed card points at that this library does not hold, so they linked nothing. */
+export function cardBooksNotLinkedNote(count: number): string {
+  return count === 1
+    ? "1 world book this card points at is not in your library, so it was not linked."
+    : `${String(count)} world books this card points at are not in your library, so they were not linked.`;
+}
+
 /** The one-line reason beside a refused file in the import report, where the sentences below are said once under the tally. */
 export function cardImportFailedDetail(reason: FailedCardReason): string {
   return REFUSAL_COPY[reason].detail;

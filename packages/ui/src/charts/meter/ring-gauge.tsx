@@ -5,7 +5,7 @@
 // the color-alone signal). A ring GAUGE (arc = value/max), never a bare circled number — v1's circled
 // counts read as notification badges (§4.5). Homed in charts/meter/ (the magnitude-display family;
 // inline data-viz svg is legal only in charts/**, §13.7 — the sibling of <Meter kind="arc">).
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { cn, isSafeColor } from "#lib";
 import type { TrackColor } from "./track-bar.tsx";
 import { RING_STROKE, ringGaugeVariants } from "./variants.ts";
@@ -34,6 +34,8 @@ export interface RingGaugeProps {
   showCaption?: boolean;
   /** Short caption label when `showCaption` (the compact orb tag, e.g. "HP"); falls back to `label`. */
   captionLabel?: string;
+  /** A decorative glyph drawn before the caption label (`showCaption` only); the label and readout stay the datum. */
+  glyph?: ReactNode;
   /** A host-picked CSS color LITERAL (the free-hex ruling) that overrides the ramp step.
    *  Applied as inline data only when it passes `isSafeColor` (unsafe ⇒ ramp fallback); the arc is
    *  aria-hidden decoration, so a non-theme hex is accepted by design. Danger still wins. */
@@ -58,6 +60,7 @@ export function RingGauge({
   label,
   showCaption = false,
   captionLabel,
+  glyph,
   customColor,
   dangerBelow,
   className,
@@ -107,6 +110,7 @@ export function RingGauge({
       {showCaption ? (
         <>
           <span aria-hidden={true} className={slots.label()} data-slot="ring-gauge-label">
+            {glyph}
             {captionLabel ?? label}
           </span>
           <span aria-hidden={true} className={slots.readout()} data-slot="ring-gauge-readout">

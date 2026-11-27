@@ -18,6 +18,13 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import { restoreCardLorebook, useInvalidation } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
+import { openConfigTo, selectCollectionMember } from "#state";
+import {
+  CHARACTER_OPEN_RESTORED_BOOK_NAME,
+  CHARACTER_RESTORE_BOOK_NAME,
+  characterBookRestoredEntries,
+  characterBookRestoredTitle,
+} from "../lib/character-names.ts";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
 
@@ -56,7 +63,17 @@ export function CharacterRestoreBookAction({ canRestore }: CharacterRestoreBookA
     // store (the book/entries themselves) and the character's own read model (its book link).
     invalidation.invalidateUser({ type: "worldInfoChanged" });
     invalidation.invalidateUser({ type: "charactersChanged" });
-    notify.success(result.replaced ? "The card's world book replaced your edited one." : "The card's world book was restored.");
+    notify.success({
+      title: characterBookRestoredTitle(result.replaced),
+      description: characterBookRestoredEntries(result.entryCount),
+      action: {
+        label: CHARACTER_OPEN_RESTORED_BOOK_NAME,
+        onClick: (): void => {
+          openConfigTo("worldInfo");
+          selectCollectionMember("worldInfo", result.worldBookId);
+        },
+      },
+    });
   };
 
   return (
@@ -64,7 +81,7 @@ export function CharacterRestoreBookAction({ canRestore }: CharacterRestoreBookA
       <FileTrigger accept={CARD_ACCEPT} onFilesSelected={([file]): void => setPicked(file ?? null)}>
         {({ open }): ReactElement => (
           <Button variant="ghost" onClick={open}>
-            Restore the embedded book from this card file
+            {CHARACTER_RESTORE_BOOK_NAME}
           </Button>
         )}
       </FileTrigger>

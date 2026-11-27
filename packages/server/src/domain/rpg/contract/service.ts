@@ -49,6 +49,7 @@ import type {
   RpgGameView,
   RpgJournalEntryView,
   RpgParticipantActor,
+  RpgPopulatePart,
   RpgRecordedToolCall,
   RpgRefusedQuestCall,
   RpgRevealView,
@@ -544,7 +545,9 @@ type RpgRunPopulateExtraction = (input: RpgPopulateInput) => Promise<RpgPopulate
 /** What one populate round returns — the born-state fill, or the legible reason it could not run (see above).
  *  Kept beside the op rather than in `contract/results` because it is the op's INTERNAL seam: the verb maps it
  *  onto the caller-facing `PopulateResult`, and no transport ever sees this shape (the resync's precedent). */
-type RpgPopulateRoundResult = { readonly ok: true; readonly delta: RpgPopulateDelta } | { readonly ok: false; readonly reason: string };
+type RpgPopulateRoundResult =
+  | { readonly ok: true; readonly delta: RpgPopulateDelta; readonly dropped: readonly RpgPopulatePart[] }
+  | { readonly ok: false; readonly reason: string };
 
 /** The resolved inputs the populate model call consumes. `hostUserId` is the ROOM host (resolved by ROLE at the
  *  verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied principal (the
@@ -955,6 +958,8 @@ export interface RpgService {
   readonly getTrackerView: (params: ReadGameParams) => Promise<RpgTrackerView>;
   /** Member. The paged, lineage-projected journal. */
   readonly listJournal: (params: ListJournalParams) => Promise<readonly RpgJournalEntryView[]>;
+  /** Member. How many entries `listJournal` can page through for this caller, under the same floor. */
+  readonly countJournal: (params: ReadGameParams) => Promise<number>;
   /** Member. WHAT THE MODEL DID — the window of recorded folded turns, keyed by producing variant
    *  (TOOLCALLS-INVISIBLE, arm A). Member-gated on purpose: a tool call is the mechanical record of a turn
    *  everyone at the table watched, not a GM secret. */

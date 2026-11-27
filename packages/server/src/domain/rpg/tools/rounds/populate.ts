@@ -153,7 +153,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
       return { ok: false, reason: `${POPULATE_FAILED_REASON} ${errorMessage(err)}` };
     }
     // EXT-4a salvage, per plane / per entry — a malformed item costs that item, never the quests beside it.
-    const { sheet, extraction, dropped } = salvagePopulate(safeJson(text));
+    const { sheet, extraction, dropped, droppedParts } = salvagePopulate(safeJson(text));
     if (dropped.length > 0) {
       deps.logger.warn(
         { event: "rpg.populate.unparseable", chatId, model: conn.model, api: conn.api, dropped },
@@ -180,6 +180,7 @@ export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgCon
     // tracked-field unification). ONE mapping, here at the parse seam — the domain never learns two names.
     return {
       ok: true,
+      dropped: droppedParts,
       delta: {
         statePatch: delta.statePatch,
         sheet: { ...(sheet?.title === undefined ? {} : { className: sheet.title }), ...(sheet?.level === undefined ? {} : { level: sheet.level }) },

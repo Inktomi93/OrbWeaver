@@ -25,6 +25,7 @@ const SERVED = [
   "rpg.getTrackerView",
   "rpg.getConfigView",
   "rpg.listJournal",
+  "rpg.countJournal",
   "rpg.revealHidden",
 ] as const;
 

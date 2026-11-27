@@ -14,6 +14,7 @@ import { useState } from "react";
 import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
 import {
+  cardBooksNotLinkedNote,
   cardImportPartialLine,
   cardImportRefusalLine,
   cardInLibraryNotice,
@@ -36,7 +37,7 @@ interface ImportNotice {
 
 /** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. A
  *  `created: false` card is one the library already held (D290), and the toast says so rather than "imported". */
-function importNotice({ imported, failed }: CardImportResult): ImportNotice {
+function outcomeNotice({ imported, failed }: CardImportResult): ImportNotice {
   const landed = imported.filter((card) => card.created).length;
   const held = imported.filter((card) => !card.created);
   if (failed.length === 0) {
@@ -54,6 +55,13 @@ function importNotice({ imported, failed }: CardImportResult): ImportNotice {
     kind: "info",
     message: cardImportPartialLine(landed, held.length, failed),
   };
+}
+
+/** The outcome toast, closing on the book references the landed cards pointed at that this library does not hold. */
+function importNotice(result: CardImportResult): ImportNotice {
+  const notice = outcomeNotice(result);
+  const unlinked = result.imported.reduce((sum, card) => sum + card.attachedBooksSkipped, 0);
+  return unlinked === 0 ? notice : { ...notice, message: `${notice.message} ${cardBooksNotLinkedNote(unlinked)}` };
 }
 
 export interface CharacterImportDialogProps {

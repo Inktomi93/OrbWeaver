@@ -241,6 +241,10 @@ export interface CollectResult {
   readonly unhandledSettings: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
+  /** A card whose file name gives a handle another card of the profile already held, and that shared handle. A chat folder of that name attaches to the first card holding it, never to this one. */
+  readonly collidedCards: { readonly file: string; readonly handle: CharacterHandle }[];
+  /** A chat folder paired to a card by the second-chance fuzzy match (trailing digits, `main_<Name>_spec_vN`), and the card handle it joined. */
+  readonly fuzzyPairedDirs: { readonly chatDir: string; readonly handle: CharacterHandle }[];
   /** Directories whose listing breached the collector's entry CEILING: everything past `kept` was never
    *  examined, so cards/chats/worlds/groups/themes/backgrounds in the tail did not import. The cap protects
    *  the loop from a hostile staging dir; this list is what keeps the truncation from being silent. */

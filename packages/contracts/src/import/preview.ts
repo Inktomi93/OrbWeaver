@@ -112,6 +112,12 @@ const importPreviewItemSchema = z.strictObject({
   /** The names of the sections a SillyTavern preset gains for orb's own slots (memory, databank and the rest), which
    *  the file has no prompt for. Absent on another kind, and on a preset the run reuses or does not land. */
   addedSections: z.array(previewText).max(IMPORT_PREVIEW_LIST_MAX).readonly().optional(),
+  /** The handle a card's file name gives when an earlier card of its profile already holds it, so a chat folder of that name
+   *  goes to the earlier card. Absent on another kind and on a card whose file name gives a handle of its own. */
+  collidedHandle: previewText.optional(),
+  /** The chat folders of the card's profile that joined it by the name match (trailing digits, `main_<Name>_spec_vN`)
+   *  because none carries its exact name. Absent on another kind and on a card no folder joined that way. */
+  pairedChatFolders: z.array(previewText).max(IMPORT_PREVIEW_LIST_MAX).readonly().optional(),
 });
 export type ImportPreviewItem = z.infer<typeof importPreviewItemSchema>;
 

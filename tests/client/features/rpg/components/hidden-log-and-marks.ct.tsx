@@ -48,6 +48,7 @@ async function mountRoom(root: Awaited<ReturnType<typeof createCorpusHarness>>, 
       "rpg.getTrackerView",
       "rpg.revealHidden",
       "rpg.listJournal",
+      "rpg.countJournal",
       "rpg.listCheckpoints",
     ]),
   );

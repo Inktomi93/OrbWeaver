@@ -11,6 +11,7 @@ import type { ProviderDef } from "@orb/contracts/inference";
 import type {
   DistributedPluginView,
   ListPluginRecipients,
+  ListPluginUserHandles,
   PluginBridge,
   PluginBundleAssetView,
   PluginCapability,
@@ -394,6 +395,8 @@ export interface PluginDistributionDeps {
    *  It takes the ACTING admin because the enumeration itself is an admin read (`admin.listUsers`, which
    *  re-gates) — the recipient list is never obtained on nobody's authority. */
   readonly listRecipients: ListPluginRecipients;
+  /** Every account's handle, so the distribute list can name its publisher. Admin-gated at compose for the same reason as {@link PluginDistributionDeps.listRecipients}: the enumeration is `admin.listUsers`. */
+  readonly listUserHandles: ListPluginUserHandles;
   /** The PUBLISHED bundle's bytes by asset id. Deliberately NOT `ctx.assets.readBytes`: this read is
    *  cross-owner by construction (the bytes belong to the publishing admin; the recipient is someone else),
    *  and it is legitimate for exactly one reason — the id never comes from a caller, it comes from the

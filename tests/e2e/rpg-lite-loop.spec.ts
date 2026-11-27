@@ -299,7 +299,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(hero?.volatile?.conditions.map((c) => c.name)).toEqual(["Chilled"]);
     expect(hero?.volatile?.status).toBe("shivering");
     // The band renders exactly what the host PINNED (never a def-order coincidence).
-    expect(after.trackerOrbs).toEqual([{ key: MANA_TRACKER.key, label: MANA_TRACKER.label, value: 3, max: 10, color: null }]);
+    expect(after.trackerOrbs).toEqual([{ key: MANA_TRACKER.key, label: MANA_TRACKER.label, value: 3, max: 10, color: null, icon: null }]);
 
     // The presence plane is a KEY list; the person is an actor row beside the roster (ONE shape, R2).
     expect(after.cast).toEqual(["npc:mira"]);

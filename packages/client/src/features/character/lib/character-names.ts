@@ -246,3 +246,19 @@ export const CHARACTER_CLEAR_FILTERS_NAME = "Clear filters";
 
 /** The library landing's shelf of characters chatted with most recently. */
 export const CHARACTER_RECENT_SHELF_NAME = "Recently chatted";
+
+/** The Provenance facet's door that restores the card's own embedded book from its card file. */
+export const CHARACTER_RESTORE_BOOK_NAME = "Restore the embedded book from this card file";
+
+/** The restore notice's title. */
+export function characterBookRestoredTitle(replaced: boolean): string {
+  return replaced ? "The card's world book replaced your edited one." : "The card's world book was restored.";
+}
+
+/** The restore notice's second line: how many entries the restored book holds, as the server counted them. */
+export function characterBookRestoredEntries(entryCount: number): string {
+  return `The restored book holds ${String(entryCount)} ${entryCount === 1 ? "entry" : "entries"}.`;
+}
+
+/** The restore notice's door to the book it just wrote. */
+export const CHARACTER_OPEN_RESTORED_BOOK_NAME = "Open the book";
