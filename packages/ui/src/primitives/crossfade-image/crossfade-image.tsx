@@ -18,7 +18,6 @@ export interface CrossfadeImageProps {
   readonly durationMs?: number;
   /** A thumbnail inside a surface (a composer attachment) takes the grouped-content radius. */
   readonly rounded?: "none" | "base";
-  readonly className?: string;
 }
 
 interface TopLayer {
@@ -49,7 +48,7 @@ function initialLayers(src: string | null): Layers {
  * the component. Reduced motion therefore mounts the new layer already revealed with no under-layer at
  * all. A failing `src` swaps to a styled broken-image fallback instead of the browser's native glyph.
  */
-export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded, size, className }: CrossfadeImageProps): ReactElement {
+export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded, size }: CrossfadeImageProps): ReactElement {
   const reduced = usePrefersReducedMotion();
   // Mirrors `src` so a prop change is detected and reacted to DURING render, not a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
@@ -86,7 +85,7 @@ export function CrossfadeImage({ src, alt, aspectRatio, fit, durationMs, rounded
   const topIsBroken = layers.top !== null && layers.top.key === brokenKey;
 
   return (
-    <div className={slots.root({ className })} data-slot="crossfade-image" style={{ aspectRatio }}>
+    <div className={slots.root()} data-slot="crossfade-image" style={{ aspectRatio }}>
       {layers.previousSrc !== null && !topIsBroken && <img alt={alt} className={slots.image()} data-slot="crossfade-image-previous" src={layers.previousSrc} />}
       {layers.top !== null && topIsBroken && (
         <div className={slots.fallback()} data-slot="crossfade-image-fallback">

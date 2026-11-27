@@ -303,7 +303,7 @@ export interface DiscoveryService {
   /** The owner's most-used distilled scene keywords (summed over their character profiles), count-descending. */
   readonly topKeywords: (userId: UserId, opts?: TopKeywordsOptions) => Promise<KeywordCount[]>;
   /** The keywords that co-occur with `keyword` in the owner's scenes, count-descending. */
-  readonly cooccurringKeywords: (userId: UserId, keyword: string, limit?: number) => Promise<KeywordCount[]>;
+  readonly cooccurringKeywords: (userId: UserId, keyword: string) => Promise<KeywordCount[]>;
   /** One character's keyword profile (the keywords its scenes anchor on), count-descending. */
   readonly characterKeywords: (userId: UserId, characterId: CharacterId, limit?: number) => Promise<KeywordCount[]>;
 
