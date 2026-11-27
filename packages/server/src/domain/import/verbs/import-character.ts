@@ -238,7 +238,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         png ? "No character data found in this PNG (no ccv3/chara card chunk)" : "This file isn't a V2/V3 character card (unreadable JSON)",
       );
     }
-    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts, scriptNotes } = parsed;
+    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts, notes } = parsed;
 
     const importHash = parsedCardImportHash(parsed);
     const carried: CarriedContent = {
@@ -257,7 +257,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         name: await heldName(ctx, existing, characterCard.name),
         importHash,
         ...attached,
-        skippedOverlays: [...scriptNotes, ...attached.skippedOverlays],
+        skippedOverlays: [...notes, ...attached.skippedOverlays],
       };
     }
 
@@ -281,6 +281,6 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     const characterId = ref.characterId;
     const attached = await attachAllPlanes(ctx, characterId, tags, carried);
 
-    return { characterId, created: true, name: baseInput.name, importHash, ...attached, skippedOverlays: [...scriptNotes, ...attached.skippedOverlays] };
+    return { characterId, created: true, name: baseInput.name, importHash, ...attached, skippedOverlays: [...notes, ...attached.skippedOverlays] };
   };
 }

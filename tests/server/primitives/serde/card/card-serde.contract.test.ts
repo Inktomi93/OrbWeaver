@@ -132,6 +132,55 @@ describe("readCardJson reads each wire spec into the canonical card", () => {
     ).toMatchObject({ name: "Cleo", description: "A clever fox.", scenario: "a meadow", greetings: [{ text: "*grins*" }], exampleMessages: "{{user}}: hi" });
   });
 
+  // The read data holds only the card schema's own keys: a source spelling or an unknown key in it would be written
+  // back out by the export.
+  test("a V2, a V1 and a Pygmalion card normalise to the card schema's data shape, and a malformed field is named", () => {
+    const read = (card: unknown): ReturnType<typeof readCardJson> => readCardJson(present(parseJsonText(JSON.stringify(card))), FALLBACK);
+    const v2 = read(
+      wireCard(
+        '{"name":"Aria","description":"A bard.","personality":7,"first_mes":"Hi","alternate_greetings":["Yo",7],"tags":["bard"],"vendor_x":{"a":1}}',
+        "chara_card_v2",
+        "2.0",
+      ),
+    );
+    expect(v2.data).toEqual({ name: "Aria", description: "A bard.", ["first_mes"]: "Hi", ["alternate_greetings"]: ["Yo"], tags: ["bard"] });
+    expect(v2.notes.map(({ field }) => field).toSorted()).toEqual(["data.alternate_greetings", "data.personality"]);
+    expect(v2.card).toMatchObject({ personality: null, greetings: [{ text: "Hi" }, { text: "Yo" }] });
+
+    const v1 = read(json('{"name":"Bryn","description":"A gruff smith.","first_mes":"What?","creatorcomment":"by Bryn","tags":["smith"]}'));
+    expect(v1.data).toEqual({ name: "Bryn", description: "A gruff smith.", ["first_mes"]: "What?", ["creator_notes"]: "by Bryn", tags: ["smith"] });
+
+    const pygmalion = read(
+      json(
+        '{"char_name":"Cleo","char_persona":"A clever fox.","char_greeting":"*grins*","world_scenario":"a meadow","example_dialogue":"{{user}}: hi","creatorcomment":"by fox","tags":["fox"]}',
+      ),
+    );
+    expect(pygmalion.data).toEqual({
+      name: "Cleo",
+      description: "A clever fox.",
+      ["first_mes"]: "*grins*",
+      scenario: "a meadow",
+      ["mes_example"]: "{{user}}: hi",
+      ["creator_notes"]: "by fox",
+      tags: ["fox"],
+    });
+    // The control: a clean card carries no note, so the two above are verdicts on the malformed fields.
+    expect([...v1.notes, ...pygmalion.notes]).toEqual([]);
+  });
+
+  test.each([
+    { label: "a book that is a string", data: '{"character_book":"junk"}', field: "data.character_book" },
+    { label: "a book that is a number", data: '{"character_book":5}', field: "data.character_book" },
+    { label: "a book whose entries are a number", data: '{"character_book":{"entries":5}}', field: "data.character_book.entries" },
+    { label: "a depth prompt that is a string", data: '{"extensions":{"depth_prompt":"x"}}', field: "data.extensions.depth_prompt" },
+    { label: "a favourite flag that is a string", data: '{"extensions":{"fav":"yes"}}', field: "data.extensions.fav" },
+    { label: "a script list that is an object", data: '{"extensions":{"regex_scripts":{"a":1}}}', field: "data.extensions.regex_scripts" },
+  ])("$label drops and is named", ({ data, field }) => {
+    const read = readCardJson(present(parseJsonText(JSON.stringify(wireCard(`{"name":"Aria",${data.slice(1)}`)))), FALLBACK);
+    expect(read.notes.map((note) => note.field)).toEqual([field]);
+    expect(read.card.name).toBe("Aria");
+  });
+
   test("a card with no name takes the fallback, and the placeholder note is dropped", () => {
     expect(importCard(json('{"data":{"description":"x"}}'), FALLBACK).name).toBe(FALLBACK);
     expect(importCard(json('{"data":{"name":"X","creator_notes":"Creator\'s notes go here."}}'), FALLBACK).creatorNotes).toBeNull();

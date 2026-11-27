@@ -192,6 +192,47 @@ const regexScriptCardFieldsSchema = regexScriptBehaviorFields.extend({
   disabled: z.boolean().optional(),
 });
 
+// A card script in SillyTavern's own spelling: every field is written beside the two axes on export
+// ({@link stRegexScriptFields}), and the lift reads each one back through its own schema ({@link stSpelling}).
+const stRegexScriptFieldsSchema = z
+  .object({
+    scriptName: z.string(),
+    disabled: z.boolean(),
+    placement: z.array(z.number()),
+    markdownOnly: z.boolean(),
+    promptOnly: z.boolean(),
+    minDepth: z.number().nullable(),
+    maxDepth: z.number().nullable(),
+  })
+  .strip();
+
+/** A card script in SillyTavern's own spelling, written beside the two axes. */
+export type StRegexScriptFields = Readonly<z.output<typeof stRegexScriptFieldsSchema>>;
+
+/** SillyTavern's spelling as one card-wire script carries it: a field that fails its own schema reads as absent. */
+type StSpelling = { readonly [K in keyof StRegexScriptFields]: StRegexScriptFields[K] | undefined };
+
+function stField<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
+  const parsed = schema.safeParse(value);
+  return parsed.success ? parsed.data : undefined;
+}
+
+// The placement keeps only its numbered members, one at a time: a member of this app's own spelling (a target name)
+// sits beside them in an older file, and SillyTavern's dialect is the list that holds a number.
+function stSpelling(obj: Readonly<Record<string, unknown>>): StSpelling {
+  const fields = stRegexScriptFieldsSchema.shape;
+  const placement = obj["placement"];
+  return {
+    scriptName: stField(fields.scriptName, obj["scriptName"]),
+    disabled: stField(fields.disabled, obj["disabled"]),
+    placement: Array.isArray(placement) ? placement.flatMap((member) => stField(fields.placement.element, member) ?? []) : undefined,
+    markdownOnly: stField(fields.markdownOnly, obj["markdownOnly"]),
+    promptOnly: stField(fields.promptOnly, obj["promptOnly"]),
+    minDepth: stField(fields.minDepth, obj["minDepth"]),
+    maxDepth: stField(fields.maxDepth, obj["maxDepth"]),
+  };
+}
+
 /** SillyTavern's NUMERIC placement → orbweaver's target (SillyTavern `public/scripts/extensions/regex/engine.js`
  *  `regex_placement`: MD_DISPLAY 0 · USER_INPUT 1 · AI_OUTPUT 2 · SLASH_COMMAND 3 · WORLD_INFO 5 · REASONING 6).
  *  `0` is absent: it is SillyTavern's retired display member ({@link ST_RETIRED_DISPLAY_PLACEMENT}). `3` is absent: it is
@@ -215,7 +256,7 @@ const ST_RETIRED_DISPLAY_PLACEMENT = 0;
  *  {@link ST_RETIRED_DISPLAY_PLACEMENT}. */
 export type StScriptList = "global" | "scoped";
 
-function readsRetiredDisplay(list: StScriptList, member: unknown): boolean {
+function readsRetiredDisplay(list: StScriptList, member: number): boolean {
   return list === "global" && member === ST_RETIRED_DISPLAY_PLACEMENT;
 }
 
@@ -225,13 +266,8 @@ export function stPlacementsWithoutTarget(candidate: unknown, list: StScriptList
   if (typeof candidate !== "object" || candidate === null || Array.isArray(candidate)) {
     return [];
   }
-  const obj = candidate as Record<string, unknown>;
-  if (!isStDialect(obj)) {
-    return [];
-  }
-  return obj.placement.filter(
-    (member): member is number => typeof member === "number" && !readsRetiredDisplay(list, member) && ST_REGEX_TARGET_BY_NUMBER[member] === undefined,
-  );
+  const placement = stSpelling(candidate as Record<string, unknown>).placement ?? [];
+  return placement.filter((member) => !readsRetiredDisplay(list, member) && ST_REGEX_TARGET_BY_NUMBER[member] === undefined);
 }
 
 const ST_SUBSTITUTE_MODES: readonly unknown[] = Object.values(SubstituteFindRegex);
@@ -249,7 +285,7 @@ export function stScriptPatternCompiles(candidate: unknown): boolean {
   }
   const obj = candidate as Record<string, unknown>;
   const findRegex = obj["findRegex"];
-  if (!isStDialect(obj) || typeof findRegex !== "string") {
+  if (!isStDialect(stSpelling(obj)) || typeof findRegex !== "string") {
     return true;
   }
   const mode = obj["substituteRegex"] === undefined ? undefined : stSubstituteRegex(obj["substituteRegex"]);
@@ -275,7 +311,7 @@ function stPasses(markdownOnly: boolean, promptOnly: boolean): RegexPass[] {
 
 /** SillyTavern's depth pair, by its own gate: a floor applies when it is a number of at least -1, a ceiling when it
  *  is a number of at least 0. No bound at all is no depth. */
-function stDepth(minDepth: unknown, maxDepth: unknown): RegexDepth | undefined {
+function stDepth(minDepth: number | null | undefined, maxDepth: number | null | undefined): RegexDepth | undefined {
   const min = typeof minDepth === "number" && Number.isInteger(minDepth) && minDepth >= REGEX_DEPTH_FLOOR ? minDepth : REGEX_DEPTH_FLOOR;
   const max = typeof maxDepth === "number" && Number.isInteger(maxDepth) && maxDepth >= 0 ? maxDepth : null;
   return min === REGEX_DEPTH_FLOOR && max === null ? undefined : { min, max };
@@ -285,21 +321,37 @@ function stDepth(minDepth: unknown, maxDepth: unknown): RegexDepth | undefined {
  *  are SillyTavern's spellings too, and each wins over this app's own beside it, so a file exported here and edited
  *  there comes back as edited. Depth and an author scope ride only beside an ephemeral pass, since SillyTavern's save
  *  calls pass neither; the author scope is this app's alone and is carried through. */
-function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unknown[], list: StScriptList): Record<string, unknown> {
-  const { placement: _placement, markdownOnly, promptOnly, minDepth, maxDepth, scriptName, targets: _t, passes: _p, depth: _d, authors, ...rest } = obj;
-  const retired = placement.some((member) => readsRetiredDisplay(list, member));
-  const passes = retired ? stPasses(true, true) : stPasses(markdownOnly === true, promptOnly === true);
+function liftStScriptWire(
+  obj: Record<string, unknown>,
+  st: StSpelling & { readonly placement: readonly number[] },
+  list: StScriptList,
+): Record<string, unknown> {
+  const {
+    placement: _placement,
+    markdownOnly: _markdownOnly,
+    promptOnly: _promptOnly,
+    minDepth: _minDepth,
+    maxDepth: _maxDepth,
+    scriptName: _scriptName,
+    targets: _t,
+    passes: _p,
+    depth: _d,
+    authors,
+    ...rest
+  } = obj;
+  const retired = st.placement.some((member) => readsRetiredDisplay(list, member));
+  const passes = retired ? stPasses(true, true) : stPasses(st.markdownOnly === true, st.promptOnly === true);
   const ephemeral = runsEphemeral(passes);
-  const depth = ephemeral ? stDepth(minDepth, maxDepth) : undefined;
-  const members = placement.filter((member) => !readsRetiredDisplay(list, member));
+  const depth = ephemeral ? stDepth(st.minDepth, st.maxDepth) : undefined;
+  const members = st.placement.filter((member) => !readsRetiredDisplay(list, member));
   const targets =
     retired && members.length === 0
       ? [...REGEX_TARGETS]
-      : REGEX_TARGETS.filter((target) => members.some((member) => typeof member === "number" && ST_REGEX_TARGET_BY_NUMBER[member] === target));
+      : REGEX_TARGETS.filter((target) => members.some((member) => ST_REGEX_TARGET_BY_NUMBER[member] === target));
   return {
     ...rest,
-    name: typeof scriptName === "string" ? scriptName : rest["name"],
-    ...(typeof rest["disabled"] === "boolean" ? { enabled: !rest["disabled"] } : {}),
+    name: st.scriptName ?? rest["name"],
+    ...(st.disabled === undefined ? {} : { enabled: !st.disabled }),
     // A script whose passes read none of its targets, or whose pattern does not compile, runs nowhere: it is kept, so
     // the owner can fix it, but switched off, so the library never shows an enabled script that does nothing.
     ...(regexBehaviorReachesText({ targets, passes }) && stScriptPatternCompiles(obj) ? {} : { enabled: false }),
@@ -314,9 +366,8 @@ function liftStScriptWire(obj: Record<string, unknown>, placement: readonly unkn
 /** Whether a card-wire script is in SillyTavern's dialect: its placement holds numbers. A file exported here carries
  *  both spellings, and SillyTavern's wins, so an edit made there comes back; its spelling holds every axis but the
  *  author scope, which the lift carries through untouched. */
-function isStDialect(obj: Record<string, unknown>): obj is Record<string, unknown> & { readonly placement: readonly unknown[] } {
-  const placement = obj["placement"];
-  return Array.isArray(placement) && placement.some((member) => typeof member === "number");
+function isStDialect(st: StSpelling): st is StSpelling & { readonly placement: readonly number[] } {
+  return st.placement !== undefined && st.placement.length > 0;
 }
 
 // ── THE PLACEMENT-SET SHAPE, lifted at the file boundaries ─────────────────────────────────────────────────────
@@ -408,7 +459,8 @@ function normalizeCardScriptWire(raw: unknown, list: StScriptList): unknown {
     return raw;
   }
   const obj = raw as Record<string, unknown>;
-  return isStDialect(obj) ? liftStScriptWire(obj, obj.placement, list) : liftPlacementSetBehavior(obj);
+  const st = stSpelling(obj);
+  return isStDialect(st) ? liftStScriptWire(obj, st, list) : liftPlacementSetBehavior(obj);
 }
 
 const liftedCardScriptSchema = regexScriptCardFieldsSchema.superRefine(behaviorCoheres).transform(({ enabled, disabled, ...rest }) => ({
@@ -518,17 +570,6 @@ export const regexScriptCardViewSchema = regexScriptBehaviorFields
     authors: regexAuthorScopeSchema.strict().optional(),
   })
   .superRefine(behaviorCoheres) satisfies z.ZodType<RegexScriptCard>;
-
-/** A card script in SillyTavern's own spelling, written beside the two axes. */
-export interface StRegexScriptFields {
-  readonly scriptName: string;
-  readonly disabled: boolean;
-  readonly placement: readonly number[];
-  readonly markdownOnly: boolean;
-  readonly promptOnly: boolean;
-  readonly minDepth: number | null;
-  readonly maxDepth: number | null;
-}
 
 const ST_NUMBER_BY_TARGET = new Map(Object.entries(ST_REGEX_TARGET_BY_NUMBER).map(([number, target]) => [target, Number(number)]));
 

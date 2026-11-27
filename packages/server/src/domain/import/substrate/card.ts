@@ -1,7 +1,8 @@
 // domain/import/substrate/card — pure bytes/string in → ParsedCard out (or null on unreadable). Composes
-// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (readCardJson). Adds import-specific bits the serde
-// core doesn't own: the whole-file importHash (dedup oracle over raw bytes, distinct from cardContentHash),
-// the flatten-to-create-input validation seam, and card tag extraction (readCardJson drops data.tags).
+// png-card-chunk (PNG tEXt/zTXt decode) + #primitives/serde/card (readCardJson, which reads every plane the card
+// carries through the card schema). Adds import-specific bits the serde core doesn't own: the whole-file importHash
+// (dedup oracle over raw bytes, distinct from cardContentHash), the embedded book's column narrowing, and the
+// flatten-to-create-input validation seam.
 //
 // Pure: no DB, no fs, no logger. Text that is not JSON returns null; a card the import refuses for what it holds
 // (nesting past JSON_MAX_DEPTH, an embedded book the column refuses) throws ImportCardError; any other throw is a defect.
@@ -9,15 +10,13 @@
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import {
   ATTACHED_BOOKS_WIRE_KEY,
-  attachedBookRefSchema,
   CHARACTER_BACKGROUND_WIRE_KEY,
   CHARACTER_HANDLE_WIRE_KEY,
   createCharacterSchema,
   repairImportedCardInput,
 } from "@orb/contracts/character";
-import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
+import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY } from "@orb/contracts/regex";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, EntryMetadata } from "@orb/contracts/world-info";
 import { narrowedEntryMetadataSchema } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, RegexScriptId, UserId } from "@orb/kit/ids";
@@ -25,10 +24,11 @@ import { JSON_MAX_DEPTH, nestsPastJsonMaxDepth, parseJsonText } from "@orb/kit/j
 import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
-import { cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, readCardJson, selectBestCharacterBook } from "#primitives/serde/card";
+import type { CardBookRead, CardData } from "#primitives/serde/card";
+import { cardImportHash, readCardJson } from "#primitives/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
 import type { CardIdentityHashes, CurrentCardIdentity, ExportCurrentCard, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
-import { carriedHandle, requestedHandle } from "./handle.ts";
+import { requestedHandle } from "./handle.ts";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
 const UTF8_BOM = 0xfe_ff;
@@ -51,18 +51,14 @@ interface ParsedCard {
   /** The asset background an orbweaver export carried, re-linked by its hash at create; null when none. Not
    *  part of the identity. */
   readonly background: ThemeBackground | null;
-  /** Each regex script the reader refused or placement it lost, as one line the import names. Beside the card, never
-   *  in it, so it is not part of the identity. */
-  readonly scriptNotes: readonly string[];
+  /** Each field the reader left out, regex script it refused or placement it lost, as one line the import names.
+   *  Beside the card, never in it, so it is not part of the identity. */
+  readonly notes: readonly string[];
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
 // An exported card always names itself, so the fallback never enters a seat card's identity.
 const SEAT_CARD_FALLBACK_NAME = "Imported Character";
-
-function asRecord(v: unknown): Record<string, unknown> | null {
-  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-}
 
 // Narrowed at the parse, so a card whose embedded book the column refuses fails before its character is written.
 function narrowedLoreMetadata(raw: Record<string, unknown>): EntryMetadata | null {
@@ -73,113 +69,25 @@ function narrowedLoreMetadata(raw: Record<string, unknown>): EntryMetadata | nul
   return narrowed.data;
 }
 
-// selectBestCharacterBook disambiguates a card that embeds a book twice (most-named-entries wins).
-function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null {
-  const root = asRecord(raw);
-  if (root === null) {
+// The book the serde read, with each entry's metadata narrowed for its column. A book without entries carries none.
+function bulkImportLorebook(book: CardBookRead | null): BulkImportLorebookInput | null {
+  if (book === null || book.entries.length === 0) {
     return null;
   }
-  const data = asRecord(root["data"]) ?? root;
-  const book = asRecord(selectBestCharacterBook(data["character_book"], root["character_book"]));
-  if (book === null) {
-    return null;
-  }
-  const entries = extractLorebook(book).map((entry) => ({
-    ...loreEntryColumns(entry),
-    metadata: narrowedLoreMetadata(loreEntryMetadata(entry)),
-  }));
-  if (entries.length === 0) {
-    return null;
-  }
-  const name = typeof book["name"] === "string" && book["name"].trim().length > 0 ? book["name"] : DEFAULT_BOOK_NAME;
-  const description = typeof book["description"] === "string" ? book["description"] : null;
-  return { name, description, entries };
-}
-
-// pull the orbweaver-namespaced attached-book references off `data.orbweaver_attached_books` (V3
-// nests real fields under `data`; a bare root is tolerated). Each candidate is validated through the
-// canonical schema — a foreign/malformed entry is dropped, never thrown. The ownership gate runs later at
-// the re-link op; this only shapes the ids + roles.
-function extractAttachedBooks(raw: unknown): AttachedBookRef[] {
-  const root = asRecord(raw);
-  if (root === null) {
-    return [];
-  }
-  const data = asRecord(root["data"]) ?? root;
-  const candidates = data[ATTACHED_BOOKS_WIRE_KEY];
-  if (!Array.isArray(candidates)) {
-    return [];
-  }
-  const out: AttachedBookRef[] = [];
-  for (const candidate of candidates) {
-    const parsed = attachedBookRefSchema.safeParse(candidate);
-    if (parsed.success) {
-      out.push(parsed.data);
-    }
-  }
-  return out;
-}
-
-// D121-E twin of `extractAttachedBooks`: pull the orbweaver-namespaced attached-SCRIPT references off
-// `data.orbweaver_attached_regex_scripts`. Each candidate is validated through the canonical ref schema — a
-// foreign/malformed entry is dropped, never thrown. The OWNERSHIP gate runs later at the lift op (a
-// reference naming a row this owner does not have simply resolves to nothing).
-function extractAttachedRegexScripts(raw: unknown): RegexScriptId[] {
-  const root = asRecord(raw);
-  if (root === null) {
-    return [];
-  }
-  const data = asRecord(root["data"]) ?? root;
-  const candidates = data[ATTACHED_REGEX_SCRIPTS_WIRE_KEY];
-  if (!Array.isArray(candidates)) {
-    return [];
-  }
-  const out: RegexScriptId[] = [];
-  for (const candidate of candidates) {
-    const parsed = attachedRegexScriptRefSchema.safeParse(candidate);
-    if (parsed.success) {
-      out.push(parsed.data.regexScriptId);
-    }
-  }
-  return out;
-}
-
-function extractCarriedHandle(raw: unknown): CharacterHandle | null {
-  const root = asRecord(raw);
-  if (root === null) {
-    return null;
-  }
-  const data = asRecord(root["data"]) ?? root;
-  return carriedHandle(data[CHARACTER_HANDLE_WIRE_KEY]);
+  const name = book.name !== undefined && book.name.trim().length > 0 ? book.name : DEFAULT_BOOK_NAME;
+  const entries = book.entries.map(({ columns, metadata }) => ({ ...columns, metadata: narrowedLoreMetadata(metadata) }));
+  return { name, description: book.description ?? null, entries };
 }
 
 // Only an asset source with its hash re-links; anything else (a foreign or malformed value) carries nothing.
-function extractCarriedBackground(raw: unknown): ThemeBackground | null {
-  const root = asRecord(raw);
-  if (root === null) {
-    return null;
-  }
-  const data = asRecord(root["data"]) ?? root;
-  const parsed = themeBackgroundSchema.safeParse(data[CHARACTER_BACKGROUND_WIRE_KEY]);
-  return parsed.success && parsed.data.kind === "asset" && parsed.data.assetHash.length > 0 ? parsed.data : null;
+function carriedBackground(data: CardData): ThemeBackground | null {
+  const background = data[CHARACTER_BACKGROUND_WIRE_KEY];
+  return background !== undefined && background.kind === "asset" && background.assetHash.length > 0 ? background : null;
 }
 
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
-}
-
-// Raw strings, no normalization here — the tag resolve-or-create chokepoint owns the one canonicalization.
-function extractCardTags(raw: unknown): string[] {
-  if (typeof raw !== "object" || raw === null) {
-    return [];
-  }
-  const root = raw as Record<string, unknown>;
-  const data = typeof root["data"] === "object" && root["data"] !== null ? (root["data"] as Record<string, unknown>) : root;
-  const fromData = Array.isArray(data["tags"]) ? data["tags"] : [];
-  const rootTags = root["tags"];
-  const candidate = fromData.length > 0 || !Array.isArray(rootTags) ? fromData : rootTags;
-  return candidate.filter((entry): entry is string => typeof entry === "string");
 }
 
 function fromText(text: string, fallbackName: string, artHash: string | null): ParsedCard | null {
@@ -197,14 +105,15 @@ function fromText(text: string, fallbackName: string, artHash: string | null): P
   const read = readCardJson(parsed, fallbackName);
   return {
     card: read.card,
-    scriptNotes: read.scriptNotes.map(({ field, reason }) => `\`${field}\` — ${reason}`),
-    tags: extractCardTags(parsed),
-    book: extractBulkImportLorebook(parsed),
-    attachedBooks: extractAttachedBooks(parsed),
-    attachedRegexScripts: extractAttachedRegexScripts(parsed),
+    notes: read.notes.map(({ field, reason }) => `\`${field}\` — ${reason}`),
+    // Raw strings, no normalization here — the tag resolve-or-create chokepoint owns the one canonicalization.
+    tags: read.data.tags ?? [],
+    book: bulkImportLorebook(read.book),
+    attachedBooks: read.data[ATTACHED_BOOKS_WIRE_KEY] ?? [],
+    attachedRegexScripts: (read.data[ATTACHED_REGEX_SCRIPTS_WIRE_KEY] ?? []).map(({ regexScriptId }) => regexScriptId),
     artHash,
-    handle: extractCarriedHandle(parsed),
-    background: extractCarriedBackground(parsed),
+    handle: read.data[CHARACTER_HANDLE_WIRE_KEY] ?? null,
+    background: carriedBackground(read.data),
   };
 }
 

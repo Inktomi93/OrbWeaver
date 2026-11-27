@@ -8,6 +8,10 @@
 // two pictures is two characters (an alt-art version). The one exception, a JSON card followed by its PNG,
 // is the import verb's: the row takes the art when it has none.
 //
+// The import reads every card field through its own schema in `@orb/contracts/character`, the shapes buildCardV3
+// validates its output by, so the two halves cannot drift. A field the card spells wrong drops to its default and is
+// named in the read's notes; it never refuses the card, and no key outside the schema enters the read.
+//
 // Character-Card V2 AND V3 are read first-class into the ONE canonical model: V3 is a strict SUPERSET of V2,
 // so the shared `data.*` reads cover both, and readCardJson captures the source `spec` so buildCardV3
 // round-trips it (V2→V2, V3→V3). V3-native content is now DECOMPOSED into typed columns: `nickname`/`source`/
@@ -29,6 +33,10 @@ import {
   CHARA_CARD_V3_SPEC,
   CHARACTER_BACKGROUND_WIRE_KEY,
   CHARACTER_HANDLE_WIRE_KEY,
+  characterBookEntryFields,
+  characterBookFields,
+  characterCardDataFields,
+  characterCardV3Fields,
   characterCardV3Schema,
   portableCharacterHandle,
 } from "@orb/contracts/character";
@@ -60,12 +68,10 @@ import {
   ST_SLOT_OF_ENTRY_POSITION,
   ST_WORLD_INFO_POSITION,
 } from "@orb/kit/world-info";
+import { z } from "zod";
 import type { StScriptNote } from "#primitives/serde/regex";
 import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 
-function str(v: unknown): string {
-  return typeof v === "string" ? v : "";
-}
 function nullIfEmpty(s: string): string | null {
   return s.trim().length > 0 ? s : null;
 }
@@ -77,98 +83,209 @@ function firstNonEmpty(...vals: string[]): string | null {
   }
   return null;
 }
-function strArray(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+
+// ── The tolerant field read ──────────────────────────────────────────────────────────────────────────────
+// Every card field is read through its own schema in `@orb/contracts/character`, one field at a time, so a field the
+// card spells wrong drops to its default alone and never refuses the card. A value that is absent or JSON `null` has
+// nothing to drop. A list (or the multilingual map) keeps every item its schema reads.
+
+/** How a field that fails its schema keeps what it can: a list item by item, a map entry by entry. */
+type FieldHeal = "items" | "entries";
+
+const MALFORMED_FIELD = "not a readable value for this field, so it was left out";
+
+function lostItems(lost: number, total: number): string {
+  return `${String(lost)} of its ${String(total)} items are not readable values for this field, so they were left out`;
 }
 
-// A permissive typed view over the dynamic, multi-spec card JSON. Every field is optional `unknown` (cards
-// are untrusted); dot access documents exactly what we read while keeping the index-signature lint quiet.
-interface RawCard {
-  spec?: unknown;
-  data?: unknown;
-  name?: unknown;
-  description?: unknown;
-  personality?: unknown;
-  scenario?: unknown;
-  first_mes?: unknown;
-  mes_example?: unknown;
-  system_prompt?: unknown;
-  post_history_instructions?: unknown;
-  creator?: unknown;
-  creator_notes?: unknown;
-  creator_notes_multilingual?: unknown;
-  creatorcomment?: unknown;
-  alternate_greetings?: unknown;
-  group_only_greetings?: unknown;
-  character_version?: unknown;
-  // V3-additive `data.*` promotions read into typed columns.
-  nickname?: unknown;
-  source?: unknown;
-  creation_date?: unknown;
-  modification_date?: unknown;
-  // Pygmalion Gradio variant.
-  char_name?: unknown;
-  char_persona?: unknown;
-  char_greeting?: unknown;
-  example_dialogue?: unknown;
-  world_scenario?: unknown;
-  extensions?: {
-    depth_prompt?: unknown;
-    regex_scripts?: unknown;
-    fav?: unknown;
-    [key: string]: unknown;
-  } | null;
-  // V2-era cards put `regex_scripts` at the data root (no extensions wrapper); V3 nests it under
-  // `data.extensions.regex_scripts`. We accept either.
-  regex_scripts?: unknown;
+// A caught schema (one ending in `.catch`) answers success with `undefined` for a value it refused.
+function readsAs(schema: z.core.$ZodType, value: unknown): boolean {
+  const parsed = z.safeParse(schema, value);
+  return parsed.success && parsed.data !== undefined;
 }
 
-/** Pygmalion-Gradio (`char_name`…) → the V2 `{ data }` field set. */
-function fromPygmalion(card: RawCard): RawCard {
+/** One field read: where it sits, the notes a drop is named in, and how a failing value keeps what it can. `notes` is
+ *  null where a drop loses nothing the owner wrote: the raw value is kept whole elsewhere (the residue, an entry's
+ *  metadata), or the field is a reference the app carries for itself ({@link CARRIED_FIELDS}). */
+interface FieldRead {
+  readonly value: unknown;
+  readonly field: string;
+  readonly notes: StScriptNote[] | null;
+  readonly heal?: FieldHeal | undefined;
+}
+
+/** The part of the value its schema reads, as the card spelled it, or undefined when none is. */
+function keptRaw(schema: z.core.$ZodType, { value, field, notes, heal }: FieldRead): unknown {
+  if (value === undefined || value === null || readsAs(schema, value)) {
+    return value ?? undefined;
+  }
+  if (heal === "items" && Array.isArray(value)) {
+    const kept = value.filter((item) => readsAs(schema, [item]));
+    notes?.push({ field, reason: lostItems(value.length - kept.length, value.length) });
+    return kept;
+  }
+  if (heal === "entries" && isPlainObject(value)) {
+    const entries = Object.entries(value);
+    const kept = entries.filter(([key, item]) => readsAs(schema, { [key]: item }));
+    notes?.push({ field, reason: lostItems(entries.length - kept.length, entries.length) });
+    return Object.fromEntries(kept);
+  }
+  notes?.push({ field, reason: MALFORMED_FIELD });
+  return undefined;
+}
+
+function readValue<T>(schema: z.ZodType<T>, read: FieldRead): T | undefined {
+  const kept = keptRaw(schema, read);
+  return kept === undefined ? undefined : schema.parse(kept);
+}
+
+/** Every field of a partial field object, each read through its own schema. The object parse then reads only what
+ *  each field schema already read, so it cannot refuse. */
+function readFields<Shape extends z.core.$ZodShape>(fields: z.ZodObject<Shape>, read: (key: string) => FieldRead): z.output<z.ZodObject<Shape>> {
+  const kept: Record<string, unknown> = {};
+  for (const [key, schema] of Object.entries(fields.shape)) {
+    kept[key] = keptRaw(schema, read(key));
+  }
+  return fields.parse(kept);
+}
+
+// ── The card's data block in the card schema's shape ─────────────────────────────────────────────────────
+
+const CARD_DATA = characterCardDataFields.shape;
+type CardDataKey = keyof typeof CARD_DATA;
+
+// The book is read apart ({@link CardBookRead}): its entries keep their whole source spelling as metadata.
+const cardDataRead = characterCardDataFields.omit({ character_book: true }).partial();
+
+/** The card's `data` block in the card schema's shape: only the schema's own keys, each read through its own
+ *  schema, whatever spec the card was written in. The embedded book is {@link CardBookRead}. */
+export type CardData = z.output<typeof cardDataRead>;
+
+const CARD_DATA_HEAL: Readonly<Partial<Record<string, FieldHeal>>> = {
+  ["alternate_greetings"]: "items",
+  ["group_only_greetings"]: "items",
+  tags: "items",
+  source: "items",
+  assets: "items",
+  [ATTACHED_BOOKS_WIRE_KEY]: "items",
+  [ATTACHED_REGEX_SCRIPTS_WIRE_KEY]: "items",
+  ["creator_notes_multilingual"]: "entries",
+} satisfies Partial<Record<CardDataKey, FieldHeal>>;
+
+/** The schema fields with no typed column: they ride {@link residualData} verbatim, so a read of them loses nothing. */
+const RESIDUE_FIELDS = ["assets", "creator_notes_multilingual"] as const satisfies readonly CardDataKey[];
+
+function isResidueField(key: string): boolean {
+  return RESIDUE_FIELDS.some((field) => field === key);
+}
+
+/** The references an export of this app carries beside the card: a foreign or malformed one is no card content, and
+ *  the restore goes on without it (a handle falls back to the name slug, a reference attaches nothing). */
+const CARRIED_FIELDS = [
+  ATTACHED_BOOKS_WIRE_KEY,
+  ATTACHED_REGEX_SCRIPTS_WIRE_KEY,
+  CHARACTER_HANDLE_WIRE_KEY,
+  CHARACTER_BACKGROUND_WIRE_KEY,
+] as const satisfies readonly CardDataKey[];
+
+// The notes a field's drop is named in, or null when the drop loses nothing the owner wrote.
+function notesFor(key: string, notes: StScriptNote[]): StScriptNote[] | null {
+  return isResidueField(key) || CARRIED_FIELDS.some((field) => field === key) ? null : notes;
+}
+
+/** Where one card field sits in the file: its value and its path, the path a note names it by. */
+interface CardField {
+  readonly value: unknown;
+  readonly field: string;
+}
+
+// A card written before the `data` block (V1, Pygmalion-Gradio) spells some fields under other root keys. Each card
+// field reads the first of its root keys holding a value; a field without a row is not read from such a card.
+// Keyed by schema field (each table `satisfies` that); a read looks a field up by the key the field object iterates.
+type LegacyFieldKeys = Readonly<Partial<Record<string, readonly string[]>>>;
+type LegacyFieldTable = Partial<Record<CardDataKey, readonly string[]>>;
+
+// Not card content: the planes an import carries beside it, read where the card's root holds them.
+const LEGACY_CARRIED_KEYS: LegacyFieldKeys = {
+  tags: ["tags"],
+  ["character_book"]: ["character_book"],
+  [ATTACHED_BOOKS_WIRE_KEY]: [ATTACHED_BOOKS_WIRE_KEY],
+  [ATTACHED_REGEX_SCRIPTS_WIRE_KEY]: [ATTACHED_REGEX_SCRIPTS_WIRE_KEY],
+  [CHARACTER_HANDLE_WIRE_KEY]: [CHARACTER_HANDLE_WIRE_KEY],
+  [CHARACTER_BACKGROUND_WIRE_KEY]: [CHARACTER_BACKGROUND_WIRE_KEY],
+} satisfies LegacyFieldTable;
+
+const V1_FIELD_KEYS: LegacyFieldKeys = {
+  name: ["name"],
+  description: ["description"],
+  personality: ["personality"],
+  scenario: ["scenario"],
+  ["first_mes"]: ["first_mes"],
+  ["mes_example"]: ["mes_example"],
+  creator: ["creator"],
+  ["creator_notes"]: ["creatorcomment", "creator_notes"],
+  ...LEGACY_CARRIED_KEYS,
+} satisfies LegacyFieldTable;
+
+const PYGMALION_FIELD_KEYS: LegacyFieldKeys = {
+  name: ["char_name"],
+  description: ["char_persona"],
+  ["first_mes"]: ["char_greeting"],
+  ["mes_example"]: ["example_dialogue"],
+  scenario: ["world_scenario"],
+  creator: ["creator"],
+  ["creator_notes"]: ["creator_notes", "creatorcomment"],
+  ...LEGACY_CARRIED_KEYS,
+} satisfies LegacyFieldTable;
+
+/** Where a card's fields sit. `data` is the container a V2 or V3 card holds them in (its `data` block, else its root),
+ *  and null for a card the legacy tables read. */
+interface CardLayout {
+  readonly at: (key: string) => CardField;
+  readonly root: Readonly<Record<string, unknown>>;
+  readonly data: Readonly<Record<string, unknown>> | null;
+}
+
+function legacyLayout(root: Readonly<Record<string, unknown>>, table: LegacyFieldKeys): CardLayout {
   return {
-    data: {
-      name: card.char_name ?? "",
-      description: card.char_persona ?? "",
-      first_mes: card.char_greeting ?? "",
-      mes_example: card.example_dialogue ?? "",
-      scenario: card.world_scenario ?? "",
-      personality: "",
-      creator: card.creator ?? "",
-      creator_notes: card.creator_notes ?? card.creatorcomment ?? "",
+    root,
+    data: null,
+    at: (key): CardField => {
+      const keys = table[key] ?? [];
+      const hit = keys.find((candidate) => root[candidate] !== undefined && root[candidate] !== null) ?? keys[0];
+      return hit === undefined ? { value: undefined, field: key } : { value: root[hit], field: hit };
     },
   };
 }
 
-/** V1 (root-level fields) → the V2 `{ data }` field set. */
-function fromV1(card: RawCard): RawCard {
-  return {
-    data: {
-      name: card.name ?? "",
-      description: card.description ?? "",
-      personality: card.personality ?? "",
-      scenario: card.scenario ?? "",
-      first_mes: card.first_mes ?? "",
-      mes_example: card.mes_example ?? "",
-      creator: card.creator ?? "",
-      creator_notes: card.creatorcomment ?? card.creator_notes ?? "",
-    },
-  };
-}
-
-/** Normalize V1 / Pygmalion-Gradio card JSON to the V2 `{ data: {...} }` shape. Detection ORDER
- *  (spec/data → char_name Pygmalion → name V1) matches the canonical reader; without it ~5–15% of a
+/** Detection ORDER (spec/data → char_name Pygmalion → name V1) matches the canonical reader; without it a share of a
  *  real corpus fails to import silently. */
-function normalizeCardJson(card: RawCard): RawCard {
-  if ("spec" in card || "data" in card) {
-    return card; // already V2/V3
+function cardLayout(raw: JsonValue): CardLayout {
+  const root = isPlainObject(raw) ? raw : {};
+  if (!("spec" in root || "data" in root)) {
+    if ("char_name" in root) {
+      return legacyLayout(root, PYGMALION_FIELD_KEYS);
+    }
+    if ("name" in root) {
+      return legacyLayout(root, V1_FIELD_KEYS);
+    }
   }
-  if ("char_name" in card) {
-    return fromPygmalion(card);
+  const data = cardDataContainer(raw, root);
+  const prefix = data === root ? "" : "data.";
+  return { root, data, at: (key) => ({ value: data[key], field: `${prefix}${key}` }) };
+}
+
+// The `data` block when it is an object, else the root. An array `data` block (or an array card) holds no field.
+function cardDataContainer(raw: JsonValue, root: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  const nested = root["data"];
+  if (isPlainObject(nested)) {
+    return nested;
   }
-  if ("name" in card) {
-    return fromV1(card);
-  }
-  return card;
+  return Array.isArray(nested) || Array.isArray(raw) ? {} : root;
+}
+
+function readCardData(layout: CardLayout, notes: StScriptNote[]): CardData {
+  return readFields(cardDataRead, (key) => ({ ...layout.at(key), notes: notesFor(key, notes), heal: CARD_DATA_HEAL[key] }));
 }
 
 // ST default for the Character's Note depth when absent / non-numeric.
@@ -177,27 +294,62 @@ const ST_DEFAULT_DEPTH = 4;
 // ST `data.extensions.depth_prompt = { prompt, depth, role }`. Role defaults to `system` (via the ST
 // bimap) to match neo card behaviour.
 function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     return null;
   }
-  const dp = raw as Record<string, unknown>;
-  const prompt = str(dp["prompt"]).trim();
+  const prompt = typeof raw["prompt"] === "string" ? raw["prompt"].trim() : "";
   if (prompt.length === 0) {
     return null;
   }
-  const depthNum = Number(dp["depth"]);
+  const depthNum = Number(raw["depth"]);
   const depth = Number.isFinite(depthNum) && depthNum >= 0 ? Math.floor(depthNum) : ST_DEFAULT_DEPTH;
-  return { prompt, depth, role: messageRoleFromSt(dp["role"]) ?? "system" };
+  return { prompt, depth, role: messageRoleFromSt(raw["role"]) ?? "system" };
 }
+
+// A value the card holds (not absent, not JSON null) in a shape its reader cannot read is named and left out.
+function noteUnreadable(value: unknown, readable: boolean, field: string, notes: StScriptNote[]): void {
+  if (value !== undefined && value !== null && !readable) {
+    notes.push({ field, reason: MALFORMED_FIELD });
+  }
+}
+
+const ST_SCRIPTS_KEY = "regex_scripts";
 
 /** The card's ST regex scripts (the LIFT payload — D121-E: there is no `regexScripts` column any more; the
  *  importer hands these to the regex domain), and a note for each script refused or each placement lost, by its
- *  position. The raw blob is V3 `data.extensions.regex_scripts` or the V2 root `data.regex_scripts`. */
-function parseRegexScripts(data: RawCard): { readonly scripts: RegexScriptCard[]; readonly notes: StScriptNote[] } {
-  const read = Array.isArray(data.extensions?.regex_scripts)
-    ? readStScriptList(data.extensions.regex_scripts, "data.extensions.regex_scripts", "scoped")
-    : readStScriptList(Array.isArray(data.regex_scripts) ? data.regex_scripts : [], "data.regex_scripts", "scoped");
-  return { scripts: read.scripts, notes: stScriptListNotes(read) };
+ *  position. The list is V3 `data.extensions.regex_scripts`, else the V2 root `data.regex_scripts`, which no
+ *  schema field holds. */
+function parseRegexScripts(extensions: CardData["extensions"], layout: CardLayout, notes: StScriptNote[]): RegexScriptCard[] {
+  const nested = extensions?.[ST_SCRIPTS_KEY];
+  const nestedField = `${layout.at("extensions").field}.${ST_SCRIPTS_KEY}`;
+  noteUnreadable(nested, Array.isArray(nested), nestedField, notes);
+  if (Array.isArray(nested)) {
+    const read = readStScriptList(nested, nestedField, "scoped");
+    notes.push(...stScriptListNotes(read));
+    return read.scripts;
+  }
+  const atRoot = layout.data?.[ST_SCRIPTS_KEY];
+  const rootField = layout.at(ST_SCRIPTS_KEY).field;
+  noteUnreadable(atRoot, Array.isArray(atRoot), rootField, notes);
+  const read = readStScriptList(Array.isArray(atRoot) ? atRoot : [], rootField, "scoped");
+  notes.push(...stScriptListNotes(read));
+  return read.scripts;
+}
+
+// The extension keys a card's typed columns own: the Character's Note, the favourite flag and the scripts. Each one the
+// card holds in a shape its reader cannot read is named and left out.
+function extensionPlanes(
+  extensions: CardData["extensions"],
+  layout: CardLayout,
+  notes: StScriptNote[],
+): Pick<CharacterCard, "depthPrompt" | "starred" | "regexScripts"> {
+  const at = layout.at("extensions").field;
+  const depthPrompt = extensions?.["depth_prompt"];
+  noteUnreadable(depthPrompt, isPlainObject(depthPrompt) && ["string", "undefined"].includes(typeof depthPrompt["prompt"]), `${at}.depth_prompt`, notes);
+  const fav = extensions?.["fav"];
+  noteUnreadable(fav, typeof fav === "boolean", `${at}.fav`, notes);
+  // ST's favorite flag → `characters.starred` (strict `true` only — ST writes booleans).
+  return { depthPrompt: parseDepthPrompt(depthPrompt), starred: fav === true, regexScripts: parseRegexScripts(extensions, layout, notes) };
 }
 
 /** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —
@@ -211,55 +363,15 @@ function residualExtensions(data: CardDataJson | null): JsonObject | null {
   return Object.keys(rest).length > 0 ? rest : null;
 }
 
-// Every field with a typed home on `CharacterCard`/`ExportCardFields` — MINUS from the top-level `data.*`
-// object to isolate genuinely-unknown keys. Kept as a Set (not destructured) because the raw
-// `data` object is typed `RawCard` (fixed shape), not a generic record.
-const PROMOTED_DATA_KEYS = new Set([
-  "name",
-  "description",
-  "personality",
-  "scenario",
-  "first_mes",
-  "mes_example",
-  "system_prompt",
-  "post_history_instructions",
-  "creator",
-  "creator_notes",
-  "character_version",
-  "alternate_greetings",
-  // Folded into the `greetings` array (`groupOnly:true` entries) by readCardJson — kept out of `residualData`
-  // so it doesn't double-ride the residual passthrough AND re-emit on export (V3 promotion Phase B).
-  "group_only_greetings",
-  // V3-additive `data.*` fields with a typed column now (were residual until the card-import expansion). Kept
-  // out of `residualData` so they don't double-emit on a round-trip. `creator_notes_multilingual` is NOT here
-  //: it has no typed column, so promoting it out DESTROYED it — it rides the residual passthrough
-  // and only FEEDS `creatorNotes` as a fallback (see {@link foldMultilingualNotes}).
-  "nickname",
-  "source",
-  "creation_date",
-  "modification_date",
-  "extensions",
-  "regex_scripts",
-  "tags",
-  "character_book",
-  // the attached-book references are an external junction (re-linked by id on import), not residual
-  // `data.*` — keep them out of the preserved blob so they don't double-emit on a round-trip.
-  ATTACHED_BOOKS_WIRE_KEY,
-  // D121-E twin of the line above: the attached SCRIPT references are an external junction too.
-  ATTACHED_REGEX_SCRIPTS_WIRE_KEY,
-  // The exported handle is the restore's requested handle, not card content. A residual copy would enter the
-  // import hash, so a character whose handle was renamed would stop deduping against itself.
-  CHARACTER_HANDLE_WIRE_KEY,
-  // The carried background is presentation re-linked onto the importer's own asset, not card content.
-  CHARACTER_BACKGROUND_WIRE_KEY,
-]);
+// The top-level `data.*` keys with a typed home, which the residue leaves out so they never double-emit on a
+// round-trip: every card schema field but the column-less ones, which ride the residue verbatim, plus the V2 root
+// `regex_scripts`. The carried planes are among them: the handle and background are not card content, and a residual
+// copy of the handle would enter the import hash, so a renamed character would stop deduping against itself.
+const PROMOTED_DATA_KEYS: ReadonlySet<string> = new Set([...characterCardDataFields.keyof().options.filter((key) => !isResidueField(key)), "regex_scripts"]);
 
 /** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (the top-level sibling of
- *  {@link residualExtensions}, which only covers `data.extensions.*`). The known ST-V3 `data.*` fields
- *  (`nickname`/`source`/`creation_date`/`modification_date`) are promoted OUT via {@link PROMOTED_DATA_KEYS};
- *  what remains here is genuinely-unknown vendor residue PLUS the column-less V3 fields kept verbatim
- *  (`assets` pending its lane; `creator_notes_multilingual`; `group_only_greetings` folds into the
- *  `greetings` array). Null when nothing is left. */
+ *  {@link residualExtensions}, which only covers `data.extensions.*`): genuinely-unknown vendor residue PLUS the
+ *  column-less V3 fields kept verbatim ({@link RESIDUE_FIELDS}). Null when nothing is left. */
 function residualData(data: CardDataJson | null): JsonObject | null {
   const rest: JsonObject = {};
   for (const [key, value] of Object.entries(data ?? {})) {
@@ -272,10 +384,10 @@ function residualData(data: CardDataJson | null): JsonObject | null {
 
 /** The card's `data` block as the JSON it was decoded from, for the residue: the same container the typed reads
  *  use (`data` when it is an object or array, else the root, an array root included). A V1 or Pygmalion card is
- *  rebuilt into promoted fields only, so it carries no residue and this is null for it. */
+ *  read through its legacy table into promoted fields only, so it carries no residue and this is null for it. */
 type CardDataJson = JsonObject | JsonValue[];
-function cardDataJson(raw: JsonValue, rebuilt: boolean): CardDataJson | null {
-  if (rebuilt) {
+function cardDataJson(raw: JsonValue, layout: CardLayout): CardDataJson | null {
+  if (layout.data === null) {
     return null;
   }
   if (Array.isArray(raw)) {
@@ -302,92 +414,132 @@ const DEFAULT_NOTES_LANGUAGE = "en";
 
 /** V3 `data.creator_notes_multilingual` → the ONE note to display when `creator_notes` carries none (a
  *  map-only card would otherwise import with its notes destroyed). `en` first, else the first non-empty value
- *  in key order; a malformed map yields "" and never throws (tolerant IN). The map itself is NOT consumed —
- *  it rides `residualData` verbatim and re-emits on export, so the fold is additive, never lossy. */
-function foldMultilingualNotes(raw: unknown): string {
-  if (!isPlainObject(raw)) {
-    return "";
-  }
-  const preferred = str(raw[DEFAULT_NOTES_LANGUAGE]);
+ *  in key order. The map itself is NOT consumed — it rides `residualData` verbatim and re-emits on export, so the
+ *  fold is additive, never lossy. */
+function foldMultilingualNotes(notes: CardData["creator_notes_multilingual"]): string {
+  const preferred = notes?.[DEFAULT_NOTES_LANGUAGE] ?? "";
   if (preferred.trim().length > 0) {
     return preferred;
   }
-  for (const value of Object.values(raw)) {
-    const note = str(value);
-    if (note.trim().length > 0) {
-      return note;
-    }
-  }
-  return "";
+  return Object.values(notes ?? {}).find((note) => note.trim().length > 0) ?? "";
 }
 
 /** The wire spec a card was READ from — keyed on the top-level `spec` marker (ST's discriminator). V2/V3 are
- *  preserved so export round-trips them; V1 / Pygmalion / app-authored cards (no `spec`) return `undefined`
- *  and export defaults to V3. Unknown spec strings are treated as `undefined` (tolerant IN — the reader never
- *  throws; a malformed card is caught upstream at the import parser's typed error path). */
-function detectSpec(raw: RawCard): CardSpec | null {
-  const spec = str(raw.spec);
-  return spec === CHARA_CARD_V3_SPEC || spec === CHARA_CARD_V2_SPEC ? spec : null;
+ *  preserved so export round-trips them; V1 / Pygmalion / app-authored cards (no `spec`) return null and export
+ *  defaults to V3. An unknown spec is no note: no card content is lost, and the export writes V3. */
+function detectSpec(layout: CardLayout): CardSpec | null {
+  const spec = characterCardV3Fields.shape.spec.safeParse(layout.root["spec"]);
+  return spec.success ? spec.data : null;
 }
 
-/**
- * Normalize an already-JSON-parsed card object (any spec: V1/Pygmalion/V2/V3) into the canonical
- * `CharacterCard`: the tolerant in half of the serde. `avatarAssetId`/`refinery` are not on the card wire, so both
- * are null; tags and the embedded lorebook are external junctions and are not carried here.
- *
- * Beside the card, a note for each regex script the reader refused or each placement it lost. The notes are never
- * part of the card, so a card's import identity ({@link cardImportHash}) is the same with or without a refused
- * script.
- */
-export function readCardJson(raw: JsonValue, fallbackName: string): { readonly card: CharacterCard; readonly scriptNotes: readonly StScriptNote[] } {
-  const rawCard = (raw ?? {}) as RawCard;
-  const spec = detectSpec(rawCard);
-  const cardJson = normalizeCardJson(rawCard);
-  const data: RawCard = typeof cardJson.data === "object" && cardJson.data !== null ? cardJson.data : cardJson;
-  const residue = cardDataJson(raw, cardJson !== rawCard);
+/** A V2 or V3 card that keeps a field at its root as well as in its `data` block: the root's copy is read when the
+ *  block's is empty. Null for a card whose fields sit at the root. */
+function rootFallback<T>(layout: CardLayout, schema: z.ZodType<T>, key: CardDataKey, notes: StScriptNote[]): T | undefined {
+  if (layout.data === null || layout.data === layout.root) {
+    return undefined;
+  }
+  return readValue(schema, { value: layout.root[key], field: key, notes, heal: CARD_DATA_HEAL[key] });
+}
 
-  const first = str(data.first_mes);
-  const alternates = strArray(data.alternate_greetings);
-  const groupOnly = strArray(data.group_only_greetings);
-  // greetings[0] is THE first message; the rest are alternates (`groupOnly` absent), then the group-only
-  // greetings (`groupOnly:true`, the folded ST `group_only_greetings` — V3 promotion Phase B). Keep the [0]
-  // slot whenever there is any greeting content (even an empty first_mes alongside real alternates/group-only
-  // greetings), else an empty list.
+// greetings[0] is THE first message; the rest are alternates (`groupOnly` absent), then the group-only greetings
+// (`groupOnly:true`, the folded ST `group_only_greetings`). Keep the [0] slot whenever there is any greeting content
+// (even an empty first_mes alongside real alternates/group-only greetings), else an empty list.
+function cardGreetings(data: CardData): CharacterCard["greetings"] {
+  const first = data["first_mes"] ?? "";
+  const alternates = data["alternate_greetings"] ?? [];
+  const groupOnly = data["group_only_greetings"] ?? [];
   const hasGreetingContent = first.trim().length > 0 || alternates.length > 0 || groupOnly.length > 0;
   const greetings: CharacterCard["greetings"] = hasGreetingContent ? [{ text: first }, ...alternates.map((text) => ({ text }))] : [];
   for (const text of groupOnly) {
     greetings.push({ text, groupOnly: true });
   }
-  const scripts = parseRegexScripts(data);
+  return greetings;
+}
 
-  const card: CharacterCard = {
-    name: firstNonEmpty(str(data.name), str(cardJson.name)) ?? fallbackName,
-    description: nullIfEmpty(str(data.description)),
-    personality: nullIfEmpty(str(data.personality)),
-    scenario: nullIfEmpty(str(data.scenario)),
-    greetings,
-    exampleMessages: nullIfEmpty(str(data.mes_example)),
-    systemPrompt: nullIfEmpty(str(data.system_prompt)),
-    postHistoryInstructions: nullIfEmpty(str(data.post_history_instructions)),
-    depthPrompt: parseDepthPrompt(data.extensions?.depth_prompt),
+/** One embedded book entry as the import reads it: the entry columns through the entry schema, and the whole source
+ *  entry kept as its metadata ({@link loreEntryMetadata}). */
+export interface CardBookEntryRead {
+  readonly columns: LoreEntryColumns;
+  readonly metadata: Record<string, unknown>;
+}
+
+/** The card's embedded `character_book` read through the book schema. Null when the card carries no entry. */
+export interface CardBookRead {
+  readonly name: string | undefined;
+  readonly description: string | undefined;
+  readonly entries: readonly CardBookEntryRead[];
+}
+
+/** What one card file holds, read through the card schema. The notes name each field the read left out, each script
+ *  it refused and each placement it lost. They are never part of the card, so a card's import identity
+ *  ({@link cardImportHash}) is the same with or without them. */
+export interface CardRead {
+  readonly card: CharacterCard;
+  readonly data: CardData;
+  readonly book: CardBookRead | null;
+  readonly notes: readonly StScriptNote[];
+}
+
+// The card's free-text fields: an empty one is no value.
+function cardText(
+  data: CardData,
+): Pick<
+  CharacterCard,
+  | "description"
+  | "personality"
+  | "scenario"
+  | "exampleMessages"
+  | "systemPrompt"
+  | "postHistoryInstructions"
+  | "creatorNotes"
+  | "creator"
+  | "cardVersion"
+  | "nickname"
+> {
+  return {
+    description: nullIfEmpty(data.description ?? ""),
+    personality: nullIfEmpty(data.personality ?? ""),
+    scenario: nullIfEmpty(data.scenario ?? ""),
+    exampleMessages: nullIfEmpty(data["mes_example"] ?? ""),
+    systemPrompt: nullIfEmpty(data["system_prompt"] ?? ""),
+    postHistoryInstructions: nullIfEmpty(data["post_history_instructions"] ?? ""),
     // The placeholder-stripped `creator_notes` is the one home; the V3 multilingual map only fills an EMPTY
     // one. The map survives regardless — it rides `residualData`.
     creatorNotes: firstNonEmpty(
-      str(data.creator_notes).replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim(),
-      foldMultilingualNotes(data.creator_notes_multilingual),
+      (data["creator_notes"] ?? "").replace(ST_CREATOR_NOTES_PLACEHOLDER, "").trim(),
+      foldMultilingualNotes(data["creator_notes_multilingual"]),
     ),
-    creator: nullIfEmpty(str(data.creator)),
-    cardVersion: nullIfEmpty(str(data.character_version)),
-    nickname: nullIfEmpty(str(data.nickname)),
-    // `source` is a NULLABLE list (absent ⇒ null, distinct from `[]`) — an absent/non-array value collapses to
-    // null, so a V2 card omits it cleanly on re-export.
-    source: Array.isArray(data.source) ? strArray(data.source) : null,
-    creationDate: typeof data.creation_date === "number" && Number.isFinite(data.creation_date) ? data.creation_date : null,
-    modificationDate: typeof data.modification_date === "number" && Number.isFinite(data.modification_date) ? data.modification_date : null,
-    // ST's favorite flag → `characters.starred` (strict `true` only — ST writes booleans; a foreign
-    // truthy string is not a star). Promoted out of the residue like `depth_prompt`/`regex_scripts`.
-    starred: data.extensions?.fav === true,
-    regexScripts: scripts.scripts,
+    creator: nullIfEmpty(data.creator ?? ""),
+    cardVersion: nullIfEmpty(data["character_version"] ?? ""),
+    nickname: nullIfEmpty(data.nickname ?? ""),
+  };
+}
+
+/**
+ * Normalize an already-JSON-parsed card object (any spec: V1/Pygmalion/V2/V3) into the canonical
+ * `CharacterCard`: the tolerant in half of the serde. `avatarAssetId`/`refinery` are not on the card wire, so both
+ * are null; tags, the embedded lorebook and the carried planes are external junctions, read into `data` and `book`
+ * for the import to attach.
+ */
+export function readCardJson(raw: JsonValue, fallbackName: string): CardRead {
+  const layout = cardLayout(raw);
+  const notes: StScriptNote[] = [];
+  const read = readCardData(layout, notes);
+  const tags = (read.tags ?? []).length > 0 ? read.tags : rootFallback(layout, CARD_DATA.tags, "tags", notes);
+  const data: CardData = { ...read, ...(tags === undefined ? {} : { tags }) };
+  const book = readCardBook(layout, notes);
+  const residue = cardDataJson(raw, layout);
+  const spec = detectSpec(layout);
+
+  const card: CharacterCard = {
+    name: firstNonEmpty(data.name ?? "") ?? firstNonEmpty(rootFallback(layout, CARD_DATA.name, "name", notes) ?? "") ?? fallbackName,
+    ...cardText(data),
+    greetings: cardGreetings(data),
+    // `source` is a NULLABLE list (absent ⇒ null, distinct from `[]`), so a V2 card omits it cleanly on re-export.
+    source: data.source ?? null,
+    creationDate: data["creation_date"] ?? null,
+    modificationDate: data["modification_date"] ?? null,
+    ...extensionPlanes(data.extensions, layout, notes),
     extensions: residualExtensions(residue),
     residualData: residualData(residue),
     avatarAssetId: null,
@@ -396,7 +548,7 @@ export function readCardJson(raw: JsonValue, fallbackName: string): { readonly c
     // it satisfies `exactOptionalPropertyTypes` and export defaults to V3.
     ...(spec !== null ? { spec } : {}),
   };
-  return { card, scriptNotes: scripts.notes };
+  return { card, data, book, notes };
 }
 
 // cardContentHash — the one home; character imports it from here, no private copy.
@@ -621,12 +773,25 @@ export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string,
   };
 }
 
+// A stored entry's metadata is its whole source entry, so a field the entry schema types can sit there as the source
+// spelled it. The export writes such a field only when its own schema reads it (the import named the drop), so a
+// malformed source value never refuses the export.
+function carriedEntryFields(meta: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const fields = Object.entries(characterBookEntryFields.shape);
+  return Object.fromEntries(
+    Object.entries(meta).filter(([key, value]) => {
+      const schema = fields.find(([field]) => field === key)?.[1];
+      return schema === undefined || readsAs(schema, value);
+    }),
+  );
+}
+
 /** One lore entry on the `character_book` entry wire, the shape a standalone SillyTavern world file adapts. */
 export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta: Readonly<Record<string, unknown>> = entry.metadata ?? {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
   const inject = resolveEntryInjection(meta);
-  const { [ST_SLOT_METADATA_KEY]: _kept, ...carried } = meta;
+  const { [ST_SLOT_METADATA_KEY]: _kept, ...carried } = carriedEntryFields(meta);
   const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};
   const position = stWorldPosition(meta, inject !== null);
   const stored = storedBucket(meta);
@@ -661,27 +826,30 @@ export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown
 // domain types.
 
 /** The `world_entries` column projection derived from ONE ST `character_book` entry (everything but the
- *  `metadata` blob, which {@link loreEntryMetadata} builds). `keys` is filtered to strings (ST keys are
+ *  `metadata` blob, which {@link loreEntryMetadata} builds). `keys` keeps its string items (ST keys are
  *  free-form JSON); the writer null-collapses an empty list to honor the `world_entries.keys` NULL-vs-`[]`
  *  asymmetry. `title`/`description`/`content`/`enabled`/`priority`/`ignoreBudget` mirror the typed columns. */
 export type LoreEntryColumns = Readonly<Omit<BulkImportLoreEntryInput, "metadata" | "keys">> & { readonly keys: string[] };
 
-/** `character_book.entries` is a dict OR a list in the wild (ST V2 used a keyed object, V3 a list) — return
- *  every entry OBJECT, order-preserving, dropping non-object junk. */
+const BOOK = characterBookFields.shape;
+const bookEntryRead = characterBookEntryFields.partial();
+
+/** `character_book.entries` is a dict OR a list in the wild (ST V2 used a keyed object, V3 a list): every slot, in
+ *  order, by the path a note names it by. */
+function lorebookSlots(book: Readonly<Record<string, unknown>>, field: string): { readonly at: string; readonly entry: unknown }[] {
+  const entries = book["entries"];
+  if (Array.isArray(entries)) {
+    return entries.map((entry, i) => ({ at: `${field}.entries[${String(i)}]`, entry }));
+  }
+  return isPlainObject(entries) ? Object.entries(entries).map(([key, entry]) => ({ at: `${field}.entries.${key}`, entry })) : [];
+}
+
+/** `character_book.entries` as every entry OBJECT, order-preserving, dropping non-object junk. */
 export function extractLorebook(book: unknown): Record<string, unknown>[] {
   if (!isPlainObject(book)) {
     return [];
   }
-  const entries = book["entries"];
-  let list: unknown[];
-  if (Array.isArray(entries)) {
-    list = entries;
-  } else if (isPlainObject(entries)) {
-    list = Object.values(entries);
-  } else {
-    return [];
-  }
-  return list.filter((e): e is Record<string, unknown> => isPlainObject(e));
+  return lorebookSlots(book, "").flatMap(({ entry }) => (isPlainObject(entry) ? [entry] : []));
 }
 
 /** Pick the best `character_book` when a card carries MULTIPLE candidates (V3 cards in the wild sometimes
@@ -691,14 +859,13 @@ export function extractLorebook(book: unknown): Record<string, unknown>[] {
 export function selectBestCharacterBook(...candidates: unknown[]): unknown {
   let best: { book: unknown; named: number; total: number } | undefined;
   for (const candidate of candidates) {
-    if (!isPlainObject(candidate)) {
-      continue;
-    }
     const entries = extractLorebook(candidate);
     if (entries.length === 0) {
       continue;
     }
-    const named = entries.filter((e) => typeof e["name"] === "string" && e["name"].trim().length > 0).length;
+    const named = entries.filter(
+      (entry) => (readValue(characterBookEntryFields.shape.name, { value: entry["name"], field: "", notes: null }) ?? "").trim().length > 0,
+    ).length;
     if (best === undefined || named > best.named || (named === best.named && entries.length > best.total)) {
       best = { book: candidate, named, total: entries.length };
     }
@@ -709,25 +876,62 @@ export function selectBestCharacterBook(...candidates: unknown[]): unknown {
 /** The title of a lore entry that carries no comment, name or key. */
 export const UNTITLED_LORE_ENTRY_TITLE = "Untitled";
 
-/** Project one ST `character_book` entry → the `world_entries` typed columns. ST uses `comment` (falling
- *  back to `name`, then the first key) as the author-facing memo → our `title`; when `comment` differs from
- *  the resolved title it is ALSO kept as `description` (lossless). `insertion_order` → `priority`. */
-export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColumns {
-  const keys = Array.isArray(entry["keys"]) ? entry["keys"].filter((k): k is string => typeof k === "string") : [];
-  const comment = typeof entry["comment"] === "string" ? entry["comment"] : "";
-  const name = typeof entry["name"] === "string" ? entry["name"] : "";
-  const title = firstNonEmpty(comment, name, keys[0] ?? "") ?? UNTITLED_LORE_ENTRY_TITLE;
-  const order = Number(entry["insertion_order"]);
+/** Project one ST `character_book` entry → the `world_entries` typed columns, each read through the entry schema; a
+ *  field that fails it drops to its default and is named in `notes` under `at`. ST uses `comment` (falling back to
+ *  `name`, then the first key) as the author-facing memo → our `title`; when `comment` differs from the resolved
+ *  title it is ALSO kept as `description` (lossless). `insertion_order` → `priority`. */
+function readLoreEntry(entry: Readonly<Record<string, unknown>>, at: string, notes: StScriptNote[] | null): LoreEntryColumns {
+  const read = readFields(bookEntryRead, (key) => ({ value: entry[key], field: `${at}.${key}`, notes, heal: key === "keys" ? "items" : undefined }));
+  const keys = read.keys ?? [];
+  const comment = read.comment ?? "";
+  const title = firstNonEmpty(comment, read.name ?? "", keys[0] ?? "") ?? UNTITLED_LORE_ENTRY_TITLE;
   return {
     title,
     // `comment` doubles as the memo only when it is NOT already the title (else a null description).
     description: comment.length > 0 && comment !== title ? comment : null,
-    content: typeof entry["content"] === "string" ? entry["content"] : "",
+    content: read.content ?? "",
     keys,
-    enabled: entry["enabled"] !== false,
-    priority: Number.isFinite(order) ? order : 0,
+    enabled: read.enabled ?? true,
+    priority: read["insertion_order"] ?? 0,
     // App-specific field round-tripped through export (vanilla ST cards never carry it → false).
-    ignoreBudget: entry["ignoreBudget"] === true,
+    ignoreBudget: read.ignoreBudget === true,
+  };
+}
+
+/** {@link readLoreEntry} for a door with no note channel: a standalone world file's entry. The source entry is kept
+ *  whole as its metadata, so a dropped field still rides there. */
+export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColumns {
+  return readLoreEntry(entry, "", null);
+}
+
+// The card's embedded book: the best of its `data` block's and its root's, read through the book schema. A slot that
+// is not an entry object is named and left out.
+function readCardBook(layout: CardLayout, notes: StScriptNote[]): CardBookRead | null {
+  const inData = layout.at("character_book");
+  const atRoot: CardField = { value: layout.root["character_book"], field: "character_book" };
+  const candidates = layout.data === null || layout.data === layout.root ? [inData] : [inData, atRoot];
+  for (const { value, field } of candidates) {
+    noteUnreadable(value, isPlainObject(value), field, notes);
+    if (isPlainObject(value)) {
+      noteUnreadable(value["entries"], Array.isArray(value["entries"]) || isPlainObject(value["entries"]), `${field}.entries`, notes);
+    }
+  }
+  const picked = selectBestCharacterBook(...candidates.map(({ value }) => value));
+  const chosen = candidates.find(({ value }) => value === picked);
+  if (chosen === undefined || !isPlainObject(picked)) {
+    return null;
+  }
+  const entries = lorebookSlots(picked, chosen.field).flatMap(({ at, entry }): CardBookEntryRead[] => {
+    if (!isPlainObject(entry)) {
+      notes.push({ field: at, reason: MALFORMED_FIELD });
+      return [];
+    }
+    return [{ columns: readLoreEntry(entry, at, notes), metadata: loreEntryMetadata(entry) }];
+  });
+  return {
+    name: readValue(BOOK.name, { value: picked["name"], field: `${chosen.field}.name`, notes }),
+    description: readValue(BOOK.description, { value: picked["description"], field: `${chosen.field}.description`, notes }),
+    entries,
   };
 }
 
