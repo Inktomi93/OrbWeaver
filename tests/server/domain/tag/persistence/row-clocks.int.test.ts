@@ -1,5 +1,5 @@
-// The tags and tag-junction row clocks: create, restore-import and attach stamp created_at at the root
-// clock, and a refused or repeated write leaves the stored rows byte-for-byte unchanged.
+// The tag row clocks: create and restore-import stamp created_at at the root clock, and a refused or
+// repeated write leaves the stored rows byte-for-byte unchanged. The junction arms carry no stamp.
 // @subject packages/server/src/domain/tag/verbs/create.ts
 // @subject packages/server/src/domain/tag/verbs/import.ts
 // @subject packages/server/src/domain/tag/verbs/attach.ts
@@ -70,7 +70,7 @@ test("native tag-library restore stamps new rows but preserves existing births a
   expect(await harness.db.select().from(tags).where(eq(tags.ownerId, principal.userId)).orderBy(tags.name)).toEqual(restored);
 });
 
-test("all five native junction arms stamp single and bulk births without rewriting conflicts", async ({ harness }) => {
+test("all five native junction arms attach single and bulk rows without rewriting conflicts", async ({ harness }) => {
   const principal = await harness.principalFor((await harness.actor()).id);
   const character = await harness.services.character.create({
     principal,
@@ -110,20 +110,13 @@ test("all five native junction arms stamp single and bulk births without rewriti
       read: () => harness.db.select().from(presetTags).where(eq(presetTags.presetId, preset.id)).orderBy(presetTags.tagId),
     },
   ] as const;
-  harness.clock.advance(45_678);
-  const singleAt = harness.clock.now();
   for (const target of targets) {
     await harness.services.tag.attachTag({ principal, tagId: single.id, ...target, status: "pending" });
-    expect(await target.read()).toMatchObject([{ tagId: single.id, createdAt: singleAt }]);
+    expect(await target.read()).toMatchObject([{ tagId: single.id }]);
   }
-  harness.clock.advance(56_789);
-  const bulkAt = harness.clock.now();
   for (const target of targets) {
     await harness.services.tag.bulkAttachTag({ principal, tagIds: [single.id, bulk.id], ...target });
-    expect(await target.read()).toMatchObject([
-      { tagId: single.id, createdAt: singleAt },
-      { tagId: bulk.id, createdAt: bulkAt },
-    ]);
+    expect(await target.read()).toMatchObject([{ tagId: single.id }, { tagId: bulk.id }]);
   }
   expect(await targets[0].read()).toMatchObject([{ status: "accepted" }, { status: "accepted" }]);
   harness.clock.advance(67_890);
@@ -134,14 +127,14 @@ test("all five native junction arms stamp single and bulk births without rewriti
   }
   await harness.services.tag.mergeTags({ principal, sourceTagId: bulk.id, targetTagId: single.id });
   for (const target of targets) {
-    expect(await target.read()).toMatchObject([{ tagId: single.id, createdAt: singleAt }]);
+    expect(await target.read()).toMatchObject([{ tagId: single.id }]);
     expect(await target.read()).toHaveLength(1);
     await harness.services.tag.detachTag({ principal, tagId: single.id, ...target });
     expect(await target.read()).toEqual([]);
   }
 });
 
-test("by-name card and chat imports share one birth instant and retain the original rows on replay", async ({ harness }) => {
+test("by-name card and chat imports share one tag birth instant and retain the original rows on replay", async ({ harness }) => {
   const principal = await harness.principalFor((await harness.actor()).id);
   const character = await harness.services.character.create({
     principal,
@@ -158,8 +151,8 @@ test("by-name card and chat imports share one birth instant and retain the origi
     chat: await harness.db.select().from(chatTags).where(eq(chatTags.chatId, chat.chat.id)),
   };
   expect(before.tags.map((row) => row.createdAt)).toEqual([at, at]);
-  expect(before.character).toMatchObject([{ createdAt: at, status: "accepted" }]);
-  expect(before.chat).toMatchObject([{ createdAt: at, ownerId: principal.userId }]);
+  expect(before.character).toMatchObject([{ status: "accepted" }]);
+  expect(before.chat).toMatchObject([{ ownerId: principal.userId }]);
   harness.clock.advance(89_012);
   await harness.services.character.bulkAddCardTag({ principal, characterIds: [character.id], tagName: "CARD BIRTH" });
   await harness.services.tag.attachChatTagByName({ ownerId: principal.userId, chatId: chat.chat.id, tagName: "CHAT BIRTH" });

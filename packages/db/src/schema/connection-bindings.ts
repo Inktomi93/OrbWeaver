@@ -163,7 +163,6 @@ export const pluginProviderClaims = sqliteTable(
     pluginId: nulFreeText("plugin_id")
       .$type<PluginId>()
       .references(() => plugins.id, { onDelete: "set null" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.ownerId, t.providerId] }),

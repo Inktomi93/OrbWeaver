@@ -15,7 +15,7 @@ export function createAttachGlobal(ctx: RegexContext): RegexService["attachGloba
     const at = ctx.now();
     // Append at the end of the owner's current global tier — a new attachment never silently reorders one.
     const position = (await listGlobalScripts(ctx.db, ownerId)).length;
-    await ctx.db.insert(globalRegexScripts).values({ regexScriptId: scriptId, position, createdAt: at }).onConflictDoNothing();
+    await ctx.db.insert(globalRegexScripts).values({ regexScriptId: scriptId, position }).onConflictDoNothing();
     await ctx.audit({ actorUserId: ownerId, action: "regex.attachGlobal", entityType: "regex_script", entityId: scriptId }, at);
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
     // The host's tiers draw for the room's members, so the rooms this attachment reaches hear it.

@@ -34,7 +34,7 @@ export function createAttachChatTagByName(ctx: TagContext): TagService["attachCh
       throw new DomainOperationError("tag_resolve_failed", `resolve-or-create tag "${name}" found no row after a unique conflict`);
     }
     // The shared insertion payload carries status; the chat junction has no status column.
-    await insertJunctionRow({ db: ctx.db, targetType: "chat", targetId: chatId, tagId, taggerId: ownerId, status: "accepted", at });
+    await insertJunctionRow({ db: ctx.db, targetType: "chat", targetId: chatId, tagId, taggerId: ownerId, status: "accepted" });
     return true;
   };
 }

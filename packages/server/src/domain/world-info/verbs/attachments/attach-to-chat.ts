@@ -22,7 +22,7 @@ export function createAttachToChat(ctx: WorldInfoContext): WorldInfoService["att
     const at = ctx.now();
     const inserted = await ctx.db
       .insert(chatBooks)
-      .values({ chatId, worldBookId: bookId, createdAt: at })
+      .values({ chatId, worldBookId: bookId })
       .onConflictDoNothing()
       .returning({ worldBookId: chatBooks.worldBookId });
     if (inserted.length === 0) {

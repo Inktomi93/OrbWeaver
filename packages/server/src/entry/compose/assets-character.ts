@@ -220,7 +220,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     detachCardTag: tag.detachCardTagByName,
     // World-info owns the character_books junction — the duplicate carry is its persistence factory,
     // wired here directly (world-info's full service composes after chat, below).
-    copyCharacterBooks: createCopyCharacterBooks({ db, now }),
+    copyCharacterBooks: createCopyCharacterBooks({ db }),
     resolveGreetingTemplate: createGreetingTemplate({
       readDefaultPresetId: createReadDefaultPresetId(settings),
       readPresetConfig: createReadOptionalPresetConfig((params) => deps.getPreset().get(params)),

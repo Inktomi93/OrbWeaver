@@ -41,12 +41,8 @@ type Room = ChatRoot;
 /** Put back the former host's junction rows a handoff without the detach left in place. A source that still
  *  leaves them keeps its own rows, so the plant is a no-op there. */
 async function plantStaleRows(h: Room, stale: RoomAttachments): Promise<void> {
-  const at = h.root.clock.now();
-  await h.root.db.insert(chatBooks).values({ chatId: h.chatId, worldBookId: stale.bookId, createdAt: at }).onConflictDoNothing();
-  await h.root.db
-    .insert(chatRegexScripts)
-    .values({ chatId: h.chatId, regexScriptId: stale.scriptId, position: STALE_POSITION, createdAt: at })
-    .onConflictDoNothing();
+  await h.root.db.insert(chatBooks).values({ chatId: h.chatId, worldBookId: stale.bookId }).onConflictDoNothing();
+  await h.root.db.insert(chatRegexScripts).values({ chatId: h.chatId, regexScriptId: stale.scriptId, position: STALE_POSITION }).onConflictDoNothing();
 }
 
 function expectOnlyHostAttachments(turn: SentTurn): void {

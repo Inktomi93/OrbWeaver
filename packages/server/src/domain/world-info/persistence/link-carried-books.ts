@@ -65,7 +65,6 @@ export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicate
     if (linkable.length === 0) {
       return { linked: 0 };
     }
-    const at = ctx.now();
     // Fresh junction rows, roles preserved. onConflictDoNothing keeps a re-import onto an already-linked
     // character idempotent (the PK is `(characterId, worldBookId)`), so nothing double-inserts.
     await db
@@ -75,7 +74,6 @@ export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicate
           characterId,
           worldBookId: r.worldBookId,
           role: r.role,
-          createdAt: at,
         })),
       )
       .onConflictDoNothing();

@@ -143,7 +143,6 @@ export const chatBooks = sqliteTable(
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.chatId, t.worldBookId] }),
@@ -168,7 +167,6 @@ export const characterBooks = sqliteTable(
       .references(() => worldBooks.id, { onDelete: "cascade" }),
     // primary | auxiliary — derives WORLD_BOOK_ROLES. The per-character attachment role (see header).
     role: text("role", { enum: WORLD_BOOK_ROLES }).notNull().default(DEFAULT_BOOK_ROLE),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.characterId, t.worldBookId] }),
@@ -187,7 +185,6 @@ export const globalBooks = sqliteTable(
       .$type<WorldBookId>()
       .primaryKey()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   // No secondary index: unlike the other three junctions (where the book id is the NON-leading PK column),
   // here `worldBookId` IS the single-column PK — already indexed; a `*_book_idx` would just duplicate it.
@@ -206,7 +203,6 @@ export const personaBooks = sqliteTable(
       .$type<WorldBookId>()
       .notNull()
       .references(() => worldBooks.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.personaId, t.worldBookId] }),

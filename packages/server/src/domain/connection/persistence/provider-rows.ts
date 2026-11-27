@@ -171,7 +171,7 @@ export async function replacePluginProviderRows(
     writes.push(
       db
         .insert(pluginProviderClaims)
-        .values({ ownerId, providerId: row.id, definitionHash: hash, pluginId, createdAt: now })
+        .values({ ownerId, providerId: row.id, definitionHash: hash, pluginId })
         .onConflictDoUpdate({
           target: [pluginProviderClaims.ownerId, pluginProviderClaims.providerId],
           set: { pluginId },

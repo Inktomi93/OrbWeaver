@@ -33,7 +33,7 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
       // lookup re-reads it.
       throw new DomainOperationError("tag_resolve_failed", `resolve-or-create tag "${name}" found no row after a unique conflict`);
     }
-    const newlyAttached = await attachCharacterTag({ db: ctx.db, characterId, tagId, status, at });
+    const newlyAttached = await attachCharacterTag({ db: ctx.db, characterId, tagId, status });
     // Best-effort audit only on a new attach — a re-import/re-add no-op writes no row, so a bulk re-import
     // doesn't spam the log.
     if (newlyAttached) {
