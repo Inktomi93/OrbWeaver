@@ -5,11 +5,12 @@
 
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { PortableFile } from "@orb/contracts/portability";
+import { GALLERY_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
-import { GALLERY_SCHEMA_KIND, parseGallery } from "#primitives/serde/gallery";
+import { parseGallery } from "#primitives/serde/gallery";
 import { portableParseError } from "#primitives/serde/lib";
 import type { GalleryImportOutcome } from "../contract/results.ts";
 import type { AssetsContext } from "../contract/service.ts";

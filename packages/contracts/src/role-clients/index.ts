@@ -89,6 +89,13 @@ export interface SummarizeInput {
 /** The options a `structured` call takes: the role's preset sampling (`RolePresetParams`) plus the required schema (D79), carried however the
  *  structured plan picks for the bound model. Structured generation is a distinct task from prose summarization:
  *  the caller names it, nothing sniffs it. */
+/** A rerank call's options: the `<Instruct>` an instruction-aware reranker reads (text-only families ignore it), and
+ *  the caller's cancel. */
+export interface RerankCallOptions<Signal> {
+  readonly instruction?: string | undefined;
+  readonly signal: Signal;
+}
+
 export interface StructuredOptions<Signal> extends RolePresetParams {
   responseFormat: ResponseFormat;
   signal: Signal;
@@ -119,7 +126,7 @@ export interface RoleClients<Signal> {
   embed: (input: string | readonly string[], opts: { inputType?: "query" | "document"; instruction?: string; signal: Signal }) => Promise<EmbedResult>;
   /** Cross-encoder rerank. Documents carry caller ids; hits preserve them. `opts.instruction` is the
    *  per-task `<Instruct>` for instruction-aware rerankers; text-only families ignore it. */
-  rerank: (query: RerankQuery, documents: RerankDocument[], opts: { instruction?: string; signal: Signal }) => Promise<RerankResult>;
+  rerank: (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions<Signal>) => Promise<RerankResult>;
   /** Batched PROSE summarization. Returns one item per input; pass non-empty user prompts only. */
   summarize: (inputs: readonly SummarizeInput[], opts: RolePresetParams & { signal: Signal }) => Promise<SummarizeResult>;
   /** Batched SCHEMA-CONSTRAINED generation — the one-shot structured primitive; `responseFormat` REQUIRED. */

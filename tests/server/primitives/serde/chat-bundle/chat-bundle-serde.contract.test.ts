@@ -4,16 +4,16 @@
 import type { PendingGenerationObservationInput } from "@orb/contracts/chat";
 import { generationUsageLegSchema, generationUsageSchema } from "@orb/contracts/inference";
 import type { PortableParse, PortableParseFailure } from "@orb/contracts/portability";
+import { CHAT_BUNDLE_SCHEMA_KIND, DATABANK_SCHEMA_KIND } from "@orb/contracts/portability";
 import { rpgSheetSchema } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
 import type { PortableChat, PortableChatMessage, PortableRpgGame } from "@orb/server/primitives/serde/chat-bundle";
-import { buildChatBundleFile, CHAT_BUNDLE_SCHEMA_KIND, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
+import { buildChatBundleFile, parseChatBundleFile } from "@orb/server/primitives/serde/chat-bundle";
 import { FROZEN_AT_MS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "@orb/testkit/node/helpers";
 import { describe } from "vitest";
 import { z } from "zod";
-import { DATABANK_SCHEMA_KIND } from "#server/primitives/serde/databank/index.ts";
 
 // Typed literals: a failure name the contract renames fails `tsc` here.
 const FOREIGN_KIND: PortableParseFailure = "foreign-kind";

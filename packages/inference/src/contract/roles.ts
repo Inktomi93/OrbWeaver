@@ -9,6 +9,7 @@ import type { RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type {
   ImageEmbedInput,
   ImageInput,
+  RerankCallOptions,
   RerankDocument,
   RerankQuery,
   ResponseFormat,
@@ -136,12 +137,6 @@ export interface SummarizeCallOptions extends RolePresetParams {
   readonly signal: AbortSignal;
 }
 
-/** A rerank call's options: the instruction an instruction-aware reranker reads, and the caller's `AbortSignal`. */
-export interface RerankCallOptions {
-  readonly instruction?: string | undefined;
-  readonly signal: AbortSignal;
-}
-
 export interface StructuredCallOptions extends SummarizeCallOptions {
   readonly responseFormat: ResponseFormat;
 }
@@ -150,7 +145,7 @@ export interface StructuredCallOptions extends SummarizeCallOptions {
  *  `AbortSignal`, plus the observation callback, and `resolved(task)` hands back the FULL `Resolved` (a
  *  `ResolvedTaskView` structurally), which stays inside the server. */
 export interface RoleClientsWithSignal extends Omit<RoleClients<AbortSignal>, "rerank" | "summarize" | "structured" | "resolved"> {
-  readonly rerank: (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions) => Promise<RerankResult>;
+  readonly rerank: (query: RerankQuery, documents: RerankDocument[], opts: RerankCallOptions<AbortSignal>) => Promise<RerankResult>;
   readonly summarize: (inputs: readonly SummarizeInput[], opts: SummarizeCallOptions) => Promise<SummarizeResult>;
   readonly structured: (inputs: readonly SummarizeInput[], opts: StructuredCallOptions) => Promise<SummarizeResult>;
   readonly resolved: (task: RoleClientTask, signal: AbortSignal) => Promise<Resolved | null>;

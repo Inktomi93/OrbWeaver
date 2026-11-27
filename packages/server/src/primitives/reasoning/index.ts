@@ -6,13 +6,7 @@
 // node:vm is not needed: the prefix/suffix are host config (trusted), not an untrusted user regex, so
 // there is no ReDoS surface.
 
-/** Options for {@link parseReasoningTags}. `prefix`/`suffix` are the literal open/close tags (host config —
- *  e.g. `<think>`/`</think>`). The open tag is anchored at the START of the content (leading whitespace
- *  allowed) so a `<think>` buried mid-reply is NOT treated as a reasoning block. */
-export interface ReasoningParseOptions {
-  readonly prefix: string;
-  readonly suffix: string;
-}
+import type { ReasoningTagPair } from "@orb/contracts/preset";
 
 /** A successful split of a reply into its reasoning trace + the remaining visible content (both trimmed). */
 export interface ParsedReasoning {
@@ -23,9 +17,10 @@ export interface ParsedReasoning {
 /**
  * Split an inline `<think>…</think>`-style reasoning block out of `content`. Returns `{ reasoning, content }`
  * on a successful match (both halves trimmed), or `null` when there is no match. Both tags are required: an
- * opening tag with no closing tag does not match — we never strip a half-open block.
+ * opening tag with no closing tag does not match — we never strip a half-open block. The open tag is anchored at
+ * the START of the content (leading whitespace allowed), so a `<think>` buried mid-reply is NOT a reasoning block.
  */
-export function parseReasoningTags(content: string, options: ReasoningParseOptions): ParsedReasoning | null {
+export function parseReasoningTags(content: string, options: ReasoningTagPair): ParsedReasoning | null {
   const { prefix, suffix } = options;
   if (prefix.length === 0 || suffix.length === 0) {
     return null;

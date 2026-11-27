@@ -24,7 +24,7 @@ import type {
   SeatCardIdentity,
   StDocumentTextParams,
 } from "./params.ts";
-import type { ExportedCard, ExportedText, HostChatRef, StCardRef, StDocumentRef } from "./results.ts";
+import type { ExportedText, HostChatRef, StCardRef, StDocumentRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
 export interface ExportContext {
@@ -49,7 +49,7 @@ export interface ExportService {
    *  the card JSON into the avatar as `chara`(V2)+`ccv3`(V3) tEXt chunks (a 256×256 placeholder when there
    *  is no avatar); `json` emits the SAME card object unwrapped. Returns `null` when the character doesn't
    *  exist or isn't the caller's. */
-  readonly exportCharacter: (params: ExportCharacterParams) => Promise<ExportedCard | null>;
+  readonly exportCharacter: (params: ExportCharacterParams) => Promise<PortableFile | null>;
   /** Read the chat + messages + variants + persona/character names and emit the ST-compatible JSONL
    *  interchange (default) or a human-readable TXT transcript. Host-gated: a non-host caller or missing
    *  chat returns `null`. */

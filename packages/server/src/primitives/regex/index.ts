@@ -24,6 +24,7 @@ import type { RegexNotAppliedCause } from "@orb/contracts/chat";
 import type { ExecuteRegexScriptsArgs } from "@orb/kit/regex";
 import { executeRegexScripts, REGEX_OUTPUT_TOO_LONG, REGEX_SUBSTITUTION_TOO_LONG, regexSkipReason } from "@orb/kit/regex";
 
+export type { FindCompileProbe } from "./compile-probe.ts";
 export { createFindCompileProbe } from "./compile-probe.ts";
 
 /** The wall time one entry (one text's scripts) may run before the script in flight is stopped. The real HUD

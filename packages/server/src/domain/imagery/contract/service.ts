@@ -7,7 +7,7 @@ import type { GeneratedAssetStore, ImageryGalleryAdd, ReadOwnedAssetBytes } from
 import type { CharacterCard, CharacterOwnedOp } from "@orb/contracts/character";
 import type { CallerInChatOp, ResolveRoomRunAsOp } from "@orb/contracts/chat";
 import type { Principal, ResolveHostPrincipalOp } from "@orb/contracts/identity";
-import type { GeneratePicture, PromptTemplateMode } from "@orb/contracts/imagery";
+import type { ExtractionMode, GeneratePicture, MultimodalCaptionMode, PromptTemplateMode } from "@orb/contracts/imagery";
 import type { BindingActor, GenerationCapability, GenerationUsage } from "@orb/contracts/inference";
 import type { ApplyStatsDelta, RecordLedgerSpend } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -16,7 +16,7 @@ import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wirin
 import type { GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
-import type { EditImageParams, ExtractionMode, ExtractPromptParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
+import type { EditImageParams, ExtractPromptParams, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
 
 // ── Internal verb-wiring op types (verb-to-verb factory injection, wired at service.ts) ──
@@ -30,7 +30,7 @@ interface CaptionAvatarArgs {
   /** Reads the subject's card and avatar, styles and funds the caption. A room caller has passed
    *  `resolveRoomRunAs`' roster gate (the subject is a seat of the room) before this host principal reads. */
   readonly runAs: Principal;
-  readonly mode: MultimodalMode;
+  readonly mode: MultimodalCaptionMode;
   readonly subjectCharacterId: CharacterId | undefined;
   readonly signal: AbortSignal;
 }
@@ -149,7 +149,7 @@ export interface ImageryContext {
    *  off `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
   readonly resolvePromptTemplate: (runAs: Principal, mode: ExtractionMode) => Promise<string>;
   /** ⑫ — the run-as principal's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */
-  readonly resolveCaptionInstruction: (runAs: Principal, mode: MultimodalMode) => Promise<string>;
+  readonly resolveCaptionInstruction: (runAs: Principal, mode: MultimodalCaptionMode) => Promise<string>;
   /** PROSE-1 census 88 — the run-as principal's negative-prompt BASE: `UserSettings.prose["imagery.negative.base"]`
    *  override ⊕ the shipped catalog default (unset ⇒ byte-identical). In a room that is the host, like its
    *  `resolvePromptTemplate`/`resolveCaptionInstruction` siblings (D298). */

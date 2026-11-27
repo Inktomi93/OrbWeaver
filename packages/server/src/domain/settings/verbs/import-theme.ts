@@ -5,6 +5,7 @@
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
 import type { ImportAnswer, ImportReuse } from "@orb/contracts/import";
+import { THEME_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { ImportedThemeLanding, ImportThemes, SettingsImportOutcome, ThemeImportFile } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
@@ -14,7 +15,7 @@ import { nextFreeName } from "@orb/kit/strings";
 import { mapYielding } from "#primitives/abort";
 import { portableParseError } from "#primitives/serde/lib";
 import type { CanonicalTheme } from "#primitives/serde/theme";
-import { parseThemeFile, THEME_SCHEMA_KIND, themeContentKey } from "#primitives/serde/theme";
+import { parseThemeFile, themeContentKey } from "#primitives/serde/theme";
 import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { insertThemes, listOwnedThemes } from "../persistence/theme-queries.ts";
 

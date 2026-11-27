@@ -52,6 +52,12 @@ export const OPERATOR_TREE_WORKLOAD_KIND = "import-st" satisfies WorkloadKind;
 /** The kinds a client may name at all. */
 export type WireWorkloadKind = Exclude<WorkloadKind, typeof ROUTE_STARTED_WORKLOAD_KIND>;
 
+/** A row that may still run, of any kind, with its params as stored: a row this build cannot parse still names what it holds. */
+export interface ActiveWorkloadRow {
+  readonly kind: WorkloadKind;
+  readonly params: unknown;
+}
+
 /** The workload kinds an embedder change queues, one per scope search waits on: cards and pictures, documents, memory. */
 export const EMBEDDER_REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const satisfies readonly WorkloadKind[];
 

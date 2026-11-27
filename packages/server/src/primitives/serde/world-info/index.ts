@@ -14,8 +14,6 @@ import { z } from "zod";
 import { exportBookEntry, loreEntryColumns, loreEntryIdentity, loreEntryMetadata } from "#primitives/serde/card";
 import { decodePortableObject, defineJsonRowsSerde } from "#primitives/serde/lib";
 
-export { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
-
 const SCHEMA_VERSION = 1;
 
 // keys is always an array (empty, never omitted — the null-collapse to world_entries.keys is the writer's

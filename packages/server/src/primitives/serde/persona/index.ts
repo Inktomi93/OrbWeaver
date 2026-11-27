@@ -21,8 +21,6 @@ import { stableStringify } from "@orb/kit/stable-stringify";
 import { stripNameSuffix } from "@orb/kit/strings";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export { PERSONA_SCHEMA_KIND } from "@orb/contracts/portability";
-
 const PERSONA_SCHEMA_VERSION = 1;
 /** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Carries the avatar's
  *  content hash, never its asset id (a row id means nothing on another box); null for a persona without art. */

@@ -9,6 +9,7 @@
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
 import type { PortableFile } from "@orb/contracts/portability";
+import { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
 import type {
   ExportCardScripts,
   ExportPresetScripts,
@@ -36,7 +37,7 @@ import type { PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#primitives/serde/lib";
-import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND, regexScriptFileNotes } from "#primitives/serde/regex";
+import { buildRegexScriptFile, parseRegexScriptFile, regexScriptFileNotes } from "#primitives/serde/regex";
 import type { CardLiftPlan, SplitScript } from "../contract/dedup.ts";
 import { REGEX_FIND_TOO_COSTLY } from "../contract/errors.ts";
 import type { RegexPortabilityContext } from "../contract/portability.ts";
