@@ -50,18 +50,13 @@ export async function getKv(db: Db, scope: KvScope, key: string): Promise<string
  *  structurally unreachable, which is why 0 rows is read as the cap refusal.
  *
  *  The caller refuses an oversized key or value before this runs; the size CHECKs stay DDL as a second line. */
-export async function upsertKvUnderCap(
-  db: Db,
-  scope: KvScope,
-  entry: { readonly key: string; readonly value: string; readonly updatedAt: number },
-  maxKeys: number,
-): Promise<boolean> {
+export async function upsertKvUnderCap(db: Db, scope: KvScope, entry: { readonly key: string; readonly value: string }, maxKeys: number): Promise<boolean> {
   const result = await db.run(sql`
-    INSERT INTO plugin_kv (plugin_id, owner_id, key, value, updated_at)
-    SELECT ${scope.pluginId}, ${scope.ownerId}, ${entry.key}, ${entry.value}, ${entry.updatedAt}
+    INSERT INTO plugin_kv (plugin_id, owner_id, key, value)
+    SELECT ${scope.pluginId}, ${scope.ownerId}, ${entry.key}, ${entry.value}
     WHERE ${admitsWrite(scope, entry.key, maxKeys)}
     ON CONFLICT (plugin_id, key) DO UPDATE
-      SET value = excluded.value, updated_at = excluded.updated_at
+      SET value = excluded.value
       WHERE plugin_kv.owner_id = ${scope.ownerId}
   `);
   return result.rowsAffected > 0;
@@ -115,15 +110,15 @@ function admitsWrite(scope: KvScope, key: string, maxKeys: number): SQL {
 export async function compareAndSetKv(
   db: Db,
   scope: KvScope,
-  entry: { readonly key: string; readonly expected: string | null; readonly value: string; readonly updatedAt: number },
+  entry: { readonly key: string; readonly expected: string | null; readonly value: string },
   maxKeys: number,
 ): Promise<{ applied: boolean; current: string | null }> {
   const applied =
     entry.expected === null
       ? (
           await db.run(sql`
-            INSERT INTO plugin_kv (plugin_id, owner_id, key, value, updated_at)
-            SELECT ${scope.pluginId}, ${scope.ownerId}, ${entry.key}, ${entry.value}, ${entry.updatedAt}
+            INSERT INTO plugin_kv (plugin_id, owner_id, key, value)
+            SELECT ${scope.pluginId}, ${scope.ownerId}, ${entry.key}, ${entry.value}
             WHERE ${admitsWrite(scope, entry.key, maxKeys)}
             ON CONFLICT (plugin_id, key) DO NOTHING
           `)
@@ -131,7 +126,7 @@ export async function compareAndSetKv(
       : (
           await db
             .update(pluginKv)
-            .set({ value: entry.value, updatedAt: entry.updatedAt })
+            .set({ value: entry.value })
             .where(
               and(eq(pluginKv.pluginId, scope.pluginId), eq(pluginKv.ownerId, scope.ownerId), eq(pluginKv.key, entry.key), eq(pluginKv.value, entry.expected)),
             )

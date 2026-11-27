@@ -4,8 +4,7 @@
 // this as an INJECTED op wired at the compose root.
 //
 // REFERENCE-carry, not content-clone: the SAME world_books are re-pointed at the new character id via fresh
-// character_books rows (role preserved; createdAt is FRESH — the carry is a new attach at ctx.now(), not a
-// copy of the source timestamp). The books themselves are standalone entities and are NEVER cloned. A
+// character_books rows (role preserved). The books themselves are standalone entities and are NEVER cloned. A
 // source with zero attachments copies nothing.
 //
 // OWNED-SOURCE GATE (`ownerId`) — TWO ENDS, both re-checked here rather than inherited from `duplicate`'s
@@ -65,7 +64,6 @@ export function createCopyCharacterBooks(input: DbAssemblyInput<WorldInfoDuplica
     if (rows.length === 0) {
       return;
     }
-    const at = ctx.now();
     // IDEMPOTENT (the `import-write` attach precedent): the junction PK is (characterId, worldBookId), so a
     // re-run — `duplicate` failing after this carry landed and the operator retrying it — would otherwise
     // hit a UNIQUE violation and turn a benign retry into a permanent failure. Doing nothing on conflict
@@ -77,7 +75,6 @@ export function createCopyCharacterBooks(input: DbAssemblyInput<WorldInfoDuplica
           characterId: toCharacterId,
           worldBookId: r.worldBookId,
           role: r.role,
-          createdAt: at,
         })),
       )
       .onConflictDoNothing();

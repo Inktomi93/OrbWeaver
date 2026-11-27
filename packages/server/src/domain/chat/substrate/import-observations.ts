@@ -45,7 +45,6 @@ export function importedObservationRows(
       // Restored retained-data attribution is the importer, never an invented original private payer.
       funderUserId: ownerId,
       connectionId: null,
-      connectionAttributionProvenance: "unrecorded",
       responseCache: row.leg.responseCache ?? null,
     };
   });

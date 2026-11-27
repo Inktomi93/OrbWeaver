@@ -22,7 +22,7 @@ async function previewStatic(h: ChatRoot): Promise<string> {
 }
 
 async function junction(h: ChatRoot, personaId: PersonaId, worldBookId: WorldBookId): Promise<void> {
-  await h.root.db.insert(personaBooks).values({ personaId, worldBookId, createdAt: h.root.clock.now() });
+  await h.root.db.insert(personaBooks).values({ personaId, worldBookId });
 }
 
 test("a junction row naming another owner's book stays out of a held pin's pool", async () => {

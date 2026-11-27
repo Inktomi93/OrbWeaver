@@ -55,7 +55,6 @@ export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
   const { oidcIdToken, ...rest } = row;
   await db.insert(sessions).values({
     ...rest,
-    updatedAt: rest.createdAt,
     // The three columns are written together or not at all — a half-written seal is an unopenable blob.
     oidcIdTokenCiphertext: oidcIdToken?.ciphertext ?? null,
     oidcIdTokenIv: oidcIdToken?.iv ?? null,

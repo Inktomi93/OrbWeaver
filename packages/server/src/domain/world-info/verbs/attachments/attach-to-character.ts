@@ -30,7 +30,7 @@ export function createAttachToCharacter(ctx: WorldInfoContext): WorldInfoService
     const at = ctx.now();
     const upsert = ctx.db
       .insert(characterBooks)
-      .values({ characterId, worldBookId: bookId, role, createdAt: at })
+      .values({ characterId, worldBookId: bookId, role })
       .onConflictDoUpdate({
         target: [characterBooks.characterId, characterBooks.worldBookId],
         set: { role },

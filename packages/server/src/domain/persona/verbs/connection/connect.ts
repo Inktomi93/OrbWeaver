@@ -12,7 +12,7 @@ export function createConnect(ctx: PersonaContext): PersonaService["connectToCha
     const ownerId = principal.userId;
     await Promise.all([ensureCharacterOwned(ctx.db, ownerId, characterId), ensurePersonaOwned(ctx.db, ownerId, personaId)]);
     const at = ctx.now();
-    await ctx.db.insert(characterPersonas).values({ characterId, personaId, createdAt: at }).onConflictDoNothing();
+    await ctx.db.insert(characterPersonas).values({ characterId, personaId }).onConflictDoNothing();
     await ctx.audit(
       {
         actorUserId: ownerId,

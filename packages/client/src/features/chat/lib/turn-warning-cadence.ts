@@ -36,6 +36,7 @@ function cadenceOf(code: ChatWarningCode): Cadence {
       return "once-per-session";
     case "memory_build_failed":
     case "memory_rerank_unavailable":
+    case "databank_rerank_unavailable":
     case "retrieval_index_unavailable":
     case "prompt_transform_skipped":
     case "image_edit_dropped":

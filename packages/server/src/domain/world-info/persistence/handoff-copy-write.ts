@@ -100,7 +100,7 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportCon
         continue;
       }
       const bookId = copyBook(attachment.book);
-      mints.push(batchStmt(db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: attachment.role, createdAt: at })));
+      mints.push(batchStmt(db.insert(characterBooks).values({ characterId, worldBookId: bookId, role: attachment.role })));
     }
 
     // ── the ROOM half. Detach the original, attach the copy — returned unexecuted so the room's attachment
@@ -111,7 +111,7 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportCon
       const converged = alreadyOnChat.get(source.name);
       const bookId = converged ?? copyBook(source);
       repoint.push(batchStmt(db.delete(chatBooks).where(and(eq(chatBooks.chatId, chatId), eq(chatBooks.worldBookId, source.id)))));
-      repoint.push(batchStmt(db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: at }).onConflictDoNothing()));
+      repoint.push(batchStmt(db.insert(chatBooks).values({ chatId, worldBookId: bookId }).onConflictDoNothing()));
     }
 
     // Entries LAST among the mints: every book row this call creates already exists by then, so one pass

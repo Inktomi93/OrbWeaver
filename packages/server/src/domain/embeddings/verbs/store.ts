@@ -115,7 +115,6 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
     model: embedded.model,
     generationId: generation.id,
     dim: generation.dims,
-    now: ctx.now(),
   });
   return {
     outcome: landed ? "written" : "noop",
@@ -211,7 +210,6 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     model: embedded.model,
     generationId: generation.id,
     dim: generation.dims,
-    now: ctx.now(),
   });
   return {
     outcome: landed ? "written" : "noop",
@@ -306,7 +304,6 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     model: embedded.model,
     generationId: generation.id,
     dim: generation.dims,
-    now: ctx.now(),
   });
   return {
     outcome: landed ? "written" : "noop",

@@ -9,7 +9,6 @@ import type { ReplaceableSessionStore, SeededSessionDecision, SeedTurn } from "#
 import type { InferenceLog } from "#src/deps.ts";
 import {
   buildSeedFrames,
-  canonHashOf,
   isBranchDivergence,
   savedSessionTotals,
   seedSessionId,
@@ -197,7 +196,7 @@ export class SessionCache {
       // lineage buys nothing here, so the cheapest rewrite (same id, changed suffix) wins.
       if (canReplace(this.store)) {
         await this.store.replace({ projectKey: INTERNAL_PROJECT_KEY, sessionId: recorded }, buildSeedFrames(turns, recorded));
-        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: recorded, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: recorded });
         return { sessionId: recorded, disposition: "reseeded" };
       }
     }
@@ -225,13 +224,13 @@ export class SessionCache {
         continue;
       }
       if (sessionMatchesSeed(rows, turns)) {
-        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId });
         this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
       }
       if (canReplace(this.store)) {
         await this.store.replace({ projectKey: INTERNAL_PROJECT_KEY, sessionId }, buildSeedFrames(turns, sessionId));
-        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId });
         this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "rewound" };
       }
@@ -257,13 +256,11 @@ export class SessionCache {
           chatId,
           connectionId,
           sdkSessionId: sessionId,
-          seededThroughSeq: turns.length,
-          canonHash: canonHashOf(turns),
         });
         return { sessionId, disposition: seededAs };
       }
       if (sessionMatchesSeed(rows, turns)) {
-        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId });
         this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
       }

@@ -348,11 +348,8 @@ export interface MacroContext {
   // registry byte-identical.
   //   • `macroFreezes` — present ⇒ each volatile handler pushes its resolved occurrence here in document
   //     order. The domain persists it as `message_variants.macro_freezes`.
-  //   • `frozenMacros` — **COMMITTED, NOT YET WIRED (D129-G).** The freeze-site WRITES are live; the swipe /
-  //     greeting-re-selection re-resolution this arm exists for is not built, so today its only callers are
-  //     tests. It ships with the record because a record you cannot reproduce FROM is an untested claim — the
-  //     round-trip is what makes the
-  //     stored provenance a fact rather than an assertion. A future swipe caller inherits the semantics below.
+  //   • `frozenMacros` — the stored record replayed on a variant selection (D129-G), so a selected alternate
+  //     reproduces its bytes. The round-trip is what makes the stored provenance a fact rather than an assertion.
   //     A PRIOR record replayed POSITIONALLY: an entry whose name+args match the call being
   //     evaluated supplies its value and the handler is NOT run (so the PRNG/clock is not consulted and the
   //     bytes are reproduced exactly). The first MISMATCH abandons the replay for the rest of the pass — a

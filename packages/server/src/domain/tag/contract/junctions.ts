@@ -19,7 +19,6 @@ export type InsertJunctionParams = JunctionContext &
     readonly tagId: TagId;
     readonly taggerId: UserId;
     readonly status: TagStatus;
-    readonly at: number;
   };
 
 export type BulkInsertJunctionParams = JunctionContext &
@@ -27,7 +26,6 @@ export type BulkInsertJunctionParams = JunctionContext &
     readonly tagIds: readonly TagId[];
     readonly taggerId: UserId;
     readonly status: TagStatus;
-    readonly at: number;
   };
 
 export type DeleteJunctionParams = JunctionContext &

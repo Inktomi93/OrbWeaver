@@ -60,11 +60,11 @@ export const imageryGenerations = sqliteTable(
       .$type<CharacterId>()
       .references(() => characters.id, { onDelete: "set null" }),
     // sha-256 of `${mode}:${characterId}:${card.contentHash}` — the reuse key. Null ⇒ never reuse-matched
-    // (scene/background/free/edit). Reserved for the Phase-7 reuse gate.
+    // (scene/background/free/edit). The reuse gate filters on it (`packages/server/src/domain/imagery/persistence/queries.ts`).
     identityHash: nulFreeText("identity_hash"),
     // The resolved prompt the image was generated from (regenerate reads this; the gallery shows it).
     prompt: nulFreeText("prompt").notNull(),
-    // The negative prompt applied (reserved — the Phase-7 negative composition). Nullable.
+    // The composed negative prompt the call sent (null when none, and for an edit). Exported and restored with the call.
     negativePrompt: nulFreeText("negative_prompt"),
     // The image model that produced it (the gallery's provenance detail).
     model: nulFreeText("model").$type<ModelId>().notNull(),

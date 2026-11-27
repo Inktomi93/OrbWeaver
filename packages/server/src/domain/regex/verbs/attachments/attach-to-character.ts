@@ -15,7 +15,7 @@ export function createAttachToCharacter(ctx: RegexContext): RegexService["attach
     await requireOwnedScript(ctx.db, ownerId, scriptId);
     const at = ctx.now();
     const position = (await listCharacterScripts(ctx.db, ownerId, characterId)).length;
-    await ctx.db.insert(characterRegexScripts).values({ characterId, regexScriptId: scriptId, position, createdAt: at }).onConflictDoNothing();
+    await ctx.db.insert(characterRegexScripts).values({ characterId, regexScriptId: scriptId, position }).onConflictDoNothing();
     await ctx.audit({ actorUserId: ownerId, action: "regex.attachToCharacter", entityType: "regex_script", entityId: scriptId, metadata: { characterId } }, at);
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
     // The host's tiers draw for the room's members, so the rooms this attachment reaches hear it.

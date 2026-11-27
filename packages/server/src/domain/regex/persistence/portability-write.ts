@@ -109,7 +109,7 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
         ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at, updatedAt: at }),
       ),
       ...plan.attachIds.map((regexScriptId, position) =>
-        ctx.db.insert(characterRegexScripts).values({ characterId, regexScriptId, position, createdAt: at }).onConflictDoNothing(),
+        ctx.db.insert(characterRegexScripts).values({ characterId, regexScriptId, position }).onConflictDoNothing(),
       ),
     ];
     if (stmts.length > 0) {
@@ -140,9 +140,7 @@ export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilit
       ...plan.inserts.map((row) =>
         ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at, updatedAt: at }),
       ),
-      ...plan.attachIds.map((regexScriptId, position) =>
-        ctx.db.insert(presetRegexScripts).values({ presetId, regexScriptId, position, createdAt: at }).onConflictDoNothing(),
-      ),
+      ...plan.attachIds.map((regexScriptId, position) => ctx.db.insert(presetRegexScripts).values({ presetId, regexScriptId, position }).onConflictDoNothing()),
     ];
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
@@ -212,7 +210,7 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
       ...plan.inserts.map((row) =>
         ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at, updatedAt: at }),
       ),
-      ...plan.attachIds.map((regexScriptId) => ctx.db.insert(globalRegexScripts).values({ regexScriptId, createdAt: at }).onConflictDoNothing()),
+      ...plan.attachIds.map((regexScriptId) => ctx.db.insert(globalRegexScripts).values({ regexScriptId }).onConflictDoNothing()),
     ];
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));
@@ -333,7 +331,7 @@ export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityC
           ]
         : [];
     if (payload.global) {
-      stmts.push(ctx.db.insert(globalRegexScripts).values({ regexScriptId: id, createdAt: at }).onConflictDoNothing());
+      stmts.push(ctx.db.insert(globalRegexScripts).values({ regexScriptId: id }).onConflictDoNothing());
     }
     if (stmts.length > 0) {
       await ctx.db.batch(batchMany(stmts));

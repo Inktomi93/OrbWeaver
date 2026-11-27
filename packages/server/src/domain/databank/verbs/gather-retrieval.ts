@@ -48,20 +48,23 @@ function fitAndRender(hits: readonly DocumentChunkHit[], tokenBudget: number): {
 }
 
 export function createGatherRetrieval(ctx: DatabankContext): DatabankService["gatherRetrieval"] {
-  return async (params: DatabankGatherParams): Promise<DatabankGatherResult | null> => {
+  return async (params: DatabankGatherParams, events): Promise<DatabankGatherResult | null> => {
     // The retrieval params (k/minScore/rerank) ride the params from chat's ForeignInputs (the host's
     // `UserSettings.databank.retrieval`). Each is passed to `search.documents` only when supplied; an absent
     // value falls to search's own default, which IS the databank default — so a caller not threading them is
     // byte-identical to pre-wire.
-    const hits = await ctx.searchDocuments({
-      scope: { chatId: params.chatId },
-      ownerId: params.hostUserId,
-      queryText: params.queryText,
-      signal: params.signal,
-      ...(params.k !== undefined ? { k: params.k } : {}),
-      ...(params.minScore !== undefined ? { minScore: params.minScore } : {}),
-      ...(params.rerank !== undefined ? { rerank: params.rerank } : {}),
-    });
+    const hits = await ctx.searchDocuments(
+      {
+        scope: { chatId: params.chatId },
+        ownerId: params.hostUserId,
+        queryText: params.queryText,
+        signal: params.signal,
+        ...(params.k !== undefined ? { k: params.k } : {}),
+        ...(params.minScore !== undefined ? { minScore: params.minScore } : {}),
+        ...(params.rerank !== undefined ? { rerank: params.rerank } : {}),
+      },
+      events,
+    );
     if (hits.length === 0) {
       return null;
     }

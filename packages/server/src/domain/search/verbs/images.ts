@@ -4,7 +4,7 @@
 // computed from image↔image cosine (~0.6–1.0), but a cross-modal query produces a completely different
 // range (~0.05–0.17) — adding hub_score would dominate and INVERT the ranking (verified: generic
 // placeholder avatars outrank relevant matches). This verb ranks on raw cosine distance alone, never
-// cslsAdjust; hub_score exists on that table only for a future image↔image similarity verb.
+// cslsAdjust; hub_score on that table is read only by the image↔image `similarArt` verb.
 //
 // A HIT CARRIES ITS PICTURE AND ITS PLACE. `hash` rides off the assets row the
 // scan already joins, and the avatar's owning character is resolved for the returned page — an image result

@@ -46,20 +46,20 @@ export async function insertJunctionRow(args: InsertJunctionParams): Promise<voi
     case "character":
       await args.db
         .insert(characterTags)
-        .values({ characterId: args.targetId, tagId: args.tagId, status: args.status, createdAt: args.at })
+        .values({ characterId: args.targetId, tagId: args.tagId, status: args.status })
         .onConflictDoUpdate({ target: [characterTags.characterId, characterTags.tagId], set: { status: args.status } });
       return;
     case "chat":
-      await args.db.insert(chatTags).values({ chatId: args.targetId, tagId: args.tagId, ownerId: args.taggerId, createdAt: args.at }).onConflictDoNothing();
+      await args.db.insert(chatTags).values({ chatId: args.targetId, tagId: args.tagId, ownerId: args.taggerId }).onConflictDoNothing();
       return;
     case "worldBook":
-      await args.db.insert(worldBookTags).values({ worldBookId: args.targetId, tagId: args.tagId, createdAt: args.at }).onConflictDoNothing();
+      await args.db.insert(worldBookTags).values({ worldBookId: args.targetId, tagId: args.tagId }).onConflictDoNothing();
       return;
     case "persona":
-      await args.db.insert(personaTags).values({ personaId: args.targetId, tagId: args.tagId, createdAt: args.at }).onConflictDoNothing();
+      await args.db.insert(personaTags).values({ personaId: args.targetId, tagId: args.tagId }).onConflictDoNothing();
       return;
     case "preset":
-      await args.db.insert(presetTags).values({ presetId: args.targetId, tagId: args.tagId, createdAt: args.at }).onConflictDoNothing();
+      await args.db.insert(presetTags).values({ presetId: args.targetId, tagId: args.tagId }).onConflictDoNothing();
       return;
     default:
       return args satisfies never;
@@ -72,11 +72,10 @@ export async function attachCharacterTag(args: {
   readonly characterId: CharacterId;
   readonly tagId: TagId;
   readonly status: TagStatus;
-  readonly at: number;
 }): Promise<boolean> {
   const inserted = await args.db
     .insert(characterTags)
-    .values({ characterId: args.characterId, tagId: args.tagId, status: args.status, createdAt: args.at })
+    .values({ characterId: args.characterId, tagId: args.tagId, status: args.status })
     .onConflictDoNothing({ target: [characterTags.characterId, characterTags.tagId] })
     .returning({ tagId: characterTags.tagId });
   return inserted.length > 0;
@@ -97,31 +96,31 @@ export async function bulkInsertJunctionRows(args: BulkInsertJunctionParams): Pr
     case "character":
       await args.db
         .insert(characterTags)
-        .values(args.tagIds.map((tagId) => ({ characterId: args.targetId, tagId, status: args.status, createdAt: args.at })))
+        .values(args.tagIds.map((tagId) => ({ characterId: args.targetId, tagId, status: args.status })))
         .onConflictDoUpdate({ target: [characterTags.characterId, characterTags.tagId], set: { status: args.status } });
       return;
     case "chat":
       await args.db
         .insert(chatTags)
-        .values(args.tagIds.map((tagId) => ({ chatId: args.targetId, tagId, ownerId: args.taggerId, createdAt: args.at })))
+        .values(args.tagIds.map((tagId) => ({ chatId: args.targetId, tagId, ownerId: args.taggerId })))
         .onConflictDoNothing();
       return;
     case "worldBook":
       await args.db
         .insert(worldBookTags)
-        .values(args.tagIds.map((tagId) => ({ worldBookId: args.targetId, tagId, createdAt: args.at })))
+        .values(args.tagIds.map((tagId) => ({ worldBookId: args.targetId, tagId })))
         .onConflictDoNothing();
       return;
     case "persona":
       await args.db
         .insert(personaTags)
-        .values(args.tagIds.map((tagId) => ({ personaId: args.targetId, tagId, createdAt: args.at })))
+        .values(args.tagIds.map((tagId) => ({ personaId: args.targetId, tagId })))
         .onConflictDoNothing();
       return;
     case "preset":
       await args.db
         .insert(presetTags)
-        .values(args.tagIds.map((tagId) => ({ presetId: args.targetId, tagId, createdAt: args.at })))
+        .values(args.tagIds.map((tagId) => ({ presetId: args.targetId, tagId })))
         .onConflictDoNothing();
       return;
     default:

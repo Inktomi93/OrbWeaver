@@ -18,7 +18,6 @@ interface ImageAnalysisWrite {
   readonly contentHash: string;
   readonly caption: string;
   readonly captionMeta: unknown;
-  readonly now: number;
 }
 
 function imageAnalysisStatement(db: Db, input: ImageAnalysisWrite): AwaitableBatchStmt<Pick<typeof imageAnalyses.$inferSelect, "revision">[]> {
@@ -33,7 +32,6 @@ function imageAnalysisStatement(db: Db, input: ImageAnalysisWrite): AwaitableBat
           caption: sql<string>`${input.caption}`.as("caption"),
           revision: sql<number>`1`.as("revision"),
           captionMeta: sql<ImageCaptionMeta>`${JSON.stringify(captionMeta)}`.as("caption_meta"),
-          createdAt: sql<number>`${input.now}`.as("created_at"),
         })
         .from(assets)
         .innerJoin(embedGenerations, and(eq(embedGenerations.id, input.generationId), eq(embedGenerations.ownerId, assets.ownerId)))
