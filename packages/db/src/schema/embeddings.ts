@@ -156,7 +156,6 @@ export const embedGenerations = sqliteTable(
     connectionRef: nulFreeText("connection_ref").$type<UserConnectionId>().notNull(),
     fingerprint: nulFreeText("fingerprint").notNull(),
     space: nulFreeText("space").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("embed_generations_owner_task_idx").on(t.ownerId, t.task),
@@ -219,7 +218,6 @@ export const characterEmbeddings = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One row per character per embedding space — the hash-gated upsert's ON CONFLICT target.
@@ -264,7 +262,6 @@ export const imageEmbeddings = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // Both lenses coexist idempotently per (asset, model): the upsert key. A re-embed of the same lens
@@ -289,7 +286,6 @@ export const imageAnalyses = sqliteTable("image_analyses", {
   // A vector pins this accepted Utility result; a newer result refuses an older encoder completion.
   revision: integer("revision").notNull().default(1),
   captionMeta: storedJsonText("caption_meta").$type<ImageCaptionMeta | UnreadableJsonText>().notNull(),
-  createdAt: stampColumn("created_at"),
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -501,7 +497,6 @@ export const documentChunks = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).

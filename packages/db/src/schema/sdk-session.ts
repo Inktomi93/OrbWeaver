@@ -5,7 +5,7 @@
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { nulFreeText, stampColumn } from "../custom-types/index.ts";
+import { nulFreeText } from "../custom-types/index.ts";
 import { chats } from "./chat.ts";
 import { userConnections } from "./connection.ts";
 
@@ -37,18 +37,6 @@ export const sessionEntries = sqliteTable(
     // Per-chat monotonic lineage ordinal — the ordering axis. A reseed APPENDS the next ordinal (a new
     // deterministic seed); the highest `seq` is the newest lineage, and `is_primary` marks the live one. UNIQUE per chat.
     seq: integer("seq").notNull(),
-    // Intended as the canon `messages.seq` this seed covered THROUGH — the staleness horizon (canon
-    // advanced past it ⇒ resume from the tail / reseed), mirroring `chats.compactedAtSeq`. THE CURRENT
-    // WRITER STORES THE SEEDED-TURN COUNT INSTEAD: the backend seam (`AgentSeedTurn`) carries no true
-    // canon seq, so a reader wanting the real horizon must first extend that seam (writer:
-    // domain/connection/persistence/session-entries.ts). No live reader exists; the value is internally consistent.
-    seededThroughSeq: integer("seeded_through_seq").notNull(),
-    // A hash of the canon prefix the seed was built from. WRITE-ONLY RECORD: the planned re-hash-and-compare
-    // gate was superseded by the live-frame comparison and the content-addressed lineage ids (header above),
-    // so no live reader exists — a future reader would be an optimization over that comparison, not the gate
-    // itself. D25's "detected vs canon, not a flag" is honored by the shipped gate. Mirrors the
-    // `content_hash` pattern on the vector tables.
-    canonHash: nulFreeText("canon_hash").notNull(),
     // The lineage the connection runs on now: the writer moves this seat onto every row it inserts or
     // re-adopts, so the other rows of that `(chat, connection)` are the reap candidates. NOT a staleness flag.
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
@@ -61,7 +49,6 @@ export const sessionEntries = sqliteTable(
       .$type<UserConnectionId>()
       .notNull()
       .references(() => userConnections.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The lineage order + the per-chat ordinal; `seq` is unique within a chat (the chat-cluster pattern).

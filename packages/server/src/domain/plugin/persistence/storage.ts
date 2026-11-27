@@ -40,8 +40,8 @@ function assertStorable(key: string, values: readonly (string | null)[]): void {
 
 /** Build the composed `storage.kv` op bundle (the `PluginHostOps.storage` shape). Both writers refuse a key or value
  *  past its size cap or holding a NUL before the statement runs. `set` enforces the 256-key ceiling: an upsert of an EXISTING key
- *  always proceeds (no new slot); a NEW key past the cap is refused. `nowMs` stamps `updatedAt`. */
-export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number): PluginHostOps["storage"] {
+ *  always proceeds (no new slot); a NEW key past the cap is refused. */
+export function buildPluginStorage(handle: DatabaseHandle): PluginHostOps["storage"] {
   const db = databaseForOwner(handle);
   return {
     get: (pluginId: PluginId, ownerId: UserId, key: string) => getKv(db, { pluginId, ownerId }, key),
@@ -51,7 +51,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
     // slot and both take it. This layer states the LIMIT; persistence carries it into the statement.
     set: async (pluginId: PluginId, ownerId: UserId, key: string, value: string): Promise<void> => {
       assertStorable(key, [value]);
-      const admitted = await upsertKvUnderCap(db, { pluginId, ownerId }, { key, value, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
+      const admitted = await upsertKvUnderCap(db, { pluginId, ownerId }, { key, value }, PLUGIN_KV_MAX_KEYS);
       if (!admitted) {
         throw new PluginKvCapError();
       }
@@ -71,7 +71,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
     ): Promise<{ applied: boolean; current: string | null }> => {
       assertStorable(entry.key, [entry.expected, entry.next]);
       const scope = { pluginId, ownerId };
-      const outcome = await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
+      const outcome = await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next }, PLUGIN_KV_MAX_KEYS);
       if (entry.expected === null && !outcome.applied && outcome.current === null) {
         throw new PluginKvCapError();
       }

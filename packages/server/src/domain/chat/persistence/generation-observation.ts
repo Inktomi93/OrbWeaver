@@ -165,7 +165,6 @@ async function appendGenerationObservation(
             : sql`(
       select ${userConnections.id} from ${userConnections}
       where ${userConnections.id} = ${fact.connectionId} and ${userConnections.ownerId} = ${fact.funderUserId})`,
-        connectionAttributionProvenance: fact.connectionId === null ? "unrecorded" : "recorded",
         ...leg,
         responseCache: leg.responseCache ?? null,
       }),

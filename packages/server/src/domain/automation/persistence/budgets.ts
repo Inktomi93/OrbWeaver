@@ -15,11 +15,6 @@ const LIMIT_ONE = 1;
 
 type OwnerBudgetRow = typeof automationOwnerBudgets.$inferSelect;
 
-/** The owner-editable rate-cap patch. An absent field keeps the current value / DB default. */
-interface OwnerBudgetPatch {
-  readonly maxFiresPerHour?: number | undefined;
-}
-
 export async function selectOwnerBudget(db: Db, ownerId: UserId): Promise<OwnerBudgetRow | undefined> {
   const rows = await db.select().from(automationOwnerBudgets).where(eq(automationOwnerBudgets.ownerId, ownerId)).limit(LIMIT_ONE);
   return rows[0];
@@ -35,15 +30,11 @@ export async function selectOwnerBudgetView(db: Db, ownerId: UserId): Promise<Ow
   return { maxFiresPerHour: row.maxFiresPerHour };
 }
 
-/** Upsert the owner-global rate-cap column. On first set the row is born with the patch over DB defaults; on
- *  a re-set only the provided column changes. */
-export async function upsertOwnerBudget(db: Db, ownerId: UserId, patch: OwnerBudgetPatch, now: number): Promise<void> {
-  const set: Partial<Pick<OwnerBudgetRow, "maxFiresPerHour">> & { updatedAt: number } = { updatedAt: now };
-  if (patch.maxFiresPerHour !== undefined) {
-    set.maxFiresPerHour = patch.maxFiresPerHour;
-  }
-  await db
-    .insert(automationOwnerBudgets)
-    .values({ ownerId, ...set })
-    .onConflictDoUpdate({ target: automationOwnerBudgets.ownerId, set });
+/** Upsert the owner-global rate-cap column. The row is born on the first set (over the DB default when no cap is
+ *  given); a re-set replaces the cap, and an absent cap leaves the current one. */
+export async function upsertOwnerBudget(db: Db, ownerId: UserId, maxFiresPerHour: number | undefined): Promise<void> {
+  const insert = db.insert(automationOwnerBudgets).values(maxFiresPerHour === undefined ? { ownerId } : { ownerId, maxFiresPerHour });
+  await (maxFiresPerHour === undefined
+    ? insert.onConflictDoNothing()
+    : insert.onConflictDoUpdate({ target: automationOwnerBudgets.ownerId, set: { maxFiresPerHour } }));
 }

@@ -353,7 +353,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       requestTurn: pluginRuntime.requestTurn,
     },
     worldInfo: { upsertEntries: automationOps.worldInfo.upsertEntries, ...worldInfoReads },
-    storage: buildPluginStorage(db, now),
+    storage: buildPluginStorage(db),
     notifications: { ...notificationDelivery, post: pluginFeedback.postNotification },
     quickReply: { surface: pluginFeedback.surfaceQuickReply },
     imagery: { generatePicture: pluginRuntime.generatePicture },

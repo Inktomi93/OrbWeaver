@@ -309,7 +309,6 @@ export const pluginKv = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     key: nulFreeText("key").notNull(),
     value: nulFreeText("value").notNull(),
-    updatedAt: integer("updated_at").notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.pluginId, t.key] }),

@@ -21,8 +21,8 @@ test("each stamp name is a required insert key", () => {
 declare const stated: typeof sessions.$inferInsert;
 
 test("an insert that leaves a stamp out does not compile", () => {
-  const { updatedAt: _left, ...unstamped } = stated;
-  // @ts-expect-error a session insert without `updatedAt` must not compile
+  const { lastSeenAt: _left, ...unstamped } = stated;
+  // @ts-expect-error a session insert without `lastSeenAt` must not compile
   const insert: typeof sessions.$inferInsert = unstamped;
   expectTypeOf(insert).toBeObject();
 });

@@ -180,12 +180,10 @@ interface UpsertCharacterInput {
   readonly model: string;
   readonly generationId: EmbedGenerationId;
   readonly dim: number;
-  /** Epoch-ms from the injected clock — the insert's `created_at` (kept on a conflict update). */
-  readonly now: number;
 }
 
 /** Upsert a card-text vector by `(characterId, generationId)`. On conflict updates `embedding`/`content_hash`/`dim`
- *  only — `hub_score`, `model`, `created_at` are left as-is. Returns `false` when the generation was retired or the
+ *  only — `hub_score` and `model` are left as-is. Returns `false` when the generation was retired or the
  *  card is gone. */
 export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInput): Promise<boolean> {
   const upsert = db
@@ -201,7 +199,6 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
           model: sql<string>`${input.model}`.as("model"),
           generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
           dim: sql<number>`${input.dim}`.as("dim"),
-          createdAt: sql<number>`${input.now}`.as("created_at"),
         })
         .from(characters)
         .innerJoin(embedGenerations, eq(embedGenerations.id, input.generationId))
@@ -243,7 +240,6 @@ interface UpsertImageInput {
   readonly model: string;
   readonly generationId: EmbedGenerationId;
   readonly dim: number;
-  readonly now: number;
 }
 
 /** A vector lands only for the expected asset owner and pinned Utility revision; it never authors the annotation. */
@@ -267,7 +263,6 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
           model: sql<string>`${input.model}`.as("model"),
           generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
           dim: sql<number>`${input.dim}`.as("dim"),
-          createdAt: sql<number>`${input.now}`.as("created_at"),
         })
         .from(assets)
         .innerJoin(embedGenerations, and(eq(embedGenerations.id, input.generationId), eq(embedGenerations.ownerId, assets.ownerId)))
@@ -589,11 +584,10 @@ interface UpsertDocumentChunkInput {
   readonly model: string;
   readonly generationId: EmbedGenerationId;
   readonly dim: number;
-  readonly now: number;
 }
 
 /** Upsert a document chunk by `(documentId, chunkIdx, model)`. On conflict updates the vector + content +
- *  span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2).
+ *  span + hash + dim only — `hub_score` and the key columns are left as-is (§invariant 2).
  *  `model` is in the conflict key: a new space inserts additively rather than overwriting the old. Returns
  *  `false` when the generation was retired or the document is gone. */
 export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInput): Promise<boolean> {
@@ -614,7 +608,6 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
           model: sql<string>`${input.model}`.as("model"),
           generationId: sql<EmbedGenerationId>`${input.generationId}`.as("generation_id"),
           dim: sql<number>`${input.dim}`.as("dim"),
-          createdAt: sql<number>`${input.now}`.as("created_at"),
         })
         .from(documents)
         .innerJoin(embedGenerations, eq(embedGenerations.id, input.generationId))

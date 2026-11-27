@@ -184,7 +184,6 @@ export const automationOwnerBudgets = sqliteTable(
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour),
-    updatedAt: stampColumn("updated_at"),
   },
   // The owner-wide budget is a magnitude like the per-rule one above.
   () => [check("automation_owner_budgets_budget_check", sql.raw("max_fires_per_hour >= 0"))],

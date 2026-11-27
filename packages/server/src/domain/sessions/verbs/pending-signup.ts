@@ -53,7 +53,6 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
       groups: identity.groups,
       inviteTokenHash: args.inviteTokenHash,
       idToken: args.idToken !== null && args.idToken.length > 0 ? ctx.sealPendingIdToken(args.idToken, secretHash) : null,
-      createdAt: at,
       expiresAt: at + OIDC_PENDING_JOIN_TTL_MS,
     });
     return secret;

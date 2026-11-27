@@ -1294,7 +1294,6 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         chatId,
         acceptedByUserId: principal.userId,
         actorRekeys: plan.cardCopies,
-        now: acceptedAt,
       }),
       statementForOwner(
         ctx.auditStatement(

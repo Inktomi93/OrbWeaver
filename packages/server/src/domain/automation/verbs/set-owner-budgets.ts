@@ -13,6 +13,6 @@ import { assertFireRateCap } from "../substrate/validate.ts";
 export function createSetOwnerBudgets(ctx: AutomationContext): AutomationService["setOwnerBudgets"] {
   return async ({ principal, maxFiresPerHour }: SetOwnerBudgetsParams): Promise<void> => {
     assertFireRateCap(maxFiresPerHour);
-    await upsertOwnerBudget(ctx.db, principal.userId, { maxFiresPerHour }, ctx.now());
+    await upsertOwnerBudget(ctx.db, principal.userId, maxFiresPerHour);
   };
 }

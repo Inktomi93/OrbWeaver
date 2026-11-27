@@ -725,7 +725,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
       // D8 `session_entries` write path — the sealed backend never touches @orb/db itself.
-      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource), now),
+      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource)),
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),

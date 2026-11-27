@@ -100,7 +100,7 @@ async function indexAsset(
     return raw;
   }
   const analysisRevision =
-    retained?.revision ?? (await saveImageAnalysis(ctx.db, { ownerId, assetId, generationId: generation.id, contentHash: hash, ...analysis, now: ctx.now() }));
+    retained?.revision ?? (await saveImageAnalysis(ctx.db, { ownerId, assetId, generationId: generation.id, contentHash: hash, ...analysis }));
   if (analysisRevision === undefined) {
     return null;
   }
