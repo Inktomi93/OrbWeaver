@@ -90,7 +90,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     ]);
 
     // The ghost RESOLVES: a durable assistant row lands with non-empty content, and the ghost is gone.
-    const { userId, assistantId } = await held.awaitReply();
+    const { userMessageId, assistantId } = await held.awaitReply();
     await expect(messageRow(page, assistantId)).toContainText(NON_WS, { timeout: WAIT_LIVE_TURN_MS });
     await expect(ghost).toHaveCount(0, { timeout: WAIT_SETTLE_MS });
     // Legibility: surface whether the ghost's streaming body was observable this run (not asserted — see above).
@@ -115,7 +115,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
     // containment: the user turn we typed is verbatim, unrendered text — its distinctive string MUST appear in
     // its DOM row. (Assistant prose is model-nondeterministic + markdown-transformed; non-emptiness + the
     // canon model check below are the honest assistant-side guarantees.)
-    const userIdx = canon.findIndex((c) => c.id === userId);
+    const userIdx = canon.findIndex((c) => c.id === userMessageId);
     expect(userIdx).toBeGreaterThanOrEqual(0);
     expect(dom[userIdx]?.role).toBe("user");
     expect(dom[userIdx]?.text).toContain(USER_PROMPT);

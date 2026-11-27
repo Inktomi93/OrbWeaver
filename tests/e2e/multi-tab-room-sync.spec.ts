@@ -182,7 +182,7 @@ test("a turn driven in tab A streams into tab B's open transcript", { tag: "@liv
     const held = await sendHeldTurn({ page: tabA, chatId: room.chatId }, probe);
 
     // The human line fans first (persistUserMessage emits `messageCommitted` before the AI round runs)…
-    await expect(messageRow(tabB, held.userId)).toContainText(probe, { timeout: WAIT_SETTLE_MS });
+    await expect(messageRow(tabB, held.userMessageId)).toContainText(probe, { timeout: WAIT_SETTLE_MS });
     // …and then the character's turn lands in the passive tab's transcript too.
     const { assistantId } = await held.awaitReply();
     await expect(messageRow(tabB, assistantId)).toBeVisible({ timeout: WAIT_LIVE_TURN_MS });

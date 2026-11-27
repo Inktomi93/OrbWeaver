@@ -33,8 +33,8 @@ test("typing instantly after room open keeps every keystroke — no composer rem
     await expect(composer).toBeFocused();
 
     // Wait for the reply as well: deleting a room mid-turn would race its last writes.
-    const { userId } = await sendAndAwaitReply({ page, chatId }, INSTANT_MESSAGE);
-    await expect(messageRow(page, userId)).toContainText(INSTANT_MESSAGE, { timeout: WAIT_SETTLE_MS });
+    const { userMessageId } = await sendAndAwaitReply({ page, chatId }, INSTANT_MESSAGE);
+    await expect(messageRow(page, userMessageId)).toContainText(INSTANT_MESSAGE, { timeout: WAIT_SETTLE_MS });
   } finally {
     await deleteChat(chatId);
   }

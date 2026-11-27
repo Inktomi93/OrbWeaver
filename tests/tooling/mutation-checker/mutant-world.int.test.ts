@@ -1,13 +1,18 @@
 // The native checker's decision on planted worlds: a mutant fails by its own file's errors, and by an importer's
 // errors only when it changed the file's declaration, the one surface an importer reads.
+import type { ChildProcess } from "node:child_process";
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { join } from "node:path";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
+import { spawnedChild } from "../../../tooling/src/floor/process/proc.ts";
 import type { MutantEdit } from "../../../tooling/src/mutation-checker/index.ts";
 import { MutantWorld } from "../../../tooling/src/mutation-checker/index.ts";
 import type { Link } from "../_library-link.ts";
 import { LINKS, PACKAGE_DIR, plantLinked } from "../_library-link.ts";
 
 const WORLD = "tsconfig.json";
+// Node publishes each spawned process on this channel, as `{ process }`, synchronously inside the spawn.
+const CHILD_PROCESS_CHANNEL = "child_process";
 const LIB = "src/lib.ts";
 const MID = "src/mid.ts";
 const APP = "src/app.ts";
@@ -149,6 +154,32 @@ test("a mutant fails on a read inside an augmentation of its own file", async ({
     location: { start: { line: 0, column }, end: { line: 0, column: column + "name".length } },
   });
   expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, FLAGS)]);
+});
+
+// Nothing holds the API once the constructor throws, so a world that cannot open must take its compiler process down with it.
+test("a world whose config cannot be read closes the compiler process it started", async ({ plantedTree }) => {
+  const root = await plantedTree(TREE);
+  const spawned: ChildProcess[] = [];
+  const take = (message: unknown): void => {
+    const child = spawnedChild(message);
+    if (child !== undefined) {
+      spawned.push(child);
+    }
+  };
+  subscribe(CHILD_PROCESS_CHANNEL, take);
+  try {
+    expect(() => MutantWorld.open(root, "missing/tsconfig.json")).toThrow(/tsconfig\.json/u);
+  } finally {
+    unsubscribe(CHILD_PROCESS_CHANNEL, take);
+  }
+  // Control: the failed open did start a compiler, so a leak is observable.
+  expect(spawned).toHaveLength(1);
+  const [compiler] = spawned;
+  try {
+    await expect.poll(() => compiler?.exitCode ?? compiler?.signalCode).not.toBeNull();
+  } finally {
+    compiler?.kill();
+  }
 });
 
 test("a mutant outside the world's program passes unread", async ({ plantedTree }) => {

@@ -27,7 +27,7 @@ const HANDLE = castId<CharacterHandle>("e2e-live-names");
 
 interface SpeakerRows {
   readonly greetingId: MessageId;
-  readonly userId: MessageId;
+  readonly userMessageId: MessageId;
   readonly assistantId: MessageId;
 }
 
@@ -39,7 +39,7 @@ function attribution(page: Page, messageId: MessageId): Locator {
 async function expectSpeakerNames(page: Page, rows: SpeakerRows): Promise<void> {
   await expect(attribution(page, rows.greetingId)).toHaveText(CHARACTER_NAME);
   await expect(attribution(page, rows.assistantId)).toHaveText(CHARACTER_NAME);
-  await expect(attribution(page, rows.userId)).toHaveText(DEFAULT_PERSONA_NAME);
+  await expect(attribution(page, rows.userMessageId)).toHaveText(DEFAULT_PERSONA_NAME);
 }
 
 test("row speaker names are DB-true and survive a chat rename + reload", {
@@ -61,8 +61,8 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
     if (greetingId === undefined) {
       throw new Error("the minted character's chat seeded no greeting");
     }
-    const { userId, assistantId } = await sendAndAwaitReply({ page, chatId }, "Reply with exactly: names-probe-ok");
-    const rows = { greetingId, userId, assistantId };
+    const { userMessageId, assistantId } = await sendAndAwaitReply({ page, chatId }, "Reply with exactly: names-probe-ok");
+    const rows = { greetingId, userMessageId, assistantId };
     expect((await canonMessage(chatId, assistantId))?.characterId).toBe(characterId);
 
     // Speaker names: assistant rows show the CHARACTER, the user row shows the persona/user display name.

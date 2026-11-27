@@ -132,12 +132,12 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   fixture.release(2);
   const switchedTurn = await switched.awaitReply();
   await expect(messageRow(page, switchedTurn.assistantId)).toContainText(SWITCHED.prefix + SWITCHED.suffix);
-  expect((await canonMessage(chatId, switchedTurn.userId))?.personaId).toBe(persona.id);
-  await expect(messageRow(page, switchedTurn.userId)).toContainText(SWITCHED.userMessage);
+  expect((await canonMessage(chatId, switchedTurn.userMessageId))?.personaId).toBe(persona.id);
+  await expect(messageRow(page, switchedTurn.userMessageId)).toContainText(SWITCHED.userMessage);
   await page.reload();
   await waitForAppReady(page);
   await expect(assistant).toContainText(EDITED);
-  await expect(messageRow(page, switchedTurn.userId)).toContainText(SWITCHED.userMessage);
+  await expect(messageRow(page, switchedTurn.userMessageId)).toContainText(SWITCHED.userMessage);
   await openPersonas(page, isMobile);
   await expect(page.getByRole("button", { name: personaSwitchName(persona.name, true), exact: true })).toBeVisible();
   await expect(pin).toHaveAttribute("aria-pressed", "true");

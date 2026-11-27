@@ -339,7 +339,7 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
     // The proof it fired the send: a NEW user row with exactly the option text lands in canon (DB) AND renders (FE),
     // independent of the live reply's content — the send is the seam under test, not the model's answer. ──
     const held = await witnessTurn({ page, chatId }, CHOICE_OPTION, () => optionButton.click());
-    await expect(messageRow(page, held.userId)).toContainText(CHOICE_OPTION, { timeout: WAIT_SURFACE_MS });
+    await expect(messageRow(page, held.userMessageId)).toContainText(CHOICE_OPTION, { timeout: WAIT_SURFACE_MS });
 
     // The choice drove a real turn end-to-end: a NEW assistant row after that user row.
     const { assistantId } = await held.awaitReply();
