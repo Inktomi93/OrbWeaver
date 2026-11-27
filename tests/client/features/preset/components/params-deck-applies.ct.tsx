@@ -4,6 +4,7 @@
 // not take is kept through an edit of another knob, and shows again once the chat moves back to a model that takes it.
 // An adaptive-reasoning model takes an effort level, so its Effort select renders; gpt-4o reasons not at all.
 
+import { ADJUSTED_KNOB_NAMES } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { PresetId, UserConnectionId } from "@orb/kit/ids";
@@ -80,13 +81,13 @@ test("Top-K and Reply pictures render on a model that takes them and are absent 
   expect(await bindChat(caller, connections.takes)).toEqual({ topK: true, pictures: true });
   await openParams(page, mount, preset.id);
   await expect(page.getByRole("textbox", { name: "Top-K value", exact: true })).toHaveValue(String(STORED_TOP_K));
-  await expect(page.getByRole("switch", { name: "Reply pictures", exact: true })).toBeVisible();
+  await expect(page.getByRole("switch", { name: ADJUSTED_KNOB_NAMES.replyMedia.label, exact: true })).toBeVisible();
 
   expect(await bindChat(caller, connections.lacks)).toEqual({ topK: false, pictures: false });
   await openParams(page, mount, preset.id);
   await expect(page.getByRole("textbox", { name: "Temperature value", exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Top-K value", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("switch", { name: "Reply pictures", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("switch", { name: ADJUSTED_KNOB_NAMES.replyMedia.label, exact: true })).toHaveCount(0);
   await expect(page.getByRole("combobox", { name: "Reasoning display", exact: true })).toHaveCount(0);
 });
 
