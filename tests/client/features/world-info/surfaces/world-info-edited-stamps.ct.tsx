@@ -59,4 +59,9 @@ test("every entry row inside a book carries its own compact edit stamp in the me
   const component = await mount<typeof WorldInfoMemberStory>(MEMBER_STORY, { bookId, context: false });
   const stamps = component.locator('[data-slot="list-row-meta"]');
   await expect(stamps).toHaveCount(entries.length);
+  // Each meta is the bare compact stamp: one non-empty token with no lead word, which reads as code beside a lead.
+  for (const stamp of await stamps.all()) {
+    await expect(stamp).toHaveText(/^\S+$/u);
+    await expect(stamp).not.toContainText(EDITED_STAMP_LEAD);
+  }
 });
