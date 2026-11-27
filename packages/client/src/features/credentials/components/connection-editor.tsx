@@ -186,6 +186,7 @@ function AvailableConnectionEditorBody({
   const declared = connection.declared;
   const imageSwitch = imageInputSwitch(capabilityView.capability, declared, capabilityView.baseline);
   const busy = update.isPending;
+  const servesEmbedding = inferredKindOf(connection.tasks) === "embedding";
 
   // A patch to an identity field of the user's embedder can rebuild their index, so the server is asked first; any other
   // field is written straight through. A fact row's Override or Reset button goes away with the change, so focus returns
@@ -214,7 +215,9 @@ function AvailableConnectionEditorBody({
           focusFact(factNodes.current, factPath);
         });
     };
-    if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
+    // Only a connection that serves an embedding role can sit in the owner's vector space, so a write to any other is never
+    // held for a rebuild confirm, whatever the preview would have said.
+    if (servesEmbedding && EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
       reindex.guard({ kind: "update", connectionId, patch: part }, write);
     } else {
       write(false);

@@ -103,13 +103,15 @@ export default defineConfig<CtCorpusOptions>({
       ],
       use: { ...devices["iPhone 15"], launchOptions: nativeBrowserLaunchOptions("webkit") },
     },
-    // Opt-in (`pnpm test:ct:firefox`) on Playwright's Firefox build, for the frame cases, the consent card's one-word marks and the slop rows' phone fit, whose outcome differs by engine.
+    // Opt-in (`pnpm test:ct:firefox`) on Playwright's Firefox build, for the frame cases, the consent card's one-word marks, the slop rows' phone fit, the own-server rows' phone fit and a long notice's action, whose outcome differs by engine.
     {
       name: "firefox",
       testMatch: [
         "**/content/sandbox-frame/sandbox-frame-resource-hints.ct.tsx",
         "**/features/plugin/components/consent-reach.ct.tsx",
         "**/features/preset/components/platform-preset-slop-rows.suite.ct.tsx",
+        "**/features/credentials/components/platform-connection-own-server-rows.suite.ct.tsx",
+        "**/primitives/toast/platform-toast-long-action.suite.ct.tsx",
       ],
       use: { ...devices["Desktop Firefox"], launchOptions: nativeBrowserLaunchOptions("firefox") },
     },

@@ -20,6 +20,7 @@ import type { ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import type { ChatBusDeps } from "#data";
 import type { NotifyAction, NotifyNotice } from "#lib";
 import { isStopRowShown, noteServerStoppedScript } from "#lib";
+import type { PresetKnobTarget } from "#state";
 import { createTurnWarningCadence } from "./turn-warning-cadence.ts";
 import { regexNotAppliedNotice, turnDropsNotice, warningNotice } from "./warning-notice.ts";
 
@@ -37,8 +38,8 @@ export interface WarningSurfaceDeps {
   /** The preset the host's turns run (their default), or `null` for the built-in default or a viewer who is not the host. The
    *  bus carries neither the preset nor a connection row, and a member cannot read the host's preset. */
   readonly presetOf: (chatId: ChatId) => PresetId | null;
-  /** Opens a preset's editor on its Params view. */
-  readonly openParams: (presetId: PresetId) => NotifyAction;
+  /** Opens a preset's editor on its Params view, landing on `knob` when one is named. */
+  readonly openParams: (presetId: PresetId, knob?: PresetKnobTarget) => NotifyAction;
   /** The host's own script with this id, or `null` when the library does not hold it or cannot be read. */
   readonly scriptOf: (scriptId: RegexScriptId) => Promise<Pick<RegexScriptRow, "id" | "name" | "findRegex"> | null>;
 }
@@ -55,13 +56,20 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
     ["smart_arbitration_degraded", deps.openUtilityModel],
     ["speaker_rerank_unavailable", deps.openRerankModel],
   ]);
-  // A dropped setting is the preset's: its notice offers the preset's Params, for the host who owns that preset.
+  // A dropped setting is the preset's: its notice offers the preset's Params, for the host who owns that preset. A banned
+  // phrase list the server cannot ban as written is fixed in its own knob, so the door lands there.
   const paramsDoor = (warnings: readonly ChatWarning[], chatId: ChatId): NotifyAction | undefined => {
     const presetId = deps.presetOf(chatId);
-    return presetId !== null && warnings.some(namesParamsSetting) ? deps.openParams(presetId) : undefined;
+    if (presetId === null || !warnings.some(namesParamsSetting)) {
+      return undefined;
+    }
+    return warnings.some(isUnbannablePhrases) ? deps.openParams(presetId, BANNED_PHRASES_KNOB) : deps.openParams(presetId);
   };
+  // A tokenizer that could not answer is the connection's to fix, for the host and a member alike.
+  const tokenizerDoor = (warnings: readonly ChatWarning[]): NotifyAction | undefined => (warnings.some(isUnansweredPhrases) ? deps.openConnections : undefined);
   const raise = (notice: NotifyNotice, warnings: readonly ChatWarning[], chatId: ChatId): void => {
-    const action = warnings.map((warning) => actionFor.get(warning.code)).find((found) => found !== undefined) ?? paramsDoor(warnings, chatId);
+    const action =
+      warnings.map((warning) => actionFor.get(warning.code)).find((found) => found !== undefined) ?? tokenizerDoor(warnings) ?? paramsDoor(warnings, chatId);
     deps.warn(action === undefined ? notice : { ...notice, action });
   };
   // Each skipped script's latest report this session, by id, in the order first reported.
@@ -116,6 +124,18 @@ export function createWarningSurface(deps: WarningSurfaceDeps): WarningCallbacks
       }
     },
   };
+}
+
+const BANNED_PHRASES_KNOB = "bannedStrings" satisfies PresetKnobTarget;
+
+/** Banned phrases the server cannot ban as written: the preset's list is what to change. */
+function isUnbannablePhrases(warning: ChatWarning): boolean {
+  return warning.code === SETTINGS_ADJUSTED_CODE && warning.knob === BANNED_PHRASES_KNOB && warning.cause === "sequence";
+}
+
+/** Banned phrases the server's tokenizer could not check: the connection's tokenize endpoint is what to fix. */
+function isUnansweredPhrases(warning: ChatWarning): boolean {
+  return warning.code === SETTINGS_ADJUSTED_CODE && warning.knob === BANNED_PHRASES_KNOB && warning.cause === "tokenizer";
 }
 
 /** Does this warning name a setting the preset's Params holds? */

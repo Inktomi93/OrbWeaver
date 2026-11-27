@@ -24,7 +24,14 @@
 // user-silent. (A snake_case-keyed `Record` would trip `useNamingConvention`; the exhaustive switch is
 // the sibling `turnAbortNotice` shape and carries the same tsc guarantee.)
 
-import type { AdjustedKnob, ChatRegexNotAppliedWarning, ChatSettingsAdjustedWarning, ChatWarning, PlainChatWarningCode } from "@orb/contracts/chat";
+import type {
+  AdjustedKnob,
+  BannedPhraseCause,
+  ChatRegexNotAppliedWarning,
+  ChatSettingsAdjustedWarning,
+  ChatWarning,
+  PlainChatWarningCode,
+} from "@orb/contracts/chat";
 import type { NotifyNotice } from "#lib";
 import { regexNotAppliedDescription, regexNotAppliedTitle } from "./regex-stop-copy.ts";
 
@@ -76,16 +83,41 @@ export function regexNotAppliedNotice(
 }
 
 /** A turn's drops as ONE notice (`turn-warning-cadence.ts`): a single drop keeps its own notice, and several
- *  share a title that counts them while the description lists each drop's own title. */
+ *  share a title that counts them while the description lists each drop's own title. A list setting that partly
+ *  rode counts apart from the settings that did not, and its line keeps how many were sent: it is not a thing the
+ *  reply ran without. */
 export function turnDropsNotice(warnings: readonly ChatWarning[]): NotifyNotice {
   const [only] = warnings;
   if (warnings.length === 1 && only !== undefined) {
     return warningNotice(only);
   }
+  const partials = warnings.filter(isPartialDrop).length;
+  const whole = warnings.length - partials;
+  const without = whole === 0 ? [] : [`ran without ${countedThings(whole)} you asked for`];
+  const part = partials === 0 ? [] : [whole === 0 ? `used only part of ${countedThings(partials)} you asked for` : `used only part of ${anotherOf(partials)}`];
   return {
-    title: `This reply ran without ${String(warnings.length)} things you asked for`,
-    description: `${warnings.map((warning) => warningNotice(warning).title).join(". ")}.`,
+    title: `This reply ${[...without, ...part].join(" and ")}`,
+    description: warnings.map(groupLine).join(" "),
   };
+}
+
+function countedThings(count: number): string {
+  return count === 1 ? "1 thing" : `${String(count)} things`;
+}
+
+function anotherOf(count: number): string {
+  return count === 1 ? "another" : `${String(count)} others`;
+}
+
+/** One drop's line in a grouped description: its title, and for a partial drop how many were sent. */
+function groupLine(warning: ChatWarning): string {
+  const title = warningNotice(warning).title;
+  const partial = warning.code === "settings_adjusted" ? partialDropOf(warning) : undefined;
+  return partial === undefined ? `${title}.` : `${title}. ${sentClause(partial.sent)}`;
+}
+
+function isPartialDrop(warning: ChatWarning): boolean {
+  return warning.code === "settings_adjusted" && partialDropOf(warning) !== undefined;
 }
 
 /** The outcomes whose notice is fully determined by the code — every `PLAIN_CHAT_WARNING_CODES` member. */
@@ -195,14 +227,38 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
   }
 }
 
-// A list setting the model took in part: how many entries did not ride, and that the rest did.
-function partialDropNotice(label: string, dropped: number, sent: number): NotifyNotice {
+interface PartialDrop {
+  readonly knob: AdjustedKnob;
+  readonly dropped: number;
+  readonly sent: number;
+}
+
+/** A list setting that partly rode: which one, how many entries did not, and how many did. */
+function partialDropOf(warning: ChatSettingsAdjustedWarning): PartialDrop | undefined {
+  const { knob, droppedCount, sentCount } = warning;
+  return warning.adjustment === "sampling_knob_dropped" && knob !== undefined && droppedCount !== undefined && sentCount !== undefined
+    ? { knob, dropped: droppedCount, sent: sentCount }
+    : undefined;
+}
+
+function sentClause(sent: number): string {
+  return sent === 1 ? "The other one was sent." : `The other ${String(sent)} were sent.`;
+}
+
+// A list setting the server took in part: how many entries did not ride, why, and that the rest did. The phrases
+// themselves never reach the bus, so the reason is a closed cause and the way out is a place, not a phrase.
+function partialDropNotice({ knob, dropped, sent }: PartialDrop, cause: BannedPhraseCause | undefined): NotifyNotice {
   const droppedClause = dropped === 1 ? "1 wasn't" : `${String(dropped)} weren't`;
-  const form = dropped === 1 ? "that one in the form it was" : "those in the form they were";
-  const rest = sent === 1 ? "The other one was sent." : `The other ${String(sent)} were sent.`;
+  const one = dropped === 1;
+  const cannot =
+    cause === "tokenizer"
+      ? `This server's tokenizer couldn't check ${one ? "that one" : "those"}.`
+      : `This server can't ban ${one ? "that one" : "those"} mid-sentence the way ${one ? "it was" : "they were"} written.`;
+  const way =
+    cause === "tokenizer" ? "Check this connection's tokenize endpoint." : `Reword ${one ? "it" : "them"}, or put an antislop proxy in front of this server.`;
   return {
-    description: `This model can't take ${form} written. ${rest}`,
-    title: `${label}: ${droppedClause} used for this reply`,
+    description: `${cannot} ${sentClause(sent)} ${way}`,
+    title: `${KNOB_LABELS[knob]}: ${droppedClause} used for this reply`,
   };
 }
 
@@ -220,20 +276,8 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         title: "Cache controls changed for this reply",
         description: "This connection couldn't apply all your requested cache controls. Check its cache settings; provider-managed caching may still run.",
       };
-    case "sampling_knob_dropped": {
-      // NO FALLBACK LABEL: `knob` is absent only if a producer ever raises this class without saying which
-      // setting it dropped, and naming an arbitrary knob there would be a lie about the user's own settings.
-      const knob = warning.knob;
-      const { droppedCount, sentCount } = warning;
-      // A partial drop: the rest of the list DID ride, so the notice must not read as the setting having failed.
-      if (knob !== undefined && droppedCount !== undefined && sentCount !== undefined) {
-        return partialDropNotice(KNOB_LABELS[knob], droppedCount, sentCount);
-      }
-      return {
-        description: samplingDropDescription(knob),
-        title: knob === undefined ? "A generation setting wasn't used for this reply" : `${KNOB_LABELS[knob]} wasn't used for this reply`,
-      };
-    }
+    case "sampling_knob_dropped":
+      return knobDroppedNotice(warning);
     case "sampling_knob_conflict": {
       const knob = warning.knob;
       return {
@@ -326,6 +370,24 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
   }
 }
 
+function knobDroppedNotice(warning: ChatSettingsAdjustedWarning): NotifyNotice {
+  // NO FALLBACK LABEL: `knob` is absent only if a producer ever raises this class without saying which
+  // setting it dropped, and naming an arbitrary knob there would be a lie about the user's own settings.
+  const knob = warning.knob;
+  // A partial drop: the rest of the list DID ride, so the notice must not read as the setting having failed.
+  const partial = partialDropOf(warning);
+  if (partial !== undefined) {
+    return partialDropNotice(partial, warning.cause);
+  }
+  return {
+    description: samplingDropDescription(knob, warning.cause),
+    title:
+      knob === undefined
+        ? "A generation setting wasn't used for this reply"
+        : `${KNOB_LABELS[knob]} ${PLURAL_KNOBS.has(knob) ? "weren't" : "wasn't"} used for this reply`,
+  };
+}
+
 /** WHY a knob didn't reach the model. Three honest answers, not one: the eleven sampling knobs are
  *  capability-gated, the thinking budget is a reasoning-MODE mismatch (there IS somewhere else to set it),
  *  and an unknown quality level is a stored value this app no longer recognises — not the model's doing at
@@ -333,7 +395,7 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
  *
  *  Every member is listed rather than grouped under a `default`, so a new `ADJUSTED_KNOBS` member has to be
  *  classified into one of the three answers instead of silently inheriting the capability one. */
-function samplingDropDescription(knob: AdjustedKnob | undefined): string {
+function samplingDropDescription(knob: AdjustedKnob | undefined, cause: BannedPhraseCause | undefined): string {
   switch (knob) {
     case "thinkingBudgetTokens":
       return "This model reasons by effort level and has no thinking-budget setting. Set the effort dial instead.";
@@ -347,6 +409,11 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
       return "This reply didn't get the model's earlier thinking back. Either the model won't take it, or thinking was off.";
     case "parallelToolCalls":
       return "This connection's runtime has no parallel tool call setting, so it decided on its own how to call tools.";
+    case "bannedStrings":
+      return bannedPhrasesDropDescription(cause);
+    case "slopList":
+    case "slopStrength":
+      return "Only an antislop proxy takes this, and this connection doesn't use one, so nothing was sent.";
     case "temperature":
     case "topP":
     case "topK":
@@ -374,15 +441,12 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
     case "adaptiveTarget":
     case "adaptiveDecay":
     case "minKeep":
-    case "bannedStrings":
     case "banEos":
     case "seed":
     case "logitBias":
     case "stop":
     case "drySequenceBreakers":
     case "samplerOrder":
-    case "slopList":
-    case "slopStrength":
     // An unnamed drop reads the same way: the model didn't take the setting. It is the TITLE that must not
     // invent a name, and it doesn't.
     case undefined:
@@ -391,6 +455,27 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
       return assertNeverKnob(knob);
   }
 }
+
+/** Every banned phrase went unsent: the server's own rule, its tokenizer, or a connection that states no phrase ban. */
+function bannedPhrasesDropDescription(cause: BannedPhraseCause | undefined): string {
+  switch (cause) {
+    case "sequence":
+      return "This server can't ban phrases mid-sentence the way you wrote them, so none were sent. Reword them, or put an antislop proxy in front of this server.";
+    case "tokenizer":
+      return "This server's tokenizer couldn't check the phrases, so none were sent. Check this connection's tokenize endpoint.";
+    case undefined:
+      return "This connection doesn't take banned phrases, so none were sent.";
+    default:
+      return assertNeverCause(cause);
+  }
+}
+
+function assertNeverCause(cause: never): never {
+  throw new Error(`warningNotice: unhandled BannedPhraseCause ${JSON.stringify(cause)}`);
+}
+
+/** The knob labels that name several things, so their title takes "weren't". */
+const PLURAL_KNOBS: ReadonlySet<AdjustedKnob> = new Set<AdjustedKnob>(["bannedStrings", "stop", "drySequenceBreakers", "replyMedia"]);
 
 function assertNeverKnob(knob: never): never {
   throw new Error(`warningNotice: unhandled AdjustedKnob ${JSON.stringify(knob)}`);

@@ -2589,6 +2589,7 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
         knob: warning.knob,
         droppedCount: warning.partial?.dropped,
         sentCount: warning.partial?.sent,
+        cause: warning.cause,
       };
     // The SDK's own second gate (#A3), setting half: the provider refused a knob AFTER our funnel resolved
     // it. The ONE pair of arms where the two spellings deliberately differ — the infra code records WHO

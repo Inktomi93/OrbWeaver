@@ -24,7 +24,7 @@
 // overridden. Composite leaves whose schema needs a sibling (`sleep`, `pricing`, `embedBatch`) render only
 // when stated, because a lone half would not parse at the verb.
 
-import type { DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
+import type { DeclaredCapability, EndpointFeatures, TokenizeApi } from "@orb/contracts/inference";
 import {
   BANNED_STRINGS_SPELLINGS,
   EFFORT_SPELLINGS,
@@ -50,7 +50,15 @@ import { parseCount } from "@orb/kit/strings";
 import { grouped as formatGrouped, tokens as formatTokens, samplerWords } from "./connection-fact-format.ts";
 import type { BooleanLabels, FactLeaf, FactRow, NumberBound } from "./connection-fact-types.ts";
 import { pricingFactLeaves, pricingSiblings } from "./connection-pricing.ts";
-import { FACT_COUNT_INVALID, FACT_NAMES, factMaximumLabel, factMinimumLabel } from "./credentials-names.ts";
+import {
+  FACT_COUNT_INVALID,
+  FACT_NAMES,
+  FACT_NUMBER_INVALID,
+  FACT_POSITIVE_INVALID,
+  FACT_WHOLE_INVALID,
+  factMaximumLabel,
+  factMinimumLabel,
+} from "./credentials-names.ts";
 
 export type { BooleanLabels, FactChoice, FactLeaf, FactRow } from "./connection-fact-types.ts";
 
@@ -58,6 +66,8 @@ export const grouped = formatGrouped;
 export const tokens = formatTokens;
 
 // ── the Advanced tier: ONE fact-row grammar for both blocks ────────────────────────────────────────────
+
+const VLLM_TOKENIZE_API: TokenizeApi = "vllm";
 
 const SUMMARIZE_MAX: NumberBound = { value: SUMMARIZE_CONCURRENCY_MAX, reads: String(SUMMARIZE_CONCURRENCY_MAX) };
 
@@ -67,16 +77,32 @@ export function boundRefusal(edit: FactRow["edit"], raw: string): string | null 
     return null;
   }
   const value = numberOf(edit, raw);
-  if (value === undefined) {
-    return FACT_COUNT_INVALID;
+  if (value === undefined || (edit.whole === true && !Number.isInteger(value)) || (edit.positive === true && value <= 0)) {
+    return invalidNumberText(edit);
   }
   const below = edit.min !== undefined && value < edit.min.value ? factMinimumLabel(edit.min.reads) : null;
   return below ?? (edit.max !== undefined && value > edit.max.value ? factMaximumLabel(edit.max.reads) : null);
 }
 
-/** A number fact's typed value: a count reads the forms people type, any other number reads as written. */
+/** A number fact's typed value: a count reads the forms people type, any other number reads as written. Text that is no
+ *  finite number reads as `undefined`, never `NaN`, so no caller can save it. */
 function numberOf(edit: Extract<FactRow["edit"], { kind: "number" }>, raw: string): number | undefined {
-  return edit.count === true ? parseCount(raw) : Number(raw.trim());
+  if (edit.count === true) {
+    return parseCount(raw);
+  }
+  const typed = Number(raw.trim());
+  return Number.isFinite(typed) ? typed : undefined;
+}
+
+/** What a refused number says it needs to be, by what the fact accepts. */
+function invalidNumberText(edit: Extract<FactRow["edit"], { kind: "number" }>): string {
+  if (edit.count === true) {
+    return FACT_COUNT_INVALID;
+  }
+  if (edit.whole === true) {
+    return FACT_WHOLE_INVALID;
+  }
+  return edit.positive === true ? FACT_POSITIVE_INVALID : FACT_NUMBER_INVALID;
 }
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
@@ -152,6 +178,14 @@ function factValueText(value: unknown): string {
   return isPrimitive(value) ? String(value) : JSON.stringify(value);
 }
 
+/** The seed of a leaf the fold states nothing for: a boolean and a switch seed "no", an enum its first option. */
+function unstatedDraft(edit: FactRow["edit"]): string {
+  if (edit.kind === "boolean" || edit.kind === "switch") {
+    return "false";
+  }
+  return edit.kind === "enum" ? (edit.options[0] ?? "") : "";
+}
+
 /** The control's seed for a resolved value — the inverse of {@link parseFactValue}. An unstated leaf seeds the
  *  control's first choice (a boolean seeds "no", the cautious answer) or an empty field. */
 export function draftOf(edit: FactRow["edit"], value: unknown): string {
@@ -159,10 +193,10 @@ export function draftOf(edit: FactRow["edit"], value: unknown): string {
     return (value === undefined ? edit.choices[0] : edit.choices.find((choice) => choice.matches(value)))?.label ?? "";
   }
   if (value === undefined) {
-    if (edit.kind === "boolean") {
-      return "false";
-    }
-    return edit.kind === "enum" ? (edit.options[0] ?? "") : "";
+    return unstatedDraft(edit);
+  }
+  if (edit.kind === "switch") {
+    return value === edit.on ? "true" : "false";
   }
   if (edit.kind === "list") {
     return Array.isArray(value) ? value.map((part) => String(part)).join(", ") : "";
@@ -172,6 +206,9 @@ export function draftOf(edit: FactRow["edit"], value: unknown): string {
 
 /** How a raw leaf value READS when the leaf states no formatter of its own. */
 function readValue(edit: FactRow["edit"], value: unknown): string {
+  if (edit.kind === "switch") {
+    return value === edit.on ? edit.labels.yes : edit.labels.no;
+  }
   if (edit.kind === "boolean") {
     const labels = edit.labels ?? PLAIN_BOOLEAN_LABELS;
     return value === true ? labels.yes : labels.no;
@@ -219,7 +256,11 @@ function layerSource(providerLabel: string, fromProvider: boolean): string {
 /** The row for a declarable leaf the fold states nothing for: its absence reading, and an Override that opens
  *  on the control's first choice. Never overridden — a declared leaf has a value. */
 export function unsetRow(path: string, leaf: FactLeaf, value: string, source: string): FactRow {
-  return { path, name: leaf.name, value, source, overridden: false, edit: leaf.edit, draft: draftOf(leaf.edit, undefined), siblings: {} };
+  return { path, name: leaf.name, value, source, overridden: false, edit: leaf.edit, draft: draftOf(leaf.edit, undefined), siblings: {}, ...needsOf(leaf) };
+}
+
+function needsOf(leaf: FactLeaf): Pick<FactRow, "needs"> {
+  return leaf.needs === undefined ? {} : { needs: leaf.needs };
 }
 
 /** An overridden row's source line — it restates the value it REPLACED whenever that value is knowable, so
@@ -279,16 +320,16 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   ],
   pricing: pricingFactLeaves(NOT_SET),
   concurrency: [
-    { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
-    { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
-    { path: "concurrency.summarize", name: FACT_NAMES.summarizeConcurrency, edit: { kind: "number", max: SUMMARIZE_MAX } },
+    { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number", whole: true, positive: true } },
+    { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number", whole: true, positive: true } },
+    { path: "concurrency.summarize", name: FACT_NAMES.summarizeConcurrency, edit: { kind: "number", whole: true, positive: true, max: SUMMARIZE_MAX } },
   ],
   embedBatch: [
-    { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number" }, format: tokens },
+    { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number", whole: true, positive: true }, format: tokens },
     {
       path: "embedBatch.floorTokensPerSec",
       name: "embedding slow-server floor",
-      edit: { kind: "number" },
+      edit: { kind: "number", positive: true },
       format: (value): string => `${String(value)} tokens/second`,
     },
   ],
@@ -296,7 +337,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
     {
       path: "requestTimeoutMs",
       name: "request deadline",
-      edit: { kind: "number" },
+      edit: { kind: "number", whole: true, positive: true },
       format: (value): string => `${String(value)} ms`,
       unset: NOT_SET,
     },
@@ -311,17 +352,25 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   samplerEnvelope: [
     {
       path: "samplerEnvelope",
-      name: "extra samplers from the server's own processors",
-      edit: { kind: "enum", options: SAMPLER_ENVELOPES },
-      unset: "not set: only the server's stock samplers",
+      name: "extra samplers from vLLM's own processors",
+      edit: { kind: "switch", on: SAMPLER_ENVELOPES[0], labels: { yes: "on: your presets offer the extra samplers", no: "off: only vLLM's stock samplers" } },
+      unset: "off: only vLLM's stock samplers",
+      needs: "Needs a vLLM server running the roleplay logits processors. On a stock vLLM the extra samplers do nothing.",
+      // Only a server that speaks vLLM's own tokenize API takes vLLM's request envelope.
+      offeredWhen: (folded) => folded.tokenizeApi === VLLM_TOKENIZE_API,
     },
   ],
   antislop: [
     {
       path: "antislop",
       name: "antislop proxy in front of the server",
-      edit: { kind: "boolean", labels: { yes: "yes: banned phrases and slop lists go to the proxy", no: "no" } },
-      unset: "not set: banned phrases go to the server itself",
+      edit: {
+        kind: "switch",
+        on: true,
+        labels: { yes: "on: banned phrases and slop lists go to the proxy", no: "off: banned phrases go to the server itself" },
+      },
+      unset: "off: banned phrases go to the server itself",
+      needs: "Needs an antislop proxy in front of this server, or this server to be one. Without it banned phrases are not enforced, and nothing warns you.",
     },
   ],
   reasoningBudgetField: [
@@ -333,7 +382,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
     },
   ],
   keepAlive: [{ path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set: the server's default" }],
-  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set: the server's default" }],
+  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: { kind: "number", whole: true, positive: true }, unset: "not set: the server's default" }],
   thinkingOff: [{ path: "thinkingOff", name: "template thinking switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET }],
   // One row per spelling the row states; a server that reads the default key needs none.
   samplerKeys: SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
@@ -348,7 +397,7 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
 const QUIRK_LEAVES: readonly FactLeaf[] = Object.values(QUIRK_LEAVES_BY_FEATURE).flat();
 
 function unstatedQuirkRow(leaf: FactLeaf, folded: EndpointFeatures, showUnset: boolean): FactRow | undefined {
-  if (leaf.unset === undefined) {
+  if (leaf.unset === undefined || leaf.offeredWhen?.(folded) === false) {
     return;
   }
   if (leaf.path.startsWith("pricing.") ? folded.pricing === undefined : !showUnset) {
@@ -395,6 +444,7 @@ export function quirkFactRows(
       edit: leaf.edit,
       draft: draftOf(leaf.edit, value),
       siblings,
+      ...needsOf(leaf),
     });
   }
   return rows;

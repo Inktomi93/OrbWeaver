@@ -26,3 +26,11 @@ export const ADJUSTED_KNOBS = [
   "parallelToolCalls",
 ] as const;
 export type AdjustedKnob = (typeof ADJUSTED_KNOBS)[number];
+
+/** Why a banned-phrase drop happened, when the user can act on it. A closed union, never free text: the chat bus
+ *  reaches every member of the room, and the phrases themselves are the host's. `sequence` = the server cannot ban the
+ *  phrase as a sequence mid-sentence (llama.cpp bans every token of a phrase; vLLM bans only its space-less form);
+ *  `tokenizer` = the server's tokenizer could not be asked, so no phrase could be checked. A drop with no cause is
+ *  the connection stating no phrase ban at all. */
+export const BANNED_PHRASE_CAUSES = ["sequence", "tokenizer"] as const;
+export type BannedPhraseCause = (typeof BANNED_PHRASE_CAUSES)[number];

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ADJUSTED_KNOBS } from "../chat/adjusted-knobs.ts";
+import { ADJUSTED_KNOBS, BANNED_PHRASE_CAUSES } from "../chat/adjusted-knobs.ts";
 import { effortLevelSchema } from "./capability/generation.ts";
 
 /** One code per distinct drop site a resolver/transport actually emits; clamps are silent. Every member has a
@@ -98,6 +98,8 @@ export const resolvedWarningSchema = z.strictObject({
   appliedEffort: effortLevelSchema.optional(),
   /** A list knob some of whose entries rode: how many were dropped and how many were sent. Absent ⇒ the whole knob dropped. */
   partial: z.strictObject({ dropped: z.int().positive(), sent: z.int().positive() }).optional(),
+  /** Why the banned phrases did not ride, when the user can act on it ({@link BANNED_PHRASE_CAUSES}). */
+  cause: z.enum(BANNED_PHRASE_CAUSES).optional(),
 });
 type WarningWire = z.infer<typeof resolvedWarningSchema>;
 type WarningDetail = Exclude<keyof WarningWire, "message" | "code">;
@@ -111,6 +113,7 @@ const DETAIL_CODES = {
   appliedBudget: [WARNING_CODE.reasoningBudgetClamped],
   appliedEffort: [WARNING_CODE.reasoningMandatoryClamp],
   partial: [WARNING_CODE.samplingKnobDropped],
+  cause: [WARNING_CODE.samplingKnobDropped],
 } as const satisfies Record<WarningDetail, readonly WarningCode[]>;
 
 type WarningShape<Code extends WarningCode, Detail extends WarningDetail> = {
@@ -120,25 +123,25 @@ type WarningShape<Code extends WarningCode, Detail extends WarningDetail> = {
 
 type DetailedCode = (typeof DETAIL_CODES)[WarningDetail][number];
 type KnobDropped = typeof WARNING_CODE.samplingKnobDropped;
-// One shape per detail field, except the knob drop, the one code that carries two (`knob` and `partial`).
+// One shape per detail field, except the knob drop, the one code that carries three (`knob`, `partial` and `cause`).
 type DetailedWarning =
-  | { [Field in Exclude<WarningDetail, "partial">]: WarningShape<Exclude<(typeof DETAIL_CODES)[Field][number], KnobDropped>, Field> }[Exclude<
+  | { [Field in Exclude<WarningDetail, "partial" | "cause">]: WarningShape<Exclude<(typeof DETAIL_CODES)[Field][number], KnobDropped>, Field> }[Exclude<
       WarningDetail,
-      "partial"
+      "partial" | "cause"
     >]
-  | WarningShape<KnobDropped, "knob" | "partial">;
+  | WarningShape<KnobDropped, "knob" | "partial" | "cause">;
 
 /** A resolver emits only the structured detail its code describes. Wire readers preserve already-stored fields. */
 export type ResolvedWarning = DetailedWarning | WarningShape<Exclude<WarningCode, DetailedCode>, never>;
 
 const codesWithDetail: ReadonlySet<WarningCode> = new Set(Object.values(DETAIL_CODES).flat());
 const plainCodes = Object.values(WARNING_CODE).filter((code): code is Exclude<WarningCode, DetailedCode> => !codesWithDetail.has(code));
-const { message, knob, key, field, appliedBudget, appliedEffort, partial } = resolvedWarningSchema.shape;
+const { message, knob, key, field, appliedBudget, appliedEffort, partial, cause } = resolvedWarningSchema.shape;
 
 /** A live resolver output may carry only the detail defined for its warning code. */
 export const emittedWarningSchema = z.discriminatedUnion("code", [
   z.strictObject({ code: z.enum(plainCodes), message }),
-  z.strictObject({ code: z.literal(WARNING_CODE.samplingKnobDropped), message, knob, partial }),
+  z.strictObject({ code: z.literal(WARNING_CODE.samplingKnobDropped), message, knob, partial, cause }),
   z.strictObject({ code: z.enum(KNOB_ONLY_CODES), message, knob }),
   z.strictObject({ code: z.enum(DETAIL_CODES.key), message, key }),
   z.strictObject({ code: z.enum(DETAIL_CODES.field), message, field }),

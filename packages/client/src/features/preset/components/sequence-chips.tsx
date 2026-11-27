@@ -12,7 +12,10 @@ import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import { removeActionName } from "@orb/ui/lib";
 import type { KeyboardEvent, ReactElement } from "react";
+import { useEffect, useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import type { PresetKnobTarget } from "#state";
+import { clearPresetKnobRequest, useRequestedPresetKnob } from "#state";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 import { PRESET_BANNED_PHRASE_NOUN, PRESET_DRY_BREAKER_NOUN, PRESET_STOP_SEQUENCE_NOUN, sequenceAddName, sequenceChipSubject } from "../lib/preset-names.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
@@ -35,6 +38,8 @@ interface SequenceChipsProps {
   readonly noun: string;
   /** Write the absence, not `[]`, when the last chip goes: a list the server refuses empty must stay unset. */
   readonly unsetWhenEmpty: boolean;
+  /** The door request this list answers: it scrolls to its add box and takes focus there once, then clears the request. */
+  readonly lands?: PresetKnobTarget;
 }
 
 /** G2 — the `params.stop` chip list. */
@@ -75,13 +80,28 @@ export function BannedPhrases({ form }: { readonly form: AppForm }): ReactElemen
       name="params.bannedStrings"
       noun={PRESET_BANNED_PHRASE_NOUN}
       unsetWhenEmpty={true}
+      lands="bannedStrings"
     />
   );
 }
 
 /** No chip-input primitive exists in the seal and none is needed: Badge chips + a ghost × + an add Input is
  *  the landed tag-chip anatomy. */
-function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: SequenceChipsProps): ReactElement {
+function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty, lands }: SequenceChipsProps): ReactElement {
+  const addBox = useRef<HTMLInputElement>(null);
+  const requestedKnob = useRequestedPresetKnob();
+  const requested = lands !== undefined && requestedKnob === lands;
+  useEffect(() => {
+    if (!requested) {
+      return;
+    }
+    // The editor takes focus for itself on mount, after its children's effects have run, so the landing waits for that to end.
+    queueMicrotask(() => {
+      addBox.current?.scrollIntoView({ block: "center" });
+      addBox.current?.focus({ preventScroll: true });
+      clearPresetKnobRequest();
+    });
+  }, [requested]);
   return (
     <form.AppField name={name}>
       {(field): ReactElement => {
@@ -139,7 +159,7 @@ function SequenceChips({ form, name, legend, hint, noun, unsetWhenEmpty }: Seque
               })}
               {/* Outside a `Field` there is no context-injected `aria-labelledby` to outrank it, so this is the
                   box's actual accessible name. */}
-              <Input aria-label={sequenceAddName(noun)} onKeyDown={add} placeholder="add…" />
+              <Input aria-label={sequenceAddName(noun)} onKeyDown={add} placeholder="add…" ref={addBox} />
             </Row>
           </Fieldset>
         );

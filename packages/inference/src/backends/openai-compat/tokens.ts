@@ -2,6 +2,7 @@
 // beside the endpoint facts, so neither a turn nor a restart asks twice. Ordinary tokenize failures drop the
 // bias entry or banned phrase with a warning and are never cached; cancellation aborts the turn.
 
+import type { BannedPhraseCause } from "@orb/contracts/chat";
 import type { ResolvedWarning, TokenizeApi, WordTokens } from "@orb/contracts/inference";
 import { TOKEN_ID_KEY } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -228,8 +229,17 @@ const ONE_TOKEN_ONLY = "this server bans each token of a phrase in every context
 const SPACED_FORM_SKIPPED =
   "this server bans a phrase mid-sentence only when its space-led form has as many tokens as the bare phrase, so it would be banned only at the start of a line";
 
+/** Why one phrase cannot ride: the server's tokenizer could not answer for it, or the server cannot ban it as a sequence. */
+interface PhraseVerdict {
+  readonly reason: string;
+  readonly cause: BannedPhraseCause;
+}
+
 /** Why each phrase cannot ride, keyed by phrase; a phrase absent from the map rides. */
-type PhraseVerdicts = ReadonlyMap<string, string>;
+type PhraseVerdicts = ReadonlyMap<string, PhraseVerdict>;
+
+const unanswered = (reason: string): PhraseVerdict => ({ reason, cause: "tokenizer" });
+const unbannable = (reason: string): PhraseVerdict => ({ reason, cause: "sequence" });
 
 async function tokenizedAll(
   lexicon: TokenLexicon,
@@ -246,12 +256,12 @@ async function tokenizedAll(
 async function oneTokenVerdicts(lexicon: TokenLexicon, target: TokenTarget | null, phrases: readonly string[], signal: AbortSignal): Promise<PhraseVerdicts> {
   const answers = await tokenizedAll(lexicon, target, phrases, signal);
   return new Map(
-    phrases.flatMap((phrase) => {
+    phrases.flatMap((phrase): [string, PhraseVerdict][] => {
       const answer = answers.get(phrase);
       if (answer === undefined || !answer.ok) {
-        return [[phrase, answer?.reason ?? NO_TOKENIZE_ENDPOINT]];
+        return [[phrase, unanswered(answer?.reason ?? NO_TOKENIZE_ENDPOINT)]];
       }
-      return answer.ids.length === 1 ? [] : [[phrase, ONE_TOKEN_ONLY]];
+      return answer.ids.length === 1 ? [] : [[phrase, unbannable(ONE_TOKEN_ONLY)]];
     }),
   );
 }
@@ -268,17 +278,23 @@ async function spacedFormVerdicts(lexicon: TokenLexicon, target: TokenTarget | n
     signal,
   );
   return new Map(
-    forms.flatMap(({ phrase, bare, spaced }) => {
+    forms.flatMap(({ phrase, bare, spaced }): [string, PhraseVerdict][] => {
       const bareTokens = answers.get(bare);
       const spacedTokens = answers.get(spaced);
       if (bareTokens === undefined || !bareTokens.ok || spacedTokens === undefined || !spacedTokens.ok) {
         const reason = [bareTokens, spacedTokens].flatMap((answer) => (answer !== undefined && !answer.ok ? [answer.reason] : []))[0];
-        return [[phrase, reason ?? NO_TOKENIZE_ENDPOINT]];
+        return [[phrase, unanswered(reason ?? NO_TOKENIZE_ENDPOINT)]];
       }
       const kept = spacedTokens.ids.length > 0 && spacedTokens.ids[0] !== bareTokens.ids[0] && spacedTokens.ids.length === bareTokens.ids.length;
-      return kept ? [] : [[phrase, SPACED_FORM_SKIPPED]];
+      return kept ? [] : [[phrase, unbannable(SPACED_FORM_SKIPPED)]];
     }),
   );
+}
+
+/** The one cause a turn's banned-phrase warning carries: `tokenizer` only when no dropped phrase failed on the
+ *  server's own rule, since a rule the user can reword around is the more useful thing to say. */
+function dropCause(verdicts: PhraseVerdicts): BannedPhraseCause {
+  return [...verdicts.values()].some((verdict) => verdict.cause === "sequence") ? "sequence" : "tokenizer";
 }
 
 /** The banned phrases a row's spelling honours as a phrase. A `logit-bias-ban` row keeps one-token phrases and a
@@ -303,13 +319,14 @@ export async function resolveBannedPhrases(args: {
   const kept = phrases.filter((phrase) => !verdicts.has(phrase));
   if (verdicts.size > 0) {
     // One warning for the knob, so a turn reads as one partial or whole drop however many reasons it had.
-    const reasons = [...Map.groupBy(verdicts, ([, reason]) => reason)].map(
+    const reasons = [...Map.groupBy(verdicts, ([, verdict]) => verdict.reason)].map(
       ([reason, dropped]) => `${dropped.map(([phrase]) => `"${phrase}"`).join(", ")}: ${reason}`,
     );
     warnings.push({
       code: "sampling_knob_dropped",
       knob: "bannedStrings",
       message: `bannedStrings phrases ignored, ${reasons.join("; ")}`,
+      cause: dropCause(verdicts),
       ...(kept.length > 0 ? { partial: { dropped: verdicts.size, sent: kept.length } } : {}),
     });
   }

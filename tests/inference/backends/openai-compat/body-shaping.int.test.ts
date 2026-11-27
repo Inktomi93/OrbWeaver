@@ -751,6 +751,13 @@ function droppedPhraseCounts(events: readonly ChatEvent[]): readonly (ResolvedWa
   );
 }
 
+/** Why each banned-phrase drop says it happened: the closed cause that rides the chat bus in place of the phrases. */
+function droppedPhraseCauses(events: readonly ChatEvent[]): readonly (ResolvedWarning["cause"] | null)[] {
+  return events.flatMap((event) =>
+    event.kind === "warning" && event.code === WARNING_CODE.samplingKnobDropped && event.knob === "bannedStrings" ? [event.cause ?? null] : [],
+  );
+}
+
 // llama.cpp tokenizes a string `logit_bias` key and biases every one of its tokens for the whole reply, so a
 // multi-token phrase sent there would ban each of its words everywhere.
 test("on llama.cpp a one-token banned phrase rides as a false bias, and a multi-token phrase is dropped by name instead of banning its words", async () => {
@@ -762,11 +769,14 @@ test("on llama.cpp a one-token banned phrase rides as a false bias, and a multi-
   expect(more).toEqual([]);
   // A partial drop says how many rode, so the notice can say the rest were sent.
   expect(droppedPhraseCounts(mixed.events)).toEqual([{ dropped: 1, sent: 1 }]);
+  // The server's own rule is why, which the user can reword around.
+  expect(droppedPhraseCauses(mixed.events)).toEqual(["sequence"]);
 
   const onlyMulti = await sendLlama({ bannedStrings: ["her spine"] });
   expect(onlyMulti.body).not.toHaveProperty("logit_bias");
   expect(droppedPhraseWarnings(onlyMulti.events)).toHaveLength(1);
   expect(droppedPhraseCounts(onlyMulti.events)).toEqual([null]);
+  expect(droppedPhraseCauses(onlyMulti.events)).toEqual(["sequence"]);
 });
 
 const VLLM = providerIdSchema.parse("vllm");
@@ -863,10 +873,24 @@ test("on stock vLLM a banned phrase rides bad_words only when vLLM also bans it 
   expect(dropped).not.toContain("her spine");
   expect(more).toEqual([]);
   expect(droppedPhraseCounts(mixed.events)).toEqual([{ dropped: 1, sent: 1 }]);
+  expect(droppedPhraseCauses(mixed.events)).toEqual(["sequence"]);
 
   const none = await send({ providerId: VLLM }, { params: { bannedStrings: ["waving"] } });
   expect(none.body).not.toHaveProperty("bad_words");
   expect(droppedPhraseCounts(none.events)).toEqual([null]);
+  expect(droppedPhraseCauses(none.events)).toEqual(["sequence"]);
+});
+
+// A row that spells the vLLM phrase ban but names no tokenize endpoint cannot check a phrase, so none ride: a fault of the
+// connection, not of the phrase, and the one cause whose fix is not rewording.
+test("a banned phrase on a row with no tokenize endpoint drops whole with the tokenizer as its cause, never the server's rule", async () => {
+  const unchecked = await send(
+    { capability: generationCapability({ sampling: { bannedStrings: true } }), declaredFeatures: { detectServer: false, bannedStrings: "vllm-bad-words" } },
+    { params: { bannedStrings: ["her spine"] } },
+  );
+  expect(unchecked.body).not.toHaveProperty("bad_words");
+  expect(droppedPhraseCounts(unchecked.events)).toEqual([null]);
+  expect(droppedPhraseCauses(unchecked.events)).toEqual(["tokenizer"]);
 });
 
 const SLOP_FIELDS = ["slop_list", "slop_strength", "slop_allow"] as const;

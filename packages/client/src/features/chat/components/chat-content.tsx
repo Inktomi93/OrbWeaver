@@ -17,6 +17,7 @@ import type { ChatBusDeps } from "#data";
 import { peekQueryData, roomRosterOptions, seedPresetId, useChatBusDeps, useTRPC } from "#data";
 import type { ChatContextTabId, ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, rethrowUnlessTrpcFailure, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
+import type { PresetKnobTarget } from "#state";
 import { isLanding, openConfigTo, openNewChatPicker, requestRegexRow, revealContextPanel, setChatContextSectionOpen, useActiveChatHandle } from "#state";
 import { useRegexStopNoticeDoor } from "../hooks/use-regex-stop-notice-door.ts";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
@@ -91,8 +92,8 @@ function openScriptRow(scriptId: RegexScriptId): NotifyAction {
 }
 
 // A setting the model dropped is the preset's: the door opens that preset on its Params view.
-function openParams(presetId: PresetId): NotifyAction {
-  return { label: OPEN_PARAMS_NAME, onClick: (): void => openPresetParams(presetId) };
+function openParams(presetId: PresetId, knob?: PresetKnobTarget): NotifyAction {
+  return { label: OPEN_PARAMS_NAME, onClick: (): void => openPresetParams(presetId, knob) };
 }
 
 // The honest-degrade seam: a domain `warning` bus event surfaces through the injected callbacks — `data/` may
