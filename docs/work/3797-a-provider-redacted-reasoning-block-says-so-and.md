@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-21
+updated: 2026-11-27
 priority: P3
 area: chat
 plan: unwired-code
@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-ChatResult.reasoningRedacted records that the provider redacted the reasoning and no screen says so. GlobalSettingView key, value and updatedAt are served by an admin settings route that no screen calls (packages/server/src/transport/trpc/routers/settings.ts).
+ChatResult.reasoningRedacted records that the provider redacted the reasoning and no screen says so. The global settings rows (key, value, updatedAt) reach no screen: the admin get and set routes were removed under 3849 as test-only attack surface, so the admin pane builds its own read-only list route and view schema with it.
 
 ## Why
 
