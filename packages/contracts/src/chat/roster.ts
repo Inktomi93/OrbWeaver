@@ -4,12 +4,13 @@
 // (docs/law/UI-Theming-and-Content.md §12.2), the join-history floor clamp, and the phase-independent
 // carried appearance both takeovers gate on. The LIFECYCLE logic is `domain/chat`; these are wire shapes.
 
-// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+import type { ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
 import { MS_PER_DAY } from "@orb/kit/time";
 import { z } from "zod";
-import type { AuthMode, ParticipantRole } from "#identity";
+import type { AuthMode } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import { joinerPersonaSchema } from "#persona";
 import type { TagView } from "#tag";
@@ -18,7 +19,6 @@ import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
 import { memberCardVisibilitySchema } from "./metadata.ts";
-import type { ParticipantKind } from "./participants.ts";
 import { participantKindSchema } from "./participants.ts";
 
 /** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME: the tuple +

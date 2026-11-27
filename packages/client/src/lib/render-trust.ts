@@ -13,9 +13,10 @@
 // archive (Scene "Cards" / Journal) — and a cross-feature RUNTIME import is banned, so a second home
 // here would mean a second spelling of a SECURITY verdict.
 
-import type { DeploymentRenderPolicy, MessageKind, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, NarratorRenderPolicy, ParticipantView, RenderPolicy, RenderPolicySource } from "@orb/contracts/chat";
 import { rendersTrustedHtml, resolveCardMediaVerdict, resolveCardScriptVerdict } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 
 const RENDER_TRUSTS = ["trusted", "untrusted"] as const;

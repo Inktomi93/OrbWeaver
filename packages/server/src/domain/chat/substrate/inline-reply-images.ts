@@ -19,7 +19,7 @@
 // front of the picture. The two arms are therefore the same extraction, and preferring the caption is
 // satisfied by construction rather than by a branch that could never be taken.
 
-import type { HiddenRun } from "@orb/kit/content";
+import type { Span } from "@orb/kit/chunk";
 import { hiddenSpanRanges, stripHiddenSpans, tokenizeContent } from "@orb/kit/content";
 import type { AssetId } from "@orb/kit/ids";
 import { isSpaceChar } from "@orb/kit/strings";
@@ -81,7 +81,7 @@ function precedingProse(content: string, upTo: number): string {
 
 /** `at`, moved past the hidden run it falls inside. SECURITY: a splice inside a tag's name or first attr name leaves bytes
  *  the walker reads as prose, so the whole tag, `truth` included, reaches a member (D285). */
-function pastHiddenRun(runs: readonly HiddenRun[], at: number): number {
+function pastHiddenRun(runs: readonly Span[], at: number): number {
   return runs.find((run) => at > run.start && at < run.end)?.end ?? at;
 }
 

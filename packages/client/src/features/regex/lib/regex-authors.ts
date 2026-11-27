@@ -8,9 +8,8 @@
 // a stored selector that arrived in a file. "The host" and "Other players" name room standing, read as the room is
 // now by the kit's `standingOf`.
 
-import type { ParticipantRole } from "@orb/contracts/identity";
 import { isHostRole } from "@orb/contracts/identity";
-import type { MessageKind, ParticipantKind } from "@orb/kit/message-author";
+import type { MessageKind, ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
 import type { RegexAuthorScope, RegexAuthorSelector } from "@orb/kit/regex";
 import { REGEX_STANDING_HOST_NAME, REGEX_STANDING_MEMBER_NAME } from "./regex-names.ts";
 

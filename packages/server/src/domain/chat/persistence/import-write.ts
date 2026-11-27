@@ -20,7 +20,6 @@ import type {
   FindImportedChatHashes,
   ImportedChatIdentity,
   ImportedChatRemap,
-  MessageKind,
   TurnInitiator,
 } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND, MESSAGE_TEXT_MAX_CHARS } from "@orb/contracts/chat";
@@ -44,6 +43,7 @@ import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { yieldToLoop } from "#primitives/abort";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";

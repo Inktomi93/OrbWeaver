@@ -10,9 +10,10 @@
 // (`rosterPreset`, "Rosters" — row 48); the `SeatKnobs` import below still comes from `./roster.ts`, which
 // is separate row-44 residue and moves under its own row.
 
-// Strip mode: these schemas also read imported files, which can carry keys this release does not declare.
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+// Strip mode: these schemas also read imported files, which can carry keys this release does not declare.
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { GenerationUsage } from "../inference/usage.ts";
@@ -21,7 +22,6 @@ import type { UserMacroValues } from "../preset/index.ts";
 import type { CHAT_INJECTION_POSITIONS } from "./assemble.ts";
 import type { VariantMetadata } from "./messages.ts";
 import type { ChatMetadata } from "./metadata.ts";
-import type { MessageKind } from "./participants.ts";
 import type { SeatKnobs } from "./roster.ts";
 import type { TokenProvenance } from "./token-provenance.ts";
 

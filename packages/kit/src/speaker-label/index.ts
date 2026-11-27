@@ -7,6 +7,7 @@
 // AND at render (robust to old baked-in labels + any path the persist strip misses). One
 // implementation, two consumers.
 
+import type { Span } from "#chunk";
 import { UNICODE_WORD_CHARS } from "#strings";
 
 // A leading `<speaker ...>` / `<speaker>` open-tag (case-insensitive, optional attrs).
@@ -47,14 +48,8 @@ export const NAME_END_BOUNDARY = `(?![${NAME_WORD_CHARS}])`;
  *  bytes — callers wrap it `(?:…)` (non-capturing) or `(…)` (the one backref-capturing use). */
 const EMPHASIS_ALT = "\\*\\*|\\*|__|_";
 
-/** A stretch of the parsed content, from its first character to just past its last. */
-export interface OpaqueRange {
-  readonly start: number;
-  readonly end: number;
-}
-
 // Whether an offset, asked in rising order, sits outside every range of `opaque` (ascending, disjoint).
-function outsideOpaque(opaque: readonly OpaqueRange[]): (index: number) => boolean {
+function outsideOpaque(opaque: readonly Span[]): (index: number) => boolean {
   let next = 0;
   return (index) => {
     while ((opaque[next]?.end ?? Number.POSITIVE_INFINITY) <= index) {
@@ -103,7 +98,7 @@ export interface SpeakerSpan {
  *  `opaque` names stretches read as one unit of markup (a panel the frame draws or holds whole, a stylesheet, a script;
  *  `markupUnitRanges` in `#content`): a marker or a label inside one is that unit's text and splits nothing, so a
  *  panel is never torn across two spans. The display parse passes them; the canon parse a reaction anchors to does not. */
-export function parseSpeakerSpans(content: string, characterNames: readonly string[] = [], opaque: readonly OpaqueRange[] = []): readonly SpeakerSpan[] {
+export function parseSpeakerSpans(content: string, characterNames: readonly string[] = [], opaque: readonly Span[] = []): readonly SpeakerSpan[] {
   const markerOutside = outsideOpaque(opaque);
   const matches = [...content.matchAll(SPEAKER_TAG_PAIR)].filter((match) => markerOutside(match.index));
   if (matches.length === 0) {

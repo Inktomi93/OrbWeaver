@@ -2,11 +2,10 @@
 // every roster-derived read narrows through, and the pure seat checks (forced character role, arbiter eligibility).
 // No row access: callers pass the rows they loaded.
 
-import type { ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
 import { isHostRole } from "@orb/contracts/identity";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
 import type { ParticipantActor } from "../contract/participant-row.ts";
 
 /** The row shape {@link classifyParticipant} discriminates. */

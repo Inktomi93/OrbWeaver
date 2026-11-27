@@ -262,6 +262,7 @@ export type {
   OpeningPolicy,
   RoomOverrides,
   SmartPicker,
+  WaitCountRow,
 } from "./metadata.ts";
 export {
   DEFAULT_GROUP_CONFIG,
@@ -315,7 +316,7 @@ export type {
   UnregisterPromptTransformOp,
   ViewerVisibility,
 } from "./owner-ops.ts";
-export type { MessageKind, ParticipantKind, SpeakerRef } from "./participants.ts";
+export type { SpeakerRef } from "./participants.ts";
 // The narrator-voice predicate — the server's segment-anchor validation and the client picker must gate the
 // plain-label span grammar identically.
 export {

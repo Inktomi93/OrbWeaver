@@ -14,11 +14,12 @@
 // historical portrait to bare initials. The live participant still WINS when present (its avatarHash can
 // carry a per-chat override the character-level producer doesn't).
 
-import type { CarriedAppearance, ChatIdentityKind, ChatIdentityKindPolicy, MessageKind, ParticipantView } from "@orb/contracts/chat";
+import type { CarriedAppearance, ChatIdentityKind, ChatIdentityKindPolicy, ParticipantView } from "@orb/contracts/chat";
 import { CHAT_IDENTITY_KIND_POLICY, isNarratorVoiced, resolveCarriedTheme } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { hueDistance, oklchHue } from "@orb/kit/safe-color";

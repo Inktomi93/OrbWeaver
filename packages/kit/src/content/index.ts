@@ -48,6 +48,7 @@
 // element-majority, becomes an implicit `card` span with `origin:"lenient"` + a derived title. Its product
 // wiring (the immersiveHtml gate, trust, teaching) is the P4 wave.
 
+import type { Span } from "#chunk";
 import type { AssetId } from "#ids";
 import { castId } from "#ids";
 import type { JsonValue } from "#json";
@@ -444,12 +445,6 @@ type BrokenHiddenPosture = (typeof BROKEN_HIDDEN_POSTURES)[number];
 /** Does this verdict conceal the rest of its text? An over-cap open does for every reader. */
 function concealsRest(outcome: TagScanOutcome, posture: BrokenHiddenPosture): outcome is Extract<TagScanOutcome, { kind: "capped" | "truncated" | "loose" }> {
   return outcome.kind === "capped" || (posture === "body" && (outcome.kind === "truncated" || outcome.kind === "loose"));
-}
-
-/** One hidden tag's byte range in a body. */
-export interface HiddenRun {
-  readonly start: number;
-  readonly end: number;
 }
 
 // The MEASURED OPEN-LINE reflex (spike §4h) — the `committed` EOF-close's sibling: another measured-leniency
@@ -1254,7 +1249,7 @@ export function stripHiddenSpansInJsonText(text: string): string | undefined {
  *  nest past the cap conceals the rest of the body. It never releases it. */
 const MAX_HIDDEN_PASSES = 8;
 
-interface LocatedHiddenSpan extends HiddenRun {
+interface LocatedHiddenSpan extends Span {
   readonly span: HiddenContentSpan;
 }
 
@@ -1268,7 +1263,7 @@ function originOf(text: string): readonly number[] {
   return Array.from({ length: text.length }, (_, index) => index);
 }
 
-function dropRuns({ text, origin }: SurvivingText, runs: readonly HiddenRun[]): SurvivingText {
+function dropRuns({ text, origin }: SurvivingText, runs: readonly Span[]): SurvivingText {
   const kept: string[] = [];
   const keptOrigin: number[] = [];
   let cursor = 0;
@@ -1285,7 +1280,7 @@ function dropRuns({ text, origin }: SurvivingText, runs: readonly HiddenRun[]): 
 /** Does a removal fall inside this span or right after it? Only then is it new: the first pass saw every other open
  *  followed by bytes and read it as prose. Right after counts, because removing a tag that ends the body leaves the open
  *  in front of it unclosed. */
-function touchesRemoval({ start, end }: HiddenRun, origin: readonly number[], joinableEnd: number): boolean {
+function touchesRemoval({ start, end }: Span, origin: readonly number[], joinableEnd: number): boolean {
   return (origin[end] ?? joinableEnd) - (origin[start] ?? 0) !== end - start;
 }
 
@@ -1328,8 +1323,8 @@ function hiddenSpansToFixpoint(content: string): readonly LocatedHiddenSpan[] {
   }
 }
 
-function mergedRuns(spans: readonly HiddenRun[]): readonly HiddenRun[] {
-  const merged: HiddenRun[] = [];
+function mergedRuns(spans: readonly Span[]): readonly Span[] {
+  const merged: Span[] = [];
   for (const { start, end } of spans.toSorted((left, right) => left.start - right.start)) {
     const last = merged.at(-1);
     if (last !== undefined && start <= last.end) {
@@ -1341,9 +1336,9 @@ function mergedRuns(spans: readonly HiddenRun[]): readonly HiddenRun[] {
   return merged;
 }
 
-/** The byte ranges {@link stripHiddenSpans} removes from `content`, ascending and disjoint. SECURITY: text spliced into one
+/** The character ranges {@link stripHiddenSpans} removes from `content`, ascending and disjoint. SECURITY: text spliced into one
  *  of these can break the tag into prose and hand its bytes to a member, so a writer places text outside them. */
-export function hiddenSpanRanges(content: string): readonly HiddenRun[] {
+export function hiddenSpanRanges(content: string): readonly Span[] {
   return mergedRuns(hiddenSpansToFixpoint(content));
 }
 
@@ -1931,7 +1926,7 @@ interface InlineBlocks {
   /** Ascending: the start of each line that does not continue a paragraph from the line before it. */
   readonly ends: readonly number[];
   /** Ascending and disjoint: each HTML block's lines, which hold no code span. */
-  readonly html: readonly TextRange[];
+  readonly html: readonly Span[];
   /** Ascending: the start of each line where the streamed block split may cut a paragraph Markdown runs on: one of
    *  Unicode whitespace (`trim` takes a non-breaking space), or one opening with a tag or a fence run past its container
    *  markers, which that split reads as a block even where Markdown reads text. */
@@ -1946,7 +1941,7 @@ const SPLIT_LINE_RE = new RegExp(`${LINE_MARKERS_SOURCE}(?:<[!/A-Za-z]|~{3}|${FE
 function inlineBlocks(content: string, reading: MarkdownReading = MARKDOWN_READING): InlineBlocks {
   const state = codeLineState(true, DOUBT_RULES[reading.doubt].mathFence);
   const ends: number[] = [];
-  const html: TextRange[] = [];
+  const html: Span[] = [];
   const splits: number[] = [];
   for (const line of splitLines(content)) {
     const text = matchText(line);
@@ -1990,7 +1985,7 @@ function firstPast(values: readonly number[]): (offset: number) => number {
 }
 
 // The range of ascending, disjoint ranges that holds an offset asked in rising order, or undefined.
-function rangeCursor(ranges: readonly TextRange[]): (offset: number) => TextRange | undefined {
+function rangeCursor(ranges: readonly Span[]): (offset: number) => Span | undefined {
   let next = 0;
   return (offset) => {
     while ((ranges[next]?.end ?? Number.POSITIVE_INFINITY) <= offset) {
@@ -2185,7 +2180,7 @@ export function mapOutsideCode(text: string, rewrite: (piece: string) => string,
   return out + rewriteAround(from, text.length);
 }
 
-const NO_TEXT_RANGES: readonly TextRange[] = [];
+const NO_TEXT_RANGES: readonly Span[] = [];
 const MACRO_OPEN = "{{";
 
 /** Each stretch from a `{{` that the renderer draws inside Markdown code, a fenced or indented block, a code span or math, to
@@ -2194,11 +2189,11 @@ const MACRO_OPEN = "{{";
  *  is read as the renderer reads it, on its own and with the frame's own code reading, so a card, a choice set or a
  *  hidden tag, whose body is not Markdown, holds none. A held block holds none either: the frame reads it whole as HTML,
  *  where a fence or an indent is no code. Where a read is in doubt it names nothing, and the caller escapes. */
-export function markdownCodeAfterMacros(text: string): readonly TextRange[] {
+export function markdownCodeAfterMacros(text: string): readonly Span[] {
   if (!text.includes(MACRO_OPEN) || readMarkup(text, MACRO_READING).probed.length === 0) {
     return NO_TEXT_RANGES;
   }
-  const stretches: TextRange[] = [];
+  const stretches: Span[] = [];
   let offset = 0;
   for (const span of tokenizeContent(text, { committed: true })) {
     const raw = contentSpanRaw(span);
@@ -2230,8 +2225,8 @@ const HANDLER_ATTRIBUTE_RE = /[\s/]on[\w-]*\s*=\s*("[^"]*"?|'[^']*'?|[^\s>]+)/gi
 
 // The value of every `on*` attribute of a tag in `text`, read tag by tag from left to right so each character is read
 // once; a tag whose `>` has not arrived runs to the end.
-function handlerValues(text: string): readonly TextRange[] {
-  const values: TextRange[] = [];
+function handlerValues(text: string): readonly Span[] {
+  const values: Span[] = [];
   TAG_OPEN_RE.lastIndex = 0;
   for (let open = TAG_OPEN_RE.exec(text); open !== null; open = TAG_OPEN_RE.exec(text)) {
     const gt = tagEndFrom(text, open.index, false);
@@ -2266,7 +2261,7 @@ export function escapeHtmlData(value: string): string {
 // Removes each range `elements` reads from the text, to a fixpoint, since the pieces around a removed element can join
 // into a new one (`<sty<style>x</style>le>`); past MAX_HIDDEN_PASSES passes it conceals from the first range still
 // standing to the end.
-function stripElements(text: string, elements: (kept: string) => readonly TextRange[]): string {
+function stripElements(text: string, elements: (kept: string) => readonly Span[]): string {
   let kept = text;
   for (let pass = 0; pass < MAX_HIDDEN_PASSES; pass += 1) {
     const found = elements(kept);
@@ -2324,7 +2319,7 @@ export function stripTags(text: string): string {
   // linear.
   let proseUntil = 0;
   const code = markdownCodeCursor(text, STRIP_READING);
-  let removed: ReadSpan | undefined;
+  let removed: Span | undefined;
   for (const start of text.matchAll(TAG_START_RE)) {
     const lt = start.index;
     if (lt < from || lt < proseUntil) {
@@ -2385,26 +2380,26 @@ interface MarkupRead {
   readonly rawText: readonly RawTextElement[];
   /** With the Markdown reading, each element whose text HTML reads as text, ascending: opener to close, or to the end
    *  of the text when its close never arrives. */
-  readonly textElements: readonly TextRange[];
+  readonly textElements: readonly Span[];
   /** Each element the renderer draws folded until opened (`CONCEALING_TAG_NAMES`), opener to close, or to the end of
    *  the text when its close never arrives. */
-  readonly concealing: readonly TextRange[];
+  readonly concealing: readonly Span[];
   /** Each comment, raw-text element and text element, ascending and disjoint; one whose end never arrives runs to the
    *  end of the text. */
-  readonly units: readonly TextRange[];
+  readonly units: readonly Span[];
   /** With the Markdown reading, each stretch shown as written because it is code or escaped, from its first token to
    *  past that token and the skip, ascending. */
-  readonly samples: readonly TextRange[];
+  readonly samples: readonly Span[];
   /** With a probe, each place the probe starts inside Markdown code, to that code's end, ascending. */
-  readonly probed: readonly TextRange[];
+  readonly probed: readonly Span[];
   /** The `<` of each element opener whose close never arrived. */
   readonly unclosed: readonly number[];
   /** With the Markdown reading, each stretch the renderer reads as text because an element opened before it never
    *  closes, ascending: an unclosed text element to the end of the text, and an unclosed comment in an HTML block to the
    *  end of that block. The read itself reads past such an opener, so the strips still find the elements there. */
-  readonly swallowed: readonly TextRange[];
+  readonly swallowed: readonly Span[];
   /** With the Markdown reading, each HTML block's lines, ascending and disjoint. */
-  readonly htmlBlocks: readonly TextRange[];
+  readonly htmlBlocks: readonly Span[];
 }
 
 // The elements whose contents the renderer draws folded until opened.
@@ -2431,12 +2426,12 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
   const { code, bound, probe, inHtmlBlock, textHides, htmlBlocks } = markdownRead(content, markdown);
   const commentClose = { next: -1, bound };
   const textClose = new Map<string, number>();
-  const textElements: TextRange[] = [];
-  const swallowed: TextRange[] = [];
-  const units: TextRange[] = [];
-  const samples: TextRange[] = [];
-  const probed: TextRange[] = [];
-  let last: ReadSpan | undefined;
+  const textElements: Span[] = [];
+  const swallowed: Span[] = [];
+  const units: Span[] = [];
+  const samples: Span[] = [];
+  const probed: Span[] = [];
+  let last: Span | undefined;
   const tags = new RegExp(probe === undefined ? MARKUP_TOKEN_SOURCE : `${MARKUP_TOKEN_SOURCE}|${RegExp.escape(probe)}`, "g");
   for (let tag = tags.exec(content); tag !== null; tag = tags.exec(content)) {
     if (tag[0] === probe) {
@@ -2482,7 +2477,7 @@ function readMarkup(content: string, markdown?: MarkdownReading): MarkupRead {
 
 // Records each probe in code the read skips from a token to the code's end, which no later token reaches.
 function noteProbesInCode(
-  probed: TextRange[],
+  probed: Span[],
   read: {
     readonly content: string;
     readonly probe: string | undefined;
@@ -2506,8 +2501,8 @@ function noteProbesInCode(
 // the code cursor where it stands, in the same rising order as every token, and reads nothing. A fence's info string is
 // no code to a probe: the renderer draws it as a label and a class, with its escapes and references read.
 function noteProbe(
-  probed: TextRange[],
-  read: { readonly code: CodeCursor | undefined; readonly last: ReadSpan | undefined; readonly at: number; readonly length: number },
+  probed: Span[],
+  read: { readonly code: CodeCursor | undefined; readonly last: Span | undefined; readonly at: number; readonly length: number },
 ): number {
   const codeEnd = read.code?.past(read.at, read.last);
   if (codeEnd !== undefined && read.code?.onInfoLine(read.at) !== true) {
@@ -2546,7 +2541,7 @@ function markdownRead(content: string, markdown: MarkdownReading | undefined): M
 
 // Records a unit `readMarkup` read whole, from `start` to where the read resumed, or to the end when it stopped.
 // A comment the read passed over without a close (it resumes just past its `<!--`) is no unit: Markdown prints it.
-function noteUnit(units: TextRange[], read: { readonly whole: boolean; readonly start: number; readonly resume: number; readonly length: number }): void {
+function noteUnit(units: Span[], read: { readonly whole: boolean; readonly start: number; readonly resume: number; readonly length: number }): void {
   if (read.whole && read.resume !== read.start + COMMENT_BLOCK_OPEN.length) {
     units.push({ start: read.start, end: read.resume === -1 ? read.length : read.resume });
   }
@@ -2554,8 +2549,8 @@ function noteUnit(units: TextRange[], read: { readonly whole: boolean; readonly 
 
 // Records markup the Markdown read showed as written because it is code or escaped; a text element is no sample.
 function noteSample(
-  samples: TextRange[],
-  read: { readonly shown: number | undefined; readonly tag: RegExpExecArray; readonly textElements: readonly TextRange[] },
+  samples: Span[],
+  read: { readonly shown: number | undefined; readonly tag: RegExpExecArray; readonly textElements: readonly Span[] },
 ): void {
   const { shown, tag } = read;
   if (shown !== undefined && read.textElements.at(-1)?.start !== tag.index) {
@@ -2588,10 +2583,10 @@ function shownAsWritten(
   tag: RegExpExecArray,
   state: {
     readonly code: CodeCursor;
-    readonly last: ReadSpan | undefined;
+    readonly last: Span | undefined;
     readonly textClose: Map<string, number>;
-    readonly textElements: TextRange[];
-    readonly swallowed: TextRange[];
+    readonly textElements: Span[];
+    readonly swallowed: Span[];
     readonly inHtmlBlock: MarkdownRead["inHtmlBlock"];
     readonly textHides: MarkdownRead["textHides"];
   },
@@ -2656,12 +2651,6 @@ function textElementEnd(
   return gt === -1 ? { resume: open + 1, closed: false } : { resume: gt + 1, closed: true };
 }
 
-/** A stretch of text already read as one unit: a raw-text element or a removed tag. */
-interface ReadSpan {
-  readonly start: number;
-  readonly end: number;
-}
-
 /** How `readMarkup` reads Markdown's code: indented code too, or fences and spans only. With `probe`, it also notes
  *  where code covers each place the probe text starts. */
 interface MarkdownReading {
@@ -2722,7 +2711,7 @@ const DOUBT_RULES: Readonly<
 interface CodeCursor {
   /** Where the scan resumes when `offset` sits in code (a code block or an inline code span), or undefined when it does
    *  not. `covering` is the last unit the scan read: its lines open no code block and its ticks open no span. */
-  readonly past: (offset: number, covering: ReadSpan | undefined) => number | undefined;
+  readonly past: (offset: number, covering: Span | undefined) => number | undefined;
   /** Whether `offset` sits on the opening line of a fence {@link CodeCursor.past} has read. */
   readonly onInfoLine: (offset: number) => boolean;
   /** From `offset`, asked in rising order with {@link CodeCursor.past}, the rest of its paragraph opens no span. */
@@ -3113,11 +3102,11 @@ interface CodeBlockRead {
   /** Text before this offset holds no tick that opens a span: it was read as code. */
   codeTo: number;
   /** Each fence's opening line read so far, ascending, its line break included. */
-  readonly infoLines: TextRange[];
+  readonly infoLines: Span[];
 }
 
 // One line into the code block state: its kind, with a line inside a unit read whole read as text, opening nothing.
-function readCodeLine(blocks: CodeBlockRead, line: Line, covering: ReadSpan | undefined): CodeLine {
+function readCodeLine(blocks: CodeBlockRead, line: Line, covering: Span | undefined): CodeLine {
   blocks.next += 1;
   const covered = covering !== undefined && line.start > covering.start && line.start < covering.end;
   const kind = blocks.read(matchText(line), covered);
@@ -3131,7 +3120,7 @@ function readCodeLine(blocks: CodeBlockRead, line: Line, covering: ReadSpan | un
 // When the line holding `offset` is code or a fence line: where the block ends, just past its closing fence or at the
 // first text line after indented code (the text's length when it runs to the end). Otherwise undefined. `covering` is
 // the last unit read, the only one a line passed since the last token can sit inside.
-function pastCodeBlock(blocks: CodeBlockRead, offset: number, covering: ReadSpan | undefined): number | undefined {
+function pastCodeBlock(blocks: CodeBlockRead, offset: number, covering: Span | undefined): number | undefined {
   let kind: CodeLine = "text";
   for (let line = blocks.lines[blocks.next]; line !== undefined && line.start <= offset; line = blocks.lines[blocks.next]) {
     kind = readCodeLine(blocks, line, covering);
@@ -3163,7 +3152,7 @@ interface MarkupTables {
   /** The offset of the next `-->` found so far (-1 before any search, infinity when none is left), and with the
    *  Markdown reading, where the unit a comment opens in ends. */
   readonly commentClose: { next: number; readonly bound: ((offset: number) => number) | undefined };
-  readonly swallowed: TextRange[];
+  readonly swallowed: Span[];
   readonly inHtmlBlock: MarkdownRead["inHtmlBlock"];
 }
 
@@ -3445,12 +3434,6 @@ export function scanFormingPanels(content: string): FormingPanelSegment[] {
   });
 }
 
-/** A stretch of a text: offsets of its first character and just past its last. */
-export interface TextRange {
-  readonly start: number;
-  readonly end: number;
-}
-
 // The span kinds a train keeps in one paragraph: each is one block of its own, or a secret no break may cut open.
 const UNBROKEN_SPAN_KINDS: ReadonlySet<ContentSpanKind> = new Set<ContentSpanKind>(["card", "choices", "hidden", "unknown-directive"]);
 
@@ -3463,8 +3446,8 @@ const UNBROKEN_SPAN_KINDS: ReadonlySet<ContentSpanKind> = new Set<ContentSpanKin
 // Any other element is NOT kept whole: Markdown ends its paragraphs at a blank line inside it (a `<div>` or a
 // `<response>` wrapper across two paragraphs renders them as two), so a break there shows what the one bubble shows. A
 // folding element is the exception because a bubble cut from it would show the text the one bubble keeps folded.
-function unbrokenRanges(content: string, markup: MarkupRead): readonly TextRange[] {
-  const ranges: TextRange[] = [...markup.textElements, ...markup.concealing, ...hiddenSpanRanges(content)];
+function unbrokenRanges(content: string, markup: MarkupRead): readonly Span[] {
+  const ranges: Span[] = [...markup.textElements, ...markup.concealing, ...hiddenSpanRanges(content)];
   let cursor = 0;
   for (const span of tokenizeContent(content, { committed: true })) {
     const length = contentSpanRaw(span).length;
@@ -3478,7 +3461,7 @@ function unbrokenRanges(content: string, markup: MarkupRead): readonly TextRange
 
 // A run of blank lines, from the newline that ends the line before it to the start of the line after it.
 interface BlankRun {
-  readonly range: TextRange;
+  readonly range: Span;
   /** The run ends no block of its own: it sits in a code block (a fence's, or between two lines of indented code), in
    *  an HTML block that runs past blank lines (a comment, a `<pre>`), or in a list item the line after it continues. */
   readonly held: boolean;
@@ -3526,10 +3509,10 @@ function blankRuns(content: string, rawText: readonly RawTextElement[]): readonl
  *  `<style>` or `<script>` element, an element whose text HTML reads as text, an HTML block, a code block, a list item,
  *  a card, a choice set or a hidden span. A range runs from the newline that ends the paragraph before it to the start
  *  of the paragraph after it, so the text between two ranges is one paragraph as written. */
-export function paragraphBreaks(content: string): readonly TextRange[] {
+export function paragraphBreaks(content: string): readonly Span[] {
   const markup = readMarkup(content, MARKDOWN_READING);
   const unbroken = unbrokenRanges(content, markup);
-  const breaks: TextRange[] = [];
+  const breaks: Span[] = [];
   let next = 0;
   for (const { range, held } of blankRuns(content, markup.rawText)) {
     while ((unbroken[next]?.end ?? Number.POSITIVE_INFINITY) <= range.start) {
@@ -3614,7 +3597,7 @@ const READ_MARKUP_OPENER_RE = /<(?:style|script)(?=[\t\n\f\r />]|$)|<!--/i;
 
 // Whether `text`, the line at `lineStart`, holds a comment opener the read did not take as a comment: the comment the
 // hold writes at a blank line below it would close it. `unit` is asked in rising order.
-function opensStrayComment(text: string, lineStart: number, unit: (offset: number) => TextRange | undefined): boolean {
+function opensStrayComment(text: string, lineStart: number, unit: (offset: number) => Span | undefined): boolean {
   for (let at = text.indexOf(COMMENT_BLOCK_OPEN); at !== -1; at = text.indexOf(COMMENT_BLOCK_OPEN, at + 1)) {
     if (unit(lineStart + at) === undefined) {
       return true;
@@ -3628,7 +3611,7 @@ function opensStrayComment(text: string, lineStart: number, unit: (offset: numbe
 // is not held when its range holds a sample (code or an escape) naming a `<style>`, `<script>` or comment opener,
 // which the hold would turn into live markup, or when a comment opener the read left open sits in or above it, which a
 // comment the hold writes would close.
-function heldBlocks(content: string, markup: MarkupRead): readonly TextRange[] {
+function heldBlocks(content: string, markup: MarkupRead): readonly Span[] {
   const covering = rawTextCursor(markup.rawText);
   const unit = rangeCursor(markup.units);
   let sample = 0;
@@ -3643,7 +3626,7 @@ function heldBlocks(content: string, markup: MarkupRead): readonly TextRange[] {
   };
   const state = codeLineState(true);
   const read = codeLineReader(true, state);
-  const held: TextRange[] = [];
+  const held: Span[] = [];
   let holdEnd = 0;
   let unsafe = false;
   // A comment opener the read left open, anywhere above: a comment the hold writes below it would close it.
@@ -3684,7 +3667,7 @@ function heldBlocks(content: string, markup: MarkupRead): readonly TextRange[] {
 
 /** Where a frame holds a block element whole (the block hold, see {@link holdBlocksWhole}): ascending and disjoint,
  *  each from the start of the line that opens it to just past its matching close, or to the end while unclosed. */
-export function heldBlockRanges(content: string): readonly TextRange[] {
+export function heldBlockRanges(content: string): readonly Span[] {
   return heldBlocks(content, readMarkup(content, MARKDOWN_READING));
 }
 
@@ -3739,7 +3722,7 @@ function holdBlankLine(
 const HELD_LINE_BREAK = "&#10;";
 
 // The units whose text decodes references or is never shown, ascending: each comment, and each `textarea` and `title`.
-function joinedUnits(content: string, markup: MarkupRead): readonly TextRange[] {
+function joinedUnits(content: string, markup: MarkupRead): readonly Span[] {
   const decoding = markup.textElements.filter((element) => {
     OPENER_NAME_RE.lastIndex = element.start;
     const name = OPENER_NAME_RE.exec(content)?.[0].slice(1).toLowerCase() ?? "";
@@ -3752,13 +3735,13 @@ function joinedUnits(content: string, markup: MarkupRead): readonly TextRange[] 
 /** The stretches of `content` a speaker marker or label may not split: each of `panels` (the reply's panels,
  *  {@link modelPanels}), which a frame draws or holds whole, and each `<style>` or `<script>` element, read as Markdown
  *  shows it. Any other HTML block is prose to the split. A fenced code block is the speaker parser's own to skip. */
-export function markupUnitRanges(content: string, panels: readonly TextRange[]): readonly TextRange[] {
+export function markupUnitRanges(content: string, panels: readonly Span[]): readonly Span[] {
   return mergedRuns([...panels, ...readMarkup(content, MARKDOWN_READING).rawText]);
 }
 
 // Where `content`'s prose runs: every span but a card, a choice set, a hidden span and an unknown directive.
-function proseRanges(content: string, lenientHtml: boolean): readonly TextRange[] {
-  const ranges: TextRange[] = [];
+function proseRanges(content: string, lenientHtml: boolean): readonly Span[] {
+  const ranges: Span[] = [];
   let cursor = 0;
   for (const span of tokenizeContent(content, { committed: true, lenientHtml })) {
     const length = contentSpanRaw(span).length;
@@ -3774,7 +3757,7 @@ function proseRanges(content: string, lenientHtml: boolean): readonly TextRange[
 // `<svg>` the renderer draws, or its first tag past any leading comments carries a style attribute. A comment alone is
 // none. `unread` says whether an offset sits where the renderer reads no markup: a comment, an element's text, or a
 // stretch an unclosed element swallows.
-function isPanelBlock(content: string, block: TextRange, holdsRawText: boolean, unread: (offset: number) => boolean): boolean {
+function isPanelBlock(content: string, block: Span, holdsRawText: boolean, unread: (offset: number) => boolean): boolean {
   if (holdsRawText) {
     return true;
   }
@@ -3801,7 +3784,7 @@ function isPanelBlock(content: string, block: TextRange, holdsRawText: boolean, 
 }
 
 // Whether an offset sits inside one of `ranges`, which are ascending and disjoint.
-function withinRanges(ranges: readonly TextRange[], offset: number): boolean {
+function withinRanges(ranges: readonly Span[], offset: number): boolean {
   let low = 0;
   let high = ranges.length;
   while (low < high) {
@@ -3836,7 +3819,7 @@ const SVG_INNER_TAG_RE = /<!--[\s\S]*?-->|<(\/?)([A-Za-z][^\t\n\f\r />]*)/g;
 
 // Whether the inline svg `element` (opener to past its close) is one the renderer closes where the text does: within
 // its paragraph, which ends the svg with its `</p>`, and with no breakout tag before its close.
-function closesInParagraph(content: string, element: TextRange, paragraphEnds: readonly number[]): boolean {
+function closesInParagraph(content: string, element: Span, paragraphEnds: readonly number[]): boolean {
   if (paragraphEnds.some((end) => end > element.start && end < element.end)) {
     return false;
   }
@@ -3858,14 +3841,14 @@ function breaksOut(name: string, closing: boolean): boolean {
   return (closing ? SVG_BREAKOUT_CLOSES : SVG_BREAKOUT_NAMES).has(name);
 }
 
-export function modelPanels(content: string, options: { readonly lenientHtml?: boolean | undefined } = {}): readonly TextRange[] {
+export function modelPanels(content: string, options: { readonly lenientHtml?: boolean | undefined } = {}): readonly Span[] {
   const markup = readMarkup(content, MARKDOWN_READING);
   const blocks = mergedRuns([...heldBlocks(content, markup), ...inlineBlocks(content).html]);
   // An element an unclosed element swallows is that element's text: the renderer draws none of it.
   const drawn = (offset: number): boolean => !withinRanges(markup.swallowed, offset);
   const unreadRanges = mergedRuns([...markup.units, ...markup.swallowed]);
   const raw = markup.rawText.filter((read) => drawn(read.start));
-  const panels: TextRange[] = [];
+  const panels: Span[] = [];
   let element = 0;
   const standAlone = (before: number): void => {
     for (let next = raw[element]; next !== undefined && next.start < before; next = raw[element]) {

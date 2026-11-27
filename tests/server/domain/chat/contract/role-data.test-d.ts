@@ -85,10 +85,10 @@ test("native checks reject role authority through real membership and roster rea
 
 test("foreign participant axes retain their own semantics", () => {
   expectTypeOf<Awaited<ReturnType<Caller["chat"]["getChat"]>>["participants"][number]["role"]>().toEqualTypeOf<
-    import("@orb/contracts/identity").ParticipantRole
+    import("@orb/kit/message-author").ParticipantRole
   >();
   expectTypeOf<Awaited<ReturnType<Caller["chat"]["listChats"]>>["items"][number]["viewerRole"]>().toEqualTypeOf<
-    import("@orb/contracts/identity").ParticipantRole
+    import("@orb/kit/message-author").ParticipantRole
   >();
   expectTypeOf(async (caller: Caller, chatId: import("@orb/kit/ids").ChatId) => {
     const chat = await caller.chat.getChat({ chatId });
