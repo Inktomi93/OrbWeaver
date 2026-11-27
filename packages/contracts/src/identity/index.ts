@@ -12,8 +12,7 @@
 
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import type { ParticipantRole as KitParticipantRole } from "@orb/kit/message-author";
-import { PARTICIPANT_ROLES as KIT_PARTICIPANT_ROLES } from "@orb/kit/message-author";
+import type { ParticipantRole } from "@orb/kit/message-author";
 import { z } from "zod";
 import type { ParticipantRoleState, UserRoleState } from "./role-data.ts";
 
@@ -47,7 +46,6 @@ export interface AdminUserView {
   readonly kind: UserKind;
   readonly ownerHandle: Handle | null;
   readonly createdAt: number;
-  readonly updatedAt: number;
 }
 
 /** Strict output parsing refuses extra fields instead of exposing them to the browser. */
@@ -60,7 +58,6 @@ export const adminUserViewSchema = z.strictObject({
   kind: userKindSchema,
   ownerHandle: brandedId("Handle").nullable(),
   createdAt: z.number(),
-  updatedAt: z.number(),
 }) satisfies z.ZodType<AdminUserView>;
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the
@@ -445,11 +442,6 @@ export type GlobalAction = (typeof GLOBAL_ACTIONS)[number];
 // Chat-resource authority actions. `read` = the present-member floor; `host` = room authority.
 const CHAT_ACTIONS = ["read", "host"] as const;
 export type ChatAction = (typeof CHAT_ACTIONS)[number];
-
-/** A chat participant's room authority. The tuple is `@orb/kit/message-author`, so a regex script can scope by it;
- *  it is named here because `can()` reads it and identity is the DAG root, and chat re-exports this same name. */
-export const PARTICIPANT_ROLES = KIT_PARTICIPANT_ROLES;
-export type ParticipantRole = KitParticipantRole;
 
 // Which participant role holds room authority. A mapped record over the closed tuple, so a new role fails tsc here.
 const HOLDS_ROOM_AUTHORITY = { host: true, member: false } as const satisfies Record<ParticipantRole, boolean>;

@@ -10,8 +10,24 @@
 // under a one-level merge `{...advertised, ...{}}` never could. The same rule makes a connection's
 // `declared.sampling` the WHOLE list it checkboxes.
 
-import type { CapabilityOverride, EmbeddingCapability, GenerationCapability, ModelKind, RerankCapability, ResolvedWarning } from "@orb/contracts/inference";
-import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS, TURNS_FLOOR } from "@orb/contracts/inference";
+import type {
+  CapabilityOverride,
+  EmbeddingCapability,
+  EvidenceTier,
+  GenerationCapability,
+  ModelKind,
+  RerankCapability,
+  ResolvedWarning,
+} from "@orb/contracts/inference";
+import {
+  EMBEDDING_FLOOR,
+  ESTIMABLE_TURNS,
+  EVIDENCE_TIERS,
+  GENERATION_FLOOR,
+  RERANK_FLOOR,
+  RERANK_MIN_WINDOW_TOKENS,
+  TURNS_FLOOR,
+} from "@orb/contracts/inference";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Evidence, SynthesizedCapability } from "../contract/capability.ts";
 import { assertNever } from "../contract/errors.ts";
@@ -23,6 +39,34 @@ type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
 /** A partial whose stated keys may ALSO be `undefined` — the shape a zod `.partial()` infers under
  *  `exactOptionalPropertyTypes`; `mergeFlat` skips those. */
 type Patch<T> = { readonly [K in keyof T]?: T[K] | undefined };
+
+/** The tiers that carry evidence rows. The two floors are code, applied outside the fold. */
+type FoldTier = Exclude<EvidenceTier, "family-floor" | "kind-floor">;
+
+/** The fold applies the lowest tier first, so a higher tier overrides it: the reverse of `EVIDENCE_TIERS`. */
+const FOLD_ORDER: readonly FoldTier[] = EVIDENCE_TIERS.filter((tier): tier is FoldTier => tier !== "family-floor" && tier !== "kind-floor").toReversed();
+
+/** One kind's patches per tier: `curated` and `measured` hold rows, `advertised` and `declared` one patch. The record
+ *  type fails `tsc` when a tier joins the ladder without a source here. */
+function patchesByTier<P extends object>(
+  evidence: Evidence,
+  armOf: (row: CapabilityOverride) => P | undefined,
+  advertised: P | undefined,
+  declared: P | undefined,
+): Record<FoldTier, readonly P[]> {
+  const present = (patch: P | undefined): patch is P => patch !== undefined;
+  return {
+    declared: [declared].filter(present),
+    measured: (evidence.measured ?? []).map(armOf).filter(present),
+    advertised: [advertised].filter(present),
+    curated: (evidence.curated ?? []).map(armOf).filter(present),
+  };
+}
+
+/** Every patch, lowest tier first. */
+function inFoldOrder<P>(byTier: Record<FoldTier, readonly P[]>): readonly P[] {
+  return FOLD_ORDER.flatMap((tier) => byTier[tier]);
+}
 
 /** The blocks that merge one level deep. `sampling` is deliberately NOT here (a stated set replaces — header).
  *  `tools` is: a catalog that only knows "this model takes tools" must not erase a curated sub-fact about them. */
@@ -95,24 +139,15 @@ function declaredOverridesMeasured(declared: object | undefined, measured: reado
 
 function synthesizeGeneration(family: ModelFamily, evidence: Evidence): SynthesizedCapability {
   let capability = GENERATION_FLOOR;
-  for (const row of evidence.curated ?? []) {
-    capability = mergeGeneration(capability, row.generation);
-  }
-  capability = mergeGeneration(capability, evidence.advertised as Partial<GenerationCapability> | undefined);
-  const measuredRows = (evidence.measured ?? []).map((row) => row.generation).filter((row): row is GenerationPatch => row !== undefined);
-  for (const row of measuredRows) {
-    capability = mergeGeneration(capability, row);
-  }
   const declared = evidence.declared?.generation;
-  capability = mergeGeneration(capability, declared);
+  const byTier = patchesByTier(evidence, (row) => row.generation, evidence.advertised as GenerationPatch | undefined, declared);
+  const patches = inFoldOrder(byTier);
+  for (const patch of patches) {
+    capability = mergeGeneration(capability, patch);
+  }
   // The window is ESTIMATED unless the tier whose window won the fold stated it rather than assumed it: a
   // server's floor for a window it does not state replaces a curated trained maximum but stays a guess.
-  const windowSetters = [
-    ...(evidence.curated ?? []).map((row) => row.generation?.context),
-    (evidence.advertised as GenerationPatch | undefined)?.context,
-    ...measuredRows.map((row) => row.context),
-    declared?.context,
-  ].filter((context) => context?.window !== undefined);
+  const windowSetters = patches.map((patch) => patch.context).filter((context) => context?.window !== undefined);
   const windowStated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   capability = { ...capability, context: { ...capability.context, ...(windowStated ? { windowEstimated: undefined } : { windowEstimated: true }) } };
   if (capability.context.windowEstimated === undefined) {
@@ -120,22 +155,17 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     capability = { ...capability, context: rest };
   }
   // The output cap is ESTIMATED on the same terms: the floor's figure stands only when no tier stated one.
-  const capStated =
-    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.output?.maxTokens !== undefined) ||
-    (evidence.advertised as Partial<GenerationCapability> | undefined)?.output?.maxTokens !== undefined ||
-    declared?.output?.maxTokens !== undefined;
+  const capStated = patches.some((patch) => patch.output?.maxTokens !== undefined);
   const { maxTokensEstimated: _priorCapFlag, ...output } = capability.output;
   capability = { ...capability, output: capStated ? output : { ...output, maxTokensEstimated: true } };
   capability = withDeclaredLimits(capability, declared);
-  capability = withTurnsProvenance(capability, [
-    ...(evidence.curated ?? []).map((row) => row.generation?.turns),
-    (evidence.advertised as GenerationPatch | undefined)?.turns,
-    ...measuredRows.map((row) => row.turns),
-    declared?.turns,
-  ]);
+  capability = withTurnsProvenance(
+    capability,
+    patches.map((patch) => patch.turns),
+  );
   return {
     capability: { kind: "generation", generation: withDeclaredNoTools(applyFamilyFloor(family, capability), declared) },
-    warnings: declaredOverridesMeasured(declared, measuredRows),
+    warnings: declaredOverridesMeasured(declared, byTier.measured),
   };
 }
 
@@ -172,58 +202,43 @@ function withDeclaredNoTools(capability: GenerationCapability, declared: Generat
 
 function synthesizeEmbedding(evidence: Evidence): SynthesizedCapability {
   let capability = EMBEDDING_FLOOR;
-  for (const row of evidence.curated ?? []) {
-    capability = mergeFlat(capability, row.embedding);
-  }
-  capability = mergeFlat(capability, evidence.advertised as Partial<EmbeddingCapability> | undefined);
-  const measuredRows = (evidence.measured ?? []).map((row) => row.embedding).filter((row): row is Patch<EmbeddingCapability> => row !== undefined);
-  for (const row of measuredRows) {
-    capability = mergeFlat(capability, row);
-  }
   const declared = evidence.declared?.embedding;
-  capability = mergeFlat(capability, declared);
-  const tiers = [...(evidence.curated ?? []), ...(evidence.measured ?? [])];
-  const advertised = evidence.advertised as Partial<EmbeddingCapability> | undefined;
+  const byTier = patchesByTier(evidence, (row) => row.embedding, evidence.advertised as Partial<EmbeddingCapability> | undefined, declared);
+  const patches = inFoldOrder(byTier);
+  for (const patch of patches) {
+    capability = mergeFlat(capability, patch);
+  }
   // As for a chat window: the tier whose input limit won the fold decides whether it is stated or a server's floor.
-  const windowSetters = [...(evidence.curated ?? []).map((row) => row.embedding), advertised, ...measuredRows, declared].filter(
-    (patch) => patch?.maxInputTokens !== undefined,
-  );
+  const windowSetters = patches.filter((patch) => patch.maxInputTokens !== undefined);
   const stated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   // The width is ESTIMATED when only the floor stated it — a guessed width must never read as a fit.
-  const dimsStated = tiers.some((row) => row.embedding?.dims !== undefined) || advertised?.dims !== undefined || declared?.dims !== undefined;
+  const dimsStated = patches.some((patch) => patch.dims !== undefined);
   const { windowEstimated: _dropped, dimsEstimated: _priorDimsFlag, ...rest } = capability;
   return {
     capability: {
       kind: "embedding",
       embedding: { ...rest, ...(stated ? {} : { windowEstimated: true }), ...(dimsStated ? {} : { dimsEstimated: true }) },
     },
-    warnings: declaredOverridesMeasured(declared, measuredRows),
+    warnings: declaredOverridesMeasured(declared, byTier.measured),
   };
 }
 
 function synthesizeRerank(evidence: Evidence): SynthesizedCapability {
   let capability = RERANK_FLOOR;
-  for (const row of evidence.curated ?? []) {
-    capability = mergeFlat(capability, row.rerank);
-  }
-  const advertised = evidence.advertised as Partial<RerankCapability> | undefined;
-  capability = mergeFlat(capability, advertised);
-  const measuredRows = (evidence.measured ?? []).map((row) => row.rerank).filter((row): row is Patch<RerankCapability> => row !== undefined);
-  for (const row of measuredRows) {
-    capability = mergeFlat(capability, row);
-  }
   const declared = evidence.declared?.rerank;
-  capability = mergeFlat(capability, declared);
+  const byTier = patchesByTier(evidence, (row) => row.rerank, evidence.advertised as Partial<RerankCapability> | undefined, declared);
+  const patches = inFoldOrder(byTier);
+  for (const patch of patches) {
+    capability = mergeFlat(capability, patch);
+  }
   // As for an embedder: the tier whose pair window won the fold decides whether it is stated or a floor.
-  const windowSetters = [...(evidence.curated ?? []).map((row) => row.rerank), advertised, ...measuredRows, declared].filter(
-    (patch) => patch?.maxInputTokens !== undefined,
-  );
+  const windowSetters = patches.filter((patch) => patch.maxInputTokens !== undefined);
   const stated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   const { windowEstimated: _dropped, ...merged } = capability;
   const rest = { ...merged, maxInputTokens: Math.max(merged.maxInputTokens, RERANK_MIN_WINDOW_TOKENS) };
   return {
     capability: { kind: "rerank", rerank: stated ? rest : { ...rest, windowEstimated: true } },
-    warnings: declaredOverridesMeasured(declared, measuredRows),
+    warnings: declaredOverridesMeasured(declared, byTier.measured),
   };
 }
 

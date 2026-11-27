@@ -110,7 +110,7 @@ export const refineryStageSchema = z.enum(REFINERY_STAGES) satisfies z.ZodType<R
 
 export const REFINERY_SESSION_STATUSES = ["active", "completed", "abandoned"] as const;
 export type RefinerySessionStatus = (typeof REFINERY_SESSION_STATUSES)[number];
-export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES) satisfies z.ZodType<RefinerySessionStatus>;
+const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES) satisfies z.ZodType<RefinerySessionStatus>;
 
 /** The coded reason for a stage run refused out of order (analyze with no rewrite to judge; a refinement
  *  round with no analyze to refine against). The client reads it off the BAD_REQUEST error body. */
@@ -217,9 +217,9 @@ export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema
  *  the prompt substrate neutralizes it before splicing (the `{{input}}` guided precedent). */
 export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
 
-/** The session's optional roster label — host-authored, never model-facing. Bounded like the card's own
- *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
-export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
+// The session's optional roster label, never model-facing. Bounded like the card's own `name`: it is a row label
+// rendered in the D62 LIST pane, not a prose field. No verb writes it, so every stored row holds null.
+const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
 
 // ── Per-stage payload config — the kind-tagged union (two arms on score/analyze) ───────────────────────
 // The SESSION-side custom arm is a POINTER (`{kind:"custom", schemaId}`): the session's in-force schema

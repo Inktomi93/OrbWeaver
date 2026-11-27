@@ -1,5 +1,7 @@
 // Capture row data, never an authority verdict. Weak keys follow the immutable snapshot's own lifetime.
-import type { ParticipantRole, ParticipantRoleState, UserRole, UserRoleState } from "@orb/contracts/identity";
+
+import type { ParticipantRoleState, UserRole, UserRoleState } from "@orb/contracts/identity";
+import type { ParticipantRole } from "@orb/kit/message-author";
 import { participantRoleCodes, userRoleCodes } from "./registry.ts";
 
 /** Storage and input owners capture an already parsed global-role code. */

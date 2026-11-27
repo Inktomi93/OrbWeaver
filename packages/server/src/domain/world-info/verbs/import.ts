@@ -2,10 +2,11 @@
 // raw SillyTavern world file) through the ONE serde core, then the UNATTACHED additive owned write. Never
 // throws for a malformed file: a parse miss returns `{ ok:false, error }`. The write is a batch of one. `export.ts` is the round-trip twin.
 
+import { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 import { fileStem } from "@orb/kit/strings";
 import { NEVER_ABORTED, soleResult } from "#primitives/abort";
 import { portableParseError } from "#primitives/serde/lib";
-import { parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "#primitives/serde/world-info";
+import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type { ImportWorldBook, ImportWorldBookContext, ImportWorldBookOutcome } from "../contract/import.ts";
 
 /** The name a SillyTavern world file lands under when the door learned no filename. */

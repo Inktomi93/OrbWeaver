@@ -100,6 +100,7 @@ import type { DelayOp, EmitDurableChatEventOp } from "../contract/engine-context
 import { CHAT_OP_CODES, ChatHostWithoutConsentError, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
+import type { SendRegexSink } from "../contract/gather.ts";
 import type { HandoffBarrier } from "../contract/handoff-barrier.ts";
 import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory.ts";
 import type {
@@ -173,18 +174,6 @@ import {
   selectSpeakersVia,
   smartArbitrateVia,
 } from "../substrate/turn-access.ts";
-
-/** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
- *  verb persists that (the haystack and the stored row never diverge). Also receives the round-level recall
- *  inputs (`memoryRecall`) `gatherMemory` stages for the engine's per-speaker witnessed re-run (D6). */
-interface SendRegexSink {
-  sendUserText?: string;
-  /** The SEND bake's VOLATILE-FREEZE record (D129-F): which `{{roll}}`/`{{random}}`/clock occurrences the
-   *  freeze resolved out of the composer draft, and to what. Persisted on the user row's variant beside the
-   *  pre-freeze draft so the bake stops being lossy. Absent ⇒ nothing froze. */
-  sendMacroFreezes?: MacroFreezeRecord;
-  memoryRecall?: MemoryRecallInputs | null;
-}
 
 /** The shared per-round identity + ctx the driver reuses by reference. */
 type RoundBase = Parameters<typeof driveRoundVia>[0]["base"];
@@ -567,7 +556,6 @@ const GENERATION_TYPE_FOR_KIND: Record<TurnKind, GenerationType> = {
   generate: "normal",
   force: "normal",
   auto: "normal",
-  opening: "normal",
   swipe: "swipe",
   continue: "continue",
   impersonate: "impersonate",
@@ -581,7 +569,6 @@ const VOICE_FOR_KIND: Record<TurnKind, TurnVoice> = {
   generate: "anchor",
   force: "anchor",
   auto: "anchor",
-  opening: "anchor",
   swipe: "anchor",
   continue: "anchor",
   impersonate: "trigger",
@@ -3439,9 +3426,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
   };
 }
 
-/** The turn-running verb bundle the root spreads into the full service. `opening`/`generateOpening` stays
- *  internal (injected into `startChat`, not on `ChatService`); the engine path is a `kind:"opening"` runTurn
- *  with the opening instruction on `appendUserTurn`. */
+/** The turn-running verb bundle the root spreads into the full service. */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
   // Built once so `send`'s post-round auto-behaviors re-enter the SAME swipe/continue verbs the
   // service exposes (one home; the follow-ups clear every belt exactly like a manual swipe/continue).

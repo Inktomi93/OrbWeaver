@@ -110,7 +110,6 @@ export const characterTags = sqliteTable(
     // pending | accepted — derives TAG_STATUSES. A suggestion (import/corpus distillation) defaults to
     // `pending`; "Accept" flips it to `accepted`; export reads `accepted` rows.
     status: text("status", { enum: TAG_STATUSES }).notNull().default(DEFAULT_TAG_STATUS),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.characterId, t.tagId] }),
@@ -146,7 +145,6 @@ export const chatTags = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   // The composite PK `(chatId, tagId, ownerId)` IS the D30 `unique(chatId, tagId, ownerId)` — per-tagger
   // uniqueness, cross-tagger coexistence. No separate unique index (it would duplicate the PK).
@@ -178,7 +176,6 @@ export const worldBookTags = sqliteTable(
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.worldBookId, t.tagId] }),
@@ -198,7 +195,6 @@ export const personaTags = sqliteTable(
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.personaId, t.tagId] }),
@@ -218,7 +214,6 @@ export const presetTags = sqliteTable(
       .$type<TagId>()
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.presetId, t.tagId] }),

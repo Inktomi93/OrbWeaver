@@ -121,7 +121,7 @@ const memoryBackfillSummary: WorkloadResultRenderer<"memory-backfill"> = (result
     countIfAny(result.failed, "chat skipped", "chats skipped"),
   ]);
 
-/** The integrity walk: the three fault counts — a clean walk says so rather than listing three zeroes. */
+/** The integrity walk: the three fault counts — a clean walk says what it covered rather than listing three zeroes. */
 const fsckSummary: WorkloadResultRenderer<"assets-fsck"> = (result) => {
   const faults = summarize([
     countIfAny(result.danglingRows, "dangling row"),
@@ -132,7 +132,12 @@ const fsckSummary: WorkloadResultRenderer<"assets-fsck"> = (result) => {
     return faults;
   }
   // All three read as zero (not as an unreadable blob) — that is the good outcome, and it deserves words.
-  return count(result.danglingRows, "dangling row") === null ? null : "No faults found.";
+  if (count(result.danglingRows, "dangling row") === null) {
+    return null;
+  }
+  const rows = count(result.scannedRows, "row");
+  const blobs = count(result.scannedBlobs, "blob");
+  return rows === null || blobs === null ? "No faults found." : `No faults found in ${rows} and ${blobs}.`;
 };
 
 /** A bundle import's per-entity tallies. A held file wrote nothing, so it is neither in `imported` nor in `skipped`. */

@@ -2,7 +2,6 @@
 // (→ 404) from the verb, not one of these shapes — there is no error class.
 
 import type { GroupConfig } from "@orb/contracts/chat";
-import type { PortableFile } from "@orb/contracts/portability";
 import type { CharacterHandle, CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 
 /** One chat the owner HOSTS, paired with the handle of its primary seated character (first by join order).
@@ -38,9 +37,6 @@ export interface StDocumentRef {
   readonly characterHandles: readonly CharacterHandle[];
   readonly createdAt: number;
 }
-
-/** The character card's container-agnostic output (`png` or unwrapped `json`). */
-export type ExportedCard = PortableFile;
 
 export interface ExportedText {
   readonly text: string;

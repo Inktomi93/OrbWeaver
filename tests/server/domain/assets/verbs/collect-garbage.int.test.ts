@@ -201,12 +201,6 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
     },
   });
 
-  refs["user_settings profile.avatarAssetId"] = await store(box, "avatar");
-  await root.services.settings.updateUserSettingsSection({
-    principal,
-    input: { section: "profile", patch: { avatarAssetId: refs["user_settings profile.avatarAssetId"].assetId } },
-  });
-
   refs["characters.background_override"] = await store(box, "background");
   const carded = await root.services.character.create({
     principal,
@@ -309,25 +303,38 @@ test("a reference written after the sweep's snapshot still wins the destructive 
   const room = await openRoom(box, castId<CharacterHandle>("gc-race-room"));
   const plain = await say(box, room, { content: "The ledger, before the picture." });
   const late = {
-    "message body": async (ref: StoredRef): Promise<void> => {
-      await box.root.services.chat.editMessage({ principal: box.principal, chatId: room, messageId: plain, content: `Late. ${inlineImage(ref)}` });
+    "message body": {
+      kind: "attachment",
+      write: async (ref: StoredRef): Promise<void> => {
+        await box.root.services.chat.editMessage({ principal: box.principal, chatId: room, messageId: plain, content: `Late. ${inlineImage(ref)}` });
+      },
     },
-    "profile avatar": async (ref: StoredRef): Promise<void> => {
-      await box.root.services.settings.updateUserSettingsSection({
-        principal: box.principal,
-        input: { section: "profile", patch: { avatarAssetId: ref.assetId } },
-      });
+    // A background pick is admitted only for an asset stored as a background.
+    "background pick": {
+      kind: "background",
+      write: async (ref: StoredRef): Promise<void> => {
+        await box.root.services.settings.updateUserSettingsSection({
+          principal: box.principal,
+          input: {
+            section: "appearance",
+            patch: { backgroundImageKind: "asset", backgroundAssetId: ref.assetId, backgroundAssetHash: ref.hash, backgroundAssetMime: PNG },
+          },
+        });
+      },
     },
     // Positive control: the held delete really is the destructive edge, and with nothing written it frees the blob.
-    nothing: (): Promise<void> => Promise.resolve(),
+    nothing: { kind: "attachment", write: (): Promise<void> => Promise.resolve() },
     // Last on purpose: once stored, this kind refuses every later snapshot. Written after this one, it must keep the asset.
-    "room background of an unknown kind": async (ref: StoredRef): Promise<void> => {
-      await plantForeignRoomBackground(box.root, room, { kind: "library", assetId: ref.assetId });
+    "room background of an unknown kind": {
+      kind: "attachment",
+      write: async (ref: StoredRef): Promise<void> => {
+        await plantForeignRoomBackground(box.root, room, { kind: "library", assetId: ref.assetId });
+      },
     },
   } as const;
   const outcome: Record<string, AssetStores> = {};
-  for (const [source, write] of Object.entries(late)) {
-    const target = await store(box, "attachment");
+  for (const [source, { kind, write }] of Object.entries(late)) {
+    const target = await store(box, kind);
     await ageOnly(box, target);
     const deletion = box.hold(ASSET_ROW_DELETE);
     const sweeping = runScheduledGc(box);
@@ -340,7 +347,7 @@ test("a reference written after the sweep's snapshot still wins the destructive 
 
   expect(outcome).toEqual({
     "message body": BOTH_STORES,
-    "profile avatar": BOTH_STORES,
+    "background pick": BOTH_STORES,
     nothing: NEITHER_STORE,
     "room background of an unknown kind": BOTH_STORES,
   });

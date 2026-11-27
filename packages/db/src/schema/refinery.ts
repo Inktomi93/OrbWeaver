@@ -57,8 +57,8 @@ export const refinerySessions = sqliteTable(
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    // Optional user label; null renders as the character-derived default in the roster (D62 LIST row).
-    // Bounded at the write verb via `refinerySessionNameSchema` (@orb/contracts/refinery).
+    // Optional roster label. No verb writes it (startSession inserts null), so every reader renders the
+    // character-derived default in the roster (D62 LIST row).
     name: nulFreeText("name"),
     status: text("status", { enum: REFINERY_SESSION_STATUSES }).$type<RefinerySessionStatus>().notNull().default("active"),
     // The full canonical card snapshotted at session start — the anti-drift anchor (header; D28 blob law).

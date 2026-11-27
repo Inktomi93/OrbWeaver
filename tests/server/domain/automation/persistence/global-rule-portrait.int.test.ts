@@ -38,5 +38,5 @@ portraitTest("a global rule fires on its character import with no room open and 
   expect(physical.requests.filter((request) => request.startsWith("POST "))).toEqual(["POST /v1/chat/completions", "POST /v1/images/generations"]);
   expect(await root.db.select().from(chats)).toEqual([]);
   expect(await root.db.select().from(messages)).toEqual([]);
-  expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => [fire.outcome, fire.chatId])).toEqual([["fired", null]]);
+  expect((await root.services.automation.listFires({ principal, ruleId: rule.id })).map((fire) => fire.outcome)).toEqual(["fired"]);
 });

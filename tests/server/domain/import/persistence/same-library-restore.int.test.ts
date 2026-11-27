@@ -152,7 +152,8 @@ async function livedInLibrary(root: ServerTestHarness, pictures: Uint8Array[]): 
     await root.services.character.create({ principal: owner, input: createCharacterSchema.parse(plain) });
   }
   const book = await root.services.worldInfo.createBook({ principal: owner, input: { name: "Bridge Lore" } });
-  await root.services.worldInfo.createEntry({ principal: owner, bookId: book.id, input: { title: "Bridge", content: "The bridge is old.", keys: ["bridge"] } });
+  const bridge = await root.services.worldInfo.createEntry({ principal: owner, bookId: book.id, input: { title: "Bridge", content: "The bridge is old." } });
+  await root.services.worldInfo.updateEntry({ principal: owner, entryId: bridge.id, input: { keys: ["bridge"] } });
   await root.services.worldInfo.attachToCharacter({ principal: owner, characterId: warden.id, bookId: book.id, role: "primary" });
   await root.services.tag.attachCardTagByName({ ownerId: root.ownerId, characterId: warden.id, tagName: "guardian" });
   const persona = await root.services.persona.create({

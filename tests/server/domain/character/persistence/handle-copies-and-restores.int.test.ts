@@ -14,7 +14,7 @@ import { portableImageryCallSchema } from "@orb/contracts/imagery";
 import { modelIdSchema } from "@orb/contracts/inference";
 import type { PortableFile, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import { characters, chatParticipants, imageryGenerations } from "@orb/db";
+import { characters, chatParticipants, galleryItems, imageryGenerations } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -113,6 +113,12 @@ async function importFile(root: ServerTestHarness, kind: PortableKind, file: Por
   return await descriptor.importFile(root.ownerId, file);
 }
 
+/** The subject each gallery curation row of `assetId` carries. */
+async function gallerySubjects(root: ServerTestHarness, assetId: AssetId): Promise<readonly (CharacterId | null)[]> {
+  const rows = await root.db.select({ subject: galleryItems.subjectCharacterId }).from(galleryItems).where(eq(galleryItems.assetId, assetId));
+  return rows.map((row) => row.subject);
+}
+
 /** The subject each imported imagery output of `assetId` was linked to. */
 async function importedSubjects(root: ServerTestHarness, assetId: AssetId): Promise<readonly (CharacterId | null)[]> {
   const rows = await root.db
@@ -165,7 +171,7 @@ test("a card stored outside the alphabet keeps its gallery, databank and imagery
   const principal = await target.principalFor(target.ownerId);
   const restored = (await (await target.internalCallerFor(target.ownerId)).character.list({})).items.filter((item) => item.name === NAME);
   const restoredIds = restored.map((item) => item.id);
-  const gallery = await target.services.assets.listGallery({ principal, limit: 100 });
+  const gallery = await gallerySubjects(target, assetId);
   const documents = (await target.services.databank.list({ signal: new AbortController().signal, principal })).items.filter(
     (item) => item.name === DOCUMENT_NAME,
   );
@@ -179,9 +185,7 @@ test("a card stored outside the alphabet keeps its gallery, databank and imagery
   expect({
     status,
     restored: restored.length,
-    gallery: gallery
-      .filter((item) => item.assetId === assetId)
-      .map((item) => item.subjectCharacterId !== null && restoredIds.includes(item.subjectCharacterId)),
+    gallery: gallery.map((subject) => subject !== null && restoredIds.includes(subject)),
     attached: attached.map((ids) => ids.filter((id) => restoredIds.includes(id)).length),
     imagery: imagerySubjects.map((subject) => subject !== null && restoredIds.includes(subject)),
   }).toEqual({ status: "succeeded", restored: 1, gallery: [true], attached: [1], imagery: [true] });
@@ -322,7 +326,7 @@ test("an owner's export names no synthetic group row as a gallery, databank or i
   expect({
     // Each export source holds the group row, so a missing filter would carry its handle out.
     held: {
-      gallery: (await root.services.assets.listGallery({ principal: owner, limit: 100 })).some((item) => item.subjectCharacterId === groupId),
+      gallery: (await root.db.select({ subject: galleryItems.subjectCharacterId }).from(galleryItems)).some((row) => row.subject === groupId),
       databank: (await root.services.databank.listAttachments({ signal: new AbortController().signal, principal: owner, id: documentId })).characters.some(
         (ref) => ref.id === groupId,
       ),

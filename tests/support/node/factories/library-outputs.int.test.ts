@@ -22,15 +22,16 @@ test("world book import defaults admit a native named book and title repair capt
   const foreign = await root.actor();
   const other = await root.internalCallerFor(foreign.id);
   const foreignBook = await other.worldInfo.createBook({ input });
-  await other.worldInfo.createEntry({
+  const keyed = await other.worldInfo.createEntry({
     bookId: foreignBook.id,
-    input: createEntrySchema.parse({ title: "Keyed", content: "The keyed witness survives repair.", keys: ["archive", "witness"], priority: 4 }),
+    input: createEntrySchema.parse({ title: "Keyed", content: "The keyed witness survives repair." }),
   });
+  await other.worldInfo.updateEntry({ entryId: keyed.id, input: updateEntrySchema.parse({ keys: ["archive", "witness"], priority: 4 }) });
   const unkeyed = await other.worldInfo.createEntry({
     bookId: foreignBook.id,
-    input: createEntrySchema.parse({ title: "Unkeyed", content: "The unkeyed witness stays unnamed.", keys: [], priority: 2 }),
+    input: createEntrySchema.parse({ title: "Unkeyed", content: "The unkeyed witness stays unnamed." }),
   });
-  await other.worldInfo.updateEntry({ entryId: unkeyed.id, input: updateEntrySchema.parse({ enabled: false, ignoreBudget: true }) });
+  await other.worldInfo.updateEntry({ entryId: unkeyed.id, input: updateEntrySchema.parse({ priority: 2, enabled: false, ignoreBudget: true }) });
   const exported = await other.worldInfo.exportBook({ bookId: foreignBook.id });
   const restored: unknown = JSON.parse(exported.fileText);
   if (!(isPlainObject(restored) && Array.isArray(restored["entries"]))) {

@@ -107,7 +107,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     const entries = primary === undefined ? [] : await host.trpc.worldInfo.listEntries.query({ bookId: primary.id });
     expect(entries.map((entry) => entry.content)).toEqual([BOOK_CONTENT]);
     const again = await importCard(page);
-    expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false, importHash: imported.importHash }]);
+    expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false }]);
     const listed = await host.trpc.character.list.query({ search: NAME });
     expect(listed.items.filter((item) => item.name === NAME).map((item) => item.id)).toEqual([imported.characterId]);
     expect(await host.trpc.worldInfo.listForCharacter.query({ characterId: imported.characterId })).toEqual(books);

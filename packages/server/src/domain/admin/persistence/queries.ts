@@ -22,7 +22,6 @@ export const userCols = {
   enabled: users.enabled,
   kind: users.kind,
   createdAt: users.createdAt,
-  updatedAt: users.updatedAt,
 } as const;
 
 const ownerUser = alias(users, "owner_user");

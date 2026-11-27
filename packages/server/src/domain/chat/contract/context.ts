@@ -19,7 +19,6 @@ import type {
   MemoryDigestInput,
   MemoryItemKey,
   MemoryView,
-  NextTurnConnectionView,
   ParticipantData,
   PlanGameBirthOp,
   ReadChatUserMacrosOp,
@@ -437,7 +436,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  the copy, so anything host-only in the source (config `steeringNote`, a foreign `gmPresetId`, hidden-span
    *  tracker prose) must not launder into their new host view (the §3.6 member→host boundary — the SAME transition
    *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
-   *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
+   *  rpg isn't wired / the source isn't a game ⇒ a no-op and the fork stays plain. */
   readonly forkGame: ForkGameOp;
   /** HOST HANDOFF: the rpg-side statements `acceptHostHandoff` must commit IN ITS OWN
    *  SWAP BATCH when room authority moves to `newHostUserId`. Today that is the `gmPresetId` heal — the twin of
@@ -562,8 +561,8 @@ type SearchDigestsOp = (
  *  and `.passages` (the documents and spans the host's trace names); databank's score/token fields never cross into chat.
  *
  *  It shares {@link TurnRetrievalEvents} with the digest op because one turn losing both slots to ONE
- *  unqueryable space owes the user ONE notice; `onRerankUnavailable` is unused on this arm (databank's rerank
- *  degrade is not wired) and the binding simply never calls it. */
+ *  unqueryable space owes the user ONE notice. `onRerankUnavailable` fires when the documents' reranker fails
+ *  after retrieval succeeded; the binding wires it to the databank's own warning class. */
 type GatherDatabankOp = (
   args: {
     readonly chatId: ChatId;
@@ -860,7 +859,6 @@ export interface ChatServiceDeps {
     readonly chatId: ChatId;
     readonly signal: AbortSignal;
   }) => Promise<SendAvailability>;
-  readonly getNextTurnConnection: (args: { readonly funderUserId: ConsentingHostId }) => Promise<NextTurnConnectionView>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;

@@ -49,7 +49,7 @@ test("a card imported with a NUL in a field reads back whole without it, and the
   expect((await root.services.character.get({ principal, characterId: imported.characterId })).description).toBe(DESCRIPTION.join(""));
 
   const again = await importCard(root, card(DESCRIPTION.join("")));
-  expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false, importHash: imported.importHash }]);
+  expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false }]);
 
   // The NUL-free card stored on its own has the same content hash.
   await using clean = await ownerRoot();

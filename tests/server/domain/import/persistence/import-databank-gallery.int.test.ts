@@ -12,6 +12,7 @@
 import { readFile } from "node:fs/promises";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { MAX_DATABANK_BYTES_FLOOR } from "@orb/contracts/settings";
+import { galleryItems } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { present } from "@orb/testkit/iso";
@@ -57,10 +58,10 @@ async function documentsByName(
 
 // The owner's default content seeds galleries of its own, so a test reads the rows its run added.
 async function galleryAdded(root: ServerTestHarness, before: ReadonlySet<string> = new Set()): Promise<readonly (CharacterId | null)[]> {
-  const items = await root.services.assets.listGallery({ principal: await root.principalFor(root.ownerId), limit: 100 });
-  return items
-    .filter((item) => !before.has(item.galleryItemId))
-    .map((item) => item.subjectCharacterId)
+  const rows = await root.db.select({ id: galleryItems.id, subject: galleryItems.subjectCharacterId }).from(galleryItems);
+  return rows
+    .filter((row) => !before.has(row.id))
+    .map((row) => row.subject)
     .toSorted((a, b) => String(a).localeCompare(String(b)));
 }
 

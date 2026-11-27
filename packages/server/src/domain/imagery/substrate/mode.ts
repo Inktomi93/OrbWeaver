@@ -3,20 +3,20 @@
 // PromptTemplateMode so the template Records + the orchestrator's step-3 dispatch stay exhaustive under tsc
 // (a new tuple member fails to key a Record / falls through a guard until it declares its arm).
 
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { ExtractionMode, MultimodalMode, PortraitMode } from "../contract/params.ts";
+import type { ExtractionMode, MultimodalCaptionMode, PromptTemplateMode } from "@orb/contracts/imagery";
+import type { PortraitMode } from "../contract/params.ts";
 
 const MULTIMODAL_MODES = new Set<PromptTemplateMode>(["character_multimodal", "face_multimodal"]);
 const PORTRAIT_MODES = new Set<PromptTemplateMode>(["character", "face", "character_multimodal", "face_multimodal"]);
 
 /** A multimodal mode's text-extraction sibling — the no-avatar caption fallback (doc 02 §3 step 1) still
  *  describes the subject from the card's extracted keywords. */
-const MULTIMODAL_TO_EXTRACTION: Record<MultimodalMode, ExtractionMode> = {
+const MULTIMODAL_TO_EXTRACTION: Record<MultimodalCaptionMode, ExtractionMode> = {
   character_multimodal: "character",
   face_multimodal: "face",
 };
 
-export function isMultimodalMode(mode: PromptTemplateMode): mode is MultimodalMode {
+export function isMultimodalMode(mode: PromptTemplateMode): mode is MultimodalCaptionMode {
   return MULTIMODAL_MODES.has(mode);
 }
 
@@ -26,6 +26,6 @@ export function isPortraitMode(mode: PromptTemplateMode): mode is PortraitMode {
 }
 
 /** The extraction mode a multimodal mode falls back to when the subject has no avatar to caption. */
-export function extractionFallbackFor(mode: MultimodalMode): ExtractionMode {
+export function extractionFallbackFor(mode: MultimodalCaptionMode): ExtractionMode {
   return MULTIMODAL_TO_EXTRACTION[mode];
 }

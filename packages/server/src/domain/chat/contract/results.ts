@@ -84,8 +84,8 @@ export interface TurnSpeakerShape {
   readonly speakerRef: SpeakerRef;
 }
 
-/** Maps the domain's turn-kind axis to the public bus {@link TurnIntent}. `opening`/`auto`/`force` surface as
- *  their nearest public lifecycle intent. One home — the engine's `turnStarted`/`turnCompleted`/`turnAborted`
+/** Maps the domain's turn-kind axis to the public bus {@link TurnIntent}. `auto`/`force` surface as their
+ *  nearest public lifecycle intent. One home — the engine's `turnStarted`/`turnCompleted`/`turnAborted`
  *  emits AND the verb's pre-arbitration `turnAccepted` emit both key on it (never a re-spelled map). */
 export const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   send: "send",
@@ -93,7 +93,6 @@ export const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   continue: "continue",
   generate: "generate",
   impersonate: "impersonate",
-  opening: "generate",
   auto: "generate",
   force: "generate",
 };
@@ -487,8 +486,7 @@ export interface TurnPrep {
    *  every lifecycle event of the turn carries the id. Only the engine
    *  knows whether `turnStarted` fired, so it owns closing that slot on a PRE-START refusal (lock contention /
    *  consent / budget / a missing persist target): those paths emit `turnAborted` instead of throwing silently,
-   *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot (the founding `opening`
-   *  turn — every other turn-starting verb accepts) ⇒ pre-start refusals stay bus-SILENT exactly as before. */
+   *  or the acceptance strands as a stuck Stop button. ABSENT ⇒ nobody opened a slot ⇒ pre-start refusals stay bus-SILENT exactly as before. */
   readonly acceptedTurnId?: ChatTurnId | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
    *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION: a post-start throw with
@@ -531,10 +529,11 @@ export interface DrainReport {
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and
  *  whether this call actually rewrote the marker (`false` for an idempotent no-op / an all-hidden span / an
  *  empty generation the caller must surface). A rewrite always covers a real seq; a no-op reports the stamp it
- *  left, `null` when the chat was never compacted. */
+ *  left, `null` when the chat was never compacted, and carries no summary: the room's stored marker is the one
+ *  home of a summary this call did not write. */
 export type CompactResult =
   | { readonly summary: string; readonly compactedAtSeq: number; readonly updated: true }
-  | { readonly summary: string; readonly compactedAtSeq: number | null; readonly updated: false };
+  | { readonly compactedAtSeq: number | null; readonly updated: false };
 
 /** The standalone `reactAsCharacter` op (`verbs/reactions.ts::createReactAsCharacter`) — NOT a
  *  `ChatService` member (its one consumer is the composition root's `react` tool definition; see

@@ -27,6 +27,7 @@ import {
   JOIN_PERSONA,
   JOINED_RESPONSE,
   PENDING_AUTH_CONFIG,
+  PENDING_CHAT_ID,
   PENDING_CONFIRM_PATH,
   PENDING_PREVIEW_PATH,
   PENDING_ROOM,
@@ -142,7 +143,7 @@ test("an unnamed persona focuses its error without a request, then submits only 
   await page.getByRole("textbox", { name: JOINER_PERSONA_DESCRIPTION_FIELD, exact: true }).fill(`  ${JOIN_PERSONA.description}  `);
   await submit.click();
   await expect(page.getByRole("heading", { name: JOIN_DESTINATION_LABEL, exact: true })).toBeVisible();
-  await expect(page.getByText(`chat=${PENDING_ROOM.chatId} section=chats`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`chat=${PENDING_CHAT_ID} section=chats`, { exact: true })).toBeVisible();
   expect(confirms).toHaveLength(1);
   for (const request of confirms) {
     const body: unknown = request.postDataJSON();

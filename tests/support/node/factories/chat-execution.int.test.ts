@@ -4,6 +4,7 @@ import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES } from "../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { nonEmpty } from "../../iso/non-empty.ts";
+import { readCompactionMarker } from "../chat/compaction-marker.ts";
 import { seedCorpusActors, seedRecallRoom } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -45,13 +46,16 @@ test("a real priced compaction captures the owner's durable spend and its curren
   await caller.chat.commitMessage({ chatId, timeZone: UTC_TIME_ZONE, content: "The traveller repairs the orbital witness ledger." });
   const compacted = await root.services.chat.compact({ signal: new AbortController().signal, principal: owner, chatId });
   expect(compacted.updated).toBe(true);
-  expect(compacted.summary).toBe(REPLY);
+  expect((await readCompactionMarker(root, owner, chatId)).compactSummary).toBe(REPLY);
   const captured = await captureCompactionSpend(root.db, root.ownerId);
   expect(captured).toHaveLength(1);
   expect(nonEmpty(captured).every((row) => row.ownerId === root.ownerId && row.costUsd > 0)).toBe(true);
   const calls = provider.requests.filter((request) => request === "POST /v1/chat/completions");
   expect(calls).toHaveLength(1);
-  expect(await root.services.chat.compact({ signal: new AbortController().signal, principal: owner, chatId })).toEqual({ ...compacted, updated: false });
+  expect(await root.services.chat.compact({ signal: new AbortController().signal, principal: owner, chatId })).toEqual({
+    compactedAtSeq: compacted.compactedAtSeq,
+    updated: false,
+  });
   expect(await captureCompactionSpend(root.db, root.ownerId)).toEqual(captured);
   expect(provider.requests.filter((request) => request === "POST /v1/chat/completions")).toEqual(calls);
 });

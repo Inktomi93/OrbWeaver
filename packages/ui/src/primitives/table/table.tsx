@@ -56,7 +56,6 @@ export interface TableProps<TData> extends VariantProps<typeof tableBoxVariants>
    * `data.length`. */
   readonly defaultPagination?: TablePagination;
 
-  readonly className?: string;
   /** Accessible name for the `<table>` element (no built-in visible caption — compose a heading
    * above the table for a visible title). */
   readonly "aria-label"?: string;
@@ -174,7 +173,6 @@ export function Table<TData>({
   defaultSorting = null,
   onSortingChange,
   defaultPagination,
-  className,
   "aria-label": ariaLabel,
 }: TableProps<TData>): ReactElement {
   const [uncontrolledSorting, setUncontrolledSorting] = useState<TableSort | null>(defaultSorting);
@@ -214,7 +212,7 @@ export function Table<TData>({
   const showPager = pageCount > 1;
 
   return (
-    <div className={cn(slots.root(), tableBoxVariants({ width, cap, className }))} data-slot="table-root">
+    <div className={cn(slots.root(), tableBoxVariants({ width, cap }))} data-slot="table-root">
       <div className={slots.scroll()} data-slot="table-scroll">
         <table aria-label={ariaLabel} className={slots.table()} data-slot="table">
           <thead className={slots.thead()}>

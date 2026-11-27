@@ -45,7 +45,6 @@ test.each([false, true])("native corpus captures real consumed OIDC rows and app
   expect(capture.wire.ownerMe).toMatchObject({ authenticated: true, role: "owner" });
   expect(capture.wire.confirmation.signedIn).toBe(!approval);
   expect(capture.wire.joinerMe.authenticated).toBe(!approval);
-  expect(capture.wire.confirmation.chatId).toBe(capture.wire.pendingPreview.chatId);
   expect(capture.ownerSessions.length).toBe(1);
   expect(capture.joinerSessions.length).toBe(approval ? 0 : 1);
   const wire = JSON.stringify(capture.wire);

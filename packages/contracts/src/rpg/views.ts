@@ -374,8 +374,8 @@ export interface RpgStandingLie {
  *  `standingLies: []`) when the game has no hidden content — a clean host-plane read. */
 export interface RpgRevealView {
   readonly messages: readonly RpgRevealedMessage[];
-  /** The standing lies grouped by character (each character's active lies, most-recent-wins per truth). */
-  readonly standingLies: readonly { readonly character: string; readonly lies: readonly RpgStandingLie[] }[];
+  /** The standing lies grouped by character, in first-seen order (each group's lies are most-recent-wins per truth; a lie names its own character). */
+  readonly standingLies: readonly { readonly lies: readonly RpgStandingLie[] }[];
 }
 
 // Output-only projections close typed envelopes; stored state and model patch grammars remain unchanged.
@@ -532,7 +532,7 @@ const rpgStandingLieSchema = z.strictObject({
 }) satisfies z.ZodType<RpgStandingLie>;
 export const rpgRevealViewSchema = z.strictObject({
   messages: z.array(rpgRevealedMessageSchema).readonly(),
-  standingLies: z.array(z.strictObject({ character: z.string(), lies: z.array(rpgStandingLieSchema).readonly() })).readonly(),
+  standingLies: z.array(z.strictObject({ lies: z.array(rpgStandingLieSchema).readonly() })).readonly(),
 }) satisfies z.ZodType<RpgRevealView>;
 /** A labeled bookmark as members read it. */
 export interface RpgCheckpointView {

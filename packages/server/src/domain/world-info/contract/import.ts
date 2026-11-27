@@ -33,8 +33,7 @@ export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes:
 
 // ── the character.duplicate CARRY ─────────────────────────────────────────
 
-/** db + clock only: the carry copies character_books rows verbatim, no id-minting or audit. */
+/** db only: the carry copies character_books rows verbatim, no id-minting, stamp or audit. */
 export interface WorldInfoDuplicateCarryContext {
   readonly db: Db;
-  readonly now: Clock;
 }

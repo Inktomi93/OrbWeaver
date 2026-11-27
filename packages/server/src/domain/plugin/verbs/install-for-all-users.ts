@@ -61,7 +61,7 @@ export function createInstallForAllUsers(ctx: PluginContext, deps: PluginDistrib
     for (const recipient of recipients) {
       const held = await alreadyHolds(ctx, recipient, manifest.id);
       if (held) {
-        skipped.push({ userId: recipient.userId, userHandle: recipient.handle, reason: "already-installed" });
+        skipped.push({ userHandle: recipient.handle, reason: "already-installed" });
         continue;
       }
       await installDistributedCopy(deps, recipient, bundle);

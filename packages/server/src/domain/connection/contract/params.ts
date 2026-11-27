@@ -1,6 +1,5 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
-  BindingActorKey,
   ConnectionApi,
   ConnectionExtrasDoc,
   ConnectionTransportDoc,
@@ -76,10 +75,6 @@ export interface UpdateConnectionParams extends ActorParams {
 export interface RemoveConnectionParams extends ActorParams {
   readonly connectionId: UserConnectionId;
 }
-
-/** The actor as the STORE spells it: a kind + the id column that kind sets (the persistence-side pair the
- *  runtime's `BindingStore.lookup` uses; the caller-side shape is `BindingActorInput` below). */
-export type StoredActor = BindingActorKey;
 
 /** The actor a binding belongs to, from the caller's side: absent ⇒ the caller's own `user` bindings. */
 export type BindingActorInput =

@@ -71,8 +71,7 @@ import {
   TOKEN_PROVENANCES,
   TURN_INITIATORS,
 } from "@orb/contracts/chat";
-// PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis).
-import { AUTH_MODES, PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import { AUTH_MODES } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails, Wire } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS, WIRES } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
@@ -98,6 +97,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
@@ -277,7 +277,6 @@ export const chatHandoffResumptions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     actorRekeys: text("actor_rekeys", { mode: "json" }).$type<readonly HandoffCardPair[]>().notNull(),
-    createdAt: integer("created_at").notNull(),
   },
   (t) => [index("chat_handoff_resumptions_accepted_by_idx").on(t.acceptedByUserId)],
 );
@@ -1108,9 +1107,6 @@ export const chatGenerationObservations = sqliteTable(
     connectionId: nulFreeText("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
-    connectionAttributionProvenance: text("connection_attribution_provenance", { enum: CONNECTION_ATTRIBUTION_PROVENANCES })
-      .$type<ConnectionAttributionProvenance>()
-      .notNull(),
     model: nulFreeText("model").$type<ModelId>().notNull(),
     servedModel: nulFreeText("served_model"),
     provider: nulFreeText("provider").$type<ProviderId>().notNull(),
@@ -1146,11 +1142,6 @@ export const chatGenerationObservations = sqliteTable(
     check("chat_generation_observations_source_shape", sql.raw("source_variant_id is null or source_message_id is not null")),
     check("chat_generation_observations_wire_check", sql.raw(`wire in (${checkList(WIRES)})`)),
     check("chat_generation_observations_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
-    check(
-      "chat_generation_observations_connection_provenance_check",
-      sql.raw(`connection_attribution_provenance in (${checkList(CONNECTION_ATTRIBUTION_PROVENANCES)})`),
-    ),
-    check("chat_generation_observations_connection_shape", sql.raw("connection_id is null or connection_attribution_provenance = 'recorded'")),
     check("chat_generation_observations_finish_reason_check", sql.raw(`finish_reason is null or finish_reason in (${checkList(NORMALIZED_FINISH_REASONS)})`)),
   ],
 );

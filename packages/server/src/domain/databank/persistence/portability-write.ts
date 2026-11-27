@@ -9,6 +9,7 @@
 
 import { characterHandleSchema, portableCharacterHandle } from "@orb/contracts/character";
 import type { DatabankImportOutcome, ExportDocument, HeldDocumentHashes, ImportDocument, ListOwnedDocumentIds } from "@orb/contracts/databank";
+import { DATABANK_SCHEMA_KIND } from "@orb/contracts/portability";
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
@@ -18,7 +19,7 @@ import type { AssetId, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CanonicalDocument } from "#primitives/serde/databank";
-import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "#primitives/serde/databank";
+import { buildDocumentFile, parseDocumentFile } from "#primitives/serde/databank";
 import { portableParseError } from "#primitives/serde/lib";
 import type { DatabankPortabilityContext } from "../contract/portability.ts";
 import { queueIngest } from "../substrate/queue-ingest.ts";

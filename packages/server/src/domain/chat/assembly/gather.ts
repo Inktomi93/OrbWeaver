@@ -104,9 +104,9 @@ async function gatherDatabank(
         ? ({ k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } satisfies Pick<GatherDatabankParams, "k" | "minScore" | "rerank">)
         : {}),
     },
-    // The binding degrades a SPACE refusal to `null` and reports here; `onRerankUnavailable` is
-    // unused on this arm — databank's own rerank degrade is not wired, so the binding never calls it.
-    { onRerankUnavailable: args.warningEpisode.reportRerankUnavailable, onIndexUnavailable: args.warningEpisode.reportIndexUnavailable },
+    // The binding degrades a SPACE refusal to `null` and reports here; a failed rerank keeps the vector order and
+    // reports into its own class, so the notice names documents and not memory.
+    { onRerankUnavailable: args.warningEpisode.reportDatabankRerankUnavailable, onIndexUnavailable: args.warningEpisode.reportIndexUnavailable },
   );
   return result ?? undefined;
 }

@@ -128,6 +128,6 @@ export function composeBootDisclaimer(input: BootDisclaimerOptions): readonly Bo
     ...(breakGlassLive ? [exposure(BREAK_GLASS_WARNING)] : []),
     ...(input.forwardHeaderUnsignedClosed ? [closedDoor(FORWARD_HEADER_CLOSED_WARNING)] : []),
     ...(input.forwardHeaderSignedClosed ? [closedDoor(FORWARD_HEADER_SIGNED_CLOSED_WARNING)] : []),
-    ...input.egressAllowlistWarnings.map(({ text, ...fields }) => ({ ...closedDoor(text), fields })),
+    ...input.egressAllowlistWarnings.map(({ text, entry, position, reason }) => ({ ...closedDoor(text), fields: { entry, position, reason } })),
   ];
 }

@@ -42,7 +42,7 @@
 //
 // Round-trip drift guard: buildChatBundleFile(parseChatBundleFile(buildChatBundleFile(c))) === build(c).
 
-import type { MessageKind, PendingGenerationObservationInput, TokenProvenance } from "@orb/contracts/chat";
+import type { PendingGenerationObservationInput, TokenProvenance } from "@orb/contracts/chat";
 import {
   CHAT_INJECTION_POSITIONS,
   messageKindSchema,
@@ -75,11 +75,10 @@ import {
   rpgSheetSchema,
   rpgSnapshotStateSchema,
 } from "@orb/contracts/rpg";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
-
-export { CHAT_BUNDLE_SCHEMA_KIND } from "@orb/contracts/portability";
 
 const CHAT_BUNDLE_SCHEMA_VERSION = 1;
 

@@ -165,7 +165,6 @@ async function appendGenerationObservation(
             : sql`(
       select ${userConnections.id} from ${userConnections}
       where ${userConnections.id} = ${fact.connectionId} and ${userConnections.ownerId} = ${fact.funderUserId})`,
-        connectionAttributionProvenance: fact.connectionId === null ? "unrecorded" : "recorded",
         ...leg,
         responseCache: leg.responseCache ?? null,
       }),
@@ -295,7 +294,7 @@ async function attachGenerationObservations(
     return;
   }
   const usageLegs = [...metadata.usageLegs, ...facts.map((fact) => fact.leg)];
-  const usage = projectGenerationUsage(usageLegs).total;
+  const usage = projectGenerationUsage(usageLegs);
   const next = {
     ...variant,
     ...usage,

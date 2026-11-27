@@ -55,7 +55,6 @@ const PINNED_TEXT = {
 const ORIGINAL_DEPTH_NOTE = "The keeper watches the northern sky.";
 const LONG_DESCRIPTION = `${ORIGINAL_DESCRIPTION} ${"The lantern casts a warm circle across the charts while snow gathers against the observatory windows. ".repeat(16)}`;
 const LONG_GREETING = `${ORIGINAL_GREETING} ${"Bring your charts to the lantern and tell me what the northern sky revealed on your journey. ".repeat(16)}`;
-const SESSION_NAME = "North observatory revision";
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const REGIMES = [
   { name: "wide desktop", viewport: { width: 1440, height: 900 }, coarse: false, enlarged: false, narrowIdentity: false },
@@ -66,7 +65,6 @@ const REGIMES = [
 
 async function seedSession(
   caller: Caller,
-  name: string | null,
   anchor: Pick<CreateCharacterInput, "description" | "greetings"> = { description: ORIGINAL_DESCRIPTION, greetings: [{ text: ORIGINAL_GREETING }] },
 ): Promise<Awaited<ReturnType<Caller["refinery"]["startSession"]>>> {
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
@@ -80,7 +78,7 @@ async function seedSession(
       depthPrompt: { prompt: ORIGINAL_DEPTH_NOTE, depth: 4, role: "system" },
     }),
   });
-  return await caller.refinery.startSession({ characterId: card.id, name });
+  return await caller.refinery.startSession({ characterId: card.id });
 }
 
 async function expectIdentity(masthead: Locator, title: string, deferred: boolean): Promise<void> {
@@ -114,42 +112,39 @@ async function expectIdentity(masthead: Locator, title: string, deferred: boolea
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
     test.use({ viewport: regime.viewport, isMobile: regime.coarse, hasTouch: regime.coarse });
-    for (const named of [false, true]) {
-      test(`${named ? "named" : "unnamed"} session gives card identity to its actual shell budget`, async ({ corpus, page, mount }) => {
-        await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-        await using root = await createCorpusHarness();
-        const caller = await root.internalCallerFor(root.ownerId);
-        const name = named ? SESSION_NAME : null;
-        const session = await seedSession(caller, name);
-        if (regime.enlarged) {
-          await caller.settings.updateUserSettingsSection({ section: "appearance", patch: ENLARGED_APPEARANCE_SETTINGS });
-        }
-        await routeTrpc(page, {
-          ...createShellAmbientReads(corpus, root.ownerId),
-          ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
-        });
-        await seedShellState(page, {
-          activeSection: "refinery",
-          panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } },
-        });
-        await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
-        const masthead = page.getByTestId(testId("refineryMasthead"));
-        await expect(masthead).toBeVisible();
-        const narrowTitle = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
-        await expect(narrowTitle).toHaveText(name ?? CARD_NAME);
-        const expectBudget = regime.narrowIdentity ? expectNarrow : expectWide;
-        await expectBudget(narrowTitle);
-        await expectIdentity(masthead, name ?? CARD_NAME, !named && regime.narrowIdentity);
-        await page.screenshot({ path: test.info().outputPath(`${named ? "named" : "unnamed"}-session.png`) });
+    test("a session gives card identity to its actual shell budget", async ({ corpus, page, mount }) => {
+      await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const session = await seedSession(caller);
+      if (regime.enlarged) {
+        await caller.settings.updateUserSettingsSection({ section: "appearance", patch: ENLARGED_APPEARANCE_SETTINGS });
+      }
+      await routeTrpc(page, {
+        ...createShellAmbientReads(corpus, root.ownerId),
+        ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
       });
-    }
+      await seedShellState(page, {
+        activeSection: "refinery",
+        panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } },
+      });
+      await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
+      const masthead = page.getByTestId(testId("refineryMasthead"));
+      await expect(masthead).toBeVisible();
+      const narrowTitle = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+      await expect(narrowTitle).toHaveText(CARD_NAME);
+      const expectBudget = regime.narrowIdentity ? expectNarrow : expectWide;
+      await expectBudget(narrowTitle);
+      await expectIdentity(masthead, CARD_NAME, regime.narrowIdentity);
+      await page.screenshot({ path: test.info().outputPath("session.png") });
+    });
 
     test("empty Runs returns keyboard focus to the existing Score owner without running it", async ({ corpus, page, mount }) => {
       await page.setViewportSize({ width: regime.viewport.width, height: 390 });
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
-      const session = await seedSession(caller, null);
+      const session = await seedSession(caller);
       await caller.refinery.updateSession({
         sessionId: session.id,
         patch: {
@@ -216,7 +211,7 @@ for (const regime of REGIMES) {
       await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
       await using root = await createCorpusHarness();
       const caller = await root.internalCallerFor(root.ownerId);
-      const session = await seedSession(caller, null, { description: LONG_DESCRIPTION, greetings: [{ text: LONG_GREETING }] });
+      const session = await seedSession(caller, { description: LONG_DESCRIPTION, greetings: [{ text: LONG_GREETING }] });
       const before = await caller.refinery.getSession({ sessionId: session.id });
       const liveDescription = "The live card now keeps a different lantern.";
       await caller.character.update({ characterId: session.characterId, input: { description: liveDescription, greetings: [{ text: "A live greeting." }] } });
@@ -277,7 +272,7 @@ test("Versions asks before Restore overwrites the live card, and Cancel writes n
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const session = await seedSession(caller, null);
+  const session = await seedSession(caller);
   await caller.character.snapshot({ characterId: session.characterId, label: "manual: keep this" });
   const calls = await routeTrpc(page, {
     ...createShellAmbientReads(corpus, root.ownerId),
@@ -310,26 +305,6 @@ test("Versions asks before Restore overwrites the live card, and Cancel writes n
   await expect.poll(() => calls.count("character.restore")).toBe(1);
 });
 
-test.describe("explicitly named equal to the card", () => {
-  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  test("preserves the card heading because the session is named, not because the strings differ", async ({ corpus, page, mount }) => {
-    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
-    await using root = await createCorpusHarness();
-    const caller = await root.internalCallerFor(root.ownerId);
-    const session = await seedSession(caller, CARD_NAME);
-    await routeTrpc(page, {
-      ...createShellAmbientReads(corpus, root.ownerId),
-      ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),
-    });
-    await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "collapsed", context: "collapsed" } } });
-    await mount<typeof RefineryCompositionShellStory>(STORY, { sessionId: session.id });
-    const masthead = page.getByTestId(testId("refineryMasthead"));
-    await expect(masthead).toBeVisible();
-    await expect(page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title')).toHaveText(CARD_NAME);
-    await expectIdentity(masthead, CARD_NAME, false);
-  });
-});
-
 /** The content owner of `tail`: the nearest ancestor that scrolls on y and holds more than it shows. Scrolling it to its end is what a reader's wheel or drag does. */
 async function scrollOwnerToEnd(tail: Locator): Promise<void> {
   await tail.evaluate((node) => {
@@ -350,7 +325,7 @@ test.describe("coarse landscape content reach", () => {
   test("the session workbench scrolls to its last control", async ({ corpus, page, mount }) => {
     await using root = await createCorpusHarness();
     const caller = await root.internalCallerFor(root.ownerId);
-    const session = await seedSession(caller, null);
+    const session = await seedSession(caller);
     await routeTrpc(page, {
       ...createShellAmbientReads(corpus, root.ownerId),
       ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "refinery.getSession", "refinery.listRuns", "refinery.preflight"]),

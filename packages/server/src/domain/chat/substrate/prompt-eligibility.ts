@@ -12,8 +12,8 @@
 // eligible row are a separate, orthogonal plane (`substrate/member-visibility.ts` for the payload strip,
 // `projectBodyForSummary` for the summary-plane strip) and a caller usually needs both.
 
-import type { MessageKind } from "@orb/contracts/chat";
 import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
+import type { MessageKind } from "@orb/kit/message-author";
 
 /** The two fields the verdict reads — structural, so a `MessageView` (the canon-history row) and any narrower
  *  projection carrying the same two columns both satisfy it. */

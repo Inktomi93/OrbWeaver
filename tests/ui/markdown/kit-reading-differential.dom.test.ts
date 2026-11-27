@@ -5,7 +5,7 @@
 // block. Each axis also runs against a planted defect, so a green run proves the axis can see the class it guards.
 // @subject packages/kit/src/content/index.ts
 
-import type { TextRange } from "@orb/kit/content";
+import type { Span } from "@orb/kit/chunk";
 import { heldBlockRanges, holdBlocksWhole, liftRawTextBodies, markdownCodeAfterMacros, stripStyleElements, stripUnreadElements } from "@orb/kit/content";
 import { expect, test } from "@orb/testkit/node";
 import remarkParse from "remark-parse";
@@ -182,8 +182,8 @@ const BLOCK_CODE_NODES: ReadonlySet<string> = new Set(["code", "math"]);
 const FENCE_LINE_RE = /^ {0,3}(?:```|~~~|\$\$)/u;
 
 // The stretches a parse shows as written: code and math spans whole, a fenced block from the line after its opener.
-function shownAsWritten(text: string): readonly TextRange[] {
-  const ranges: TextRange[] = [];
+function shownAsWritten(text: string): readonly Span[] {
+  const ranges: Span[] = [];
   for (const [node] of walk(markdownTree(text))) {
     const start = node.position?.start.offset ?? 0;
     const end = node.position?.end.offset ?? 0;
@@ -232,7 +232,7 @@ function heldStep(text: string, held: string, walked: { index: number; at: numbe
   walked.at += (lineBreak ? HELD_LINE_BREAK : HELD_BLANK_LINE).length;
 }
 
-function macroInCode(texts: readonly string[], named: (text: string) => readonly TextRange[]): string | undefined {
+function macroInCode(texts: readonly string[], named: (text: string) => readonly Span[]): string | undefined {
   return texts.find((text) => {
     if (!text.includes(MACRO_OPEN)) {
       return false;
@@ -241,16 +241,15 @@ function macroInCode(texts: readonly string[], named: (text: string) => readonly
     const toHeld = heldOffsets(text, held);
     const settled = shownAsWritten(held);
     const streamed = streamedShownAsWritten(text);
-    const covers = (ranges: readonly TextRange[], start: number): boolean =>
-      ranges.some((range) => range.start <= start && start + MACRO_OPEN.length <= range.end);
+    const covers = (ranges: readonly Span[], start: number): boolean => ranges.some((range) => range.start <= start && start + MACRO_OPEN.length <= range.end);
     return named(text).some((stretch) => !(covers(settled, toHeld(stretch.start)) && covers(streamed, stretch.start)));
   });
 }
 
 // The streamed render repairs the tail, which only appends, and parses each block on its own, so each block's
 // stretches shift by the blocks before it.
-function streamedShownAsWritten(text: string): readonly TextRange[] {
-  const ranges: TextRange[] = [];
+function streamedShownAsWritten(text: string): readonly Span[] {
+  const ranges: Span[] = [];
   let at = 0;
   for (const block of parseMarkdownIntoBlocks(remend(text))) {
     const from = at;
@@ -341,7 +340,7 @@ test("the strips leave no element HTML reads raw in any streamed prefix", { tags
 test("a macro the kit names as code is code to the frame's parse and to the streamed one", { tags: ["slow"] }, () => {
   expect(macroInCode(REPLIES, markdownCodeAfterMacros)).toBeUndefined();
   // Planted defect: every macro named code.
-  const everyMacro = (text: string): readonly TextRange[] =>
+  const everyMacro = (text: string): readonly Span[] =>
     [...text.matchAll(/\{\{/gu)].map((match) => ({ start: match.index, end: match.index + MACRO_OPEN.length }));
   expect(macroInCode(REPLIES, everyMacro)).toBeDefined();
 });

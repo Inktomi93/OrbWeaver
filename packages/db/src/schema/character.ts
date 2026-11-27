@@ -197,7 +197,6 @@ export const characterPersonas = sqliteTable(
       .$type<PersonaId>()
       .notNull()
       .references(() => personas.id, { onDelete: "cascade" }),
-    createdAt: stampColumn("created_at"),
   },
   (table) => [
     primaryKey({ columns: [table.characterId, table.personaId] }),

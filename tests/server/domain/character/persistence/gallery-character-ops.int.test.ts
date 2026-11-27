@@ -44,7 +44,7 @@ test("composed gallery export never resolves a foreign subject handle even from 
   expect(await ops.resolveCharacterHandle(owner.id, foreign.id)).toBeNull();
 });
 
-test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ harness, app, services }) => {
+test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ harness, app, db, services }) => {
   const owner = await harness.actor();
   const other = await harness.actor();
   const { row: owned } = await seedCharacterRows(harness, { principal: await principal(harness, owner.id), input: OWNED_SUBJECT });
@@ -73,5 +73,7 @@ test("composed gallery import relinks only the importing owner's handle and pres
   });
   const rows = await services.assets.listGallery({ principal: await principal(harness, owner.id), limit: 100 });
   expect(rows).toHaveLength(2);
-  expect(new Set(rows.map((row) => row.subjectCharacterId))).toEqual(new Set([null, owned.id]));
+  expect(new Set((await db.select({ subject: galleryItems.subjectCharacterId }).from(galleryItems)).map((row) => row.subject))).toEqual(
+    new Set([null, owned.id]),
+  );
 });

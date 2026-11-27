@@ -80,7 +80,6 @@ const JSON_ARRAY_TYPE = "array";
 
 const APPEARANCE_PICK_PATH = "$.appearance.backgroundAssetId";
 const APPEARANCE_LIBRARY_PATH = "$.appearance.backgroundLibrary";
-const PROFILE_AVATAR_PATH = "$.profile.avatarAssetId";
 /** Where a carried background source sits in its JSON column: the whole card override, the room's `background` key. */
 const CARD_BACKGROUND_AT = "$";
 const CHAT_BACKGROUND_AT = "$.background";
@@ -106,7 +105,6 @@ const INLINE_BODY_PAGE = 500;
 const JSON_OBJECT_TYPE = "object";
 const JSON_ROOT = "$";
 const APPEARANCE_PATH = "$.appearance";
-const PROFILE_PATH = "$.profile";
 
 interface CarriedSourceRow {
   readonly valid: number | null;
@@ -225,13 +223,10 @@ async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
       valid: jsonValid(config),
       rootType: readableType(config, JSON_ROOT),
       appearanceType: readableType(config, APPEARANCE_PATH),
-      profileType: readableType(config, PROFILE_PATH),
       pick: readableValue(config, APPEARANCE_PICK_PATH),
       pickType: readableType(config, APPEARANCE_PICK_PATH),
       library: readableValue(config, APPEARANCE_LIBRARY_PATH),
       libraryType: readableType(config, APPEARANCE_LIBRARY_PATH),
-      avatar: readableValue(config, PROFILE_AVATAR_PATH),
-      avatarType: readableType(config, PROFILE_AVATAR_PATH),
     })
     .from(userSettings);
   for (const row of rows) {
@@ -239,12 +234,7 @@ async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
     assertParses(row.valid, label, JSON_ROOT);
     assertContainer(row.rootType, label, JSON_ROOT);
     assertContainer(row.appearanceType, label, APPEARANCE_PATH);
-    assertContainer(row.profileType, label, PROFILE_PATH);
-    const pinned = [
-      storedAssetId(row.pick, row.pickType, label, APPEARANCE_PICK_PATH),
-      storedAssetId(row.avatar, row.avatarType, label, PROFILE_AVATAR_PATH),
-      ...libraryAssetIds(row.library, row.libraryType, label),
-    ];
+    const pinned = [storedAssetId(row.pick, row.pickType, label, APPEARANCE_PICK_PATH), ...libraryAssetIds(row.library, row.libraryType, label)];
     for (const id of pinned) {
       if (id !== null) {
         live.add(id);
@@ -506,7 +496,6 @@ export async function deleteAssetRowIfUnreferenced(db: Db, ownerId: UserId, asse
       .where(
         or(
           eq(jsonValue(userSettings.config, APPEARANCE_PICK_PATH), assetId),
-          eq(jsonValue(userSettings.config, PROFILE_AVATAR_PATH), assetId),
           sql`EXISTS (
             SELECT 1
             FROM json_tree(${userSettings.config}, ${APPEARANCE_LIBRARY_PATH}) AS library

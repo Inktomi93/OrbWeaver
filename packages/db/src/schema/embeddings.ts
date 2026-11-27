@@ -163,7 +163,6 @@ export const embedGenerations = sqliteTable(
     connectionRef: nulFreeText("connection_ref").$type<UserConnectionId>().notNull(),
     fingerprint: nulFreeText("fingerprint").notNull(),
     space: nulFreeText("space").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     index("embed_generations_owner_task_idx").on(t.ownerId, t.task),
@@ -226,7 +225,6 @@ export const characterEmbeddings = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // One row per character per embedding space — the hash-gated upsert's ON CONFLICT target.
@@ -260,8 +258,8 @@ export const imageEmbeddings = sqliteTable(
     // The staleness/collapse key. Both lenses for one asset share a content_hash (the immutable CAS bytes), so a
     // re-index de-dups. NOT NULL.
     contentHash: nulFreeText("content_hash").notNull(),
-    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — RESERVED for image↔image use only (cross-modal
-    // cosine scale mismatch means `search` deliberately omits it on text→image paths; docs/law/Knowledge-Cluster.md
+    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — read for image↔image similarity only (`similarArt`; the
+    // cross-modal cosine scale mismatch means text→image search deliberately omits it; docs/law/Knowledge-Cluster.md
     // invariant 3). Written ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted.
     hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
@@ -271,7 +269,6 @@ export const imageEmbeddings = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // Both lenses coexist idempotently per (asset, model): the upsert key. A re-embed of the same lens
@@ -296,7 +293,6 @@ export const imageAnalyses = sqliteTable("image_analyses", {
   // A vector pins this accepted Utility result; a newer result refuses an older encoder completion.
   revision: integer("revision").notNull().default(1),
   captionMeta: storedJsonText("caption_meta").$type<ImageCaptionMeta | UnreadableJsonText>().notNull(),
-  createdAt: stampColumn("created_at"),
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -508,7 +504,6 @@ export const documentChunks = sqliteTable(
       .notNull()
       .references(() => embedGenerations.id, { onDelete: "cascade" }),
     dim: integer("dim").notNull(),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     // The idempotent upsert key: one chunk per (document, chunkIdx, model).

@@ -197,7 +197,7 @@ export async function detachGlobalBulk(db: Db, scriptIds: readonly RegexScriptId
 /** Append many scripts to the END of the owner's global tier, in the order given. `position` runs from
  *  `basePosition`, so the appended block keeps the caller's order and no EXISTING attachment is renumbered —
  *  the single `attachGlobal`'s append rule, applied to a list. */
-export async function attachGlobalBulk(db: Db, scriptIds: readonly RegexScriptId[], basePosition: number, at: number): Promise<void> {
+export async function attachGlobalBulk(db: Db, scriptIds: readonly RegexScriptId[], basePosition: number): Promise<void> {
   if (scriptIds.length === 0) {
     return;
   }
@@ -206,7 +206,7 @@ export async function attachGlobalBulk(db: Db, scriptIds: readonly RegexScriptId
       scriptIds.map((regexScriptId, index) =>
         db
           .insert(globalRegexScripts)
-          .values({ regexScriptId, position: basePosition + index, createdAt: at })
+          .values({ regexScriptId, position: basePosition + index })
           .onConflictDoNothing(),
       ),
     ),

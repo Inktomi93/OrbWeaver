@@ -30,7 +30,7 @@ test("createSchema refuses a name outside the identifier grammar and a score sch
   await expect(caller.refinery.createSchema(badName)).rejects.toMatchObject({ code: "BAD_REQUEST", message: beltLines(badName) });
   await expect(caller.refinery.createSchema(noScore)).rejects.toMatchObject({ code: "BAD_REQUEST", message: beltLines(noScore) });
   // Positive control: the same wiring saves the valid document, so the refusals above came from the belt and nothing else.
-  expect(await caller.refinery.createSchema(VALID)).toMatchObject({ name: VALID.name, stage: VALID.stage });
+  expect(await caller.refinery.createSchema(VALID)).toMatchObject({ name: VALID.name });
   expect((await caller.refinery.listSchemas()).map((row) => row.name)).toEqual([VALID.name]);
 });
 
@@ -45,18 +45,12 @@ test("updateSchema refuses a patch whose merged document fails the belt, and lea
   const caller = await harness.internalCallerFor(harness.ownerId);
   const saved = await caller.refinery.createSchema(VALID);
   const renamed = { ...VALID, name: "9lives" };
-  const restaged = { ...VALID, stage: "analyze" } as const;
   await expect(caller.refinery.updateSchema({ schemaId: saved.id, patch: { name: renamed.name } })).rejects.toMatchObject({
     code: "BAD_REQUEST",
     message: beltLines(renamed),
   });
-  // The stage flip refuses through the stored schema, which the patch never carried.
-  await expect(caller.refinery.updateSchema({ schemaId: saved.id, patch: { stage: restaged.stage } })).rejects.toMatchObject({
-    code: "BAD_REQUEST",
-    message: beltLines(restaged),
-  });
-  expect((await caller.refinery.listSchemas()).map((row) => ({ name: row.name, stage: row.stage, version: row.version }))).toEqual([
-    { name: VALID.name, stage: VALID.stage, version: saved.version },
+  expect((await caller.refinery.listSchemas()).map((row) => ({ name: row.name, version: row.version }))).toEqual([
+    { name: VALID.name, version: saved.version },
   ]);
   // Positive control: a patch the belt accepts lands.
   expect(await caller.refinery.updateSchema({ schemaId: saved.id, patch: { name: "mood_scorer_two" } })).toMatchObject({ name: "mood_scorer_two" });

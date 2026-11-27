@@ -22,7 +22,6 @@ import type {
   ChatInjection,
   CueRole,
   GroupConfig,
-  MessageKind,
   MessageView,
   ShapeBreakpointDecision,
   ShapeFoldReason,
@@ -37,6 +36,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import { cacheDepthCovering } from "@orb/inference";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";

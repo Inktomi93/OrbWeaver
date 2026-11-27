@@ -725,7 +725,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
       // D8 `session_entries` write path — the sealed backend never touches @orb/db itself.
-      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource), now),
+      sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource)),
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
@@ -948,8 +948,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
     emitUserEvent: liveBuses.user.publishUserEvent,
-    idSource,
-    logger: deps.logger,
     db,
     now,
     newUserId,
@@ -1144,7 +1142,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // turns: `search.documents` runs once per turn whether or not the room has documents, so an owner whose
     // vector space was mid-move could not send a message at all. `null` is databank's own ruled empty — the
     // byte-identical no-op an absent op produces — so a degraded gather assembles exactly like a bankless one.
-    gatherDatabank: createGatherDatabankForTurn((args) => databank.gatherRetrieval(args), withRetrievalDegrade),
+    gatherDatabank: createGatherDatabankForTurn(databank.gatherRetrieval, withRetrievalDegrade),
     rpg: rpgOpsDelegate,
     resolveRegexSources: regexCompose.resolveRegexSources,
     // The FOREIGN S2 teaching contributions (D145's registry). tool-use's contribution attaches the turn

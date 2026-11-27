@@ -25,8 +25,7 @@ export function createDuplicateTheme(ctx: SettingsContext): Pick<SettingsService
     }
 
     const taken = new Set(await listOwnedThemeNames(ctx.db, ownerId));
-    const desired = params.name ?? `${source.name}${COPY_SUFFIX}`;
-    const name = nextFreeName(desired, taken);
+    const name = nextFreeName(`${source.name}${COPY_SUFFIX}`, taken);
 
     const id = ctx.newThemeId();
     const at = ctx.now();

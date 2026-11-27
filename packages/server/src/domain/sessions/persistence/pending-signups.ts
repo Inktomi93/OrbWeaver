@@ -19,7 +19,6 @@ interface PendingSignupWrite {
   readonly groups: readonly string[];
   readonly inviteTokenHash: string;
   readonly idToken: Sealed | null;
-  readonly createdAt: number;
   readonly expiresAt: number;
 }
 
@@ -35,7 +34,6 @@ export async function upsertPendingSignup(db: Db, row: PendingSignupWrite): Prom
     idTokenCiphertext: row.idToken?.ciphertext ?? null,
     idTokenIv: row.idToken?.iv ?? null,
     idTokenTag: row.idToken?.tag ?? null,
-    createdAt: row.createdAt,
     expiresAt: row.expiresAt,
   };
   await db

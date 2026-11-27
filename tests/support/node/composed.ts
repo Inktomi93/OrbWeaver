@@ -14,6 +14,8 @@ export { casOf, storeThenDamageBlob } from "./cas.ts";
 export { readRoomCanon } from "./chat/canon.ts";
 export type { StoredAvatar } from "./chat/cast.ts";
 export { addCharacter, addPersona, startRoom, storeAvatar } from "./chat/cast.ts";
+export type { CompactionMarker } from "./chat/compaction-marker.ts";
+export { readCompactionMarker } from "./chat/compaction-marker.ts";
 export type { ChatRoot, ChatRootOptions } from "./chat/composed.ts";
 export { createChatRoot } from "./chat/composed.ts";
 export {

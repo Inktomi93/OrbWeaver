@@ -47,7 +47,6 @@ function toFireView(row: FireRow): FireView {
   return {
     id: row.id,
     ruleId: row.ruleId,
-    chatId: row.chatId,
     triggerType: row.triggerType,
     outcome: row.outcome,
     detail: row.detail ?? null,

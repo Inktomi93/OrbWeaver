@@ -11,6 +11,7 @@ import { characterHandleSchema, deriveCharacterHandle } from "@orb/contracts/cha
 import { DATABANK_NAME_MAX } from "@orb/contracts/databank";
 import type { ImportDirectory, ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_DATABANK_PLANE, ST_GALLERY_PLANE, ST_SETTINGS_FILE, ST_USER_DIR, stProfileEntryDisposition } from "@orb/contracts/import";
+import { THEME_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { CharacterHandle } from "@orb/kit/ids";
@@ -23,7 +24,7 @@ import { portableParseError } from "#primitives/serde/lib";
 import type { StScriptNote } from "#primitives/serde/regex";
 import { readStScriptList, stScriptListNotes } from "#primitives/serde/regex";
 import { ST_POWER_USER_KEY, stAppearancePatch } from "#primitives/serde/st-appearance";
-import { parseThemeFile, THEME_SCHEMA_KIND } from "#primitives/serde/theme";
+import { parseThemeFile } from "#primitives/serde/theme";
 import { parseWorldBookFile } from "#primitives/serde/world-info";
 import type {
   CollectedBackground,

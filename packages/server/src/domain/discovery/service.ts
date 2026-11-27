@@ -92,7 +92,7 @@ export function createDiscoveryService(input: DbAssemblyInput<DiscoveryContext>)
     ...createEconomicsInsights(ctx),
     computeCooccurrence: (opts) => runComputeCooccurrence(ctx.db, coocDeps, opts),
     topKeywords: (userId, opts) => topKeywords(ctx.db, userId, opts),
-    cooccurringKeywords: (userId, keyword, limit) => cooccurringKeywords(ctx.db, userId, keyword, limit),
+    cooccurringKeywords: (userId, keyword) => cooccurringKeywords(ctx.db, userId, keyword),
     characterKeywords: (userId, characterId, limit) => characterKeywords(ctx.db, userId, characterId, limit),
     ...createComputeHubScores(ctx),
   };

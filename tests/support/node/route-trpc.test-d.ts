@@ -42,7 +42,6 @@ const completeAssetRow = {
   hash: "hash_wire",
   kinds: ["gallery"],
   mime: "image/png",
-  size: 1,
   uploadedAt: 0,
   animated: false,
 } satisfies TrpcWireOutput<"assets.listOwned">[number];

@@ -237,7 +237,6 @@ async function characterParticipantView(
     activePersonaId: row.activePersonaId,
     talkativeness: row.talkativeness,
     disabled: row.disabled,
-    joinedAt: row.joinedAt,
     joinSeq: row.joinSeq,
     leftSeq: row.leftSeq,
     joinHistoryVisibility: row.joinHistoryVisibility,
@@ -1294,7 +1293,6 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         chatId,
         acceptedByUserId: principal.userId,
         actorRekeys: plan.cardCopies,
-        now: acceptedAt,
       }),
       statementForOwner(
         ctx.auditStatement(

@@ -31,19 +31,8 @@ export interface AgentSdkSavedModelUsage {
  *  Absent ⇒ no persistence (the in-memory cache alone still works — a durable row is an optimization per
  *  `Tier-3b-Providers.md` Esoteric §3, not a correctness need). */
 export interface SessionEntryWriter {
-  readonly insert: (entry: {
-    readonly chatId: ChatId;
-    readonly connectionId: UserConnectionId;
-    readonly sdkSessionId: AgentSdkSessionId;
-    readonly seededThroughSeq: number;
-    readonly canonHash: string;
-  }) => Promise<void>;
-  readonly update: (entry: {
-    readonly connectionId: UserConnectionId;
-    readonly sdkSessionId: AgentSdkSessionId;
-    readonly seededThroughSeq: number;
-    readonly canonHash: string;
-  }) => Promise<void>;
+  readonly insert: (entry: { readonly chatId: ChatId; readonly connectionId: UserConnectionId; readonly sdkSessionId: AgentSdkSessionId }) => Promise<void>;
+  readonly update: (entry: { readonly connectionId: UserConnectionId; readonly sdkSessionId: AgentSdkSessionId }) => Promise<void>;
 }
 
 /** The core treats it as opaque; the agent-sdk backend narrows it to its MCP server-config-with-instance. */

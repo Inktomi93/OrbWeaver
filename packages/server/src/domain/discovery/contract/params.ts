@@ -130,12 +130,7 @@ export const IMAGE_FACET_DRILL_KEY = {
   gender: "gender",
   coverage: "coverage",
   bodyType: "bodyType",
-  chestSize: "chestSize",
-  skinTone: "skinTone",
   outfitType: "outfitType",
-  clothingState: "clothingState",
-  nudityLevel: "nudityLevel",
-  exposedParts: "exposedPart",
   tags: "tag",
 } as const satisfies Record<ImageFacetMetaKey, string>;
 

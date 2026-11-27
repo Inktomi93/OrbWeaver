@@ -47,10 +47,10 @@ await test("actual composed world-info matcher", async () => {
     await caller.chat.commitMessage({ chatId: started.chat.id, content: `${"a".repeat(40)}! [ comet a+b`, timeZone: UTC_TIME_ZONE });
     const book = await caller.worldInfo.createBook({ input: { name: "Watchdog controls" } });
     const entry = async (title: string, keys: string[], keyMode: "literal" | "regex", inject = false): ReturnType<typeof caller.worldInfo.updateEntry> => {
-      const created = await caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title, content: `${title} payload`, keys }) });
+      const created = await caller.worldInfo.createEntry({ bookId: book.id, input: createEntrySchema.parse({ title, content: `${title} payload` }) });
       return await caller.worldInfo.updateEntry({
         entryId: created.id,
-        input: updateEntrySchema.parse({ metadata: { keyMode, scopeMode: "keyword", ...(inject ? { inject: { depth: 0, role: "system" } } : {}) } }),
+        input: updateEntrySchema.parse({ keys, metadata: { keyMode, scopeMode: "keyword", ...(inject ? { inject: { depth: 0, role: "system" } } : {}) } }),
       });
     };
     const benign = await entry("Benign regex", ["com.t"], "regex");

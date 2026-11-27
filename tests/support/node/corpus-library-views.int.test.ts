@@ -210,7 +210,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(documents.global.output).toContain(documents.created.output.document.id);
   expect(documents.attachments.output).toMatchObject({ global: true, characters: [{ id: library.character.id }], chats: [{ id: library.room.chat.id }] });
   expect(documents.active.output.find((document) => document.id === library.document.id)?.sources).toEqual([...DOCUMENT_SCOPE_SOURCES]);
-  expect(documents.gallery.output).toMatchObject([{ galleryItemId: library.gallery.id, assetId: library.asset.assetId, hash: library.asset.hash }]);
+  expect(documents.gallery.output).toMatchObject([{ galleryItemId: library.gallery.id, hash: library.asset.hash }]);
   expect(documents.assets.output.some((asset) => asset.assetId === library.asset.assetId)).toBe(true);
   expect(documents.blobs.output).toMatchObject([{ assetId: library.asset.assetId, hash: library.asset.hash, mime: "image/png", width: 8, height: 8 }]);
   expect(result.refusals.foreignBlobs).toEqual([]);

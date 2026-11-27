@@ -226,7 +226,7 @@ export function createBulkImportLorebook(input: DbAssemblyInput<WorldInfoImportC
     // attaches as `primary`; onConflictDoNothing keeps a re-link idempotent.
     const duplicate = await findOwnedEqualBook(db, ownerId, book);
     if (duplicate !== null) {
-      await db.insert(characterBooks).values({ characterId, worldBookId: duplicate.id, role: "primary", createdAt: at }).onConflictDoNothing();
+      await db.insert(characterBooks).values({ characterId, worldBookId: duplicate.id, role: "primary" }).onConflictDoNothing();
       return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
     }
 
@@ -249,7 +249,6 @@ export function createBulkImportLorebook(input: DbAssemblyInput<WorldInfoImportC
           characterId,
           worldBookId: bookId,
           role: "primary",
-          createdAt: at,
         }),
       ),
     ];
@@ -318,7 +317,6 @@ export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImp
     const primaryFree = role === "primary" && (await findPrimaryBookId(db, characterId)) === null;
     const resolved = await resolveLinkNames(db, ownerId, names, landed);
 
-    const at = ctx.now();
     const missing: string[] = [];
     const attachRows: (typeof characterBooks.$inferInsert)[] = [];
     let primarySeatOpen = primaryFree;
@@ -329,7 +327,7 @@ export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImp
         continue;
       }
       // Only the FIRST RESOLVED name can take the primary seat — one attach call carries one desired role.
-      attachRows.push({ characterId, worldBookId: bookId, role: primarySeatOpen ? "primary" : "auxiliary", createdAt: at });
+      attachRows.push({ characterId, worldBookId: bookId, role: primarySeatOpen ? "primary" : "auxiliary" });
       primarySeatOpen = false;
     }
     if (attachRows.length > 0) {

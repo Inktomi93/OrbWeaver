@@ -130,12 +130,10 @@ export const duplicateChatPairs = sqliteTable(
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    // The CSLS-adjusted score + the raw similarity (Jaccard for chats) — floats.
-    cslsScore: real("csls_score").notNull(),
+    // The Jaccard similarity of the two chats' content-hash sets — the rank key (no hub adjustment).
     similarity: real("similarity").notNull(),
     // `duplicate | forked` — derives RELATIONS (+ the CHECK below).
     relation: text("relation", { enum: RELATIONS }).notNull(),
-    model: nulFreeText("model").notNull(),
     computedAt: stampColumn("computed_at"),
   },
   (t) => [

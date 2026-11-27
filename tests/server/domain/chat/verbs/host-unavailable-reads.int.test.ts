@@ -12,14 +12,12 @@ import { expect, test } from "@orb/testkit/node";
 import type { AuthModeRoot, SignedIn } from "@orb/testkit/node/auth";
 import { createAuthModeRoot, mintMember, signIn } from "@orb/testkit/node/auth";
 import { seedChat, seedChatInvite, seedInvitedChatParticipant, servePhysicalPeer } from "@orb/testkit/node/composed";
-import { vi } from "vitest";
 import { z } from "zod";
 
 const ENGINE_PROVIDER = "vllm";
 const ENGINE_MODEL = "room-model";
 const AVAILABILITY_ROUTE = "/api/trpc/chat.checkSendAvailability";
 const CONTEXT_FIT_ROUTE = "/api/trpc/chat.previewContextFit";
-const NEXT_TURN_ROUTE = "/api/trpc/chat.getNextTurnConnection";
 const answerSchema = z.union([
   z.strictObject({ result: z.strictObject({ data: z.unknown() }) }),
   z.strictObject({ error: z.looseObject({ message: z.string(), data: z.looseObject({ code: z.string(), reason: z.string().optional() }) }) }),
@@ -115,7 +113,6 @@ test("a member's send-availability read names the unavailable host without diall
 
 const STRANGER_READS = [
   { route: AVAILABILITY_ROUTE, hostDisabled: true },
-  { route: NEXT_TURN_ROUTE, hostDisabled: true },
   // The context-fit read answers not found to a disabled host's own members, so only an enabled host's room tells its
   // seat check from its consent check: without the seat check the stranger would be answered.
   { route: CONTEXT_FIT_ROUTE, hostDisabled: false },
@@ -143,28 +140,6 @@ test.for(STRANGER_READS)("a stranger's $route read reads exactly as an unknown r
   expect(dialled).toHaveLength(beforeReads);
   // Positive control: the same room, read by its member, answers.
   expect(await readOverWire(root, box.asPlayer, route, room)).toMatchObject({ result: { data: expect.any(Object) } });
-});
-
-test("a member's next-turn connection read in a disabled host's room describes no binding and reads none", async () => {
-  await using box = await disabledHostRoom();
-  const { root, room, asPlayer } = box;
-  const bindingReads = vi.spyOn(root.services.connection, "getBoundConnection");
-  try {
-    // Positive control: an enabled host's binding is read and described, its own label withheld from a member.
-    const configured = await readOverWire(root, asPlayer, NEXT_TURN_ROUTE, room);
-    expect(configured).toMatchObject({ result: { data: { state: "configured", connectionLabel: null, providerLabel: expect.any(String) } } });
-    expect(bindingReads).toHaveBeenCalledTimes(1);
-
-    await box.setHostEnabled(false);
-    expect(await readOverWire(root, asPlayer, NEXT_TURN_ROUTE, room)).toEqual({ result: { data: { state: "unset" } } });
-    expect(bindingReads).toHaveBeenCalledTimes(1);
-
-    await box.setHostEnabled(true);
-    expect(await readOverWire(root, asPlayer, NEXT_TURN_ROUTE, room)).toEqual(configured);
-    expect(bindingReads).toHaveBeenCalledTimes(2);
-  } finally {
-    bindingReads.mockRestore();
-  }
 });
 
 test("a member's context-fit read in a disabled host's room refuses before it dials the host's endpoint", async () => {

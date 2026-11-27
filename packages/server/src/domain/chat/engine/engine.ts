@@ -267,7 +267,7 @@ function observedResult(
     return result;
   }
   const { responseCache: _aggregateCache, ...economics } = result.economics;
-  return { ...result, economics: { ...economics, ...projectGenerationUsage(legs).total, usageLegs: [...legs] } };
+  return { ...result, economics: { ...economics, ...projectGenerationUsage(legs), usageLegs: [...legs] } };
 }
 
 /**
@@ -1740,16 +1740,19 @@ async function resolveSpeakerMemory(deps: EngineDeps, prep: TurnPrep): Promise<A
 /** The engine owns the typed bus literals and emits only after `turnStarted`; the shared episode owns
  * round-level/per-speaker/databank dedupe for this turn.
  *
- * TWO CLASSES, DRAINED INDEPENDENTLY. `retrieval_index_unavailable` says the owner's vector space
+ * THREE CLASSES, DRAINED INDEPENDENTLY. `retrieval_index_unavailable` says the owner's vector space
  * could not be queried at all, so `{{memory}}` and/or `{{databank}}` came back empty;
- * `memory_rerank_unavailable` says recall DID retrieve and only lost the cross-encoder order. A turn can hit
- * both, and collapsing them would tell a user their reranker failed when they have no queryable index. */
+ * `memory_rerank_unavailable` and `databank_rerank_unavailable` say that slot DID retrieve and only lost the
+ * cross-encoder order. A turn can hit all of them, and collapsing them would tell a user their reranker failed when they have no queryable index. */
 async function emitRetrievalWarningsOnce(deps: EngineDeps, chatId: ChatId, episode: TurnRetrievalWarningEpisode): Promise<void> {
   if (episode.takeIndexUnavailable()) {
     await deps.emit({ type: "warning", chatId, code: "retrieval_index_unavailable" });
   }
   if (episode.takeRerankUnavailable()) {
     await deps.emit({ type: "warning", chatId, code: "memory_rerank_unavailable" });
+  }
+  if (episode.takeDatabankRerankUnavailable()) {
+    await deps.emit({ type: "warning", chatId, code: "databank_rerank_unavailable" });
   }
 }
 

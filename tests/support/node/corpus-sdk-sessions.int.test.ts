@@ -93,7 +93,6 @@ test("native SDK canon lineage persists, resumes, branches and returns without f
   expect(result.readopted.rows.filter((row) => row.isPrimary).map((row) => row.sdkSessionId)).toEqual([result.seeded.rows[0]?.sdkSessionId]);
   expect(result.reseeded.rows).toHaveLength(result.readopted.rows.length);
   expect(result.reseeded.rows[0]?.sdkSessionId).toBe(result.seeded.rows[0]?.sdkSessionId);
-  expect(present(result.reseeded.rows[0]).canonHash).not.toBe(present(result.seeded.rows[0]).canonHash);
   expect(result.restored.rows).toEqual(result.readopted.rows);
   expect(result.alternate.rows).toHaveLength(1);
   expect(present(result.alternate.rows[0]).sdkSessionId).not.toBe(present(result.seeded.rows[0]).sdkSessionId);
@@ -118,6 +117,8 @@ test("native SDK canon lineage persists, resumes, branches and returns without f
   const branch = result.receipts.find(({ resume }) => resume === result.branched.rows.at(-1)?.sdkSessionId);
   expect(JSON.stringify(branch?.frames)).toContain("The alternative SDK branch is recorded.");
   expect(JSON.stringify(branch?.frames)).not.toContain("The original SDK branch is recorded.");
+  const reseed = result.receipts.find(({ frames }) => JSON.stringify(frames).includes("An unrelated SDK ledger begins."));
+  expect(reseed?.resume).toBe(result.seeded.rows[0]?.sdkSessionId);
   expect(result.foreign.refusal).toBeInstanceOf(Error);
   expect(result.foreign.after).toEqual(result.foreign.before);
   expect(result.foreign.callsAfter).toBe(result.foreign.callsBefore);

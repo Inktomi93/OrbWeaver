@@ -18,9 +18,8 @@ export const WORKLOAD_LANES = ["interactive", "sweep"] as const;
 export type WorkloadLane = (typeof WORKLOAD_LANES)[number];
 
 // The honest resumability contract — drives the retry affordance + the reaper's messaging.
-// `idempotent-restart` = a retry re-runs the whole job safely (every contribution).
-// `none` = retry is destructive/unsafe.
-const WORKLOAD_RESUME_POLICIES = ["idempotent-restart", "none"] as const;
+// `idempotent-restart` = a retry re-runs the whole job safely (every contribution declares it).
+const WORKLOAD_RESUME_POLICIES = ["idempotent-restart"] as const;
 export type WorkloadResumePolicy = (typeof WORKLOAD_RESUME_POLICIES)[number];
 
 /**

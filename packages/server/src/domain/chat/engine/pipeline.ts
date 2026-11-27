@@ -1673,7 +1673,7 @@ export function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomic
     return acc;
   }
   const usageLegs = [...(acc.usageLegs ?? []), ...(next.usageLegs ?? [])];
-  const usage = projectGenerationUsage([...economicsLegs(acc), ...economicsLegs(next)]).total;
+  const usage = projectGenerationUsage([...economicsLegs(acc), ...economicsLegs(next)]);
   const modelCalls =
     acc.modelCalls !== null && acc.modelCalls !== undefined && next.modelCalls !== null && next.modelCalls !== undefined
       ? acc.modelCalls + next.modelCalls

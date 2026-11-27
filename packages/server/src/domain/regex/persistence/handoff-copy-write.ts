@@ -142,7 +142,7 @@ export function createCopyHandoffRegexScripts(input: DbAssemblyInput<HandoffCopy
     for (const { sourceId, position, target } of plan.attachments) {
       const targetId = target.kind === "existing" ? target.id : (mintedIds[target.group] ?? sourceId);
       repoint.push(batchStmt(db.delete(chatRegexScripts).where(and(eq(chatRegexScripts.chatId, chatId), eq(chatRegexScripts.regexScriptId, sourceId)))));
-      repoint.push(batchStmt(db.insert(chatRegexScripts).values({ chatId, regexScriptId: targetId, position, createdAt: at }).onConflictDoNothing()));
+      repoint.push(batchStmt(db.insert(chatRegexScripts).values({ chatId, regexScriptId: targetId, position }).onConflictDoNothing()));
     }
     if (mints.length > 0) {
       await db.batch(batchMany(mints));

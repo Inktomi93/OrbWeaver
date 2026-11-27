@@ -23,6 +23,7 @@ import {
   CORPUS_TEXT_MODEL,
   createChatRoot,
   createCorpusProviderExecution,
+  readCompactionMarker,
 } from "@orb/testkit/node/composed";
 import { documentRoom, embedDocuments, sendTurn } from "../handoff-attachments-physical.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
@@ -89,7 +90,8 @@ test("a memory digest that copied a member's macros reaches the host's turn as l
 test("a compaction summary the model wrote reaches the turn as literal text and writes no room or global variable", async () => {
   await using h = await textRoom([STORED, "First reply.", "Second reply."], { promptConfig: controlPreset() });
   await commitHistory(h);
-  expect((await h.root.services.chat.compact({ principal: h.owner, chatId: h.chatId, signal: new AbortController().signal })).summary).toBe(STORED);
+  await h.root.services.chat.compact({ principal: h.owner, chatId: h.chatId, signal: new AbortController().signal });
+  expect((await readCompactionMarker(h.root, h.owner, h.chatId)).compactSummary).toBe(STORED);
 
   expectLiteral(h, await sendIn(h, h.chatId, "Where are we?"));
   expect(await roomVariables(h)).toEqual({ control: "1" });

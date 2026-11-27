@@ -176,7 +176,6 @@ export function createChatService(
     loadParticipantViewsBatch,
     resolveConnection: deps.resolveConnection,
     checkSendAvailability: deps.checkSendAvailability,
-    getNextTurnConnection: deps.getNextTurnConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews, saveGreetingTexts });

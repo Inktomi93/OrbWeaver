@@ -9,12 +9,13 @@
 
 import type { DocumentSearchParams } from "@orb/contracts/search";
 import { applyRerank } from "@orb/kit/rerank";
+import { getLog } from "#foundation/observability";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DocumentChunkHit } from "../contract/results.ts";
-import type { SearchContext, SearchService } from "../contract/service.ts";
+import type { DigestSearchEvents, SearchContext, SearchService } from "../contract/service.ts";
 import { nearestDocumentChunks } from "../persistence/nearest.ts";
 import { withActiveQuerySpace } from "../persistence/space.ts";
-import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
+import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, RERANK_ROLE, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { collapseByContentHash } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
@@ -69,8 +70,32 @@ function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChun
   return out;
 }
 
+/** The document rerank with its turn-scoped degrade: see the call site's note for who may degrade. */
+async function rerankDocuments(env: {
+  readonly ctx: SearchContext;
+  readonly rc: Awaited<ReturnType<SearchContext["roleClientsFor"]>>;
+  readonly queryText: string;
+  readonly ranked: DocumentCandidate[];
+  readonly signal: AbortSignal;
+  readonly events: DigestSearchEvents | undefined;
+}): Promise<DocumentCandidate[]> {
+  const { ctx, rc, queryText, ranked, signal, events } = env;
+  const rerank = (): Promise<DocumentCandidate[]> =>
+    applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, (q, docs) => rc.rerank(q, docs, { signal }), ranked.length);
+  if (events === undefined) {
+    return await rerank();
+  }
+  try {
+    return await rerank();
+  } catch (rerankErr) {
+    getLog(ctx.logger).warn({ err: rerankErr, role: RERANK_ROLE }, "search: document rerank unavailable — keeping the vector order");
+    events.onRerankUnavailable();
+    return ranked;
+  }
+}
+
 export function createDocuments(ctx: SearchContext): SearchService["documents"] {
-  return async (params: DocumentSearchParams & { readonly signal: AbortSignal }): Promise<DocumentChunkHit[]> => {
+  return async (params: DocumentSearchParams & { readonly signal: AbortSignal }, events?: DigestSearchEvents): Promise<DocumentChunkHit[]> => {
     const queryText = params.queryText;
     if (queryText.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "documents requires a queryText to embed + scan");
@@ -142,16 +167,10 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
         ),
       );
 
-      // 6. optional cross-encoder rerank (default OFF).
-      const reordered =
-        params.rerank === true
-          ? await applyRerank(
-              `${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`,
-              ranked,
-              (q, docs) => rc.rerank(q, docs, { signal: params.signal }),
-              ranked.length,
-            )
-          : ranked;
+      // 6. optional cross-encoder rerank (default OFF). A caller that passes `events` is a turn's gather, where
+      //    retrieval is an enhancement: a failed rerank keeps the vector order and reports. Without `events` the
+      //    failure refuses the call, which is what the omnibox answers its user.
+      const reordered = params.rerank === true ? await rerankDocuments({ ctx, rc, queryText, ranked, signal: params.signal, events }) : ranked;
 
       // 7. collapse duplicate chunks (after rank, before k-cap) → 8. k-cap → 9. reading-order restore.
       const collapsed = collapseByContentHash(reordered);

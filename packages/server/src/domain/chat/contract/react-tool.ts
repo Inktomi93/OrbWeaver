@@ -1,12 +1,8 @@
 import type { ReactToolArgs, ReactToolOutcome } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatToolExecutionData } from "@orb/contracts/tool-use";
 import type { ReactAsCharacterOp } from "./results.ts";
 
-export interface ReactToolHandlerContext {
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-}
+export type ReactToolHandlerContext = Pick<ChatToolExecutionData, "principal" | "chatId">;
 export interface ReactToolHandlerDeps {
   readonly reactAsCharacter: ReactAsCharacterOp;
 }

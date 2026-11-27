@@ -1,7 +1,7 @@
-// verb: updateSession — the session-config patch (the D62 Setup surface's write; collapses the study's
-// `renameSession` — one patch verb, the `updateCharacterSchema` precedent). Every present member is
-// RE-PARSED through its contracts schema here (the internal-boundary posture — the
-// tRPC wire parse does not cover a future internal caller). `null` clears the two nullable text fields.
+// verb: updateSession — the session-config patch (the D62 Setup surface's write; one patch verb, the
+// `updateCharacterSchema` precedent). It writes guidance, selection and stage config, never the session name or
+// status. Every present member is RE-PARSED through its contracts schema here (the internal-boundary posture — the
+// tRPC wire parse does not cover a future internal caller). `null` clears guidance, the one nullable member.
 //
 // `selection` IS NOT WHOLE-REPLACED — it is the one column with a SECOND writer. `applyFields` remaps
 // `greetingIndexes` when an accepted rewrite removes a greeting (the session addresses greetings by
@@ -11,14 +11,7 @@
 // value — the `mergeSheet` (rpg `patchSheet`) precedent. Do not "simplify" it back to a replace.
 
 import type { RefinerySelection, RefinerySelectionPatch } from "@orb/contracts/refinery";
-import {
-  refineryGuidanceSchema,
-  refinerySelectionPatchSchema,
-  refinerySelectionSchema,
-  refinerySessionNameSchema,
-  refinerySessionStatusSchema,
-  refineryStageConfigSchema,
-} from "@orb/contracts/refinery";
+import { refineryGuidanceSchema, refinerySelectionPatchSchema, refinerySelectionSchema, refineryStageConfigSchema } from "@orb/contracts/refinery";
 import { refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
@@ -65,9 +58,6 @@ function mergeSelection(current: RefinerySelection, patch: RefinerySelectionPatc
 /** The per-member re-parse (header): each present member through its contracts schema; `null` clears. */
 function parsePatch(patch: UpdateSessionPatch, current: RefinerySelection): Partial<typeof refinerySessions.$inferInsert> {
   const set: Partial<typeof refinerySessions.$inferInsert> = {};
-  if (patch.name !== undefined) {
-    set.name = patch.name === null ? null : refinerySessionNameSchema.parse(patch.name);
-  }
   if (patch.guidance !== undefined) {
     set.guidance = patch.guidance === null ? null : refineryGuidanceSchema.parse(patch.guidance);
   }
@@ -76,9 +66,6 @@ function parsePatch(patch: UpdateSessionPatch, current: RefinerySelection): Part
   }
   if (patch.stageConfig !== undefined) {
     set.stageConfig = refineryStageConfigSchema.parse(patch.stageConfig);
-  }
-  if (patch.status !== undefined) {
-    set.status = refinerySessionStatusSchema.parse(patch.status);
   }
   return set;
 }

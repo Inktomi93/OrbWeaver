@@ -12,13 +12,12 @@ import { and, eq } from "drizzle-orm";
 import type { HandoffResumption } from "../contract/context.ts";
 
 /** Marker insert, unexecuted so it commits with the role swap. A pre-existing marker is never overwritten. */
-export function insertHandoffResumptionStatement(db: Db, args: HandoffResumption & { readonly now: number }): BatchStmt {
+export function insertHandoffResumptionStatement(db: Db, args: HandoffResumption): BatchStmt {
   return batchStmt(
     db.insert(chatHandoffResumptions).values({
       chatId: args.chatId,
       acceptedByUserId: args.acceptedByUserId,
       actorRekeys: args.actorRekeys,
-      createdAt: args.now,
     }),
   );
 }

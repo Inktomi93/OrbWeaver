@@ -112,14 +112,13 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
   expect(capture.rules.map((rule) => rule.id)).not.toContain(produced.globalRule.id);
   expect(capture.ownerRules.map((rule) => rule.id)).toContain(produced.globalRule.id);
   expect(capture.ownerRules.map((rule) => rule.id)).not.toContain(produced.analysisRule.id);
-  expect(capture.fires.map((fire) => [fire.id, fire.ruleId, fire.chatId, fire.outcome])).toEqual(
-    produced.analysis.fires.map((fire) => [fire.id, fire.ruleId, fire.chatId, fire.outcome]),
+  expect(capture.fires.map((fire) => [fire.id, fire.ruleId, fire.outcome])).toEqual(
+    produced.analysis.fires.map((fire) => [fire.id, fire.ruleId, fire.outcome]),
   );
   expect(capture.activity.map((fire) => fire.id)).toEqual(capture.fires.map((fire) => fire.id));
-  expect(nonEmpty(capture.activity).every((fire) => fire.chatId === room.chat.id)).toBe(true);
   const globalFires = await root.services.automation.listFires({ principal, ruleId: produced.globalRule.id });
   expect(globalFires.map((fire) => fire.id)).toEqual(expect.arrayContaining(produced.completed.execution.fires.map((fire) => fire.id)));
-  expect(nonEmpty(globalFires).every((fire) => fire.chatId === null && fire.ruleId === produced.globalRule.id)).toBe(true);
+  expect(nonEmpty(globalFires).every((fire) => fire.ruleId === produced.globalRule.id)).toBe(true);
   expect(capture.presets.map((item) => item.id)).toEqual([...RULE_PRESET_IDS]);
   const preset = capture.presets.find((item) => item.id === "openerChips");
   if (preset === undefined) {

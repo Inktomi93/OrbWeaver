@@ -28,7 +28,7 @@ import { useId, useRef, useState } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
 import { roomRosterOptions, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
-import { ROW_RENAME_NAME, rethrowUnlessTrpcFailure } from "#lib";
+import { deriveChatTitle, ROW_RENAME_NAME, rethrowUnlessTrpcFailure, stampWhen, timeLib } from "#lib";
 import {
   enterSelectionMode,
   GAME_MODE_KEPT_LINE,
@@ -40,8 +40,9 @@ import {
   openCharacterGallery,
   selectChat,
 } from "#state";
-import { useDeleteChat, useSetGameEngaged, useStartGame, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
+import { useArchiveChat, useDeleteChat, useSetGameEngaged, useStartGame, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 import { useSelfLeave } from "../hooks/use-membership-mutations.ts";
+import { chatActionsForScope } from "../lib/chat-actions.ts";
 import {
   BACK_TO_PARENT_CHAT_LABEL,
   CHAT_CLOSE_NAME,
@@ -54,10 +55,13 @@ import {
   CHAT_OPTIONS_NAME,
   CHAT_SELECT_MESSAGES_NAME,
   CHAT_SETTINGS_DOOR_NAME,
+  forkOriginLine,
 } from "../lib/chat-options-names.ts";
 import { characterGalleryName } from "../lib/chat-surface-names.ts";
 import { deleteOwnChat } from "../lib/gone-room-draft.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
+
+const CHAT_OPEN_ACTIONS = chatActionsForScope("open");
 
 interface GameModeActions {
   readonly pending: boolean;
@@ -180,15 +184,55 @@ function ParentChatItem({ chatId }: { readonly chatId: ChatId }): ReactElement |
   // Optional-chained like the game section: the CT harness answers an unlisted proc with `null`.
   const parentChatId = detailQuery.data?.parentChatId ?? null;
   const lineageQuery = useGatedQuery(parentChatId === null ? null : chatId, (id) => trpc.chat.getChatLineage.queryOptions({ chatId: id }));
-  const readable = lineageQuery.data?.chain.some((summary) => summary.id === parentChatId) === true;
-  if (parentChatId === null || !readable) {
+  const parent = lineageQuery.data?.chain.find((summary) => summary.id === parentChatId);
+  const forkedAt = detailQuery.data?.forkedAt ?? null;
+  const labelId = useId();
+  const originId = useId();
+  if (parentChatId === null || parent === undefined) {
     return null;
   }
   return (
-    <MenuItem onClick={(): void => selectChat(parentChatId)}>
+    // The origin line is the item's description, with the name pinned to the first line (the game item's shape).
+    <MenuItem aria-describedby={originId} aria-labelledby={labelId} onClick={(): void => selectChat(parentChatId)}>
       <Icon icon={ArrowLeft} size="sm" />
-      {BACK_TO_PARENT_CHAT_LABEL}
+      <Stack gap="tight">
+        <span id={labelId}>{BACK_TO_PARENT_CHAT_LABEL}</span>
+        <Text id={originId} voice="gloss">
+          {forkOriginLine(deriveChatTitle(parent.title, parent.participantNames), forkedAt === null ? null : stampWhen(timeLib, forkedAt))}
+        </Text>
+      </Stack>
     </MenuItem>
+  );
+}
+
+/** The open room's own verbs: the `open` slice of the chat action table. Host-only, like the list row's archive,
+ *  because archiving removes the room from every member's active list; the server verb re-gates. */
+function OpenActionItems({
+  chatId,
+  setArchived,
+  viewerIsHost,
+}: {
+  readonly chatId: ChatId;
+  readonly setArchived: (archived: boolean) => void;
+  readonly viewerIsHost: boolean | undefined;
+}): ReactElement | null {
+  const trpc = useTRPC();
+  const detailQuery = useGatedQuery(chatId, (id) => roomRosterOptions(trpc, { chatId: id }));
+  // Optional-chained like the game section: the CT harness answers an unlisted proc with `null`.
+  const archived = detailQuery.data?.archived;
+  if (viewerIsHost !== true || archived === undefined) {
+    return null;
+  }
+  const handlers: Readonly<Record<(typeof CHAT_OPEN_ACTIONS)[number]["id"], () => void>> = { archive: (): void => setArchived(!archived) };
+  return (
+    <>
+      {CHAT_OPEN_ACTIONS.map((action) => (
+        <MenuItem key={action.id} onClick={handlers[action.id]}>
+          <Icon icon={action.glyph} size="sm" />
+          {action.label({ archived })}
+        </MenuItem>
+      ))}
+    </>
   );
 }
 
@@ -217,6 +261,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
   const gameModeActions = useGameModeActions(chatId);
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
+  const archiveChat = useArchiveChat({ trpc, invalidation });
   const selfLeave = useSelfLeave({ trpc, invalidation, failureShownInline: "the leave-chat confirm's alert line" });
   // "New chat with the same characters" is a CREATION, and creation is one shared client seam (`#data`), never a
   // store write that hands a rowless room to the chat surface.
@@ -333,6 +378,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
           <Icon icon={ListChecks} size="sm" />
           {CHAT_SELECT_MESSAGES_NAME}
         </MenuItem>
+        <OpenActionItems chatId={chatId} viewerIsHost={viewerIsHost} setArchived={(archived): void => archiveChat.mutate({ chatId, archived })} />
 
         <MenuSeparator />
         <TrailingItems onRename={viewerIsHost === true ? openRename : undefined} />

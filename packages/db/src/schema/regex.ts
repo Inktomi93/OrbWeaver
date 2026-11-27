@@ -87,7 +87,6 @@ export const globalRegexScripts = sqliteTable(
       .primaryKey()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: stampColumn("created_at"),
   },
   // No secondary index: `regexScriptId` IS the single-column PK — already indexed; a `*_script_idx` would
   // just duplicate it (the `global_books` note).
@@ -107,7 +106,6 @@ export const characterRegexScripts = sqliteTable(
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [
     primaryKey({ columns: [t.characterId, t.regexScriptId] }),
@@ -131,7 +129,6 @@ export const presetRegexScripts = sqliteTable(
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [primaryKey({ columns: [t.presetId, t.regexScriptId] }), index("preset_regex_scripts_script_idx").on(t.regexScriptId)],
 );
@@ -151,7 +148,6 @@ export const chatRegexScripts = sqliteTable(
       .notNull()
       .references(() => regexScripts.id, { onDelete: "cascade" }),
     position: integer("position").notNull().default(DEFAULT_POSITION),
-    createdAt: stampColumn("created_at"),
   },
   (t) => [primaryKey({ columns: [t.chatId, t.regexScriptId] }), index("chat_regex_scripts_script_idx").on(t.regexScriptId)],
 );

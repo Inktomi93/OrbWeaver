@@ -191,10 +191,9 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven,
   const { id, space, dims } = candidateOf(ownerId, task, via, connection);
   const moves = movesTarget(prior, id);
   const fingerprint = vectorSpaceFingerprint(connection);
-  const now = ctx.now();
   await ctx.db
     .insert(embedGenerations)
-    .values({ id, ownerId, task, via, connectionId: connection.connectionId, connectionRef: connection.connectionId, fingerprint, space, createdAt: now })
+    .values({ id, ownerId, task, via, connectionId: connection.connectionId, connectionRef: connection.connectionId, fingerprint, space })
     .onConflictDoNothing();
   if (prior === undefined) {
     await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();

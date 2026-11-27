@@ -9,9 +9,9 @@
 // WHY IT EXISTS: a respawn is the NORMAL case here, not a catastrophe — `node --watch` re-execs the
 // server on any watched-source write, which a merge, a manual restart and a gate fixture plant all trigger
 // (three worker-kills by that one mechanism in a single day). Marking every orphan `worker_died` meant a
-// multi-hour resumable backfill could not survive ANY respawn. A kind that DECLARES itself re-runnable
-// (`WorkloadContribution.resume !== "none"` — the honest resumability contract in @orb/contracts/workloads)
-// now goes back to `queued` instead, and the worker picks it up moments later.
+// multi-hour resumable backfill could not survive ANY respawn. Every kind DECLARES itself re-runnable
+// (`WorkloadContribution.resume` — the honest resumability contract in @orb/contracts/workloads), so an
+// orphan now goes back to `queued` instead, and the worker picks it up moments later.
 //
 // THE BOUND is what keeps that from being an unbounded crash loop: a row boot has already re-queued
 // MAX_BOOT_RESPAWNS times WITHOUT the run reporting progress in between goes terminal with that reason. The
@@ -19,18 +19,17 @@
 // progress snapshot — so "3 respawns" means three respawns that produced nothing, while a job that is
 // genuinely making progress can be respawned indefinitely.
 //
-// The engine spells no domain here: the only thing it reads off a kind is the `resume` axis every
-// contribution declares. A kind absent from the registry (deploy skew) takes the conservative arm — nothing
-// in this build can say whether re-running it is safe, so it is reaped exactly as before.
+// The engine spells no domain here: it reads only whether the registry knows the kind. A kind absent from
+// the registry (deploy skew) takes the conservative arm — nothing in this build can say whether re-running
+// it is safe, so it is reaped exactly as before.
 //
 // A CANCEL OUTRANKS BOTH. A row the dead process left `cancelling` carries a cancel its owner raised and no
-// runner lived to finish. Boot finishes it: the row ends `cancelled`, whatever its kind's resume policy and
-// respawn count say, because re-queueing would run a job its owner stopped and reaping would record a death
+// runner lived to finish. Boot finishes it: the row ends `cancelled`, whatever the respawn count says, because re-queueing would run a job its owner stopped and reaping would record a death
 // where there was a request. It is the same terminal and the same event the runner writes for a cancel.
 //
 // A RE-QUEUE IS NOT A REAP and carries no reason — the row stays alive and its `error` is cleared. The two
 // arms that DO terminal a row are reaps, and they take their sentence from the shared `reap-record` dispatch
-// the steady-state reaper uses: `worker_restart` for an orphan this build cannot re-queue, and
+// the steady-state reaper uses: `worker_restart` for an orphan of a kind this build dropped, and
 // `respawn_loop` for one that burned the bound. Each records the lease age OBSERVED before `markTerminal`
 // overwrites that column, so a boot death and a grace-window expiry stay distinguishable on the row forever.
 
@@ -112,9 +111,6 @@ export async function reclaimInFlightOnBoot(args: BootReclaimArgs): Promise<Boot
       // believes every lookup hits — only a deploy-skew row (a kind this build dropped) can miss, and it
       // must miss LOUDLY rather than crash on `.resume` of undefined.
       if (!Object.hasOwn(args.contributions, row.kind)) {
-        return await reapOrphan(args.db, { ...reap, reason: "worker_restart" }, emitEvent);
-      }
-      if (args.contributions[row.kind].resume === "none") {
         return await reapOrphan(args.db, { ...reap, reason: "worker_restart" }, emitEvent);
       }
       if (row.respawns >= MAX_BOOT_RESPAWNS) {

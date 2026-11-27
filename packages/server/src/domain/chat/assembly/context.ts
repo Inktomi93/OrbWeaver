@@ -11,7 +11,6 @@ import type {
   AssembleWorldEntry,
   ChatInjection,
   GuidedSteer,
-  MacroFreezeRecord,
   MacroSlice,
   MemoryRecallSlice,
   RegexServerPass,
@@ -42,6 +41,7 @@ import type { ChatContext } from "../contract/context.ts";
 import type { RegexPassOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { ResolvedPersonas } from "../contract/foreign.ts";
+import type { SendRegexSink } from "../contract/gather.ts";
 import type { RegexNoticeEpisode } from "../contract/results.ts";
 import { BEFORE_HISTORY_DEPTH, renderInjection, seatAuthorsNoteLore } from "./injections.ts";
 import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
@@ -456,17 +456,6 @@ interface BuildAssembleContextInput {
   readonly freezeMacroRegistry?: MacroRegistry | undefined;
 }
 
-/** Out-param sink for the SEND USER_INPUT regex result: when both `pendingUserText` and
- *  `hostTierRegexScripts` are supplied, {@link buildAssembleContext} writes the post-regex text here so
- *  the SEND verb persists the exact same text the WI haystack saw. */
-interface SendRegexResult {
-  sendUserText?: string;
-  /** The VOLATILE-FREEZE record (D129-F) of what the SEND bake resolved out of the composer draft, in
-   *  occurrence order. Written only when something actually froze (absent ⇒ the draft carried no volatile
-   *  macro — the common case, and the reason `macro_freezes` stays NULL for it). */
-  sendMacroFreezes?: MacroFreezeRecord;
-}
-
 /** Frames a system-block injection once (content already macro-resolved); `in_chat` injections stay
  *  unframed since SHAPE's splice frames them. */
 function frameSystemInjection(inj: ChatInjection, prose: ProseOverrides): ChatInjection {
@@ -632,7 +621,7 @@ function composeSteerInput(toggles: readonly string[] | undefined, freeText: str
   return composeRewriteSteer(resolveSteerFragments(REWRITE_TOGGLES, toggles, prose), freeText);
 }
 
-/** Resolves the one-turn guided steer against the built base ctx: `steer.placement`, else the action
+/** Resolves the one-turn guided steer against the built base ctx: the action
  *  config's role (system → marker; user/assistant → depth-0 injection). No steer is a no-op.
  *
  *  Marker-fallback (§10 addendum / F8): a `system` placement lands via the `{{guided_instruction}}` marker,
@@ -672,8 +661,7 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   if (resolved.trim().length === 0) {
     return { candidates: [] };
   }
-  const placement = steer.placement ?? (config.role === "system" ? ({ kind: "system" } as const) : ({ kind: "inject", role: config.role } as const));
-  if (placement.kind === "system") {
+  if (config.role === "system") {
     // The marker is the intended system-half home; only fall back when the active preset can't render it ON
     // THIS TURN. `hasActiveMarker` (not "enabled") is load-bearing: an enabled `guided_instruction` whose
     // `trigger` excludes this generation type is dropped by the BUILD walk, so believing it would render
@@ -685,9 +673,8 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
     base.guidedPlacedAsInjection = true;
     return { candidates: [guidedInjectionCandidate(resolved, "system")] };
   }
-  // G10: the action's own `depth` rides the inject arm (absent ⇒ the tail). A per-turn `placement` overrides
-  // the ROLE only — depth is the preset author's delivery choice, not the caller's.
-  return { candidates: [guidedInjectionCandidate(resolved, placement.role, config.depth)] };
+  // G10: the action's own `depth` rides the inject arm (absent ⇒ the tail).
+  return { candidates: [guidedInjectionCandidate(resolved, config.role, config.depth)] };
 }
 
 /** G9 — the history-START boundary (`formatStrings.newChatMarker`; ST `new_chat_prompt`, §6.5 census). ONE
@@ -887,7 +874,7 @@ async function runSendAuthorTransforms(
     readonly input: BuildAssembleContextInput;
     readonly base: AssembleContext;
     readonly hostScripts: readonly RegexScriptRow[];
-    readonly out: SendRegexResult | undefined;
+    readonly out: SendRegexSink | undefined;
   },
 ): Promise<string> {
   const { draft, input, base, hostScripts, out } = args;
@@ -947,7 +934,7 @@ async function runSendAuthorTransforms(
 }
 
 /** Produces the immutable per-turn AssembleContext SHAPE consumes per speaker; never mutated after return. */
-export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembleContextInput, out?: SendRegexResult): Promise<AssembleContext> {
+export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembleContextInput, out?: SendRegexSink): Promise<AssembleContext> {
   const cards = await Promise.all(input.characterIds.map((characterId) => ctx.getCard({ ownerId: input.ownerId, characterId })));
   const present = input.characterIds.flatMap((characterId, i) => {
     const card = cards[i];

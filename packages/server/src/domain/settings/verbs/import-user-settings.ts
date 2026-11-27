@@ -2,12 +2,13 @@
 // Per-namespace deep-merge of only the share-safe namespaces the file carried (never a whole-blob clobber),
 // under the per-user write serializer; `created` is always false (merge into the always-present singleton).
 
+import { USER_SETTINGS_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { SettingsImportOutcome, UserSettings } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
 import { portableParseError } from "#primitives/serde/lib";
-import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES, USER_SETTINGS_SCHEMA_KIND } from "#primitives/serde/user-settings";
+import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES } from "#primitives/serde/user-settings";
 import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { ownedBackgroundIdsByHash, readUserSettings, writeUserConfig } from "../persistence/queries.ts";
 import { deepMergePlain } from "../substrate/merge.ts";

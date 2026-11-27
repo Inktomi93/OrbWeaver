@@ -38,13 +38,13 @@
 import type { ClaimChatOp, HostTierRegexAllow, MessageView, ReattributeScope, RoomClaim } from "@orb/contracts/chat";
 import { isReattributableReply, isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
-import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, RandomSource } from "@orb/kit/macro";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import type { RegexPassCall, RegexTarget } from "@orb/kit/regex";
 import { messageTargetOf, regexCallReadsRetrieval } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";

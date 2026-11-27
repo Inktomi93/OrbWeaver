@@ -31,7 +31,7 @@
 // comment, a stylesheet and whitespace render as nothing, so their pill would be the same empty box a leading rule
 // makes. The paragraph is dropped from the train only; the single-bubble and framed renders keep every tag as written.
 
-import type { TextRange } from "@orb/kit/content";
+import type { Span } from "@orb/kit/chunk";
 import { paragraphBreaks, stripStyleElements } from "@orb/kit/content";
 
 /** A paragraph that is nothing but a CommonMark thematic break (`---`, `***`, `___`, optionally spaced) —
@@ -114,10 +114,10 @@ function drawsNothing(paragraph: string): boolean {
 
 // Each paragraph of `content` that holds text and is no standalone thematic break: from its first line, past any blank
 // lines before it, to its last non-space character.
-function paragraphsOf(content: string): readonly TextRange[] {
+function paragraphsOf(content: string): readonly Span[] {
   const breaks = paragraphBreaks(content);
   return [...breaks, { start: content.length, end: content.length }]
-    .map((cut, index): TextRange => {
+    .map((cut, index): Span => {
       const from = breaks[index - 1]?.end ?? 0;
       const text = content.slice(from, cut.start);
       const start = from + (LEADING_BLANK_LINES.exec(text)?.[0].length ?? 0);
@@ -132,7 +132,7 @@ function paragraphsOf(content: string): readonly TextRange[] {
 /** Where each bubble of Tide's train sits in the drawn text `content`, one per paragraph past standalone thematic breaks
  *  and paragraphs that draw nothing. Returns `null` — "don't train this" — only when what is left cannot BE a train: a
  *  single paragraph (nothing to chain) or none at all. */
-export function trainParagraphs(content: string): readonly TextRange[] | null {
+export function trainParagraphs(content: string): readonly Span[] | null {
   const paragraphs = paragraphsOf(content).filter(({ start, end }) => !drawsNothing(content.slice(start, end)));
   return paragraphs.length <= 1 ? null : paragraphs;
 }

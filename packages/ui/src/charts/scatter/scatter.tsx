@@ -27,7 +27,6 @@ export interface ScatterProps {
   /** Fires with the clicked point's opaque `id` — the entire reason this is a canvas chart, not an SVG. */
   readonly onPointClick?: ((id: string) => void) | undefined;
   readonly height?: number | "100%";
-  readonly className?: string;
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
 
@@ -71,7 +70,7 @@ function ScatterLegend({
   );
 }
 
-export function Scatter({ series, label, legend = false, onPointClick, height, size, className, onChartReady }: ScatterProps): ReactElement {
+export function Scatter({ series, label, legend = false, onPointClick, height, size, onChartReady }: ScatterProps): ReactElement {
   // Called unconditionally (before the empty-state branch) to satisfy rules-of-hooks.
   const colors = useChartTheme();
   const isEmpty = series.every((cat) => cat.points.length === 0);
@@ -85,7 +84,7 @@ export function Scatter({ series, label, legend = false, onPointClick, height, s
 
   return (
     <LabeledChartFrame
-      className={scatterBoxVariants({ size, className })}
+      className={scatterBoxVariants({ size })}
       isEmpty={isEmpty}
       label={label}
       slot="scatter"

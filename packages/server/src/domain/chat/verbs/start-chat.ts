@@ -34,7 +34,6 @@
 // explicit host config write — `verbs/claim-chat.ts`).
 
 import type { ChatRpgGameBirthPlan, MessageView, OpeningPolicy } from "@orb/contracts/chat";
-import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -295,7 +294,6 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, hostUserId),
         // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
         // pre-membership canon in a room this call just created).
-        viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
         anchor: await resolveAnchor(ctx, participants, chatRow.anchorPersonaId),
       }),
       opening: seedOutcome(seed.views),

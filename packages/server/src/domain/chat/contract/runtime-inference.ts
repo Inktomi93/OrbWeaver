@@ -34,4 +34,4 @@ export interface ChatInferenceOps
       | "summarizeAvailability"
       | "summarize"
     >,
-    Pick<ChatServiceDeps, "resolveConnection" | "checkSendAvailability" | "getNextTurnConnection"> {}
+    Pick<ChatServiceDeps, "resolveConnection" | "checkSendAvailability"> {}

@@ -260,6 +260,7 @@ export type {
 } from "./view.ts";
 export {
   distributedPluginViewSchema,
+  PLUGIN_FANOUT_SKIP_REASONS,
   pluginBundleAssetViewSchema,
   pluginDisplayTransformViewSchema,
   pluginFanoutResultSchema,

@@ -53,7 +53,6 @@ test("seed gallery keeps the actual Principal and refuses a foreign subject whil
   await ops.character.seedGallery(actor, card.id, CARD.input.handle);
   const first = await services.assets.listGallery({ principal: actor, subjectCharacterId: card.id, limit: 100 });
   expect(first).toHaveLength(1);
-  expect(first[0]?.subjectCharacterId).toBe(card.id);
   await ops.character.seedGallery(actor, card.id, CARD.input.handle);
   expect(await services.assets.listGallery({ principal: actor, subjectCharacterId: card.id, limit: 100 })).toEqual(first);
 });

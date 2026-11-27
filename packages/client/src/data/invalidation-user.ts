@@ -184,7 +184,7 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
   // Every persisting connection and binding verb. A re-point's rebuild is queued after this tick, so the job list
   // rides `workloadsChanged` instead. The game read's delivery verdicts (read-only, the state round's fit against the
   // context window) are derived from the viewer's resolved connection, so they refetch with it.
-  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter(), trpc.chat.getNextTurnConnection.pathFilter(), trpc.rpg.getGame.pathFilter()],
+  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter(), trpc.rpg.getGame.pathFilter()],
   // A rebuild starting or ending also moves whether search is paused, which the vector role rows read beside the jobs.
   workloadsChanged: (_e, trpc) => [trpc.workloads.list.pathFilter(), trpc.search.spaceStatus.pathFilter()],
 };

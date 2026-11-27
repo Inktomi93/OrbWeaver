@@ -6,7 +6,7 @@
 // discovery's concern). The `(id, model)` key lands the score on the right row IN THE RIGHT SPACE.
 
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
-import type { WriteHubScoresParams, WriteHubScoresResult } from "@orb/contracts/embeddings";
+import type { WriteHubScoresParams } from "@orb/contracts/embeddings";
 import type { EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { writeHubScoreRows } from "../persistence/queries.ts";
 
@@ -15,14 +15,12 @@ import { writeHubScoreRows } from "../persistence/queries.ts";
 const HUB_SCORE_WRITE_CHUNK = 500;
 
 export function createWriteHubScores(ctx: EmbeddingsContext): EmbeddingsService["writeHubScores"] {
-  return async (params: WriteHubScoresParams): Promise<WriteHubScoresResult> => {
-    let rowsUpdated = 0;
+  return async (params: WriteHubScoresParams): Promise<void> => {
     for (let start = 0; start < params.updates.length; start += HUB_SCORE_WRITE_CHUNK) {
       if (start > 0) {
         await yieldToEventLoop();
       }
-      rowsUpdated += await writeHubScoreRows(ctx.db, params.table, params.updates.slice(start, start + HUB_SCORE_WRITE_CHUNK));
+      await writeHubScoreRows(ctx.db, params.table, params.updates.slice(start, start + HUB_SCORE_WRITE_CHUNK));
     }
-    return { rowsUpdated };
   };
 }

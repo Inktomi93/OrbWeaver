@@ -33,10 +33,11 @@
 //
 // Measured by the matrix in `tests/.../shape.test.ts`: before this, 12 of 84 cells failed, ALL `completion`.
 
-import type { MessageKind } from "@orb/contracts/chat";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { SquashRow } from "./role-squash.ts";
 
 /** The two axes beyond mode/speakers, bundled so the signature stays inside the parameter budget. NOT
  *  exported — it is this function's call shape, not a domain type, so it stays out of the contract home. */
@@ -49,13 +50,6 @@ interface NamesOptions {
    *  inlines the speaker instead of emitting an out-of-band `name` — a surviving name blocks the merge and
    *  the provider gets the adjacent same-role pair it rejects. Absent ⇒ true (the floor is `strict`). */
   readonly mergesAdjacent?: boolean;
-}
-
-interface NamedRow {
-  role: MessageRole;
-  content: string;
-  name?: string;
-  messageId?: MessageId | undefined;
 }
 
 /**
@@ -125,13 +119,13 @@ export function applyNamesBehavior(
   presetMode: NamesBehavior,
   speakers: { user: string; assistant: string },
   opts: NamesOptions = {},
-): NamedRow[] {
+): SquashRow[] {
   const { multiCharacter = false, multiHuman = false, mergesAdjacent = true } = opts;
   const mode = effectiveMode(presetMode, { multiCharacter, multiHuman });
   if (mode === "none") {
     return history.map((m) => ({ role: m.role, content: m.content, messageId: m.messageId }));
   }
-  return history.map((m): NamedRow => {
+  return history.map((m): SquashRow => {
     // Rows that carry no speaker — never label them (a `Name:` prefix or a completion `name` field would
     // misattribute the system channel to a participant). TWO ways to be speakerless: a real `system` row,
     // or an injection the splice DEMOTED to a participant role because the backend cannot take
@@ -174,7 +168,7 @@ function defaultModeRow(
   author: string,
   speakers: { user: string; assistant: string },
   room: { readonly multiCharacter: boolean; readonly multiHuman: boolean },
-): NamedRow {
+): SquashRow {
   if (m.role === "user" && ((room.multiHuman && m.messageId !== undefined) || author !== speakers.user)) {
     return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
   }

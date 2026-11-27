@@ -12,10 +12,11 @@
 // draft row had no `participants` plane, so its per-speaker tints differed from the committed room's) is not
 // fixed here — it is UNREACHABLE, which is the better outcome.
 
-import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
+import type { ChatIdentity } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import { roomStandingOf } from "@orb/kit/message-author";
 import { CurrentStack } from "@orb/ui/current";
 import { EmptyState } from "@orb/ui/empty-state";

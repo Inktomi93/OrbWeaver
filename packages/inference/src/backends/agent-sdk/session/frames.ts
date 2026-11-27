@@ -314,18 +314,10 @@ export function seedSessionId(chatId: ChatId, connectionId: UserConnectionId, se
   return agentSdkSessionIdSchema.parse(deterministicId(`${chatId}\u0000${connectionId}\u0000${salt}\u0000${seedBody(seed)}`));
 }
 
-/** The content-addressing body BOTH the lineage id and the staleness hash fold: role + the SAME projection the
+/** The content-addressing body the lineage id folds: role + the SAME projection the
  *  comparators use, so an id and a match verdict can never disagree about what a seed IS. */
 function seedBody(seed: readonly SeedTurn[]): string {
   return seed.map((t) => `${t.role}\u0001${seedTurnText(t)}`).join("\u0002");
-}
-
-// The D8/D25 persisted staleness-gate hash: sha256 over the SAME role+content body `seedSessionId`
-// folds into its own id (content-only, no chatId/salt — canonHash names the CONTENT, not one chat's
-// lineage of it). A future read-side re-hashes the live canon prefix the same way and compares against
-// the stored value to detect a diverged lineage without loading the session's own transcript.
-export function canonHashOf(seed: readonly SeedTurn[]): string {
-  return createHash("sha256").update(seedBody(seed)).digest("hex");
 }
 
 // The runtime writes a `cost-state` entry into the transcript after each turn and, on resume, continues the

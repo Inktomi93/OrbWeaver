@@ -154,12 +154,8 @@ async function replaceAllPairs(db: Db, inserts: readonly DupInsert[], ownerId?: 
 /** The Jaccard floor a chat pair must clear to be recorded as a near-duplicate. */
 const DEFAULT_CHAT_JACCARD = 0.5;
 
-// A fixed sentinel `model` — the chat arm is content-hash Jaccard, not embedding-space specific (a pair is
-// meaningful across all spaces since content_hash is model-independent). The column is NOT NULL, so it carries
-// this constant rather than a real embedding space tag.
-const CHAT_JACCARD_MODEL = "content-hash-jaccard";
-// duplicate_chat_pairs insert column count (id, A, B, csls, sim, relation, model, computedAt).
-const CHAT_DUP_COLS = 8;
+// duplicate_chat_pairs insert column count (id, A, B, sim, relation, computedAt).
+const CHAT_DUP_COLS = 6;
 
 type ChatDupInsert = typeof duplicateChatPairs.$inferInsert;
 type ChatHashRow = Awaited<ReturnType<typeof readRunChatSegmentHashes>>[number];
@@ -246,10 +242,8 @@ function buildOwnerChatPairs(
       id: deps.newDuplicateChatPairId(),
       chatIdA: a,
       chatIdB: b,
-      cslsScore: similarity, // Jaccard IS the rank key for chats (no cosine-hub adjustment).
       similarity,
       relation,
-      model: CHAT_JACCARD_MODEL,
       computedAt,
     });
   }

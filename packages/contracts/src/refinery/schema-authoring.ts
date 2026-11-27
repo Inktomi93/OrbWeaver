@@ -245,7 +245,6 @@ export const refinerySchemaSummarySchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.refinerySchema),
   name: z.string(),
   description: z.string(),
-  stage: refinerySchemaStageSchema,
   version: z.int().min(1),
   schema: rawSchemaNode,
   createdAt: z.int(),

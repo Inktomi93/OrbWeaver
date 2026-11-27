@@ -125,20 +125,7 @@ const IMAGE_COVERAGES = ["fully-covered", "mostly-covered", "partially-exposed",
 
 const IMAGE_BODY_TYPES = ["slim", "average", "athletic", "curvy", "heavy", "petite", "muscular", "non-human", "not-applicable"] as const;
 
-const IMAGE_CHEST_SIZES = ["flat", "small", "medium", "large", "very-large", "not-applicable"] as const;
-
-const IMAGE_SKIN_TONES = ["pale", "fair", "tan", "olive", "brown", "dark", "non-human", "not-applicable"] as const;
-
 const IMAGE_OUTFIT_TYPES = ["casual", "formal", "armor", "uniform", "swimwear", "lingerie", "traditional", "streetwear", "fantasy", "none", "other"] as const;
-
-// The wardrobe's STATE, orthogonal to what it is (`outfitType`) and how much it covers (`coverage`).
-const IMAGE_CLOTHING_STATES = ["intact", "disheveled", "partially-removed", "removed", "not-applicable"] as const;
-
-// Explicitness of exposure — the graded axis behind the coarse `rating`.
-const IMAGE_NUDITY_LEVELS = ["none", "suggestive", "partial", "full"] as const;
-
-// Body regions the frame leaves bare — a SET facet (an image can show several).
-const IMAGE_EXPOSED_PARTS = ["shoulders", "midriff", "cleavage", "back", "legs", "thighs", "chest", "buttocks", "genitals", "feet"] as const;
 
 /** Every facet key a breakdown carries, with its nature. The ONE canonical member list — discovery's drill
  *  axis and the tally both derive from it, so adding a facet here is a tsc error at every consumer that has
@@ -153,12 +140,7 @@ export const IMAGE_FACET_NATURE_BY_KEY = {
   gender: "scalar",
   coverage: "scalar",
   bodyType: "scalar",
-  chestSize: "scalar",
-  skinTone: "scalar",
   outfitType: "scalar",
-  clothingState: "scalar",
-  nudityLevel: "scalar",
-  exposedParts: "list",
   tags: "list",
 } as const satisfies Record<string, ImageFacetNature>;
 
@@ -187,12 +169,7 @@ export const imageBreakdownSchema = z
     gender: z.enum(IMAGE_GENDERS),
     coverage: z.enum(IMAGE_COVERAGES),
     bodyType: z.enum(IMAGE_BODY_TYPES),
-    chestSize: z.enum(IMAGE_CHEST_SIZES),
-    skinTone: z.enum(IMAGE_SKIN_TONES),
     outfitType: z.enum(IMAGE_OUTFIT_TYPES),
-    clothingState: z.enum(IMAGE_CLOTHING_STATES),
-    nudityLevel: z.enum(IMAGE_NUDITY_LEVELS),
-    exposedParts: z.array(z.enum(IMAGE_EXPOSED_PARTS)),
     /** Free subject keywords — the ONE open facet, because a closed subject vocabulary cannot describe a
      *  library. Bounded so a degenerate reply can't write a hundred one-off buckets. */
     tags: z.array(z.string()).min(MIN_IMAGE_TAGS).max(MAX_IMAGE_TAGS),
@@ -225,12 +202,8 @@ export interface WriteHubScoresParams {
   readonly updates: readonly HubScoreUpdate[];
 }
 
-export interface WriteHubScoresResult {
-  readonly rowsUpdated: number;
-}
-
 /** The discovery → embeddings seam: takes pre-computed scores. */
-export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
+export type WriteHubScoresOp = (params: WriteHubScoresParams) => Promise<void>;
 
 // ── The `index` workload's terminal result: a workload's result shape is domain↔domain wire, authored by
 //    the OWNING domain — embeddings owns the ONE vector write path. ──

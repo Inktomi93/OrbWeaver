@@ -11,7 +11,7 @@ import type { TurnAbortReason } from "./bus.ts";
 import type { HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
 
 /** The turn-kind axis of a chat turn. */
-const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "opening", "auto", "force"] as const;
+const TURN_KINDS = ["send", "swipe", "continue", "generate", "impersonate", "auto", "force"] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
 
 /** Model-plane story evidence keeps hidden spans; consumers slice the loaded chronological transcript. */
@@ -145,12 +145,8 @@ export interface ForkGameArgs {
   readonly forker: { readonly userId: UserId; readonly readsHidden: boolean };
 }
 
-/** The clone outcome. `cloned: false` is a non-game source (or rpg unwired): the fork ships plain, with no pointer. */
-export interface ForkGameResult {
-  readonly cloned: boolean;
-}
-
-export type ForkGameOp = (args: ForkGameArgs) => Promise<ForkGameResult>;
+/** Clone the source's game onto the fork. A non-game source (or rpg unwired) is a no-op: the fork ships plain, with no pointer. */
+export type ForkGameOp = (args: ForkGameArgs) => Promise<void>;
 
 /** RPG's unexecuted contribution to a chat-owned atomic birth batch. `Statement` is the consumer's database
  *  statement handle, which contracts cannot name. */

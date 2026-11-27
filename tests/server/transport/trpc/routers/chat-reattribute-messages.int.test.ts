@@ -79,7 +79,7 @@ async function voiceRollup(h: ChatRoot, characterId: CharacterId): Promise<unkno
   if (view === null) {
     return null;
   }
-  const { computedAt: _computedAt, lastActivityAt: _lastActivityAt, ...counters } = view;
+  const { lastActivityAt: _lastActivityAt, ...counters } = view;
   return counters;
 }
 

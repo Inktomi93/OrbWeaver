@@ -97,7 +97,6 @@ export const databankRouter = t.router({
       ctx.services.databank.list({
         principal: ctx.auth,
         signal: procedureSignal(signal),
-        ...(input.origin !== undefined ? { origin: input.origin } : {}),
         ...(input.search !== undefined ? { search: input.search } : {}),
         ...(input.phase !== undefined ? { phase: input.phase } : {}),
         ...(input.limit !== undefined ? { limit: input.limit } : {}),

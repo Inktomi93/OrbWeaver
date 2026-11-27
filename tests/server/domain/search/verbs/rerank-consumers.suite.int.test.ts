@@ -337,6 +337,25 @@ test.for(SHAPES)("the databank gather keeps the reranked chunk inside its k cut,
   }
 });
 
+test("a failed rerank call degrades the databank gather to vector order and warns once", async () => {
+  await using world = await rerankWorld("text");
+  const { h } = world;
+  await h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: "off" } } });
+  await h.caller.settings.updateUserSettingsSection({ section: "databank", patch: { retrieval: { k: 1, minScore: 0, rerank: true } } });
+  world.answerRerank("fail");
+  const callsBefore = world.rerankCalls.length;
+  const eventsBefore = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).length;
+  const prompt = await newestPrompt(h, async () => {
+    const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: QUERY, intent: TURN_INTENT });
+    expect(outcome.aborted).toBe(false);
+  });
+  expect(world.rerankCalls.length).toBeGreaterThan(callsBefore);
+  expect(ARCS.filter((arc) => prompt.includes(tagOf("doc", arc)))).toEqual([ARCS[0]]);
+  const events = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).slice(eventsBefore);
+  expect(events.filter(({ event }) => event.type === "warning" && event.code === "databank_rerank_unavailable")).toHaveLength(1);
+  expect(events.filter(({ event }) => event.type === "warning" && event.code === "memory_rerank_unavailable")).toEqual([]);
+});
+
 const OMNIBOX_TARGETS = ["digests", "corpus", "discover", "entities", "characters", "documents"] as const;
 type OmniboxTarget = (typeof OMNIBOX_TARGETS)[number];
 type SearchResult = Awaited<ReturnType<ChatRoot["caller"]["search"]["search"]>>;

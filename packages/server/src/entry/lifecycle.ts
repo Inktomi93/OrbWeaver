@@ -560,7 +560,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // NOT block boot/listen; its own log reports ran/dropped and one row's fault can't abort the sweep.
     void built.services.chat
       .drainDeferredTurns({ all: true })
-      .then((report) => log.info(report, "boot: drained deferred turns (pending_turns reclaim)"))
+      .then(({ ran, dropped }) => log.info({ ran, dropped }, "boot: drained deferred turns (pending_turns reclaim)"))
       .catch((err: unknown) => log.error({ err }, "boot: deferred-turn drain failed"));
 
     built.startJobs();

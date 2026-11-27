@@ -28,13 +28,13 @@ export async function queueIngest(
   args: { readonly documentId: DocumentId; readonly ownerId: UserId },
 ): Promise<QueuedIngest> {
   try {
-    const { workloadId } = await ctx.enqueueIngest(args);
-    return { ingest: "queued", workloadId };
+    await ctx.enqueueIngest(args);
+    return { ingest: "queued" };
   } catch (err) {
     getLog(ctx.logger).warn(
       { err, documentId: args.documentId, ownerId: args.ownerId },
       "databank: the document was written but its ingest could not be queued — it is un-indexed until a reindex",
     );
-    return { ingest: "not-queued", workloadId: null };
+    return { ingest: "not-queued" };
   }
 }

@@ -137,7 +137,7 @@ export function resolveCardVisibility(viewerRole: ParticipantRoleState, configur
 
 /**
  * Clamp a roster character's card to the {@link MemberCardView} the member may read at `visibility`
- * (D22). `name`/`avatarAssetId` are the always-present floor; `sheet`+ reveals the presentable identity;
+ * (D22). `name`/`avatarHash` are the always-present floor; `sheet`+ reveals the presentable identity;
  * `sheet+lore`+ adds the rendered world-info; `full` adds the prompt-steering internals. Pure — no I/O.
  */
 export function clampMemberCard(input: {
@@ -148,7 +148,7 @@ export function clampMemberCard(input: {
   /** Resolved world-info entry contents (caller-supplied; clamped at `sheet+lore`). */
   readonly lore: string[] | null;
   /** The CAS hash of `card.avatarAssetId` (caller-resolved — this function is pure, no I/O; mirrors
-   *  `tags`/`lore`). Same always-present floor as `avatarAssetId` (never clamped by `visibility`). */
+   *  `tags`/`lore`). Same always-present floor as `name` (never clamped by `visibility`). */
   readonly avatarHash: string | null;
   readonly visibility: MemberCardVisibility;
 }): MemberCardView {
@@ -161,7 +161,6 @@ export function clampMemberCard(input: {
     characterId,
     visibility,
     name: card.name,
-    avatarAssetId: card.avatarAssetId,
     avatarHash,
     description: atSheet ? card.description : null,
     personality: atSheet ? card.personality : null,

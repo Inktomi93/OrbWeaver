@@ -3,7 +3,7 @@
 // rail's `useTrackOverflow` hook (which owns the ResizeObserver/scroll subscription) stays in the
 // component file and calls into this for the pure measurement.
 
-import { SCROLL_EDGE_EPSILON_PX } from "@orb/ui/scroll-area";
+import { SCROLL_EDGE_EPSILON_PX } from "@orb/ui/lib";
 
 export interface RailOverflow {
   readonly start: boolean;

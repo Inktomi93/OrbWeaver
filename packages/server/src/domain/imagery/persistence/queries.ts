@@ -82,10 +82,7 @@ interface ReuseLookupInput {
 export async function findReusableGeneration(db: Db, input: ReuseLookupInput): Promise<ReuseRow[]> {
   const rows = await db
     .select({
-      generationId: imageryGenerations.id,
       assetId: imageryGenerations.assetId,
-      prompt: imageryGenerations.prompt,
-      model: imageryGenerations.model,
       createdAt: imageryGenerations.createdAt,
       callId: imageryGenerations.callId,
     })
@@ -107,7 +104,7 @@ export async function findReusableGeneration(db: Db, input: ReuseLookupInput): P
   // Tied timestamps can belong to different calls; only historical rows lack a real call identity.
   return rows
     .filter((row) => (newest.callId === null ? row.callId === null && row.createdAt === newest.createdAt : row.callId === newest.callId))
-    .map((row) => ({ generationId: row.generationId, assetId: row.assetId, prompt: row.prompt, model: row.model }));
+    .map((row) => ({ assetId: row.assetId }));
 }
 
 /** Read one generated image's provenance by asset, owner-scoped through the `assets` join (doc 04 §3).
@@ -115,8 +112,6 @@ export async function findReusableGeneration(db: Db, input: ReuseLookupInput): P
 export async function readProvenanceByAsset(db: Db, ownerId: UserId, assetId: AssetId): Promise<GenerationProvenance | null> {
   const rows = await db
     .select({
-      generationId: imageryGenerations.id,
-      assetId: imageryGenerations.assetId,
       mode: imageryGenerations.mode,
       prompt: imageryGenerations.prompt,
       negativePrompt: imageryGenerations.negativePrompt,

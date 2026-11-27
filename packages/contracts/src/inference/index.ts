@@ -10,7 +10,6 @@ export * from "./catalog.ts";
 export * from "./connection.ts";
 export * from "./connection-ref.ts";
 export * from "./connection-view.ts";
-export * from "./deltas.ts";
 export * from "./embed-space-change-preview.ts";
 export * from "./evidence.ts";
 export * from "./features.ts";

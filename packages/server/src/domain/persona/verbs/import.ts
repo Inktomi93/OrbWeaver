@@ -8,10 +8,11 @@
 // picture assets, so a file can never point a persona at another account's blob. NEVER throws for a malformed file.
 
 import { narrowPersonaMetadata } from "@orb/contracts/persona";
+import { PERSONA_SCHEMA_KIND } from "@orb/contracts/portability";
 import { personas } from "@orb/db";
 import { nextFreeName } from "@orb/kit/strings";
 import { portableParseError } from "#primitives/serde/lib";
-import { findDuplicatePersona, PERSONA_SCHEMA_KIND, parsePersonaBackup, personaPlacementOf } from "#primitives/serde/persona";
+import { findDuplicatePersona, parsePersonaBackup, personaPlacementOf } from "#primitives/serde/persona";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { PersonaContext, PersonaService } from "../contract/service.ts";
 import { detailOf, findOwnedPictureAssetByHash, loadOwnedPersonaCandidates, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";

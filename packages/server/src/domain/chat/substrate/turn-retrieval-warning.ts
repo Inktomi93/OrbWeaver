@@ -27,14 +27,17 @@ function latch(): { readonly report: () => void; readonly take: TurnRetrievalWar
   };
 }
 
-/** Two INDEPENDENT latches, deliberately not one flag — a rerank outage means the turn retrieved and lost only
+/** Three INDEPENDENT latches, deliberately not one flag — a rerank outage means the turn retrieved and lost only
  *  the cross-encoder order, an unqueryable space means it retrieved nothing. One turn can hit both. */
 export function createTurnRetrievalWarningEpisode(): TurnRetrievalWarningEpisode {
   const rerank = latch();
+  const databankRerank = latch();
   const index = latch();
   return {
     reportRerankUnavailable: rerank.report,
     takeRerankUnavailable: rerank.take,
+    reportDatabankRerankUnavailable: databankRerank.report,
+    takeDatabankRerankUnavailable: databankRerank.take,
     reportIndexUnavailable: index.report,
     takeIndexUnavailable: index.take,
   };

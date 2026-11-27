@@ -1,11 +1,11 @@
 // @orb/contracts/chat/views — chat's service-built library, turn, preview and picks wire projections.
 
-import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterId, ChatInjectionId, MessageVariantId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { MacroSourceRef, UserMacroInputDef } from "@orb/kit/macro";
 import { MACRO_SOURCE_KINDS } from "@orb/kit/macro";
+import type { ParticipantRole } from "@orb/kit/message-author";
 import { z } from "zod";
-import type { ParticipantRole } from "#identity";
 import type { ChoiceBlockSpec, TemplateDefId, UserMacroValues } from "#preset";
 import { choiceBlockSchema, guidedActionKindSchema, promptConfigSchema, userMacroSchema, userMacroValuesSchema } from "#preset";
 import { proseSlotIdSchema } from "#prose-slot";
@@ -20,6 +20,8 @@ import { chatListCursorSchema } from "./listing.ts";
 import type { MessageView } from "./messages.ts";
 import { messageViewSchema } from "./messages.ts";
 import { participantRoleSchema } from "./roster.ts";
+import type { ChatRowFields } from "./row.ts";
+import { chatRowShape } from "./row.ts";
 
 /** ONE character seat's face on a chat-list row: the CAS portrait key plus the card name that backs
  *  its initials fallback and its accessible label (a stacked avatar needs both). `avatarHash` null = this
@@ -32,11 +34,8 @@ export interface ChatSeatPortrait {
 
 /** The library-list row (listChats) — light, membership-scoped (D18: a chat I host OR am a member of; there
  *  is no `ownerId`). `lastMessageAt`/`messageCount` drive the list ordering + the unread chrome. */
-interface ChatSummaryFields {
-  readonly id: ChatId;
-  readonly title: string | null;
+interface ChatSummaryFields extends ChatRowFields {
   readonly starred: boolean;
-  readonly archived: boolean;
   /** The timestamp of the newest message (null for an empty just-created chat). With `updatedAt` it IS the
    *  list's sort key — every surface renders `lastMessageAt ?? updatedAt` and `listChats` orders on exactly
    *  that expression in SQL, so the row on top is the room whose stamp is the freshest. */
@@ -148,7 +147,7 @@ interface ActionTemplatePreview {
 export interface ActionTemplatesPreview {
   /** WHAT `{{user}}`/`{{char}}` resolved TO in this chat — the readout's bound gloss names the resolution
    *  ("`{{user}}` resolves through the chat") instead of merely claiming one happened. */
-  readonly identity: { readonly user: string; readonly char: string };
+  readonly identity: { readonly user: string };
   readonly templates: readonly ActionTemplatePreview[];
 }
 
@@ -244,10 +243,8 @@ const chatSeatPortraitSchema = z.strictObject({
 }) satisfies z.ZodType<ChatSeatPortrait>;
 export const chatSummarySchema = z
   .strictObject({
-    id: typeIdSchema(ID_PREFIX.chat),
-    title: z.string().nullable(),
+    ...chatRowShape,
     starred: z.boolean(),
-    archived: z.boolean(),
     lastMessageAt: z.number().nullable(),
     viewerLastTurnAt: z.number().nullable(),
     messageCount: z.number(),
@@ -294,7 +291,7 @@ const templateDefIdSchema = z.union([
 ]) satisfies z.ZodType<TemplateDefId>;
 const actionTemplatePreviewSchema = z.strictObject({ id: templateDefIdSchema, resolved: z.string() }) satisfies z.ZodType<ActionTemplatePreview>;
 export const actionTemplatesPreviewSchema = z.strictObject({
-  identity: z.strictObject({ user: z.string(), char: z.string() }),
+  identity: z.strictObject({ user: z.string() }),
   templates: z.array(actionTemplatePreviewSchema).readonly(),
 }) satisfies z.ZodType<ActionTemplatesPreview>;
 export const chatInjectionViewSchema = chatInjectionSchema.extend({ id: typeIdSchema(ID_PREFIX.chatInjection) }) satisfies z.ZodType<ChatInjectionView>;

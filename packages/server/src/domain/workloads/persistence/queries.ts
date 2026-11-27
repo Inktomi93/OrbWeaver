@@ -20,6 +20,7 @@
 // only read by id, and is deleted once terminal: when the owner's next row of the kind ends, and at boot.
 
 import type {
+  ActiveWorkloadRow,
   CancelWorkloadResult,
   WorkloadError,
   WorkloadKind,
@@ -39,7 +40,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { ActiveWorkloadRow, WorkloadContributions } from "../contract/contribution.ts";
+import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { ListWorkloadsParams } from "../contract/params.ts";
 import type {
   AuthorizeWorkloadRead,
@@ -115,8 +116,6 @@ async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[], o
 const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly WorkloadStatus[];
 
 const QUEUE_SCAN_PAGE_SIZE = 10;
-// The internal-caller backstop; the shared ceiling `WORKLOAD_LIST_MAX_LIMIT` (`@orb/contracts/workloads`) is
-// also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
 type WorkloadInsert = Readonly<
   Pick<WorkloadSelectRow, "id" | "kind" | "mode" | "admissionKey" | "lane" | "transient" | "params" | "ownerId" | "funderUserId" | "scheduledAt" | "createdAt">
@@ -466,6 +465,7 @@ export async function listWorkloads(db: Db, reads: WorkloadReads, params: Worklo
   if (params.since !== undefined) {
     filters.push(gte(workloads.createdAt, params.since));
   }
+  // The internal-caller backstop: the router takes no limit, so this ceiling bounds only a service caller's own `limit`.
   const limit = Math.min(params.limit ?? WORKLOAD_LIST_MAX_LIMIT, WORKLOAD_LIST_MAX_LIMIT);
   const rows = await db
     .select(WORKLOAD_READ_COLUMNS)

@@ -46,13 +46,11 @@ export interface DataLayoutInput {
 export interface DataLayout {
   readonly root: string;
   readonly databaseUrl: string;
-  readonly dbDir: string;
   readonly backups: string;
   readonly assets: string;
   readonly users: string;
   readonly secrets: string;
   readonly reports: string;
-  readonly cache: string;
   readonly models: string;
   readonly variants: string;
   readonly importStaging: string;

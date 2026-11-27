@@ -1,7 +1,6 @@
 // Wire admin policy to session, producer and transport ops; the tool registry and export service are singletons.
 
 import type { DatabaseHandle } from "@orb/db/wiring";
-import type { IdSource } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { AdminCardEmbedDeps, AdminContext, AdminService, ServerRestartPort } from "#domain/admin";
 import { can, createAdminCardEmbed, createAdminService, createAdminSessionPort } from "#domain/admin";
@@ -12,7 +11,7 @@ import { createExportService } from "#domain/export";
 import type { SessionsService } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
-import type { AuditWiring, Logger } from "#foundation/observability";
+import type { AuditWiring } from "#foundation/observability";
 import type { PasswordHasher } from "#infra/auth";
 import type { LiveBuses } from "#transport/trpc";
 import type { SessionSocketEviction } from "../http/index.ts";
@@ -21,9 +20,6 @@ import type { SessionSocketEviction } from "../http/index.ts";
 export interface AdminComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
-  readonly idSource: IdSource;
-  /** The root's logger the export path's audit wiring binds. */
-  readonly logger: Logger;
   readonly db: DatabaseHandle;
   readonly now: Clock;
   readonly newUserId: AdminContext["newUserId"];

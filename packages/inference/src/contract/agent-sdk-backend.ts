@@ -15,7 +15,6 @@ import type {
   ProviderBackend,
   ProviderError,
   ProviderScrubSet,
-  SessionEntryWriter,
   SpawnIdentity,
   WireCaptureSink,
 } from "#contract";
@@ -127,8 +126,6 @@ export interface AgentSdkDeps {
   readonly now: Clock;
   readonly log: InferenceLog;
   readonly execution: AgentSdkExecution;
-  readonly sessionStore: SessionStore;
-  readonly sessionWriter?: SessionEntryWriter | undefined;
   /** The shared outbound-image seam (MA-10): a summarize item's images ride the SDK streaming-input prompt. */
   readonly normalizeImageBytes: NormalizeImageBytes;
   /** The TIMER seam every bound in this backend arms through — injected so a test trips a bound by hand. */

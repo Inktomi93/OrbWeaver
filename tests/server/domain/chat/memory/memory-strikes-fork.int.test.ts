@@ -200,7 +200,7 @@ test("at the default block size, a struck scene whose fork block is still open w
   const fork: ChatRoot = { ...w.h, owner: member, chatId: forked.chat.id };
   // The strike waits on the turn the fork copied, without the anchor that retells the turns below the floor.
   const waiting = await w.h.root.services.chat.memoryView({ principal: member, chatId: fork.chatId });
-  expect(waiting.unmatchedStrikes).toEqual([expect.objectContaining({ tier: 0, topicAnchor: null })]);
+  expect(waiting.unmatchedStrikes).toEqual([expect.objectContaining({ topicAnchor: null })]);
 
   // The member's lines close the fork's first block, fill a second around the duel scene, then age both out of the
   // verbatim window and the prompt's window.

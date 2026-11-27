@@ -16,7 +16,6 @@ type ChatReads = {
     | "getChat"
     | "getChatLineage"
     | "checkSendAvailability"
-    | "getNextTurnConnection"
     | "getMemberCard"
     | "listMessages"
     | "getMessageWindow"
@@ -55,7 +54,7 @@ type ChatUpdates = {
 };
 interface CorpusChatOutputs {
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
-  readonly unbound: Pick<ChatReads, "checkSendAvailability" | "getNextTurnConnection" | "previewContextFit">;
+  readonly unbound: Pick<ChatReads, "checkSendAvailability" | "previewContextFit">;
   readonly turn: Awaited<ReturnType<Caller["chat"]["send"]>>;
   readonly swiped: Awaited<ReturnType<Caller["chat"]["swipe"]>>;
   readonly edited: Awaited<ReturnType<Caller["chat"]["editMessage"]>>;
@@ -65,7 +64,7 @@ interface CorpusChatOutputs {
   readonly pages: readonly Awaited<ReturnType<Caller["chat"]["listChats"]>>[];
   readonly older: ChatReads["listMessages"];
   readonly deletedWindow: ChatReads["getMessageWindow"];
-  readonly member: Pick<ChatReads, "getChat" | "listMessages" | "getMessageWindow" | "getMemberCard" | "getNextTurnConnection">;
+  readonly member: Pick<ChatReads, "getChat" | "listMessages" | "getMessageWindow" | "getMemberCard">;
   readonly history: ChatReads["listMessages"];
   readonly invitation: {
     readonly created: Awaited<ReturnType<Caller["invites"]["createInvite"]>>;
@@ -91,7 +90,6 @@ export async function seedCorpusChatOutputs(root: ServerTestHarness): Promise<Co
   const scope = { chatId };
   const unbound = {
     checkSendAvailability: await caller.chat.checkSendAvailability(scope),
-    getNextTurnConnection: await caller.chat.getNextTurnConnection(scope),
     previewContextFit: await caller.chat.previewContextFit(scope),
   };
   const actors = await seedCorpusActors(root);
@@ -152,7 +150,6 @@ export async function seedCorpusChatOutputs(root: ServerTestHarness): Promise<Co
     listMessages: await member.chat.listMessages(scope),
     getMessageWindow: await member.chat.getMessageWindow({ ...scope, target, limit: 1 }),
     getMemberCard: await member.chat.getMemberCard({ ...scope, characterId: character.id, timeZone: UTC_TIME_ZONE }),
-    getNextTurnConnection: await member.chat.getNextTurnConnection(scope),
   };
   await caller.invites.setMemberHistoryVisibility({ ...scope, userId: actors.secondUserId, visibility: "from-join" });
   const history = await member.chat.listMessages(scope);
@@ -161,7 +158,6 @@ export async function seedCorpusChatOutputs(root: ServerTestHarness): Promise<Co
     getChat: await caller.chat.getChat(scope),
     getChatLineage: await caller.chat.getChatLineage(scope),
     checkSendAvailability: await caller.chat.checkSendAvailability(scope),
-    getNextTurnConnection: await caller.chat.getNextTurnConnection(scope),
     getMemberCard: await caller.chat.getMemberCard({ ...scope, characterId: character.id, timeZone: UTC_TIME_ZONE }),
     listMessages: await caller.chat.listMessages({ ...scope, limit: 1 }),
     getMessageWindow: await caller.chat.getMessageWindow({ ...scope, target, limit: 1 }),

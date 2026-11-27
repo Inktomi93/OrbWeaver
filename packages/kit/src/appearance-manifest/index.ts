@@ -29,7 +29,7 @@ export type AppearancePortalObligation = (typeof APPEARANCE_PORTAL_OBLIGATIONS)[
 
 /** The unit a consumer multiplies a numeric setting by; the property itself is a registered `<number>`, since a
  *  registered `em` length would resolve at the root instead of at the element that reads it. */
-const APPEARANCE_PROPERTY_UNITS = ["", "px", "em", "rem"] as const;
+const APPEARANCE_PROPERTY_UNITS = ["", "em"] as const;
 type AppearancePropertyUnit = (typeof APPEARANCE_PROPERTY_UNITS)[number];
 
 /** The OS media condition a `system | on | off` preference follows; its generated variant resolves the three in CSS. */
@@ -51,7 +51,7 @@ export const APPEARANCE_HISTORICAL_ROW_IDS = [
   "opposite-os-app-prepaint",
 ] as const;
 
-const APPEARANCE_CASCADE_SOURCES = ["client-global", "dynamic", "generated-theme", "inline", "owner-custom-css", "shell", "ui-global", "ui-tier"] as const;
+const APPEARANCE_CASCADE_SOURCES = ["client-global", "generated-theme", "inline", "owner-custom-css", "shell", "ui-global", "ui-tier"] as const;
 export type AppearanceExpectedCascadeSource = (typeof APPEARANCE_CASCADE_SOURCES)[number];
 
 // ---- Shapes ----

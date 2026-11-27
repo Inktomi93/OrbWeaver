@@ -8,8 +8,6 @@ import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export { IMAGERY_SCHEMA_KIND } from "@orb/contracts/portability";
-
 const IMAGERY_SCHEMA_VERSION = 1;
 
 function canonicalCall(call: PortableImageryCall): PortableImageryCall {

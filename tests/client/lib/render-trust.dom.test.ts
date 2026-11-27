@@ -85,7 +85,6 @@ function characterSeat(
     activePersonaId: null,
     talkativeness: TALKATIVENESS_DEFAULT,
     disabled: false,
-    joinedAt: 0,
     joinSeq: 1,
     leftSeq: null,
     joinHistoryVisibility: "full",

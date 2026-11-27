@@ -4,13 +4,14 @@
 // (docs/law/UI-Theming-and-Content.md §12.2), the join-history floor clamp, and the phase-independent
 // carried appearance both takeovers gate on. The LIFECYCLE logic is `domain/chat`; these are wire shapes.
 
-// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+// Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+import type { ParticipantKind, ParticipantRole } from "@orb/kit/message-author";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import { MS_PER_DAY } from "@orb/kit/time";
 import { z } from "zod";
-import type { AuthMode, ParticipantRole } from "#identity";
-import { PARTICIPANT_ROLES } from "#identity";
+import type { AuthMode } from "#identity";
 import { joinerPersonaSchema } from "#persona";
 import type { TagView } from "#tag";
 import { tagViewSchema } from "#tag";
@@ -18,12 +19,12 @@ import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
 import { memberCardVisibilitySchema } from "./metadata.ts";
-import type { ParticipantKind } from "./participants.ts";
 import { participantKindSchema } from "./participants.ts";
 
 /** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME: the tuple +
- *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
- *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema. */
+ *  `ParticipantRole` type are DEFINED in `@orb/kit/message-author` (a regex script scopes by them, and
+ *  `@orb/contracts/identity` encodes their meaning) — every consumer imports them from there (no second name,
+ *  no alias); this only derives the schema. */
 export const participantRoleSchema = z.enum(PARTICIPANT_ROLES) satisfies z.ZodType<ParticipantRole>;
 
 /** How much history a (re)joining member sees: `full` (the whole room canon — the COLUMN DEFAULT, owner
@@ -411,7 +412,6 @@ export interface ParticipantView {
   activePersonaId: PersonaId | null;
   talkativeness: number;
   disabled: boolean;
-  joinedAt: number;
   // @view-server-only: the D16 history-horizon + roster ORDER key, and the clamp resolver is the single
   // authority — the server returns seats already ordered by it, so a client read would be a second clamp
   // authority.
@@ -471,7 +471,6 @@ export const participantViewSchema = z.strictObject({
   activePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   talkativeness: z.number(),
   disabled: z.boolean(),
-  joinedAt: z.number(),
   joinSeq: z.number(),
   leftSeq: z.number().nullable(),
   joinHistoryVisibility: joinHistoryVisibilitySchema,
@@ -615,9 +614,8 @@ export interface MemberCardView {
   visibility: MemberCardVisibility;
   // ── name-avatar floor (always present) ───────────────────────────────────
   name: string;
-  avatarAssetId: AssetId | null;
-  /** The CAS hash of `avatarAssetId` — see {@link ParticipantView.avatarHash}. Same always-present floor
-   *  as `avatarAssetId` (never clamped by `visibility`). */
+  /** The CAS hash of the card's avatar — see {@link ParticipantView.avatarHash}. Same always-present floor
+   *  as `name` (never clamped by `visibility`). */
   avatarHash: string | null;
   // ── sheet (>= `sheet`) ───────────────────────────────────────────────────
   description: string | null;
@@ -794,7 +792,6 @@ export const acceptInviteSchema = z.strictObject({
  *  STRICT, and the `invites.previewInvite` output parser: the caller is not a member yet, so any extra key
  *  (a roster, an id list) fails the call instead of reaching them. */
 export const invitePreviewSchema = z.strictObject({
-  chatId: typeIdSchema(ID_PREFIX.chat),
   roomName: z.string(),
   hostHandle: brandedId("Handle"),
   memberCount: z.int().nonnegative(),
@@ -861,7 +858,6 @@ export type PendingJoinErrorCode = (typeof PENDING_JOIN_ERROR_CODES)[number];
  *  peppered `tokenHash` fails the call. */
 export const inviteViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.chatInvite),
-  chatId: typeIdSchema(ID_PREFIX.chat),
   status: inviteStatusSchema,
   maxUses: z.number().nullable(),
   remainingUses: z.number().nullable(),
@@ -891,7 +887,6 @@ export const memberCardViewSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   visibility: memberCardVisibilitySchema,
   name: z.string(),
-  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   avatarHash: z.string().nullable(),
   description: z.string().nullable(),
   personality: z.string().nullable(),

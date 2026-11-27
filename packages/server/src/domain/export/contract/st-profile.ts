@@ -47,15 +47,3 @@ export interface StProfileEntry extends StExportFile {
   readonly bytes: () => Promise<Uint8Array | null>;
   readonly written?: ((bytes: Uint8Array) => void) | undefined;
 }
-
-/** The zip writer's caps: the largest body one entry may hold, and the most entries one archive may hold. */
-export interface StZipLimits {
-  readonly maxEntryBytes: number;
-  readonly maxEntries: number;
-}
-
-/** One file of the zip: a profile entry's body, or the report. */
-export interface StProfileZipFile {
-  readonly path: string;
-  readonly bytes: Uint8Array;
-}

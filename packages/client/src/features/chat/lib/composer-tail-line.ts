@@ -6,19 +6,12 @@
 // `ParticipantView.disabled` is the seat mute and the roster read carries no account state. The only gap is a
 // disabled account the line still names, so it can over-name a member but never says ready while the server holds.
 
-import type { GroupConfig, ParticipantView } from "@orb/contracts/chat";
+import type { GroupConfig, ParticipantView, WaitCountRow } from "@orb/contracts/chat";
 import { humansYetToWrite } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
 import { COMPOSER_GENERATE_REPLY_NAME } from "./composer-menu-names.ts";
 import { NO_REPLY_YET_LEAD, REPLY_NOW_NAME, WAITING_VIEWER_WORD, waitingForLabel } from "./composer-tail-copy.ts";
 import { filterCharacters, resolveHumanParticipants, SHARED_ROOM_FLOOR } from "./roster.ts";
-
-/** One transcript row as the line reads it, oldest first. */
-interface TailRow {
-  readonly role: MessageRole;
-  readonly authorUserId: UserId | null;
-}
 
 /** The line's state: its words and the name of its reply action. A waiting room offers the release only once someone
  *  has written, because a release is a reply to a line. */
@@ -33,7 +26,7 @@ export function composerTailState(args: {
   readonly group: GroupConfig;
   readonly participants: readonly ParticipantView[];
   readonly viewerUserId: UserId;
-  readonly rows: readonly TailRow[];
+  readonly rows: readonly WaitCountRow[];
 }): ComposerTailState {
   const { group, participants, viewerUserId, rows } = args;
   if (!filterCharacters(participants).some((seat) => seat.leftSeq === null)) {

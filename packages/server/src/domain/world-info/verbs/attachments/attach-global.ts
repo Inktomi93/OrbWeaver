@@ -17,7 +17,7 @@ export function createAttachGlobal(ctx: WorldInfoContext): WorldInfoService["att
       throw new WorldInfoNotFoundError("world_book", bookId);
     }
     const at = ctx.now();
-    await ctx.db.insert(globalBooks).values({ worldBookId: bookId, createdAt: at }).onConflictDoNothing();
+    await ctx.db.insert(globalBooks).values({ worldBookId: bookId }).onConflictDoNothing();
     await ctx.audit(
       {
         actorUserId: ownerId,

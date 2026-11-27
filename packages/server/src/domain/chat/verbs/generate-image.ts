@@ -37,10 +37,9 @@ const GENERATED_IMAGE_ALT = "generated image";
  *  The subset is the plain codes only: a detail-bearing code's bus member requires its structured fields, which the
  *  imagery vocabulary has no notion of, so a bare `{ code }` emit below is only well-typed while the subset cannot
  *  contain one. */
-type ImageryChatWarningCode = PlainChatWarningCode;
-const IMAGERY_WARNING_CODES: readonly ImageryChatWarningCode[] = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"];
+const IMAGERY_WARNING_CODES: readonly PlainChatWarningCode[] = ["image_edit_dropped", "image_count_dropped", "image_size_dropped"];
 
-function toChatWarningCode(imageryCode: string): ImageryChatWarningCode | null {
+function toChatWarningCode(imageryCode: string): PlainChatWarningCode | null {
   return IMAGERY_WARNING_CODES.find((code) => code === imageryCode) ?? null;
 }
 

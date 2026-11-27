@@ -502,17 +502,19 @@ test("{{input}} reads the block text, as on an attachment send, and no placehold
 test("a world-info key never matches a picture placeholder", async () => {
   await using box = await openBox();
   const book = await box.root.services.worldInfo.createBook({ principal: box.host, input: createBookSchema.parse({ name: "Scan" }) });
-  await box.root.services.worldInfo.createEntry({
+  const scan = await box.root.services.worldInfo.createEntry({
     principal: box.host,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Scan", content: "SCAN-FIRED", keys: [PLACEHOLDER] }),
+    input: createEntrySchema.parse({ title: "Scan", content: "SCAN-FIRED" }),
   });
+  await box.root.services.worldInfo.updateEntry({ principal: box.host, entryId: scan.id, input: { keys: [PLACEHOLDER] } });
   // Control: an entry keyed on a word of the sent text fires on this same block send, so the scan reached it.
-  await box.root.services.worldInfo.createEntry({
+  const control = await box.root.services.worldInfo.createEntry({
     principal: box.host,
     bookId: book.id,
-    input: createEntrySchema.parse({ title: "Control", content: "CONTROL-FIRED", keys: BEFORE.split(" ", 1) }),
+    input: createEntrySchema.parse({ title: "Control", content: "CONTROL-FIRED" }),
   });
+  await box.root.services.worldInfo.updateEntry({ principal: box.host, entryId: control.id, input: { keys: BEFORE.split(" ", 1) } });
   await box.root.services.worldInfo.attachToChat({ principal: box.host, chatId: box.chatId, bookId: book.id });
 
   const body = await sendBlocks(box, mixedBlocks(await storePicture(box, box.host)));

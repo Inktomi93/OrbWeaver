@@ -22,7 +22,7 @@
 
 import type { DocumentDestination, DocumentScopeSource } from "@orb/contracts/databank";
 import type { Principal, ResolveUserEnabled } from "@orb/contracts/identity";
-import { isHostRole, PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import { isHostRole } from "@orb/contracts/identity";
 import type { ResolveActiveDocumentIdsOp } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
@@ -31,6 +31,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import { PARTICIPANT_ROLES } from "@orb/kit/message-author";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";

@@ -118,7 +118,7 @@ for (const regime of [
       const character = await caller.character.create({
         input: { handle: "filter-recovery-witness", name: MEMBER, description: "A keeper of copper observatory records." },
       });
-      const session = await caller.refinery.startSession({ characterId: character.id, name: MEMBER });
+      const session = await caller.refinery.startSession({ characterId: character.id });
       const calls = await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, PROCEDURES) });
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "docked", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
@@ -134,7 +134,9 @@ for (const regime of [
       await expect(list.getByRole("button", { name: character.name, exact: true })).toBeVisible();
       expect(await list.evaluate((node) => node.contains(document.activeElement) && document.activeElement !== document.body)).toBe(true);
       expect(calls.count("refinery.startSession")).toBe(0);
-      expect((await caller.refinery.getSession({ sessionId: session.id })).name).toBe(MEMBER);
+      // The corpus owner holds sessions of its own; the witness character's sessions are exactly the one this case started.
+      const sessions = await caller.refinery.listSessions();
+      expect(sessions.filter((row) => row.characterId === character.id).map((row) => row.id)).toEqual([session.id]);
       await page.screenshot({ path: test.info().outputPath("refinery-search-recovery.png") });
     });
 

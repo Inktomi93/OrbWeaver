@@ -171,7 +171,6 @@ function resultOf(judged: readonly Judged<BulkImportPersonaInput>[]): BulkImport
   return {
     personasCreated: judged.filter(({ minted }) => minted !== null).length,
     personasSkipped: judged.filter(({ reused }) => reused?.kind === "skipped").length,
-    personasMerged: mergedKeys.size,
     mergedKeys: [...mergedKeys],
     defaultPersonaId,
     idByName,

@@ -54,11 +54,9 @@ test("chat publication, posture, window and recall retain their existing discrim
   type Summary = Pick<ChatSummary, Exclude<keyof ChatSummary, "isGame" | "gamePaused">>;
   expectTypeOf<Summary & { isGame: true; gamePaused: true }>().not.toExtend<ChatSummary>();
   expectTypeOf<Summary & { isGame: false; gamePaused: true }>().toExtend<ChatSummary>();
-  type Window = Pick<MessageWindow, Exclude<keyof MessageWindow, "outcome" | "anchorMessageId" | "anchorSeq" | "endSeq" | "endMessageId">>;
-  expectTypeOf<Window & { outcome: "resolved"; anchorMessageId: null; anchorSeq: null; endSeq: null; endMessageId: null }>().not.toExtend<MessageWindow>();
-  expectTypeOf<
-    Window & { outcome: "resolved"; anchorMessageId: MessageId; anchorSeq: number; endSeq: number; endMessageId: MessageId }
-  >().toExtend<MessageWindow>();
+  type Window = Pick<MessageWindow, Exclude<keyof MessageWindow, "outcome" | "anchorMessageId" | "anchorSeq" | "endSeq">>;
+  expectTypeOf<Window & { outcome: "resolved"; anchorMessageId: null; anchorSeq: null; endSeq: null }>().not.toExtend<MessageWindow>();
+  expectTypeOf<Window & { outcome: "resolved"; anchorMessageId: MessageId; anchorSeq: number; endSeq: number }>().toExtend<MessageWindow>();
   expectTypeOf<{ type: "memoryRecall"; chatId: ChatId; phase: "recalled"; count: null }>().not.toExtend<ChatBusEvent>();
   expectTypeOf<{ type: "memoryRecall"; chatId: ChatId; phase: "recalling"; count: number }>().not.toExtend<ChatBusEvent>();
 });

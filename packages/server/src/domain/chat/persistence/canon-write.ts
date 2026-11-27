@@ -15,7 +15,6 @@ import type {
   AssembledPrompt,
   MacroFreezeRecord,
   MessageAssetOrigin,
-  MessageKind,
   MessageView,
   RoomClaim,
   TokenProvenance,
@@ -31,7 +30,6 @@ import {
   VARIANT_METADATA_RATE_LIMIT_KEY,
   VARIANT_METADATA_REASONING_REDACTED_KEY,
 } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderGenerationId, ProviderId, ResponseCache, TokenDetails } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -41,6 +39,7 @@ import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import type { ReasoningContentPart } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { MessageKind, ParticipantRole } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";

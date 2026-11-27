@@ -1,7 +1,8 @@
-import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice, MessageKind } from "@orb/contracts/chat";
+import type { ChatBusEvent, MemoryBackfillResult, MemoryRecallSlice } from "@orb/contracts/chat";
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, ConsentingHostId, PersonaId, UserId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RecorderFilter } from "#foundation/observability";
 
@@ -126,13 +127,18 @@ export interface MemoryRecallInputs {
  *  memory file) only because `MemoryRecallInputs` above carries it and `contract/context.ts` imports THIS
  *  file — the arrow runs one way.
  *
- *  TWO INDEPENDENT CLASSES, deliberately not collapsed into one flag: a rerank outage means the turn DID
- *  retrieve and lost only the cross-encoder order (`memory_rerank_unavailable`), while an unqueryable space
+ *  INDEPENDENT CLASSES, deliberately not collapsed into one flag: a rerank outage means the turn DID
+ *  retrieve and lost only the cross-encoder order (`memory_rerank_unavailable` for recall,
+ *  `databank_rerank_unavailable` for the documents slot), while an unqueryable space
  *  means nothing was retrieved at all (`retrieval_index_unavailable`). Different sentences; one turn can hit
  *  both, and each latches independently. */
 export interface TurnRetrievalWarningEpisode {
   readonly reportRerankUnavailable: () => void;
   readonly takeRerankUnavailable: () => boolean;
+  /** The databank slot's reranker failed after its vector retrieval succeeded; its own class, because the user's
+   *  fix and the sentence differ from memory recall's. */
+  readonly reportDatabankRerankUnavailable: () => void;
+  readonly takeDatabankRerankUnavailable: TurnRetrievalWarningEpisode["takeRerankUnavailable"];
   /** The owner's vector space refused the query — mid-move, or no embed connection bound. */
   readonly reportIndexUnavailable: () => void;
   readonly takeIndexUnavailable: TurnRetrievalWarningEpisode["takeRerankUnavailable"];

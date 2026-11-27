@@ -12,7 +12,6 @@ import type { ChatDocumentVisibility } from "#databank";
 import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema, REWRITE_TOGGLE_IDS } from "#preset";
 import type { ChatRpgPointer } from "#rpg";
 import type { ThemeBackground } from "#theme";
-import { messageRoleSchema } from "./participants.ts";
 import type { RegexTierAllow } from "./regex-tiers.ts";
 
 // ── Room overrides (host-only; exactly three fields) ──
@@ -256,7 +255,7 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
 };
 
 /** One canon row as the wait count reads it. */
-interface WaitCountRow {
+export interface WaitCountRow {
   readonly role: MessageRole;
   readonly authorUserId: UserId | null;
 }
@@ -285,8 +284,8 @@ export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 
 // ── The guided-steer wire contract (the transport trust boundary for the composer wand) ──
 // The one-turn typed steer every generating chat verb accepts. DERIVED, never re-spelled: `action` from
-// `guidedActionKindSchema` (#preset), `person` from `GUIDED_IMPERSONATE_PERSONS` (#preset), the inject
-// placement role from `messageRoleSchema`. This schema IS the trust boundary: before it the six turn verbs
+// `guidedActionKindSchema` (#preset) and `person` from `GUIDED_IMPERSONATE_PERSONS` (#preset). This schema IS
+// the trust boundary: before it the six turn verbs
 // rode `z.any()` and a garbage `action` dereferenced `undefined.prompt`, so any authed participant could 500
 // the turn with a malformed body. The domain re-exports this exact `GuidedSteer` type
 // (`domain/chat/contract/params.ts`), so there is one shape and no drift to guard.
@@ -296,9 +295,6 @@ export const GUIDED_STEER_INPUT_MAX = OVERRIDE_FIELD_MAX;
 export const guidedSteerSchema = z.strictObject({
   action: guidedActionKindSchema,
   input: z.string().max(GUIDED_STEER_INPUT_MAX).optional(),
-  placement: z
-    .discriminatedUnion("kind", [z.strictObject({ kind: z.literal("system") }), z.strictObject({ kind: z.literal("inject"), role: messageRoleSchema })])
-    .optional(),
   /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
   person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
   /** A wand-fired one-shot GAME steer KIND (the Plot submenu + "Offer choices"). When

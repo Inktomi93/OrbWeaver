@@ -267,6 +267,7 @@ export type {
   OpeningPolicy,
   RoomOverrides,
   SmartPicker,
+  WaitCountRow,
 } from "./metadata.ts";
 export {
   DEFAULT_GROUP_CONFIG,
@@ -291,8 +292,8 @@ export {
   SMART_UTILITY_SWITCH_LABEL,
   storedGroupConfigSchema,
 } from "./metadata.ts";
-export type { NextTurnConnectionView, RoomSendAvailability, RoomUnavailableCause } from "./next-turn-connection.ts";
-export { nextTurnConnectionViewSchema, roomSendAvailabilitySchema } from "./next-turn-connection.ts";
+export type { RoomSendAvailability, RoomUnavailableCause } from "./next-turn-connection.ts";
+export { roomSendAvailabilitySchema } from "./next-turn-connection.ts";
 export type {
   CallerInChatOp,
   ChatLivePublish,
@@ -320,7 +321,7 @@ export type {
   UnregisterPromptTransformOp,
   ViewerVisibility,
 } from "./owner-ops.ts";
-export type { MessageKind, ParticipantKind, SpeakerRef } from "./participants.ts";
+export type { SpeakerRef } from "./participants.ts";
 // The narrator-voice predicate — the server's segment-anchor validation and the client picker must gate the
 // plain-label span grammar identically.
 export {
@@ -484,7 +485,6 @@ export type {
   ClaimChatOp,
   ForkGameArgs,
   ForkGameOp,
-  ForkGameResult,
   GameBirthCommittedOp,
   GatherTurnContextArgs,
   GatherTurnContextOp,

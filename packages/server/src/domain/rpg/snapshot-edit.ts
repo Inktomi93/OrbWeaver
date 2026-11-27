@@ -27,7 +27,7 @@
 //
 // WHICH LATER BEAT SUPERSEDES A TURN (the turn-kind rule, `OPENS_TAIL_SLOT`). A head past a turn's own beat is
 // either the story having moved on before the turn began, or a turn that arrived while it ran:
-//   • `send`, `generate`, `auto`, `force`, `opening` and `impersonate` open a NEW slot at the tail, so every
+//   • `send`, `generate`, `auto`, `force` and `impersonate` open a NEW slot at the tail, so every
 //     later beat arrived while they ran. Their state goes UNDER the later beat's change; what the later beat
 //     replaced is recorded on the turn's tool-call row, never dropped in silence.
 //   • `swipe` and `continue` target an EXISTING slot. They regenerate an older message, and stay silently
@@ -268,7 +268,6 @@ const OPENS_TAIL_SLOT: Readonly<Record<TurnKind, boolean>> = {
   generate: true,
   auto: true,
   force: true,
-  opening: true,
   impersonate: true,
   swipe: false,
   continue: false,

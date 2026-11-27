@@ -19,10 +19,11 @@
 // reader is not allowed to see is the same leak one seq lower. The floor arrives on the guard's resolved
 // membership (`requireParticipant` → `historyFloorSeq`), so the verb passes it and cannot forget it.
 
-import type { HistoryFloorSeq, MessageKind } from "@orb/contracts/chat";
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messageReactions, messages, messageVariants, personas } from "@orb/db";
 import type { ChatId, ChatParticipantId, MessageId, MessageReactionId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { MessageKind } from "@orb/kit/message-author";
 import { and, desc, eq, gte, inArray, isNull, max } from "drizzle-orm";
 import type { StoredSegmentAnchor } from "../contract/params.ts";
 

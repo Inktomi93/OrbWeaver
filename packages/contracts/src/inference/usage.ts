@@ -122,25 +122,16 @@ export type GenerationUsageLeg = z.infer<typeof generationUsageLegSchema>;
 /** Stored observation scope stays on its parent row, never on the copied accounting leg. */
 export const storedGenerationUsageLegSchema = generationUsageLegSchema.strip() satisfies z.ZodType<GenerationUsageLeg>;
 
-export interface GenerationUsageProjection {
-  readonly total: GenerationUsage;
-  /** Explicitly partial when a leg is unknown. Never persist this as the complete variant total. */
-  readonly knownSubtotal: GenerationUsage;
-}
-
-function countSum(rows: readonly GenerationUsage[], key: keyof TokenUsage, complete: boolean): number | null {
+function countSum(rows: readonly GenerationUsage[], key: keyof TokenUsage): number | null {
   let sum = 0;
   let known = false;
   for (const row of rows) {
     const value = row[key];
     if (value === null) {
-      if (complete) {
-        return null;
-      }
-    } else {
-      known = true;
-      sum += value;
+      return null;
     }
+    known = true;
+    sum += value;
   }
   return known ? sum : null;
 }
@@ -174,9 +165,9 @@ function incompatibleCostBases(rows: readonly (GenerationUsage | GenerationUsage
   return notional && metered;
 }
 
-function projectedCost(rows: readonly (GenerationUsage | GenerationUsageLeg)[], complete: boolean): CostUsage {
+function projectedCost(rows: readonly (GenerationUsage | GenerationUsageLeg)[]): CostUsage {
   const known = rows.filter((row): row is GenerationUsage & { costUsd: number } => row.costUsd !== null);
-  if (incompatibleCostBases(rows) || known.length === 0 || (complete && known.length !== rows.length)) {
+  if (incompatibleCostBases(rows) || known.length === 0 || known.length !== rows.length) {
     return { costUsd: null, costDetails: null, costProvenance: "unrecorded" };
   }
   const costUsd = known.reduce((sum, row) => sum + row.costUsd, 0);
@@ -225,25 +216,22 @@ function projectedDetails(rows: readonly GenerationUsage[]): TokenDetails | null
   return Object.keys(detail).length === 0 ? null : detail;
 }
 
-function projectedUsage(rows: readonly (GenerationUsage | GenerationUsageLeg)[], complete: boolean): GenerationUsage {
+/** An absent paid axis is unknown, not zero: one unknown leg makes that axis of the total unknown. */
+export function projectGenerationUsage(rows: readonly (GenerationUsage | GenerationUsageLeg)[]): GenerationUsage {
   const served = rows[0]?.servedModel ?? null;
   return {
-    tokensIn: countSum(rows, "tokensIn", complete),
-    tokensOut: countSum(rows, "tokensOut", complete),
-    cacheReadTokens: countSum(rows, "cacheReadTokens", complete),
-    cacheWriteTokens: countSum(rows, "cacheWriteTokens", complete),
-    reasoningTokens: countSum(rows, "reasoningTokens", complete),
+    tokensIn: countSum(rows, "tokensIn"),
+    tokensOut: countSum(rows, "tokensOut"),
+    cacheReadTokens: countSum(rows, "cacheReadTokens"),
+    cacheWriteTokens: countSum(rows, "cacheWriteTokens"),
+    reasoningTokens: countSum(rows, "reasoningTokens"),
     servedModel: served !== null && rows.every((row) => row.servedModel === served) ? served : null,
     tokenDetails: projectedDetails(rows),
-    ...projectedCost(rows, complete),
+    ...projectedCost(rows),
     ...(rows.length === 1 && rows[0]?.responseCache !== undefined ? { responseCache: rows[0].responseCache } : {}),
   };
 }
 
-/** An absent paid axis is unknown, not zero. Keep the known subtotal separately from the complete total. */
-export function projectGenerationUsage(rows: readonly (GenerationUsage | GenerationUsageLeg)[]): GenerationUsageProjection {
-  return { total: projectedUsage(rows, true), knownSubtotal: projectedUsage(rows, false) };
-}
 /** Image provenance already has a scalar cost. Rows written without a recorded source keep it unknown, never fabricated. */
 export const generationUsageDetailsSchema = generationUsageSchema.omit({ costUsd: true }).extend({
   cacheReadTokens: tokenUsageSchema.shape.cacheReadTokens.nullable(),

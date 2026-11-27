@@ -114,7 +114,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     hasPrimaryBook: createHasPrimaryBook({ db }),
     // re-link a portable card's carried attached-book references (owned-source gated); the
     // persistence-factory twin of the duplicate carry, db + clock only.
-    linkCarriedBooks: createLinkCarriedBooks({ db, now }),
+    linkCarriedBooks: createLinkCarriedBooks({ db }),
   };
 
   const bulkImportChats = createBulkImportChats({

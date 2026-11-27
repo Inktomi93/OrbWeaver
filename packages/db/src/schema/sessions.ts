@@ -5,9 +5,7 @@
 // zero SDK-frame state.
 //
 // The token is NEVER stored — only its peppered hash (`token_hash`); `hashToken` lives in
-// domain/sessions/tokens. The hash is the validate lookup key, so it is UNIQUE. `label` is reserved for
-// the future long-lived API-token surface that reuses this store (the committed
-// identity decision: "API tokens = a sessions verb").
+// domain/sessions/tokens. The hash is the validate lookup key, so it is UNIQUE.
 //
 // `oidc_transactions` is the db-backed PKCE/state KV (docs/law/Tier-3-Infra.md — db-backed, so it
 // is domain/sessions persistence, NOT sealed db-free infra/auth). Natural-key PK on `state` (the OAuth
@@ -65,10 +63,7 @@ export const sessions = sqliteTable(
     oidcIdTokenCiphertext: nulFreeText("oidc_id_token_ciphertext"),
     oidcIdTokenIv: nulFreeText("oidc_id_token_iv"),
     oidcIdTokenTag: nulFreeText("oidc_id_token_tag"),
-    // Reserved for the future API-token surface (same table, same revoke/list machinery).
-    label: nulFreeText("label"),
     createdAt: stampColumn("created_at"),
-    updatedAt: stampColumn("updated_at"),
   },
   (table) => [
     // Validate looks up by token hash — it MUST be unique (one session per minted token).
@@ -118,7 +113,6 @@ export const oidcPendingSignups = sqliteTable(
     idTokenCiphertext: nulFreeText("id_token_ciphertext"),
     idTokenIv: nulFreeText("id_token_iv"),
     idTokenTag: nulFreeText("id_token_tag"),
-    createdAt: integer("created_at").notNull(),
     expiresAt: integer("expires_at").notNull(),
   },
   (table) => [uniqueIndex("oidc_pending_signups_secret_hash_unique").on(table.secretHash), index("oidc_pending_signups_expires_idx").on(table.expiresAt)],

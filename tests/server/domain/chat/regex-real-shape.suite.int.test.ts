@@ -252,10 +252,10 @@ const LEGS = everyServerLeg([
       const book = await room.h.caller.worldInfo.createBook({ input: createBookSchema.parse({ name: "Lamps" }) });
       const entry = await room.h.caller.worldInfo.createEntry({
         bookId: book.id,
-        input: createEntrySchema.parse({ title: "Lamp", content: longText(salt), keys: ["lamp"] }),
+        input: createEntrySchema.parse({ title: "Lamp", content: longText(salt) }),
       });
       // The leg runs before the WI token budget; past the budget, so the entry reaches the prompt and shows what ran.
-      await room.h.caller.worldInfo.updateEntry({ entryId: entry.id, input: updateEntrySchema.parse({ ignoreBudget: true }) });
+      await room.h.caller.worldInfo.updateEntry({ entryId: entry.id, input: updateEntrySchema.parse({ keys: ["lamp"], ignoreBudget: true }) });
       await room.h.caller.worldInfo.attachToChat({ chatId: room.h.chatId, bookId: book.id });
       return room;
     },
