@@ -3,7 +3,7 @@
 // records name the sites and phases they measure.
 import type { ChildProcess } from "node:child_process";
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readSync, writeFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { deserialize, serialize } from "node:v8";
@@ -374,9 +374,82 @@ test("a run that throws still saves its heap profile", { timeout: 120_000 }, asy
   expect(existsSync(saved?.slice(SAVED_AT_FAILURE.length) ?? "")).toBe(true);
 });
 
+// The compiler's wire format: a three-element msgpack array of a message type, a method and a payload, both binary.
+const TUPLE = 0x93;
+const REQUEST = 1;
+const BIN8 = 0xc4;
+const BIN16 = 0xc5;
+const BIN32 = 0xc6;
+// The byte width of each binary marker's length.
+const BIN_WIDTH: Readonly<Record<number, number>> = { [BIN8]: 1, [BIN16]: 2, [BIN32]: 4 };
+const PROBE = Buffer.from("unwired.probe");
+const PROBE_REQUEST = Buffer.from([TUPLE, REQUEST, BIN8, PROBE.length, ...PROBE, BIN8, 0]);
+
+// A stream's underlying pipe handle, which carries its file descriptor.
+const hasPipeFd = (handle: unknown): handle is { readonly fd: number } =>
+  typeof handle === "object" && handle !== null && "fd" in handle && typeof handle.fd === "number";
+
+function pipeFd(stream: unknown): number {
+  const handle: unknown = typeof stream === "object" && stream !== null ? Reflect.get(stream, "_handle") : undefined;
+  if (!hasPipeFd(handle)) {
+    throw new Error("the compiler's stdio carries no pipe descriptor");
+  }
+  return handle.fd;
+}
+
+// Reads exactly `size` bytes, or null when the compiler's end of the pipe closed first.
+function take(fd: number, size: number): Buffer | null {
+  const bytes = Buffer.alloc(size);
+  for (let at = 0; at < size; ) {
+    const read = readSync(fd, bytes, at, size - at, null);
+    if (read === 0) {
+      return null;
+    }
+    at += read;
+  }
+  return bytes;
+}
+
+function takeBin(fd: number): Buffer | null {
+  const marker = take(fd, 1);
+  const width = marker === null ? undefined : BIN_WIDTH[marker[0] ?? 0];
+  const length = width === undefined ? null : take(fd, width);
+  return width === undefined || length === null ? null : take(fd, length.readUIntBE(0, width));
+}
+
+// Whether the compiler still answered one request of a method it does not know, which it refuses without state.
+function stillAnswers(compiler: ChildProcess): boolean {
+  try {
+    writeSync(pipeFd(compiler.stdin), PROBE_REQUEST);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "EPIPE") {
+      return false;
+    }
+    throw error;
+  }
+  const fd = pipeFd(compiler.stdout);
+  return take(fd, 2) !== null && takeBin(fd) !== null && takeBin(fd) !== null;
+}
+
+// Signals the compiler by pid, as an outside guard does: the handle's own kill marks the compiler closed by the run.
+function stop(compiler: ChildProcess, signal: NodeJS.Signals): void {
+  if (compiler.pid === undefined) {
+    return;
+  }
+  process.kill(compiler.pid, signal);
+  while (signal === "SIGTERM" && stillAnswers(compiler)) {
+    // An answered probe is a request the compiler read before its SIGTERM handler ran; the loop ends at its exit.
+  }
+}
+
 // The compiler's process dies after the trial's first group: the run's own error is a dead channel, and disposing the
 // world then fails on the same channel. That second failure is logged, never the thrown error. The compiler traps
 // SIGTERM and exits 0, as it does when an out-of-memory guard stops it, so its end names the outside stop.
+//
+// A trapped SIGTERM only marks the compiler stopping: it answers each request it reads until its signal handler has
+// run, then exits before reading the next, and it never exits while it waits for one. The run is synchronous and idle
+// inside its progress callback, so the case asks the compiler there until its end of the pipe closes, and the run's
+// next request always meets a dead channel.
 test.for([
   ["SIGKILL", "ended by signal SIGKILL"],
   ["SIGTERM", COMPILER_STOPPED_FROM_OUTSIDE],
@@ -412,10 +485,7 @@ test.for([
         if (!killed && line.startsWith("trial groups ")) {
           killed = true;
           for (const compiler of compilers) {
-            // By pid, as an outside guard signals it: the handle's own kill marks the compiler closed by the run.
-            if (compiler.pid !== undefined) {
-              process.kill(compiler.pid, signal);
-            }
+            stop(compiler, signal);
           }
         }
       }).then(
