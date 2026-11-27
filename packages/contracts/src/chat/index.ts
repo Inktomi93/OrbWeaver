@@ -11,7 +11,7 @@
 //   • D26: `messages` is a pure SLOT (no content/economics); all generation content lives on
 //     `message_variants`. `MessageView` is the slot joined with its selected variant.
 
-export type { AdjustedKnob } from "./adjusted-knobs.ts";
+export type { AdjustedKnob, BannedPhraseCause } from "./adjusted-knobs.ts";
 export { ADJUSTED_KNOBS } from "./adjusted-knobs.ts";
 export type {
   AssembleCharacter,

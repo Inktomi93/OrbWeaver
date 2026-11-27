@@ -136,3 +136,35 @@ test("a preset's stored sampler stays unsent and unannounced on a model without 
   ).toEqual([]);
   expect((await h.caller.preset.get({ id: preset.id })).config.params.topK).toBe(STORED_TOP_K);
 });
+
+// The room's bus carries the closed cause of a banned-phrase drop and never a phrase: the phrases are the host's own text.
+test("a banned phrase a row cannot check reaches the room with its cause and without the phrase", async () => {
+  const phrase = "her spine";
+  await using h = await coreHttpRoom([response]);
+  const connection = await h.root.services.connection.create({
+    principal: h.owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    // The row spells vLLM's phrase ban and names no tokenize endpoint, so no phrase can be checked.
+    declared: {
+      kind: "generation",
+      generation: { input: ["text"], context: { window: 32_000 }, sampling: { bannedStrings: true } },
+      features: { detectServer: false, bannedStrings: "vllm-bad-words" },
+    },
+  });
+  await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  using subscription = new DisposableStack();
+  const events = roomEvents(h, subscription);
+  expect((await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent: { bannedStrings: [phrase] } })).aborted).toBe(false);
+  const dropped = events.filter(
+    (event) =>
+      event.type === "warning" &&
+      event.code === SETTINGS_ADJUSTED_CODE &&
+      event.adjustment === WARNING_CODE.samplingKnobDropped &&
+      event.knob === "bannedStrings",
+  );
+  expect(dropped).toMatchObject([{ cause: "tokenizer" }]);
+  expect(JSON.stringify(dropped)).not.toContain(phrase);
+});

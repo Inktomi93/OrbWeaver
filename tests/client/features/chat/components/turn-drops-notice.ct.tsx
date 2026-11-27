@@ -26,8 +26,9 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { OPEN_CONNECTIONS_NAME } from "#client/features/chat/lib/send-failure-copy.ts";
 import { OPEN_PARAMS_NAME, warningNotice } from "#client/features/chat/lib/warning-notice.ts";
-import { PRESET_EDITOR_VIEW_LABELS } from "#client/features/preset/lib/preset-names.ts";
+import { PRESET_BANNED_PHRASE_NOUN, PRESET_EDITOR_VIEW_LABELS, sequenceAddName } from "#client/features/preset/lib/preset-names.ts";
 import { ALERTS_REGION_NAME, TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { TurnDropsRoomStory } from "./_turn-drops-notice-stories.tsx";
 import { findHostedRoom } from "./hosted-room.fixtures.ts";
@@ -50,6 +51,8 @@ const SOME_PHRASES: ChatWarning = {
   droppedCount: 2,
   sentCount: 1,
 };
+const SEQUENCE_PHRASES: ChatWarning = { ...SOME_PHRASES, cause: "sequence" };
+const TOKENIZER_PHRASES: ChatWarning = { ...SOME_PHRASES, cause: "tokenizer" };
 const ALL_PHRASES: ChatWarning = { code: SETTINGS_ADJUSTED_CODE, adjustment: WARNING_CODE.samplingKnobDropped, knob: "bannedStrings" };
 // A warning with its own notice: once it shows, every frame sent before it was handled.
 const SENTINEL: ChatWarning = { code: "provider_refused" };
@@ -255,4 +258,55 @@ test("a dropped setting's notice opens the host's default preset on Params, and 
   // The preset editor is open on its Params view, on the preset the host's turns run.
   await expect(page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByText(preset.name, { exact: false }).first()).toBeVisible();
+});
+
+test("a partial banned-phrase drop the server cannot ban as written opens Params on the Banned phrases knob, and one its tokenizer could not check offers the connection", async ({
+  corpus,
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  const host = await root.internalCallerFor(root.ownerId);
+  const chatId = await findHostedRoom(host);
+  const room = { root, chatId };
+  const preset = await host.preset.create({ name: "Phrase default", kind: "generation" });
+  await host.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: preset.id } });
+  // A vLLM server states the phrase ban, so the preset's Params draws the Banned phrases knob under it.
+  const server = await host.connection.create({
+    providerId: "vllm",
+    credentialId: null,
+    baseUrl: "http://127.0.0.1:8000/v1",
+    model: "phrase-model",
+    label: "Phrase box",
+  });
+  await host.connection.setBinding({ task: "chat", connectionId: server.id });
+  const phases: readonly (readonly StreamFrame[])[] = [
+    turnFrames(room, { model: OTHER_MODEL, warnings: [TOKENIZER_PHRASES], from: FIRST_SEQ }),
+    turnFrames(room, { model: MODEL, warnings: [SEQUENCE_PHRASES], from: FIRST_SEQ + 10 }),
+  ];
+  let phase = 0;
+  await serveRoom(page, { root, corpus, host, chatId });
+  const socket = await routeOrbSocket(page, {
+    awaitRooms: [{ channel: "chat", chatId }, { channel: "user" }],
+    dropConnectionCount: RECONNECTS_UNTIL_CLOSED,
+    frames: (): Promise<readonly StreamFrame[]> => Promise.resolve(phases[phase] ?? []),
+  });
+  await mount<typeof TurnDropsRoomStory>(STORY, { chatId });
+  await socket.served();
+
+  // A tokenizer that could not answer is the connection's to fix, so the door is the connection's and never the preset's.
+  const tokenizer = noticeToast(page, warningNotice(TOKENIZER_PHRASES));
+  await expect(tokenizer).toBeVisible();
+  await expect(tokenizer.getByRole("button", { name: OPEN_CONNECTIONS_NAME, exact: true })).toBeVisible();
+  await expect(tokenizer.getByRole("button", { name: OPEN_PARAMS_NAME, exact: true })).toHaveCount(0);
+  await tokenizer.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
+  await expect(tokenizer).toHaveCount(0);
+  phase += 1;
+
+  const sequence = noticeToast(page, warningNotice(SEQUENCE_PHRASES));
+  await expect(sequence).toBeVisible();
+  await sequence.getByRole("button", { name: OPEN_PARAMS_NAME, exact: true }).click();
+  await expect(page.getByRole("tab", { name: PRESET_EDITOR_VIEW_LABELS.params, exact: true })).toHaveAttribute("aria-selected", "true");
+  // The door lands on the knob that holds the phrases: its add box takes focus.
+  await expect(page.getByRole("textbox", { name: sequenceAddName(PRESET_BANNED_PHRASE_NOUN), exact: true })).toBeFocused();
 });

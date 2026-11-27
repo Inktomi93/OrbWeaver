@@ -61,11 +61,12 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useEffect } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { CONNECTIONS_LIST_ADDRESS } from "#lib";
 import type { ConnectionEditorFact } from "#state";
-import { openConfigTo, requestConnectionEditor } from "#state";
+import { clearPresetKnobRequest, openConfigTo, requestConnectionEditor, useRequestedPresetKnob } from "#state";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveKnobRow, EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { SENT_WINDOW_PROVENANCE } from "../lib/effective-knobs.ts";
@@ -112,6 +113,14 @@ export interface ParamsLimitsProps {
 }
 
 export function ParamsLimits({ form, capability, effective, chatConnectionId, chatWire }: ParamsLimitsProps): ReactElement {
+  // A door asked to land on a knob this connection's model does not state (D68 omits it), so no row will take the request.
+  const requestedKnob = useRequestedPresetKnob();
+  const dropped = capability !== undefined && requestedKnob !== null && !statesKnob(capability, requestedKnob);
+  useEffect(() => {
+    if (dropped) {
+      clearPresetKnobRequest();
+    }
+  }, [dropped]);
   return (
     <>
       {/* No capability ⇒ OUTPUT is absent with its two sibling clusters, under the deck's ONE gate note

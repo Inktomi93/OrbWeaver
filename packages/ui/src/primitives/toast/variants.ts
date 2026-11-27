@@ -78,9 +78,12 @@ export const toastVariants = tv({
     // one L-step off `bg-popover` (0.255 vs 0.245) for a measured 1.03:1 boundary with `border: 0`, so the
     // only actionable thing in the toast read as stray text. No border token fixes it — `--color-border` is
     // 8%-alpha white over the same fill (~1.1:1); the boundary has to come from the fill.
+    // STICKY to the viewport's bottom edge: a notice taller than the capped viewport (a long reason at an enlarged root on a
+    // phone) scrolls under it, so its one door is always in reach and never past the clip. It rests in place when the
+    // notice fits.
     action: `
-      mbs-field inline-flex items-center justify-center gap-field rounded-control bg-tone-solid px-block text-label leading-label font-medium whitespace-nowrap
-      text-tone-foreground
+      sticky inset-be-(--spacing-section) mbs-field inline-flex items-center justify-center gap-field rounded-control bg-tone-solid px-block text-label
+      leading-label font-medium whitespace-nowrap text-tone-foreground
       ${COLOR_MOTION} outline-none block-(--size-control-sm) inline-fit
       hover:bg-tone-solid-hover
       active:bg-tone-solid-active

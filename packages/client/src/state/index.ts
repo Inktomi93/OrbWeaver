@@ -332,6 +332,8 @@ export type { PluginPageKey } from "./plugin-page-selection-store.ts";
 export { pluginPageKey, pluginPageSectionSelection, selectPluginPageFromList, usePluginPageKey } from "./plugin-page-selection-store.ts";
 export { INSTALLED_PLUGINS_SUBCATEGORY_ID, installedPluginControlId, openInstalledPlugin } from "./plugin-settings-navigation.ts";
 export { setPresetEditorView, setPresetReadoutTarget, usePresetEditorView, usePresetReadoutTarget } from "./preset-editor-view-store.ts";
+export type { PresetKnobTarget } from "./preset-knob-request-store.ts";
+export { clearPresetKnobRequest, requestPresetKnob, useRequestedPresetKnob } from "./preset-knob-request-store.ts";
 export { setPresetSearchQuery, usePresetSearchQuery } from "./preset-search-store.ts";
 export {
   closePresetSectionDrill,

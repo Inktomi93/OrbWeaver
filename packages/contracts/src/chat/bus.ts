@@ -13,7 +13,7 @@ import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, Pers
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import { WARNING_CODE } from "../inference/warnings.ts";
-import type { AdjustedKnob } from "./adjusted-knobs.ts";
+import type { AdjustedKnob, BannedPhraseCause } from "./adjusted-knobs.ts";
 
 import type { ChatReasoningPart, MessageView, ReasoningPartMeta, ToolCallId } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
@@ -313,6 +313,8 @@ export interface ChatSettingsAdjustedWarning {
   /** A list setting that partly rode (`sampling_knob_dropped`): how many entries were dropped, and how many sent. */
   droppedCount?: number | undefined;
   sentCount?: number | undefined;
+  /** Why banned phrases did not ride, when the user can act on it: a closed union, never the phrases. */
+  cause?: BannedPhraseCause | undefined;
 }
 
 // The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members).
@@ -673,6 +675,8 @@ export type ChatBusEvent =
        *  are the host's preset text and this bus is the room's. */
       droppedCount?: number | undefined;
       sentCount?: number | undefined;
+      /** Why banned phrases did not ride, when the user can act on it: a closed union, never the phrases. */
+      cause?: BannedPhraseCause | undefined;
     }
   // Host-only (see {@link REGEX_SCRIPT_NOT_APPLIED_CODE}): ids and enum literals, no name and no pattern text.
   | { type: "warning"; chatId: ChatId; code: "regex_script_not_applied"; scriptId: RegexScriptId; cause: RegexNotAppliedCause; pass: RegexServerPass }

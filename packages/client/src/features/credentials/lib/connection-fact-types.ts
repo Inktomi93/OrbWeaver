@@ -1,8 +1,10 @@
 // Pure connection-editor fact grammar; pricing and capability row builders share one shape.
 
+import type { EndpointFeatures } from "@orb/contracts/inference";
+
 /**
  * The control an Override reveals for ONE fact. Six kinds cover every row in both blocks — which is WHY
- * both blocks are flattened to LEAVES.
+ * both blocks are flattened to LEAVES. A seventh, `switch`, takes the place of Override for a capability the user declares.
  *
  * STATED DEVIATION FROM THE MOCK (Board B): the drawing joins two composite quirks into one reading row
  * (`sleep endpoints: /is_sleeping · /wake_up`, `price: $x in · $y out`). A joined row reads fine and has no
@@ -15,8 +17,11 @@
 type FactEdit =
   | { readonly kind: "text" }
   /** `count` ⇒ a whole count above zero typed as people write it ("1,000,000", "128k"), read by `parseCount`. */
-  | { readonly kind: "number"; readonly min?: NumberBound; readonly max?: NumberBound; readonly count?: true }
+  | { readonly kind: "number"; readonly min?: NumberBound; readonly max?: NumberBound; readonly count?: true; readonly whole?: true; readonly positive?: true }
   | { readonly kind: "boolean"; readonly labels?: BooleanLabels }
+  /** A capability the user declares on or off: on writes `on` at the leaf, off removes the declaration. There is no
+   *  editor and no Reset, because the switch is its own undo. */
+  | { readonly kind: "switch"; readonly on: unknown; readonly labels: BooleanLabels }
   | { readonly kind: "list" }
   | { readonly kind: "enum"; readonly options: readonly string[] }
   | { readonly kind: "choice"; readonly choices: readonly FactChoice[] };
@@ -61,6 +66,8 @@ export interface FactRow {
   readonly edit: FactEdit;
   /** What the Override control opens seeded with — the resolved value in the control's own spelling. */
   readonly draft: string;
+  /** What the server must be for a yes to be true, and what a wrong yes costs, drawn under the row at all times. */
+  readonly needs?: string;
   /** Paths a write must set ALONGSIDE the leaf because their schema requires them: `rangeSchema` needs
    *  `min` beside `max`, so a bare `max` write would not parse. Empty on every row but that one. */
   readonly siblings: Readonly<Record<string, unknown>>;
@@ -76,4 +83,8 @@ export interface FactLeaf {
   readonly unset?: string;
   /** The flag (a dotted path from the same root) the fold sets when this value is a floor guess. */
   readonly estimatedBy?: string;
+  /** What the server must be for a yes to be true, and what a wrong yes costs, drawn under the row at all times. */
+  readonly needs?: string;
+  /** Present ⇒ an unset row shows only for a server whose folded quirks pass this; a stated value always shows. */
+  readonly offeredWhen?: (folded: EndpointFeatures) => boolean;
 }

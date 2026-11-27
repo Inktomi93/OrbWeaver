@@ -57,3 +57,32 @@ export function ToastTransitionStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+/** A notice whose reason outgrows the stack's capped height, with the one door it offers and a counter that shows the door was pressed. */
+export function ToastActionStory({ reason }: { readonly reason: string }): ReactElement {
+  const [presses, setPresses] = useState(0);
+  return (
+    <CtIsolation subject="Toast" isolates="Where a long notice keeps its action needs no application services.">
+      <ToastProvider>
+        <RaiseLongToast reason={reason} onPress={(): void => setPresses((count) => count + 1)} />
+        <Text as="p" voice="reading">
+          {`Door presses: ${String(presses)}`}
+        </Text>
+        <Toaster />
+      </ToastProvider>
+    </CtIsolation>
+  );
+}
+
+function RaiseLongToast({ reason, onPress }: { readonly reason: string; readonly onPress: () => void }): ReactElement {
+  const toasts = useToastManager();
+  return (
+    <Button
+      onClick={(): void => {
+        toasts.add({ title: "Banned phrases", description: reason, actionProps: { children: "Open Params", onClick: onPress } });
+      }}
+    >
+      Add long toast
+    </Button>
+  );
+}

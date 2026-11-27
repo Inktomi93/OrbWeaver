@@ -159,6 +159,11 @@ export const FACT_COUNT_HINT = "A number of tokens, like 128000, 128k or 1m. Wha
 /** A count fact's refusal for text that names no whole count above zero. */
 export const FACT_COUNT_INVALID = "Type a whole number above zero, like 128000, 128,000, 128k or 1m.";
 
+/** A plain number fact's refusals: text that is no number, a number that is no whole count, and one that is not above zero. */
+export const FACT_NUMBER_INVALID = "Type a number, like 8 or 0.5.";
+export const FACT_WHOLE_INVALID = "Type a whole number above zero, like 8.";
+export const FACT_POSITIVE_INVALID = "Type a number above zero, like 0.5.";
+
 /** A fact row's controls, named for the fact: the override door, the typed value, its save and its reset. */
 export function factOverrideName(fact: string): string {
   return `Override ${fact}`;

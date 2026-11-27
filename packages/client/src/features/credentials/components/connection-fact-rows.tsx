@@ -22,9 +22,10 @@ import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
+import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import type { KeyboardEvent, ReactElement, ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DestructiveAction } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
@@ -80,6 +81,16 @@ export function FactRowList({ rows, busy, onOverride, onReset, note, rowRef }: F
 
 function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonly row: FactRow } & Omit<FactRowListProps, "rows">): ReactElement {
   const [editing, setEditing] = useState(false);
+  const overrideButton = useRef<HTMLButtonElement>(null);
+  const leftByCancel = useRef(false);
+  const { edit } = row;
+  // Override is disabled while the editor is open, so focus returns to it only once the editor has closed.
+  useEffect(() => {
+    if (!editing && leftByCancel.current) {
+      leftByCancel.current = false;
+      overrideButton.current?.focus();
+    }
+  }, [editing]);
 
   return (
     // The row STACKS below the container's `lg` step (512px): the mono key takes its own line, the value and
@@ -106,7 +117,17 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
           <Text voice="gloss">{row.source}</Text>
         </Stack>
         <Row className="shrink-0" endBelow="cq-32" gap="field">
-          {row.overridden ? (
+          {edit.kind === "switch" ? (
+            // The switch is the whole control: on declares the capability, off removes the declaration, so it needs no editor and no Reset.
+            <Switch
+              aria-label={row.name}
+              checked={row.draft === "true"}
+              className="shrink-0"
+              disabled={busy}
+              onCheckedChange={(checked): void => (checked ? onOverride(row, edit.on) : onReset(row))}
+            />
+          ) : null}
+          {row.overridden && edit.kind !== "switch" ? (
             <DestructiveAction
               confirm={{ confirmLabel: FACT_RESET_VERB, description: "Your override is removed.", title: `Reset ${row.name}?` }}
               onConfirm={(): void => onReset(row)}
@@ -117,19 +138,30 @@ function FactRowView({ row, busy, onOverride, onReset, note, rowRef }: { readonl
               }
             />
           ) : null}
-          {row.overridden || row.setElsewhere === true ? null : (
-            <Button aria-label={factOverrideName(row.name)} disabled={busy} variant="ghost" onClick={(): void => setEditing(true)} size="sm">
+          {row.overridden || row.setElsewhere === true || edit.kind === "switch" ? null : (
+            <Button
+              aria-label={factOverrideName(row.name)}
+              disabled={busy || editing}
+              variant="ghost"
+              onClick={(): void => setEditing(true)}
+              ref={overrideButton}
+              size="sm"
+            >
               Override
             </Button>
           )}
         </Row>
       </Row>
+      {row.needs === undefined ? null : <Text voice="gloss">{row.needs}</Text>}
       {note?.content}
       {editing ? (
         <FactOverrideEditor
           row={row}
           busy={busy}
-          onCancel={(): void => setEditing(false)}
+          onCancel={(): void => {
+            leftByCancel.current = true;
+            setEditing(false);
+          }}
           onCommit={(value): void => {
             setEditing(false);
             onOverride(row, value);
@@ -154,9 +186,16 @@ function FactOverrideEditor({
 }): ReactElement {
   const [draft, setDraft] = useState(row.draft);
   const refusal = boundRefusal(row.edit, draft);
+  // Esc leaves the editor, unless it is the key that closes the open list of a select inside it.
+  const leaveOnEscape = (event: KeyboardEvent): void => {
+    if (event.key === "Escape" && !event.defaultPrevented) {
+      event.stopPropagation();
+      onCancel();
+    }
+  };
 
   return (
-    <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
+    <Row align="end" gap="field" onKeyDown={leaveOnEscape} stackBelow="cq-32" alignBelow="stretch-cq-32">
       <Stack minWidth="shrinks" grow="fill" gap="tight">
         <FactEditControl edit={row.edit} label={factYourValueName(row.name)} value={draft} onChange={setDraft} />
         {refusal === null ? (
