@@ -354,7 +354,7 @@ catalog:
   # The plugin's `@babel/core` peer, declared so pnpm never floats it onto the 8.x line that Stryker brings: under
   # Babel 8 the compiler skips every component with a destructured default parameter, silently.
   # tests/client/react-compiler-contract.test.ts compiles such a component through the installed pair.
-  "@babel/core": ^7.29.0
+  "@babel/core": ^8.0.7
   # --- client data/forms/state (primitives per UI-Primitives-and-Reuse.md §13.1; caret-adopted) ---
   "@tanstack/react-query": ^5.104.5
   "@tanstack/react-form": ^1.33.5
