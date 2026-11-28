@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-27
+updated: 2026-11-28
 priority: P2
 area: automation
+plan: unwired-code
 ---
 
 # Wire the five reserved chat automation triggers with cascade depth
